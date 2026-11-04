@@ -241,7 +241,7 @@ function FilesView({ wb }: { wb: Workbench }) {
           </li>
         ))}
       </ul>
-      <p className="wb-muted">This package lives in your browser until you snapshot it or save it as a case revision.</p>
+      <p className="wb-muted">This package lives in your browser until you snapshot it or save it as a problem version.</p>
     </>
   );
 }
@@ -261,7 +261,7 @@ export function CheckResult({ wb, plan, pricingHref }: CheckResultProps) {
   if (status === 'idle' && wb.diagnostics.length === 0) {
     return (
       <p className="wb-empty" role="note">
-        Nothing validated yet. Pick a case revision, drop a file or start from an example, or validate the package below as it is.
+        Nothing validated yet. Pick a problem version, drop a file or start from an example, or validate the package below as it is.
       </p>
     );
   }

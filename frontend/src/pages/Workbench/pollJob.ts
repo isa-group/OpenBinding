@@ -10,7 +10,7 @@ export const POLL_TIMEOUT_MS = 10 * 60 * 1000;
 /** The screen stopped waiting; the job may still finish on the server. */
 export class JobWaitTimeout extends Error {
   constructor(jobId: string, minutes: number) {
-    super(`The job is still not finished after ${minutes} minutes, so this screen stopped waiting. It keeps running on the server: open it from your jobs (${jobId}).`);
+    super(`The run is still not finished after ${minutes} minutes, so this screen stopped waiting. It keeps running on the server: open it from your runs (${jobId}).`);
     this.name = 'JobWaitTimeout';
   }
 }

@@ -17,9 +17,16 @@ const member: UserProfile = {
   plan: 'FREE', created_at: '2026-01-01T00:00:00Z',
 };
 
+const PUBLIC_LINKS = [
+  ['Home', '/'], ['Explore', '/explore'], ['Engines', '/engines'], ['Language', '/language'], ['Pricing', '/pricing'],
+  ['Verify', '/verify'], ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
+] as const;
+
 function renderHeader(path = '/') {
   return render(<MemoryRouter initialEntries={[path]}><Navigation /></MemoryRouter>);
 }
+
+const labelsOf = (links: HTMLElement[]) => links.map((link) => [link.textContent?.replace('↗', '').trim(), link.getAttribute('href')]);
 
 describe('Public header', () => {
   beforeEach(() => {
@@ -28,86 +35,77 @@ describe('Public header', () => {
     auth.isAdmin = false;
   });
 
-  it('links to the final public routes', () => {
+  // [utest->req~frontend-nav-public-navigation~1]
+  it('lists the nine links in order with their addresses', () => {
     renderHeader();
 
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
-    expect(within(nav).getByRole('link', { name: 'Explore' })).toHaveAttribute('href', '/explore');
-    expect(within(nav).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-    expect(within(nav).getByRole('link', { name: 'Pricing' })).toHaveAttribute('href', '/pricing');
-    expect(within(nav).getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about');
-    expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login');
-    expect(screen.getByRole('link', { name: 'Sign up' })).toHaveAttribute('href', '/register');
+    const actions = [screen.getByRole('link', { name: 'Log in' }), screen.getByRole('link', { name: 'Sign up' })];
+    expect(labelsOf([...within(nav).getAllByRole('link'), ...actions])).toEqual(PUBLIC_LINKS.map(([name, href]) => [name, href]));
     expect(screen.getByRole('link', { name: /OpenBinding home/i })).toHaveAttribute('href', '/');
   });
 
-  it('opens the Language menu with its four destinations', () => {
+  // [utest->req~frontend-nav-public-navigation~1]
+  it('has no menu and none of the links of the former header', () => {
     renderHeader();
 
-    const toggle = screen.getByRole('button', { name: /Language/ });
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('link', { name: /^Workbench/ })).not.toBeInTheDocument();
-
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('link', { name: /^Profiles & dialects/ })).toHaveAttribute('href', '/language');
-    expect(screen.getByRole('link', { name: /^Schemas/ })).toHaveAttribute('href', '/language/schemas/application');
-    expect(screen.getByRole('link', { name: /^Examples/ })).toHaveAttribute('href', '/examples');
-    expect(screen.getByRole('link', { name: /^Workbench/ })).toHaveAttribute('href', '/workbench');
+    expect(screen.queryAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual(['Open menu']);
+    for (const name of ['Profiles & dialects', 'Schemas', 'Examples', 'Workbench']) {
+      expect(screen.queryByRole('link', { name })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
   });
 
-  it('closes the Language menu with Escape and returns focus to its button', () => {
-    renderHeader();
+  // [utest->req~frontend-nav-public-navigation~1]
+  it('marks the current page with aria-current', () => {
+    renderHeader('/pricing');
 
-    const toggle = screen.getByRole('button', { name: /Language/ });
-    fireEvent.click(toggle);
-    fireEvent.keyDown(screen.getByRole('link', { name: /^Examples/ }), { key: 'Escape' });
+    expect(screen.getByRole('link', { name: 'Pricing' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Explore' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+  });
 
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(toggle).toHaveFocus();
+  // [utest->req~frontend-nav-public-navigation~1]
+  it('marks Home only at the root and Language under the language hub', () => {
+    const { unmount } = renderHeader('/');
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
+    unmount();
+
+    renderHeader('/language/schemas/application');
+    expect(screen.getByRole('link', { name: 'Language' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+  });
+
+  // [utest->req~frontend-nav-public-navigation~1]
+  it('leaves aria-current on /explore/examples to the page and keeps the active style of Explore', () => {
+    renderHeader('/explore/examples');
+
+    const explore = screen.getByRole('link', { name: 'Explore' });
+    expect(explore).not.toHaveAttribute('aria-current');
+    expect(explore).toHaveClass('is-active');
+  });
+
+  it('keeps aria-current on Explore elsewhere under /explore', () => {
+    renderHeader('/explore/engines');
+
+    expect(screen.getByRole('link', { name: 'Explore' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('closes open menus when pressing outside the header', () => {
+    auth.user = member;
     renderHeader();
 
-    const toggle = screen.getByRole('button', { name: /Language/ });
+    const toggle = screen.getByRole('button', { name: 'Account menu' });
     fireEvent.click(toggle);
-    fireEvent.pointerDown(screen.getByRole('link', { name: /^Examples/ }));
+    fireEvent.pointerDown(screen.getByRole('link', { name: 'Workspace' }));
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
     fireEvent.pointerDown(document.body);
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('closes the Language menu when navigating', () => {
-    renderHeader();
-
-    const toggle = screen.getByRole('button', { name: /Language/ });
-    fireEvent.click(toggle);
-    fireEvent.click(screen.getByRole('link', { name: /^Examples/ }));
-
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('link', { name: /^Examples/ })).not.toBeInTheDocument();
-  });
-
-  it('marks the current page with aria-current', () => {
-    renderHeader('/pricing');
-
-    expect(screen.getByRole('link', { name: 'Pricing' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Explore' })).not.toHaveAttribute('aria-current');
-  });
-
-  it('marks the Language entry and the current schema page', () => {
-    renderHeader('/language/schemas/application');
-
-    const toggle = screen.getByRole('button', { name: /Language/ });
-    expect(toggle).toHaveClass('is-active');
-    fireEvent.click(toggle);
-    expect(screen.getByRole('link', { name: /^Schemas/ })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: /^Profiles & dialects/ })).not.toHaveAttribute('aria-current');
-  });
-
-  it('exposes the complete journey in the mobile menu and closes it after navigating', () => {
+  // [utest->req~frontend-nav-public-navigation~1]
+  it('lists the same nine links in the phone menu and closes it after navigating', () => {
     renderHeader();
 
     const toggle = screen.getByRole('button', { name: 'Open menu' });
@@ -117,16 +115,20 @@ describe('Public header', () => {
     fireEvent.click(toggle);
     const mobile = screen.getByRole('navigation', { name: 'Mobile navigation' });
     expect(screen.getByRole('button', { name: 'Close menu' })).toHaveAttribute('aria-expanded', 'true');
-    for (const [name, href] of [
-      ['Explore', '/explore'], ['Engines', '/engines'], ['Profiles & dialects', '/language'],
-      ['Schemas', '/language/schemas/application'], ['Examples', '/examples'], ['Workbench', '/workbench'],
-      ['Pricing', '/pricing'], ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
-    ] as const) {
-      expect(within(mobile).getByRole('link', { name })).toHaveAttribute('href', href);
-    }
+    expect(labelsOf(within(mobile).getAllByRole('link'))).toEqual(PUBLIC_LINKS.map(([name, href]) => [name, href]));
 
     fireEvent.click(within(mobile).getByRole('link', { name: 'Pricing' }));
     expect(screen.queryByRole('navigation', { name: 'Mobile navigation' })).not.toBeInTheDocument();
+  });
+
+  it('closes the phone menu with Escape and returns focus to its button', () => {
+    renderHeader();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+    fireEvent.keyDown(within(screen.getByRole('navigation', { name: 'Mobile navigation' })).getByRole('link', { name: 'About' }), { key: 'Escape' });
+
+    expect(screen.queryByRole('navigation', { name: 'Mobile navigation' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open menu' })).toHaveFocus();
   });
 
   it('shows the workspace entry points and account menu for signed-in users', () => {

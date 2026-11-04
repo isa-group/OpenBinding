@@ -6,6 +6,7 @@ import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
+import { problemsPath } from '../../routes/paths/problems';
 import { formatByteSize } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { newestFirst } from '../Cases/casesModel';
@@ -66,7 +67,7 @@ function WorkbenchScreen({ organization, project, canSave }: { organization: Org
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>Workbench</h1>
-          <p>Check a package, see which engines can run it, then snapshot, run or save it as a case revision.</p>
+          <p>Check a package, see which engines can run it, then snapshot, run or save it as a problem version.</p>
         </div>
         <div className="proj-actions">
           <Action to="/app/generator" variant="secondary">Generate a synthetic instance</Action>
@@ -80,7 +81,7 @@ function WorkbenchScreen({ organization, project, canSave }: { organization: Org
           maxBytes={upload.plan}
           maxLabel={plan.maxLabel}
           planName={planName}
-          casesHref={`${root}/cases`}
+          casesHref={problemsPath(root)}
           choices={{
             cases: caseList,
             state: cases.status === 'ready' ? 'ready' : cases.status === 'error' ? 'failed' : 'loading',
@@ -96,7 +97,7 @@ function WorkbenchScreen({ organization, project, canSave }: { organization: Org
         {wb.loadIssue ? (
           <Notice
             tone="error"
-            title="The case revision couldn’t be loaded"
+            title="The problem version couldn’t be loaded"
             action={<Action variant="secondary" size="sm" onClick={wb.retryLoad}>Try again</Action>}
           >
             {loadRefusalText(wb.loadIssue)}
@@ -110,7 +111,7 @@ function WorkbenchScreen({ organization, project, canSave }: { organization: Org
           <>
             <CheckResult wb={wb} plan={plan} pricingHref="/pricing" />
             <PackageEditor wb={wb} />
-            <RunPanel wb={wb} orgSlug={organization.slug} jobsHref={`${root}/jobs`} />
+            <RunPanel wb={wb} orgSlug={organization.slug} jobsHref={`${root}/runs`} />
             <ActionBar
               wb={wb}
               canSave={canSave}
@@ -128,7 +129,7 @@ function WorkbenchScreen({ organization, project, canSave }: { organization: Org
   );
 }
 
-/** The workbench (`wb-workbench`, `/app/:org/:project/workbench`): check a package, see which engines can run it, then snapshot, run or save it as a case revision. */
+/** The workbench (`wb-workbench`, `/app/:org/:project/workbench`): check a package, see which engines can run it, then snapshot, run or save it as a problem version. */
 export function Workbench() {
   const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
   if (waiting) return <ProjectSkeleton />;

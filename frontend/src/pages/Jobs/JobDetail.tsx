@@ -54,7 +54,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
 
   const meta: Job | null = inProject.data ?? own.data?.find((row) => row.id === jobId) ?? null;
   const failure = live.phase === 'error' ? classifyAuthError(live.error) : null;
-  const trail = [{ label: 'Jobs', to: `${root}/jobs` }, { label: `Job ${shortJobId(jobId)}` }];
+  const trail = [{ label: 'Runs', to: `${root}/runs` }, { label: `Run ${shortJobId(jobId)}` }];
 
   if (live.phase === 'loading') {
     return (
@@ -72,17 +72,17 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
     return (
       <JobFrame organization={organization} project={project} trail={trail}>
         {failure?.status === 403 && (
-          <Notice tone="warning">This API key can’t read jobs or doesn’t include this engine{marker(failure)}. Engines outside a key’s list answer as if they didn’t exist.</Notice>
+          <Notice tone="warning">This API key can’t read runs or doesn’t include this engine{marker(failure)}. Engines outside a key’s list answer as if they didn’t exist.</Notice>
         )}
-        {failure?.status === 401 && <Notice tone="warning">Your session ended{marker(failure)}. Log in again to see this job.</Notice>}
+        {failure?.status === 401 && <Notice tone="warning">Your session ended{marker(failure)}. Log in again to see this run.</Notice>}
         {(!failure || failure.kind === 'not-found') && (
-          <JobMissing title="Job not found" actions={<Action to={`${root}/jobs`} variant="primary">All jobs</Action>}>
-            Jobs open only for whoever launched them. Everyone else, including platform administrators, gets this same answer.
+          <JobMissing title="Run not found" actions={<Action to={`${root}/runs`} variant="primary">All runs</Action>}>
+            Runs open only for whoever launched them. Everyone else, including platform administrators, gets this same answer.
           </JobMissing>
         )}
         {failure && failure.status !== 403 && failure.status !== 401 && failure.kind !== 'not-found' && (
           <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={live.refresh}>Try again</Action>}>
-            The job couldn’t be loaded{marker(failure)}. A service OpenBinding depends on didn’t answer; this says nothing about your access.
+            The run couldn’t be loaded{marker(failure)}. A service OpenBinding depends on didn’t answer; this says nothing about your access.
           </Notice>
         )}
       </JobFrame>
@@ -92,13 +92,13 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
   const state = normalizeStatus(detail.status);
   const rangeFailure = rangeFailureOf(detail);
   const pins = readPins(detail.provenance);
-  const engineName = meta?.engine_id ?? pins.engine?.name ?? 'Job';
+  const engineName = meta?.engine_id ?? pins.engine?.name ?? 'Run';
   const engineVersion = pins.engine?.version ? ` ${pins.engine.version}` : '';
   const created = meta?.created_at ?? null;
   const finished = meta?.finished_at ?? null;
   const cancelRequested = asked || Boolean(meta?.cancellation_requested);
   const siblings = (own.data ?? []).filter((row) => row.id !== jobId).slice(0, 25);
-  const caseLine = origin.data ? `case ${origin.data.caseName}` : instance.data ? 'uploaded package' : null;
+  const caseLine = origin.data ? `problem ${origin.data.caseName}` : instance.data ? 'uploaded package' : null;
 
   const cancel = async () => {
     setBusy('cancel');
@@ -122,7 +122,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
     setOutcome(null);
     try {
       const made = await jobsApi.retry(jobId);
-      setOutcome({ tone: 'success', text: 'Retry queued as a new attempt.', follow: `${root}/jobs/${made.id}` });
+      setOutcome({ tone: 'success', text: 'Retry queued as a new attempt.', follow: `${root}/runs/${made.id}` });
     } catch (caught) {
       setOutcome({ tone: 'error', refusal: refusalOf(caught, 'retry') });
     } finally {
@@ -158,7 +158,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
           {siblings.length > 0 && (
             <label className="job-select">
               <span>Another of your runs</span>
-              <select aria-label="Another of your runs" value={jobId} onChange={(event) => navigate(`${root}/jobs/${event.target.value}`, { viewTransition: true })}>
+              <select aria-label="Another of your runs" value={jobId} onChange={(event) => navigate(`${root}/runs/${event.target.value}`, { viewTransition: true })}>
                 <option value={jobId}>This run</option>
                 {siblings.map((row) => <option key={row.id} value={row.id}>{row.engine_id} · {formatDateTime(row.created_at) ?? row.id.slice(0, 8)}</option>)}
               </select>
@@ -169,10 +169,10 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
         <div className="proj-actions">
           {isActive(state) && !cancelRequested && <Action variant="danger-outline" busy={busy === 'cancel'} onClick={() => void cancel()}>Cancel run</Action>}
           {canRetryState(state) && <Action variant="primary" busy={busy === 'retry'} onClick={() => void retry()}>Retry</Action>}
-          <Action variant="secondary" onClick={() => void copy(`job ${jobId}`, 'ref')}>
+          <Action variant="secondary" onClick={() => void copy(`run ${jobId}`, 'ref')}>
             {status('ref') === 'copied' ? 'Copied' : status('ref') === 'failed' ? 'Copy failed' : 'Copy reference'}
           </Action>
-          <Action variant="ghost" onClick={() => void copy(`${window.location.origin}${root}/jobs/${jobId}`, 'link')}>
+          <Action variant="ghost" onClick={() => void copy(`${window.location.origin}${root}/runs/${jobId}`, 'link')}>
             {status('link') === 'copied' ? 'Link copied' : status('link') === 'failed' ? 'Copy failed' : 'Copy link'}
           </Action>
         </div>
@@ -214,7 +214,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
   );
 }
 
-/** One run (`job-detail`, `/app/:org/:project/jobs/:job`): live state, the authoritative result, the settings and what it ran on. */
+/** One run (`job-detail`, `/app/:org/:project/runs/:job`): live state, the authoritative result, the settings and what it ran on. */
 export function JobDetail() {
   const { job: jobId = '' } = useParams();
   const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();

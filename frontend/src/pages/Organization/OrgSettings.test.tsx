@@ -17,7 +17,7 @@ const consultora = org('consultora-demo', { name: 'Consultora Demo', effective_r
 const readOnly = org('read-only', { name: 'Read Only Lab', effective_role: 'MEMBER' });
 
 function renderSettings(organizations = [group, lab, consultora, readOnly], slug = 'isa-demo') {
-  return renderScreen(<OrgSettings />, { path: '/app/:org/settings', url: `/app/${slug}/settings`, organizations });
+  return renderScreen(<OrgSettings />, { path: '/app/:org/settings/:section?', url: `/app/${slug}/settings`, organizations });
 }
 
 const refusal = (status: number, code: string, problem?: unknown) => Object.assign(new HttpError(status, 'refused'), { code, problem });
@@ -39,8 +39,8 @@ describe('Organization settings', () => {
     expect(screen.getByText(/ISA Demo Group · your role/)).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Organization settings' });
     expect(within(nav).getByRole('link', { name: 'General' })).toHaveAttribute('aria-current', 'page');
-    expect(within(nav).getByRole('link', { name: 'Members & invitations' })).toHaveAttribute('href', '/app/isa-demo/settings/members');
-    expect(within(nav).getByRole('link', { name: 'Audit log' })).toHaveAttribute('href', '/app/isa-demo/settings/audit');
+    expect(within(nav).getByRole('link', { name: 'Members' })).toHaveAttribute('href', '/app/isa-demo/settings/members');
+    expect(within(nav).getByRole('link', { name: 'Audit' })).toHaveAttribute('href', '/app/isa-demo/settings/audit');
     expect(screen.getByText('/app/isa-demo')).toBeInTheDocument();
     expect(screen.getByText('Current sponsor · RESEARCH plan')).toBeInTheDocument();
   });
@@ -154,7 +154,7 @@ describe('Organization settings', () => {
 
     it('does not offer other accounts to an administrator either', async () => {
       api.adminListUsers.mockResolvedValue({ users: [{ id: 'user-pilar', username: 'pilar', plan: 'PRO' }] });
-      renderScreen(<OrgSettings />, { path: '/app/:org/settings', url: '/app/isa-demo/settings', organizations: [sponsoredByNora], user: iker });
+      renderScreen(<OrgSettings />, { path: '/app/:org/settings/:section?', url: '/app/isa-demo/settings', organizations: [sponsoredByNora], user: iker });
 
       await screen.findByRole('button', { name: 'Make me the sponsor' });
       expect(screen.queryByText(/pilar/)).not.toBeInTheDocument();

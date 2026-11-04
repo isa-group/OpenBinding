@@ -6,6 +6,7 @@ import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { problemPath, problemsPath } from '../../routes/paths/problems';
 import { shortDigest } from '../../utils/digest';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
@@ -16,6 +17,7 @@ import type { CaseContent } from '../Project/projectModel';
 import { useRouteProject } from '../Project/useRouteProject';
 import { classifyAuthError, marker } from './caseErrors';
 import { caseSortKey, newestFirst, plural } from './casesModel';
+import { useCreateDialog } from './createDialog';
 import { DeleteCaseDialog, NewCaseDialog } from './dialogs';
 import { CaseFrame, ReadOnlyNote } from './parts';
 
@@ -28,22 +30,22 @@ function CaseRow({ root, entry, canCreate, canAdminister, publicRead, onDelete }
   const latest = revisions[0];
   return (
     <li className="case-row">
-      <Link className="case-row-main" to={`${root}/cases/${item.slug}`} viewTransition>
+      <Link className="case-row-main" to={problemPath(root, item.slug)} viewTransition>
         <span className="case-row-title">
           <strong>{item.name}</strong>
-          <Chip tone={latest ? 'success' : 'plain'}>{latest ? 'Ready to run' : 'No revision yet'}</Chip>
+          <Chip tone={latest ? 'success' : 'plain'}>{latest ? 'Ready to run' : 'No version yet'}</Chip>
         </span>
         <span className="case-row-desc">{item.description || 'No description.'}</span>
         <span className="case-row-meta">
-          <span>{plural(revisions.length, 'revision')}</span>
+          <span>{plural(revisions.length, 'version')}</span>
           <span aria-hidden="true">·</span>
-          <span>{latest ? `latest r${latest.revision} · ${formatDate(latest.created_at) ?? '—'}` : 'latest none yet'}</span>
+          <span>{latest ? `latest v${latest.revision} · ${formatDate(latest.created_at) ?? '—'}` : 'latest none yet'}</span>
           {latest && <><span aria-hidden="true">·</span><code>{shortDigest(latest.digest)}</code></>}
         </span>
       </Link>
       <span className="case-row-actions">
-        {latest && !publicRead && <Action to={`${root}/jobs/new?case=${encodeURIComponent(item.slug)}&revision=${latest.revision}`} variant="secondary" size="sm">Run latest</Action>}
-        {canCreate && <Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="secondary" size="sm">New revision</Action>}
+        {latest && !publicRead && <Action to={`${root}/runs/new?case=${encodeURIComponent(item.slug)}&revision=${latest.revision}`} variant="secondary" size="sm">Run latest</Action>}
+        {canCreate && <Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="secondary" size="sm">New version</Action>}
         {canAdminister && <Action variant="danger-outline" size="sm" onClick={onDelete} aria-label={`Delete ${item.name}`}>Delete</Action>}
       </span>
     </li>
@@ -58,7 +60,10 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
   const publicRead = project.access === 'public_read';
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'recent' | 'name'>('recent');
-  const [creating, setCreating] = useState(false);
+  const dialog = useCreateDialog('problem', problemsPath(root), canCreate);
+  // The navigation that closes the dialog can land after the toast renders, so `closing` hides the dialog at once until the address has lost `?create=`.
+  const [closing, setClosing] = useState(false);
+  if (closing && !dialog.open) setClosing(false);
   const [removing, setRemoving] = useState<CaseContent | null>(null);
   const [toast, setToast] = useState<{ text: string; compose?: string }>(() => ({
     text: (location.state as { toast?: string } | null)?.toast ?? '',
@@ -73,17 +78,17 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
   const failure = cases.status === 'error' ? classifyAuthError(cases.error) : null;
 
   return (
-    <CaseFrame organization={organization} project={project} trail={[{ label: 'Cases' }]}>
+    <CaseFrame organization={organization} project={project} trail={[{ label: 'Problems' }]}>
       <header className="proj-title-row">
         <div className="proj-title">
-          <h1>Cases</h1>
-          <p>A case describes one experiment. Each change is kept as a sealed revision you can run, compare and cite.</p>
+          <h1>Problems</h1>
+          <p>A problem describes one experiment. Each change is kept as a sealed version you can run, compare and cite.</p>
         </div>
         {canCreate && (
           <div className="proj-actions">
             <Action to={`${root}/workbench`} variant="secondary">Workbench</Action>
-            <Action to="/examples" variant="secondary">Import from example</Action>
-            <Action variant="primary" onClick={() => setCreating(true)}>New case</Action>
+            <Action to="/explore/examples" variant="secondary">Import from example</Action>
+            <Action variant="primary" data-create-opener="problem" onClick={dialog.openDialog}>New problem</Action>
           </div>
         )}
       </header>
@@ -92,69 +97,70 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
         <div className="org-toast" role="status">
           <CheckCircle2 aria-hidden="true" />
           <span>{toast.text}</span>
-          {toast.compose && <Link to={toast.compose} viewTransition>Compose its first revision</Link>}
+          {toast.compose && <Link to={toast.compose} viewTransition>Compose its first version</Link>}
         </div>
       )}
       {!canCreate && (
-        <ReadOnlyNote role={role}>You can open and compare cases here; creating and editing need MEMBER.</ReadOnlyNote>
+        <ReadOnlyNote role={role}>You can open and compare problems here; creating and editing need MEMBER.</ReadOnlyNote>
       )}
 
       <div className="case-toolbar">
         <div className="ui-field case-search">
-          <label htmlFor="case-search" className="sr-only">Search cases</label>
-          <input id="case-search" type="search" value={query} placeholder="Search cases…" onChange={(event) => setQuery(event.target.value)} />
+          <label htmlFor="case-search" className="sr-only">Search problems</label>
+          <input id="case-search" type="search" value={query} placeholder="Search problems…" onChange={(event) => setQuery(event.target.value)} />
         </div>
         <label className="case-sort">
           Sort
           <select value={sort} onChange={(event) => setSort(event.target.value as 'recent' | 'name')}>
-            <option value="recent">Latest revision</option>
+            <option value="recent">Latest version</option>
             <option value="name">Name</option>
           </select>
         </label>
       </div>
 
       {cases.status === 'loading' && (
-        <div role="status" aria-busy="true" className="case-skeletons"><span className="sr-only">Loading cases…</span><Skeleton variant="tile" /><Skeleton variant="tile" /></div>
+        <div role="status" aria-busy="true" className="case-skeletons"><span className="sr-only">Loading problems…</span><Skeleton variant="tile" /><Skeleton variant="tile" /></div>
       )}
       {failure && (
         <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={cases.reload}>Retry</Action>}>
-          {failure.status === 403 ? `Cases can’t be listed with this account or key${marker(failure)}.` : `Cases couldn’t be loaded${marker(failure)}.`}
+          {failure.status === 403 ? `Problems can’t be listed with this account or key${marker(failure)}.` : `Problems couldn’t be loaded${marker(failure)}.`}
         </Notice>
       )}
 
       {cases.status === 'ready' && all.length === 0 && (
         <section className="case-guide" aria-labelledby="case-guide-title">
-          <h2 id="case-guide-title">No cases yet</h2>
-          {publicRead ? <p>This project hasn’t shared any case yet.</p> : (
+          <h2 id="case-guide-title">No problems yet</h2>
+          {publicRead ? <p>This project hasn’t shared any problem yet.</p> : (
             <>
-              <p>Start from a ready example, or create a case and save its first revision from the workbench.</p>
+              <p>Start from a ready example, or create a problem and save its first version from the workbench.</p>
               <div className="proj-actions">
-                <Action to="/examples" variant="primary">Import an example</Action>
+                <Action to="/explore/examples" variant="primary">Import an example</Action>
               </div>
             </>
           )}
         </section>
       )}
-      {cases.status === 'ready' && all.length > 0 && shown.length === 0 && <p className="org-muted">No case matches “{query.trim()}”.</p>}
+      {cases.status === 'ready' && all.length > 0 && shown.length === 0 && <p className="org-muted">No problem matches “{query.trim()}”.</p>}
       {shown.length > 0 && (
-        <ul className="case-list" aria-label="Cases">
+        <ul className="case-list" aria-label="Problems">
           {shown.map((entry) => (
             <CaseRow key={entry.item.id} root={root} entry={entry} canCreate={canCreate} canAdminister={canAdminister} publicRead={publicRead} onDelete={() => setRemoving(entry)} />
           ))}
         </ul>
       )}
       {cases.status === 'ready' && all.length > 0 && !publicRead && (
-        <p className="org-muted">Your role here: <RoleChip role={role} />. Deleting needs ADMIN and works only while a case has no sealed revision.</p>
+        <p className="org-muted">Your role here: <RoleChip role={role} />. Deleting needs ADMIN and works only while a problem has no sealed version.</p>
       )}
 
-      {creating && (
+      {dialog.open && !closing && (
         <NewCaseDialog
           organization={organization}
           project={project}
-          onClose={() => setCreating(false)}
+          onClose={dialog.close}
           onCreated={(created) => {
-            setCreating(false);
-            setToast({ text: `Case “${created.name}” created. Compose its first revision when you’re ready.`, compose: `${root}/workbench?case=${encodeURIComponent(created.slug)}` });
+            setClosing(true);
+            dialog.close();
+            setToast({ text: `Problem “${created.name}” created. Compose its first version when you’re ready.`, compose: `${root}/workbench?case=${encodeURIComponent(created.slug)}` });
             cases.reload();
           }}
         />
@@ -168,7 +174,7 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
           onClose={() => setRemoving(null)}
           onDeleted={(name) => {
             setRemoving(null);
-            setToast({ text: `Case “${name}” deleted.` });
+            setToast({ text: `Problem “${name}” deleted.` });
             cases.reload();
           }}
         />
@@ -177,7 +183,11 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
   );
 }
 
-/** Cases (`case-list`, `/app/:org/:project/cases`): the project’s cases, how many revisions each has, and the way to create one. */
+/**
+ * Problems (`case-list`, `/app/:org/:project/problems`): the project’s problems, how many versions each has, and the way to create one. The dialog
+ * `New problem` is open while the address holds `?create=problem`, for the people who may create.
+ */
+// [impl->req~frontend-nav-new-menu~1]
 export function CaseList() {
   const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
   if (waiting) return <ProjectSkeleton />;

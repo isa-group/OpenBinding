@@ -12,5 +12,5 @@ it('links nowhere for the persisted source', () => {
 it('keeps unpersisted results inspectable without inventing a source', () => {
   render(<MemoryRouter><BindingAnalysis result={{ solutions: [] }} /></MemoryRouter>);
   expect(screen.queryByRole('link')).not.toBeInTheDocument();
-  expect(screen.getByText(/Persist a solver job/)).toBeInTheDocument();
+  expect(screen.getByText(/Persist a solver run/)).toBeInTheDocument();
 });

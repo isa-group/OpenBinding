@@ -2,7 +2,7 @@ import { expect as baseExpect, test, type Locator, type Page, type Route, type T
 import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 
-// S3 · pricing and account: acct-profile, acct-usage, acct-keys, acct-key-new, acct-identities, acct-notifications.
+// S3 · pricing and account: acct-profile (five sections: profile, usage, keys with the New API key dialog, identities, notifications).
 // (pub-pricing has its own file, pricing.spec.ts.) There is no backend: the API origin is answered by page.route().
 // Screenshots go to testInfo.outputPath() (test-results/, ignored by git) so they can be looked at after a run.
 // One test per screen and viewport: each walks the states of its screen in order, on one page.
@@ -240,11 +240,11 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
 async function expectAccountNav(main: Locator, current: string) {
   const nav = main.getByRole('navigation', { name: 'Account' });
   const destinations: Array<[string, string]> = [
-    ['Profile & security', '/app/account'], ['Plan & permissions', '/app/account/usage'], ['API keys', '/app/account/keys'],
+    ['Profile', '/app/account'], ['Plan', '/app/account/usage'], ['API keys', '/app/account/keys'],
     ['Identities', '/app/account/identities'], ['Notifications', '/app/account/notifications'],
   ];
-  for (const [label, href] of destinations) await expect(nav.getByRole('link', { name: label })).toHaveAttribute('href', href);
-  await expect(nav.getByRole('link', { name: current })).toHaveAttribute('aria-current', 'page');
+  for (const [label, href] of destinations) await expect(nav.getByRole('link', { name: label, exact: true })).toHaveAttribute('href', href);
+  await expect(nav.getByRole('link', { name: current, exact: true })).toHaveAttribute('aria-current', 'page');
 }
 
 // Each test walks a screen through its states while the dev server compiles on demand.
@@ -267,7 +267,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(page.locator('header.app-header')).toBeVisible();
       await expect(main.getByRole('heading', { level: 1, name: 'Account' })).toBeVisible();
-      await expectAccountNav(main, 'Profile & security');
+      await expectAccountNav(main, 'Profile');
       await expect(main.getByText('lucia.vega', { exact: true })).toBeVisible();
       await expect(main.getByText('lucia@example.org · member since Mar 2, 2026')).toBeVisible();
       await expect(main.getByText('Role · user')).toBeVisible();
@@ -380,7 +380,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('#platform-main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Plan & permissions' })).toBeVisible();
-      await expectAccountNav(main, 'Plan & permissions');
+      await expectAccountNav(main, 'Plan');
       const plan = main.getByRole('region', { name: 'Your plan' });
       await expect(plan.getByText('RESEARCH', { exact: true })).toBeVisible();
       await expect(plan.getByText('Free with verified CAS')).toBeVisible();
@@ -396,10 +396,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(allowances.getByText('25', { exact: true })).toBeVisible();
       await expect(allowances.getByRole('link', { name: 'Manage keys' })).toHaveAttribute('href', '/app/account/keys');
       const ceilings = main.getByRole('region', { name: 'Ceilings table' });
-      await expect(ceilings.getByRole('row', { name: /Max time per job/ })).toContainText('15 min');
-      await expect(ceilings.getByRole('row', { name: /Max time per job/ })).toContainText('900 s');
+      await expect(ceilings.getByRole('row', { name: /Max time per run/ })).toContainText('15 min');
+      await expect(ceilings.getByRole('row', { name: /Max time per run/ })).toContainText('900 s');
       await expect(ceilings.getByRole('row', { name: /Max problem size/ })).toContainText('10²⁰');
-      await expect(main.getByRole('link', { name: 'Open job history' })).toHaveAttribute('href', '/app/jobs');
+      await expect(main.getByRole('link', { name: 'Open run history' })).toHaveAttribute('href', '/app/runs');
       await expect(main.getByRole('heading', { name: 'Organizations you sponsor' })).toBeVisible();
       await expect(main.getByText('Confirmed by your plan check')).toBeVisible();
       await expect(main.getByText('Authoring', { exact: true }).locator('..')).toContainText('Enabled');
@@ -463,7 +463,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'API keys' })).toBeVisible();
       await expectAccountNav(main, 'API keys');
-      await expect(main.getByRole('link', { name: 'New key' })).toHaveAttribute('href', '/app/account/keys/new');
+      await expect(main.getByRole('link', { name: 'New key' })).toHaveAttribute('href', '/app/account/keys?create=key');
       await expect(main.getByText('2 of 25 keys')).toBeVisible();
       const first = main.getByRole('article', { name: 'ci-lectura-resultados' });
       await expect(first.getByText('obk_demo0001…')).toBeVisible();
@@ -527,7 +527,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       state.keys = [];
       await page.reload();
       await expect(main.getByText('No API keys')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Create your first key' })).toHaveAttribute('href', '/app/account/keys/new');
+      await expect(main.getByRole('link', { name: 'Create your first key' })).toHaveAttribute('href', '/app/account/keys?create=key');
       await capture(page, testInfo, `keys-${name}-empty`);
 
       state.refuse.list = detail(503, 'unavailable', 'Accounts are not reachable.');
@@ -537,16 +537,17 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('alert')).toContainText('keys:read');      expect(critical).toEqual([]);
     });
 
-    test('acct-key-new /app/account/keys/new', async ({ page }, testInfo) => {
+    test('acct-profile /app/account/keys?create=key · the New API key dialog, reached from the moved /app/account/keys/new', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, marco);
       await page.goto('/app/account/keys/new');
-      const main = page.locator('#platform-main');
+      await expect(page).toHaveURL(/\/app\/account\/keys\?create=key$/);
+      // The wizard is a dialog over the API keys section: the queries below start at the dialog.
+      const main = page.getByRole('dialog', { name: 'New API key' });
       const next = () => main.getByRole('button', { name: 'Continue' }).click();
 
-      await expect(main.getByRole('heading', { level: 1, name: 'New API key' })).toBeVisible();
-      await expectAccountNav(main, 'API keys');
-      await expect(main.getByRole('navigation', { name: 'Breadcrumb' })).toContainText('New key');
+      await expect(main).toBeVisible();
+      await expectAccountNav(page.locator('#platform-main'), 'API keys');
       const steps = main.getByRole('list', { name: 'Steps' });
       await expect(steps.getByRole('button')).toHaveCount(5);
       await expect(steps.getByRole('button', { name: 'Name' })).toHaveAttribute('aria-current', 'step');
@@ -606,7 +607,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const review = main.locator('dl.keynew-review');
       await expect(review).toContainText('ci-nightly');
       await expect(review).toContainText('In 30 days');
-      await expect(review).toContainText('Launch, cancel and retry jobs (engines:execute)');
+      await expect(review).toContainText('Launch, cancel and retry runs (engines:execute)');
       await expect(review).toContainText('GET · isa-demo · qos-benchmarks · jobs · latency-study');
       await capture(page, testInfo, `keynew-${name}-5-review`);
 
@@ -645,16 +646,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await secret.getByLabel('I’ve stored the secret somewhere safe').check();
       await secret.getByRole('button', { name: 'Go to my keys' }).click();
       await expect(page).toHaveURL(/\/app\/account\/keys$/);
-      await expect(main.getByRole('article', { name: 'ci-nightly' })).toBeVisible();
+      await expect(page.locator('#platform-main').getByRole('article', { name: 'ci-nightly' })).toBeVisible();
       await expect(page.getByText('SECRETO-UNICO-DE-PRUEBA')).toHaveCount(0);
       expect(critical).toEqual([]);
     });
 
-    test('acct-key-new: an administrator can grant the admin-only permissions', async ({ page }, testInfo) => {
+    test('New API key dialog: an administrator can grant the admin-only permissions', async ({ page }, testInfo) => {
       test.skip(isMobile, 'A desktop check: the phone shows the same step, laid out by the capture above.');
       await mockApi(page, iker);
-      await page.goto('/app/account/keys/new');
-      const main = page.locator('#platform-main');
+      await page.goto('/app/account/keys?create=key');
+      const main = page.getByRole('dialog', { name: 'New API key' });
 
       await main.getByLabel('Name').fill('admin-audit-reader');
       await main.getByRole('button', { name: 'Continue' }).click();
@@ -686,7 +687,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `identities-${name}-linked`);
       if (isMobile) {
         await main.getByRole('button', { name: 'Unlink' }).click();
-        await expect(page.getByRole('dialog', { name: 'Unlink your Universidad de Sevilla identity?' }).getByLabel('Plan change')).toContainText('3 concurrent jobs');
+        await expect(page.getByRole('dialog', { name: 'Unlink your Universidad de Sevilla identity?' }).getByLabel('Plan change')).toContainText('3 concurrent runs');
         await capture(page, testInfo, `identities-${name}-unlink-dialog`);
         expect(critical).toEqual([]);
         return;
@@ -695,8 +696,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // Leaving RESEARCH is typed: the dialog says what changes and refuses anything but the exact phrase.
       await main.getByRole('button', { name: 'Unlink' }).click();
       const dialog = page.getByRole('dialog', { name: 'Unlink your Universidad de Sevilla identity?' });
-      await expect(dialog.getByLabel('Plan change')).toContainText('3 concurrent jobs');
-      await expect(dialog.getByLabel('Plan change')).toContainText('1 concurrent job');
+      await expect(dialog.getByLabel('Plan change')).toContainText('3 concurrent runs');
+      await expect(dialog.getByLabel('Plan change')).toContainText('1 concurrent run');
       const unlink = dialog.getByRole('button', { name: 'Unlink' });
       await expect(unlink).toBeDisabled();
       await dialog.getByLabel('Type DOWNGRADE RESEARCH to confirm').fill('downgrade research');
@@ -788,7 +789,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('You have 1 unread notification')).toBeVisible();
 
       // Filters.
-      await main.getByRole('button', { name: 'Jobs' }).click();
+      await main.getByRole('button', { name: 'Runs' }).click();
       await expect(list.getByRole('listitem')).toHaveCount(1);
       await expect(list.getByText('Job completed')).toBeVisible();
       await main.getByRole('button', { name: 'Invitations' }).click();

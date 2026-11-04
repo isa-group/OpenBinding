@@ -148,12 +148,12 @@ export function RankingTable({ rows, measure }: { rows: readonly EngineRow[]; me
 }
 
 /** Same inputs, different seed: the value each seed found, and how far apart they are. */
-export function SeedTable({ groups, measure, runPath }: { groups: readonly SeedGroup[]; measure: string; runPath: string }) {
+export function SeedTable({ groups, measure, cellHref }: { groups: readonly SeedGroup[]; measure: string; cellHref: (cellId: string) => string }) {
   return (
     <DataTable label="Results by seed" minWidth={640}>
       <thead>
         <tr>
-          <th scope="col">Case · engine</th>
+          <th scope="col">Problem · engine</th>
           <th scope="col">{measureTitle(measure)} by seed</th>
           <th scope="col">Difference</th>
         </tr>
@@ -165,7 +165,7 @@ export function SeedTable({ groups, measure, runPath }: { groups: readonly SeedG
             <td>
               <span className="st-seed-values">
                 {group.seeds.map((item) => (
-                  <Link key={item.cell.id} to={`${runPath}/cells/${item.cell.id}`} viewTransition>seed {item.seed}: {item.value !== null ? formatMeasure(item.value) : item.cell.state}</Link>
+                  <Link key={item.cell.id} to={cellHref(item.cell.id)} viewTransition>seed {item.seed}: {item.value !== null ? formatMeasure(item.value) : item.cell.state}</Link>
                 ))}
               </span>
             </td>

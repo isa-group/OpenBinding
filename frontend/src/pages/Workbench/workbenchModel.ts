@@ -1,5 +1,7 @@
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
+import type { CaseRevision } from '../../api/platform';
+import { problemPath, problemsPath } from '../../routes/paths/problems';
 import { RANGE_CODE, RANGE_REFUSAL } from '../../utils/featureRange';
 import { limitProblemOf, sizeOf } from '../../utils/limitRefusals';
 import type { WorkspaceFiles } from '../../utils/workspaceDraft';
@@ -95,26 +97,36 @@ export function refusalText(refusal: Refusal, doing: string): string {
   }
 }
 
-/** Opening a case revision from the address (`?case=&revision=`) failed. */
+/** Opening a problem version from the address (`?case=&revision=`) failed. */
 export function loadRefusalText(refusal: Refusal): string {
-  if (refusal.status === 404) return `That case revision doesn’t exist any more, or you’re not in the organization it belongs to${refusalMarker(refusal)}. The package was not loaded.`;
+  if (refusal.status === 404) return `That problem version doesn’t exist any more, or you’re not in the organization it belongs to${refusalMarker(refusal)}. The package was not loaded.`;
   return refusalText(refusal, 'the package was not loaded');
 }
 
-/** Saving a revision: what each refusal of `POST …/cases/{case}/revisions` means. */
+/** Saving a problem version: what each refusal of `POST …/cases/{case}/revisions` means. */
 export function saveRefusalText(refusal: Refusal): string {
   const marker = refusalMarker(refusal);
   switch (refusal.kind) {
-    case 'key': return `You need MEMBER in the organization to save a revision, and an API key needs projects:write${marker}. Nothing was saved.`;
+    case 'key': return `You need MEMBER in the organization to save a version, and an API key needs projects:write${marker}. Nothing was saved.`;
     case 'session': return `Your session has ended${marker}. Log in again; the package is kept in this browser. Nothing was saved.`;
-    case 'invalid': return `The gateway refused to seal a revision from this package${marker}. ${refusal.message ? `${refusal.message} ` : ''}Nothing was saved.`;
+    case 'invalid': return `The gateway refused to seal a version from this package${marker}. ${refusal.message ? `${refusal.message} ` : ''}Nothing was saved.`;
     case 'too-big': return `This package is bigger than your plan can compile${marker}. Nothing was saved.`;
     case 'too-large': return `This package is larger than your plan allows per request${marker}. Nothing was saved.`;
     case 'other': return refusal.status === 404
-      ? `That case no longer exists, or you’re not in its organization${marker}. Nothing was saved.`
-      : `${refusal.message || 'The revision could not be saved'}${marker}. Nothing was saved.`;
+      ? `That problem no longer exists, or you’re not in its organization${marker}. Nothing was saved.`
+      : `${refusal.message || 'The version could not be saved'}${marker}. Nothing was saved.`;
     default: return refusalText(refusal, 'nothing was saved');
   }
+}
+
+/**
+ * Where `Open snapshot` leads: the Source tab of `problem` at the sealed version made from the snapshot (the one whose `source_snapshot_id`
+ * is the snapshot's id), and the problem list when no version of that problem came from it, or no problem is chosen.
+ */
+// [impl->req~frontend-nav-vocabulary-text~1]
+export function snapshotHref(root: string, problem: string, versions: readonly Pick<CaseRevision, 'revision' | 'source_snapshot_id'>[], snapshotId: string): string {
+  const made = problem ? versions.find((version) => version.source_snapshot_id === snapshotId) : undefined;
+  return made ? problemPath(root, problem, 'source', { version: made.revision }) : problemsPath(root);
 }
 
 // --- the plan's ceilings

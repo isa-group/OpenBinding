@@ -1,4 +1,5 @@
 import type { Collection, CollectionItem, CollectionRevision, ProjectResource, ProjectResourceRevision } from '../../api/platform';
+import { problemPath } from '../../routes/paths/problems';
 import { shortDigest } from '../../utils/digest';
 import type { CaseContent } from '../Project/projectModel';
 import { plural } from './resourceModel';
@@ -12,7 +13,7 @@ export interface Pin {
   /** The identity of the target inside a collection: the gateway refuses a repeated (kind, fingerprint). */
   key: string;
   label: string;
-  /** What kind of revision it is, for the picker (`Case revision`, `Resource revision`). */
+  /** What kind of pin it is, for the picker (`Problem version`, `Resource revision`). */
   sub: string;
   digest: string;
   /** Where the target opens; a resource revision has no screen of its own since the project resources were retired. */
@@ -43,7 +44,8 @@ export interface ResourceContent {
 
 export const pinKey = (kind: string, digest: string) => `${kind}:${digest}`;
 
-/** Every case revision and resource revision of the project, as things a collection can point at. */
+/** Every problem version and resource revision of the project, as things a collection can point at. */
+// [impl->req~frontend-nav-vocabulary-text~1]
 export function buildPins(cases: readonly CaseContent[], resources: readonly ResourceContent[], root: string): Pin[] {
   const pins: Pin[] = [];
   for (const { item, revisions } of cases) {
@@ -51,10 +53,10 @@ export function buildPins(cases: readonly CaseContent[], resources: readonly Res
       pins.push({
         kind: 'case',
         key: pinKey('case', revision.digest),
-        label: `${item.name} · revision ${revision.revision}`,
-        sub: 'Case revision',
+        label: `${item.name} · version ${revision.revision}`,
+        sub: 'Problem version',
         digest: revision.digest,
-        href: `${root}/cases/${encodeURIComponent(item.slug)}/revisions/${revision.revision}`,
+        href: problemPath(root, item.slug, undefined, { version: revision.revision }),
         item: { target_kind: 'case', target_digest: revision.digest, target_ref: { caseRevisionId: revision.id } },
       });
     }
@@ -91,8 +93,8 @@ export function entryOf(item: CollectionItem, pins: readonly Pin[]): Entry {
     const found = pins.find((pin) => pin.kind === 'case' && (pin.item.target_ref.caseRevisionId === id || pin.digest === item.target_digest));
     if (found) return { kind: 'case', key: found.key, label: found.label, sub: found.sub, digest: found.digest, href: found.href, pin: found.item };
     return {
-      kind: 'case', key: pinKey('case', item.target_digest), label: `Case revision ${id ? id.slice(0, 8) : shortDigest(item.target_digest)}`,
-      sub: 'Case revision', digest: item.target_digest, pin: id ? { target_kind: 'case', target_digest: item.target_digest, target_ref: { caseRevisionId: id } } : null,
+      kind: 'case', key: pinKey('case', item.target_digest), label: `Problem version ${id ? id.slice(0, 8) : shortDigest(item.target_digest)}`,
+      sub: 'Problem version', digest: item.target_digest, pin: id ? { target_kind: 'case', target_digest: item.target_digest, target_ref: { caseRevisionId: id } } : null,
     };
   }
   if (item.target_kind === 'resource') {
@@ -159,7 +161,7 @@ export function differences(before: readonly Entry[], after: readonly Entry[]): 
 export function typeSummary(items: readonly CollectionItem[]): string[] {
   const count = (kind: string) => items.filter((item) => item.target_kind === kind).length;
   const chips: string[] = [];
-  if (count('case')) chips.push(plural(count('case'), 'case revision'));
+  if (count('case')) chips.push(plural(count('case'), 'problem version'));
   if (count('resource')) chips.push(plural(count('resource'), 'resource version'));
   const others = items.length - count('case') - count('resource');
   if (others) chips.push(plural(others, 'other item'));

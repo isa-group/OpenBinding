@@ -235,6 +235,7 @@ a.case-resource:hover { border-color: var(--tp-stone); color: var(--tp-ink); }
 
 /* Compare */
 .case-pickers { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--tp-spacing-xs); }
+.case-docs { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: var(--tp-spacing-sm); }
 .case-pick { display: flex; flex-direction: column; gap: 4px; color: var(--tp-steel); font-size: 0.75rem; }
 .case-categories { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--tp-spacing-sm); }
 

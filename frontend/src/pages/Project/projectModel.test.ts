@@ -58,12 +58,13 @@ describe('access levels', () => {
     expect(levelOf(undefined, null)).toBeNull();
   });
 
-  it('keeps jobs, the package and the settings from a visitor, and everything else open to them', () => {
-    for (const section of ['jobs', 'package', 'settings']) {
+  // [utest->req~frontend-nav-project-tabs~1]
+  it('keeps the runs and the settings from a visitor, and everything else open to them', () => {
+    for (const section of ['jobs', 'settings']) {
       expect(canOpenSection('public_read', section)).toBe(false);
       expect(canOpenSection('VIEWER', section)).toBe(true);
     }
-    for (const section of ['overview', 'cases', 'collections', 'studies', 'publications', 'files']) expect(canOpenSection('public_read', section)).toBe(true);
+    for (const section of ['overview', 'cases', 'collections', 'studies', 'published']) expect(canOpenSection('public_read', section)).toBe(true);
     expect(canOpenSection('ADMIN', 'settings')).toBe(true);
   });
 });
@@ -81,7 +82,7 @@ describe('what is sealed and what is a draft', () => {
 
     expect(items.map((item) => [item.id, item.kind, item.count])).toEqual([['revisions', 'sealed', 2], ['runs', 'sealed', 1], ['frozen', 'sealed', 1], ['drafts', 'draft', 2]]);
     expect(sealedShare(items)).toEqual({ sealed: 4, drafts: 2, sealedPct: 67, draftPct: 33 });
-    expect(countWord(items[0])).toBe('case revisions');
+    expect(countWord(items[0])).toBe('problem versions');
     expect(countWord(items[1])).toBe('study run');
   });
 

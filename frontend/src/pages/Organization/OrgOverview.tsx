@@ -11,6 +11,8 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
+import { ProjectCreate } from '../Project/ProjectCreate';
+import { createAddress, useCreateDialog } from './createDialog';
 import { ancestorsOf, atLeast, byName, roleSource, sponsorName } from './orgModel';
 import { classifyAuthError, generalFailure, marker } from './orgErrors';
 import { Breadcrumb, NeutralGate, OrgTile, PageSkeleton, RoleChip } from './parts';
@@ -48,6 +50,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const slug = organization.slug;
+  const dialog = useCreateDialog('project', `/app/${slug}`);
   const role = organization.effective_role;
   const source = roleSource(organization, context.organizations);
   const canCreate = atLeast(role, 'MEMBER');
@@ -109,7 +112,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
           </span>
         </div>
         <div className="org-hero-actions">
-          {canCreate && <Action to={`/app/${slug}/new-project`} variant="primary">New project</Action>}
+          {canCreate && <Action variant="primary" data-create-opener="project" onClick={dialog.openDialog}>New project</Action>}
           <Action to={`/app/${slug}/settings/members`} variant="secondary">Members</Action>
           {canAdminister && <Action to={`/app/${slug}/settings/audit`} variant="secondary">Audit</Action>}
           <Action to={`/app/${slug}/settings`} variant="secondary">Settings</Action>
@@ -145,10 +148,10 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
             <div className="org-empty">
               <strong>No projects yet</strong>
               <span>
-                A project groups the cases, runs, studies and reports for one piece of work. Public projects can be found in Explore;
+                A project groups the problems, runs, studies and reports for one piece of work. Public projects can be found in Explore;
                 private ones are only for members.
               </span>
-              {canCreate && <Action to={`/app/${slug}/new-project`} variant="primary" size="sm">Create the first project</Action>}
+              {canCreate && <Action to={createAddress(`/app/${slug}`, 'project')} variant="primary" size="sm">Create the first project</Action>}
               {role === 'VIEWER' && (
                 <small>You’re a VIEWER here, so you can’t create projects. A MEMBER or above can.</small>
               )}
@@ -170,7 +173,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
           <section className="org-card" aria-labelledby="org-subs-title">
             <div className="org-card-head">
               <h2 id="org-subs-title">Sub-organizations</h2>
-              {canAdminister && <Link to="/app/organizations/new" viewTransition>+ Add</Link>}
+              {canAdminister && <Link to={createAddress('/app', 'organization')} viewTransition>+ Add</Link>}
             </div>
             {subs.length === 0 && <span className="org-muted">None. Sub-organizations inherit everyone’s role from here.</span>}
             {subs.map((item) => {
@@ -213,6 +216,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
           </section>
         </aside>
       </div>
+      {dialog.open && <ProjectCreate onClose={dialog.close} onCreated={(created) => navigate(`/app/${slug}/${created.slug}`, { replace: true })} />}
     </div>
   );
 }

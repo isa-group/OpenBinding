@@ -61,7 +61,7 @@ describe('schema reference', () => {
     expect(api.getBimSchema).toHaveBeenCalledWith('Application');
     expect(screen.getByRole('heading', { level: 1, name: 'Schemas' })).toBeInTheDocument();
     expect(screen.getByText(/Tasks, typed metrics and the native or externally represented workflow/)).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'Language sections' })).toHaveTextContent('Schemas');
+    expect(screen.queryByRole('navigation', { name: 'Language sections' })).not.toBeInTheDocument();
   });
 
   it('lists every kind and marks the current one', async () => {
@@ -180,7 +180,7 @@ describe('schema reference', () => {
     renderAt('/language/schemas/Application');
     await screen.findByRole('tree', { name: 'Application fields' });
     expect(screen.getByRole('link', { name: /Validate a package that uses it/ })).toHaveAttribute('href', '/workbench?example=demo%2F02_parallel');
-    expect(screen.getByRole('link', { name: 'Open examples' })).toHaveAttribute('href', '/examples');
+    expect(screen.getByRole('link', { name: 'Open examples' })).toHaveAttribute('href', '/explore/examples');
     expect(screen.getByRole('link', { name: 'BindingProblem' })).toHaveAttribute('href', '/language/schemas/BindingProblem');
   });
 });

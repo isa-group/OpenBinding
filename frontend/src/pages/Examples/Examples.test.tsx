@@ -38,10 +38,12 @@ describe('example packages', () => {
     vi.restoreAllMocks();
   });
 
+  // [utest->req~frontend-nav-examples-in-explore~1]
   it('groups the packages by family with their lessons, and hides the retired example', async () => {
     renderPage();
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Example packages' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'BIM examples' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'BIM examples' })).toHaveAttribute('aria-current', 'page');
     expect(await screen.findByRole('heading', { name: 'Demo · 2 packages' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Placement · 1 package' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'BPMN · 1 package' })).toBeInTheDocument();
@@ -58,6 +60,7 @@ describe('example packages', () => {
     expect(card('bpmn/order_flow')).toHaveTextContent('Order Flow · BIM package');
   });
 
+  // [utest->req~frontend-nav-examples-in-explore~1]
   it('opens a package in the workbench', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Demo · 2 packages' });
@@ -96,7 +99,7 @@ describe('example packages', () => {
     renderPage(lucia);
     await screen.findByRole('heading', { name: 'Demo · 2 packages' });
     expect(screen.queryByRole('link', { name: 'Log in to import' })).not.toBeInTheDocument();
-    fireEvent.click(within(card('demo/01_simple_seq')).getByRole('button', { name: 'Import as case' }));
+    fireEvent.click(within(card('demo/01_simple_seq')).getByRole('button', { name: 'Import as problem' }));
     const project = await screen.findByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' });
     expect(project).toHaveAttribute('href', '/app/isa-demo/qos/workbench?example=demo%2F01_simple_seq');
     expect(platform.projects).toHaveBeenCalledWith('isa-demo');

@@ -7,6 +7,8 @@
   padding: 40px var(--tp-spacing-md) var(--tp-spacing-section);
 }
 
+.about-service-status { color: var(--tp-slate); font-size: 0.8125rem; }
+
 .about-panel { display: flex; flex-direction: column; gap: var(--tp-spacing-lg); padding-top: var(--tp-spacing-lg); }
 .about-panel h2, .about-panel h3 { letter-spacing: 0; }
 .about-lede { max-width: 48rem; color: var(--tp-slate); }

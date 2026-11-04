@@ -83,7 +83,7 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
     setOutcome(null);
     try {
       const made = await jobsApi.retry(job.id);
-      setOutcome({ tone: 'success', text: 'Retry queued.', follow: `${root}/jobs/${made.id}` });
+      setOutcome({ tone: 'success', text: 'Retry queued.', follow: `${root}/runs/${made.id}` });
       reload();
     } catch (caught) {
       setOutcome({ tone: 'error', refusal: refusalOf(caught, 'retry') });
@@ -95,14 +95,14 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
   const loadingFirst = jobs.status === 'loading' && !data;
 
   return (
-    <JobFrame organization={organization} project={project} trail={[{ label: 'Jobs' }]}>
+    <JobFrame organization={organization} project={project} trail={[{ label: 'Runs' }]}>
       <header className="proj-title-row">
         <div className="proj-title">
-          <h1>Jobs</h1>
-          <p>Every run in {project.name}. Anyone in the project sees the summary; opening, cancelling or retrying a job is for whoever launched it.</p>
+          <h1>Runs</h1>
+          <p>Every run in {project.name}. Anyone in the project sees the summary; opening, cancelling or retrying a run is for whoever launched it.</p>
         </div>
         <div className="proj-actions">
-          {canLaunch && <Action to={`${root}/jobs/new`} variant="primary"><Play aria-hidden="true" className="job-icon" />New run</Action>}
+          {canLaunch && <Action to={`${root}/runs/new`} variant="primary"><Play aria-hidden="true" className="job-icon" />New run</Action>}
         </div>
       </header>
 
@@ -128,12 +128,12 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
       )}
       {outcome?.tone === 'error' && <RefusalNotice refusal={outcome.refusal} usageTo />}
 
-      {loadingFirst && <div role="status" aria-busy="true"><span className="sr-only">Loading the jobs…</span><Skeleton variant="panel" /></div>}
+      {loadingFirst && <div role="status" aria-busy="true"><span className="sr-only">Loading the runs…</span><Skeleton variant="panel" /></div>}
       {failure && !data && (
         <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={reload}>Retry</Action>}>
           {failure.status === 403
-            ? `This credential can’t read jobs${marker(failure)}. Use a session, or a key with jobs:read.`
-            : `Jobs can’t be loaded right now${marker(failure)}.`}
+            ? <>This credential can’t read runs{marker(failure)}. Use a session, or a key with <code>jobs:read</code>.</>
+            : `Runs can’t be loaded right now${marker(failure)}.`}
         </Notice>
       )}
 
@@ -142,9 +142,9 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
           icon={<Play />}
           title="No runs yet"
           dashed
-          action={canLaunch ? <Action to={`${root}/jobs/new`} variant="primary">Start a run</Action> : undefined}
+          action={canLaunch ? <Action to={`${root}/runs/new`} variant="primary">Start a run</Action> : undefined}
         >
-          Pick a case revision and an engine to run it.
+          Pick a problem version and an engine to run it.
         </EmptyState>
       )}
 
@@ -152,7 +152,7 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
         <>
           {filtered.length === 0 && <EmptyState icon={<Play />} title="No runs match these filters">Try another status or engine.</EmptyState>}
           {filtered.length > 0 && (
-            <DataTable label="Jobs of the project" minWidth={860}>
+            <DataTable label="Runs of the project" minWidth={860}>
               <thead>
                 <tr>
                   <th scope="col">Status</th>
@@ -189,8 +189,8 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
                       <td className="job-actions-cell">
                         <span className="job-row-actions">
                           {canOpen(job)
-                            ? <Link to={`${root}/jobs/${job.id}`} viewTransition aria-label={`Open job ${job.id.slice(0, 8)}`}>Open</Link>
-                            : <small className="proj-owner-only" title="Jobs open only for whoever launched them">Owner only</small>}
+                            ? <Link to={`${root}/runs/${job.id}`} viewTransition aria-label={`Open run ${job.id.slice(0, 8)}`}>Open</Link>
+                            : <small className="proj-owner-only" title="Runs open only for whoever launched them">Owner only</small>}
                           {own && canRetryState(state) && (
                             <button type="button" className="job-link-button" onClick={() => void retry(job)} disabled={retrying === job.id}>
                               {retrying === job.id ? 'Retrying…' : 'Retry'}
@@ -205,7 +205,7 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
             </DataTable>
           )}
           {filtered.length > PAGE && (
-            <nav className="job-pager" aria-label="Pages of jobs">
+            <nav className="job-pager" aria-label="Pages of runs">
               <Action variant="secondary" size="sm" disabled={current === 0} onClick={() => setPage(current - 1)}>Previous</Action>
               <span aria-live="polite">Showing {current * PAGE + 1}–{Math.min(filtered.length, (current + 1) * PAGE)} of {filtered.length}</span>
               <Action variant="secondary" size="sm" disabled={current >= pages - 1} onClick={() => setPage(current + 1)}>Next</Action>
@@ -216,15 +216,15 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
 
       {data && (
         <p className="org-muted job-footnote">
-          Only summaries load here; results load when a job is opened. A run you start from a revision or a snapshot belongs to your account
-          and is also listed in <Link to="/app/jobs" viewTransition>My jobs</Link>. <Chip>{rows.length} in this project</Chip>
+          Only summaries load here; results load when a run is opened. A run you start from a version or a snapshot belongs to your account
+          and is also listed in <Link to="/app/runs" viewTransition>My runs</Link>. <Chip>{rows.length} in this project</Chip>
         </p>
       )}
     </JobFrame>
   );
 }
 
-/** The runs of a project (`job-list`, `/app/:org/:project/jobs`): summaries for every member, the actions for whoever launched each run. */
+/** The runs of a project (`job-list`, `/app/:org/:project/runs`): summaries for every member, the actions for whoever launched each run. */
 export function JobList() {
   const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
   if (waiting) return <ProjectSkeleton />;

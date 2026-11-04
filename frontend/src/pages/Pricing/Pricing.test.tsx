@@ -131,8 +131,8 @@ describe('Pricing', () => {
     expect(screen.queryByRole('table', { name: /Per request/ })).not.toBeInTheDocument();
 
     fireEvent.click(perRequest);
-    const table = within(screen.getByRole('table', { name: 'Per request: Ceilings for each job' }));
-    const timeout = within(table.getByRole('row', { name: /Max time per job/ }));
+    const table = within(screen.getByRole('table', { name: 'Per request: Ceilings for each run' }));
+    const timeout = within(table.getByRole('row', { name: /Max time per run/ }));
     expect(timeout.getByText('15 min')).toBeInTheDocument();
     expect(timeout.getByText('900 s')).toBeInTheDocument();
     expect(table.getByText('8 MiB')).toBeInTheDocument();
@@ -165,7 +165,7 @@ describe('Pricing', () => {
     expect(await screen.findByRole('heading', { name: 'What has to have room before you start' })).toBeInTheDocument();
     expect(screen.getByText(/Three features also check your limits/)).toBeInTheDocument();
     const solve = screen.getByText('Start a solve').closest('.pricing-gate') as HTMLElement;
-    expect(within(solve).getByText('A free job slot')).toBeInTheDocument();
+    expect(within(solve).getByText('A free run slot')).toBeInTheDocument();
     expect(within(screen.getByText('Start a study run').closest('.pricing-gate') as HTMLElement).getByText('Study runs left this month')).toBeInTheDocument();
   });
 
@@ -180,6 +180,37 @@ describe('Pricing', () => {
     expect(section.getByText(/OPTION_CLAMPED/)).toBeInTheDocument();
     expect(section.getByText(/402/)).toBeInTheDocument();
     expect(section.getByText(/429/)).toBeInTheDocument();
+  });
+
+  // [utest->req~frontend-nav-system-states-dev-only~1]
+  describe('link to the states gallery', () => {
+    const link = () => screen.queryByRole('link', { name: 'See every state in the gallery' });
+
+    it('is offered to a signed-in person in development', async () => {
+      renderPricing(person('PRO'));
+      await heading();
+
+      expect(link()).toHaveAttribute('href', '/app/system/states');
+    });
+
+    it('is not offered to a visitor', async () => {
+      renderPricing();
+      await heading();
+
+      expect(link()).not.toBeInTheDocument();
+    });
+
+    it('is not offered in a production build', async () => {
+      vi.stubEnv('DEV', false);
+      try {
+        renderPricing(person('PRO'));
+        await heading();
+
+        expect(link()).not.toBeInTheDocument();
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
   });
 
   it('lists the add-ons as arranged under an agreement', async () => {

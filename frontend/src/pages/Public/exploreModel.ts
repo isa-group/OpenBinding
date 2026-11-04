@@ -6,9 +6,9 @@ import { isDigest, shortDigest } from '../../utils/digest';
 export type ExploreTab = 'projects' | 'publications' | 'engines';
 
 export const EXPLORE_TABS: ReadonlyArray<{ id: ExploreTab; label: string; noun: string; singular: string }> = [
-  { id: 'projects', label: 'Projects', noun: 'projects', singular: 'project' },
-  { id: 'publications', label: 'Publications', noun: 'publications', singular: 'publication' },
-  { id: 'engines', label: 'Engines', noun: 'engines', singular: 'engine' },
+  { id: 'projects', label: 'Projects', noun: 'public projects', singular: 'public project' },
+  { id: 'publications', label: 'Published results', noun: 'published results', singular: 'published result' },
+  { id: 'engines', label: 'Engines', noun: 'public engines', singular: 'public engine' },
 ];
 
 export interface PublicProject {
@@ -101,7 +101,7 @@ export function projectItems(projects: PublicProject[], publications: PublicPubl
       meta: organization.name,
       title: project.name,
       sub: project.description || 'A public OpenBinding project.',
-      chips: ['Public project', ...(publications ? [`${count} publication${count === 1 ? '' : 's'}`] : [])],
+      chips: ['Public project', ...(publications ? [`${count} published result${count === 1 ? '' : 's'}`] : [])],
       organization,
       project,
       publications: count,
@@ -117,7 +117,7 @@ export function publicationItems(publications: PublicPublication[], projects: Pu
     const known = projects.find((item) => item.organization.slug === organizationSlug && item.project.slug === projectSlug);
     const organizationName = known?.organization.name ?? organizationSlug;
     const where = `${organizationName} / ${known?.project.name ?? projectSlug}`;
-    const title = text(publication.report?.title) ?? text(citation.title) ?? text(publication.slug) ?? `Publication ${index + 1}`;
+    const title = text(publication.report?.title) ?? text(citation.title) ?? text(publication.slug) ?? `Published result ${index + 1}`;
     const authors = authorsOf(citation);
     const published = text(publication.publishedAt);
     const rawYear = Number(citation.year);

@@ -24,7 +24,7 @@ test.describe('live · plan, permissions and the native consoles', () => {
 
       const main = page.locator('#platform-main');
       await expect(main.getByRole('heading', { level: 1, name: 'Plan & permissions' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Plan & permissions' })).toHaveAttribute('aria-current', 'page');
+      await expect(main.getByRole('link', { name: 'Plan', exact: true })).toHaveAttribute('aria-current', 'page');
       // Either the plan is read, or the gateway says the pricing is unavailable (SPACE enabled and no contract for the lab user): both
       // are honest. The lab normally runs with SPACE disabled (the open gate): there is no plan name and no remote entitlement, and
       // the page says what it can ("Features", each one "Enabled" or "Can’t confirm"); it has no notice of its own for that mode.
@@ -55,7 +55,7 @@ test.describe('live · plan, permissions and the native consoles', () => {
 
     const plan = page.locator('#platform-main').getByRole('region', { name: 'Your plan' });
     await expect(plan).toBeVisible();
-    await expect(plan.getByRole('link', { name: 'Plan & permissions' })).toHaveAttribute('href', '/app/account/usage');
+    await expect(plan.getByRole('link', { name: 'Plan', exact: true })).toHaveAttribute('href', '/app/account/usage');
     await expectConsoleLinks(plan, { space: 'SPACE', sphere: 'SPHERE' });
     await capture(page, testInfo, 'plan-home-block');
     expect(errors).toEqual([]);

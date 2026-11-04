@@ -1,4 +1,5 @@
 import type { OrganizationAuditEvent } from '../../api/platform';
+import { inInterfaceWords } from '../../components/ui/interfaceWords';
 
 /** The kinds the timeline groups events into, with the dot colour of each. */
 export type AuditKind = 'organization' | 'members' | 'projects' | 'content' | 'other';
@@ -36,8 +37,10 @@ export function kindOf(action: string): AuditKind {
   return 'other';
 }
 
+/** An action the list does not know, as words of the interface: `binding_case.created` reads “Binding problem created”. */
+// [impl->req~frontend-nav-vocabulary-text~1]
 function humanize(action: string): string {
-  const words = action.replace(/[._]+/g, ' ').trim();
+  const words = inInterfaceWords(action.replace(/[._]+/g, ' ').trim());
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
@@ -84,7 +87,7 @@ export interface DetailRow {
 
 /** `max_projects` and `maxProjects` both read “Max projects”. */
 function sentenceCase(key: string): string {
-  const words = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_\-.\s]+/g, ' ').trim().toLowerCase();
+  const words = inInterfaceWords(key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_\-.\s]+/g, ' ').trim().toLowerCase());
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 

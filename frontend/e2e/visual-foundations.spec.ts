@@ -54,36 +54,36 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         await expect(header.getByRole('navigation', { name: 'Primary navigation' })).toBeHidden();
         await header.getByRole('button', { name: 'Open menu' }).click();
         const menu = header.getByRole('navigation', { name: 'Mobile navigation' });
-        for (const label of ['Explore', 'Engines', 'Pricing', 'About', 'Log in', 'Sign up']) {
+        for (const label of ['Home', 'Explore', 'Engines', 'Language', 'Pricing', 'Verify', 'About', 'Log in', 'Sign up']) {
           await expect(menu.getByRole('link', { name: label, exact: true })).toBeVisible();
         }
-        await expect(menu.getByRole('link', { name: 'Workbench' })).toHaveAttribute('href', '/workbench');
+        await expect(menu.getByRole('link', { name: 'Language', exact: true })).toHaveAttribute('href', '/language');
+        await expect(menu.getByRole('link', { name: 'Workbench' })).toHaveCount(0);
         await page.screenshot({ path: testInfo.outputPath(`header-${name}-visitor-menu-open.png`), animations: 'disabled' });
         await header.getByRole('button', { name: 'Close menu' }).click();
       } else {
         const nav = header.getByRole('navigation', { name: 'Primary navigation' });
+        await expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
         await expect(nav.getByRole('link', { name: 'Explore' })).toHaveAttribute('href', '/explore');
         await expect(nav.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
+        await expect(nav.getByRole('link', { name: 'Language' })).toHaveAttribute('href', '/language');
         await expect(nav.getByRole('link', { name: 'Pricing' })).toHaveAttribute('href', '/pricing');
+        await expect(nav.getByRole('link', { name: 'Verify' })).toHaveAttribute('href', '/verify');
         await expect(nav.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about');
         await expect(header.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login');
         await expect(header.getByRole('link', { name: /Sign up/ })).toHaveAttribute('href', '/register');
 
-        const language = nav.getByRole('button', { name: 'Language' });
-        await language.focus();
-        await page.keyboard.press('Enter');
-        await expect(language).toHaveAttribute('aria-expanded', 'true');
-        await expect(header.getByRole('link', { name: /Schemas/ })).toHaveAttribute('href', '/language/schemas/application');
-        await page.screenshot({ path: testInfo.outputPath(`header-${name}-visitor-language-menu.png`), animations: 'disabled', clip: { x: 0, y: 0, width: viewport.width, height: 360 } });
-        await page.keyboard.press('Escape');
-        await expect(language).toHaveAttribute('aria-expanded', 'false');
+        // Language is one link, not a menu.
+        await expect(nav.getByRole('button', { name: 'Language' })).toHaveCount(0);
+        await expect(header.getByRole('link', { name: /Schemas/ })).toHaveCount(0);
       }
 
       await header.screenshot({ path: testInfo.outputPath(`header-${name}-visitor.png`), animations: 'disabled' });
 
       await footer.scrollIntoViewIfNeeded();
       const footerNav = footer.getByRole('navigation', { name: 'Footer navigation' });
-      await expect(footerNav.getByRole('link', { name: 'Status' })).toHaveAttribute('href', '/status');
+      await expect(footerNav.getByRole('link', { name: 'Status' })).toHaveCount(0);
+      await expect(footer.locator('a[href="/status"]')).toHaveCount(0);
       await expect(footerNav.getByRole('link', { name: 'Changelog' })).toHaveAttribute('href', '/about?tab=changelog');
       await expect(footer.getByRole('link', { name: 'SCORE Lab' })).toBeVisible();
       await expect(footer.getByRole('link', { name: 'Universidad de Sevilla' })).toBeVisible();

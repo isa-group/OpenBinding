@@ -1,5 +1,7 @@
-.keynew-crumbs { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs); color: var(--tp-steel); font-size: 0.75rem; }
-.keynew-crumbs [aria-current='page'] { color: var(--tp-ink); }
+/* The wizard needs more room than the largest standard dialog. */
+.ui-modal.is-lg:has(.keynew-steps) { max-width: 760px; }
+
+.keynew-lede { margin: 0; }
 
 .keynew-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--tp-spacing-xs); margin: 0; padding: 0; list-style: none; }
 
@@ -51,10 +53,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--tp-spacing-md);
-  padding: var(--tp-spacing-xl);
-  border: 1px solid var(--tp-hairline);
-  border-radius: var(--tp-radius-xl);
-  background: var(--tp-canvas);
   animation: keynew-in 300ms ease-out both;
 }
 
@@ -130,6 +128,9 @@
   cursor: pointer;
 }
 
+/* The names of the API (permission ids, resource kinds, slugs) sit in code elements; inside a pill or a row they take the text style around them. */
+.keynew-pills button code, .keynew-perm-id code, .keynew-review code { padding: 0; border: 0; background: none; color: inherit; font: inherit; }
+
 .keynew-pills button[aria-pressed='true'] { border-color: rgb(0 119 182 / 0.3); background: rgb(0 119 182 / 0.08); color: var(--tp-primary); font-weight: 500; }
 
 .keynew-add { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs); }
@@ -160,7 +161,6 @@
 }
 
 @media (max-width: 520px) {
-  .keynew-panel { padding: var(--tp-spacing-md); }
   .keynew-review { grid-template-columns: 1fr; gap: 2px; }
   .keynew-review dd { margin-bottom: 8px; }
 }

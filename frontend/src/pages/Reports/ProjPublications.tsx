@@ -90,23 +90,23 @@ function PublicationsBody({ organization, project, canAdminister }: { organizati
   };
 
   return (
-    <ReportFrame organization={organization} project={project} trail={[{ label: 'Publications' }]}>
+    <ReportFrame organization={organization} project={project} trail={[{ label: 'Published' }]}>
       <header className="proj-title-row">
         <div className="proj-title">
-          <h1>Publications</h1>
+          <h1>Published</h1>
           <p>Report editions made public from {project.name}. Withdrawing hides one from listings but keeps every link and fingerprint working.</p>
         </div>
       </header>
 
       {done && <Notice tone="success">{done}</Notice>}
-      {content.status === 'loading' && !data && <div role="status" aria-busy="true"><span className="sr-only">Loading the publications…</span><Skeleton variant="panel" /></div>}
+      {content.status === 'loading' && !data && <div role="status" aria-busy="true"><span className="sr-only">Loading the published results…</span><Skeleton variant="panel" /></div>}
       {failure && !data && (
         <Notice tone={failure.status === 403 ? 'warning' : 'error'} action={<Action variant="secondary" size="sm" onClick={content.reload}>Retry</Action>}>
           {failure.status === 404
-            ? `Publications couldn’t be found${marker(failure)}.`
+            ? `Published results couldn’t be found${marker(failure)}.`
             : failure.status === 403
-              ? `This API key can’t read publications${marker(failure)}. Use a session, or a key with reports:read.`
-              : `Publications couldn’t be loaded${marker(failure)}.`}
+              ? <>This API key can’t read published results{marker(failure)}. Use a session, or a key with <code>reports:read</code>.</>
+              : `Published results couldn’t be loaded${marker(failure)}.`}
         </Notice>
       )}
       {data && data.publications.length === 0 && (
@@ -143,8 +143,9 @@ function PublicationsBody({ organization, project, canAdminister }: { organizati
   );
 }
 
-/** The publications of a project (`proj-publications`, `/app/:org/:project/publications`): the editions made public, how to cite them, and withdrawing one. */
+/** The published results of a project (`proj-publications`, `/app/:org/:project/published`): the editions made public, how to cite them, and withdrawing one. */
 // [impl->req~frontend-retire-reports-publications-stay~1]
+// [impl->req~frontend-nav-project-tabs~1]
 export function ProjPublications() {
   const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
   if (waiting) return <ProjectSkeleton />;

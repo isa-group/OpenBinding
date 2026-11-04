@@ -16,17 +16,15 @@ const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewerOnly = org('read-only', { name: 'Read Only Lab', effective_role: 'MEMBER' });
 const consultora = org('consultora-demo', { name: 'Consultora Demo', billing_sponsor_user_id: 'user-nora', effective_role: 'ADMIN' });
 
+const onClose = vi.fn();
+const onCreated = vi.fn();
+
 function renderCreate(user = lucia, organizations = [group, viewerOnly, consultora]) {
-  return renderScreen(<OrgCreate />, { path: '/app/organizations/new', url: '/app/organizations/new', organizations, user });
+  return renderScreen(<OrgCreate onClose={onClose} onCreated={onCreated} />, { path: '/app', url: '/app', organizations, user });
 }
 
 const type = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
-const next = () => fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-
-function fillFirstStep(name = 'Distributed Systems Lab') {
-  type('Name', name);
-  next();
-}
+const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Create organization' }));
 
 describe('New organization', () => {
   beforeEach(() => {
@@ -38,33 +36,46 @@ describe('New organization', () => {
     platform.createOrganization.mockResolvedValue(org('distributed-systems-lab', { name: 'Distributed Systems Lab' }));
   });
 
-  it('suggests the address from the name and holds the way on until both are valid', async () => {
+  // [utest->req~frontend-nav-create-dialogs~1]
+  it('is the dialog New organization, with the name first and a disabled Create until the name and the address are valid', async () => {
     renderCreate();
 
-    expect(screen.getByRole('heading', { level: 1, name: 'New organization' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
-    expect(screen.getByRole('list', { name: 'Steps' }).querySelectorAll('button')).toHaveLength(4);
-    expect(screen.getByRole('button', { name: /^2/ })).toBeDisabled();
+    const dialog = screen.getByRole('dialog', { name: 'New organization' });
+    expect(within(dialog).getByLabelText('Name')).toHaveFocus();
+    expect(within(dialog).queryByRole('list', { name: 'Steps' })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Create organization' })).toBeDisabled();
 
     type('Name', 'Distributed Systems Lab');
     expect(screen.getByLabelText('Address')).toHaveValue('distributed-systems-lab');
     expect(screen.getByText('Available to try · can’t be changed later.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Create organization' })).toBeEnabled();
 
     // Once the address is typed by hand it stops following the name.
     type('Address', 'Bad Address');
     expect(screen.getByLabelText('Address')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByText(/Use lowercase letters, numbers and hyphens/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Create organization' })).toBeDisabled();
     type('Address', 'isa-demo');
     expect(screen.getByText('Already used by another organization.')).toBeInTheDocument();
     type('Name', 'Another name');
     expect(screen.getByLabelText('Address')).toHaveValue('isa-demo');
   });
 
+  // [utest->req~frontend-nav-create-dialogs~1]
+  it('ends at onClose from Cancel, the × button and Escape, and creates nothing', () => {
+    renderCreate();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalledTimes(2);
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'New organization' }), { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(3);
+    expect(platform.createOrganization).not.toHaveBeenCalled();
+  });
+
   it('offers as parents only the organizations where the account is ADMIN or above', async () => {
     renderCreate();
-    fillFirstStep();
 
     const parents = within(screen.getByRole('group', { name: 'Parent organization' }));
     expect(parents.getByRole('radio', { name: /None · top-level organization/ })).toBeChecked();
@@ -77,7 +88,7 @@ describe('New organization', () => {
 
   it('previews the tree and the sponsor’s room, with what the new organization adds', async () => {
     renderCreate();
-    fillFirstStep();
+    type('Name', 'Distributed Systems Lab');
     fireEvent.click(screen.getByRole('radio', { name: /ISA Demo Group/ }));
 
     const preview = screen.getByRole('list', { name: 'Organization tree preview' });
@@ -90,84 +101,73 @@ describe('New organization', () => {
     expect(screen.queryByRole('meter')).not.toBeInTheDocument();
   });
 
-  it('creates the organization under the chosen parent and sponsor, then offers to open it', async () => {
+  // [utest->req~frontend-nav-create-dialogs~1]
+  it('creates the organization under the chosen parent and sponsor, reloads the workspace and hands the organization over', async () => {
     const { reload } = renderCreate();
-    fillFirstStep();
+    type('Name', 'Distributed Systems Lab');
     fireEvent.click(screen.getByRole('radio', { name: /Consultora Demo/ }));
-    next();
-
     const sponsors = within(screen.getByRole('group', { name: 'Sponsor' }));
     expect(sponsors.getByRole('radio', { name: /You \(lucia\.vega\)/ })).toBeChecked();
     fireEvent.click(await sponsors.findByRole('radio', { name: /nora · sponsor of Consultora Demo/ }));
-    next();
-
-    expect(screen.getByRole('heading', { name: 'Review' })).toBeInTheDocument();
-    expect(screen.getByText('/app/distributed-systems-lab')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Create organization' }));
+    submit();
 
     await waitFor(() => expect(platform.createOrganization).toHaveBeenCalledWith({
       name: 'Distributed Systems Lab', slug: 'distributed-systems-lab', parent_id: consultora.id, billing_sponsor_user_id: 'user-nora',
     }));
-    expect(await screen.findByText('Distributed Systems Lab is ready')).toBeInTheDocument();
+    await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+    expect(onCreated.mock.calls[0][0]).toMatchObject({ slug: 'distributed-systems-lab' });
     expect(reload).toHaveBeenCalledOnce();
-    expect(screen.getByText(/It sits inside Consultora Demo, so members there keep their roles here\. Sponsored by nora\./)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open organization' })).toHaveAttribute('href', '/app/distributed-systems-lab');
-    expect(screen.getByRole('link', { name: 'Create the first project' })).toHaveAttribute('href', '/app/distributed-systems-lab/new-project');
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   describe('when the gateway refuses', () => {
-    async function toReview() {
+    function fillAndSubmit() {
       renderCreate();
-      fillFirstStep();
-      next();
-      next();
-      expect(screen.getByRole('heading', { name: 'Review' })).toBeInTheDocument();
+      type('Name', 'Distributed Systems Lab');
+      submit();
     }
 
-    it('409: the address is taken, and the way back to change it', async () => {
+    it('409: the address is taken, and the way back to the field', async () => {
       platform.createOrganization.mockRejectedValue(Object.assign(new HttpError(409, 'slug in use'), { code: 'slug_conflict' }));
-      await toReview();
-      fireEvent.click(screen.getByRole('button', { name: 'Create organization' }));
+      fillAndSubmit();
 
       expect(await screen.findByRole('alert')).toHaveTextContent('That address is taken (409 · slug_conflict). Another organization already uses /app/distributed-systems-lab.');
       fireEvent.click(screen.getByRole('button', { name: 'Change the address' }));
-      expect(screen.getByRole('heading', { name: 'Name and address' })).toBeInTheDocument();
+      expect(screen.getByLabelText('Address')).toHaveFocus();
       expect(screen.getByLabelText('Address')).toHaveValue('distributed-systems-lab');
+      expect(onCreated).not.toHaveBeenCalled();
     });
 
     it('402: the sponsor has no organizations left, with the ways out', async () => {
       platform.createOrganization.mockRejectedValue(new QuotaError('sponsor_quota_exceeded', 'full', { limit_id: 'organizations', limit: 5, used: 5 }));
-      await toReview();
-      fireEvent.click(screen.getByRole('button', { name: 'Create organization' }));
+      fillAndSubmit();
 
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('The sponsor has no organizations left (402 · sponsor_quota_exceeded). You already sponsor 5 of 5 organizations.');
       expect(within(alert).getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
       expect(within(alert).getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
       fireEvent.click(within(alert).getByRole('button', { name: 'Choose another sponsor' }));
-      expect(screen.getByRole('heading', { name: 'Who sponsors it' })).toBeInTheDocument();
+      expect(screen.getByRole('group', { name: 'Sponsor' })).toHaveFocus();
     });
 
     it('503: the sponsor’s limits cannot be checked, and nothing was created until it is tried again', async () => {
       platform.createOrganization.mockRejectedValueOnce(new PricingUnavailableError('pricing is down'));
-      await toReview();
-      fireEvent.click(screen.getByRole('button', { name: 'Create organization' }));
+      fillAndSubmit();
 
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('The sponsor’s limits can’t be checked right now (503 · pricing_unavailable), so nothing was created.');
+      expect(onCreated).not.toHaveBeenCalled();
       fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
-      expect(await screen.findByText('Distributed Systems Lab is ready')).toBeInTheDocument();
+      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
       expect(platform.createOrganization).toHaveBeenCalledTimes(2);
     });
 
     it('403: no ADMIN in the parent', async () => {
       platform.createOrganization.mockRejectedValue(Object.assign(new HttpError(403, 'no'), { code: 'organization_forbidden' }));
       renderCreate();
-      fillFirstStep();
+      type('Name', 'Distributed Systems Lab');
       fireEvent.click(screen.getByRole('radio', { name: /Consultora Demo/ }));
-      next();
-      next();
-      fireEvent.click(screen.getByRole('button', { name: 'Create organization' }));
+      submit();
 
       expect(await screen.findByText('You need ADMIN in Consultora Demo to add an organization inside it (403 · organization_forbidden). Ask one of its admins, or create it top-level.')).toBeInTheDocument();
     });
@@ -181,8 +181,7 @@ describe('New organization', () => {
       ],
     });
     renderCreate(iker, [org('isa-demo', { name: 'ISA Demo Group', billing_sponsor_user_id: iker.id })]);
-    fillFirstStep();
-    next();
+    type('Name', 'Distributed Systems Lab');
 
     expect(screen.getByText('As a platform administrator you may choose any account as sponsor.')).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('radio', { name: /pablo \(pablo@example\.test\)/ }));
@@ -190,8 +189,7 @@ describe('New organization', () => {
     // Their usage is theirs to see: only the ceilings of the PRO plan are known here.
     expect(await screen.findByText('Up to 10')).toBeInTheDocument();
     expect(screen.getByText(/Plan ceilings only; this account’s usage isn’t visible to you/)).toBeInTheDocument();
-    next();
-    fireEvent.click(screen.getByRole('button', { name: 'Create organization' }));
+    submit();
 
     await waitFor(() => expect(platform.createOrganization).toHaveBeenCalledWith(expect.objectContaining({ billing_sponsor_user_id: 'user-pablo', parent_id: null })));
   });

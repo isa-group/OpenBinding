@@ -64,18 +64,18 @@ describe('admin-overview · how the platform is doing', () => {
 
   it('shows the queue by state and the oldest job waiting', async () => {
     renderAdmin(<AdminOverview />);
-    const queue = block('Job queue');
+    const queue = block('Run queue');
     expect(await within(queue).findByRole('img', { name: 'Queued: 1, Running: 1, Done: 2, Failed: 1, Cancelled: 1' })).toBeInTheDocument();
-    expect(within(queue).getByText(/Oldest waiting: minizinc job, running for about 1 day/)).toBeInTheDocument();
+    expect(within(queue).getByText(/Oldest waiting: minizinc run, running for about 1 day/)).toBeInTheDocument();
     expect(within(queue).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/admin/queues');
   });
 
   it('counts what waits for moderation, and flags the block when something does', async () => {
     renderAdmin(<AdminOverview />);
     const moderation = block('Moderation');
-    expect(await within(moderation).findByText('Engine publication requests')).toBeInTheDocument();
+    expect(await within(moderation).findByText('Engine catalogue requests')).toBeInTheDocument();
     const lines = within(moderation).getByRole('list', { name: 'Waiting for review' });
-    expect(within(within(lines).getByText('Engine publication requests').closest('li')!).getByText('1')).toBeInTheDocument();
+    expect(within(within(lines).getByText('Engine catalogue requests').closest('li')!).getByText('1')).toBeInTheDocument();
     expect(within(within(lines).getByText('Dialects').closest('li')!).getByText('1')).toBeInTheDocument();
     expect(within(moderation).getByText('2')).toBeInTheDocument();
     expect(moderation).toHaveClass('is-attention');
@@ -119,7 +119,7 @@ describe('admin-overview · how the platform is doing', () => {
     const numbers = await screen.findByRole('region', { name: 'The platform in numbers' });
     await waitFor(() => expect(within(numbers).getByText('12')).toBeInTheDocument());
     expect(within(numbers).getByText('Stored artifacts')).toBeInTheDocument();
-    expect(within(numbers).getByText('Binding cases')).toBeInTheDocument();
+    expect(within(numbers).getByText('Problems')).toBeInTheDocument();
   });
 
   it('opens every administration tool, with the ids and routes of the prototype', async () => {
@@ -156,7 +156,7 @@ describe('admin-overview · how the platform is doing', () => {
   it('lets one block fail without taking the rest of the page with it, and retries just that block', async () => {
     api.adminQueues.mockRejectedValueOnce(refusal(503, 'accounts_unavailable'));
     renderAdmin(<AdminOverview />);
-    const queue = block('Job queue');
+    const queue = block('Run queue');
     expect(await within(queue).findByText('This block couldn’t load')).toBeInTheDocument();
     expect(await within(block('Accounts')).findByText('7')).toBeInTheDocument();
     fireEvent.click(within(queue).getByRole('button', { name: 'Retry this block' }));
@@ -182,10 +182,10 @@ describe('admin-overview · how the platform is doing', () => {
 
   it('no longer carries the publication review or maintenance: each has its own screen', async () => {
     renderAdmin(<AdminOverview />);
-    await within(block('Moderation')).findByText('Engine publication requests');
-    expect(screen.queryByRole('heading', { name: 'Engine publication requests' })).not.toBeInTheDocument();
+    await within(block('Moderation')).findByText('Engine catalogue requests');
+    expect(screen.queryByRole('heading', { name: 'Engine catalogue requests' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Maintenance' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Reconcile abandoned jobs' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reconcile abandoned runs' })).not.toBeInTheDocument();
     expect(screen.queryByText('Still here until their own screens arrive')).not.toBeInTheDocument();
     expect(within(block('Moderation')).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/admin/moderation');
     expect(api.adminListEngineRegistrations).not.toHaveBeenCalled();

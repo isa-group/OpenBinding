@@ -15,7 +15,7 @@ describe('ErrorState', () => {
     ['402', 'You’ve used all of an allowance', 'See your plan', '/app/account/usage', 'quota_exceeded'],
     ['403', 'You can’t do this', 'Back to the workspace', '/app', 'forbidden'],
     ['404', 'Not found', 'Back to the workspace', '/app', 'not_found'],
-    ['503', 'This isn’t available right now', 'Service status', '/status', 'unavailable'],
+    ['503', 'This isn’t available right now', 'Service status', '/about', 'unavailable'],
   ])('says what the %s variant means by default and where to go next', (variant, title, action, href, code) => {
     renderState(<ErrorState variant={variant} />);
 
@@ -28,7 +28,7 @@ describe('ErrorState', () => {
 
   it('lets a screen replace the wording and the actions', () => {
     renderState(
-      <ErrorState variant="404" code="job_not_found" title="Job not found" actions={<StateAction to="/app/jobs" tone="link">Go to my jobs</StateAction>}>
+      <ErrorState variant="404" code="job_not_found" title="Job not found" actions={<StateAction to="/app/runs" tone="link">Go to my jobs</StateAction>}>
         Nothing to open here.
       </ErrorState>,
     );
@@ -37,7 +37,7 @@ describe('ErrorState', () => {
     expect(screen.getByText('job_not_found')).toBeInTheDocument();
     expect(screen.getByText('Nothing to open here.')).toBeInTheDocument();
     expect(screen.queryByText('Back to the workspace')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Go to my jobs' })).toHaveAttribute('href', '/app/jobs');
+    expect(screen.getByRole('link', { name: 'Go to my jobs' })).toHaveAttribute('href', '/app/runs');
   });
 
   it('shows no actions when told to', () => {

@@ -68,8 +68,10 @@ describe('the other things done with a file', () => {
     expect(deleteFileRefusal(http(409, 'blob_in_use', 'in use', { problem }), 'results.csv').text)
       .toBe('“results.csv” is used by 2 library versions and 1 report, so it can’t be deleted (409 · blob_in_use). Remove it from there first.');
     expect(fileReferences(http(409, 'blob_in_use', 'in use', { problem: { detail: { references: [{ type: 'project_resource_revision', count: 1 }, { type: 'snapshot', count: 3 }, { type: 'publication', count: 1 }] } } })).map((entry) => entry.label))
-      .toEqual(['1 resource revision', '3 snapshots', '1 publication']);
-    expect(listReferences(['1 report', '2 snapshots', '1 publication'])).toBe('1 report, 2 snapshots and 1 publication');
+      .toEqual(['1 resource revision', '3 snapshots', '1 published result']);
+    expect(listReferences(['1 report', '2 snapshots', '1 published result'])).toBe('1 report, 2 snapshots and 1 published result');
+    expect(fileReferences(http(409, 'blob_in_use', 'in use', { problem: { detail: { references: [{ type: 'job_result', count: 2 }, { type: 'case_comment', count: 1 }] } } })).map((entry) => entry.label))
+      .toEqual(['2 run results', '1 problem comment']);
   });
 
   it('names the role a deletion needs, and a file that is already gone', () => {
@@ -118,7 +120,7 @@ describe('collections', () => {
 
     it('tells an item that names no exact revision, and one the gateway cannot pin', () => {
       expect(collectionSaveRefusal(http(422, 'invalid_collection_target')).kind).toBe('target');
-      expect(collectionSaveRefusal(http(422, 'unsupported_collection_target')).text).toContain('Only case revisions and resource versions can be pinned');
+      expect(collectionSaveRefusal(http(422, 'unsupported_collection_target')).text).toContain('Only problem versions and resource versions can be pinned');
     });
 
     it('tells a repeated item from the validation body, which has no machine code', () => {

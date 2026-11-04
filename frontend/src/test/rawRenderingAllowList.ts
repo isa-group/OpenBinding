@@ -22,27 +22,13 @@ export type UnlistedFinding = Omit<RawRenderingOffender, 'retiredBy'> & { retire
 // [impl->req~frontend-retire-reports-allow-list~1]
 // [impl->req~frontend-retire-library-allow-list~1]
 // [impl->req~frontend-m25-leave-allow-list~1]
-export const MAX_ALLOWED_OFFENDERS = 1;
+// [impl->req~frontend-nav-verify-no-raw-json~1]
+export const MAX_ALLOWED_OFFENDERS = 0;
 // [impl->req~frontend-rendering-run-result-allow-list~1]
 
 export const UNLISTED_REASON = 'found by the detector, not in ROADMAP M2; to be decided by the owner/coordinator';
 
-export const RAW_RENDERING_ALLOW_LIST: RawRenderingOffender[] = [
-  {
-    offender: 6,
-    file: 'pages/Reports/Verifier.tsx',
-    lines: [{ line: 178, text: '<pre aria-label="Normalised document">{verdict.canonical_json}</pre>' }],
-    reason: 'Canonical JSON shown as the verification result.',
-    retiredBy: 'M2.6',
-  },
-];
+export const RAW_RENDERING_ALLOW_LIST: RawRenderingOffender[] = [];
 
-export const UNLISTED_FINDINGS: UnlistedFinding[] = [
-  {
-    offender: 16,
-    file: 'pages/Workbench/SourcePanel.tsx',
-    lines: [{ line: 108, text: '<pre className="wb-diff" aria-label={`Changes to ${path}`}>' }],
-    reason: UNLISTED_REASON,
-    retiredBy: null,
-  },
-];
+// [impl->req~frontend-nav-allow-list-empty~1]
+export const UNLISTED_FINDINGS: UnlistedFinding[] = [];

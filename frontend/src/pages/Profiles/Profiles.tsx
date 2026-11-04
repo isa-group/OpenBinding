@@ -7,7 +7,6 @@ import { Chip } from '../../components/ui/Chip';
 import { DataTable } from '../../components/ui/DataTable';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Notice } from '../../components/ui/Notice';
-import { LanguageNav } from '../../components/ui/SectionNav';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
@@ -163,7 +162,6 @@ export function Profiles() {
   return (
     <div className="profiles-page">
       <div className="profiles-head">
-        <LanguageNav current="profiles" />
         <h1>The BIM language</h1>
         <p>
           An instance selects a Profile. The Profile says which roles must be filled and how many times; installed dialects add resource
@@ -181,7 +179,7 @@ export function Profiles() {
             {profileList.map((item) => <option key={item.id} value={item.id}>{item.id}</option>)}
           </select>
         </label>
-        {user && <Link className="profiles-submit" to="/app/language/extensions">Submit a dialect or resource</Link>}
+        {user && <Link className="profiles-submit" to="/language/extensions">Submit a dialect or resource</Link>}
       </div>
 
       <div className="profiles-data" aria-live="polite" aria-busy={catalogStatus === 'loading'}>

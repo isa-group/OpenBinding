@@ -25,7 +25,7 @@ describe('why the gateway refuses a study', () => {
     const refusal = studyRefusal(refused(429, 'concurrency_limit_exceeded', 'busy', { concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 }, retryAfter: 15 }), 'run');
     expect(refusal.kind).toBe('busy');
     expect(refusal.retryAfter).toBe(15);
-    expect(refusal.text).toContain('You can run 3 jobs at once.');
+    expect(refusal.text).toContain('You can have 3 runs going at once.');
   });
 
   it('tells a plan without studies from a key that lacks an engine or a permission', () => {
@@ -47,18 +47,18 @@ describe('why the gateway refuses a study', () => {
     expect(sealed.title).toBe('A sealed report cites this run (409 · sealed_evidence)');
     expect(studyRefusal(refused(409, 'terminal_run'), 'cancel').title).toBe('This run already finished (409 · terminal_run)');
     expect(studyRefusal(refused(409, 'cell_not_retryable'), 'retry').title).toBe('This cell can’t be retried (409 · cell_not_retryable)');
-    expect(studyRefusal(refused(409, 'job_not_finished'), 'attach').title).toBe('That job hasn’t finished (409 · job_not_finished)');
+    expect(studyRefusal(refused(409, 'job_not_finished'), 'attach').title).toBe('That run hasn’t finished (409 · job_not_finished)');
     expect(studyRefusal(refused(409, 'study_history_retained'), 'delete').title).toBe('This study has runs (409 · study_history_retained)');
   });
 
-  it('says which of case, engine, mode and seed a job does not share with the cell (409 cell_job_mismatch)', () => {
+  it('says which of problem, engine, mode and seed a run does not share with the cell (409 cell_job_mismatch)', () => {
     const perField = studyRefusal(refused(409, 'cell_job_mismatch', 'mismatch', {
       problem: { detail: { code: 'cell_job_mismatch', fields: ['engine', 'seed'], details: { engine: { cell: 'bim.builtin/evolutionary@1.0.0', job: 'bim.builtin/random-search@1.0.0' }, seed: { cell: 2, job: 7 } } } },
     }), 'attach');
     expect(perField).toMatchObject({
       kind: 'conflict',
-      title: 'That job isn’t a run of this cell (409 · cell_job_mismatch)',
-      details: ['Engine: the cell has bim.builtin/evolutionary@1.0.0, the job ran bim.builtin/random-search@1.0.0', 'Seed: the cell has 2, the job ran 7'],
+      title: 'That run isn’t a run of this cell (409 · cell_job_mismatch)',
+      details: ['Engine: the cell has bim.builtin/evolutionary@1.0.0, the run had bim.builtin/random-search@1.0.0', 'Seed: the cell has 2, the run had 7'],
     });
     expect(perField.text).toContain('It differs in the engine and seed.');
     expect(perField.text).toContain('Nothing changed.');
@@ -66,22 +66,22 @@ describe('why the gateway refuses a study', () => {
     const perSide = studyRefusal(refused(409, 'cell_job_mismatch', 'mismatch', {
       problem: { code: 'cell_job_mismatch', fields: ['case_revision', 'mode', 'seed'], details: { cell: { case_revision: 'r2', mode: 'optimize', seed: 1 }, job: { case_revision: 'r1', mode: null, seed: 1 } } },
     }), 'attach');
-    expect(perSide.text).toContain('It differs in the case, mode and seed.');
-    expect(perSide.details).toEqual(['Case: the cell has r2, the job ran r1', 'Mode: the cell has optimize, the job ran none', 'Seed: the cell has 1, the job ran 1']);
+    expect(perSide.text).toContain('It differs in the problem, mode and seed.');
+    expect(perSide.details).toEqual(['Problem: the cell has r2, the run had r1', 'Mode: the cell has optimize, the run had none', 'Seed: the cell has 1, the run had 1']);
 
-    expect(studyRefusal(refused(409, 'cell_job_mismatch'), 'attach')).toMatchObject({ title: 'That job isn’t a run of this cell (409 · cell_job_mismatch)', details: [] });
+    expect(studyRefusal(refused(409, 'cell_job_mismatch'), 'attach')).toMatchObject({ title: 'That run isn’t a run of this cell (409 · cell_job_mismatch)', details: [] });
     expect(mismatchedFields(refused(409, 'cell_job_mismatch', 'x', { problem: { detail: { fields: ['seed'] } } }))).toEqual([{ field: 'seed', label: 'seed' }]);
   });
 
   it('words the other two refusals of an attached result', () => {
-    expect(studyRefusal(refused(409, 'job_result_missing'), 'attach')).toMatchObject({ kind: 'terminal', title: 'That job finished without a result (409 · job_result_missing)' });
-    expect(studyRefusal(refused(409, 'job_already_attached'), 'attach')).toMatchObject({ kind: 'conflict', title: 'That job is already the result of another cell (409 · job_already_attached)' });
+    expect(studyRefusal(refused(409, 'job_result_missing'), 'attach')).toMatchObject({ kind: 'terminal', title: 'That run finished without a result (409 · job_result_missing)' });
+    expect(studyRefusal(refused(409, 'job_already_attached'), 'attach')).toMatchObject({ kind: 'conflict', title: 'That run is already the result of another cell (409 · job_already_attached)' });
   });
 
   it('words each 422 by what the study asked for', () => {
     expect(studyRefusal(refused(422, 'study_matrix_too_large'), 'create')).toMatchObject({ kind: 'too-big', title: 'The matrix is too large (422 · study_matrix_too_large)' });
-    expect(studyRefusal(refused(422, 'empty_study_cases'), 'create').title).toBe('The study needs a case (422 · empty_study_cases)');
-    expect(studyRefusal(refused(422, 'foreign_case_revision'), 'create').title).toBe('A case revision isn’t in this organization (422 · foreign_case_revision)');
+    expect(studyRefusal(refused(422, 'empty_study_cases'), 'create').title).toBe('The study needs a problem (422 · empty_study_cases)');
+    expect(studyRefusal(refused(422, 'foreign_case_revision'), 'create').title).toBe('A problem version isn’t in this organization (422 · foreign_case_revision)');
     expect(studyRefusal(refused(422, 'unavailable_collection'), 'create').title).toBe('That collection isn’t available (422 · unavailable_collection)');
     const mode = studyRefusal(refused(422, 'engine_mode_incompatible', 'MiniZinc has no mode for this goal.'), 'create');
     expect(mode.kind).toBe('incompatible');
@@ -94,7 +94,7 @@ describe('why the gateway refuses a study', () => {
       notice: { limit_id: 'maxInstanceComplexityLog10', state: 'exhausted' as const, source: 'plan' as const, limit: 9, used: 12 },
       bindingSpace: { log10: 12, digits: 13 },
     }), 'run');
-    expect(refusal).toMatchObject({ kind: 'too-big', source: 'plan', title: 'A case is too big for your plan (402 · instance_complexity_too_large)' });
+    expect(refusal).toMatchObject({ kind: 'too-big', source: 'plan', title: 'A problem is too big for your plan (402 · instance_complexity_too_large)' });
     expect(refusal.text).toBe('This problem has about 10¹² combinations; your plan allows up to 10⁹ combinations. Reduce the candidates or ask about a larger plan. Nothing was started.');
   });
 
@@ -126,12 +126,12 @@ describe('why the gateway refuses a study', () => {
 
   it('a 429 for a cell says whose limit it is', () => {
     const refusal = studyRefusal(refused(429, 'concurrency_limit_exceeded', 'busy', { concurrency: { limit_id: 'concurrentJobs', limit: 1, used: 1, source: 'technical' }, retryAfter: 15 }), 'run');
-    expect(refusal.text).toContain('This deployment lets one account run 1 job at once, whatever its plan.');
+    expect(refusal.text).toContain('This deployment allows one account 1 run going at once, whatever its plan.');
     expect(refusal.source).toBe('technical');
   });
 
   it('separates a missing cell or job, a pricing outage and a service that did not answer', () => {
-    expect(studyRefusal(refused(404, 'not_found'), 'attach').text).toContain('only a finished job you launched can be attached');
+    expect(studyRefusal(refused(404, 'not_found'), 'attach').text).toContain('only a finished run you launched can be attached');
     expect(studyRefusal(new PricingUnavailableError('pricing down'), 'run')).toMatchObject({ kind: 'pricing', title: 'Limits can’t be checked right now (503 · pricing_unavailable)' });
     expect(studyRefusal(refused(503, 'upstream'), 'run').kind).toBe('unavailable');
     expect(studyRefusal(refused(401), 'run').kind).toBe('session');

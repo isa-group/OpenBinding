@@ -44,7 +44,7 @@ async function signIn(page: Page, persona: keyof typeof personas) {
 
 async function openWorkspace(page: Page) {
   // A project screen whose data is not mocked (the API answers 404) keeps the page behind the header independent of any API data.
-  await page.goto('/app/isa-demo/qos-benchmarks/files');
+  await page.goto('/app/isa-demo/qos-benchmarks/published');
   await expect(page.locator('header.app-header')).toBeVisible();
   await expect(page.getByRole('button', { name: '1 unread notifications' })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
@@ -92,8 +92,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           const toggle = header.getByRole('button', { name: 'Open menu' });
           await toggle.click();
           const menu = header.getByRole('navigation', { name: 'Mobile navigation' });
-          for (const label of ['Home', 'Jobs', 'Explore', 'Verifier', 'Engine catalog', 'My engines', 'Language extensions', 'Generator lab', 'Language docs', 'Organization', 'API key', 'Engine']) {
-            await expect(menu.getByRole('link', { name: label }).first(), label).toBeVisible();
+          for (const label of ['Home', 'Problems', 'Runs', 'Studies', 'Generator', 'Engines', 'Language', 'Problem', 'Collection', 'Study', 'Run']) {
+            await expect(menu.getByRole('link', { name: label, exact: true }).first(), label).toBeVisible();
+          }
+          for (const label of ['Jobs', 'Explore', 'Verifier', 'Engine catalog', 'Organization', 'API key']) {
+            await expect(menu.getByRole('link', { name: label, exact: true }), label).toHaveCount(0);
           }
           await expect(menu.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
           await expect(menu.getByRole('link', { name: 'Analysis', exact: true })).toHaveCount(0);
@@ -115,34 +118,37 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           await expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/app');
           // A project screen is not the workspace home: its own tabs say where you are, and Home is not marked.
           await expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current', 'page');
-          await expect(nav.getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', '/app/jobs');
-          await expect(nav.getByRole('link', { name: 'Analysis' })).toHaveCount(0);
-          await expect(nav.getByRole('link', { name: 'Explore' })).toHaveAttribute('href', '/explore');
-          await expect(nav.getByRole('link', { name: 'Admin' })).toHaveCount(0);
+          await expect(nav.getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems');
+          await expect(nav.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
+          await expect(nav.getByRole('link', { name: 'Language' })).toHaveAttribute('href', '/language');
+          for (const label of ['Jobs', 'Analysis', 'Explore', 'Admin']) await expect(nav.getByRole('link', { name: label })).toHaveCount(0);
+          await expect(nav.getByRole('button', { name: /Tools/ })).toHaveCount(0);
           await expect(header.getByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' })).toHaveAttribute('href', '/app');
           await expect(header.getByRole('button', { name: 'Open menu' })).toBeHidden();
 
-          // Tools, opened and closed with the keyboard.
-          const tools = nav.getByRole('button', { name: /Tools/ });
-          await tools.focus();
+          // Lab, opened and closed with the keyboard.
+          const lab = nav.getByRole('button', { name: /^Lab/ });
+          await lab.focus();
           await page.keyboard.press('Enter');
-          await expect(tools).toHaveAttribute('aria-expanded', 'true');
-          for (const label of ['Verifier', 'Engine catalog', 'My engines', 'Language extensions', 'Generator lab', 'Language docs']) {
-            await expect(header.getByRole('link', { name: label })).toBeVisible();
-          }
-          await shot('menu-tools');
+          await expect(lab).toHaveAttribute('aria-expanded', 'true');
+          const labMenu = header.locator('#app-lab-menu');
+          await expect(labMenu.getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/runs');
+          await expect(labMenu.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/studies');
+          await expect(labMenu.getByRole('link', { name: 'Generator' })).toHaveAttribute('href', '/app/generator');
+          await shot('menu-lab');
           await page.keyboard.press('Escape');
-          await expect(tools).toHaveAttribute('aria-expanded', 'false');
-          await expect(tools).toBeFocused();
+          await expect(lab).toHaveAttribute('aria-expanded', 'false');
+          await expect(lab).toBeFocused();
 
           // New.
           const create = header.getByRole('button', { name: /^New/ });
           await create.focus();
           await page.keyboard.press('Enter');
           await expect(create).toHaveAttribute('aria-expanded', 'true');
-          for (const label of ['Organization', 'Project', 'Case', 'Job', 'Study', 'API key', 'Engine']) {
-            await expect(header.locator('#app-new-menu').getByRole('link', { name: new RegExp(`^${label}`) }), label).toBeVisible();
+          for (const label of ['Problem', 'Collection', 'Study', 'Run']) {
+            await expect(header.locator('#app-new-menu').getByRole('link', { name: label, exact: true }), label).toBeVisible();
           }
+          await expect(header.locator('#app-new-menu').getByRole('link')).toHaveCount(4);
           await shot('menu-new');
           await page.keyboard.press('Escape');
           await expect(create).toHaveAttribute('aria-expanded', 'false');
@@ -151,7 +157,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           const account = header.getByRole('button', { name: 'Account menu' });
           await account.click();
           const accountMenu = header.locator('#app-account-menu');
-          await expect(accountMenu.getByRole('link', { name: 'Plan & permissions' })).toHaveAttribute('href', '/app/account/usage');
+          await expect(accountMenu.getByRole('link', { name: 'Plan', exact: true })).toHaveAttribute('href', '/app/account/usage');
+          await expect(accountMenu.getByRole('button', { name: 'Sign out' })).toBeVisible();
           await expect(accountMenu.getByRole('link', { name: 'Administration' })).toHaveCount(0);
           if (persona === 'research') await expect(accountMenu.getByText('Universidad de Sevilla · Institutional account')).toBeVisible();
           else await expect(accountMenu.getByText(/Institutional account/)).toHaveCount(0);

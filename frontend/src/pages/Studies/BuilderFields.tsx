@@ -4,6 +4,7 @@ import type { Artifact, ArtifactVersion } from '../../api/library';
 import type { CaseContent } from '../Project/projectModel';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
+import { problemsPath } from '../../routes/paths/problems';
 import { formatDate } from '../../utils/format';
 import { shortDigest } from '../../utils/digest';
 import {
@@ -33,21 +34,21 @@ export function CasesField({
   const toggle = (id: string) => onChange(selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id]);
   return (
     <fieldset className="st-fieldset">
-      <legend>1 · Cases</legend>
+      <legend>1 · Problems</legend>
       {offered.length === 0 && (
         <p className="st-empty-line">
-          This project has no case revisions yet. <Link to={`${root}/cases`} viewTransition>Open Cases</Link> to seal one.
+          This project has no problem versions yet. <Link to={problemsPath(root)} viewTransition>Open Problems</Link> to seal one.
         </p>
       )}
       {offered.length > 0 && (
-        <div className="st-options" role="group" aria-label="Case revisions">
+        <div className="st-options" role="group" aria-label="Problem versions">
           {offered.map(({ caseName, revision }) => {
             const ready = isExecutable(revision);
             return (
               <label key={revision.id} className={`st-option${ready ? '' : ' is-disabled'}`}>
                 <input type="checkbox" checked={selected.includes(revision.id)} disabled={!ready} onChange={() => toggle(revision.id)} />
                 <span className="st-option-text">
-                  <span>{caseName} · revision {revision.revision}</span>
+                  <span>{caseName} · version {revision.revision}</span>
                   <small>
                     {ready
                       ? `Sealed ${formatDate(revision.created_at) ?? 'on an unknown date'} · ${shortDigest(revision.digest)}`
@@ -61,13 +62,13 @@ export function CasesField({
       )}
       {offered.length > 0 && (
         <div className="st-tools">
-          <Action variant="ghost" size="sm" onClick={() => onChange(latestExecutable(cases))}>Latest revision of each case</Action>
+          <Action variant="ghost" size="sm" onClick={() => onChange(latestExecutable(cases))}>Latest version of each problem</Action>
           <Action variant="ghost" size="sm" onClick={() => onChange([])} disabled={selected.length === 0}>Clear</Action>
         </div>
       )}
       <details className="st-collection" open={Boolean(collectionArtifact)}>
         <summary>Or add a sealed collection</summary>
-        <p className="org-muted">All the case revisions of that exact version join the ones chosen above. Make one in <Link to={`${root}/collections`} viewTransition>Collections</Link>.</p>
+        <p className="org-muted">All the problem versions of that exact collection version join the ones chosen above. Make one in <Link to={`${root}/collections`} viewTransition>Collections</Link>.</p>
         <div className="st-pair">
           <label>
             <span>Collection</span>
@@ -171,7 +172,7 @@ export function SettingsField({ variants, onChange, seeds, onSeeds, seedsError, 
                 </label>
               </details>
               {reading.error && <p className="st-field-error" role="alert">{reading.error}</p>}
-              {reduced && <small className="org-muted">Your plan runs at most {ceiling} s per solve, so this setting runs at {ceiling} s; the job carries that note.</small>}
+              {reduced && <small className="org-muted">Your plan runs at most {ceiling} s per solve, so this setting runs at {ceiling} s; the run carries that note.</small>}
             </li>
           );
         })}
@@ -225,7 +226,7 @@ export function AdoptPanel({ studies, artifact, onArtifact, versions, version, o
       {studies.length === 0 && <p className="org-muted">The library has no study definition to reuse yet. Define a new matrix first.</p>}
       {version && (
         <p className="st-adopt-size" role="status">
-          {loading ? 'Reading the definition…' : size ? `From the library · ${plural(size.cells, 'cell')} (${plural(size.cases, 'case')} × ${plural(size.engines, 'engine')} × ${plural(size.settings, 'setting')} × ${plural(size.seeds, 'seed')})` : 'From the library · its size can’t be read here; the gateway checks it when you create the study.'}
+          {loading ? 'Reading the definition…' : size ? `From the library · ${plural(size.cells, 'cell')} (${plural(size.cases, 'problem')} × ${plural(size.engines, 'engine')} × ${plural(size.settings, 'setting')} × ${plural(size.seeds, 'seed')})` : 'From the library · its size can’t be read here; the gateway checks it when you create the study.'}
         </p>
       )}
     </section>

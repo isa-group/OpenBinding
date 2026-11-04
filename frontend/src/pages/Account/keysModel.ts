@@ -37,12 +37,12 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     name: 'Execution',
     permissions: [
-      { id: 'jobs:read', description: 'Read jobs and results' },
+      { id: 'jobs:read', description: 'Read runs and results' },
       { id: 'engines:read', description: 'List engines' },
-      { id: 'engines:execute', description: 'Launch, cancel and retry jobs' },
+      { id: 'engines:execute', description: 'Launch, cancel and retry runs' },
       { id: 'engines:register', description: 'Register engine revisions' },
-      { id: 'engines:publish', description: 'Request engine publication' },
-      { id: 'engines:moderate', description: 'Review engine publications' },
+      { id: 'engines:publish', description: 'Request an engine listing' },
+      { id: 'engines:moderate', description: 'Review engine listing requests' },
     ],
   },
   {
@@ -57,8 +57,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     permissions: [
       { id: 'organizations:read', description: 'Read organizations' },
       { id: 'organizations:write', description: 'Change organizations and members' },
-      { id: 'projects:read', description: 'Read projects, cases, jobs' },
-      { id: 'projects:write', description: 'Change projects and cases' },
+      { id: 'projects:read', description: 'Read projects, problems, runs' },
+      { id: 'projects:write', description: 'Change projects and problems' },
       { id: 'studies:read', description: 'Read studies and runs' },
       { id: 'studies:write', description: 'Change and run studies' },
       { id: 'reports:read', description: 'Read reports' },

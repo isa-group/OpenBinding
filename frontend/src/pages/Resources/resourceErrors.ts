@@ -1,5 +1,6 @@
 import { HttpError } from '../../api/client';
 import { problemField } from '../../api/problem';
+import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import { formatByteSize } from '../../utils/format';
 import { quotaOf } from '../Organization/orgErrors';
 import { classifyAuthError, generalFailure, marker, type AuthFailure } from '../Project/projectErrors';
@@ -83,10 +84,10 @@ const REFERENCE_NAMES: Record<string, [singular: string, plural: string]> = {
   library_version: ['library version', 'library versions'],
   report: ['report', 'reports'],
   collection_revision: ['collection revision', 'collection revisions'],
-  case_revision: ['case revision', 'case revisions'],
+  case_revision: ['problem version', 'problem versions'],
   snapshot: ['snapshot', 'snapshots'],
   project_resource_revision: ['resource revision', 'resource revisions'],
-  publication: ['publication', 'publications'],
+  publication: ['published result', 'published results'],
 };
 
 /** What still refers to a file (`409 blob_in_use`): `[{ type: 'report', count: 1 }]` → `[{ type, count, label: '1 report' }]`. */
@@ -98,7 +99,8 @@ export function fileReferences(caught: unknown): Array<{ type: string; count: nu
     const { type, count } = entry as { type?: unknown; count?: unknown };
     if (typeof type !== 'string') return [];
     const amount = typeof count === 'number' && count > 0 ? count : 1;
-    const [singular, plural] = REFERENCE_NAMES[type] ?? [type.replace(/_/g, ' '), `${type.replace(/_/g, ' ')}s`];
+    const words = inInterfaceWords(type.replace(/_/g, ' '));
+    const [singular, plural] = REFERENCE_NAMES[type] ?? [words, `${words}s`];
     return [{ type, count: amount, label: `${amount} ${amount === 1 ? singular : plural}` }];
   });
 }
@@ -191,7 +193,7 @@ export function collectionSaveRefusal(caught: unknown): Refusal {
     return { kind: 'target', text: `An item doesn’t point to an exact revision${marker(failure)}. Remove it and add it again from the picker. Nothing was saved.` };
   }
   if (failure.status === 422 && code === 'unsupported_collection_target') {
-    return { kind: 'unsupported', text: `Only case revisions and resource versions can be pinned in a collection${marker(failure)}. Nothing was saved.` };
+    return { kind: 'unsupported', text: `Only problem versions and resource versions can be pinned in a collection${marker(failure)}. Nothing was saved.` };
   }
   if (failure.status === 422 && /repeat/.test(detailText(caught))) {
     return { kind: 'duplicate', text: `An item appears twice${marker(failure)}: a revision can’t repeat a target. Remove the duplicate. Nothing was saved.` };

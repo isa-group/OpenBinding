@@ -231,7 +231,7 @@ describe('CasCallback', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Institutional sign-in is paused (503 · institutional_pricing_invalid).');
     expect(screen.getByText(/You can still log in with a password\./)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Service status' })).toHaveAttribute('href', '/status');
+    expect(screen.getByRole('link', { name: 'Service status' })).toHaveAttribute('href', '/about');
   });
 
   it('reports a CAS outage without blaming the code', async () => {

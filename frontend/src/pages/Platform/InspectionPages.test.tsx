@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { VerifierEntity } from '../../api/platform';
-import { ENTITY_KINDS, entityHref, entityKind } from './verifierOptions';
+import { ENTITY_KINDS, entityHref, entityKind } from '../Verify/verifierOptions';
 
-// The report page and the verifier are tested with their screens in pages/Reports; what stays here is the vocabulary of the verifier's matches.
+// The Verify page is tested with its screen in pages/Verify; what stays here is the vocabulary of the verifier's matches.
 const entity = (over: Partial<VerifierEntity>): VerifierEntity => ({ entity_type: 'case', id: 'id-1', ...over });
 
 describe('what the verifier can match', () => {
   it('names every kind of element the gateway searches', () => {
     expect(ENTITY_KINDS.map((kind) => kind.type)).toEqual(['case', 'snapshot', 'collection', 'report', 'artifact', 'engine', 'study_run']);
-    expect(entityKind('case')).toMatchObject({ label: 'Case revision', resolve: 'case-revision' });
+    expect(entityKind('case')).toMatchObject({ label: 'Problem version', resolve: 'case-revision' });
     expect(entityKind('study_run').resolve).toBeUndefined();
   });
 
@@ -19,18 +19,19 @@ describe('what the verifier can match', () => {
 
   it('links a match to the screen that shows it, from routes this application serves', () => {
     const where = { organization_slug: 'isa-demo', project_slug: 'qos-benchmarks' };
-    expect(entityHref(entity({ ...where, slug: 'checkout-flow' }))).toBe('/app/isa-demo/qos-benchmarks/cases/checkout-flow');
+    expect(entityHref(entity({ ...where, slug: 'checkout-flow' }))).toBe('/app/isa-demo/qos-benchmarks/problems/checkout-flow');
     expect(entityHref(entity({ ...where, entity_type: 'collection', slug: 'core' }))).toBe('/app/isa-demo/qos-benchmarks/collections/core');
-    expect(entityHref(entity({ ...where, entity_type: 'study_run', slug: 'engines-vs-seeds', id: 'run-1' }))).toBe('/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds/runs/run-1');
-    expect(entityHref(entity({ ...where, entity_type: 'artifact' }))).toBe('/app/isa-demo/qos-benchmarks/files');
+    expect(entityHref(entity({ ...where, entity_type: 'study_run', slug: 'engines-vs-seeds', id: 'run-1' }))).toBe('/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds/progress?run=run-1');
+    // [utest->req~frontend-nav-files-retired~1]
+    expect(entityHref(entity({ ...where, entity_type: 'artifact' }))).toBe('/app/isa-demo/qos-benchmarks');
   });
 
   // [utest->req~frontend-retire-reports-publications-stay~1]
-  it('links a report edition to the publications of its project, the retired report page being gone', () => {
+  it('links a report edition to the published results of its project, the retired report page being gone', () => {
     const where = { organization_slug: 'isa-demo', project_slug: 'qos-benchmarks' };
-    expect(entityHref(entity({ ...where, entity_type: 'report', slug: 'engines report' }))).toBe('/app/isa-demo/qos-benchmarks/publications');
-    expect(entityHref(entity({ ...where, entity_type: 'report', slug: 'engines-vs-seeds-informe' }))).toBe('/app/isa-demo/qos-benchmarks/publications');
-    expect(entityHref(entity({ ...where, entity_type: 'report' }))).toBe('/app/isa-demo/qos-benchmarks/publications');
+    expect(entityHref(entity({ ...where, entity_type: 'report', slug: 'engines report' }))).toBe('/app/isa-demo/qos-benchmarks/published');
+    expect(entityHref(entity({ ...where, entity_type: 'report', slug: 'engines-vs-seeds-informe' }))).toBe('/app/isa-demo/qos-benchmarks/published');
+    expect(entityHref(entity({ ...where, entity_type: 'report' }))).toBe('/app/isa-demo/qos-benchmarks/published');
   });
 
   it('gives no link to a match that lives nowhere the person can open', () => {

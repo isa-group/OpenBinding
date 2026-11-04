@@ -7,6 +7,7 @@ import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
+import { problemPath, problemsPath } from '../../routes/paths/problems';
 import { shortDigest } from '../../utils/digest';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { useResource, type Resource } from '../../utils/useResource';
@@ -69,13 +70,13 @@ function Card({ id, title, allLabel, allTo, resource, noun, children }: CardProp
 function CasesCard({ root, resource }: { root: string; resource: Resource<CaseContent[]> }) {
   const cases = resource.data ?? [];
   return (
-    <Card id="po-cases" title="Cases" allLabel="All cases" allTo={`${root}/cases`} resource={resource} noun="cases">
-      {cases.length === 0 && <p className="org-muted">No cases yet. A case holds a workflow, its candidates, constraints and goal.</p>}
+    <Card id="po-cases" title="Problems" allLabel="All problems" allTo={problemsPath(root)} resource={resource} noun="problems">
+      {cases.length === 0 && <p className="org-muted">No problems yet. A problem holds a workflow, its candidates, constraints and goal.</p>}
       {cases.slice(0, RECENT).map(({ item, revisions }) => {
         const ordered = [...revisions].sort((a, b) => a.revision - b.revision);
         const shown = ordered.slice(-4);
         return (
-          <Link key={item.id} to={`${root}/cases/${item.slug}`} viewTransition className="proj-row-card">
+          <Link key={item.id} to={problemPath(root, item.slug)} viewTransition className="proj-row-card">
             <span className="proj-row-top">
               <strong>{item.name}</strong>
               <small>{revisions.length === 1 ? '1 revision' : `${revisions.length} revisions`}</small>
@@ -100,7 +101,7 @@ function CasesCard({ root, resource }: { root: string; resource: Resource<CaseCo
           </Link>
         );
       })}
-      {cases.length > RECENT && <small className="org-muted">{cases.length - RECENT} more in All cases.</small>}
+      {cases.length > RECENT && <small className="org-muted">{cases.length - RECENT} more in All problems.</small>}
     </Card>
   );
 }
@@ -122,10 +123,10 @@ function JobsCard({ root, resource, platformAdmin }: { root: string; resource: R
   const rows = (resource.data?.rows ?? []).slice(0, 5);
   const mine = resource.data?.mine ?? null;
   return (
-    <Card id="po-jobs" title="Recent jobs" allLabel="All jobs" allTo={`${root}/jobs`} resource={resource} noun="jobs">
-      {rows.length === 0 && <p className="org-muted">No jobs in this project yet.</p>}
+    <Card id="po-jobs" title="Recent runs" allLabel="All runs" allTo={`${root}/runs`} resource={resource} noun="runs">
+      {rows.length === 0 && <p className="org-muted">No runs in this project yet.</p>}
       {rows.length > 0 && (
-        <ul className="proj-jobs" aria-label="Recent jobs">
+        <ul className="proj-jobs" aria-label="Recent runs">
           {rows.map((job) => {
             const status = jobStatus(job.status, job.termination);
             const own = platformAdmin || Boolean(mine?.has(job.id));
@@ -139,8 +140,8 @@ function JobsCard({ root, resource, platformAdmin }: { root: string; resource: R
                 </span>
                 <span className={`proj-status is-${status.tone}`}>{status.label}</span>
                 {own
-                  ? <Link to={`${root}/jobs/${job.id}`} viewTransition aria-label={`Open ${job.engine_id} job from ${formatDateTime(job.created_at) ?? 'an unknown time'}`}>Open</Link>
-                  : <small className="proj-owner-only" title="Jobs open only for whoever launched them">Owner only</small>}
+                  ? <Link to={`${root}/runs/${job.id}`} viewTransition aria-label={`Open ${job.engine_id} run from ${formatDateTime(job.created_at) ?? 'an unknown time'}`}>Open</Link>
+                  : <small className="proj-owner-only" title="Runs open only for whoever launched them">Owner only</small>}
               </li>
             );
           })}
@@ -154,13 +155,13 @@ function StudiesCard({ root, resource }: { root: string; resource: Resource<Stud
   const studies = (resource.data ?? []).filter((entry) => !entry.study.archived);
   return (
     <Card id="po-studies" title="Studies" allLabel="All studies" allTo={`${root}/studies`} resource={resource} noun="studies">
-      {studies.length === 0 && <p className="org-muted">No studies yet. A study compares engines and settings across cases.</p>}
+      {studies.length === 0 && <p className="org-muted">No studies yet. A study compares engines and settings across problems.</p>}
       {studies.slice(0, RECENT).map(({ study, runs, latestCells }) => {
         const run = latestRun(runs);
         const definition = study.definition;
         const cells = definition.case_revision_ids.length * definition.engines.length * Math.max(1, definition.parameter_sets.length) * definition.seeds.length;
         const parts = [
-          `${definition.case_revision_ids.length} case revisions`, `${definition.engines.length} engines`,
+          `${definition.case_revision_ids.length} problem versions`, `${definition.engines.length} engines`,
           ...(definition.parameter_sets.length > 1 ? [`${definition.parameter_sets.length} parameter sets`] : []),
           `${definition.seeds.length} seeds`,
         ];
@@ -215,8 +216,8 @@ function IntegrityStrip({ items }: { items: IntegrityItem[] }) {
 
 function GetStarted({ root, canCreate }: { root: string; canCreate: boolean }) {
   const steps: Array<{ title: string; detail: string; cta: string; to: string; needsMember?: boolean }> = [
-    { title: 'Import an example', detail: 'Start from a ready package and adapt it.', cta: 'Browse examples', to: '/examples' },
-    { title: 'Create a case', detail: 'Compose a workflow, candidates, constraints and goal.', cta: 'New case', to: `${root}/cases`, needsMember: true },
+    { title: 'Import an example', detail: 'Start from a ready package and adapt it.', cta: 'Browse examples', to: '/explore/examples' },
+    { title: 'Create a problem', detail: 'Compose a workflow, candidates, constraints and goal.', cta: 'New problem', to: problemsPath(root), needsMember: true },
     { title: 'Validate a package', detail: 'Check a .bim.zip you already have.', cta: 'Open Workbench', to: '/workbench' },
   ];
   return (
@@ -241,8 +242,8 @@ function GetStarted({ root, canCreate }: { root: string; canCreate: boolean }) {
   );
 }
 
-function OverviewBody({ organization, project, canCreate, publicRead, role, roleTitle }: {
-  organization: Organization; project: Project; canCreate: boolean; publicRead: boolean; role: Organization['effective_role'] | 'PLATFORM ADMIN'; roleTitle?: string;
+function OverviewBody({ organization, project, canCreate, canAdminister, publicRead, role, roleTitle }: {
+  organization: Organization; project: Project; canCreate: boolean; canAdminister: boolean; publicRead: boolean; role: Organization['effective_role'] | 'PLATFORM ADMIN'; roleTitle?: string;
 }) {
   const { isAdmin } = useAuth();
   const org = organization.slug;
@@ -283,20 +284,21 @@ function OverviewBody({ organization, project, canCreate, publicRead, role, role
         {/* [impl->req~frontend-retire-reports-entry-points-removed~1] */}
         <div className="proj-actions">
           {publicRead ? (
-            <Action to={`${root}/cases`} variant="primary">Browse cases</Action>
+            <Action to={problemsPath(root)} variant="primary">Browse problems</Action>
           ) : (
             <>
-              <RoleAction allowed={canCreate} to={`${root}/cases`} variant="primary">New case</RoleAction>
-              <RoleAction allowed={canCreate} to={`${root}/jobs/new`} variant="secondary">Run</RoleAction>
+              <RoleAction allowed={canCreate} to={problemsPath(root)} variant="primary">New problem</RoleAction>
+              <RoleAction allowed={canCreate} to={`${root}/runs/new`} variant="secondary">Run</RoleAction>
               <RoleAction allowed={canCreate} to={`${root}/studies/new`} variant="secondary">New study</RoleAction>
             </>
           )}
           <Action to={`${root}/workbench`} variant="secondary">Workbench</Action>
-          {!publicRead && <Action to={`${root}/package`} variant="secondary">Export package</Action>}
+          {/* The package export lives in the settings, which show it to the people who may change the project. */}
+          {!publicRead && canAdminister && <Action to={`${root}/settings`} variant="secondary">Export package</Action>}
         </div>
       </div>
-      {publicRead && <small className="org-muted">Cases, studies, the files marked public and the published reports are open to read. Only members can change anything or see jobs.</small>}
-      {!publicRead && !canCreate && <small className="org-muted">You’re a VIEWER: you can read everything here and export the package; creating needs MEMBER.</small>}
+      {publicRead && <small className="org-muted">Problems, studies, the files marked public and the published reports are open to read. Only members can change anything or see runs.</small>}
+      {!publicRead && !canCreate && <small className="org-muted">You’re a VIEWER: you can read everything here; creating needs MEMBER.</small>}
     </>
   );
 
@@ -330,6 +332,7 @@ export function ProjectOverview() {
       organization={organization}
       project={project}
       canCreate={access.canCreate}
+      canAdminister={access.canAdminister}
       publicRead={access.publicRead}
       role={role}
       roleTitle={roleSource(organization, context.organizations).text}

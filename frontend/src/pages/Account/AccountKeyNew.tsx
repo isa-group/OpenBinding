@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { Check, Lock, Plus } from 'lucide-react';
 import { apiClient, bimResourceKey } from '../../api/client';
 import type { ApiKeyPermission, CreateApiKeyRequest, CreatedApiKey } from '../../api/auth';
@@ -7,12 +6,12 @@ import type { EngineCatalogEntry } from '../../api/client';
 import { platformApi } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { FormField } from '../../components/ui/FormField';
+import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { useAuth } from '../../contexts/auth';
 import { shortDigest } from '../../utils/digest';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, fallbackMessage } from './accountErrors';
-import { AccountLayout } from './AccountLayout';
 import {
   ADMIN_ONLY, EXPIRY_PRESETS, PERMISSION_GROUPS, PRESETS, describeDescription, expiryFor, needsEngines,
   type ExpiryId,
@@ -53,7 +52,7 @@ function BoundaryPicker({ label, options, selected, onChange, hint, freeText = t
       <span className="keynew-bound-label">{label}</span>
       <span className="keynew-pills">
         {shown.map((value) => (
-          <button key={value} type="button" aria-pressed={selected.includes(value)} onClick={() => toggle(value)}>{value}</button>
+          <button key={value} type="button" aria-pressed={selected.includes(value)} onClick={() => toggle(value)}><code>{value}</code></button>
         ))}
         {shown.length === 0 && <span className="acct-muted">{hint ?? 'None to pick from.'}</span>}
       </span>
@@ -73,10 +72,17 @@ function BoundaryPicker({ label, options, selected, onChange, hint, freeText = t
   );
 }
 
-/** New API key (`acct-key-new`, `/app/account/keys/new`): a five-step wizard. */
-export function AccountKeyNew() {
+interface AccountKeyNewProps {
+  /** Cancel, the × button, Escape, the backdrop and “Go to my keys” all end here: the address goes back to `/app/account/keys`. */
+  onClose: () => void;
+  /** A key was created: the list of keys is stale. Called as soon as the gateway answers, before the secret is shown. */
+  onCreated?: () => void;
+}
+
+/** New API key: a five-step wizard in a dialog over the API keys section, open at `/app/account/keys?create=key`. */
+// [impl->req~frontend-nav-account-sections~1]
+export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
 
   const [step, setStep] = useState(1);
@@ -160,6 +166,8 @@ export function AccountKeyNew() {
     setError(null);
     try {
       setCreated(await apiClient.createApiKey(request()));
+      // The list under the dialog is stale from here on, however the secret dialog is left.
+      onCreated?.();
     } catch (caught) {
       const failure = classifyAuthError(caught);
       if (failure.kind === 'quota') setError('402 · You’ve reached your plan’s API key limit. Revoke a key or ask for an agreement with more keys.');
@@ -175,24 +183,30 @@ export function AccountKeyNew() {
     }
   };
 
-  const canList = permissions.length ? permissions.map((permission) => `${describeDescription(permission)} (${permission})`) : ['Nothing yet'];
+  const canList = permissions.length
+    ? permissions.map((permission) => ({ key: permission, item: <>{describeDescription(permission)} (<code>{permission}</code>)</> }))
+    : [{ key: 'nothing', item: <>Nothing yet</> }];
   const boundSummary = Object.values(boundary).flat();
   const adminLocked = !isAdmin;
   const expiryLabel = EXPIRY_PRESETS.find((item) => item.id === expiry)?.label ?? '';
 
+  // The secret is shown once, in a dialog of its own that takes the place of the wizard.
+  if (created) {
+    return (
+      <SecretDialog
+        title={`“${created.name}” is ready. Copy its secret now`}
+        secret={created.secret}
+        doneLabel="Go to my keys"
+        onDone={onClose}
+      >
+        <p>This is the only time the secret is shown. Use it as <code>X-API-Key</code> or <code>Authorization: Bearer</code>.</p>
+      </SecretDialog>
+    );
+  }
+
   return (
-    <AccountLayout
-      section="keys"
-      title="New API key"
-      lede="Give the key only what it needs. It can never exceed your own account."
-      above={(
-        <nav aria-label="Breadcrumb" className="keynew-crumbs">
-          <Link to="/app/account" viewTransition>Account</Link><span aria-hidden="true">/</span>
-          <Link to="/app/account/keys" viewTransition>API keys</Link><span aria-hidden="true">/</span>
-          <span aria-current="page">New key</span>
-        </nav>
-      )}
-    >
+    <Modal title="New API key" size="lg" onClose={() => !busy && onClose()}>
+      <p className="keynew-lede">Give the key only what it needs. It can never exceed your own account.</p>
       <ol aria-label="Steps" className="keynew-steps">
         {STEPS.map((label, index) => {
           const number = index + 1;
@@ -276,7 +290,7 @@ export function AccountKeyNew() {
                         />
                         <span>
                           <span className="keynew-perm-id">
-                            {permission.id}
+                            <code>{permission.id}</code>
                             {ADMIN_ONLY.has(permission.id) && <span className="keynew-admin-badge">ADMIN</span>}
                           </span>
                           <span id={noteId} className="keynew-perm-desc">
@@ -299,7 +313,7 @@ export function AccountKeyNew() {
         {step === 3 && (
           <>
             <h2>Engine access</h2>
-            <p>Permissions that run or read engine work (engines:*, jobs:read, instances:validate, studies:*) need all engines or at least one exact engine.</p>
+            <p>Permissions that run or read engine work (<code>engines:*</code>, <code>jobs:read</code>, <code>instances:validate</code>, <code>studies:*</code>) need all engines or at least one exact engine.</p>
             <div role="radiogroup" aria-label="Engine access" className="keynew-radios">
               <label className={allEngines ? 'is-on' : undefined}>
                 <input type="radio" name="engine-access" checked={allEngines} onChange={() => { setAllEngines(true); setError(null); }} />
@@ -341,7 +355,7 @@ export function AccountKeyNew() {
             <BoundaryPicker label="Organizations" options={orgSlugs} selected={boundary.organizations} onChange={setBoundaryValues('organizations')} hint="You don’t belong to an organization yet." />
             <BoundaryPicker label="Projects" options={projectSlugs} selected={boundary.projects} onChange={setBoundaryValues('projects')} hint="No projects to pick from." />
             <BoundaryPicker label="Resource kinds" options={KIND_SUGGESTIONS} selected={boundary.resource_kinds} onChange={setBoundaryValues('resource_kinds')} />
-            <BoundaryPicker label="Slugs" options={[]} selected={boundary.slugs} onChange={setBoundaryValues('slugs')} hint="Exact resource slugs, such as a case or study." />
+            <BoundaryPicker label="Slugs" options={[]} selected={boundary.slugs} onChange={setBoundaryValues('slugs')} hint="Exact resource slugs, such as a problem or study." />
           </>
         )}
 
@@ -351,9 +365,9 @@ export function AccountKeyNew() {
             <dl className="keynew-review">
               <dt>Name</dt><dd><strong>{name.trim()}</strong></dd>
               <dt>Expires</dt><dd>{expiryLabel}</dd>
-              <dt>Can</dt><dd><ul>{canList.map((item) => <li key={item}>{item}</li>)}</ul></dd>
+              <dt>Can</dt><dd><ul>{canList.map(({ key, item }) => <li key={key}>{item}</li>)}</ul></dd>
               <dt>Engines</dt><dd>{allEngines ? 'All engines, including future ones' : selectedEngines.length ? selectedEngines.map((engine) => `${engine.namespace}/${engine.name}@${engine.version}`).join(', ') : 'None'}</dd>
-              <dt>Limited to</dt><dd>{boundSummary.length ? boundSummary.join(' · ') : 'No extra limits'}</dd>
+              <dt>Limited to</dt><dd>{boundSummary.length ? boundSummary.map((value, index) => <span key={`${value}-${index}`}>{index > 0 && ' · '}<code>{value}</code></span>) : 'No extra limits'}</dd>
             </dl>
             <Notice tone="info">
               After creation the key’s authority can’t be edited. Rotating keeps it; to change it, create a new key and revoke this one.
@@ -363,23 +377,12 @@ export function AccountKeyNew() {
         )}
 
         <div className="keynew-nav">
-          {step > 1 ? <Action variant="secondary" onClick={() => { setStep(step - 1); setError(null); }}>Back</Action> : <Action to="/app/account/keys" variant="secondary">Cancel</Action>}
+          {step > 1 ? <Action variant="secondary" onClick={() => { setStep(step - 1); setError(null); }}>Back</Action> : <Action variant="secondary" onClick={onClose}>Cancel</Action>}
           {step < STEPS.length
             ? <Action variant="primary" onClick={next}>Continue</Action>
             : <Action variant="primary" onClick={() => void create()} busy={busy}>{busy ? 'Creating…' : 'Create key'}</Action>}
         </div>
       </section>
-
-      {created && (
-        <SecretDialog
-          title={`“${created.name}” is ready. Copy its secret now`}
-          secret={created.secret}
-          doneLabel="Go to my keys"
-          onDone={() => navigate('/app/account/keys')}
-        >
-          <p>This is the only time the secret is shown. Use it as <code>X-API-Key</code> or <code>Authorization: Bearer</code>.</p>
-        </SecretDialog>
-      )}
-    </AccountLayout>
+    </Modal>
   );
 }

@@ -77,10 +77,10 @@ export function AdminMaintenanceTools() {
     setJobsMessage(null);
     try {
       const result = await apiClient.adminReconcileJobs();
-      setJobsMessage({ tone: 'success', text: `${result.settled} abandoned job${result.settled === 1 ? '' : 's'} settled. Recorded in the audit log.` });
+      setJobsMessage({ tone: 'success', text: `${result.settled} abandoned run${result.settled === 1 ? '' : 's'} settled. Recorded in the audit log.` });
       preview.reload();
     } catch (error: unknown) {
-      const refused = maintenanceFailure(error, 'Job reconciliation failed');
+      const refused = maintenanceFailure(error, 'Run reconciliation failed');
       setJobsMessage({ tone: refused.tone, title: refused.title, text: `${refused.text} Inspect the worker and SPACE health before retrying.` });
     } finally {
       setBusy(null);
@@ -110,8 +110,8 @@ export function AdminMaintenanceTools() {
   const impact: Array<[string, number | undefined, string]> = [
     ['Expired artifacts', data?.expiredArtifacts, 'Past their expiry; their stored files go with them.'],
     ['Expired API keys', data?.expiredApiKeys, 'Past their expiry date.'],
-    ['Finished jobs to purge', data?.terminalJobs, `Finished before ${data ? formatDate(data.terminalJobCutoff) ?? '—' : '—'}, more than ${days} days ago.`],
-    ['Abandoned jobs', data?.abandonedJobs, 'Running or queued far past their time budget.'],
+    ['Finished runs to purge', data?.terminalJobs, `Finished before ${data ? formatDate(data.terminalJobCutoff) ?? '—' : '—'}, more than ${days} days ago.`],
+    ['Abandoned runs', data?.abandonedJobs, 'Running or queued far past their time budget.'],
   ];
 
   return (
@@ -120,7 +120,7 @@ export function AdminMaintenanceTools() {
         <h2 id="adm-preview-title">1 · Preview the impact</h2>
         <div className="adm-toolbar">
           <div className="adm-field">
-            <label className="adm-label" htmlFor={retentionId}>Keep finished jobs for (days)</label>
+            <label className="adm-label" htmlFor={retentionId}>Keep finished runs for (days)</label>
             <input id={retentionId} className="adm-narrow" value={retention} onChange={(event) => setRetention(event.target.value)} inputMode="numeric" aria-invalid={!retentionValid || undefined} aria-describedby={`${retentionId}-hint`} />
           </div>
           <Action variant="primary" onClick={runPreview} disabled={!retentionValid}>Preview</Action>
@@ -156,7 +156,7 @@ export function AdminMaintenanceTools() {
           {data && (
             <ul className="adm-bullets" aria-label="What a purge would remove">
               <li>{count(data.expiredArtifacts)} expired artifacts and {count(data.expiredApiKeys)} expired API keys</li>
-              <li>{count(data.terminalJobs)} finished jobs older than {days} days</li>
+              <li>{count(data.terminalJobs)} finished runs older than {days} days</li>
               <li>Error events older than {errorValid ? errorRetention : '—'} days (their count isn’t in the preview)</li>
             </ul>
           )}
@@ -174,12 +174,12 @@ export function AdminMaintenanceTools() {
         </section>
 
         <section className="adm-card" aria-labelledby="adm-jobs-title">
-          <h2 id="adm-jobs-title">3 · Reconcile abandoned jobs</h2>
-          <p>Settles jobs that stopped reporting and frees the concurrency slots they hold.</p>
-          <p className="adm-muted">{data ? `${count(data.abandonedJobs)} abandoned job${data.abandonedJobs === 1 ? '' : 's'} found by the preview.` : 'The preview counts them.'}</p>
+          <h2 id="adm-jobs-title">3 · Reconcile abandoned runs</h2>
+          <p>Settles runs that stopped reporting and frees the concurrency slots they hold.</p>
+          <p className="adm-muted">{data ? `${count(data.abandonedJobs)} abandoned run${data.abandonedJobs === 1 ? '' : 's'} found by the preview.` : 'The preview counts them.'}</p>
           {jobsMessage && <Notice tone={jobsMessage.tone} title={jobsMessage.title}>{jobsMessage.text}</Notice>}
           <div className="adm-buttons">
-            <Action variant="primary" busy={busy === 'jobs'} disabled={busy !== null} onClick={() => void reconcileJobs()}>Reconcile jobs</Action>
+            <Action variant="primary" busy={busy === 'jobs'} disabled={busy !== null} onClick={() => void reconcileJobs()}>Reconcile runs</Action>
           </div>
         </section>
 
@@ -189,7 +189,7 @@ export function AdminMaintenanceTools() {
         <Modal title="Purge expired data?" tone="danger" onClose={() => { if (busy !== 'purge') { setAsking(null); setTyped(''); } }}>
           <form className="adm-confirm" onSubmit={(event) => void purge(event)}>
             <p>
-              {data ? `${count(data.expiredArtifacts)} expired artifacts, ${count(data.expiredApiKeys)} expired API keys and ${count(data.terminalJobs)} finished jobs older than ${days} days` : 'The expired data'}
+              {data ? `${count(data.expiredArtifacts)} expired artifacts, ${count(data.expiredApiKeys)} expired API keys and ${count(data.terminalJobs)} finished runs older than ${days} days` : 'The expired data'}
               {' '}and the error events older than {errorRetention} days will be deleted permanently. Audit records remain. This can’t be undone.
             </p>
             <label htmlFor={typedId}>Type <strong className="is-mono">{CONFIRMATION}</strong> to confirm</label>

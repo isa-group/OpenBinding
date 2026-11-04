@@ -294,7 +294,7 @@ export function EngRegistrationDetail() {
   };
 
   const activate = () => run('activate', () => apiClient.activateEngineRegistration(ref), `${ref.name} passed its check and is active for you.`);
-  const deactivate = () => run('deactivate', () => apiClient.deactivateEngineRegistration(ref), 'Deactivated. You can’t pick it for new jobs until you activate it again.');
+  const deactivate = () => run('deactivate', () => apiClient.deactivateEngineRegistration(ref), 'Deactivated. You can’t pick it for new runs until you activate it again.');
 
   const toggle = () => {
     if (!detail.active) void activate();
@@ -346,7 +346,7 @@ export function EngRegistrationDetail() {
 
   const intro = owner
     ? `Your deployment of the ${engineRef?.name ?? ref.name} engine. Only you can use it${published ? '; it’s also published, so everyone can pick it.' : detail.status === 'pending_review' ? '; publication is waiting for review.' : '.'}`
-    : `Published by ${ref.namespace}. You can pick it when launching a job.`;
+    : `Published by ${ref.namespace}. You can pick it when launching a run.`;
 
   return (
     <div className="reg-page">
@@ -377,8 +377,8 @@ export function EngRegistrationDetail() {
           {owner && <Action to={newVersionHref(ref)} variant="secondary">Edit as a new version</Action>}
           {engineRef && (
             <ProjectPicker
-              label="Launch a job with it"
-              destination={(org, project) => `/app/${org}/${project}/jobs/new?engine=${encodeURIComponent(bimResourceKey(engineRef))}`}
+              label="Launch a run with it"
+              destination={(org, project) => `/app/${org}/${project}/runs/new?engine=${encodeURIComponent(bimResourceKey(engineRef))}`}
             />
           )}
         </div>
@@ -490,7 +490,7 @@ export function EngRegistrationDetail() {
               <h2 id="reg-pub-title">Publication</h2>
               <p>
                 {published
-                  ? 'Published. Everyone can pick it when launching a job. It can no longer be changed.'
+                  ? 'Published. Everyone can pick it when launching a run. It can no longer be changed.'
                   : detail.status === 'pending_review'
                     ? 'Waiting for an administrator’s review. It stays private until then.'
                     : detail.status === 'rejected'

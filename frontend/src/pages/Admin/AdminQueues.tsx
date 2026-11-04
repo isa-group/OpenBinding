@@ -53,7 +53,7 @@ function QueuesScreen() {
       section="queues"
       trail={[{ label: 'Administration', to: '/app/admin' }, { label: 'Queues' }]}
       title="Queues"
-      lede="Spot jobs that are stuck before people notice."
+      lede="Spot runs that are stuck before people notice."
       actions={(
         <>
           <Action variant="secondary" onClick={reload} busy={queues.status === 'loading' && Boolean(data)}><RefreshCw aria-hidden="true" />Refresh</Action>
@@ -70,12 +70,12 @@ function QueuesScreen() {
       {queues.status === 'loading' && !data && <div aria-busy="true" className="adm-skeleton"><span className="sr-only">Loading queue status</span><Skeleton variant="panel" /></div>}
 
       {status && total === 0 && (
-        <EmptyState icon={<Inbox />} title="Queues are empty" dashed>Nothing waiting, nothing running, and no finished jobs on record.</EmptyState>
+        <EmptyState icon={<Inbox />} title="Queues are empty" dashed>Nothing waiting, nothing running, and no finished runs on record.</EmptyState>
       )}
 
       {status && total > 0 && (
         <>
-          <div className="adm-states" role="list" aria-label="Jobs by state">
+          <div className="adm-states" role="list" aria-label="Runs by state">
             {STATES.map((state) => (
               <div key={state.id} className="adm-state" role="listitem">
                 <span className="adm-state-line"><span>{state.label}</span><strong>{count(counts[state.id] ?? 0)}</strong></span>
@@ -87,11 +87,11 @@ function QueuesScreen() {
           {overdue.length > 0 && (
             <Notice
               tone="warning"
-              title={overdue.length === 1 ? 'One job has run far past its time budget' : `${overdue.length} jobs have run far past their time budget`}
-              action={<Action size="sm" variant="primary" to="/app/admin/maintenance">Reconcile abandoned jobs</Action>}
+              title={overdue.length === 1 ? 'One run has gone far past its time budget' : `${overdue.length} runs have gone far past their time budget`}
+              action={<Action size="sm" variant="primary" to="/app/admin/maintenance">Reconcile abandoned runs</Action>}
             >
               {overdue.length === 1
-                ? `A ${overdue[0].engine} job asked for ${formatDuration(overdue[0].budgetSeconds)} and has been ${overdue[0].state} for ${ageLabel(overdue[0].createdAt, now)}. It may be abandoned.`
+                ? `A ${overdue[0].engine} run asked for ${formatDuration(overdue[0].budgetSeconds)} and has been ${overdue[0].state} for ${ageLabel(overdue[0].createdAt, now)}. It may be abandoned.`
                 : 'They may be abandoned. Reconciling settles the ones whose time budget and grace have passed.'}
             </Notice>
           )}
@@ -102,7 +102,7 @@ function QueuesScreen() {
               <span className="adm-muted">{inFlight > jobs.length ? `The ${jobs.length} oldest of ${count(inFlight)}` : `${count(inFlight)} in flight`}</span>
             </div>
             {jobs.length === 0 && <p className="adm-muted">Nothing waiting or running.</p>}
-            <ul className="adm-jobs" aria-label="Jobs in flight, oldest first">
+            <ul className="adm-jobs" aria-label="Runs in flight, oldest first">
               {jobs.map((job) => {
                 const age = ageSeconds(job.createdAt, now);
                 const ratio = age !== null && job.budgetSeconds > 0 ? (age / job.budgetSeconds) * 100 : 0;
@@ -112,7 +112,7 @@ function QueuesScreen() {
                     <Tag tone={job.state === 'running' ? 'info' : 'plain'}>{job.state === 'running' ? 'Running' : 'Queued'}</Tag>
                     <span className="adm-job-copy">
                       <span><strong className="is-mono">{job.engine}</strong>{' '}
-                        <span className="adm-muted">· {job.ownerId ? <Link to={`/app/admin/users/${job.ownerId}`} title={job.ownerId}>account {shortId(job.ownerId)}</Link> : 'no owner'} · job <span className="is-mono">{shortId(job.id)}</span></span>
+                        <span className="adm-muted">· {job.ownerId ? <Link to={`/app/admin/users/${job.ownerId}`} title={job.ownerId}>account {shortId(job.ownerId)}</Link> : 'no owner'} · run <span className="is-mono">{shortId(job.id)}</span></span>
                       </span>
                       <span className="adm-muted">Since {formatDateTime(job.createdAt) ?? job.createdAt} · budget {job.budgetSeconds > 0 ? formatDuration(job.budgetSeconds) : 'plan default'}</span>
                     </span>
@@ -132,9 +132,9 @@ function QueuesScreen() {
         <section className="adm-card" aria-labelledby="adm-queue-limits">
           <h2 id="adm-queue-limits">What this screen can’t do</h2>
           <p className="adm-muted">
-            The gateway exposes the queue read-only (<code>GET /v1/admin/queues</code>): counts by state and the 20 oldest jobs in flight. There is no
-            pause, resume or priority control, and an administrator can’t cancel another account’s job. The one corrective action is reconciling
-            abandoned jobs in maintenance. Study cells and analysis tasks have no queue of their own to show.
+            The gateway exposes the queue read-only (<code>GET /v1/admin/queues</code>): counts by state and the 20 oldest runs in flight. There is no
+            pause, resume or priority control, and an administrator can’t cancel another account’s run. The one corrective action is reconciling
+            abandoned runs in maintenance. Study cells and analysis tasks have no queue of their own to show.
           </p>
         </section>
       )}

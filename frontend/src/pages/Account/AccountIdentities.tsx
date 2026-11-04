@@ -76,7 +76,7 @@ function UnlinkDialog({ identity, researching, onClose, onUnlinked }: {
   const cellText = (planId: string | null) => {
     const index = view?.plans.findIndex((plan) => plan.id === planId) ?? -1;
     const cell = index >= 0 ? jobs?.cells[index] : undefined;
-    return cell?.kind === 'value' ? `${cell.text} concurrent ${cell.text === '1' ? 'job' : 'jobs'}` : null;
+    return cell?.kind === 'value' ? `${cell.text} concurrent ${cell.text === '1' ? 'run' : 'runs'}` : null;
   };
 
   const [typed, setTyped] = useState('');
@@ -141,7 +141,7 @@ function UnlinkDialog({ identity, researching, onClose, onUnlinked }: {
   );
 }
 
-/** Identities (`acct-identities`, `/app/account/identities`): the Universidad de Sevilla CAS identity and any other linked sign-in. */
+/** Identities (section `identities` of `acct-profile`, `/app/account/identities`): the Universidad de Sevilla CAS identity and any other linked sign-in. */
 export function AccountIdentities() {
   const { user, refresh } = useAuth();
   const institutional = useInstitutionalBranding();

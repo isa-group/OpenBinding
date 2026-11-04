@@ -10,6 +10,6 @@ export function BindingAnalysis({ result, jobId }: { result: unknown; jobId?: st
     <header><div><h3>Binding decision workspace</h3>
       <p>{formatNumber(count)} stored result{count === 1 ? '' : 's'} · recommendations, budgets, Pareto fronts, and explanations.</p></div>
     </header>
-    {!jobId && <p>Persist a solver job to compare its canonical evidence. The raw result remains available here.</p>}
+    {!jobId && <p>Persist a solver run to compare its canonical evidence. The raw result remains available here.</p>}
   </section>;
 }

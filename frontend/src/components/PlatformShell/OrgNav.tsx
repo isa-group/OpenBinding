@@ -21,8 +21,8 @@ export function OrgNav({ active = 'general', orgName, orgSlug, canAudit = true }
   useCurrentIntoView(nav, active);
   const sections: ReadonlyArray<{ key: OrgSection; label: string; to: string; icon: LucideIcon; locked: boolean }> = [
     { key: 'general', label: 'General', to: `${base}/settings`, icon: Settings, locked: false },
-    { key: 'members', label: 'Members & invitations', to: `${base}/settings/members`, icon: Users, locked: false },
-    { key: 'audit', label: 'Audit log', to: `${base}/settings/audit`, icon: History, locked: !canAudit },
+    { key: 'members', label: 'Members', to: `${base}/settings/members`, icon: Users, locked: false },
+    { key: 'audit', label: 'Audit', to: `${base}/settings/audit`, icon: History, locked: !canAudit },
   ];
 
   return (

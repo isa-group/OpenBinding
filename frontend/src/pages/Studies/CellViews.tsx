@@ -13,8 +13,8 @@ import {
 } from './studiesModel';
 
 interface Where {
-  /** `/app/:org/:project/studies/:study/runs/:run` */
-  runPath: string;
+  /** The address of a cell of the run, inside the Results tab. */
+  cellHref: (cellId: string) => string;
   index: ReadonlyMap<string, RevisionInfo>;
 }
 
@@ -41,7 +41,7 @@ export function RunHeatmap({ cells, measure, where }: { cells: readonly StudyCel
       <table className="st-grid is-heat">
         <thead>
           <tr>
-            <th scope="col">Case</th>
+            <th scope="col">Problem</th>
             {view.columns.map((column) => <th key={column.key} scope="col" className="st-grid-head">{column.label}</th>)}
           </tr>
         </thead>
@@ -58,7 +58,7 @@ export function RunHeatmap({ cells, measure, where }: { cells: readonly StudyCel
                 return (
                   <td key={column.key}>
                     <Link
-                      to={`${where.runPath}/cells/${cell.id}`}
+                      to={where.cellHref(cell.id)}
                       viewTransition
                       className={`st-heat ${tone}${metricsOf(cell).feasible === false && cell.state === 'completed' ? ' is-infeasible' : ''}`}
                       aria-label={`Cell ${cell.ordinal}, ${revisionLabel(where.index, row, true)}, ${column.label}: ${cell.state}${value !== null ? `, ${measureLabel(measure)} ${formatMeasure(value)}` : ''}`}
@@ -138,7 +138,7 @@ export function CellTable({ cells, where, canRetry, retrying, onRetry }: CellTab
           <thead>
             <tr>
               <th scope="col">Cell</th>
-              <th scope="col">Case</th>
+              <th scope="col">Problem</th>
               <th scope="col">Engine · seed</th>
               <th scope="col">State</th>
               {objectives.map((name) => <th key={name} scope="col">{measureLabel(name)}</th>)}
@@ -151,7 +151,7 @@ export function CellTable({ cells, where, canRetry, retrying, onRetry }: CellTab
               const metrics = metricsOf(cell);
               return (
                 <tr key={cell.id}>
-                  <td><Link to={`${where.runPath}/cells/${cell.id}`} viewTransition aria-label={`Open cell ${cell.ordinal}`}>#{cell.ordinal}</Link></td>
+                  <td><Link to={where.cellHref(cell.id)} viewTransition aria-label={`Open cell ${cell.ordinal}`}>#{cell.ordinal}</Link></td>
                   <td>{revisionLabel(where.index, cell.binding_case_revision_id, true)}</td>
                   <td>
                     {cell.engine_ref.name ?? 'engine'} · seed {cell.seed}

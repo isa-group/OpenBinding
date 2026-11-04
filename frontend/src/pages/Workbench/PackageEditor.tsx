@@ -63,7 +63,7 @@ export function PackageEditor({ wb }: { wb: Workbench }) {
                 )))}
             </section>
           ))}
-          <Link className="wb-index-link" to="/examples" viewTransition>Browse guided examples <ArrowRight aria-hidden="true" /></Link>
+          <Link className="wb-index-link" to="/explore/examples" viewTransition>Browse guided examples <ArrowRight aria-hidden="true" /></Link>
         </nav>
 
         <div className="wb-editor-main">

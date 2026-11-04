@@ -4,7 +4,8 @@ import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { digestOf, irDocument, refOf, revisionDocument, sourceContents } from '../src/pages/Cases/fixtures';
 
-// S5a · authoring and cases, part 1: case-list, case-detail, case-revision, case-compare, snap-detail.
+// S5a · authoring and cases, part 1: case-list and the problem page case-detail, whose tabs Overview, Versions and Source hold what the
+// version, compare and snapshot screens showed (the old addresses move to it).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 // One test per screen and viewport: the desktop walks the states of the screen, the phone gets its layout and its dialogs.
@@ -311,36 +312,39 @@ const viewports = [
 ] as const;
 
 const ROOT = '/app/isa-demo/qos-benchmarks';
-const CASE = `${ROOT}/cases/flujo-checkout`;
+const CASE = `${ROOT}/problems/flujo-checkout`;
+// The address of the problem before the segment became `problems`: the two tests of the old version and compare addresses visit it on purpose.
+const OLD_CASE = `${ROOT}/cases/flujo-checkout`;
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S5a cases`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('case-list /app/:org/:project/cases', async ({ page }, testInfo) => {
+    test('case-list /app/:org/:project/problems', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/cases`);
+      await page.goto(`${ROOT}/problems`);
       const main = page.locator('#platform-main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Cases' })).toBeVisible();
-      const list = main.getByRole('list', { name: 'Cases' });
+      await expect(main.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
+      const list = main.getByRole('list', { name: 'Problems' });
       await expect(list.getByRole('listitem')).toHaveCount(2);
       await expect(list.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', CASE);
       await expect(list.getByText('Ready to run')).toBeVisible();
-      await expect(list.getByText('No revision yet')).toBeVisible();
-      await expect(list.getByText('2 revisions')).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Cases' })).toHaveAttribute('aria-current', 'page');
+      await expect(list.getByText('No version yet')).toBeVisible();
+      await expect(list.getByText('2 versions')).toBeVisible();
+      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Problems' })).toHaveAttribute('aria-current', 'page');
       await capture(page, testInfo, `list-${name}-success`);
 
-      // The dialog of a new case, with the address suggested from the name and the gateway's 409.
-      await main.getByRole('button', { name: 'New case' }).click();
-      const dialog = page.getByRole('dialog', { name: 'New case' });
+      // The dialog of a new problem, open in the address, with the address suggested from the name and the gateway's 409.
+      await main.getByRole('button', { name: 'New problem' }).click();
+      await expect(page).toHaveURL(`${ROOT}/problems?create=problem`);
+      const dialog = page.getByRole('dialog', { name: 'New problem' });
       await dialog.getByLabel('Name', { exact: true }).fill('Análisis de latencia');
       await expect(dialog.getByLabel('Address')).toHaveValue('analisis-de-latencia');
-      state.refuse.createCase = detail(409, 'slug_conflict', 'That case slug is in use.');
-      await dialog.getByRole('button', { name: 'Create case' }).click();
-      await expect(dialog.getByRole('alert')).toContainText('That address is already used by another case in this project (409 · slug_conflict).');
+      state.refuse.createCase = detail(409, 'slug_conflict', 'That problem slug is in use.');
+      await dialog.getByRole('button', { name: 'Create problem' }).click();
+      await expect(dialog.getByRole('alert')).toContainText('That address is already used by another problem in this project (409 · slug_conflict).');
       await capture(page, testInfo, `list-${name}-dialog-409`);
       if (isMobile) {
         expect(critical).toEqual([]);
@@ -349,143 +353,172 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       state.refuse.createCase = undefined;
       const posted = request(page, 'POST', '/v1/organizations/isa-demo/projects/qos-benchmarks/cases');
-      await dialog.getByRole('button', { name: 'Create case' }).click();
+      await dialog.getByRole('button', { name: 'Create problem' }).click();
       expect((await posted).postDataJSON()).toEqual({ slug: 'analisis-de-latencia', name: 'Análisis de latencia', description: '' });
-      await expect(main.getByText('Case “Análisis de latencia” created. Compose its first revision when you’re ready.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Compose its first revision' })).toHaveAttribute('href', `${ROOT}/workbench?case=analisis-de-latencia`);
+      await expect(main.getByText('Problem “Análisis de latencia” created. Compose its first version when you’re ready.')).toBeVisible();
+      await expect(main.getByRole('link', { name: 'Compose its first version' })).toHaveAttribute('href', `${ROOT}/workbench?case=analisis-de-latencia`);
+      await expect(page).toHaveURL(`${ROOT}/problems`);
       await expect(list.getByRole('listitem')).toHaveCount(3);
       await capture(page, testInfo, `list-${name}-created`);
 
       // Search narrows the list.
-      await main.getByLabel('Search cases').fill('borra');
+      await main.getByLabel('Search problems').fill('borra');
       await expect(list.getByRole('listitem')).toHaveCount(1);
-      await main.getByLabel('Search cases').fill('');
+      await main.getByLabel('Search problems').fill('');
 
-      // An ADMIN deletes: a case with sealed revisions is refused up front, an empty one goes after typing its address.
+      // An ADMIN deletes: a problem with sealed versions is refused up front, an empty one goes after typing its address.
       await list.getByRole('button', { name: 'Delete Flujo de checkout' }).click();
       const sealed = page.getByRole('dialog', { name: 'Delete Flujo de checkout?' });
-      await expect(sealed.getByText(/2 sealed revisions, so it can’t be deleted/)).toBeVisible();
-      await expect(sealed.getByRole('button', { name: 'Delete case' })).toBeDisabled();
+      await expect(sealed.getByText(/2 sealed versions, so it can’t be deleted/)).toBeVisible();
+      await expect(sealed.getByRole('button', { name: 'Delete problem' })).toBeDisabled();
       await capture(page, testInfo, `list-${name}-delete-sealed`);
       await sealed.getByRole('button', { name: 'Cancel' }).click();
       await list.getByRole('button', { name: 'Delete Borrador' }).click();
       const empty = page.getByRole('dialog', { name: 'Delete Borrador?' });
       await empty.getByLabel('Type borrador to confirm').fill('borrador');
       const deleted = request(page, 'DELETE', '/v1/organizations/isa-demo/projects/qos-benchmarks/cases/borrador');
-      await empty.getByRole('button', { name: 'Delete case' }).click();
+      await empty.getByRole('button', { name: 'Delete problem' }).click();
       await deleted;
-      await expect(main.getByText('Case “Borrador” deleted.')).toBeVisible();
+      await expect(main.getByText('Problem “Borrador” deleted.')).toBeVisible();
       await expect(list.getByRole('listitem')).toHaveCount(2);
 
-      // A VIEWER reads and compares, and has no buttons that write.
-      await page.goto('/app/consultora-demo/client-case/cases');
-      await expect(main.getByRole('note')).toContainText('You’re a VIEWER. You can open and compare cases here; creating and editing need MEMBER.');
-      await expect(main.getByRole('button', { name: 'New case' })).toHaveCount(0);
+      // A VIEWER reads and compares, and has no buttons that write; the address cannot open the dialog for them.
+      await page.goto('/app/consultora-demo/client-case/problems?create=problem');
+      await expect(main.getByRole('note')).toContainText('You’re a VIEWER. You can open and compare problems here; creating and editing need MEMBER.');
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await expect(main.getByRole('button', { name: 'New problem' })).toHaveCount(0);
       await expect(main.getByRole('button', { name: /^Delete/ })).toHaveCount(0);
-      await expect(main.getByRole('link', { name: 'New revision' })).toHaveCount(0);
+      await expect(main.getByRole('link', { name: 'New version' })).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-viewer`);
 
-      // A project with no case explains how to start.
-      await page.goto('/app/isa-demo/checkout-privado/cases');
-      const guide = main.getByRole('region', { name: 'No cases yet' });
-      await expect(guide.getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/examples');
+      // A project with no problem explains how to start.
+      await page.goto('/app/isa-demo/checkout-privado/problems');
+      const guide = main.getByRole('region', { name: 'No problems yet' });
+      await expect(guide.getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/explore/examples');
       await expect(guide.getByRole('link', { name: 'Open the library' })).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-empty`);
 
       // The list fails and comes back.
       state.refuse.cases = unavailable;
-      await page.goto(`${ROOT}/cases`);
-      await expect(main.getByRole('alert')).toContainText('Cases couldn’t be loaded (503)');
+      await page.goto(`${ROOT}/problems`);
+      await expect(main.getByRole('alert')).toContainText('Problems couldn’t be loaded (503)');
       await capture(page, testInfo, `list-${name}-error`);
       state.refuse.cases = undefined;
       await main.getByRole('button', { name: 'Retry' }).click();
       await expect(list.getByRole('listitem')).toHaveCount(2);
 
       // A project the account is not in reads like one that is missing.
-      await page.goto('/app/isa-demo/ghost/cases');
+      await page.goto('/app/isa-demo/ghost/problems');
       await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
       expect(critical).toEqual([]);
     });
 
-    test('case-detail /app/:org/:project/cases/:case', async ({ page }, testInfo) => {
+    test('case-detail /app/:org/:project/problems/:case/:tab? · header, tabs, Versions and Settings', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
+      await mockApi(page);
       await page.goto(CASE);
       const main = page.locator('#platform-main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Flujo de checkout' })).toBeVisible();
       await expect(main.getByText('Payments with parallel stock and shipping.')).toBeVisible();
-      const timeline = main.getByRole('region', { name: 'Revisions' });
-      await expect(timeline.getByRole('link', { name: /^Revision \d$/ })).toHaveText(['Revision 2', 'Revision 1']);
+      const tabs = main.getByRole('tablist', { name: 'Problem sections' });
+      await expect(tabs.getByRole('tab')).toHaveText(['Overview', 'Runs', 'Versions', 'Source', 'Settings']);
+      await expect(tabs.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
+      await expect(main.getByRole('combobox', { name: 'Version', exact: true })).toHaveValue('2');
+      await expect(main.getByRole('link', { name: 'New version' })).toHaveAttribute('href', `${ROOT}/workbench?case=flujo-checkout`);
+      await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${ROOT}/runs/new?case=flujo-checkout&revision=2`);
+
+      // The history of the versions is its own tab.
+      await tabs.getByRole('tab', { name: 'Versions' }).click();
+      await expect(page).toHaveURL(`${CASE}/versions`);
+      const timeline = main.getByRole('region', { name: 'Versions' });
+      await expect(timeline.getByRole('link', { name: /^Version \d$/ })).toHaveText(['Version 2', 'Version 1']);
       await expect(timeline.getByText('Candidate catalog · providers: providers-eu v2 → providers-eu v3')).toBeVisible();
-      await expect(timeline.getByText('First revision.')).toBeVisible();
-      const glance = main.getByRole('region', { name: 'Latest revision at a glance' });
-      await expect(glance.getByRole('img', { name: /^Workflow: authenticate, then inventory and shipping in parallel/ })).toBeVisible();
-      await expect(glance.getByRole('list', { name: 'Latest revision figures' }).getByRole('listitem')).toHaveCount(4);
-      await expect(main.getByRole('link', { name: 'New revision' })).toHaveAttribute('href', `${ROOT}/workbench?case=flujo-checkout`);
-      await expect(main.getByRole('link', { name: 'Compare revisions' })).toHaveAttribute('href', `${CASE}/compare`);
-      await expect(main.getByRole('link', { name: 'Run latest' })).toHaveAttribute('href', `${ROOT}/jobs/new?case=flujo-checkout&revision=2`);
+      await expect(timeline.getByText('First version.')).toBeVisible();
       await capture(page, testInfo, `detail-${name}-success`);
 
-      // A case without revisions points to the workbench.
-      await page.goto(`${ROOT}/cases/borrador`);
-      const guide = main.getByRole('region', { name: 'No revisions yet' });
-      await expect(guide.getByRole('link', { name: 'Compose the first revision' })).toHaveAttribute('href', `${ROOT}/workbench?case=borrador`);
+      // The runs of the problem: none started from it in this project.
+      await tabs.getByRole('tab', { name: 'Runs' }).click();
+      await expect(main.getByText('No runs of this problem yet')).toBeVisible();
+
+      // An address that is not a tab of the page.
+      await page.goto(`${CASE}/history`);
+      await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
+
+      // A problem without versions points to the workbench.
+      await page.goto(`${ROOT}/problems/borrador`);
+      const guide = main.getByRole('region', { name: 'No versions yet' });
+      await expect(guide.getByRole('link', { name: 'Compose the first version' })).toHaveAttribute('href', `${ROOT}/workbench?case=borrador`);
       await capture(page, testInfo, `detail-${name}-empty`);
+      expect(critical).toEqual([]);
+    });
+
+    test('case-detail Settings /app/:org/:project/problems/:case/settings', async ({ page }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      const state = await mockApi(page);
+      const main = page.locator('#platform-main');
+      await page.goto(`${CASE}/settings`);
+      await expect(main.getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true');
+      await expect(main.getByLabel('Name', { exact: true })).toHaveValue('Flujo de checkout');
+      await capture(page, testInfo, `settings-${name}-success`);
       if (isMobile) {
         expect(critical).toEqual([]);
         return;
       }
 
-      // The description is edited in place and saved.
-      await page.goto(CASE);
-      await main.getByRole('button', { name: 'Edit description' }).click();
+      // The name and the description are edited in Settings and saved.
       await main.getByLabel('Description', { exact: true }).fill('Catalog grown from 5 to 8 candidates.');
       await capture(page, testInfo, `detail-${name}-editing`);
       await main.getByRole('button', { name: 'Save' }).click();
-      await expect(main.getByText('Description saved.')).toBeVisible();
+      await expect(main.getByText('Saved.')).toBeVisible();
+      expect(state.sent.patch).toEqual({ name: 'Flujo de checkout', description: 'Catalog grown from 5 to 8 candidates.' });
+      await page.goto(CASE);
       await expect(main.getByText('Catalog grown from 5 to 8 candidates.')).toBeVisible();
-      expect(state.sent.patch).toEqual({ description: 'Catalog grown from 5 to 8 candidates.' });
 
-      // Deleting is for an ADMIN, and a case that holds sealed revisions says why it can't go.
-      await main.getByRole('button', { name: 'Delete case' }).click();
+      // Deleting is for an ADMIN, and a problem that holds sealed versions says why it can't go.
+      await page.goto(`${CASE}/settings`);
+      await main.getByRole('button', { name: 'Delete problem' }).click();
       const sealed = page.getByRole('dialog', { name: 'Delete Flujo de checkout?' });
-      await expect(sealed.getByText(/2 sealed revisions, so it can’t be deleted/)).toBeVisible();
-      await expect(sealed.getByRole('button', { name: 'Delete case' })).toBeDisabled();
+      await expect(sealed.getByText(/2 sealed versions, so it can’t be deleted/)).toBeVisible();
+      await expect(sealed.getByRole('button', { name: 'Delete problem' })).toBeDisabled();
       await capture(page, testInfo, `detail-${name}-delete-sealed`);
       await sealed.getByRole('button', { name: 'Cancel' }).click();
 
-      // An empty case is deleted and the list takes its place.
-      await page.goto(`${ROOT}/cases/borrador`);
-      await main.getByRole('button', { name: 'Delete case' }).click();
+      // An empty problem is deleted and the list takes its place.
+      await page.goto(`${ROOT}/problems/borrador/settings`);
+      await main.getByRole('button', { name: 'Delete problem' }).click();
       const dialog = page.getByRole('dialog', { name: 'Delete Borrador?' });
       await dialog.getByLabel('Type borrador to confirm').fill('borrador');
-      await dialog.getByRole('button', { name: 'Delete case' }).click();
-      await expect(page).toHaveURL(`${ROOT}/cases`);
-      await expect(main.getByText('Case “Borrador” deleted.')).toBeVisible();
+      await dialog.getByRole('button', { name: 'Delete problem' }).click();
+      await expect(page).toHaveURL(`${ROOT}/problems`);
+      await expect(main.getByText('Problem “Borrador” deleted.')).toBeVisible();
 
-      // A VIEWER reads: no new revision, no editing.
-      await page.goto('/app/consultora-demo/client-case/cases/flujo-checkout');
-      await expect(main.getByRole('note')).toContainText('You can read and compare revisions. New revisions need MEMBER; deleting needs ADMIN.');
-      await expect(main.getByRole('link', { name: 'New revision' })).toHaveCount(0);
-      await expect(main.getByRole('button', { name: 'Edit description' })).toHaveCount(0);
+      // A VIEWER reads: no new version, no editing.
+      await page.goto('/app/consultora-demo/client-case/problems/flujo-checkout');
+      await expect(main.getByRole('note')).toContainText('You can read and compare versions. New versions need MEMBER; deleting needs ADMIN.');
+      await expect(main.getByRole('link', { name: 'New version' })).toHaveCount(0);
+      await page.goto('/app/consultora-demo/client-case/problems/flujo-checkout/settings');
+      await expect(main.getByLabel('Description', { exact: true })).toBeDisabled();
+      await expect(main.getByRole('button', { name: 'Save' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-viewer`);
 
-      // A case that isn't there.
-      await page.goto(`${ROOT}/cases/ghost`);
-      await expect(main.getByRole('heading', { name: 'No case with this address in QoS Benchmarks (404)' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'All cases' })).toHaveAttribute('href', `${ROOT}/cases`);
+      // A problem that isn't there.
+      await page.goto(`${ROOT}/problems/ghost`);
+      await expect(main.getByRole('heading', { name: 'No problem with this address in QoS Benchmarks (404)' })).toBeVisible();
+      await expect(main.getByRole('link', { name: 'All problems' })).toHaveAttribute('href', `${ROOT}/problems`);
       await capture(page, testInfo, `detail-${name}-404`);
       expect(critical).toEqual([]);
     });
 
-    test('case-revision /app/:org/:project/cases/:case/revisions/:revision', async ({ page }, testInfo) => {
+    test('case-detail Overview ?version= (the old revision address moves to it)', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${CASE}/revisions/2`);
+      await page.goto(`${OLD_CASE}/revisions/2`);
       const main = page.locator('#platform-main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Flujo de checkout · revision 2' })).toBeVisible();
+      await expect(page).toHaveURL(`${CASE}?version=2`);
+      await expect(main.getByRole('heading', { level: 1, name: 'Flujo de checkout' })).toBeVisible();
+      await expect(main.getByRole('combobox', { name: 'Version', exact: true })).toHaveValue('2');
       await expect(main.getByText('Sealed', { exact: true }).first()).toBeVisible();
       const workflow = main.getByRole('region', { name: 'How the service works' });
       const drawing = workflow.getByRole('img', { name: /^Workflow: authenticate, then inventory and shipping in parallel/ });
@@ -496,14 +529,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(providers.getByRole('row')).toHaveCount(1 + 4);
       await expect(main.getByRole('region', { name: 'Rules' }).getByText('MUST')).toBeVisible();
       await expect(main.getByRole('region', { name: 'Goal' }).getByText('lower is better').first()).toBeVisible();
-      await expect(main.getByText(/not declared in this revision \(no pools, network or events\)/)).toBeVisible();
+      await expect(main.getByText(/not declared in this version \(no pools, network or events\)/)).toBeVisible();
       const resources = main.getByRole('region', { name: 'Resources it’s built from' });
       const catalogCard = resources.getByRole('listitem').filter({ hasText: /Candidate catalog.*providers-eu v3/ });
       await expect(catalogCard).toContainText('Published');
       await expect(catalogCard).not.toContainText(/open in library/i);
       await expect(resources.getByRole('link')).toHaveCount(0);
-      await expect(main.getByRole('link', { name: 'Compare' })).toHaveAttribute('href', `${CASE}/compare?from=1&to=2`);
-      await expect(main.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/snapshots/${S2}`);
+      await expect(main.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${CASE}/source?version=2`);
       await capture(page, testInfo, `revision-${name}-success`);
       if (isMobile) {
         expect(critical).toEqual([]);
@@ -514,35 +546,36 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await providers.getByLabel('Task').selectOption('pay-card');
       await expect(providers.getByRole('row')).toHaveCount(1 + 8);
 
-      // Another revision of the same case.
-      await main.getByLabel('Show revision').selectOption('1');
-      await expect(main.getByRole('heading', { level: 1, name: 'Flujo de checkout · revision 1' })).toBeVisible();
-      await expect(page).toHaveURL(`${CASE}/revisions/1`);
+      // Another version of the same problem.
+      await main.getByRole('combobox', { name: 'Version', exact: true }).selectOption('1');
+      await expect(page).toHaveURL(`${CASE}?version=1`);
+      await expect(main.getByRole('combobox', { name: 'Version', exact: true })).toHaveValue('1');
 
       // The compiled form and the resources can't be loaded: the identity stays, the model says it may be incomplete.
       state.refuse.snapshot = unavailable;
       state.refuse.resolve = detail(404, 'not_found', 'Artifact version not found.');
-      await page.goto(`${CASE}/revisions/2`);
-      await expect(main.getByText(/Some resources of this revision couldn’t be loaded right now, so the model below may be incomplete/)).toBeVisible();
+      await page.goto(`${CASE}?version=2`);
+      await expect(main.getByText(/Some resources of this version couldn’t be loaded right now, so the model below may be incomplete/)).toBeVisible();
       await expect(main.getByText('The fingerprint and identity are still exact.')).toBeVisible();
       await expect(main.getByText(/The compiled form couldn’t be read \(503\)/)).toBeVisible();
       await capture(page, testInfo, `revision-${name}-unresolved`);
 
-      // A revision that doesn't exist.
-      await page.goto(`${CASE}/revisions/9`);
-      await expect(main.getByRole('heading', { name: 'This revision doesn’t exist (404)' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'See all revisions' })).toHaveAttribute('href', CASE);
+      // A version that doesn't exist.
+      await page.goto(`${CASE}?version=9`);
+      await expect(main.getByRole('heading', { name: 'This version doesn’t exist (404)' })).toBeVisible();
+      await expect(main.getByRole('link', { name: 'See all versions' })).toHaveAttribute('href', `${CASE}/versions`);
       await capture(page, testInfo, `revision-${name}-404`);
       expect(critical).toEqual([]);
     });
 
-    test('case-compare /app/:org/:project/cases/:case/compare', async ({ page }, testInfo) => {
+    test('case-detail Versions · compare (the old compare address moves to it)', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto(`${CASE}/compare`);
+      await page.goto(`${OLD_CASE}/compare`);
       const main = page.locator('#platform-main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Compare revisions' })).toBeVisible();
+      await expect(page).toHaveURL(`${CASE}/versions`);
+      await expect(main.getByRole('heading', { level: 2, name: 'Compare versions' })).toBeVisible();
       await expect(main.getByRole('combobox', { name: 'From', exact: true })).toHaveValue('1');
       await expect(main.getByRole('combobox', { name: 'To', exact: true })).toHaveValue('2');
       const table = main.getByRole('table');
@@ -563,43 +596,44 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         return;
       }
 
-      // Swapped, the second revision is the smaller one.
-      await main.getByRole('button', { name: 'Swap revisions' }).click();
+      // Swapped, the second version is the smaller one.
+      await main.getByRole('button', { name: 'Swap versions' }).click();
       await expect(main.getByRole('combobox', { name: 'From', exact: true })).toHaveValue('2');
       await expect(main.getByText('≈ 3.2× fewer combinations (10^0.5)')).toBeVisible();
 
-      // The same revision on both sides has nothing to compare.
-      await page.goto(`${CASE}/compare?from=2&to=2`);
-      await expect(main.getByText('Both sides are the same revision, so there’s nothing to compare. Choose two different revisions.')).toBeVisible();
+      // The same version on both sides has nothing to compare.
+      await page.goto(`${OLD_CASE}/compare?from=2&to=2`);
+      await expect(page).toHaveURL(`${CASE}/versions?from=2&to=2`);
+      await expect(main.getByText('Both sides are the same version, so there’s nothing to compare. Choose two different versions.')).toBeVisible();
       await capture(page, testInfo, `compare-${name}-same`);
 
-      // A revision that doesn't exist.
-      await page.goto(`${CASE}/compare?from=1&to=7`);
-      await expect(main.getByRole('alert')).toContainText('One of these revisions doesn’t exist (404). Pick another pair.');
+      // A version that doesn't exist.
+      await page.goto(`${CASE}/versions?from=1&to=7`);
+      await expect(main.getByRole('alert')).toContainText('One of these versions doesn’t exist (404). Pick another pair.');
       await capture(page, testInfo, `compare-${name}-404`);
 
-      // A case that isn't there.
-      await page.goto(`${ROOT}/cases/ghost/compare`);
-      await expect(main.getByRole('heading', { name: 'No case with this address in QoS Benchmarks (404)' })).toBeVisible();
+      // A problem that isn't there.
+      await page.goto(`${ROOT}/problems/ghost/versions`);
+      await expect(main.getByRole('heading', { name: 'No problem with this address in QoS Benchmarks (404)' })).toBeVisible();
       expect(critical).toEqual([]);
     });
 
-    test('snap-detail /app/:org/:project/snapshots/:snapshot', async ({ page }, testInfo) => {
+    test('case-detail Source ?version= (the old snapshot address moves to the list of problems)', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/snapshots/${S2}`);
+      await expect(page).toHaveURL(`${ROOT}/problems`);
+      await page.goto(`${CASE}/source?version=2`);
       const main = page.locator('#platform-main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Compiled snapshot' })).toBeVisible();
-      await expect(main.getByText(/Made by you · Aug 20, 2026, 10:05 UTC · from Flujo de checkout revision 2 · never changes/)).toBeVisible();
+      await expect(main.getByRole('tab', { name: 'Source' })).toHaveAttribute('aria-selected', 'true');
+      await expect(main.getByRole('region', { name: 'Compiled form (JSON)' })).toBeVisible();
       const fingerprints = main.getByRole('region', { name: 'Fingerprints' });
       await expect(fingerprints.locator('.snap-digest')).toHaveCount(3);
       const language = main.getByRole('region', { name: 'Exact language used' });
       await expect(language.getByText('Profile · qos-binding/v1')).toBeVisible();
       const engines = main.getByRole('region', { name: 'What the engines receive' });
       await expect(engines.getByRole('list', { name: 'What the engines receive' }).getByRole('listitem')).toHaveText(['6tasks', '24candidates', '2rules', '2goal terms', '10^3.3combinations']);
-      await expect(engines.getByRole('link', { name: 'See the full model of revision 2' })).toHaveAttribute('href', `${CASE}/revisions/2`);
-      await expect(main.getByRole('link', { name: 'Run from this snapshot' })).toHaveAttribute('href', `${ROOT}/jobs/new?snapshot=${S2}`);
       await capture(page, testInfo, `snapshot-${name}-success`);
       if (isMobile) {
         expect(critical).toEqual([]);
@@ -614,32 +648,30 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: /^Compiled form\s*For tools/ }).click();
       expect((await compiled).suggestedFilename()).toBe(`snapshot-${S2}-compiled.json`);
 
-      // The raw source is in its own tab.
-      await main.getByRole('tab', { name: 'Source' }).click();
-      await expect(main.getByRole('region', { name: 'Compiled form (JSON)' })).toBeVisible();
+      // The files of the package, next to the compiled form.
       await main.getByRole('button', { name: 'Files in the package' }).click();
       await expect(main.getByRole('list', { name: 'Files in the package' }).getByRole('button')).toHaveCount(2);
       await capture(page, testInfo, `snapshot-${name}-source`);
 
-      // The pinned files and resources are on the overview.
-      await main.getByRole('tab', { name: 'Overview' }).click();
+      // The pinned files and resources are with the fingerprints.
       await main.getByText('Per-file and per-resource fingerprints').click();
       await expect(main.getByRole('table', { name: 'Files (2)' })).toBeVisible();
 
       // The analysis is not available (409): the summary hides, the fingerprints and downloads stay.
       state.refuse.validate = detail(409, 'analysis_unavailable', 'The compiled form does not match.');
-      await page.goto(`${ROOT}/snapshots/${S2}`);
+      await page.goto(`${CASE}/source?version=2`);
       await expect(engines.getByRole('alert')).toContainText('The compiled form doesn’t match this snapshot any more (409 · analysis unavailable), so its summary is hidden.');
       await expect(main.getByRole('region', { name: 'Downloads' })).toBeVisible();
       await capture(page, testInfo, `snapshot-${name}-409`);
       state.refuse.validate = undefined;
 
       // A snapshot that isn't the account's reads like one that doesn't exist; an API key without the permission is told so.
-      await page.goto(`${ROOT}/snapshots/00000000-0000-4000-8000-0000000000ff`);
+      state.refuse.snapshot = detail(404, 'not_found', 'Snapshot not found');
+      await page.goto(`${CASE}/source?version=2`);
       await expect(main.getByRole('heading', { name: 'Snapshot not found' })).toBeVisible();
       await capture(page, testInfo, `snapshot-${name}-404`);
       state.refuse.snapshot = detail(403, 'forbidden', 'The API key does not include instances:read.');
-      await page.goto(`${ROOT}/snapshots/${S2}`);
+      await page.goto(`${CASE}/source?version=2`);
       await expect(main.getByText('This API key doesn’t include “read instances” (403).')).toBeVisible();
       await capture(page, testInfo, `snapshot-${name}-403`);
       expect(critical).toEqual([]);

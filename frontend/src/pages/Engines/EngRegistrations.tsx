@@ -33,7 +33,7 @@ const FILTERS: ReadonlyArray<{ id: Filter; label: string }> = [
 ];
 
 const LIFECYCLE: ReadonlyArray<{ label: string; tone: 'info' | 'warning' | 'error'; text: string }> = [
-  { label: 'Inactive / Active', tone: 'info', text: 'Whether you can pick it for your own jobs. Activation re-checks the deployment.' },
+  { label: 'Inactive / Active', tone: 'info', text: 'Whether you can pick it for your own runs. Activation re-checks the deployment.' },
   { label: 'Private → Waiting for review → Published', tone: 'warning', text: 'Publishing needs an administrator’s review. Once published, it can’t be changed.' },
   { label: 'Delete', tone: 'error', text: 'Removes a registration you no longer use, with its stored credential. It can’t be undone.' },
 ];
@@ -142,7 +142,7 @@ export function EngRegistrations() {
     } else if (row.status === 'published') {
       setPending({ kind: 'deactivate', row });
     } else {
-      void run(row, () => apiClient.deactivateEngineRegistration(row), 'Deactivated. You can’t pick it for new jobs until you activate it again.');
+      void run(row, () => apiClient.deactivateEngineRegistration(row), 'Deactivated. You can’t pick it for new runs until you activate it again.');
     }
   };
 
@@ -165,7 +165,7 @@ export function EngRegistrations() {
     const success = kind === 'publish'
       ? 'Publication requested. An administrator will review it.'
       : kind === 'deactivate'
-        ? 'Deactivated. Nobody can pick it for new jobs until you activate it again.'
+        ? 'Deactivated. Nobody can pick it for new runs until you activate it again.'
         : `Deleted ${row.name} ${row.version}.`;
     await run(row, task, success);
     setPending(null);
@@ -269,7 +269,7 @@ export function EngRegistrations() {
         >
           {review
             ? 'When someone requests publication of a deployment, it shows up here for administrators.'
-            : 'Bring your own solver: register its deployment and use it in your jobs. It stays private until reviewed.'}
+            : 'Bring your own solver: register its deployment and use it in your runs. It stays private until reviewed.'}
         </EmptyState>
       )}
 

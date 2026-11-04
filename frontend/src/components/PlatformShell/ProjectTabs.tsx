@@ -2,10 +2,13 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye } from 'lucide-react';
 import type { ProjectAccessKind } from '../../api/platform';
+import { PROBLEMS_SEGMENT } from '../../routes/paths/problems';
+import { RUNS_SEGMENT } from '../../routes/paths/runs';
 import { canOpenSection, levelOf } from '../../utils/accessLevel';
 import './SectionNav.css';
 
-export type ProjectSection = 'overview' | 'cases' | 'collections' | 'jobs' | 'studies' | 'publications' | 'files' | 'package' | 'settings';
+// The keys `cases` and `jobs` are the section names the problem and run screens pass today, not addresses.
+export type ProjectSection = 'overview' | 'cases' | 'collections' | 'jobs' | 'studies' | 'published' | 'settings';
 
 interface ProjectTabsProps {
   active?: ProjectSection;
@@ -15,28 +18,33 @@ interface ProjectTabsProps {
   access?: ProjectAccessKind;
 }
 
+interface Tab {
+  key: ProjectSection;
+  label: string;
+  /** Appended to the project address. */
+  suffix: string;
+  /** Shown at the end of the row, apart from the others. */
+  trailing?: true;
+}
+
+// [impl->req~frontend-nav-project-tabs~1]
 // [impl->req~frontend-retire-reports-navigation~1]
 // [impl->req~frontend-retire-library-navigation~1]
-const tabs: ReadonlyArray<{ key: ProjectSection; label: string; suffix: string }> = [
+const TABS: readonly Tab[] = [
   { key: 'overview', label: 'Overview', suffix: '' },
-  { key: 'cases', label: 'Cases', suffix: '/cases' },
+  { key: 'cases', label: 'Problems', suffix: `/${PROBLEMS_SEGMENT}` },
   { key: 'collections', label: 'Collections', suffix: '/collections' },
-  { key: 'jobs', label: 'Jobs', suffix: '/jobs' },
+  { key: 'jobs', label: 'Runs', suffix: `/${RUNS_SEGMENT}` },
   { key: 'studies', label: 'Studies', suffix: '/studies' },
-  { key: 'publications', label: 'Publications', suffix: '/publications' },
-  { key: 'files', label: 'Files', suffix: '/files' },
-];
-
-const trailing: ReadonlyArray<{ key: ProjectSection; label: string; suffix: string }> = [
-  { key: 'package', label: 'Package', suffix: '/package' },
-  { key: 'settings', label: 'Settings', suffix: '/settings' },
+  { key: 'published', label: 'Published', suffix: '/published' },
+  { key: 'settings', label: 'Settings', suffix: '/settings', trailing: true },
 ];
 
 /** Section tabs shown at the top of every project screen. On a narrow screen the row scrolls, and the current tab is always brought into view. */
 export function ProjectTabs({ active = 'overview', orgSlug, projectSlug, access }: ProjectTabsProps) {
   const root = `/app/${orgSlug}/${projectSlug}`;
   const nav = useRef<HTMLElement>(null);
-  // Jobs, the package export and the settings are only for members: the gateway refuses them to a visitor.
+  // Runs and the settings are only for members: the gateway refuses them to a visitor.
   const level = levelOf(access, null);
   const readOnly = level === 'public_read';
 
@@ -45,19 +53,19 @@ export function ProjectTabs({ active = 'overview', orgSlug, projectSlug, access 
     nav.current?.querySelector<HTMLElement>('[aria-current="page"]')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
   }, [active, root]);
 
-  const renderTab = ({ key, label, suffix }: (typeof tabs)[number]) => (
+  const renderTab = ({ key, label, suffix }: Tab) => (
     <Link key={key} to={`${root}${suffix}`} viewTransition className="project-tab" aria-current={active === key ? 'page' : undefined}>
       {label}
     </Link>
   );
-  const shown = (list: typeof tabs) => list.filter((tab) => canOpenSection(level, tab.key));
+  const shown = TABS.filter((tab) => canOpenSection(level, tab.key));
 
   return (
     <>
       <div className="project-tabs">
         <nav ref={nav} className="project-tabs-inner" aria-label="Project sections">
-          <div className="project-tabs-main">{shown(tabs).map(renderTab)}</div>
-          <div className="project-tabs-trailing">{shown(trailing).map(renderTab)}</div>
+          <div className="project-tabs-main">{shown.filter((tab) => !tab.trailing).map(renderTab)}</div>
+          <div className="project-tabs-trailing">{shown.filter((tab) => tab.trailing).map(renderTab)}</div>
         </nav>
       </div>
       {readOnly && (

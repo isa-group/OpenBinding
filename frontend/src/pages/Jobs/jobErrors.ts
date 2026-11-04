@@ -1,6 +1,7 @@
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { diagnosticLines } from '../../api/problem';
+import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import { RANGE_CODE } from '../../utils/featureRange';
 import {
   COMPLEXITY_CODE, USAGE_UNKNOWN_CODE, complexityText, limitProblemOf, noticeOf, slotsText, usageUnknownText,
@@ -98,7 +99,7 @@ export function refusalOf(caught: unknown, action: JobAction = 'launch'): Refusa
         text: complexityText(caught, nothing),
       };
     }
-    const noun = limitId ? limitInfo(limitId).short : 'allowance';
+    const noun = limitId ? inInterfaceWords(limitInfo(limitId).short) : 'allowance';
     const limit = quota?.limit ?? notice?.limit;
     const used = quota?.used ?? notice?.used;
     const spent = limit !== undefined ? `You’ve used ${(used ?? limit).toLocaleString('en-US')} of ${limit.toLocaleString('en-US')} ${noun}.` : `You’ve used all your ${noun}.`;
@@ -113,7 +114,7 @@ export function refusalOf(caught: unknown, action: JobAction = 'launch'): Refusa
     const concurrency = caught instanceof HttpError ? caught.concurrency : undefined;
     return {
       ...base, kind: 'busy', limitId: concurrency?.limit_id ?? 'concurrentJobs', source: concurrency?.source, retryAfter: failure.retryAfter ?? 15,
-      title: `${retry}All your job slots are busy${at}`,
+      title: `${retry}All your run slots are busy${at}`,
       text: `${slotsText(concurrency)} Wait for one to finish, then send again. ${nothing}`,
     };
   }
@@ -137,7 +138,7 @@ export function refusalOf(caught: unknown, action: JobAction = 'launch'): Refusa
   if (failure.status === 404) {
     return action === 'launch'
       ? { ...base, kind: 'not-found', title: `Engine not available with this key${at}`, text: `The snapshot, the engine or its deployment isn’t visible to this account or key. ${nothing}` }
-      : { ...base, kind: 'not-found', title: `Job not found${at}`, text: 'Jobs open only for whoever launched them. Nothing changed.' };
+      : { ...base, kind: 'not-found', title: `Run not found${at}`, text: 'Runs open only for whoever launched them. Nothing changed.' };
   }
 
   if (failure.status === 409) {
@@ -170,7 +171,7 @@ export function refusalOf(caught: unknown, action: JobAction = 'launch'): Refusa
       ...base, kind: incompatible ? 'incompatible' : 'other',
       title: incompatible ? `This engine can’t run this problem${at}` : `The gateway refused these settings${at}`,
       text: incompatible
-        ? `The chosen mode doesn’t support part of this case (for example its placement kind). Pick another engine or mode. ${nothing}`
+        ? `The chosen mode doesn’t support part of this problem (for example its placement kind). Pick another engine or mode. ${nothing}`
         : `${failure.message ? `${failure.message} ` : ''}Check the engine, mode and settings. ${nothing}`,
     };
   }

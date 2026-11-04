@@ -107,8 +107,8 @@ describe('Switch', () => {
 
 describe('Action', () => {
   it('renders a router link that looks like a button', () => {
-    render(<MemoryRouter><Action to="/app/account/keys/new" variant="primary">New key</Action></MemoryRouter>);
-    expect(screen.getByRole('link', { name: 'New key' })).toHaveAttribute('href', '/app/account/keys/new');
+    render(<MemoryRouter><Action to="/app/account/keys?create=key" variant="primary">New key</Action></MemoryRouter>);
+    expect(screen.getByRole('link', { name: 'New key' })).toHaveAttribute('href', '/app/account/keys?create=key');
   });
 
   it('refuses clicks while busy and says so', () => {

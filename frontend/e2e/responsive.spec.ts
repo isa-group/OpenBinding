@@ -1,16 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Public routes of the redesigned site. About and Status are still placeholders but must already fit the viewport.
+// Public routes of the redesigned site. About holds the service-status note; /status itself only redirects to it.
 const PUBLIC_ROUTES = [
   '/',
   '/language',
   '/language/schemas/application',
-  '/examples',
+  '/explore/examples',
   '/workbench',
   '/engines',
   '/pricing',
   '/about',
-  '/status',
   '/login',
   '/register',
 ];
@@ -42,13 +41,13 @@ test('mobile navigation exposes the complete journey and closes after navigation
 
   const menu = header.getByRole('navigation', { name: 'Mobile navigation' });
   await expect(header.getByRole('button', { name: 'Close menu' })).toHaveAttribute('aria-expanded', 'true');
-  for (const label of ['Explore', 'Engines', 'Pricing', 'About', 'Log in', 'Sign up']) {
+  for (const label of ['Home', 'Explore', 'Engines', 'Language', 'Pricing', 'Verify', 'About', 'Log in', 'Sign up']) {
     await expect(menu.getByRole('link', { name: label, exact: true })).toBeVisible();
   }
-  await expect(menu.getByRole('link', { name: 'Schemas' })).toHaveAttribute('href', '/language/schemas/application');
+  await expect(menu.getByRole('link', { name: 'Language', exact: true })).toHaveAttribute('href', '/language');
 
-  await menu.getByRole('link', { name: 'Examples' }).click();
-  await expect(page).toHaveURL(/\/examples$/);
+  await menu.getByRole('link', { name: 'Verify', exact: true }).click();
+  await expect(page).toHaveURL(/\/verify$/);
   await expect(header.getByRole('button', { name: 'Open menu' })).toHaveAttribute('aria-expanded', 'false');
   await expect(menu).toBeHidden();
 });
@@ -66,11 +65,19 @@ test('mobile menu closes with Escape and gives focus back to its button', async 
   await expect(header.getByRole('button', { name: 'Open menu' })).toBeFocused();
 });
 
-test('engine catalogue and pricing stay visible before the mobile breakpoint', async ({ page }) => {
+test('the nine public entries stay in the header row before the mobile breakpoint', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 800 });
   await page.goto('/');
 
   const primaryNavigation = page.getByRole('navigation', { name: 'Primary navigation' });
+  const header = page.locator('header.site-header');
+  for (const label of ['Home', 'Explore', 'Engines', 'Language', 'Pricing', 'Verify', 'About', 'Log in', 'Sign up']) {
+    await expect(header.getByRole('link', { name: label, exact: true }), label).toBeInViewport({ ratio: 1 });
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  const row = await header.locator('.public-header').boundingBox();
+  const last = await header.getByRole('link', { name: 'Sign up', exact: true }).boundingBox();
+  expect((last?.x ?? 0) + (last?.width ?? 0)).toBeLessThanOrEqual((row?.x ?? 0) + (row?.width ?? 0));
   const engines = primaryNavigation.getByRole('link', { name: 'Engines' });
   const pricing = primaryNavigation.getByRole('link', { name: 'Pricing' });
   await expect(engines).toBeVisible();
@@ -112,7 +119,7 @@ async function openProjectFiles(page: Page) {
   await page.route(`${API}/v1/organizations/isa-demo/projects`, (route) => route.fulfill({ json: [project] }));
   await page.route(`${API}/v1/organizations/isa-demo/projects/qos-benchmarks`, (route) => route.fulfill({ json: project }));
   await page.route(`${API}/v1/notifications**`, (route) => route.fulfill({ json: [] }));
-  await page.goto('/app/isa-demo/qos-benchmarks/files');
+  await page.goto('/app/isa-demo/qos-benchmarks/published');
   return page.getByRole('navigation', { name: 'Project sections' });
 }
 
@@ -121,10 +128,10 @@ test('on a phone the project tabs scroll sideways and keep the open tab in view'
   await page.setViewportSize({ width: 390, height: 844 });
   const tabs = await openProjectFiles(page);
 
-  const files = tabs.getByRole('link', { name: 'Files', exact: true });
-  await expect(files).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
-  await expect(files).toBeInViewport();
-  // Jobs, Studies, Publications and Files do not fit beside the other tabs: the row has moved to show the open one.
+  const published = tabs.getByRole('link', { name: 'Published', exact: true });
+  await expect(published).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
+  await expect(published).toBeInViewport();
+  // Runs, Studies and Published do not fit beside the other tabs: the row has moved to show the open one.
   await expect.poll(() => tabs.evaluate((row) => row.scrollLeft)).toBeGreaterThan(0);
   expect(await tabs.evaluate((row) => row.scrollWidth > row.clientWidth)).toBe(true);
 });
@@ -134,7 +141,7 @@ test('a project screen does not mark Home in the application header', async ({ p
   await page.setViewportSize({ width: 1440, height: 900 });
   const tabs = await openProjectFiles(page);
 
-  await expect(tabs.getByRole('link', { name: 'Files', exact: true })).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
+  await expect(tabs.getByRole('link', { name: 'Published', exact: true })).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
   const main = page.locator('header.app-header').getByRole('navigation', { name: 'Main' });
   await expect(main.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current', 'page');
   await expect(main.locator('[aria-current="page"]')).toHaveCount(0);

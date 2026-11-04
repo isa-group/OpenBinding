@@ -15,7 +15,7 @@ interface ReportFrameProps {
   children: ReactNode;
 }
 
-/** The frame of the project's publications screen: breadcrumb, the project tabs with Publications current, and one live content column. */
+/** The frame of the project's published results screen: breadcrumb, the project tabs with Published current, and one live content column. */
 export function ReportFrame({ organization, project, trail, width = 'wide', children }: ReportFrameProps) {
   const root = `/app/${organization.slug}/${project.slug}`;
   const items: Crumb[] = [
@@ -29,7 +29,7 @@ export function ReportFrame({ organization, project, trail, width = 'wide', chil
       <div className="proj-band">
         <div className="proj-band-inner"><Breadcrumb items={items} /></div>
       </div>
-      <ProjectTabs active="publications" orgSlug={organization.slug} projectSlug={project.slug} access={project.access} />
+      <ProjectTabs active="published"orgSlug={organization.slug} projectSlug={project.slug} access={project.access} />
       <div className={`proj-body rp-body is-${width}`} aria-live="polite">{children}</div>
     </div>
   );

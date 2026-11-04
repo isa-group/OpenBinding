@@ -1,0 +1,5 @@
+/* lang-profiles: the language hub */
+.language-hub-nav { max-width: 1200px; margin: 0 auto; padding: var(--tp-spacing-md) var(--tp-spacing-md) 0; }
+
+.language-hub-signed-out,
+.language-hub-wait { display: grid; gap: var(--tp-spacing-sm); max-width: 1200px; margin: 0 auto; padding: var(--tp-spacing-lg) var(--tp-spacing-md); }

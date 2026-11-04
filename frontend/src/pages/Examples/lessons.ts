@@ -38,7 +38,7 @@ export const LESSONS: Record<string, LessonMeta> = {
   'literature/benatallah': { title: 'Travel solution', concept: 'Benatallah et al. scenario', outcome: 'Inspect a representative research workflow as a modular deterministic BIM package.', shape: 'research', level: 5, tags: ['literature', 'travel'] },
   'literature/bultan': { title: 'Warehouse conversation', concept: 'Bultan et al. scenario', outcome: 'Study an e-commerce conversation workflow represented in the executable QoS Profile.', shape: 'research', level: 5, tags: ['literature', 'e-commerce'] },
   'literature/cremaschi': { title: 'Healthcare monitoring', concept: 'Cremaschi et al. scenario', outcome: 'Explore a monitoring and emergency-response composition using deterministic scalar QoS.', shape: 'research', level: 5, tags: ['literature', 'healthcare'] },
-  'literature/netedu': { title: 'Transport agency', concept: 'Netedu et al. scenario', outcome: 'Follow a transport-agency case through the same source-to-IR boundary.', shape: 'research', level: 5, tags: ['literature', 'transport'] },
+  'literature/netedu': { title: 'Transport agency', concept: 'Netedu et al. scenario', outcome: 'Follow a transport-agency problem through the same source-to-IR boundary.', shape: 'research', level: 5, tags: ['literature', 'transport'] },
   'literature/pautasso': { title: 'RESTful e-commerce', concept: 'Pautasso scenario', outcome: 'Inspect an e-commerce composition adapted into native v1 resources.', shape: 'research', level: 5, tags: ['literature', 'REST'] },
   'literature/zhang': { title: 'Entertainment planner', concept: 'Zhang et al. scenario', outcome: 'Explore a personal entertainment planner with explicit resources and deterministic metrics.', shape: 'research', level: 5, tags: ['literature', 'planner'] },
 };
@@ -53,7 +53,7 @@ export interface Family {
 const KNOWN_FAMILIES: Record<string, Pick<Family, 'label' | 'description'>> = {
   demo: { label: 'Demo', description: 'A progressive sequence from one binding to advanced compatibility features.' },
   placement: { label: 'Placement', description: 'The installed Placement Dialect adds source and IR features inside the application role.' },
-  literature: { label: 'Literature', description: 'Representative service-composition cases expressed through the same deterministic Profile.' },
+  literature: { label: 'Literature', description: 'Representative service-composition problems expressed through the same deterministic Profile.' },
   bpmn: { label: 'BPMN', description: 'Workflows authored as BPMN diagrams and lowered by the BPMN Dialect.' },
   benchmark: { label: 'Benchmark', description: 'Packages sized to compare engines.' },
 };

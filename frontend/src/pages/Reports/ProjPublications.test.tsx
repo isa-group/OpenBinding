@@ -18,7 +18,7 @@ const ROOT = '/app/isa-demo/qos-benchmarks';
 const refusal = (status: number, code: string) => Object.assign(new HttpError(status, 'refused'), { code });
 
 function renderPublications(slug = 'isa-demo') {
-  return renderProjectScreen(<ProjPublications />, { path: '/app/:org/:project/publications', url: `/app/${slug}/qos-benchmarks/publications`, organizations: [group, viewing, member] });
+  return renderProjectScreen(<ProjPublications />, { path: '/app/:org/:project/published', url: `/app/${slug}/qos-benchmarks/published`, organizations: [group, viewing, member] });
 }
 
 describe('Publications of a project', () => {
@@ -34,18 +34,19 @@ describe('Publications of a project', () => {
   it('shows each public edition with how to cite it, its public link and the way to verify it', async () => {
     renderPublications();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Publications' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Published' })).toBeInTheDocument();
     expect(screen.getByText(/Report editions made public from QoS Benchmarks\. Withdrawing hides one from listings but keeps every link and fingerprint working\./)).toBeInTheDocument();
     expect(await screen.findByRole('heading', { level: 2, name: 'Engine comparison at checkout' })).toBeInTheDocument();
-    expect(screen.getByText('Published')).toBeInTheDocument();
+    expect(within(screen.getByRole('article')).getByText('Published')).toBeInTheDocument();
     expect(screen.getByText('checkout-comparison · published Sep 25, 2026 · sha256-eeee…eeee')).toBeInTheDocument();
     expect(screen.getByText('Alex Rivera (2026). Engine comparison at checkout. ISA Demo Group / QoS Benchmarks.')).toBeInTheDocument();
     expect(screen.getByText(new RegExp(`/resolve/report/${EDITION}$`))).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open public verification' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
     // [utest->req~frontend-retire-reports-publications-stay~1]
+    // [utest->req~frontend-nav-project-tabs~1]
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
-    expect(within(tabs).getByRole('link', { name: 'Publications' })).toHaveAttribute('aria-current', 'page');
-    expect(within(tabs).getByRole('link', { name: 'Publications' })).toHaveAttribute('href', `${ROOT}/publications`);
+    expect(within(tabs).getByRole('link', { name: 'Published' })).toHaveAttribute('aria-current', 'page');
+    expect(within(tabs).getByRole('link', { name: 'Published' })).toHaveAttribute('href', `${ROOT}/published`);
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy for reference manager' }));
     expect(await screen.findByRole('button', { name: 'Copied for reference manager' })).toBeInTheDocument();
@@ -62,7 +63,7 @@ describe('Publications of a project', () => {
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
     expect(within(crumbs).getAllByRole('link').map((link) => link.textContent)).toEqual(['Home', 'ISA Demo Group', 'QoS Benchmarks']);
-    expect(within(crumbs).getByText('Publications')).toHaveAttribute('aria-current', 'page');
+    expect(within(crumbs).getByText('Published')).toHaveAttribute('aria-current', 'page');
     const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
     expect(hrefs.filter((href) => /\/reports([/?#]|$)/.test(href))).toEqual([]);
     // Still a publication list: the citation and the public verification stay.
@@ -136,18 +137,18 @@ describe('Publications of a project', () => {
   it('keeps a failure apart from an empty list: 404, 403 and 503 with Retry', async () => {
     platform.publications.mockRejectedValueOnce(refusal(404, 'not_found'));
     const first = renderPublications();
-    expect(await screen.findByText(/Publications couldn’t be found \(404 · not_found\)/)).toBeInTheDocument();
+    expect(await screen.findByText(/Published results couldn’t be found \(404 · not_found\)/)).toBeInTheDocument();
     expect(screen.queryByText('Nothing published yet')).not.toBeInTheDocument();
     first.unmount();
 
     platform.publications.mockRejectedValueOnce(refusal(403, 'api_key_boundary'));
     const second = renderPublications();
-    expect(await screen.findByText(/This API key can’t read publications \(403 · api_key_boundary\)/)).toBeInTheDocument();
+    expect(await screen.findByText(/This API key can’t read published results \(403 · api_key_boundary\)/)).toBeInTheDocument();
     second.unmount();
 
     platform.publications.mockRejectedValueOnce(refusal(503, 'unavailable'));
     renderPublications();
-    const message = await screen.findByText(/Publications couldn’t be loaded \(503 · unavailable\)/);
+    const message = await screen.findByText(/Published results couldn’t be loaded \(503 · unavailable\)/);
     fireEvent.click(within(message.closest('.ui-notice') as HTMLElement).getByRole('button', { name: 'Retry' }));
     expect(await screen.findByRole('heading', { level: 2, name: 'Engine comparison at checkout' })).toBeInTheDocument();
   });

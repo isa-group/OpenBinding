@@ -259,7 +259,7 @@ describe('Generator lab', () => {
         count: 2, name: 'generated_qaco', persist: true, project_id: 'project-qos-benchmarks', collection_name: 'generated_qaco',
         base_config: expect.objectContaining({ tasks: 6 }),
       });
-      expect(within(keepIt()).getByRole('link', { name: 'See the project’s cases' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/collections');
+      expect(within(keepIt()).getByRole('link', { name: 'See the project’s problems' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/collections');
     });
   });
 
@@ -328,7 +328,7 @@ describe('Generator lab', () => {
       const [preview1, saved] = generator.instance.mock.calls.map(([params]) => params);
       expect(saved).toEqual({ ...preview1, persist: true, project_id: 'project-placement-edge', case_name: 'generated_qaco' });
       expect(saved.seed).toBe(9);
-      expect(within(keepIt()).getByRole('link', { name: 'See the project’s cases' })).toHaveAttribute('href', '/app/qos-lab/placement-edge/cases');
+      expect(within(keepIt()).getByRole('link', { name: 'See the project’s problems' })).toHaveAttribute('href', '/app/qos-lab/placement-edge/problems');
     });
 
     it.each([

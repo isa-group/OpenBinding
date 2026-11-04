@@ -40,7 +40,7 @@ export function NewCaseDialog({ organization, project, onClose, onCreated }: {
   };
 
   return (
-    <Modal title="New case" size="md" onClose={() => !busy && onClose()}>
+    <Modal title="New problem" size="md" onClose={() => !busy && onClose()}>
       <form className="org-dialog-form" onSubmit={(event) => void submit(event)} noValidate>
         <FormField label="Name" value={name} maxLength={NAME_MAX} onChange={(event) => { setName(event.target.value); setError(undefined); }} />
         <FormField
@@ -61,7 +61,7 @@ export function NewCaseDialog({ organization, project, onClose, onCreated }: {
         </div>
         <div className="ui-modal-actions">
           <Action variant="secondary" onClick={onClose} disabled={busy}>Cancel</Action>
-          <Action type="submit" variant="primary" busy={busy}>Create case</Action>
+          <Action type="submit" variant="primary" busy={busy}>Create problem</Action>
         </div>
       </form>
     </Modal>
@@ -69,7 +69,7 @@ export function NewCaseDialog({ organization, project, onClose, onCreated }: {
 }
 
 /**
- * Deleting a case. The gateway refuses it (409) once the case holds a sealed revision, so the dialog says so up front
+ * Deleting a problem. The gateway refuses it (409) once the problem holds a sealed version, so the dialog says so up front
  * instead of letting a person type the address to be told no.
  */
 export function DeleteCaseDialog({ organization, project, item, sealed, onClose, onDeleted }: {
@@ -100,11 +100,11 @@ export function DeleteCaseDialog({ organization, project, item, sealed, onClose,
         {sealed > 0
           ? (
             <Notice tone="warning">
-              This case has {plural(sealed, 'sealed revision')}, so it can’t be deleted (the gateway refuses it with a 409).
+              This problem has {plural(sealed, 'sealed version')}, so it can’t be deleted (the gateway refuses it with a 409).
               Sealed history stays reachable so people can still verify anything that cites it.
             </Notice>
           )
-          : <p>The case disappears from {project.name}. This can’t be undone.</p>}
+          : <p>The problem disappears from {project.name}. This can’t be undone.</p>}
         <FormField
           label={`Type ${item.slug} to confirm`}
           value={typed}
@@ -119,7 +119,7 @@ export function DeleteCaseDialog({ organization, project, item, sealed, onClose,
         </div>
         <div className="ui-modal-actions">
           <Action variant="secondary" onClick={onClose} disabled={busy}>Cancel</Action>
-          <Action type="submit" variant="danger" disabled={!matches || sealed > 0} busy={busy}>Delete case</Action>
+          <Action type="submit" variant="danger" disabled={!matches || sealed > 0} busy={busy}>Delete problem</Action>
         </div>
       </form>
     </Modal>

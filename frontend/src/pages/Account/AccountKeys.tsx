@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { KeyRound, Plus } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import type { ApiKeySummary, CreatedApiKey } from '../../api/auth';
@@ -14,6 +15,7 @@ import { formatDate } from '../../utils/format';
 import { formatCount } from '../../utils/limits';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, fallbackMessage } from './accountErrors';
+import { AccountKeyNew } from './AccountKeyNew';
 import { AccountLayout, LoadFailure, PermissionNotice } from './AccountLayout';
 import { boundaryLabels, describeEngineAccess } from './keysModel';
 import { SecretDialog } from './SecretDialog';
@@ -82,16 +84,26 @@ function KeyCard({ apiKey, expired, onRotate, onRevoke }: {
         <dd>{describeEngineAccess(apiKey.engine_access)}</dd>
         <dt>Limited to</dt>
         <dd className="key-chips">
-          {bounds.length > 0 ? bounds.map((label) => <span key={label} className="key-bound">{label}</span>) : <span className="acct-muted">No extra limits</span>}
+          {bounds.length > 0 ? bounds.map((label) => <span key={label} className="key-bound"><code>{label}</code></span>) : <span className="acct-muted">No extra limits</span>}
         </dd>
       </dl>
     </article>
   );
 }
 
-/** API keys (`acct-keys`, `/app/account/keys`): the list, rotate and revoke. New keys are made at `/app/account/keys/new`. */
+/** The address that opens the dialog for a new key over this section. */
+const NEW_KEY = '/app/account/keys?create=key';
+
+/**
+ * API keys (section `keys` of `acct-profile`, `/app/account/keys`): the list, rotate and revoke. New keys are made in the dialog
+ * `New API key`, open while the address holds `?create=key`; closing it leaves `/app/account/keys`.
+ */
+// [impl->req~frontend-nav-account-sections~1]
 export function AccountKeys() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const creating = params.get('create') === 'key';
   const data = useResource(`keys:${user?.id ?? ''}`, loadSnapshot);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [busy, setBusy] = useState(false);
@@ -145,7 +157,7 @@ export function AccountKeys() {
       section="keys"
       title="API keys"
       lede="Keys for scripts and CI. A key can never do more than your account."
-      actions={<Action to="/app/account/keys/new" variant="primary"><Plus aria-hidden="true" className="key-plus" />New key</Action>}
+      actions={<Action to={NEW_KEY} variant="primary"><Plus aria-hidden="true" className="key-plus" />New key</Action>}
     >
       {banner && <Notice tone={banner.tone}>{banner.text}</Notice>}
       {atLimit && (
@@ -181,7 +193,7 @@ export function AccountKeys() {
             <EmptyState
               icon={<KeyRound />}
               title="No API keys"
-              action={<Action to="/app/account/keys/new" variant="link">Create your first key</Action>}
+              action={<Action to={NEW_KEY} variant="link">Create your first key</Action>}
             >
               Create a key to call OpenBinding from scripts or CI.
             </EmptyState>
@@ -228,6 +240,8 @@ export function AccountKeys() {
           <p>This is the only time it’s shown. The previous secret of “{dialog.name}” has stopped working; permissions didn’t change.</p>
         </SecretDialog>
       )}
+
+      {creating && <AccountKeyNew onClose={() => navigate('/app/account/keys', { replace: true })} onCreated={data.reload} />}
     </AccountLayout>
   );
 }

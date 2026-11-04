@@ -303,7 +303,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('admin-maintenance /app/admin/maintenance · preview, purge with a typed confirmation and reconcile jobs, with no contract action', async ({ page }, testInfo) => {
+    test('admin-maintenance /app/admin/maintenance · preview, purge with a typed confirmation and reconcile runs, with no contract action', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/admin/maintenance');
@@ -312,22 +312,22 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'Maintenance', exact: true })).toBeVisible();
       const impact = main.getByRole('list', { name: 'Maintenance preview' });
       await expect(impact.getByRole('listitem')).toHaveCount(4);
-      await expect(impact.getByRole('listitem').filter({ hasText: 'Finished jobs to purge' }).getByText('14', { exact: true })).toBeVisible();
+      await expect(impact.getByRole('listitem').filter({ hasText: 'Finished runs to purge' }).getByText('14', { exact: true })).toBeVisible();
       await expect(main.getByText('Finished before Oct 9, 2025, more than 365 days ago.')).toBeVisible();
       expect(state.sent.previewDays[0]).toBe('365');
       await capture(page, testInfo, `maintenance-${name}-preview`, { height: tall(2300) });
 
       // A shorter retention is previewed again; one the API would refuse is not sent.
-      await main.getByLabel('Keep finished jobs for (days)').fill('30');
+      await main.getByLabel('Keep finished runs for (days)').fill('30');
       await main.getByRole('button', { name: 'Preview', exact: true }).click();
       await expect.poll(() => state.sent.previewDays.at(-1)).toBe('30');
-      await main.getByLabel('Keep finished jobs for (days)').fill('5');
+      await main.getByLabel('Keep finished runs for (days)').fill('5');
       await expect(main.getByText(/Use a whole number from 7 to 3,650/)).toBeVisible();
       await expect(main.getByRole('button', { name: 'Preview', exact: true })).toBeDisabled();
       await capture(page, testInfo, `maintenance-${name}-invalid`, { height: tall(1300) });
       await main.getByRole('button', { name: 'Try 7 days' }).click();
       await expect.poll(() => state.sent.previewDays.at(-1)).toBe('7');
-      await main.getByLabel('Keep finished jobs for (days)').fill('365');
+      await main.getByLabel('Keep finished runs for (days)').fill('365');
       await main.getByRole('button', { name: 'Preview', exact: true }).click();
       await expect.poll(() => state.sent.previewDays.at(-1)).toBe('365');
 
@@ -356,9 +356,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByLabel('What was purged').getByText('Api keys')).toBeVisible();
       await capture(page, testInfo, `maintenance-${name}-purged`, { height: tall(2300) });
 
-      // Abandoned jobs are settled. There is no contract action here: contracts live in SPACE.
-      await main.getByRole('button', { name: 'Reconcile jobs' }).click();
-      await expect(main.getByText('1 abandoned job settled. Recorded in the audit log.')).toBeVisible();
+      // Abandoned runs are settled. There is no contract action here: contracts live in SPACE.
+      await main.getByRole('button', { name: 'Reconcile runs' }).click();
+      await expect(main.getByText('1 abandoned run settled. Recorded in the audit log.')).toBeVisible();
       expect(state.sent.jobs).toBe(1);
       await expect(main.getByRole('button', { name: /contract/i })).toHaveCount(0);
       await capture(page, testInfo, `maintenance-${name}-done`);

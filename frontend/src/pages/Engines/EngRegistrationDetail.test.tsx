@@ -90,7 +90,7 @@ describe('eng-registration-detail', () => {
     expect(screen.getByRole('button', { name: 'Deactivate' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Check again' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Edit as a new version' })).toHaveAttribute('href', expect.stringContaining('/app/engines/new?from=edge-solver'));
-    expect(screen.getByRole('button', { name: 'Launch a job with it' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Launch a run with it' })).toBeInTheDocument();
     expect(api.getEngineRegistrationReport).toHaveBeenCalledWith(expect.objectContaining({ name: 'edge-solver', version: '0.3.1' }));
   });
 
@@ -209,19 +209,19 @@ describe('eng-registration-detail', () => {
   it('reads a published registration of someone else as read-only', async () => {
     open(SHARED_SOLVER);
     expect(await screen.findByRole('heading', { level: 1, name: 'shared-solver' })).toBeInTheDocument();
-    expect(screen.getByText('Published by priya.nair. You can pick it when launching a job.')).toBeInTheDocument();
+    expect(screen.getByText('Published by priya.nair. You can pick it when launching a run.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Activate' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Deactivate' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Credential' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Delete this registration' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Publication' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Launch a job with it' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Launch a run with it' })).toBeInTheDocument();
   });
 
   it('deactivates, and activates again with a new check', async () => {
     open(EDGE_SOLVER);
     fireEvent.click(await screen.findByRole('button', { name: 'Deactivate' }));
-    expect(await screen.findByText('Deactivated. You can’t pick it for new jobs until you activate it again.')).toBeInTheDocument();
+    expect(await screen.findByText('Deactivated. You can’t pick it for new runs until you activate it again.')).toBeInTheDocument();
     expect(api.deactivateEngineRegistration).toHaveBeenCalledWith(expect.objectContaining({ name: 'edge-solver' }));
   });
 
@@ -284,7 +284,7 @@ describe('eng-registration-detail', () => {
     open({ ...EDGE_SOLVER, status: 'published' });
     expect(await screen.findByText('Published registrations can’t be changed. Register a new version to use another credential.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Replace credential' })).toBeDisabled();
-    expect(screen.getByText('Published. Everyone can pick it when launching a job. It can no longer be changed.')).toBeInTheDocument();
+    expect(screen.getByText('Published. Everyone can pick it when launching a run. It can no longer be changed.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Request publication' })).not.toBeInTheDocument();
   });
 

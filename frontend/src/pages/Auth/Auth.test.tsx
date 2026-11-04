@@ -248,7 +248,7 @@ describe('Auth screens', () => {
       fillLogin();
 
       expect(await screen.findByRole('alert')).toHaveTextContent('Sign-in is unavailable right now (503)');
-      expect(screen.getByRole('link', { name: 'Service status' })).toHaveAttribute('href', '/status');
+      expect(screen.getByRole('link', { name: 'Service status' })).toHaveAttribute('href', '/about');
     });
 
     it('treats an unreachable pricing service as unavailable, not as a wrong password', async () => {

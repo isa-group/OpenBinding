@@ -4,6 +4,7 @@ import type { JobInstanceView } from '../../api/jobs';
 import { Chip } from '../../components/ui/Chip';
 import { DataTable } from '../../components/ui/DataTable';
 import { useCopy } from '../../components/ui/useCopy';
+import { problemPath } from '../../routes/paths/problems';
 import { shortDigest } from '../../utils/digest';
 import { formatDateTime } from '../../utils/format';
 import type { Origin } from './JobResult';
@@ -98,12 +99,16 @@ export function Provenance({ provenance, instance, origin, root, created, retryO
       <h2 id="job-provenance">Where this result comes from</h2>
       <div className="job-facts-grid">
         <Fact label="Snapshot used">
-          {instance ? <Link to={`${root}/snapshots/${encodeURIComponent(instance.id)}`} viewTransition>Snapshot {instance.id.slice(0, 8)}…</Link> : 'Not kept for this run'}
+          {instance
+            ? (origin
+              ? <Link to={problemPath(root, origin.caseSlug, 'source', { version: origin.revision })} viewTransition>Snapshot {instance.id.slice(0, 8)}…</Link>
+              : `Snapshot ${instance.id.slice(0, 8)}…`)
+            : 'Not kept for this run'}
         </Fact>
-        <Fact label="Case revision">
+        <Fact label="Problem version">
           {origin
-            ? <Link to={`${root}/cases/${encodeURIComponent(origin.caseSlug)}/revisions/${origin.revision}`} viewTransition>{origin.caseName} · revision {origin.revision}</Link>
-            : 'Not from a revision of this project'}
+            ? <Link to={problemPath(root, origin.caseSlug, undefined, { version: origin.revision })} viewTransition>{origin.caseName} · version {origin.revision}</Link>
+            : 'Not from a version of this project'}
         </Fact>
         <Fact label="Compiled problem">{digest(pins.compiledForm, 'ir', 'compiled problem') || '—'}</Fact>
         <Fact label="Instance">{digest(instance?.instanceDigest ?? pins.instance, 'instance', 'instance') || '—'}</Fact>
@@ -115,7 +120,7 @@ export function Provenance({ provenance, instance, origin, root, created, retryO
         <Fact label="Checked by">{pins.checkedBy ?? 'bim-reference-evaluator'}</Fact>
         <Fact label="Limits applied">{pins.limits.length ? pins.limits.join(' · ') : 'Plan defaults'}</Fact>
         {created && <Fact label="Sent">{formatDateTime(created) ?? '—'}</Fact>}
-        {retryOf && <Fact label="Retry of"><Link to={`${root}/jobs/${retryOf}`} viewTransition>{retryOf.slice(0, 8)}…</Link></Fact>}
+        {retryOf && <Fact label="Retry of"><Link to={`${root}/runs/${retryOf}`} viewTransition>{retryOf.slice(0, 8)}…</Link></Fact>}
       </div>
       <span className="job-buttons">{actions}</span>
     </section>

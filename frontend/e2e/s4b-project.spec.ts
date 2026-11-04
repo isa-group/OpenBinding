@@ -3,7 +3,7 @@ import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { REPORT_MARKER, samplePackage } from '../src/pages/Project/packageFixture';
 
-// S4b · organization and collaboration, part 2: proj-create, proj-overview, proj-settings, proj-package.
+// S4b · organization and collaboration, part 2: the New project dialog (was proj-create), proj-overview, proj-settings (with the package export and import).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 // One test per screen and viewport: the desktop walks the states of the screen, the phone gets its layout and its dialogs.
@@ -141,6 +141,12 @@ const report = (slug: string, title: string, state: 'frozen' | 'draft') => ({
   project_id: 'project-1', study_run_id: null, slug, title, document: {}, digest: digest('e'), state, created_at: '2026-09-25T00:00:00Z',
 });
 
+/** The members of every organization of the mock: the project settings list them. */
+const orgMembers = [
+  { id: 'member-1', organization_id: 'org-1', user_id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'OWNER', created_at: '2026-03-03T00:00:00Z' },
+  { id: 'member-2', organization_id: 'org-1', user_id: 'user-2', username: 'tomas.ruiz', email: 'tomas@example.org', role: 'MEMBER', created_at: '2026-03-05T00:00:00Z' },
+];
+
 type Refusable = 'jobs' | 'create' | 'project' | 'patch' | 'remove' | 'export' | 'import';
 
 interface State {
@@ -193,7 +199,7 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     const found = state.organizations.find((item) => item.slug === orgSlug);
 
     if (!orgSlug) return json(state.organizations)(route);
-    if (section === 'members') return json([])(route);
+    if (section === 'members') return json(orgMembers)(route);
     if (section !== 'projects') return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
 
     const visitorList = state.visitor[orgSlug];
@@ -286,7 +292,7 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
 const request = (page: Page, method: string, path: string) => page.waitForRequest((candidate) => candidate.method() === method && candidate.url().startsWith(`${API}${path}`));
 
 // Each test walks a screen through its states while the dev server compiles on demand.
-test.setTimeout(120_000);
+test.setTimeout(180_000);
 
 const viewports = [
   { name: 'desktop', viewport: { width: 1440, height: 900 }, isMobile: false, deviceScaleFactor: 1 },
@@ -297,74 +303,84 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S4b projects`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('proj-create /app/:org/new-project', async ({ page }, testInfo) => {
+    // [utest->req~frontend-nav-create-dialogs~1]
+    test('proj-create dialog /app/:org?create=project', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto('/app/isa-demo/new-project');
       const main = page.locator('#platform-main');
+      const dialog = page.getByRole('dialog', { name: 'New project' });
+      // The old creation address lands on the open dialog.
+      await page.goto('/app/isa-demo/new-project');
+      await expect(page).toHaveURL(/\/app\/isa-demo\?create=project$/);
 
-      await expect(main.getByRole('heading', { level: 1, name: 'New project in ISA Demo Group' })).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo');
-      await expect(main.getByRole('button', { name: 'Create project' })).toBeDisabled();
-      await main.getByLabel('Name', { exact: true }).fill('Placement multi-región');
-      await expect(main.getByLabel('Address')).toHaveValue('placement-multi-region');
-      await expect(main.getByText('Looks good · can’t be changed later.')).toBeVisible();
-      await expect(main.getByText('Up to 50', { exact: true })).toBeVisible();
-      await expect(main.getByText('Up to 30', { exact: true })).toBeVisible();
-      await expect(main.getByRole('meter')).toHaveCount(0);
-      await main.getByLabel(/^Description/).fill('Pools and latencies at the edge.');
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByText(/^In ISA Demo Group\./)).toBeVisible();
+      await expect(dialog.getByRole('button', { name: 'Create project' })).toBeDisabled();
+      await dialog.getByLabel('Name', { exact: true }).fill('Placement multi-región');
+      await expect(dialog.getByLabel('Address')).toHaveValue('placement-multi-region');
+      await expect(dialog.getByText('Looks good · can’t be changed later.')).toBeVisible();
+      await expect(dialog.getByText('Up to 50', { exact: true })).toBeVisible();
+      await expect(dialog.getByText('Up to 30', { exact: true })).toBeVisible();
+      await expect(dialog.getByRole('meter')).toHaveCount(0);
+      await dialog.getByLabel(/^Description/).fill('Pools and latencies at the edge.');
       await capture(page, testInfo, `create-${name}-form`);
 
       // A VIEWER can look at the form and not create.
-      await page.goto('/app/consultora-demo/new-project');
-      await expect(main.getByRole('note')).toContainText('You’re a VIEWER in Consultora Demo, so you can look at this form but not create a project (403).');
-      await expect(main.getByLabel('Name', { exact: true })).toBeDisabled();
-      await expect(main.getByRole('button', { name: 'Create project' })).toBeDisabled();
-      await expect(main.getByText(/nora’s plan is visible only to them|Sponsor’s room/).first()).toBeVisible();
+      await page.goto('/app/consultora-demo?create=project');
+      await expect(dialog.getByRole('note')).toContainText('You’re a VIEWER in Consultora Demo, so you can look at this form but not create a project (403).');
+      await expect(dialog.getByLabel('Name', { exact: true })).toBeDisabled();
+      await expect(dialog.getByRole('button', { name: 'Create project' })).toBeDisabled();
+      await expect(dialog.getByText(/nora’s plan is visible only to them|Sponsor’s room/).first()).toBeVisible();
       await capture(page, testInfo, `create-${name}-viewer`);
       if (isMobile) {
-        await page.goto('/app/isa-demo/new-project');
-        await main.getByLabel('Name', { exact: true }).fill('Placement');
-        await main.getByRole('radio', { name: /^Public/ }).check({ force: true });
+        await page.goto('/app/isa-demo?create=project');
+        await dialog.getByLabel('Name', { exact: true }).fill('Placement');
+        await dialog.getByRole('radio', { name: /^Public/ }).check({ force: true });
         await capture(page, testInfo, `create-${name}-public`);
         expect(critical).toEqual([]);
         return;
       }
 
+      // Cancel goes back to the organization and creates nothing.
+      await page.goto('/app/isa-demo?create=project');
+      await dialog.getByRole('button', { name: 'Cancel' }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(page).toHaveURL(/\/app\/isa-demo$/);
+      await expect(main.getByRole('button', { name: 'New project' })).toBeFocused();
+
       // The gateway's refusals, one by one: 409, 402, 503.
-      await page.goto('/app/isa-demo/new-project');
-      await main.getByLabel('Name', { exact: true }).fill('Placement multi-región');
-      const create = main.getByRole('button', { name: 'Create project' });
+      await main.getByRole('button', { name: 'New project' }).click();
+      await expect(page).toHaveURL(/\/app\/isa-demo\?create=project$/);
+      await dialog.getByLabel('Name', { exact: true }).fill('Placement multi-región');
+      const create = dialog.getByRole('button', { name: 'Create project' });
       state.refuse.create = detail(409, 'slug_conflict', 'That project slug is in use.');
       await create.click();
-      await expect(main.getByRole('alert')).toContainText('That address is already used in ISA Demo Group (409 · slug_conflict).');
+      await expect(dialog.getByRole('alert')).toContainText('That address is already used in ISA Demo Group (409 · slug_conflict).');
       await capture(page, testInfo, `create-${name}-409`);
 
       state.refuse.create = detail(402, 'sponsor_quota_exceeded', 'The sponsor contract allows 30 private projects.', { quota: { limit_id: 'privateProjects', limit: 30, used: 30 } });
       await create.click();
-      const full = main.getByRole('alert');
+      const full = dialog.getByRole('alert');
       await expect(full).toContainText('The sponsor has no private projects left (402 · sponsor_quota_exceeded). 30 of 30 private projects.');
       await expect(full.getByRole('link', { name: 'Your plan' })).toHaveAttribute('href', '/app/account/usage');
       await capture(page, testInfo, `create-${name}-402`);
 
       state.refuse.create = detail(503, 'pricing_unavailable', 'The pricing service is not reachable.');
       await create.click();
-      await expect(main.getByRole('alert')).toContainText('Limits can’t be checked right now (503 · pricing_unavailable). Nothing was created.');
+      await expect(dialog.getByRole('alert')).toContainText('Limits can’t be checked right now (503 · pricing_unavailable). Nothing was created.');
       await capture(page, testInfo, `create-${name}-503`);
 
-      // "Make it public instead" after the 402, then it is created: the payload carries what was typed.
+      // "Make it public instead" after the 402, then it is created: the payload carries what was typed, the dialog closes and the project opens.
       state.refuse.create = detail(402, 'sponsor_quota_exceeded', 'The sponsor contract allows 30 private projects.', { quota: { limit_id: 'privateProjects', limit: 30, used: 30 } });
       await create.click();
-      await main.getByRole('button', { name: 'Make it public instead' }).click();
-      await expect(main.getByRole('radio', { name: /^Public/ })).toBeChecked();
+      await dialog.getByRole('button', { name: 'Make it public instead' }).click();
+      await expect(dialog.getByRole('radio', { name: /^Public/ })).toBeChecked();
       state.refuse.create = undefined;
       const posted = request(page, 'POST', '/v1/organizations/isa-demo/projects');
       await create.click();
       expect((await posted).postDataJSON()).toEqual({ name: 'Placement multi-región', slug: 'placement-multi-region', description: '', visibility: 'public' });
-      await expect(main.getByText('Placement multi-región is ready')).toBeVisible();
-      await expect(main.getByText('Public: its card now appears in Explore.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open project' })).toHaveAttribute('href', '/app/isa-demo/placement-multi-region');
-      await capture(page, testInfo, `create-${name}-created`);
+      await expect(dialog).toHaveCount(0);
+      await expect(page).toHaveURL(/\/app\/isa-demo\/placement-multi-region$/);
 
       // A missing organization reads the same as one the account is not in.
       await page.goto('/app/ghost-lab/new-project');
@@ -383,18 +399,19 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const band = main.locator('.proj-band');
       await expect(band.getByText('Public', { exact: true })).toBeVisible();
       await expect(band.getByText('OWNER')).toBeVisible();
-      await expect(band.getByRole('link', { name: 'New case' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/cases');
-      await expect(band.getByRole('link', { name: 'Export package' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/package');
+      await expect(band.getByRole('link', { name: 'New problem' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems');
+      await expect(band.getByRole('link', { name: 'Export package' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/settings');
       const tabs = main.getByRole('navigation', { name: 'Project sections' });
+      await expect(tabs.getByRole('link')).toHaveText(['Overview', 'Problems', 'Collections', 'Runs', 'Studies', 'Published', 'Settings']);
       await expect(tabs.getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
       await expect(tabs.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/settings');
 
       const strip = main.getByRole('region', { name: 'What’s sealed and what’s still a draft' });
-      await expect(strip.getByRole('list', { name: 'Sealed and draft items' }).getByRole('listitem')).toHaveText(['2 case revisions', '1 study run', '1 frozen report', '1 report draft']);
-      const cases = main.getByRole('region', { name: 'Cases' });
-      await expect(cases.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/cases/flujo-checkout');
+      await expect(strip.getByRole('list', { name: 'Sealed and draft items' }).getByRole('listitem')).toHaveText(['2 problem versions', '1 study run', '1 frozen report', '1 report draft']);
+      const cases = main.getByRole('region', { name: 'Problems' });
+      await expect(cases.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems/flujo-checkout');
       await expect(cases.getByText('2 revisions')).toBeVisible();
-      const jobs = main.getByRole('list', { name: 'Recent jobs' });
+      const jobs = main.getByRole('list', { name: 'Recent runs' });
       await expect(jobs.getByRole('listitem')).toHaveCount(3);
       await expect(jobs.getByRole('link')).toHaveCount(2);
       await expect(jobs.getByText('Owner only')).toBeVisible();
@@ -412,9 +429,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto('/app/consultora-demo/client-case');
       await expect(main.getByRole('heading', { level: 1, name: 'Client case' })).toBeVisible();
       await expect(band.getByText('VIEWER', { exact: true })).toBeVisible();
-      await expect(band.getByText('New case')).toHaveAttribute('aria-disabled', 'true');
-      await expect(band.getByRole('link', { name: 'Export package' })).toBeVisible();
-      await expect(main.getByText('You’re a VIEWER: you can read everything here and export the package; creating needs MEMBER.')).toBeVisible();
+      await expect(band.getByText('New problem')).toHaveAttribute('aria-disabled', 'true');
+      await expect(band.getByRole('link', { name: 'Export package' })).toHaveCount(0);
+      await expect(main.getByText('You’re a VIEWER: you can read everything here; creating needs MEMBER.')).toBeVisible();
       await expect(main.getByRole('region', { name: 'Get started' })).toBeVisible();
       await capture(page, testInfo, `overview-${name}-viewer-empty`);
 
@@ -434,15 +451,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'Open bench' })).toBeVisible();
       await expect(main.getByText('You are viewing a public project (read-only).')).toBeVisible();
       const publicTabs = main.getByRole('navigation', { name: 'Project sections' });
-      await expect(publicTabs.getByRole('link')).toHaveText(['Overview', 'Cases', 'Collections', 'Studies', 'Publications', 'Files']);
-      await expect(band.getByRole('link', { name: 'Browse cases' })).toHaveAttribute('href', '/app/open-lab/open-bench/cases');
-      for (const hidden of ['New case', 'Run', 'New study', 'New report', 'Export package']) await expect(band.getByText(hidden, { exact: true })).toHaveCount(0);
-      await expect(main.getByRole('region', { name: 'Recent jobs' })).toHaveCount(0);
+      await expect(publicTabs.getByRole('link')).toHaveText(['Overview', 'Problems', 'Collections', 'Studies', 'Published']);
+      await expect(band.getByRole('link', { name: 'Browse problems' })).toHaveAttribute('href', '/app/open-lab/open-bench/problems');
+      for (const hidden of ['New problem', 'Run', 'New study', 'New report', 'Export package']) await expect(band.getByText(hidden, { exact: true })).toHaveCount(0);
+      await expect(main.getByRole('region', { name: 'Recent runs' })).toHaveCount(0);
       await expect(main.getByRole('link', { name: /Flujo de checkout/ })).toBeVisible();
       await capture(page, testInfo, `overview-${name}-public-read`);
 
-      // Its members-only parts show the neutral gate, not the screens.
-      for (const part of ['jobs', 'package', 'settings']) {
+      // Its members-only parts show the neutral gate, not the screens (the old package address leads to the settings).
+      for (const part of ['runs', 'package', 'settings']) {
         await page.goto(`/app/open-lab/open-bench/${part}`);
         await expect(main.getByRole('heading', { name: 'Members only' })).toBeVisible();
         await expect(main.getByRole('link', { name: 'Back to the project' })).toHaveAttribute('href', '/app/open-lab/open-bench');
@@ -475,14 +492,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // The jobs card fails on its own: the rest of the page is there, and it loads on retry.
       state.refuse.jobs = unavailable;
       await page.goto('/app/isa-demo/qos-benchmarks');
-      const jobsCard = main.getByRole('region', { name: 'Recent jobs' });
-      await expect(jobsCard.getByRole('alert')).toContainText('Jobs couldn’t be loaded (503). The rest of the page is unaffected.');
+      const jobsCard = main.getByRole('region', { name: 'Recent runs' });
+      await expect(jobsCard.getByRole('alert')).toContainText('Runs couldn’t be loaded (503). The rest of the page is unaffected.');
       await expect(main.getByRole('link', { name: /Flujo de checkout/ })).toBeVisible();
       await expect(main.getByRole('region', { name: 'Studies' }).getByText('Run #1 · partial')).toBeVisible();
       await capture(page, testInfo, `overview-${name}-jobs-503`);
       state.refuse.jobs = undefined;
       await jobsCard.getByRole('button', { name: 'Retry' }).click();
-      await expect(jobsCard.getByRole('list', { name: 'Recent jobs' }).getByRole('listitem')).toHaveCount(3);
+      await expect(jobsCard.getByRole('list', { name: 'Recent runs' }).getByRole('listitem')).toHaveCount(3);
       expect(critical).toEqual([]);
     });
 
@@ -498,11 +515,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(settingsTab).toHaveAttribute('aria-current', 'page');
       // On a phone the row of tabs scrolls: the current one is brought into view, not left cut off at the edge.
       await expect(settingsTab).toBeInViewport({ ratio: 1 });
+      const sections = main.getByRole('navigation', { name: 'Settings sections' });
+      await expect(sections.getByRole('link')).toHaveText(['General', 'Members']);
+      await expect(sections.getByRole('link', { name: 'General' })).toHaveAttribute('aria-current', 'page');
+      await expect(main.getByRole('heading', { name: 'Export package' })).toBeVisible();
+      await expect(main.getByRole('heading', { name: 'Import package' })).toBeVisible();
       await expect(main.getByLabel('Name', { exact: true })).toHaveValue('QoS Benchmarks');
       await expect(main.getByText('/app/isa-demo/qos-benchmarks', { exact: true })).toBeVisible();
       await expect(main.getByRole('button', { name: 'Save' })).toBeDisabled();
       // The project has case revisions, study runs and a frozen report: deleting is blocked up front, and says why.
-      await expect(main.getByRole('note')).toContainText('Deleting is blocked: this project has sealed history (2 case revisions, 1 study run, 1 frozen report), including 1 published report.');
+      await expect(main.getByRole('note')).toContainText('Deleting is blocked: this project has sealed history (2 problem versions, 1 study run, 1 frozen report), including 1 published report.');
       await expect(main.getByRole('button', { name: 'Delete project' })).toBeDisabled();
       await capture(page, testInfo, `settings-${name}-success`);
 
@@ -513,6 +535,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('button', { name: 'Save' })).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'Change visibility' })).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'Delete project' })).toHaveCount(0);
+      // The package export and import are for the people who may change the project.
+      await expect(main.getByRole('heading', { name: 'Export package' })).toHaveCount(0);
+      await expect(main.getByRole('heading', { name: 'Import package' })).toHaveCount(0);
       await capture(page, testInfo, `settings-${name}-read-only`);
       if (isMobile) {
         await page.goto('/app/isa-demo/checkout-privado/settings');
@@ -522,6 +547,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         expect(critical).toEqual([]);
         return;
       }
+
+      // Members: the people of the organization, and the way to manage them.
+      await page.goto('/app/isa-demo/qos-benchmarks/settings/members');
+      await expect(main.getByRole('navigation', { name: 'Settings sections' }).getByRole('link', { name: 'Members' })).toHaveAttribute('aria-current', 'page');
+      await expect(main.getByRole('list', { name: 'Members of ISA Demo Group' }).getByRole('listitem')).toHaveCount(2);
+      await expect(main.getByText('tomas.ruiz')).toBeVisible();
+      await expect(main.getByRole('link', { name: 'Manage members' })).toHaveAttribute('href', '/app/isa-demo/settings/members');
+      await capture(page, testInfo, `settings-${name}-members`);
+      await page.goto('/app/isa-demo/qos-benchmarks/settings/billing');
+      await expect(main.getByRole('heading', { name: 'Page not found' })).toBeVisible();
 
       // Rename.
       await page.goto('/app/isa-demo/qos-benchmarks/settings');
@@ -577,21 +612,22 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('proj-package /app/:org/:project/package', async ({ page }, testInfo) => {
+    test('proj-settings /app/:org/:project/settings · package export and import', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto('/app/isa-demo/qos-benchmarks/package');
+      await page.goto('/app/isa-demo/qos-benchmarks/settings');
       const main = page.locator('#platform-main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Portable package' })).toBeVisible();
-      const packageTab = main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Package' });
-      await expect(packageTab).toHaveAttribute('aria-current', 'page');
-      await expect(packageTab).toBeInViewport({ ratio: 1 });
-      await expect(main.getByText('case with 2 sealed revisions')).toBeVisible();
-      await expect(main.getByText('People and roles')).toBeVisible();
+      await expect(main.getByRole('heading', { level: 1, name: 'Project settings' })).toBeVisible();
+      await expect(main.getByRole('heading', { name: 'Export package' })).toBeVisible();
+      await expect(main.getByRole('heading', { name: 'Import package' })).toBeVisible();
       await expect(main.getByText('ZIP, JSON or YAML package · up to 128 MiB on your plan')).toBeVisible();
-      await expect(main.getByRole('heading', { name: 'Known limits' })).toBeVisible();
       await capture(page, testInfo, `package-${name}-success`);
+
+      // The old package address leads here.
+      await page.goto('/app/isa-demo/qos-benchmarks/package');
+      await expect(page).toHaveURL(/\/app\/isa-demo\/qos-benchmarks\/settings$/);
+      await expect(main.getByRole('heading', { name: 'Import package' })).toBeVisible();
 
       // A package with its fingerprints sound: the report is on the page, the content is not.
       const upload = (pkg: Record<string, unknown>, fileName = 'qos.openbinding.json') => page.setInputFiles('input[aria-label="Package file"]', {
@@ -619,7 +655,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Import into QoS Benchmarks' }).click();
       expect((await imported).headers()['content-type']).toContain('application/json');
       await expect(main.getByText('Import complete')).toBeVisible();
-      await expect(main.getByText('5 items added (1 cases, 2 case revisions, 1 reports, 1 artifacts).')).toBeVisible();
+      await expect(main.getByText('5 items added (1 problems, 2 problem versions, 1 reports, 1 artifacts).')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Back to the project' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks');
       await capture(page, testInfo, `package-${name}-done`);
 
@@ -634,7 +670,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Choose another package' }).click();
       await upload(await samplePackage({ caseSlug: 'flujo-checkout', conflicting: true }));
       await expect(main.getByRole('alert')).toContainText('Name already used with different content');
-      await expect(main.getByRole('alert')).toContainText('“Flujo de checkout · revision 2” exists in this project with a different fingerprint.');
+      await expect(main.getByRole('alert')).toContainText('“Flujo de checkout · version 2” exists in this project with a different fingerprint.');
       await capture(page, testInfo, `package-${name}-collision`);
       await main.getByRole('button', { name: 'Choose another package' }).click();
 
@@ -664,13 +700,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: /^Import into/ }).click();
       await expect(main.getByRole('alert')).toContainText('This account or API key can’t import (403 · forbidden)');
       await main.getByRole('button', { name: 'Choose another package' }).click();
-      await expect(main.getByRole('note')).toContainText('so importing is off. Export still works.');
+      await expect(main.getByRole('region', { name: 'Import package' }).getByRole('note')).toContainText('so importing is off. Export still works.');
       await expect(main.getByRole('button', { name: 'Choose package' })).toBeDisabled();
       await capture(page, testInfo, `package-${name}-403`);
 
       // Export: the file goes to disk, with the name and type chosen; the content is never on the page.
-      await page.goto('/app/isa-demo/qos-benchmarks/package');
-      await main.getByRole('radio', { name: /Single JSON file/ }).check();
+      await page.goto('/app/isa-demo/qos-benchmarks/settings');
+      await main.getByLabel('Format').selectOption('json');
       const download = page.waitForEvent('download');
       await main.getByRole('button', { name: 'Export package' }).click();
       expect((await download).suggestedFilename()).toBe('qos-benchmarks.openbinding.json');
@@ -680,11 +716,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Export again' }).click();
       await expect(main.getByText('Your credential can’t read this project (403 · forbidden), so nothing was exported.')).toBeVisible();
 
-      // A VIEWER cannot import, and can still export.
-      await page.goto('/app/consultora-demo/client-case/package');
-      await expect(main.getByRole('note')).toContainText('Importing needs MEMBER; you’re a VIEWER here. You can still export.');
-      await expect(main.getByRole('button', { name: 'Choose package' })).toBeDisabled();
-      await expect(main.getByRole('button', { name: 'Export package' })).toBeEnabled();
+      // A VIEWER may not change the project: the settings offer neither the export nor the import.
+      await page.goto('/app/consultora-demo/client-case/settings');
+      await expect(main.getByRole('heading', { level: 1, name: 'Project settings' })).toBeVisible();
+      await expect(main.getByRole('heading', { name: 'Export package' })).toHaveCount(0);
+      await expect(main.getByRole('heading', { name: 'Import package' })).toHaveCount(0);
       await capture(page, testInfo, `package-${name}-viewer`);
       expect(critical).toEqual([]);
     });

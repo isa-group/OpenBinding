@@ -26,7 +26,7 @@ describe('admin-queues · jobs waiting and running', () => {
   it('counts the jobs in each state', async () => {
     renderAdmin(<AdminQueues />);
     expect(screen.getByRole('heading', { level: 1, name: 'Queues' })).toBeInTheDocument();
-    const states = await screen.findByRole('list', { name: 'Jobs by state' });
+    const states = await screen.findByRole('list', { name: 'Runs by state' });
     const items = within(states).getAllByRole('listitem');
     expect(items).toHaveLength(5);
     expect(within(items[0]).getByText('Queued')).toBeInTheDocument();
@@ -37,7 +37,7 @@ describe('admin-queues · jobs waiting and running', () => {
 
   it('lists the oldest jobs in flight with their owner, budget and age against it', async () => {
     renderAdmin(<AdminQueues />);
-    const jobs = await screen.findByRole('list', { name: 'Jobs in flight, oldest first' });
+    const jobs = await screen.findByRole('list', { name: 'Runs in flight, oldest first' });
     const running = within(jobs).getByRole('listitem', { name: 'minizinc running' });
     expect(within(running).getByRole('link', { name: /account 00000000…/ })).toHaveAttribute('href', `/app/admin/users/${MARIA.id}`);
     expect(within(running).getByText(/budget 5 min/)).toBeInTheDocument();
@@ -50,9 +50,9 @@ describe('admin-queues · jobs waiting and running', () => {
 
   it('flags a job that has run far past its budget and points at the way to settle it', async () => {
     renderAdmin(<AdminQueues />);
-    expect(await screen.findByText('One job has run far past its time budget')).toBeInTheDocument();
-    expect(screen.getByText(/A minizinc job asked for 5 min and has been running for about 1 day/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Reconcile abandoned jobs' })).toHaveAttribute('href', '/app/admin/maintenance');
+    expect(await screen.findByText('One run has gone far past its time budget')).toBeInTheDocument();
+    expect(screen.getByText(/A minizinc run asked for 5 min and has been running for about 1 day/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Reconcile abandoned runs' })).toHaveAttribute('href', '/app/admin/maintenance');
     expect(screen.getByRole('link', { name: 'Go to maintenance' })).toHaveAttribute('href', '/app/admin/maintenance');
   });
 
@@ -75,7 +75,7 @@ describe('admin-queues · jobs waiting and running', () => {
       return { ...status, oldestInFlight: status.oldestInFlight.slice(1) };
     });
     renderAdmin(<AdminQueues />);
-    await screen.findByRole('list', { name: 'Jobs in flight, oldest first' });
+    await screen.findByRole('list', { name: 'Runs in flight, oldest first' });
     expect(screen.queryByText(/far past their? time budget/)).not.toBeInTheDocument();
   });
 
@@ -89,12 +89,12 @@ describe('admin-queues · jobs waiting and running', () => {
     api.adminQueues.mockResolvedValue(EMPTY_QUEUES);
     renderAdmin(<AdminQueues />);
     expect(await screen.findByText('Queues are empty')).toBeInTheDocument();
-    expect(screen.queryByRole('list', { name: 'Jobs by state' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Runs by state' })).not.toBeInTheDocument();
   });
 
   it('refreshes on request', async () => {
     renderAdmin(<AdminQueues />);
-    await screen.findByRole('list', { name: 'Jobs by state' });
+    await screen.findByRole('list', { name: 'Runs by state' });
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
     await waitFor(() => expect(api.adminQueues).toHaveBeenCalledTimes(2));
   });
@@ -103,7 +103,7 @@ describe('admin-queues · jobs waiting and running', () => {
     const start = vi.spyOn(window, 'setInterval');
     const stop = vi.spyOn(window, 'clearInterval');
     renderAdmin(<AdminQueues />);
-    await screen.findByRole('list', { name: 'Jobs by state' });
+    await screen.findByRole('list', { name: 'Runs by state' });
     expect(start).not.toHaveBeenCalledWith(expect.any(Function), 10000);
     fireEvent.click(screen.getByLabelText('Refresh every 10 s'));
     expect(start).toHaveBeenCalledWith(expect.any(Function), 10000);
@@ -117,7 +117,7 @@ describe('admin-queues · jobs waiting and running', () => {
     expect(await screen.findByText('A service isn’t available right now (503 · accounts_unavailable)')).toBeInTheDocument();
     expect(screen.queryByText('Queues are empty')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByRole('list', { name: 'Jobs by state' })).toBeInTheDocument();
+    expect(await screen.findByRole('list', { name: 'Runs by state' })).toBeInTheDocument();
   });
 
   it('says when the API key cannot use administration (403)', async () => {

@@ -53,7 +53,7 @@ function Retention({ retention, plan }: { retention: number | null; plan: string
   const tallest = Math.max(1, ...bars.map((bar) => bar.days));
   const title = retention === null
     ? 'Retention can’t be confirmed right now'
-    : `Finished jobs are kept ${retention.toLocaleString('en-US')} days${plan ? ` on your ${plan} plan` : ''}`;
+    : `Finished runs are kept ${retention.toLocaleString('en-US')} days${plan ? ` on your ${plan} plan` : ''}`;
   const note = retention === null
     ? 'Your list still loads; only the retention figure is missing.'
     : longest !== null && retention >= longest
@@ -100,8 +100,8 @@ function HistoryBody() {
 
   const hrefOf = (job: JobSummary): string | null => {
     const project = data?.projectOf.get(job.id);
-    if (project) return `/app/${project.org}/${project.slug}/jobs/${job.id}`;
-    return fallback ? `${fallback}/jobs/${job.id}` : null;
+    if (project) return `/app/${project.org}/${project.slug}/runs/${job.id}`;
+    return fallback ? `${fallback}/runs/${job.id}` : null;
   };
 
   const act = async (job: JobSummary, kind: 'cancel' | 'retry') => {
@@ -115,7 +115,7 @@ function HistoryBody() {
         const made = await jobsApi.retry(job.id);
         const project = data?.projectOf.get(job.id);
         const base = project ? `/app/${project.org}/${project.slug}` : fallback;
-        setNotice({ tone: 'success', text: 'Retry queued.', follow: base ? `${base}/jobs/${made.id}` : undefined });
+        setNotice({ tone: 'success', text: 'Retry queued.', follow: base ? `${base}/runs/${made.id}` : undefined });
       }
       history.reload();
     } catch (caught) {
@@ -126,22 +126,22 @@ function HistoryBody() {
   };
 
   return (
-    <AccountFrame trail={[{ label: 'My jobs' }]}>
+    <AccountFrame trail={[{ label: 'My runs' }]}>
       <header className="proj-title-row">
         <div className="proj-title">
-          <h1>My jobs</h1>
+          <h1>My runs</h1>
           <p>Everything you’ve run, across projects.</p>
         </div>
         <div className="proj-actions">
-          <ProjectPicker label="See a project’s jobs instead" destination={(org, project) => `/app/${org}/${project}/jobs`} />
+          <ProjectPicker label="See a project’s runs instead" destination={(org, project) => `/app/${org}/${project}/runs`} />
         </div>
       </header>
 
-      {failure?.status === 401 && <Notice tone="warning">Your session ended{marker(failure)}. Log in again to see your jobs.</Notice>}
-      {failure?.status === 403 && <Notice tone="warning">This API key doesn’t include “read jobs”{marker(failure)}. Use a browser session, or a key with jobs:read.</Notice>}
+      {failure?.status === 401 && <Notice tone="warning">Your session ended{marker(failure)}. Log in again to see your runs.</Notice>}
+      {failure?.status === 403 && <Notice tone="warning">This API key doesn’t include “read runs”{marker(failure)}. Use a browser session, or a key with <code>jobs:read</code>.</Notice>}
       {failure && !refused && !data && (
         <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={history.reload}>Try again</Action>}>
-          Your jobs can’t be loaded right now{marker(failure)}.
+          Your runs can’t be loaded right now{marker(failure)}.
         </Notice>
       )}
 
@@ -165,17 +165,17 @@ function HistoryBody() {
           )}
           {notice?.tone === 'error' && <RefusalNotice refusal={notice.refusal} usageTo />}
 
-          {history.status === 'loading' && !data && <div role="status" aria-busy="true"><span className="sr-only">Loading your jobs…</span><Skeleton variant="panel" /></div>}
+          {history.status === 'loading' && !data && <div role="status" aria-busy="true"><span className="sr-only">Loading your runs…</span><Skeleton variant="panel" /></div>}
 
           {data && data.jobs.length === 0 && (
-            <EmptyState icon={<History />} title="Nothing within your retention window" dashed action={<ProjectPicker label="Start a run" variant="primary" destination={(org, project) => `/app/${org}/${project}/jobs/new`} />}>
+            <EmptyState icon={<History />} title="Nothing within your retention window" dashed action={<ProjectPicker label="Start a run" variant="primary" destination={(org, project) => `/app/${org}/${project}/runs/new`} />}>
               No runs within your retention window.
             </EmptyState>
           )}
           {data && data.jobs.length > 0 && shown.length === 0 && <EmptyState icon={<History />} title="No runs match these filters">Try another status or engine.</EmptyState>}
 
           {shown.length > 0 && (
-            <ul className="job-history-list" aria-label="Your jobs">
+            <ul className="job-history-list" aria-label="Your runs">
               {shown.map((job) => {
                 const state = normalizeStatus(job.status);
                 const project = data?.projectOf.get(job.id);
@@ -217,7 +217,7 @@ function HistoryBody() {
   );
 }
 
-/** Your own runs across projects (`job-history`, `/app/jobs`), as far back as your plan keeps them. */
+/** Your own runs across projects (`job-history`, `/app/runs`), as far back as your plan keeps them. */
 export function JobHistory() {
   return <HistoryBody />;
 }

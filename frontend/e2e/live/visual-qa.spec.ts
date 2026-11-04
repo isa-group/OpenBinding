@@ -239,9 +239,9 @@ const OWNER_STOPS: Stop[] = [
   { slug: 'panel', path: '/app', ready: (page) => page.getByRole('heading', { level: 1, name: /^Hello, / }) },
   { slug: 'organization-projects', path: `/app/${ORG}`, ready: (page) => page.locator('#platform-main').locator(`a[href="${PROJECT_PATH}"]`).first() },
   { slug: 'project', path: PROJECT_PATH, ready: (page) => page.getByRole('navigation', { name: 'Project sections' }) },
-  { slug: 'cases', path: `${PROJECT_PATH}/cases`, ready: (page) => page.getByRole('list', { name: 'Cases' }) },
-  { slug: 'case', path: `${PROJECT_PATH}/cases/${CASE}`, ready: (page) => page.locator('code.case-slug') },
-  { slug: 'jobs', path: `${PROJECT_PATH}/jobs`, ready: (page) => page.getByRole('heading', { level: 1, name: 'Jobs' }) },
+  { slug: 'cases', path: `${PROJECT_PATH}/problems`, ready: (page) => page.getByRole('list', { name: 'Problems' }) },
+  { slug: 'case', path: `${PROJECT_PATH}/problems/${CASE}`, ready: (page) => page.locator('code.case-slug') },
+  { slug: 'jobs', path: `${PROJECT_PATH}/runs`, ready: (page) => page.getByRole('heading', { level: 1, name: 'Runs' }) },
   { slug: 'plan-permissions', path: '/app/account/usage', ready: (page) => page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Plan & permissions' }) },
   { slug: 'team-organization', path: `/app/${ORG}/settings/members`, ready: (page) => page.locator('#platform-main').getByRole('heading', { level: 1 }) },
 ];
@@ -250,16 +250,16 @@ const OWNER_STOPS: Stop[] = [
 const VIEWER_STOPS: Stop[] = [
   {
     slug: 'viewer-cases',
-    path: `${PROJECT_PATH}/cases`,
-    ready: (page) => page.getByRole('list', { name: 'Cases' }),
+    path: `${PROJECT_PATH}/problems`,
+    ready: (page) => page.getByRole('list', { name: 'Problems' }),
     extra: async (page, label) => {
-      await expect.soft(page.getByRole('button', { name: 'New case' }), `${label}: a viewer sees "New case"`).toHaveCount(0);
+      await expect.soft(page.getByRole('button', { name: 'New problem' }), `${label}: a viewer sees "New problem"`).toHaveCount(0);
     },
   },
   {
     slug: 'viewer-jobs',
-    path: `${PROJECT_PATH}/jobs`,
-    ready: (page) => page.getByRole('heading', { level: 1, name: 'Jobs' }),
+    path: `${PROJECT_PATH}/runs`,
+    ready: (page) => page.getByRole('heading', { level: 1, name: 'Runs' }),
     extra: async (page, label) => {
       await expect.soft(page.getByRole('link', { name: 'New run' }), `${label}: a viewer sees "New run"`).toHaveCount(0);
       await expect.soft(page.getByRole('link', { name: 'Start a run' }), `${label}: a viewer sees "Start a run"`).toHaveCount(0);
@@ -267,7 +267,7 @@ const VIEWER_STOPS: Stop[] = [
   },
   {
     slug: 'viewer-job-launch',
-    path: `${PROJECT_PATH}/jobs/new?case=${CASE}`,
+    path: `${PROJECT_PATH}/runs/new?case=${CASE}`,
     ready: (page) => page.getByRole('heading', { level: 1, name: 'New run' }),
     extra: async (page, label) => {
       await expect.soft(page.getByText('starting a run needs MEMBER'), `${label}: the launch page does not say a run needs MEMBER`).toBeVisible();
@@ -295,7 +295,7 @@ test.describe('live · visual QA', () => {
     if (finished) {
       stops.splice(6, 0, {
         slug: 'job-result',
-        path: `${PROJECT_PATH}/jobs/${finished.id}`,
+        path: `${PROJECT_PATH}/runs/${finished.id}`,
         ready: (target) => finishedResult(target),
       });
     } else {

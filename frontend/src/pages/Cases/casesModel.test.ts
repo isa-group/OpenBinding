@@ -123,7 +123,7 @@ describe('diffRevisions', () => {
 
   it('summarizes the change in one line', () => {
     const line = diffSummary('checkout-flow', from, to, rows);
-    expect(line).toContain('checkout-flow r1 → r2:');
+    expect(line).toContain('checkout-flow v1 → v2:');
     expect(line).toContain('Candidates for pay-card 5 → 8');
     expect(line).toContain('combinations 10^');
     expect(diffSummary('c', from, from, diffRevisions(from, from))).toContain('no changes');

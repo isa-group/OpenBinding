@@ -25,15 +25,31 @@ describe('SiteFooter', () => {
 
     const nav = screen.getByRole('navigation', { name: 'Footer navigation' });
     for (const [name, href] of [
-      ['Explore', '/explore'], ['Engines', '/engines'], ['Pricing', '/pricing'], ['Status', '/status'],
+      ['Explore', '/explore'], ['Engines', '/engines'], ['Pricing', '/pricing'], ['Verify', '/verify'],
       ['Profiles & dialects', '/language'], ['Schemas', '/language/schemas/application'],
-      ['Examples', '/examples'], ['Workbench', '/workbench'],
+      ['Examples', '/explore/examples'], ['Workbench', '/workbench'],
       ['Team', '/about?tab=team'], ['Research', '/about?tab=research'],
       ['Funding', '/about?tab=funding'], ['Changelog', '/about?tab=changelog'],
     ] as const) {
       expect(within(nav).getByRole('link', { name })).toHaveAttribute('href', href);
     }
     expect(within(nav).getAllByRole('link')).toHaveLength(12);
+  });
+
+  // [utest->req~frontend-nav-public-navigation~1]
+  it('lists Verify in the Platform column', () => {
+    renderFooter();
+
+    const platform = screen.getByText('Platform').closest('section') as HTMLElement;
+    expect(within(platform).getAllByRole('link').map((link) => link.textContent)).toEqual(['Explore', 'Engines', 'Pricing', 'Verify']);
+  });
+
+  // [utest->req~frontend-nav-status-retired~1]
+  it('links to no status page', () => {
+    renderFooter();
+
+    expect(screen.queryByRole('link', { name: 'Status' })).not.toBeInTheDocument();
+    for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).not.toBe('/status');
   });
 
   it('renders the colour band and a dynamic copyright year', () => {

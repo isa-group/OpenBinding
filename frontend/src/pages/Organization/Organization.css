@@ -568,86 +568,18 @@
 .org-pager-buttons { display: inline-flex; gap: 4px; }
 
 /* New organization */
-.org-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--tp-spacing-xs); margin: 0; padding: 0; list-style: none; }
+.org-dialog { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-md); }
+.org-dialog > p { margin: 0; }
+.org-dialog-section { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-xs); padding-top: var(--tp-spacing-md); border-top: 1px solid var(--tp-hairline-soft); }
+.org-dialog-section > p { margin: 0; }
+.org-dialog-section h3 { margin: 0; font-size: 1rem; font-weight: 600; }
 
-.org-step {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 10px;
-  padding: 10px var(--tp-spacing-sm);
-  border: 1px solid var(--tp-hairline);
-  border-radius: var(--tp-radius-lg);
-  background: var(--tp-canvas);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.org-step:disabled { cursor: not-allowed; opacity: 0.7; }
-.org-step.is-current { border-color: var(--tp-primary); background: rgb(0 119 182 / 0.05); }
-
-.org-step-mark {
-  display: inline-flex;
-  width: 26px;
-  height: 26px;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  border-radius: 9999px;
-  background: var(--tp-hairline-soft);
-  color: var(--tp-slate);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.org-step.is-current .org-step-mark, .org-step.is-done .org-step-mark { background: var(--tp-primary); color: var(--tp-on-primary); }
-.org-step-text { display: flex; min-width: 0; flex-direction: column; }
-.org-step-text strong { color: var(--tp-ink); font-size: 0.8125rem; font-weight: 600; }
-.org-step-text small { overflow: hidden; color: var(--tp-steel); font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; }
-
-.org-wizard { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--tp-spacing-xl); }
-
-.org-wizard-main {
-  display: flex;
-  min-width: 0;
-  flex: 999 1 520px;
-  flex-direction: column;
-  gap: var(--tp-spacing-md);
-  box-sizing: border-box;
-  padding: var(--tp-spacing-xl);
-  border: 1px solid var(--tp-hairline);
-  border-radius: var(--tp-radius-xl);
-  background: var(--tp-canvas);
-}
-
-.org-wizard-main h2 { margin: 0; font-size: 1.125rem; font-weight: 500; }
-.org-wizard-main > p { margin: 0; }
-
-.org-wizard-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: var(--tp-spacing-xs);
-  padding-top: var(--tp-spacing-xs);
-  border-top: 1px solid var(--tp-hairline-soft);
-}
-
-.org-wizard-actions > span { display: inline-flex; gap: var(--tp-spacing-xs); }
-.org-wizard-aside { display: flex; max-width: 380px; flex: 1 1 280px; flex-direction: column; gap: var(--tp-spacing-md); }
-.org-wizard-aside .org-card { display: flex; flex-direction: column; gap: 10px; padding: var(--tp-spacing-md); border-radius: var(--tp-radius-xl); }
-
-.org-slug-field { max-width: 460px; }
 .org-slug { display: flex; overflow: hidden; border: 1px solid var(--tp-input-border); border-radius: var(--tp-radius-md); }
 .org-slug.is-invalid { border-color: var(--tp-severity-error); }
 .org-slug > span { display: inline-flex; align-items: center; padding: 0 10px; border-right: 1px solid var(--tp-hairline-soft); background: var(--tp-surface); color: var(--tp-steel); font-family: var(--font-mono); font-size: 0.8125rem; }
 .org-slug input { min-width: 0; flex: 1; height: 42px; padding: 0 10px; border: 0; border-radius: 0; font-family: var(--font-mono); font-size: 0.8125rem; }
 .org-slug input:focus-visible { outline-offset: -2px; }
 
-.org-review { display: grid; grid-template-columns: 140px 1fr; gap: 8px 12px; margin: 0; }
-.org-review dt { color: var(--tp-steel); }
-.org-review dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
-.org-review code { font-family: var(--font-mono); }
 .org-creating { display: flex; align-items: center; gap: 10px; color: var(--tp-slate); }
 .org-spinner { width: 18px; height: 18px; box-sizing: border-box; border: 2px solid var(--tp-cream-deeper); border-top-color: var(--tp-primary); border-radius: 9999px; animation: org-spin 0.9s linear infinite; }
 
@@ -656,23 +588,6 @@
 .org-preview-node > span:not(.org-tile) { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .org-preview-node.is-new { border: 2px solid var(--tp-primary); background: var(--tp-surface-cream); font-weight: 600; }
 .org-preview-node b { padding: 0 8px; border-radius: 9999px; background: var(--tp-primary); color: var(--tp-on-primary); font-size: 0.625rem; }
-
-.org-done {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--tp-spacing-lg);
-  padding: var(--tp-spacing-xl);
-  border: 1px solid var(--tp-severity-success-border);
-  border-radius: var(--tp-radius-xl);
-  background: var(--tp-severity-success-bg);
-}
-
-.org-done-mark { display: inline-flex; width: 56px; height: 56px; align-items: center; justify-content: center; border: 2px solid var(--tp-severity-success); border-radius: 9999px; background: var(--tp-canvas); color: var(--color-success); }
-.org-done-mark svg { width: 28px; height: 28px; }
-.org-done-body { display: flex; min-width: 240px; flex: 1; flex-direction: column; gap: 4px; }
-.org-done-body strong { font-size: 1.25rem; font-weight: 600; }
-.org-done-actions { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs); }
 
 @keyframes org-spin { to { transform: rotate(360deg); } }
 
@@ -684,12 +599,8 @@
   .org-side { max-width: none; flex-basis: 100%; }
   .org-frame { gap: var(--tp-spacing-lg); }
   .org-queue { position: static; max-width: none; flex-basis: 100%; }
-  .org-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .org-step-text small { display: none; }
-  .org-wizard-main { padding: var(--tp-spacing-md); }
-  .org-aside, .org-wizard-aside { max-width: none; flex-basis: 100%; }
+  .org-aside { max-width: none; flex-basis: 100%; }
   .org-find { width: 100%; }
-  .org-review { grid-template-columns: 100px 1fr; }
   .org-tl-body dl { grid-template-columns: 90px 1fr; }
 
   /* On a phone the side navigation becomes a row that scrolls sideways instead of three stacked links. */

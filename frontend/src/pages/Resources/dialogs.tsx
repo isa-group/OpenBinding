@@ -78,7 +78,7 @@ export function NewCollectionDialog({ organization, project, onClose, onCreated 
   );
 }
 
-/** What can be added to a collection: the project’s case revisions and resource revisions that are not in the list yet. */
+/** What can be added to a collection: the project’s problem versions and resource revisions that are not in the list yet. */
 export function ItemPickerDialog({ pins, taken, loading, problem, onClose, onPick }: {
   pins: readonly Pin[]; taken: ReadonlySet<string>; loading: boolean; problem?: string; onClose: () => void; onPick: (pin: Pin) => void;
 }) {
@@ -86,7 +86,7 @@ export function ItemPickerDialog({ pins, taken, loading, problem, onClose, onPic
   const needle = query.trim().toLowerCase();
   const available = pins.filter((pin) => !taken.has(pin.key) && (!needle || `${pin.label} ${pin.sub}`.toLowerCase().includes(needle)));
   const groups: Array<{ title: string; items: Pin[] }> = [
-    { title: 'Cases', items: available.filter((pin) => pin.kind === 'case') },
+    { title: 'Problems', items: available.filter((pin) => pin.kind === 'case') },
     { title: 'Resources', items: available.filter((pin) => pin.kind === 'resource') },
   ];
   const everything = pins.filter((pin) => !taken.has(pin.key)).length;
@@ -96,9 +96,9 @@ export function ItemPickerDialog({ pins, taken, loading, problem, onClose, onPic
       <div className="org-dialog-form">
         <div className="ui-field res-pick-search">
           <label htmlFor="ai-search" className="sr-only">Search</label>
-          <input id="ai-search" type="search" value={query} placeholder="Search cases and resources…" onChange={(event) => setQuery(event.target.value)} />
+          <input id="ai-search" type="search" value={query} placeholder="Search problems and resources…" onChange={(event) => setQuery(event.target.value)} />
         </div>
-        {loading && <p className="org-muted" role="status">Reading the project’s cases and resources…</p>}
+        {loading && <p className="org-muted" role="status">Reading the project’s problems and resources…</p>}
         {problem && <p className="lib-error-text" role="alert">{problem}</p>}
         {!loading && !problem && everything === 0 && <p className="org-muted">Everything available is already in the list.</p>}
         {!loading && everything > 0 && available.length === 0 && <p className="org-muted">Nothing matches.</p>}
@@ -117,7 +117,7 @@ export function ItemPickerDialog({ pins, taken, loading, problem, onClose, onPic
             </ul>
           </div>
         ))}
-        <p className="lib-footnote">A collection pins exact revisions. Results and reports can’t be pinned here yet.</p>
+        <p className="lib-footnote">A collection pins exact problem versions and resource revisions. Results and reports can’t be pinned here yet.</p>
         <div className="ui-modal-actions"><Action variant="secondary" onClick={onClose}>Close</Action></div>
       </div>
     </Modal>

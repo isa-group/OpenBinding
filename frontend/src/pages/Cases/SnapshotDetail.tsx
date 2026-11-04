@@ -1,29 +1,25 @@
-import { useState, type ReactNode } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { casesApi, type SnapshotAnalysis, type SnapshotPins } from '../../api/cases';
 import { platformApi } from '../../api/platform';
-import type { Organization, Project, Snapshot } from '../../api/platform';
+import type { CaseRevision, Organization, Project, Snapshot } from '../../api/platform';
 import { parseBindingSpace } from '../../components/BindingSpaceBadge/bindingSpace';
 import { SourceView } from '../../components/rendering/SourceView';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
-import { useAuth } from '../../contexts/auth';
+import { problemsPath } from '../../routes/paths/problems';
 import { shortDigest } from '../../utils/digest';
-import { formatBytes, formatDateTime } from '../../utils/format';
+import { formatBytes } from '../../utils/format';
 import { readZipArchive, type ZipArchive } from '../../utils/zipExplorer';
 import { useResource } from '../../utils/useResource';
 import { saveBytes } from '../Project/download';
-import { ProjectGate, ProjectSkeleton } from '../Project/parts';
-import { loadCases } from '../Project/projectData';
-import { useRouteProject } from '../Project/useRouteProject';
 import { formatFeature } from '../../utils/featureRange';
 import { rangeCandidates, readBindingProblem, powerText, type BindingModel } from './bindingModel';
 import { classifyAuthError, marker, snapshotFailureKind, type AuthFailure } from './caseErrors';
-import { CaseFrame, CaseMissing } from './parts';
+import { CaseMissing } from './parts';
 // The snapshot styles keep the name of the page that used to hold them.
 import '../Platform/SnapshotPage.css';
 
@@ -36,21 +32,6 @@ const FINGERPRINTS: ReadonlyArray<{ key: 'instance' | 'package' | 'compiled'; la
   { key: 'package', label: 'Package', what: 'The .bim.zip as uploaded' },
   { key: 'compiled', label: 'Compiled form', what: 'What engines read' },
 ];
-
-const SNAPSHOT_TABS = [{ id: 'overview', label: 'Overview' }, { id: 'source', label: 'Source' }] as const;
-
-/** The case revision that points at this snapshot, if the project has one. */
-async function findOrigin(org: string, project: string, snapshotId: string) {
-  try {
-    for (const entry of await loadCases(org, project)) {
-      const revision = entry.revisions.find((candidate) => candidate.source_snapshot_id === snapshotId);
-      if (revision) return { item: entry.item, revision };
-    }
-  } catch {
-    /* the case list is a convenience here, never a reason to hide the snapshot */
-  }
-  return null;
-}
 
 function Pins({ pins }: { pins: SnapshotPins }) {
   const files = Object.entries(pins.fileDigests);
@@ -122,7 +103,7 @@ function SourceViewer({ snapshot, snapshotId }: { snapshot: Snapshot; snapshotId
   );
 }
 
-function Summary({ analysis, model, originLink }: { analysis: Analysis | undefined; model: BindingModel | null; originLink: ReactNode }) {
+function Summary({ analysis, model }: { analysis: Analysis | undefined; model: BindingModel | null }) {
   if (!analysis) return <div role="status" aria-busy="true"><span className="sr-only">Reading what the engines receive…</span><Skeleton variant="tile" /></div>;
   if (analysis.state === 'failed' && analysis.failure.status === 409) {
     return (
@@ -171,7 +152,6 @@ function Summary({ analysis, model, originLink }: { analysis: Analysis | undefin
         <span className="org-muted">{analysis.result.compatibleModes.length === 1 ? '1 engine mode can run it.' : `${analysis.result.compatibleModes.length} engine modes can run it.`}</span>
       )}
       <RangeNotice model={model} analysis={analysis} />
-      {originLink}
     </>
   );
 }
@@ -203,39 +183,31 @@ function RangeNotice({ model, analysis }: { model: BindingModel | null; analysis
 }
 
 function SnapshotBody({ organization, project, snapshotId }: { organization: Organization; project: Project; snapshotId: string }) {
-  const { user } = useAuth();
   const { copy, status } = useCopy();
   const root = `/app/${organization.slug}/${project.slug}`;
   const snapshot = useResource(`snapshot:${snapshotId}`, () => platformApi.snapshot(snapshotId));
   const pins = useResource<SnapshotPins | null>(`pins:${snapshotId}`, () => casesApi.instance(snapshotId).catch(() => null));
-  const origin = useResource(`origin:${organization.slug}/${project.slug}/${snapshotId}`, () => findOrigin(organization.slug, project.slug, snapshotId));
   const analysis = useResource<Analysis>(`analysis:${snapshotId}`, () => casesApi.analyseSnapshot(snapshotId).then(
     (result): Analysis => ({ state: 'ok', result }),
     (caught: unknown): Analysis => ({ state: 'failed', failure: classifyAuthError(caught) }),
   ));
   const [downloads, setDownloads] = useState<Partial<Record<DownloadKind, Download>>>({});
-  const [view, setView] = useState<'overview' | 'source'>('overview');
 
-  const trail = [{ label: 'Workbench', to: `${root}/workbench` }, { label: `Snapshot ${snapshotId.slice(0, 4)}…${snapshotId.slice(-2)}` }];
   const failure = snapshot.status === 'error' ? classifyAuthError(snapshot.error) : null;
 
   if (snapshot.status === 'loading') {
-    return (
-      <CaseFrame organization={organization} project={project} trail={trail}>
-        <div role="status" aria-busy="true"><span className="sr-only">Loading the snapshot…</span><Skeleton variant="card" /><Skeleton variant="panel" /></div>
-      </CaseFrame>
-    );
+    return <div role="status" aria-busy="true"><span className="sr-only">Loading the snapshot…</span><Skeleton variant="card" /><Skeleton variant="panel" /></div>;
   }
   if (failure || !snapshot.data) {
     const kind = failure ? snapshotFailureKind(failure) : 'missing';
     return (
-      <CaseFrame organization={organization} project={project} trail={trail}>
+      <>
         {kind === 'key' && (
           <Notice tone="warning">This API key doesn’t include “read instances” (403). Use a session or a key with that permission.</Notice>
         )}
         {kind === 'missing' && (
-          <CaseMissing title="Snapshot not found" actions={<Action to={`${root}/cases`} variant="primary">All cases</Action>}>
-            Snapshots open for whoever made them, or for members of an organization whose cases use them. Otherwise we answer as if it didn’t exist (404).
+          <CaseMissing title="Snapshot not found" actions={<Action to={problemsPath(root)} variant="primary">All problems</Action>}>
+            Snapshots open for whoever made them, or for members of an organization whose problems use them. Otherwise we answer as if it didn’t exist (404).
           </CaseMissing>
         )}
         {kind === 'other' && failure && (
@@ -243,18 +215,13 @@ function SnapshotBody({ organization, project, snapshotId }: { organization: Org
             The snapshot couldn’t be loaded{marker(failure)}.
           </Notice>
         )}
-      </CaseFrame>
+      </>
     );
   }
 
   const data = snapshot.data;
   const model = data.ir ? readBindingProblem(data.ir.document) : null;
   const digests: Record<'instance' | 'package' | 'compiled', string | null> = { instance: data.instanceDigest, package: data.packageDigest, compiled: data.ir?.digest ?? null };
-  const mine = Boolean(user && data.ownerId && data.ownerId === user.id);
-  const found = origin.data;
-  const originLink = found
-    ? <Link to={`${root}/cases/${found.item.slug}/revisions/${found.revision.revision}`} viewTransition>See the full model of revision {found.revision.revision}</Link>
-    : null;
 
   const download = async (kind: DownloadKind) => {
     setDownloads((current) => ({ ...current, [kind]: { state: 'busy' } }));
@@ -276,31 +243,16 @@ function SnapshotBody({ organization, project, snapshotId }: { organization: Org
   ];
 
   return (
-    <CaseFrame organization={organization} project={project} trail={trail}>
-      <header className="proj-title-row">
-        <div className="proj-title">
-          <h1>Compiled snapshot</h1>
-          <p>
-            Made by {mine ? 'you' : 'a member'} · {formatDateTime(data.createdAt) ?? 'sealed'}
-            {found && <> · from <Link to={`${root}/cases/${found.item.slug}`} viewTransition>{found.item.name}</Link> revision {found.revision.revision}</>}
-            {' '}· never changes
-          </p>
-        </div>
-        <div className="proj-actions">
-          {project.access !== 'public_read' && <Action to={`${root}/jobs/new?snapshot=${encodeURIComponent(snapshotId)}`} variant="primary">Run from this snapshot</Action>}
-          <Action variant={project.access === 'public_read' ? 'primary' : 'secondary'} onClick={() => void copy([`instance ${data.instanceDigest}`, `package ${data.packageDigest}`, ...(data.ir ? [`compiled ${data.ir.digest}`] : [])].join('\n'), 'all')}>
+    <>
+      <SourceViewer snapshot={data} snapshotId={snapshotId} />
+
+      <section className="org-section" aria-labelledby="sd-fingerprints">
+        <div className="org-section-head">
+          <h2 id="sd-fingerprints">Fingerprints</h2>
+          <Action variant="secondary" onClick={() => void copy([`instance ${data.instanceDigest}`, `package ${data.packageDigest}`, ...(data.ir ? [`compiled ${data.ir.digest}`] : [])].join('\n'), 'all')}>
             {status('all') === 'copied' ? `Copied all ${data.ir ? 'three' : 'two'}` : status('all') === 'failed' ? 'Copy failed' : 'Copy all fingerprints'}
           </Action>
         </div>
-      </header>
-
-      <TabBar items={SNAPSHOT_TABS} value={view} onChange={(id) => setView(id as 'overview' | 'source')} ariaLabel="Snapshot views" prefix="snap-view" />
-      <TabPanel prefix="snap-view" active={view}>
-      {view === 'source' && <SourceViewer snapshot={data} snapshotId={snapshotId} />}
-      {view === 'overview' && (
-      <>
-      <section className="org-section" aria-labelledby="sd-fingerprints">
-        <h2 id="sd-fingerprints">Fingerprints</h2>
         <div className="snap-digests">
           {FINGERPRINTS.map((entry) => {
             const digest = digests[entry.key];
@@ -334,7 +286,7 @@ function SnapshotBody({ organization, project, snapshotId }: { organization: Org
 
       <section className="org-section" aria-labelledby="sd-engines">
         <h2 id="sd-engines">What the engines receive</h2>
-        <Summary analysis={analysis.data} model={model} originLink={originLink} />
+        <Summary analysis={analysis.data} model={model} />
       </section>
 
       <section className="org-section" aria-labelledby="sd-downloads">
@@ -352,20 +304,24 @@ function SnapshotBody({ organization, project, snapshotId }: { organization: Org
           })}
         </div>
       </section>
-      </>
-      )}
-      </TabPanel>
-    </CaseFrame>
+    </>
   );
 }
 
-/** A compiled snapshot (`snap-detail`, `/app/:org/:project/snapshots/:snapshot`): its fingerprints, what engines receive and the files to download. */
-export function SnapshotDetail() {
-  const { snapshot: snapshotId = '' } = useParams();
-  const { orgSlug, projectSlug, organization, project, waiting, failure, reload } = useRouteProject();
-  if (waiting) return <ProjectSkeleton />;
-  if (!organization || !project) {
-    return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
+/**
+ * The Source tab of the problem page: the compiled form and the package files of the problem version on show, then its fingerprints, what the
+ * engines receive and the downloads. A version sealed without a snapshot shows the sealed document.
+ */
+// [impl->req~frontend-nav-problem-page~1]
+// [impl->req~frontend-snapshot-source-tab~1]
+export function VersionSource({ organization, project, revision }: { organization: Organization; project: Project; revision: CaseRevision }) {
+  if (!revision.source_snapshot_id) {
+    return (
+      <>
+        <p className="org-muted">This version was sealed without a compiled snapshot, so only its sealed document is shown.</p>
+        <SourceView source={revision.document} label="Sealed document (JSON)" language="json" filename={`revision-${revision.revision}.json`} maxHeight="30rem" />
+      </>
+    );
   }
-  return <SnapshotBody key={snapshotId} organization={organization} project={project} snapshotId={snapshotId} />;
+  return <SnapshotBody key={revision.source_snapshot_id} organization={organization} project={project} snapshotId={revision.source_snapshot_id} />;
 }

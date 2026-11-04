@@ -1,10 +1,11 @@
 # Rendering catalogue: foundations (M2.1)
 
 **Status: built and tested (ROADMAP M2.1).** Five components in `frontend/src/components/rendering/` and a hygiene test that
-stops new raw rendering. The 9 files that still dump data (8 of the 15 offenders of ROADMAP M2 plus one unlisted finding)
-are listed below; the 8 are retired in M2.4 to M2.6, the one waits for classification. Offender 7 and finding 17
+stops new raw rendering. No offender of ROADMAP M2 remains and no unlisted finding: the last one, the diff of
+`pages/Workbench/SourcePanel.tsx`, is shown through `SourceView` since M2.6 (slice 15). Offender 7 and finding 17
 went with the decision-space workspace (M2.4, slice 1); offenders 1 to 4 went with M2.3 (the dead engine-answer view,
-the Jobs run result, the Workbench result panel and the diagnostic text fallback).
+the Jobs run result, the Workbench result panel and the diagnostic text fallback); offender 6 went with the Verify
+page (M2.6, slice 2).
 
 ROADMAP M2.1 asks for the components to be documented in the design system. No separate design-system document exists in
 this change, and [ARCHITECTURE §5.3](../ARCHITECTURE.md) is the catalogue table (owned by the coordinator), so this page
@@ -203,9 +204,8 @@ Also not seen: raw rendering built without the literal `<pre` or `JSON.stringify
 `white-space: pre`, or a stringified variable shown elsewhere, as at `RepDetail.tsx:77`, whose `sourceText` reaches
 the textarea at :317).
 
-The allow-list `frontend/src/test/rawRenderingAllowList.ts` holds the 1 remaining offender of ROADMAP M2 (`RAW_RENDERING_ALLOW_LIST`)
-and `UNLISTED_FINDINGS` for 1 finding not in the roadmap, awaiting classification: `pages/Workbench/SourcePanel.tsx`
-(diff `<pre>`). Findings and listed lines are matched as a
+The allow-list `frontend/src/test/rawRenderingAllowList.ts` holds no offender of ROADMAP M2 (`RAW_RENDERING_ALLOW_LIST` is empty and
+`MAX_ALLOWED_OFFENDERS` is 0) and `UNLISTED_FINDINGS` is empty too. Findings and listed lines are matched as a
 multiset per file and trimmed line text: a second identical raw line in a listed file is a new finding, and a listed
 duplicate whose copy was removed is stale. The test fails on a new finding (`unlistedFindings`), on a stale entry
 (`staleEntries`; the list may only shrink) and on a wrong `line` (`wrongLineNumbers`). The three functions are exported
@@ -219,8 +219,8 @@ lower `MAX_ALLOWED_OFFENDERS`, and in the first such slice relax the "numbered 1
 | M2.3 | none left (1 `EngineReportView.tsx`, 2 `pages/Jobs/JobResult.tsx`, 3 `pages/Workbench/RunPanel.tsx` and 4 `pages/Workbench/CheckResult.tsx` are retired) |
 | M2.4 | none left (5 `pages/Reports/RepDetail.tsx` and 11 `pages/Library/ContentView.tsx` are retired) |
 | M2.5 | none left (8 `pages/Studies/StudyCell.tsx`, 9 `pages/Studies/StudyDetail.tsx`, 10 `pages/Engines/EngineParts.tsx`, 12 `pages/Organization/OrgAudit.tsx`, 13 `pages/RegisterEngine/EngineForm.tsx`, 14 `pages/Generator/LabAside.tsx` and 15 `pages/Cases/SnapshotDetail.tsx` are retired) |
-| M2.6 | 6 `pages/Reports/Verifier.tsx` |
-| none yet | 16 `pages/Workbench/SourcePanel.tsx` |
+| M2.6 | none left (6 `pages/Reports/Verifier.tsx` is retired: the Verify page shows the canonical JSON through `SourceView`) |
+| M2.6 (slice 15) | none left (16 `pages/Workbench/SourcePanel.tsx` is retired: the workbench diff is a `SourceView` named `Changes to <path>`) |
 
 ## Not yet
 

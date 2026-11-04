@@ -64,7 +64,7 @@ describe('Plan & permissions', () => {
     expect(await plan.findByText('Free')).toBeInTheDocument();
     expect(await plan.findByText(/Published pricing 0\.1\.0 · A new pricing version applies when your contract is renewed in SPACE/)).toBeInTheDocument();
     expect(plan.getByRole('link', { name: 'See plans' })).toHaveAttribute('href', '/pricing');
-    expect(screen.getByRole('link', { name: 'Plan & permissions' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Plan' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('renders no empty tile when there is no plan name, and names the local demo', async () => {
@@ -125,19 +125,20 @@ describe('Plan & permissions', () => {
     expect(within(keys).getByText('1')).toBeInTheDocument();
     expect(within(keys).getByRole('link', { name: 'Manage keys' })).toHaveAttribute('href', '/app/account/keys');
     expect(section.getByRole('link', { name: 'My engines' })).toHaveAttribute('href', '/app/engines/registrations');
-    expect(section.getByText('Jobs that may run at once')).toBeInTheDocument();
+    expect(section.getByText('Runs that may run at once')).toBeInTheDocument();
+    expect(section.queryByText('Jobs that may run at once')).not.toBeInTheDocument();
   });
 
   it('lists the per-request ceilings with their exact values, and links to the job history', async () => {
     renderPlan();
     const table = within(await screen.findByRole('region', { name: 'Ceilings table' }));
 
-    expect(within(table.getByRole('row', { name: /Max time per job/ })).getByText('1 min')).toBeInTheDocument();
-    expect(within(table.getByRole('row', { name: /Max time per job/ })).getByText('60 s')).toBeInTheDocument();
+    expect(within(table.getByRole('row', { name: /Max time per run/ })).getByText('1 min')).toBeInTheDocument();
+    expect(within(table.getByRole('row', { name: /Max time per run/ })).getByText('60 s')).toBeInTheDocument();
     expect(within(table.getByRole('row', { name: /Max package size/ })).getByText('8,388,608 bytes')).toBeInTheDocument();
     expect(within(table.getByRole('row', { name: /Max problem size/ })).getByText('10⁹')).toBeInTheDocument();
-    expect(screen.getByText(/Finished jobs are kept for 7 days\./)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open job history' })).toHaveAttribute('href', '/app/jobs');
+    expect(screen.getByText(/Finished runs are kept for 7 days\./)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open run history' })).toHaveAttribute('href', '/app/runs');
   });
 
   it('says "No limit" for the exact value of an unlimited ceiling, and never shows the YAML artefact `.inf`', async () => {
@@ -150,7 +151,7 @@ describe('Plan & permissions', () => {
     renderPlan();
     const table = within(await screen.findByRole('region', { name: 'Ceilings table' }));
 
-    for (const name of [/Max time per job/, /Max package size/]) {
+    for (const name of [/Max time per run/, /Max package size/]) {
       const row = within(table.getByRole('row', { name }));
       expect(row.getByText('Unlimited')).toBeInTheDocument();
       expect(row.getByText('No limit')).toBeInTheDocument();

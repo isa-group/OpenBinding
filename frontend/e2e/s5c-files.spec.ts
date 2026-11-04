@@ -1,19 +1,17 @@
-import { createHash } from 'node:crypto';
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody, validationBody } from './helpers/problems';
-import JSZip from 'jszip';
 import type {
-  BindingCase, CaseRevision, Collection, CollectionItem, CollectionRevision, ProjectResource, ProjectResourceRevision, StoredBlob,
+  BindingCase, CaseRevision, Collection, CollectionItem, CollectionRevision, ProjectResource, ProjectResourceRevision,
 } from '../src/api/platform';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import {
-  blobOf, caseItem, collectionOf, collectionRevisionOf, digestOf, resourceItem, resourceOf, resourceRevisionOf, usageOf,
+  caseItem, collectionOf, collectionRevisionOf, digestOf, resourceItem, resourceOf, resourceRevisionOf, usageOf,
 } from '../src/test/fixtures/resources';
 
-// S5c · files and collections: proj-files, coll-list and coll-detail (proj-resources and proj-resource-detail are retired).
-// There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by
-// git) so they can be looked at after a run. One test per screen and viewport: the desktop walks the states of the screen, the phone
-// gets its layout and its dialogs.
+// S5c · collections: coll-list and coll-detail (proj-files is retired with the Files tab; proj-resources and proj-resource-detail
+// are retired too). There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
+// (test-results/, ignored by git) so they can be looked at after a run. One test per screen and viewport: the desktop walks the
+// states of the screen, the phone gets its layout and its dialogs.
 
 const API = 'http://localhost:8000';
 
@@ -68,7 +66,6 @@ const projectsOf: Record<string, ReturnType<typeof project>[]> = {
 // --- what each project holds
 
 interface ProjectData {
-  files: StoredBlob[];
   resources: ProjectResource[];
   resourceRevs: Record<string, ProjectResourceRevision[]>;
   collections: Collection[];
@@ -97,10 +94,6 @@ const listed = (...parts: Array<'c1' | 'c2' | 'c3' | 'w1'>): CollectionItem[] =>
   : caseItem(`case-flujo-checkout-r${part.slice(1)}`, digestOf(part.slice(1)))));
 
 const qosData = (): ProjectData => ({
-  files: [
-    blobOf('a'),
-    blobOf('b', { media_type: 'text/csv', size_bytes: 18_432, public: true, created_at: '2026-09-30T09:00:00Z' }),
-  ],
   resources: [goal, notes, weights],
   resourceRevs: {
     weights: [
@@ -119,9 +112,9 @@ const qosData = (): ProjectData => ({
   caseRevs: { 'flujo-checkout': [caseRevision(1), caseRevision(2), caseRevision(3)] },
 });
 
-const emptyData = (): ProjectData => ({ files: [], resources: [], resourceRevs: {}, collections: [], collectionRevs: {}, cases: [], caseRevs: {} });
+const emptyData = (): ProjectData => ({ resources: [], resourceRevs: {}, collections: [], collectionRevs: {}, cases: [], caseRevs: {} });
 
-type Refusable = 'files' | 'upload' | 'download' | 'deleteFile' | 'resources' | 'resourceRevisions'
+type Refusable = 'resources' | 'resourceRevisions'
   | 'collections' | 'collection' | 'collectionRevisions' | 'createCollection' | 'saveCollectionRevision' | 'deleteCollection';
 
 interface State {
@@ -145,15 +138,6 @@ const seedState = (): State => ({
 
 const methodOf = (route: Route) => route.request().method();
 const bodyOf = (route: Route) => route.request().postDataJSON() as Record<string, unknown>;
-
-/** A small ZIP the download and the look-inside serve. */
-async function archiveBytes(): Promise<Buffer> {
-  const zip = new JSZip();
-  zip.file('package/manifest.json', '{"kind":"Package"}');
-  zip.file('cases/checkout.json', '{"kind":"Case"}');
-  zip.file('reports/summary.txt', 'Summary');
-  return zip.generateAsync({ type: 'nodebuffer' });
-}
 
 /** The way the gateway lists a collection’s item after it has been saved. */
 function storedItem(item: CollectionItem, data: ProjectData): CollectionItem {
@@ -203,37 +187,6 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     if (!current) return detail(404, 'not_found', 'Project not found.')(route);
     if (!sub) return json(current)(route);
     const data = state.projects[`${orgSlug}/${projectSlug}`] ?? emptyData();
-
-    // --- files
-    if (sub === 'blobs') {
-      if (!subId) {
-        if (method === 'POST') {
-          if (state.refuse.upload) return state.refuse.upload(route);
-          const bytes = route.request().postDataBuffer() ?? Buffer.alloc(0);
-          const digest = `sha256-${createHash('sha256').update(bytes).digest('hex')}`;
-          state.sent.uploadType = route.request().headers()['content-type'];
-          state.sent.uploadPublic = url.searchParams.get('public');
-          const stored: StoredBlob = data.files.find((file) => file.digest === digest) ?? {
-            ...blobOf('f'), id: `blob-${data.files.length + 1}`, digest, media_type: route.request().headers()['content-type'] ?? 'application/octet-stream',
-            size_bytes: bytes.length, public: url.searchParams.get('public') === 'true', created_at: '2026-10-09T08:00:00Z',
-          };
-          if (!data.files.includes(stored)) data.files = [stored, ...data.files];
-          return json(stored, 201)(route);
-        }
-        if (state.refuse.files) return state.refuse.files(route);
-        return json(data.files)(route);
-      }
-      const file = data.files.find((item) => item.digest === decodeURIComponent(subId));
-      if (!file) return detail(404, 'not_found', 'Blob not found.')(route);
-      if (method === 'DELETE') {
-        if (state.refuse.deleteFile) return state.refuse.deleteFile(route);
-        state.sent.deleted = file.digest;
-        data.files = data.files.filter((item) => item !== file);
-        return noContent(route);
-      }
-      if (state.refuse.download) return state.refuse.download(route);
-      return route.fulfill({ status: 200, contentType: file.media_type, body: /zip/.test(file.media_type) ? await archiveBytes() : Buffer.from('a,b\n1,2\n') });
-    }
 
     // --- cases, only to let a collection name what it pins
     if (sub === 'cases') {
@@ -342,154 +295,11 @@ const viewports = [
 
 const ROOT = '/app/isa-demo/qos-benchmarks';
 const API_ROOT = '/v1/organizations/isa-demo/projects/qos-benchmarks';
-const FILES = `${ROOT}/files`;
 const COLLECTIONS = `${ROOT}/collections`;
-const ARCHIVE = 'ZIP archive · sha256-aaaa…aaaa';
-const CSV_ROW = /CSV · sha256-bbbb…bbbb/;
-
-const csvFile = (name: string, content = 'a,b\n1,2\n') => ({ name, mimeType: 'text/csv', buffer: Buffer.from(content) });
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
-  test.describe(`${name} · S5c files and collections`, () => {
+  test.describe(`${name} · S5c collections`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
-
-    test('proj-files /app/:org/:project/files', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto(FILES);
-      const main = page.locator('#platform-main');
-      const table = main.getByRole('region', { name: 'Files' });
-
-      await expect(main.getByRole('heading', { level: 1, name: 'Files' })).toBeVisible();
-      await expect(main.getByText('Plain files stored by their fingerprint. Uploading the same file twice keeps one copy. Files aren’t library items.')).toBeVisible();
-      await expect(table.getByRole('row')).toHaveCount(1 + 2);
-      const archive = table.getByRole('row', { name: new RegExp(ARCHIVE) });
-      await expect(archive.getByText('47.1 KiB')).toBeVisible();
-      await expect(archive.getByText(/Private to members/)).toBeVisible();
-      await expect(table.getByRole('row', { name: CSV_ROW }).getByText(/Public by fingerprint/)).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Files' })).toHaveAttribute('aria-current', 'page');
-      await expect(main.getByRole('meter', { name: 'Storage used' })).toHaveAttribute('aria-valuetext', '65.1 KiB of 5 GiB');
-      await expect(main.getByText('Storage · sponsored by you')).toBeVisible();
-      await expect(main.getByText('Up to 128 MiB each on the RESEARCH plan')).toBeVisible();
-      await capture(page, testInfo, `files-${name}-success`);
-
-      // The dialog of a deletion says what goes; the gateway’s 409 stays inside it.
-      await table.getByRole('button', { name: `Delete ${ARCHIVE}` }).click();
-      const dialog = page.getByRole('dialog', { name: `Delete ${ARCHIVE}?` });
-      state.refuse.deleteFile = detail(409, 'in_use', 'A sealed version refers to this file.');
-      await dialog.getByRole('button', { name: 'Delete file' }).click();
-      await expect(dialog.getByRole('alert')).toContainText(`“${ARCHIVE}” is used by a sealed version, so it can’t be deleted (409 · in_use).`);
-      await capture(page, testInfo, `files-${name}-delete-409`);
-      if (isMobile) {
-        expect(critical).toEqual([]);
-        return;
-      }
-
-      // Deleted: the row goes and the toast says so.
-      state.refuse.deleteFile = undefined;
-      await dialog.getByRole('button', { name: 'Delete file' }).click();
-      await expect(main.getByText(`“${ARCHIVE}” deleted.`)).toBeVisible();
-      expect(state.sent.deleted).toBe(digestOf('a'));
-      await expect(table.getByRole('row')).toHaveCount(1 + 1);
-
-      // An upload keeps its name for this visit, and may be public by fingerprint.
-      await main.getByLabel('Readable by anyone with the fingerprint').check();
-      const posted = request(page, 'POST', `${API_ROOT}/blobs`);
-      await main.getByLabel('Files to upload').setInputFiles(csvFile('results.csv'));
-      expect((await posted).url()).toContain('public=true');
-      await expect(main.getByText('Uploaded “results.csv”. Copy its fingerprint to reference it.')).toBeVisible();
-      expect(state.sent.uploadType).toBe('text/csv');
-      const uploaded = table.getByRole('row', { name: /results\.csv/ });
-      await expect(uploaded.getByText(/Uploaded in this visit/)).toBeVisible();
-      await expect(table.getByRole('row')).toHaveCount(1 + 2);
-      await capture(page, testInfo, `files-${name}-uploaded`);
-
-      // The sponsor’s storage is full (402), then the file is over the plan’s ceiling (413).
-      state.refuse.upload = detail(402, 'storage_quota_exceeded', 'The sponsor storage allowance would be exceeded.', {
-        quota: { limit_id: 'storageBytes', limit: 5_368_709_120, used: 5_368_709_120 },
-      });
-      await main.getByLabel('Files to upload').setInputFiles(csvFile('more.csv', 'x,y\n3,4\n'));
-      await expect(main.getByRole('alert')).toContainText('No storage left for the sponsor (402 · storage_quota_exceeded). 5 GiB of 5 GiB used.');
-      await expect(main.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
-      await capture(page, testInfo, `files-${name}-402`);
-      state.refuse.upload = detail(413, 'artifact_too_large', 'The artifact exceeds this account’s per-request payload limit.');
-      await main.getByLabel('Files to upload').setInputFiles(csvFile('more.csv', 'x,y\n3,4\n'));
-      await expect(main.getByRole('alert')).toContainText('That file is bigger than your plan allows per upload (128 MiB on the RESEARCH plan) (413 · artifact_too_large).');
-      await capture(page, testInfo, `files-${name}-413`);
-
-      // A key that cannot write: the screen turns read-only and the downloads stay.
-      state.refuse.upload = detail(403, 'forbidden', 'The API key does not include artifacts:write.');
-      await main.getByLabel('Files to upload').setInputFiles(csvFile('more.csv', 'x,y\n3,4\n'));
-      await expect(main.getByText('This account or API key can’t write files (403 · forbidden). You can still list and download.')).toBeVisible();
-      await expect(main.getByLabel('Files to upload')).toHaveCount(0);
-      await capture(page, testInfo, `files-${name}-403-key`);
-
-      // Reading the page again leaves the read-only state behind: the upload is offered once more.
-      state.refuse.upload = undefined;
-      await page.goto(FILES);
-      await expect(table.getByRole('row')).toHaveCount(1 + 2);
-      await expect(main.getByLabel('Files to upload')).toHaveCount(1);
-      expect(critical).toEqual([]);
-    });
-
-    test('proj-files /app/:org/:project/files · downloads, archives, other roles and failures', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto(FILES);
-      const main = page.locator('#platform-main');
-      const table = main.getByRole('region', { name: 'Files' });
-      await expect(table.getByRole('row')).toHaveCount(1 + 2);
-
-      const downloaded = page.waitForEvent('download');
-      await table.getByRole('button', { name: `Download ${ARCHIVE}` }).click();
-      expect((await downloaded).suggestedFilename()).toBe('sha256-aaaaaaaaaaaa.zip');
-      await expect(table.getByRole('button', { name: `Download ${ARCHIVE}` })).toContainText('Downloaded');
-
-      await table.getByRole('button', { name: `Look inside ${ARCHIVE}` }).click();
-      const inside = page.getByRole('dialog', { name: `Inside ${ARCHIVE}` });
-      const entries = inside.getByRole('list', { name: 'Files in the archive' });
-      await expect(entries.getByRole('listitem')).toHaveCount(3);
-      await expect(entries.getByText('package/manifest.json')).toBeVisible();
-      await capture(page, testInfo, `files-${name}-look-inside`);
-      // The capture has taken the focus off the dialog, so Escape would not reach it: close it with its own button.
-      await inside.getByRole('button', { name: 'Close' }).first().click();
-      await expect(inside).toHaveCount(0);
-
-      // A VIEWER downloads and has nothing that writes.
-      await page.goto('/app/consultora-demo/client-case/files');
-      await expect(main.getByRole('note')).toContainText('You’re a VIEWER. You can download files; uploading needs MEMBER and deleting needs ADMIN.');
-      await expect(main.getByLabel('Files to upload')).toHaveCount(0);
-      await expect(main.getByRole('button', { name: /^Delete / })).toHaveCount(0);
-      await expect(main.getByRole('button', { name: `Download ${ARCHIVE}` })).toBeVisible();
-      await expect(main.getByText('Storage · sponsored by another account')).toBeVisible();
-      await expect(main.getByText(/The sponsor’s allowance isn’t shown to you\./)).toBeVisible();
-      await capture(page, testInfo, `files-${name}-viewer`);
-
-      // A MEMBER uploads and cannot delete.
-      await page.goto('/app/member-lab/bench/files');
-      await expect(main.getByText('No files yet')).toBeVisible();
-      await expect(main.getByText('Drop files to upload')).toBeVisible();
-      await capture(page, testInfo, `files-${name}-empty`);
-
-      // The list fails and comes back; a key limited to other projects is told so.
-      state.refuse.files = unavailable;
-      await page.goto(FILES);
-      await expect(main.getByRole('alert')).toContainText('The files couldn’t be loaded (503)');
-      await capture(page, testInfo, `files-${name}-error`);
-      state.refuse.files = undefined;
-      await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(table.getByRole('row')).toHaveCount(1 + 2);
-      state.refuse.files = detail(403, 'api_key_boundary', 'The API key boundary excludes this project.');
-      await page.goto(FILES);
-      await expect(main.getByText('This account or API key can’t list this project’s files (403 · api_key_boundary).')).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Retry' })).toHaveCount(0);
-      await capture(page, testInfo, `files-${name}-403-list`);
-
-      // A project the account is not in reads like one that is missing.
-      await page.goto('/app/isa-demo/ghost/files');
-      await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
-      expect(critical).toEqual([]);
-    });
 
     test('coll-list /app/:org/:project/collections', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
@@ -502,7 +312,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(cards.getByRole('listitem')).toHaveCount(2);
       const first = cards.getByRole('listitem').first();
       await expect(first.getByRole('link', { name: 'Referencias checkout' })).toHaveAttribute('href', `${COLLECTIONS}/referencias-checkout`);
-      await expect(first.getByText('2 case revisions')).toBeVisible();
+      await expect(first.getByText('2 problem versions')).toBeVisible();
       await expect(first.getByText('1 resource version')).toBeVisible();
       await expect(first.getByText('3 items · revision 2')).toBeVisible();
       await expect(cards.getByRole('listitem').nth(1).getByText('No revision yet')).toBeVisible();
@@ -561,7 +371,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // An empty project explains what a collection is.
       await page.goto('/app/isa-demo/checkout-privado/collections');
       await expect(main.getByText('No collections')).toBeVisible();
-      await expect(main.getByText(/Group the cases and resources you want to keep together/)).toBeVisible();
+      await expect(main.getByText(/Group the problems and resources you want to keep together/)).toBeVisible();
       await capture(page, testInfo, `collections-${name}-empty`);
 
       // A VIEWER reads, and does not see the sponsor’s allowance.
@@ -598,7 +408,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Referencias checkout' })).toBeVisible();
       await expect(items.getByRole('listitem')).toHaveCount(3);
-      await expect(items.getByRole('link', { name: 'Flujo de checkout · revision 1' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/revisions/1`);
+      await expect(items.getByRole('link', { name: 'Flujo de checkout · version 1' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=1`);
       // A resource pin is plain text: the resource screens are retired, so it leads nowhere.
       const pin = items.getByRole('listitem').filter({ hasText: 'Weights · revision 1' });
       await expect(pin).toHaveCount(1);
@@ -610,7 +420,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `collection-${name}-success`);
 
       // Reordering marks the list as unsaved; the comparison names what moved.
-      await main.getByRole('button', { name: 'Move Flujo de checkout · revision 2 up' }).click();
+      await main.getByRole('button', { name: 'Move Flujo de checkout · version 2 up' }).click();
       await expect(main.getByText('Unsaved changes to the list. Saving creates a new sealed revision; the previous one stays as it was.')).toBeVisible();
       await main.getByRole('button', { name: 'Compare revisions' }).click();
       const compare = main.getByRole('region', { name: 'Your changes vs revision 2' });
@@ -621,15 +431,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // The picker offers what is not in the list yet, from the project’s cases and resources.
       await main.getByRole('button', { name: 'Add item' }).click();
       const picker = page.getByRole('dialog', { name: 'Add an item' });
-      await expect(picker.getByRole('list', { name: 'Cases' }).getByRole('button')).toHaveCount(1);
-      await expect(picker.getByRole('button', { name: 'Add Flujo de checkout · revision 3' })).toBeVisible();
+      await expect(picker.getByRole('list', { name: 'Problems' }).getByRole('button')).toHaveCount(1);
+      await expect(picker.getByRole('button', { name: 'Add Flujo de checkout · version 3' })).toBeVisible();
       await capture(page, testInfo, `collection-${name}-picker`);
       if (isMobile) {
         expect(critical).toEqual([]);
         return;
       }
 
-      await picker.getByRole('button', { name: 'Add Flujo de checkout · revision 3' }).click();
+      await picker.getByRole('button', { name: 'Add Flujo de checkout · version 3' }).click();
       await expect(items.getByRole('listitem')).toHaveCount(4);
 
       // The gateway’s 422s keep the list: a repeated item, then a fingerprint that is no longer valid.
@@ -674,7 +484,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // A collection with no revision says how to get one.
       await page.goto(`${COLLECTIONS}/vacia`);
       await expect(main.getByText('No items yet')).toBeVisible();
-      await expect(main.getByText('Add cases or resources to make the first revision.')).toBeVisible();
+      await expect(main.getByText('Add problems or resources to make the first revision.')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Save as revision 1' })).toBeDisabled();
       await capture(page, testInfo, `collection-${name}-empty`);
 

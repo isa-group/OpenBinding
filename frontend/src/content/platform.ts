@@ -110,5 +110,5 @@ export const contributionTracks: readonly ContributionTrack[] = [
   { title: 'Engine reproducibility benchmark', level: 'TFG · Research', tags: ['Engines', 'Experiments'], description: 'Build comparative studies that measure Pareto quality, convergence and stability across exact and evolutionary engine revisions.' },
   { title: 'Accessible BPMN binding workbench', level: 'TFG', tags: ['Frontend', 'Accessibility'], description: 'Improve keyboard-first graph authoring, diagnostics and synchronized BPMN/JSON inspection with WCAG AA evidence.' },
   { title: 'Federated engine conformance kit', level: 'TFM · Research', tags: ['Federation', 'Testing'], description: 'Extend the engine contract verifier with adversarial fixtures, compatibility properties and reproducible certification reports.' },
-  { title: 'Binding corpus provenance', level: 'Research', tags: ['Datasets', 'Reproducibility'], description: 'Curate literature-derived composition cases while explicitly separating published facts from illustrative QoS values.' },
+  { title: 'Binding corpus provenance', level: 'Research', tags: ['Datasets', 'Reproducibility'], description: 'Curate literature-derived composition problems while explicitly separating published facts from illustrative QoS values.' },
 ];

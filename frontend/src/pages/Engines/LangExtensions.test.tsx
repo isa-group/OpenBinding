@@ -63,7 +63,7 @@ describe('lang-extensions', () => {
     await waitFor(() => expect(kpis).toHaveTextContent('3Adapters'));
     expect(kpis).toHaveTextContent('2Resource types');
     await waitFor(() => expect(kpis).toHaveTextContent('2Registered resources'));
-    expect(screen.getByRole('link', { name: 'Profiles and installed dialects' })).toHaveAttribute('href', '/language');
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
   });
 
   it('shows each dialect with its status, version and where it comes from', async () => {

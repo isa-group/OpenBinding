@@ -23,7 +23,7 @@ const ICONS: Record<NotificationGroup, typeof Bell> = { contract: FileText, job:
 const PREFERENCES: ReadonlyArray<{ key: keyof NotificationPreferences; label: string; description: string; aria: string }> = [
   { key: 'email_contract_changes', label: 'Contract changes', description: 'Email me when my plan, add-ons or pricing version change.', aria: 'Email me about contract changes' },
   { key: 'email_invitations', label: 'Invitations', description: 'Email me when I’m invited to an organization.', aria: 'Email me about invitations' },
-  { key: 'email_job_failures', label: 'Failed jobs', description: 'Email me when a job I started fails.', aria: 'Email me about failed jobs' },
+  { key: 'email_job_failures', label: 'Failed runs', description: 'Email me when a run I started fails.', aria: 'Email me about failed runs' },
   { key: 'inbox', label: 'Keep the inbox', description: 'Keep notifications in this inbox for seven days.', aria: 'Keep notifications in the account inbox' },
 ];
 
@@ -52,7 +52,7 @@ function Detail({ item, onMarkRead, busy }: { item: Notification; onMarkRead: ()
         </>
       )}
       {!change && <p className="notif-body-full">{item.body}</p>}
-      {group === 'job' && <Link to="/app/jobs" viewTransition>Open job history</Link>}
+      {group === 'job' && <Link to="/app/runs" viewTransition>Open run history</Link>}
       {!item.read_at && (
         <Action variant="secondary" size="sm" className="notif-mark" onClick={onMarkRead} busy={busy}>Mark as read</Action>
       )}
@@ -60,7 +60,7 @@ function Detail({ item, onMarkRead, busy }: { item: Notification; onMarkRead: ()
   );
 }
 
-/** Notifications (`acct-notifications`, `/app/account/notifications`): the inbox, with delivery preferences underneath. */
+/** Notifications (section `notifications` of `acct-profile`, `/app/account/notifications`): the inbox, with delivery preferences underneath. */
 export function AccountNotifications() {
   const { user } = useAuth();
   // The inbox only: there are no sponsor requests to show since M9.6.

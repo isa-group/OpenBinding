@@ -1,11 +1,11 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { ExplorePage } from './Explore';
 
-const api = vi.hoisted(() => ({ getPublicEngines: vi.fn() }));
+const api = vi.hoisted(() => ({ getPublicEngines: vi.fn(), getBimExamples: vi.fn() }));
 const platform = vi.hoisted(() => ({ publicProjects: vi.fn(), publicPublications: vi.fn() }));
 const auth = vi.hoisted(() => ({ user: null as UserProfile | null }));
 
@@ -36,6 +36,14 @@ function renderExplore(path = '/explore') {
   return render(<MemoryRouter initialEntries={[path]}><ExplorePage /></MemoryRouter>);
 }
 
+function renderSection(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes><Route path="/explore/:section?" element={<ExplorePage />} /></Routes>
+    </MemoryRouter>,
+  );
+}
+
 describe('Explore', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -50,7 +58,7 @@ describe('Explore', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Public work on OpenBinding' })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /Engines at checkout/ })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('tab', { name: /Publications/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: /Published results/ })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: /Projects/ })).toHaveTextContent('2');
     expect(screen.getByRole('tab', { name: /Engines/ })).toHaveTextContent('1');
 
@@ -77,7 +85,7 @@ describe('Explore', () => {
     renderExplore('/explore?tab=projects');
 
     const card = await screen.findByRole('button', { name: /QoS Benchmarks/ });
-    await waitFor(() => expect(card).toHaveTextContent('1 publication'));
+    await waitFor(() => expect(card).toHaveTextContent('1 published result'));
     const details = screen.getByRole('complementary', { name: 'Details' });
     expect(within(details).getByRole('link', { name: 'Log in to open as a member' })).toHaveAttribute('href', '/login');
     expect(within(details).queryByRole('link', { name: 'Open project' })).not.toBeInTheDocument();
@@ -90,9 +98,9 @@ describe('Explore', () => {
     const details = await screen.findByRole('complementary', { name: 'Details' });
     expect(within(details).getByRole('link', { name: 'Open project' })).toHaveAttribute('href', '/app/isa-demo/qos');
 
-    fireEvent.click(within(details).getByRole('button', { name: 'See its publications' }));
+    fireEvent.click(within(details).getByRole('button', { name: 'See its published results' }));
 
-    expect(await screen.findByRole('tab', { name: /Publications/ })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByRole('tab', { name: /Published results/ })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('searchbox', { name: 'Search this tab' })).toHaveValue('QoS Benchmarks');
     expect(screen.getByRole('button', { name: /Engines at checkout/ })).toBeInTheDocument();
   });
@@ -130,7 +138,7 @@ describe('Explore', () => {
     renderExplore();
 
     expect(document.querySelector('[aria-busy="true"]')).toBeInTheDocument();
-    expect(await screen.findByText('No public publications yet')).toBeInTheDocument();
+    expect(await screen.findByText('No published results yet')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: /Engines/ }));
     expect(await screen.findByText('No public engines')).toBeInTheDocument();
@@ -150,9 +158,9 @@ describe('Explore', () => {
     renderExplore('/explore?tab=publications');
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Publications couldn’t be loaded (HTTP 503). Your search and filters are kept.');
+    expect(alert).toHaveTextContent('Published results couldn’t be loaded (HTTP 503). Your search and filters are kept.');
     expect(screen.getByRole('tab', { name: /Projects/ })).toHaveTextContent('2');
-    expect(screen.getByRole('tab', { name: /Publications/ })).toHaveTextContent('–');
+    expect(screen.getByRole('tab', { name: /Published results/ })).toHaveTextContent('–');
 
     platform.publicPublications.mockResolvedValue(publications);
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
@@ -162,11 +170,41 @@ describe('Explore', () => {
     expect(platform.publicPublications).toHaveBeenCalledTimes(2);
   });
 
+  // [utest->req~frontend-nav-examples-in-explore~1]
+  it('shows the BIM examples as the section examples, marked in the Explore navigation', async () => {
+    api.getBimExamples.mockResolvedValue(['demo/01_simple_seq']);
+    renderSection('/explore/examples');
+
+    expect(screen.getByRole('heading', { level: 1, name: 'BIM examples' })).toBeInTheDocument();
+    expect(within(screen.getByRole('navigation', { name: 'Explore' })).getByRole('link', { name: 'BIM examples' })).toHaveAttribute('aria-current', 'page');
+    expect(await screen.findByRole('link', { name: 'Open in workbench' })).toHaveAttribute('href', '/workbench?example=demo%2F01_simple_seq');
+    expect(api.getPublicEngines).not.toHaveBeenCalled();
+  });
+
+  // [utest->req~frontend-nav-examples-in-explore~1]
+  it('marks Public work on /explore and links to the examples', async () => {
+    renderSection('/explore');
+
+    const nav = screen.getByRole('navigation', { name: 'Explore' });
+    expect(within(nav).getByRole('link', { name: 'Public work' })).toHaveAttribute('aria-current', 'page');
+    expect(within(nav).getByRole('link', { name: 'BIM examples' })).toHaveAttribute('href', '/explore/examples');
+    expect(await screen.findByRole('button', { name: /Engines at checkout/ })).toBeInTheDocument();
+  });
+
+  // [utest->req~frontend-nav-examples-in-explore~1]
+  it('shows Page not found for any other section', () => {
+    renderSection('/explore/everything');
+
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'BIM examples' })).not.toBeInTheDocument();
+    expect(platform.publicProjects).not.toHaveBeenCalled();
+  });
+
   it('switches tabs with the arrow keys', async () => {
     renderExplore();
     await screen.findByRole('button', { name: /Engines at checkout/ });
 
-    fireEvent.keyDown(screen.getByRole('tab', { name: /Publications/ }), { key: 'ArrowRight' });
+    fireEvent.keyDown(screen.getByRole('tab', { name: /Published results/ }), { key: 'ArrowRight' });
 
     expect(await screen.findByRole('tab', { name: /Engines/ })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'explore-tab-engines');

@@ -7,6 +7,7 @@ import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useResource } from '../../utils/useResource';
+import { useCreateDialog } from '../Cases/createDialog';
 import { ReadOnlyNote } from '../Cases/parts';
 import { RoleChip } from '../Organization/parts';
 import { ProjectGate, ProjectSkeleton } from '../Project/parts';
@@ -48,7 +49,10 @@ function Body({ organization, project, access }: { organization: Organization; p
   const root = `/app/${slug}/${project.slug}`;
   const location = useLocation();
   const sponsor = useSponsorUsage(organization);
-  const [creating, setCreating] = useState(false);
+  const dialog = useCreateDialog('collection', `${root}/collections`, access.canCreate);
+  // The navigation that closes the dialog can land after the toast renders, so `closing` hides the dialog at once until the address has lost `?create=`.
+  const [closing, setClosing] = useState(false);
+  if (closing && !dialog.open) setClosing(false);
   const [removing, setRemoving] = useState<Collection | null>(null);
   const [toast, setToast] = useState<{ text: string; open?: string }>(() => ({ text: (location.state as { toast?: string } | null)?.toast ?? '' }));
   const collections = useResource(`collections:${slug}/${project.slug}`, () => loadCollections(slug, project.slug));
@@ -60,9 +64,9 @@ function Body({ organization, project, access }: { organization: Organization; p
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>Collections</h1>
-          <p>Curated, ordered lists of exact references to cases and resources. A collection never runs anything, but it can seed a study.</p>
+          <p>Curated, ordered lists of exact references to problems and resources. A collection never runs anything, but it can seed a study.</p>
         </div>
-        {access.canCreate && <div className="proj-actions"><Action variant="primary" onClick={() => setCreating(true)}>New collection</Action></div>}
+        {access.canCreate && <div className="proj-actions"><Action variant="primary" data-create-opener="collection" onClick={dialog.openDialog}>New collection</Action></div>}
       </header>
 
       <Allowance count={rows.length} sponsor={sponsor} />
@@ -84,7 +88,7 @@ function Body({ organization, project, access }: { organization: Organization; p
       {collections.status === 'ready' && rows.length === 0 && (
         <section className="lib-dashed lib-nothing" aria-labelledby="coll-empty">
           <strong id="coll-empty">No collections</strong>
-          <span>Group the cases and resources you want to keep together, each pinned to an exact revision, so a reviewer can reproduce what you cite.</span>
+          <span>Group the problems and resources you want to keep together, each pinned to an exact version or revision, so a reviewer can reproduce what you cite.</span>
         </section>
       )}
       {rows.length > 0 && (
@@ -111,13 +115,14 @@ function Body({ organization, project, access }: { organization: Organization; p
         <p className="org-muted">Your role here: <RoleChip role={access.role} />. Deleting needs ADMIN and leaves everything a collection pointed to untouched.</p>
       )}
 
-      {creating && (
+      {dialog.open && !closing && (
         <NewCollectionDialog
           organization={organization}
           project={project}
-          onClose={() => setCreating(false)}
+          onClose={dialog.close}
           onCreated={(created) => {
-            setCreating(false);
+            setClosing(true);
+            dialog.close();
             setToast({ text: `Collection “${created.name}” created.`, open: `${root}/collections/${encodeURIComponent(created.slug)}` });
             collections.reload();
           }}
@@ -136,14 +141,18 @@ function Body({ organization, project, access }: { organization: Organization; p
             collections.reload();
           }}
         >
-          <p>The collection and its revisions leave {project.name}. The cases and resources it pinned are not touched.</p>
+          <p>The collection and its revisions leave {project.name}. The problems and resources it pinned are not touched.</p>
         </ConfirmDialog>
       )}
     </ResourceFrame>
   );
 }
 
-/** Collections (`coll-list`, `/app/:org/:project/collections`): the project’s ordered, versioned lists of exact references. */
+/**
+ * Collections (`coll-list`, `/app/:org/:project/collections`): the project’s ordered, versioned lists of exact references. The dialog
+ * `New collection` is open while the address holds `?create=collection`, for the people who may create.
+ */
+// [impl->req~frontend-nav-new-menu~1]
 export function CollList() {
   const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
   if (waiting) return <ProjectSkeleton />;

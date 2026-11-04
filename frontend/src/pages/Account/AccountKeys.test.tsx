@@ -1,14 +1,19 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ApiKeySummary, UserProfile } from '../../api/auth';
+import type { ApiKeySummary, CreatedApiKey, UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { AuthContext } from '../../contexts/auth';
 import { AccountKeys } from './AccountKeys';
 
-const api = vi.hoisted(() => ({ listApiKeys: vi.fn(), getOwnUsage: vi.fn(), revokeApiKey: vi.fn(), rotateApiKey: vi.fn() }));
+const api = vi.hoisted(() => ({
+  listApiKeys: vi.fn(), getOwnUsage: vi.fn(), revokeApiKey: vi.fn(), rotateApiKey: vi.fn(),
+  getEngines: vi.fn(), createApiKey: vi.fn(),
+}));
+const platform = vi.hoisted(() => ({ organizations: vi.fn(), projects: vi.fn() }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
+vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 
 const pablo: UserProfile = {
   id: 'user-id', username: 'pablo', email: 'pablo@example.test', role: 'user', is_active: true, plan: 'PRO', created_at: '2026-05-05T00:00:00Z',
@@ -34,15 +39,24 @@ const usageWith = (apiKeys: number | null) => ({
   plan: 'PRO', contract_pending: false, features: {}, capabilities: { apiKeys },
 });
 
-function renderKeys() {
+/** The address the router holds, as the browser would show it. */
+function Where() {
+  const location = useLocation();
+  return <output aria-label="Address">{location.pathname + location.search}</output>;
+}
+
+function renderKeys(address = '/app/account/keys') {
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[address]}>
       <AuthContext.Provider value={{ user: pablo, loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: false }}>
         <AccountKeys />
+        <Where />
       </AuthContext.Provider>
     </MemoryRouter>,
   );
 }
+
+const address = () => screen.getByLabelText('Address').textContent;
 
 const card = (name: string) => screen.findByRole('article', { name });
 
@@ -52,13 +66,112 @@ describe('API keys', () => {
     api.listApiKeys.mockResolvedValue([reader, runner]);
     api.getOwnUsage.mockResolvedValue(usageWith(25));
     api.revokeApiKey.mockResolvedValue(undefined);
+    api.getEngines.mockResolvedValue([]);
+    platform.organizations.mockResolvedValue([]);
+    platform.projects.mockResolvedValue([]);
+  });
+
+  describe('the New API key dialog', () => {
+    const created: CreatedApiKey = {
+      id: 'k3', name: 'ci-nightly', prefix: 'obk_demo0003', created_at: '2026-10-09T10:00:00Z', permissions: ['account:read'],
+      engine_access: { all: true, engines: [] }, secret: 'obk_demo0003_ONLY-SHOWN-ONCE',
+    };
+
+    // [utest->req~frontend-nav-account-sections~1]
+    it('is closed at /app/account/keys', async () => {
+      renderKeys();
+      await card('ci-lectura-resultados');
+      expect(screen.queryByRole('dialog', { name: 'New API key' })).not.toBeInTheDocument();
+    });
+
+    // [utest->req~frontend-nav-account-sections~1]
+    it('is open over the list at ?create=key', async () => {
+      renderKeys('/app/account/keys?create=key');
+      expect(await screen.findByRole('dialog', { name: 'New API key' })).toBeInTheDocument();
+      expect(await card('ci-lectura-resultados')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'API keys', current: 'page' })).toBeInTheDocument();
+    });
+
+    // [utest->req~frontend-nav-account-sections~1]
+    it('stays closed for any other value of create', async () => {
+      renderKeys('/app/account/keys?create=organization');
+      await card('ci-lectura-resultados');
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    // [utest->req~frontend-nav-account-sections~1]
+    it('leaves /app/account/keys when it is cancelled', async () => {
+      renderKeys('/app/account/keys?create=key');
+      const dialog = within(await screen.findByRole('dialog', { name: 'New API key' }));
+      expect(address()).toBe('/app/account/keys?create=key');
+
+      fireEvent.click(dialog.getByRole('button', { name: 'Cancel' }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(address()).toBe('/app/account/keys');
+    });
+
+    // [utest->req~frontend-nav-account-sections~1]
+    it('leaves /app/account/keys when it is closed with ×, and with Escape', async () => {
+      renderKeys('/app/account/keys?create=key');
+      fireEvent.click(within(await screen.findByRole('dialog', { name: 'New API key' })).getByRole('button', { name: 'Close' }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(address()).toBe('/app/account/keys');
+
+      fireEvent.click(await screen.findByRole('link', { name: 'New key' }));
+      expect(address()).toBe('/app/account/keys?create=key');
+      fireEvent.keyDown(await screen.findByRole('dialog', { name: 'New API key' }), { key: 'Escape' });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(address()).toBe('/app/account/keys');
+    });
+
+    // [utest->req~frontend-nav-account-sections~1]
+    it('opens from the New key link, and from Create your first key when there are no keys', async () => {
+      api.listApiKeys.mockResolvedValue([]);
+      renderKeys();
+
+      fireEvent.click(await screen.findByRole('link', { name: 'Create your first key' }));
+
+      expect(await screen.findByRole('dialog', { name: 'New API key' })).toBeInTheDocument();
+      expect(address()).toBe('/app/account/keys?create=key');
+    });
+
+    // [utest->req~frontend-nav-account-sections~1]
+    it('shows the secret once after a key is created, then returns to the refreshed list at /app/account/keys', async () => {
+      api.createApiKey.mockResolvedValue(created);
+      api.listApiKeys.mockResolvedValueOnce([reader]).mockResolvedValueOnce([reader, { ...reader, id: 'k3', name: 'ci-nightly' }]);
+      renderKeys('/app/account/keys?create=key');
+      await screen.findByRole('dialog', { name: 'New API key' });
+
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'ci-nightly' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      fireEvent.click(await screen.findByRole('checkbox', { name: /^account:read/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      await screen.findByRole('heading', { name: 'Engine access' });
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      await screen.findByRole('heading', { name: /^Limits/ });
+      fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      await screen.findByRole('heading', { name: 'Review' });
+      fireEvent.click(screen.getByRole('button', { name: 'Create key' }));
+
+      const secret = within(await screen.findByRole('dialog', { name: '“ci-nightly” is ready. Copy its secret now' }));
+      expect(screen.queryByRole('dialog', { name: 'New API key' })).not.toBeInTheDocument();
+      expect(secret.getByText('obk_demo0003_ONLY-SHOWN-ONCE')).toBeInTheDocument();
+      fireEvent.click(secret.getByLabelText('I’ve stored the secret somewhere safe'));
+      fireEvent.click(secret.getByRole('button', { name: 'Go to my keys' }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(address()).toBe('/app/account/keys');
+      expect(await card('ci-nightly')).toBeInTheDocument();
+      expect(document.body.textContent).not.toContain('ONLY-SHOWN-ONCE');
+    });
   });
 
   it('lists the keys with their prefix, dates, permissions, engines and limits', async () => {
     renderKeys();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'API keys' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'New key' })).toHaveAttribute('href', '/app/account/keys/new');
+    expect(screen.getByRole('link', { name: 'New key' })).toHaveAttribute('href', '/app/account/keys?create=key');
     expect(screen.getByRole('link', { name: 'API keys', current: 'page' })).toBeInTheDocument();
     expect(screen.getByRole('meter', { name: 'Active keys' })).toHaveAttribute('aria-valuenow', '2');
     expect(screen.getByText('2 of 25 keys')).toBeInTheDocument();
@@ -107,7 +220,7 @@ describe('API keys', () => {
     renderKeys();
 
     expect(await screen.findByText('No API keys')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Create your first key' })).toHaveAttribute('href', '/app/account/keys/new');
+    expect(screen.getByRole('link', { name: 'Create your first key' })).toHaveAttribute('href', '/app/account/keys?create=key');
     expect(screen.getByText('0 of 25 keys')).toBeInTheDocument();
   });
 

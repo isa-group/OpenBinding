@@ -74,6 +74,7 @@
 }
 
 .key-bound { padding: 0 6px; border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-xs); font-size: 0.75rem; }
+.key-bound code { padding: 0; border: 0; background: none; font: inherit; }
 
 @media (max-width: 520px) {
   .key-card-grid { grid-template-columns: 1fr; gap: 2px; }

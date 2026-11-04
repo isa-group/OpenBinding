@@ -3,18 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { org, project, reportOf, renderProjectScreen } from '../Project/testKit';
 import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, analyticsFixture, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
-import { StudyAnalytics } from './StudyAnalytics';
+import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
   project: vi.fn(), publicProjects: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), analytics: vi.fn(), reports: vi.fn(),
   cases: vi.fn(), revisions: vi.fn(),
 }));
 const client = vi.hoisted(() => ({ getJobStatus: vi.fn() }));
-const download = vi.hoisted(() => ({ saveBytes: vi.fn() }));
+const library = vi.hoisted(() => ({ libraryApi: { versions: vi.fn().mockResolvedValue([]) } }));
 
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/library', () => library);
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
-vi.mock('../Project/download', () => download);
 // The decision workspace is not what is under test here.
 vi.mock('../../components/BindingAnalysis/BindingAnalysis', async () => {
   const { createElement } = await import('react');
@@ -25,21 +25,23 @@ const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
 const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const ROOT = '/app/isa-demo/qos-benchmarks';
-const RUN = `${ROOT}/studies/engines-vs-seeds/runs/${RUN_ID}`;
+const RESULTS = `${ROOT}/studies/engines-vs-seeds/results?run=${RUN_ID}`;
 const cells = cellsFixture();
 
 const refusal = (status: number, code: string, message = 'refused') => Object.assign(new HttpError(status, message), { code });
 
+/** The Results tab of the study page, on the study run named by `?run=`. */
 function renderAnalytics(options: { slug?: string; run?: string } = {}) {
-  return renderProjectScreen(<StudyAnalytics />, {
-    path: '/app/:org/:project/studies/:study/runs/:run/analytics', url: `/app/${options.slug ?? 'isa-demo'}/qos-benchmarks/studies/engines-vs-seeds/runs/${options.run ?? RUN_ID}/analytics`,
+  return renderProjectScreen(<StudyDetail />, {
+    path: '/app/:org/:project/studies/:study/:tab?', url: `/app/${options.slug ?? 'isa-demo'}/qos-benchmarks/studies/engines-vs-seeds/results?run=${options.run ?? RUN_ID}`,
     organizations: [group, viewing],
   });
 }
 
 const figure = (label: string) => within(screen.getByLabelText('Counts of the run')).getByText(label).previousElementSibling;
 
-describe('Analytics of a run', () => {
+// [utest->req~frontend-nav-study-page~1]
+describe('Analytics of a run, in the Results tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
@@ -57,7 +59,7 @@ describe('Analytics of a run', () => {
   it('counts the cells and compares the engines on the cost they found', async () => {
     renderAnalytics();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Compare results · run #1' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Compare results · run #1' })).toBeInTheDocument();
     expect(screen.getByText(/Only what the run recorded\. Nothing here is estimated: lower is better for every objective\./)).toBeInTheDocument();
     expect(figure('cells')).toHaveTextContent('8');
     expect(figure('completed')).toHaveTextContent('6');
@@ -81,8 +83,8 @@ describe('Analytics of a run', () => {
 
     expect(await screen.findByRole('img', { name: /3 results plotted by Cost and Latency; 2 are best trade-offs: 0\.112 and 440; 0\.118 and 412/ })).toBeInTheDocument();
     expect(screen.getByText(/Best trade-offs:/)).toHaveTextContent('cell 0 (0.112, 440); cell 3 (0.118, 412).');
-    expect(screen.getByRole('link', { name: 'cell 3' })).toHaveAttribute('href', `${RUN}/cells/${cells[3].id}`);
-    fireEvent.change(screen.getByRole('combobox', { name: 'Case' }), { target: { value: REVISION_2.id } });
+    expect(screen.getByRole('link', { name: 'cell 3' })).toHaveAttribute('href', `${RESULTS}&cell=${cells[3].id}`);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Problem' }), { target: { value: REVISION_2.id } });
     expect(screen.getByText(/Best trade-offs:/)).toHaveTextContent('cell 4 (0.104, 420); cell 6 (0.109, 398).');
   });
 
@@ -103,7 +105,7 @@ describe('Analytics of a run', () => {
     const table = await screen.findByRole('region', { name: 'Results by seed' });
     expect(within(table).getAllByRole('row')).toHaveLength(5);
     const random = within(table).getByRole('row', { name: /Checkout flow r1 · random-search/ });
-    expect(within(random).getByRole('link', { name: 'seed 1: 0.121' })).toHaveAttribute('href', `${RUN}/cells/${cells[2].id}`);
+    expect(within(random).getByRole('link', { name: 'seed 1: 0.121' })).toHaveAttribute('href', `${RESULTS}&cell=${cells[2].id}`);
     expect(within(random).getByRole('link', { name: 'seed 2: 0.118' })).toBeInTheDocument();
     expect(random).toHaveTextContent('0.003');
     expect(within(table).getByRole('row', { name: /Checkout flow r1 · evolutionary/ })).toHaveTextContent('seed 2: failed');
@@ -117,9 +119,9 @@ describe('Analytics of a run', () => {
     renderAnalytics();
 
     expect(await screen.findByRole('heading', { name: 'Largest search space' })).toBeInTheDocument();
-    const list = screen.getByRole('list', { name: 'Search space of each case revision' });
+    const list = screen.getByRole('list', { name: 'Search space of each problem version' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(2);
-    expect(within(list).getByText('revision 2 · 6 tasks')).toBeInTheDocument();
+    expect(within(list).getByText('version 2 · 6 tasks')).toBeInTheDocument();
   });
 
   it('lists every plotted cell with its fingerprint to copy and its page to open', async () => {
@@ -127,7 +129,7 @@ describe('Analytics of a run', () => {
 
     const table = await screen.findByRole('region', { name: 'Provenance of every cell' });
     expect(within(table).getAllByRole('row')).toHaveLength(9);
-    expect(within(table).getByRole('link', { name: 'Open cell 2' })).toHaveAttribute('href', `${RUN}/cells/${cells[2].id}`);
+    expect(within(table).getByRole('link', { name: 'Open cell 2' })).toHaveAttribute('href', `${RESULTS}&cell=${cells[2].id}`);
     expect(within(table).getByRole('button', { name: 'Copy fingerprint of cell 2' })).toBeInTheDocument();
     expect(within(table).getByText(cells[2].fingerprint)).toBeInTheDocument();
   });
@@ -144,16 +146,11 @@ describe('Analytics of a run', () => {
     expect(screen.getByRole('region', { name: 'Engines ranked by time taken' })).toBeInTheDocument();
   });
 
-  it('exports the cells as a CSV file', async () => {
+  it('leaves the CSV export to the Publish tab', async () => {
     renderAnalytics();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Export CSV' }));
-
-    expect(download.saveBytes).toHaveBeenCalledTimes(1);
-    const [bytes, name, type] = download.saveBytes.mock.calls[0] as [ArrayBuffer, string, string];
-    expect(name).toBe('engines-vs-seeds-run-1-cells.csv');
-    expect(type).toBe('text/csv');
-    expect(new TextDecoder().decode(bytes).split('\n')[0]).toBe('cell,case_revision,engine,engine_version,mode,setting,seed,state,feasible,cost,latency,runtime_seconds,job_id,fingerprint');
+    await screen.findByRole('heading', { level: 2, name: 'Compare results · run #1' });
+    expect(screen.queryByRole('button', { name: 'Export CSV' })).not.toBeInTheDocument();
   });
 
   // [utest->req~frontend-retire-reports-entry-points-removed~1]
@@ -161,15 +158,14 @@ describe('Analytics of a run', () => {
     const action = /create (a |draft )?report|open the report/i;
     const view = renderAnalytics();
 
-    await screen.findByRole('heading', { level: 1, name: 'Compare results · run #1' });
-    expect(screen.getByRole('button', { name: 'Export CSV' })).toBeInTheDocument();
+    await screen.findByRole('heading', { level: 2, name: 'Compare results · run #1' });
     expect(screen.queryByRole('button', { name: action })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: action })).not.toBeInTheDocument();
     view.unmount();
 
     platform.reports.mockResolvedValue([reportOf('engines-vs-seeds-run-1', 'draft', { study_run_id: RUN_ID })]);
     renderAnalytics();
-    await screen.findByRole('heading', { level: 1, name: 'Compare results · run #1' });
+    await screen.findByRole('heading', { level: 2, name: 'Compare results · run #1' });
     expect(screen.queryByRole('link', { name: action })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: action })).not.toBeInTheDocument();
     const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
@@ -197,7 +193,7 @@ describe('Analytics of a run', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Load the solutions' }));
 
-    expect(await screen.findByText(/That job opens only for whoever launched it \(404 · not_found\)\./)).toBeInTheDocument();
+    expect(await screen.findByText(/That run opens only for whoever launched it \(404 · not_found\)\./)).toBeInTheDocument();
   });
 
   it('explains there is nothing to chart before any cell completes', async () => {
@@ -216,11 +212,11 @@ describe('Analytics of a run', () => {
     expect(await screen.findByText('A trade-off needs two objectives, and this run recorded one.')).toBeInTheDocument();
   });
 
-  it('lets a viewer read everything and export', async () => {
+  it('lets a viewer read everything', async () => {
     renderAnalytics({ slug: 'read-lab' });
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Compare results · run #1' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Export CSV' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Compare results · run #1' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Provenance of every cell' })).toBeInTheDocument();
   });
 
   it('answers a run that is not there with a neutral 404', async () => {
@@ -237,6 +233,6 @@ describe('Analytics of a run', () => {
 
     expect(await screen.findByText(/Analytics couldn’t be loaded \(503 · unavailable\)/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Compare results · run #1' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'Compare results · run #1' })).toBeInTheDocument());
   });
 });

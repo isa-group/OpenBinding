@@ -1,11 +1,11 @@
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
-import { readGalleryScreens, type GalleryScreen } from './helpers/galleryRoutes';
+import { countLiveCalls, readGalleryScreens, type GalleryScreen } from './helpers/galleryRoutes';
 import { installMockApi } from './helpers/mockApi';
 import { measurePage, prepareCapture, waitUntilSettled, type PageMeasure } from './helpers/pageChecks';
 
-// QA gallery: one picture of the first screenful of every screen of the registry (src/routes/d1.tsx .. d8.tsx), on a desktop and on a
+// QA gallery: one picture of the first screenful of every screen of the registry (src/routes/areas/*.tsx), on a desktop and on a
 // phone, saved to <QA_GALLERY_DIR>/<desktop|mobile>/<screen-id>.png for a person to review. QA_GALLERY_DIR defaults to
 // frontend/node_modules/.cache/qa-gallery/screenshots/: the pictures are review material, not part of the repository.
 //
@@ -27,65 +27,41 @@ const MEASUREMENTS = fileURLToPath(new URL('../node_modules/.cache/qa-gallery/',
 const HEADING: Record<string, RegExp> = {
   'pub-home': /Describe\. Bind\. Reproduce\./,
   'pub-explore': /Public work on OpenBinding/,
-  'pub-resolve': /Verify by digest/,
   'eng-catalog': /Engine catalog/,
   'eng-detail': /bim\.builtin\/random-search@1\.0\.0/,
   'lang-profiles': /The BIM language/,
-  'lang-schemas': /Schemas/,
-  'lang-examples': /Example packages/,
   'pub-workbench': /Workbench/,
   'pub-about': /People, research and changes behind OpenBinding/,
-  'pub-status': /Service status/,
   'auth-login': /Welcome back/,
   'auth-register': /Create your account/,
   'auth-reset-request': /Forgot your password\?/,
-  'auth-reset-complete': /Set a new password/,
   'auth-cas-callback': /no code to finish sign-in/,
   'org-invite-accept': /Paste your invitation/,
   'sys-states': /States and recoverable errors/,
   'pub-pricing': /Plans for every kind of binding work/,
   'acct-profile': /^Account$/,
-  'acct-usage': /Plan & permissions/,
-  'acct-keys': /^API keys$/,
-  'acct-key-new': /New API key/,
-  'acct-identities': /^Identities$/,
-  'acct-notifications': /^Notifications$/,
   'app-home': /Hello, alex\.rivera/,
-  'org-create': /New organization/,
   'org-overview': /ISA Demo Group/,
   'org-settings': /^Settings$/,
-  'org-members': /^Members$/,
-  'org-audit': /Audit log/,
-  'proj-create': /New project in ISA Demo Group/,
   'proj-overview': /QoS Benchmarks/,
   'proj-settings': /Project settings/,
-  'proj-package': /Portable package/,
-  'case-list': /^Cases$/,
+  'case-list': /^Problems$/,
   'case-detail': /Checkout flow/,
-  'case-revision': /Checkout flow · revision 2/,
-  'case-compare': /Compare revisions/,
   'wb-workbench': /Workbench/,
-  'snap-detail': /Compiled snapshot/,
-  'proj-files': /^Files$/,
   'coll-list': /^Collections$/,
   'coll-detail': /Checkout references/,
   'gen-lab': /Generator lab/,
   'job-launch': /New run/,
-  'job-list': /^Jobs$/,
+  'job-list': /^Runs$/,
   'job-detail': /random-search run/,
-  'job-history': /My jobs/,
+  'job-history': /My runs/,
   'study-list': /^Studies$/,
   'study-builder': /New study/,
   'study-detail': /Engines × seeds/,
-  'study-run': /Run #1/,
-  'study-cell': /Cell 2/,
-  'study-analytics': /Compare results · run #1/,
-  'proj-publications': /^Publications$/,
-  verifier: /Verifier/,
+  'proj-publications': /^Published$/,
   'eng-register': /Register a private engine/,
   'eng-registrations': /My engines/,
   'eng-registration-detail': /edge-solver/,
-  'lang-extensions': /Language extensions/,
   'admin-overview': /Administration/,
   'admin-users': /Accounts/,
   'admin-user-detail': /sam\.okafor/,
@@ -183,25 +159,14 @@ function watchCriticalErrors(page: Page) {
   return critical;
 }
 
-/**
- * The status screen shows how long each probe took, measured with the browser's own clock: it differs on every run. The picture shows
- * the same plausible figure each time instead.
- */
-async function freezeProbeTimes(page: Page) {
-  await page.evaluate(() => {
-    for (const element of document.querySelectorAll('small')) {
-      if (/^\d+ ms$/.test(element.textContent ?? '')) element.textContent = '120 ms';
-    }
-  });
-}
-
 /** A session for /app and for the invitation link; the other public addresses are visited by nobody in particular. */
 const sessionOf = (screen: GalleryScreen) => (screen.underApp || screen.sessionHeader ? 'admin' : 'none');
 
 test.describe('gallery registry', () => {
-  test('lists all 69 screens of the prototype', () => {
-    expect(screens).toHaveLength(69);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(69);
+  test('lists every screen of the area files', () => {
+    expect(screens.length).toBeGreaterThan(0);
+    expect(screens).toHaveLength(countLiveCalls());
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(screens.length);
   });
 });
 
@@ -235,7 +200,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of VIEWPORTS) {
 
           waiting = await waitUntilSettled(page);
           await prepareCapture(page);
-          if (screen.id === 'pub-status') await freezeProbeTimes(page);
           measured = await measurePage(page);
           await page.screenshot({ path: `${SCREENSHOTS}${name}/${screen.id}.png`, animations: 'disabled', fullPage: false });
 

@@ -9,7 +9,7 @@ vi.mock('../../api/platform', () => ({ platformApi: platform }));
 function renderPicker() {
   return render(
     <MemoryRouter>
-      <ProjectPicker label="Run with this engine" destination={(org, project) => `/app/${org}/${project}/jobs/new`} />
+      <ProjectPicker label="Run with this engine" destination={(org, project) => `/app/${org}/${project}/runs/new`} />
     </MemoryRouter>,
   );
 }
@@ -29,8 +29,8 @@ describe('project picker', () => {
 
     fireEvent.click(button);
     expect(button).toHaveAttribute('aria-expanded', 'true');
-    expect(await screen.findByRole('link', { name: 'Org A / Project One' })).toHaveAttribute('href', '/app/a/one/jobs/new');
-    expect(screen.getByRole('link', { name: 'Org A / Project Two' })).toHaveAttribute('href', '/app/a/two/jobs/new');
+    expect(await screen.findByRole('link', { name: 'Org A / Project One' })).toHaveAttribute('href', '/app/a/one/runs/new');
+    expect(screen.getByRole('link', { name: 'Org A / Project Two' })).toHaveAttribute('href', '/app/a/two/runs/new');
     expect(platform.projects).toHaveBeenCalledTimes(2);
 
     fireEvent.click(button);

@@ -294,19 +294,19 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S6a execution`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('job-list /app/:org/:project/jobs · summaries, owner actions, filters and retry', async ({ page }, testInfo) => {
+    test('job-list /app/:org/:project/runs · summaries, owner actions, filters and retry', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/jobs`);
+      await page.goto(`${ROOT}/runs`);
       const main = page.locator('#platform-main');
-      const table = main.getByRole('region', { name: 'Jobs of the project' });
+      const table = main.getByRole('region', { name: 'Runs of the project' });
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Jobs' })).toBeVisible();
+      await expect(main.getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
       await expect(main.getByText(/Every run in QoS Benchmarks\. Anyone in the project sees the summary/)).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Jobs', exact: true })).toHaveAttribute('aria-current', 'page');
-      await expect(main.getByRole('link', { name: 'New run' })).toHaveAttribute('href', `${ROOT}/jobs/new`);
+      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Runs', exact: true })).toHaveAttribute('aria-current', 'page');
+      await expect(main.getByRole('link', { name: 'New run' })).toHaveAttribute('href', `${ROOT}/runs/new`);
       await expect(table.getByRole('row')).toHaveCount(8);
-      await expect(table.getByRole('link', { name: /^Open job/ })).toHaveCount(6);
+      await expect(table.getByRole('link', { name: /^Open run/ })).toHaveCount(6);
       await expect(table.getByText('Owner only')).toHaveCount(1);
       await expect(table.getByText('Another member')).toHaveCount(1);
       await expect(table.getByRole('button', { name: 'Retry' })).toHaveCount(2);
@@ -326,7 +326,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // A retry of a failed run of its own, then one the account cannot afford.
       await table.getByRole('button', { name: 'Retry' }).first().click();
       await expect(main.getByText('Retry queued.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-9`);
+      await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/runs/job-new-9`);
       expect(state.sent.retry).toBe('job-failed-4');
       await capture(page, testInfo, `list-${name}-retry`);
       state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', {
@@ -339,49 +339,49 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-list /app/:org/:project/jobs · empty, 503, a viewer and a project that is not there', async ({ page }, testInfo) => {
+    test('job-list /app/:org/:project/runs · empty, 503, a viewer and a project that is not there', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
-      await page.goto('/app/isa-demo/checkout-privado/jobs');
+      await page.goto('/app/isa-demo/checkout-privado/runs');
       await expect(main.getByText('No runs yet')).toBeVisible();
-      await expect(main.getByText('Pick a case revision and an engine to run it.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Start a run' })).toHaveAttribute('href', '/app/isa-demo/checkout-privado/jobs/new');
+      await expect(main.getByText('Pick a problem version and an engine to run it.')).toBeVisible();
+      await expect(main.getByRole('link', { name: 'Start a run' })).toHaveAttribute('href', '/app/isa-demo/checkout-privado/runs/new');
       await capture(page, testInfo, `list-${name}-empty`);
 
       state.refuse.projectJobs = unavailable;
-      await page.goto(`${ROOT}/jobs`);
-      await expect(main.getByRole('alert').filter({ hasText: 'Jobs can’t be loaded right now' })).toContainText('(503)');
+      await page.goto(`${ROOT}/runs`);
+      await expect(main.getByRole('alert').filter({ hasText: 'Runs can’t be loaded right now' })).toContainText('(503)');
       await expect(main.getByText('No runs yet')).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-503`);
       state.refuse.projectJobs = undefined;
       await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('region', { name: 'Jobs of the project' })).toBeVisible();
+      await expect(main.getByRole('region', { name: 'Runs of the project' })).toBeVisible();
 
       // A viewer reads the summaries; nothing on the screen starts a run.
-      await page.goto('/app/read-lab/bench/jobs');
-      await expect(main.getByRole('heading', { level: 1, name: 'Jobs' })).toBeVisible();
+      await page.goto('/app/read-lab/bench/runs');
+      await expect(main.getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
       await expect(main.getByRole('link', { name: 'New run' })).toHaveCount(0);
       await expect(main.getByText('No runs yet')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Start a run' })).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-viewer`);
 
-      await page.goto('/app/isa-demo/ghost/jobs');
+      await page.goto('/app/isa-demo/ghost/runs');
       await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
       await capture(page, testInfo, `list-${name}-404`);
       expect(critical).toEqual([]);
     });
 
-    test('job-detail /app/:org/:project/jobs/:job · a finished run, its result and what it ran on', async ({ page }, testInfo) => {
+    test('job-detail /app/:org/:project/runs/:job · a finished run, its result and what it ran on', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto(`${ROOT}/jobs/job-feasible-1`);
+      await page.goto(`${ROOT}/runs/job-feasible-1`);
       const main = page.locator('#platform-main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'random-search run' })).toBeVisible();
       await expect(main.getByText('Feasible: meets every must-hold rule')).toBeVisible();
-      await expect(main.getByText(/launched Sep 30, 2026, 09:00 UTC by you · case Flujo de checkout/)).toBeVisible();
+      await expect(main.getByText(/launched Sep 30, 2026, 09:00 UTC by you · problem Flujo de checkout/)).toBeVisible();
       await expect(main.getByRole('link', { name: 'Analyze' })).toHaveCount(0);
       await expect(main.getByRole('region', { name: 'Timeline' }).getByText('Finished · not live')).toBeVisible();
       const settings = main.getByRole('region', { name: 'Settings asked and used' });
@@ -402,8 +402,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // What it ran on.
       const where = main.getByRole('region', { name: 'Where this result comes from' });
-      await expect(where.getByRole('link', { name: /^Snapshot snapshot/ })).toHaveAttribute('href', `${ROOT}/snapshots/snapshot-2`);
-      await expect(where.getByRole('link', { name: 'Flujo de checkout · revision 2' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/revisions/2`);
+      await expect(where.getByRole('link', { name: /^Snapshot snapshot/ })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/source?version=2`);
+      await expect(where.getByRole('link', { name: 'Flujo de checkout · version 2' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=2`);
       await expect(where.getByRole('link', { name: 'Add to a report' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-provenance`, { area: where });
       const downloaded = page.waitForEvent('download');
@@ -422,10 +422,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-detail /app/:org/:project/jobs/:job · a live run follows its state until it finishes', async ({ page }, testInfo) => {
+    test('job-detail /app/:org/:project/runs/:job · a live run follows its state until it finishes', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/jobs/job-live-10`);
+      await page.goto(`${ROOT}/runs/job-live-10`);
       const main = page.locator('#platform-main');
 
       await expect(main.getByText('Live · connected')).toBeVisible();
@@ -443,13 +443,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-detail /app/:org/:project/jobs/:job · cancel, retry and the ways a run ends without a result', async ({ page }, testInfo) => {
+    test('job-detail /app/:org/:project/runs/:job · cancel, retry and the ways a run ends without a result', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
       // Cancelling a run that is going, and a run that had already finished (409).
-      await page.goto(`${ROOT}/jobs/job-running-2`);
+      await page.goto(`${ROOT}/runs/job-running-2`);
       await main.getByRole('button', { name: 'Cancel run' }).click();
       await expect(main.getByText('Cancellation requested. The engine stops at its next check.')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Cancel run' })).toHaveCount(0);
@@ -462,67 +462,67 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `detail-${name}-409`, { height: 1300 });
 
       // A failed run says why, and a retry is a new attempt.
-      await page.goto(`${ROOT}/jobs/job-failed-4`);
+      await page.goto(`${ROOT}/runs/job-failed-4`);
       await expect(main.getByRole('alert').filter({ hasText: 'The run failed' })).toContainText('Retrying starts a new attempt.');
       await main.getByRole('button', { name: 'Retry' }).click();
       await expect(main.getByText('Retry queued as a new attempt.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-9`);
+      await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/runs/job-new-9`);
       expect(state.sent.retry).toBe('job-failed-4');
       await capture(page, testInfo, `detail-${name}-failed-retry`, { height: 1500 });
       state.refuse.retry = json({ detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 } } }, 429);
       await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByText(/Retry refused: All your job slots are busy \(429/)).toBeVisible();
+      await expect(main.getByText(/Retry refused: All your run slots are busy \(429/)).toBeVisible();
       await capture(page, testInfo, `detail-${name}-429`, { height: 1500 });
 
       // Cancelled, and infeasible with the rule it breaks.
-      await page.goto(`${ROOT}/jobs/job-cancelled-5`);
+      await page.goto(`${ROOT}/runs/job-cancelled-5`);
       await expect(main.getByText('Cancelled before producing a result.')).toBeVisible();
       await capture(page, testInfo, `detail-${name}-cancelled`, { height: 1300 });
-      await page.goto(`${ROOT}/jobs/job-infeasible-6`);
+      await page.goto(`${ROOT}/runs/job-infeasible-6`);
       const why = main.getByRole('region', { name: 'Why no combination works' });
       await expect(why).toContainText('Total latency is 742 ms');
-      await expect(why.getByRole('link', { name: 'See the rules' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/revisions/2`);
+      await expect(why.getByRole('link', { name: 'See the rules' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=2`);
       await expect(main.getByRole('heading', { name: 'What if one task used another provider?' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-infeasible`, { height: 1700 });
       expect(critical).toEqual([]);
     });
 
-    test('job-detail /app/:org/:project/jobs/:job · a run that is not yours and a key without access', async ({ page }, testInfo) => {
+    test('job-detail /app/:org/:project/runs/:job · a run that is not yours and a key without access', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
       // A run of another member, or one that does not exist: the same neutral answer, even for an administrator.
-      await page.goto(`${ROOT}/jobs/job-theirs-8`);
-      await expect(main.getByRole('heading', { name: 'Job not found' })).toBeVisible();
+      await page.goto(`${ROOT}/runs/job-theirs-8`);
+      await expect(main.getByRole('heading', { name: 'Run not found' })).toBeVisible();
       await expect(main.getByText(/Everyone else, including platform administrators, gets this same answer\./)).toBeVisible();
-      await expect(main.getByRole('link', { name: 'All jobs' })).toHaveAttribute('href', `${ROOT}/jobs`);
+      await expect(main.getByRole('link', { name: 'All runs' })).toHaveAttribute('href', `${ROOT}/runs`);
       await capture(page, testInfo, `detail-${name}-404`);
 
       state.refuse.detail = detail(403, 'api_key_forbidden', 'The API key does not include jobs:read.');
-      await page.goto(`${ROOT}/jobs/job-feasible-1`);
-      await expect(main.getByText(/This API key can’t read jobs or doesn’t include this engine \(403/)).toBeVisible();
+      await page.goto(`${ROOT}/runs/job-feasible-1`);
+      await expect(main.getByText(/This API key can’t read runs or doesn’t include this engine \(403/)).toBeVisible();
       await capture(page, testInfo, `detail-${name}-403-key`);
 
       state.refuse.detail = unavailable;
-      await page.goto(`${ROOT}/jobs/job-feasible-1`);
-      await expect(main.getByText(/The job couldn’t be loaded \(503/)).toBeVisible();
-      await expect(main.getByRole('heading', { name: 'Job not found' })).toHaveCount(0);
+      await page.goto(`${ROOT}/runs/job-feasible-1`);
+      await expect(main.getByText(/The run couldn’t be loaded \(503/)).toBeVisible();
+      await expect(main.getByRole('heading', { name: 'Run not found' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-503`);
       expect(critical).toEqual([]);
     });
 
-    test('job-launch /app/:org/:project/jobs/new · from a revision: four steps, what the plan reduces, accepted', async ({ page }, testInfo) => {
+    test('job-launch /app/:org/:project/runs/new · from a revision: four steps, what the plan reduces, accepted', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/jobs/new?case=flujo-checkout&revision=2`);
+      await page.goto(`${ROOT}/runs/new?case=flujo-checkout&revision=2`);
       const main = page.locator('#platform-main');
       const next = main.getByRole('button', { name: 'Continue' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Jobs', exact: true })).toHaveAttribute('aria-current', 'page');
+      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Runs', exact: true })).toHaveAttribute('aria-current', 'page');
       const source = main.getByRole('radiogroup', { name: 'Source' });
-      await expect(source.getByRole('radio', { name: /Flujo de checkout · revision 2/ })).toBeChecked();
+      await expect(source.getByRole('radio', { name: /Flujo de checkout · version 2/ })).toBeChecked();
       await expect(source.getByRole('radio')).toHaveCount(2);
       await capture(page, testInfo, `launch-${name}-step1`);
 
@@ -538,7 +538,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(budget).toHaveValue('30');
       await budget.fill('600');
       await expect(main.getByText('60 s (reduced)')).toBeVisible();
-      await expect(main.getByText('Values above your plan run at the ceiling and the job carries a note; it isn’t an error.')).toBeVisible();
+      await expect(main.getByText('Values above your plan run at the ceiling and the run carries a note; it isn’t an error.')).toBeVisible();
       await capture(page, testInfo, `launch-${name}-step3`);
 
       await next.click();
@@ -550,13 +550,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await main.getByRole('button', { name: 'Send run' }).click();
       await expect(main.getByRole('heading', { name: 'Run accepted · queued' })).toBeVisible();
-      await expect(main.getByText(/Time budget was reduced to 60 s, what your plan allows; the job carries that note\./)).toBeVisible();
+      await expect(main.getByText(/Time budget was reduced to 60 s, what your plan allows; the run carries that note\./)).toBeVisible();
       expect(state.sent.launch).toMatchObject({ snapshot: 'snapshot-2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling', options: { time_budget_ms: 600000, iterations: 100000 } });
       expect(state.sent.key).toMatch(/^[0-9a-f-]{36}$/);
       await capture(page, testInfo, `launch-${name}-accepted`);
 
       await main.getByRole('link', { name: 'Follow the run' }).click();
-      await expect(page).toHaveURL(new RegExp(`${ROOT}/jobs/job-new-9$`));
+      await expect(page).toHaveURL(new RegExp(`${ROOT}/runs/job-new-9$`));
       await expect(main.getByRole('heading', { level: 1, name: 'random-search run' })).toBeVisible();
       await expect(main.getByText('Live · connected')).toBeVisible();
       await expect(main.getByRole('region', { name: 'Settings asked and used' }).getByRole('row', { name: /Time budget/ })).toContainText('Reduced to the plan’s ceiling');
@@ -564,10 +564,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-launch /app/:org/:project/jobs/new · an exact engine from a snapshot and every way the gateway refuses', async ({ page }, testInfo) => {
+    test('job-launch /app/:org/:project/runs/new · an exact engine from a snapshot and every way the gateway refuses', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/jobs/new?snapshot=snapshot-2`);
+      await page.goto(`${ROOT}/runs/new?snapshot=snapshot-2`);
       const main = page.locator('#platform-main');
       const next = main.getByRole('button', { name: 'Continue' });
 
@@ -602,8 +602,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 } } },
       });
       await send.click();
-      await expect(refusal).toContainText('All your job slots are busy (429 · concurrency_limit_exceeded)');
-      await expect(refusal).toContainText('You can run 3 jobs at once.');
+      await expect(refusal).toContainText('All your run slots are busy (429 · concurrency_limit_exceeded)');
+      await expect(refusal).toContainText('You can have 3 runs going at once.');
       await expect(refusal.getByRole('timer')).toContainText('A slot should free up in about');
       await capture(page, testInfo, `launch-${name}-429`);
 
@@ -635,25 +635,25 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-launch /app/:org/:project/jobs/new · a viewer, a snapshot that is not there and a problem too big for the plan', async ({ page }, testInfo) => {
+    test('job-launch /app/:org/:project/runs/new · a viewer, a snapshot that is not there and a problem too big for the plan', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
-      await page.goto('/app/read-lab/bench/jobs/new');
+      await page.goto('/app/read-lab/bench/runs/new');
       await expect(main.getByRole('note')).toContainText('You’re a VIEWER of Read Lab. You can look through the steps, but starting a run needs MEMBER.');
       await expect(main.getByText(/Nothing to solve yet\./)).toBeVisible();
       await capture(page, testInfo, `launch-${name}-viewer`);
 
       state.refuse.validate = detail(404, 'not_found', 'Snapshot not found.');
-      await page.goto(`${ROOT}/jobs/new?snapshot=snapshot-ghost`);
+      await page.goto(`${ROOT}/runs/new?snapshot=snapshot-ghost`);
       await main.getByRole('button', { name: 'Continue' }).click();
       await expect(main.getByText('Snapshot not found (404)')).toBeVisible();
       await expect(main.getByRole('radiogroup', { name: 'Engine' })).toHaveCount(0);
       await capture(page, testInfo, `launch-${name}-snapshot-404`);
 
       state.refuse.validate = detail(402, 'instance_complexity_too_large', 'instance binding space exceeds the caller plan limit', { quota: { limit_id: 'maxInstanceComplexityLog10', limit: 9 } });
-      await page.goto(`${ROOT}/jobs/new?case=flujo-checkout&revision=2`);
+      await page.goto(`${ROOT}/runs/new?case=flujo-checkout&revision=2`);
       await main.getByRole('button', { name: 'Continue' }).click();
       await expect(main.getByRole('alert')).toContainText('Too big for your plan (402 · instance_complexity_too_large)');
       await expect(main.getByRole('radiogroup', { name: 'Engine' }).getByRole('radio', { name: /^random-search.*Checked when you send/ })).toBeEnabled();
@@ -661,20 +661,20 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-history /app/jobs · my jobs across projects, retention, filters and actions', async ({ page }, testInfo) => {
+    test('job-history /app/runs · my jobs across projects, retention, filters and actions', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto('/app/jobs');
+      await page.goto('/app/runs');
       const main = page.locator('#platform-main');
-      const list = main.getByRole('list', { name: 'Your jobs' });
+      const list = main.getByRole('list', { name: 'Your runs' });
 
-      await expect(main.getByRole('heading', { level: 1, name: 'My jobs' })).toBeVisible();
+      await expect(main.getByRole('heading', { level: 1, name: 'My runs' })).toBeVisible();
       await expect(main.getByText('Everything you’ve run, across projects.')).toBeVisible();
       await expect(list.getByRole('listitem')).toHaveCount(8);
-      await expect(list.getByRole('link', { name: 'random-search on QoS Benchmarks' }).first()).toHaveAttribute('href', `${ROOT}/jobs/job-queued-3`);
+      await expect(list.getByRole('link', { name: 'random-search on QoS Benchmarks' }).first()).toHaveAttribute('href', `${ROOT}/runs/job-queued-3`);
       await expect(main.getByText('8 in total')).toBeVisible();
       const retention = main.getByRole('region', { name: 'How long runs are kept' });
-      await expect(retention.getByText('Finished jobs are kept 180 days on your RESEARCH plan')).toBeVisible();
+      await expect(retention.getByText('Finished runs are kept 180 days on your RESEARCH plan')).toBeVisible();
       await expect(retention.getByText('Longer retention comes with larger plans, arranged by agreement.')).toBeVisible();
       await expect(retention.getByText('PRO', { exact: true })).toBeVisible();
       await expect(list.getByRole('button', { name: 'Cancel' })).toHaveCount(3);
@@ -697,7 +697,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `history-${name}-cancel`);
       await list.getByRole('listitem').filter({ hasText: 'evolutionary' }).first().getByRole('button', { name: 'Retry' }).click();
       await expect(main.getByText('Retry queued.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-9`);
+      await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/runs/job-new-9`);
       state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'storageBytes', limit: 10, used: 10 } });
       await list.getByRole('listitem').filter({ hasText: 'random-search' }).getByRole('button', { name: 'Retry' }).first().click();
       await expect(main.getByText('Retry refused: Out of storage (402 · quota_exceeded)')).toBeVisible();
@@ -705,41 +705,41 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-history /app/jobs · empty, retention unknown, a key without access and a page that does not load', async ({ page }, testInfo) => {
+    test('job-history /app/runs · empty, retention unknown, a key without access and a page that does not load', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
       state.history = [];
       state.retention = 7;
-      await page.goto('/app/jobs');
+      await page.goto('/app/runs');
       await expect(main.getByText('Nothing within your retention window')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Start a run' })).toBeVisible();
-      await expect(main.getByText('Finished jobs are kept 7 days on your RESEARCH plan')).toBeVisible();
+      await expect(main.getByText('Finished runs are kept 7 days on your RESEARCH plan')).toBeVisible();
       await capture(page, testInfo, `history-${name}-empty`);
 
       state.history = ownRows;
       state.retention = null;
-      await page.goto('/app/jobs');
+      await page.goto('/app/runs');
       await expect(main.getByText('Retention can’t be confirmed right now')).toBeVisible();
       await expect(main.getByText('Your list still loads; only the retention figure is missing.')).toBeVisible();
-      await expect(main.getByRole('list', { name: 'Your jobs' }).getByRole('listitem')).toHaveCount(8);
+      await expect(main.getByRole('list', { name: 'Your runs' }).getByRole('listitem')).toHaveCount(8);
       await capture(page, testInfo, `history-${name}-retention-503`);
 
       state.refuse.history = detail(403, 'api_key_forbidden', 'The API key does not include jobs:read.');
-      await page.goto('/app/jobs');
-      await expect(main.getByText(/This API key doesn’t include “read jobs” \(403/)).toBeVisible();
-      await expect(main.getByRole('list', { name: 'Your jobs' })).toHaveCount(0);
+      await page.goto('/app/runs');
+      await expect(main.getByText(/This API key doesn’t include “read runs” \(403/)).toBeVisible();
+      await expect(main.getByRole('list', { name: 'Your runs' })).toHaveCount(0);
       await capture(page, testInfo, `history-${name}-403-key`);
 
       state.refuse.history = unavailable;
-      await page.goto('/app/jobs');
-      await expect(main.getByText(/Your jobs can’t be loaded right now \(503/)).toBeVisible();
+      await page.goto('/app/runs');
+      await expect(main.getByText(/Your runs can’t be loaded right now \(503/)).toBeVisible();
       await capture(page, testInfo, `history-${name}-503`);
       state.refuse.history = undefined;
       state.retention = 180;
       await main.getByRole('button', { name: 'Try again' }).click();
-      await expect(main.getByRole('list', { name: 'Your jobs' })).toBeVisible();
+      await expect(main.getByRole('list', { name: 'Your runs' })).toBeVisible();
       expect(critical).toEqual([]);
     });
   });

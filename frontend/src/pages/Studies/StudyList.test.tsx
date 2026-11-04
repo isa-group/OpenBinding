@@ -41,11 +41,11 @@ describe('Studies of a project', () => {
     renderList();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Studies' })).toBeInTheDocument();
-    expect(screen.getByText(/A study runs every combination of cases × engines × settings × seeds/)).toBeInTheDocument();
+    expect(screen.getByText(/A study runs every combination of problems × engines × settings × seeds/)).toBeInTheDocument();
     const list = await screen.findByRole('list', { name: 'Studies of the project' });
     expect(within(list).getByRole('link', { name: /Engines × seeds/ })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds`);
-    expect(within(list).getByText('2 case revisions × 2 engines × 1 setting × 2 seeds = 8 cells')).toBeInTheDocument();
-    expect(within(list).getByRole('link', { name: 'Last run #1' })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds/runs/00000000-0000-4000-8000-000000000101`);
+    expect(within(list).getByText('2 problem versions × 2 engines × 1 setting × 2 seeds = 8 cells')).toBeInTheDocument();
+    expect(within(list).getByRole('link', { name: 'Last run #1' })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds/progress?run=00000000-0000-4000-8000-000000000101`);
     expect(within(list).getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })).toBeInTheDocument();
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
     expect(within(tabs).getByRole('link', { name: 'Studies' })).toHaveAttribute('aria-current', 'page');
@@ -66,7 +66,7 @@ describe('Studies of a project', () => {
     renderList();
 
     expect(await screen.findByText('No studies yet')).toBeInTheDocument();
-    expect(screen.getByText('2 case revisions × 2 engines × 2 seeds = 8 runs, all with the same rules. That’s a study.')).toBeInTheDocument();
+    expect(screen.getByText('2 problem versions × 2 engines × 2 seeds = 8 runs, all with the same rules. That’s a study.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Build a study' })).toHaveAttribute('href', `${ROOT}/studies/new`);
     expect(screen.getByRole('link', { name: 'New study' })).toHaveAttribute('href', `${ROOT}/studies/new`);
   });

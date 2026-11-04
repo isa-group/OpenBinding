@@ -1,10 +1,11 @@
-Status: PROPOSED for owner review (2026-10-22)
+Status: ACCEPTED (2026-11-04)
 
 # ADR-0018: Problem-centred vocabulary in the UI; API v1 unchanged
 
-- Status: Proposed
-- Date: 2026-10-22
+- Status: Accepted
+- Date: 2026-11-04
 - Deciders: owner
+- Accepted by: the owner, on 2026-11-04
 
 ## Context
 

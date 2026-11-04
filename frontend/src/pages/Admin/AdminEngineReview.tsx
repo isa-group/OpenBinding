@@ -37,7 +37,7 @@ export function AdminEngineReview({ onDecided }: Props) {
   const [message, setMessage] = useState<{ tone: 'success' | 'error' | 'warning'; text: string; title?: string } | null>(null);
 
   const rows = list.data ?? list.stale ?? [];
-  const failure = list.status === 'error' ? describeModerationFailure(list.error, 'The publication review queue couldn’t be loaded', 'engines') : null;
+  const failure = list.status === 'error' ? describeModerationFailure(list.error, 'The catalogue review queue couldn’t be loaded', 'engines') : null;
 
   const toggle = async (row: EngineRegistrationRevision) => {
     const key = bimResourceKey(row);
@@ -80,7 +80,7 @@ export function AdminEngineReview({ onDecided }: Props) {
   return (
     <section className="adm-card" aria-labelledby="adm-review-title">
       <div className="adm-card-head">
-        <h2 id="adm-review-title">Engine publication requests</h2>
+        <h2 id="adm-review-title">Engine catalogue requests</h2>
         <span className="adm-muted">Needs “moderate engines”</span>
       </div>
 
@@ -90,12 +90,12 @@ export function AdminEngineReview({ onDecided }: Props) {
 
       {list.status !== 'loading' && !failure && rows.length === 0 && (
         <EmptyState icon={<Inbox />} title="No engine is waiting for review" dashed>
-          Only registrations their owners submit for publication appear here. Private and rejected ones are not discoverable by administrators.
+          Only registrations their owners submit for the catalogue appear here. Private and rejected ones are not discoverable by administrators.
         </EmptyState>
       )}
 
       {rows.length > 0 && (
-        <ul className="adm-requests" aria-label="Publication requests">
+        <ul className="adm-requests" aria-label="Catalogue requests">
           {rows.map((row) => {
             const key = bimResourceKey(row);
             const shown = open[key] === true;
@@ -153,7 +153,7 @@ export function AdminEngineReview({ onDecided }: Props) {
         >
           <p>
             {pending.kind === 'approve'
-              ? 'The gateway verifies the live pinned contract again, then publishes this exact revision. Everyone will be able to pick it when launching jobs, and once published it can’t be changed or deleted by its owner.'
+              ? 'The gateway verifies the live pinned contract again, then publishes this exact revision. Everyone will be able to pick it when launching runs, and once published it can’t be changed or deleted by its owner.'
               : `The request leaves the queue and the registration goes back to being private to ${pending.row.namespace}. The API takes no written reason.`}
           </p>
         </ConfirmDialog>

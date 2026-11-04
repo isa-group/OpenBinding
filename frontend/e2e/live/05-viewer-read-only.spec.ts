@@ -1,28 +1,28 @@
 import { expect, test } from '@playwright/test';
 import { CASE, ORG, PROJECT_PATH, capture, signInByApi, watchPageErrors } from './support';
 
-// A VIEWER reads: it sees the project, the cases and their revisions, and none of the controls that change something.
+// A VIEWER reads: it sees the project, the problems and their versions, and none of the controls that change something.
 
 test.describe('live · lab-viewer reads and edits nothing', () => {
-  test('the case list and the case have no editing control and say why', async ({ page }, testInfo) => {
+  test('the problem list and the problem have no editing control and say why', async ({ page }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'viewer');
-    await page.goto(`${PROJECT_PATH}/cases`);
+    await page.goto(`${PROJECT_PATH}/problems`);
 
-    await expect(page.getByRole('list', { name: 'Cases' })).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Problems' })).toBeVisible();
     const note = page.getByRole('note').filter({ hasText: 'creating and editing need MEMBER' });
     await expect(note).toBeVisible();
     await expect(note).toContainText('VIEWER');
-    await expect(page.getByRole('button', { name: 'New case' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'New problem' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /^Delete / })).toHaveCount(0);
     await capture(page, testInfo, 'viewer-case-list');
 
-    await page.goto(`${PROJECT_PATH}/cases/${CASE}`);
+    await page.goto(`${PROJECT_PATH}/problems/${CASE}`);
     await expect(page.locator('code.case-slug')).toHaveText(CASE);
-    await expect(page.getByRole('heading', { level: 2, name: 'Revisions' })).toBeVisible();
-    await expect(page.getByRole('note').filter({ hasText: 'New revisions need MEMBER; deleting needs ADMIN' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'New revision' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Delete case' })).toHaveCount(0);
+    await expect(page.getByRole('tab', { name: 'Versions' })).toBeVisible();
+    await expect(page.getByRole('note').filter({ hasText: 'New versions need MEMBER; deleting needs ADMIN' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'New version' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Delete problem' })).toHaveCount(0);
     await capture(page, testInfo, 'viewer-case');
     expect(errors).toEqual([]);
   });
@@ -30,7 +30,7 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
   test('starting a run is for members: the viewer is told so and has no way to send one', async ({ page }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'viewer');
-    await page.goto(`${PROJECT_PATH}/jobs/new?case=${CASE}`);
+    await page.goto(`${PROJECT_PATH}/runs/new?case=${CASE}`);
 
     await expect(page.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
     await expect(page.getByText('starting a run needs MEMBER')).toBeVisible();
@@ -44,18 +44,18 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
   test('the list of runs of the project offers no way to start one', async ({ page }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'viewer');
-    await page.goto(`${PROJECT_PATH}/jobs`);
+    await page.goto(`${PROJECT_PATH}/runs`);
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Jobs' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'New run' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Start a run' })).toHaveCount(0);
-    // The case offers "Run latest" to a member of the project, a viewer included, but it only leads to the steps above, read-only. That
+    // The problem offers "Run this version" to a member of the project, a viewer included, but it only leads to the steps above, read-only. That
     // is noted rather than failed: the entry point is the interface's, the refusal is the gateway's and the launch page's.
-    await page.goto(`${PROJECT_PATH}/cases/${CASE}`);
+    await page.goto(`${PROJECT_PATH}/problems/${CASE}`);
     await expect(page.locator('code.case-slug')).toHaveText(CASE);
-    const entries = await page.getByRole('link', { name: 'Run latest' }).count();
+    const entries = await page.getByRole('link', { name: 'Run this version' }).count();
     if (entries > 0) {
-      testInfo.annotations.push({ type: 'viewer-run-entry', description: `${entries} "Run latest" link(s) are shown to a VIEWER; they lead to a read-only launch page` });
+      testInfo.annotations.push({ type: 'viewer-run-entry', description: `${entries} "Run this version" link(s) are shown to a VIEWER; they lead to a read-only launch page` });
     }
     expect(errors).toEqual([]);
   });

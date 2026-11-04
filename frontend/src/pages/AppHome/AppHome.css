@@ -16,7 +16,8 @@
 .home-head p { margin: var(--tp-spacing-xxs) 0 0; color: var(--tp-steel); }
 .home-shortcuts { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs); }
 
-.home-shortcuts a {
+.home-shortcuts a,
+.home-shortcuts button {
   display: inline-flex;
   height: 38px;
   align-items: center;
@@ -29,9 +30,11 @@
   font-size: 0.875rem;
   font-weight: 500;
   text-decoration: none;
+  cursor: pointer;
 }
 
-.home-shortcuts a:hover { border-color: var(--tp-stone); background: var(--tp-surface); color: var(--tp-ink); }
+.home-shortcuts a:hover,
+.home-shortcuts button:hover { border-color: var(--tp-stone); background: var(--tp-surface); color: var(--tp-ink); }
 .home-shortcuts svg { width: 1rem; height: 1rem; color: var(--tp-primary); }
 
 /* First organization */

@@ -227,7 +227,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       if (!subId) return json(projectSlug === 'qos-benchmarks' ? [flujo] : [])(route);
       if (action === 'revisions' && method === 'POST') {
         state.sent.saveRevision = bodyOf(route);
-        return (state.refuse.saveRevision ?? json(caseRevision(3), 201))(route);
+        return (state.refuse.saveRevision ?? json({ ...caseRevision(3), source_snapshot_id: 'snapshot-1' }, 201))(route);
       }
       return json(subId === flujo.slug ? [caseRevision(1), caseRevision(2)] : [])(route);
     }
@@ -301,22 +301,22 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const index = main.getByRole('navigation', { name: 'BIM resources' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'Workbench' })).toBeVisible();
-      await expect(main.getByText('Check a package, see which engines can run it, then snapshot, run or save it as a case revision.')).toBeVisible();
+      await expect(main.getByText('Check a package, see which engines can run it, then snapshot, run or save it as a problem version.')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Generate a synthetic instance' })).toHaveAttribute('href', LAB);
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Cases', exact: true })).toHaveAttribute('aria-current', 'page');
-      await expect(main.getByRole('tab', { name: 'Case revision' })).toHaveAttribute('aria-selected', 'true');
+      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Problems', exact: true })).toHaveAttribute('aria-current', 'page');
+      await expect(main.getByRole('tab', { name: 'Problem version' })).toHaveAttribute('aria-selected', 'true');
       await expect(main.getByText(/Nothing validated yet/)).toBeVisible();
       await expect(index).toContainText('workflow.bpmn');
       await expect(main.getByRole('region', { name: 'Package actions' })).toHaveCount(0);
       await capture(page, testInfo, `workbench-${name}-idle`);
 
-      // A revision of a case opens from the two selects, and the address remembers it.
+      // A version of a problem opens from the two selects, and the address remembers it.
       await expect(main.getByRole('option', { name: 'Flujo de checkout', exact: true })).toHaveCount(1);
-      await main.getByRole('combobox', { name: 'Case', exact: true }).selectOption('flujo-checkout');
-      await expect(main.getByRole('combobox', { name: 'Revision' })).toBeEnabled();
-      await main.getByRole('combobox', { name: 'Revision' }).selectOption({ label: 'Flujo de checkout · revision 2' });
+      await main.getByRole('combobox', { name: 'Problem', exact: true }).selectOption('flujo-checkout');
+      await expect(main.getByRole('combobox', { name: 'Problem version', exact: true })).toBeEnabled();
+      await main.getByRole('combobox', { name: 'Problem version', exact: true }).selectOption({ label: 'Flujo de checkout · version 2' });
       await expect(page).toHaveURL(/case=flujo-checkout&revision=case-flujo-checkout-r2/);
-      await expect(main.getByText('Loaded revision 2')).toBeVisible();
+      await expect(main.getByText('Loaded version 2')).toBeVisible();
       await expect(index).toContainText('isa-demo/checkout-app@3');
       await capture(page, testInfo, `workbench-${name}-case-revision`);
 
@@ -457,7 +457,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByLabel('instance.json YAML view')).toContainText('edited-in-the-browser');
       await main.getByRole('tab', { name: 'Source diff' }).click();
       await expect(main.getByText('Modified')).toBeVisible();
-      await expect(main.getByLabel('Changes to instance.json')).toContainText('edited-in-the-browser');
+      const changes = main.getByRole('region', { name: 'Changes to instance.json' });
+      await expect(changes).toContainText('edited-in-the-browser');
+      expect(await changes.locator('pre').textContent()).toMatch(/^\+.*edited-in-the-browser/m);
+      await expect(changes.getByRole('button', { name: 'Copy Changes to instance.json' })).toBeVisible();
       await capture(page, testInfo, `editor-${name}-source`);
 
       // What was edited is what the gateway receives.
@@ -502,31 +505,34 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('wb-workbench /app/:org/:project/workbench · snapshot, save as a revision and run', async ({ page }, testInfo) => {
+    test('wb-workbench /app/:org/:project/workbench · snapshot, save as a problem version and run', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${WORKBENCH}?case=flujo-checkout`);
       const main = page.locator('#platform-main');
-      await expect(main.getByRole('combobox', { name: 'Case', exact: true })).toHaveValue('flujo-checkout');
+      await expect(main.getByRole('combobox', { name: 'Problem', exact: true })).toHaveValue('flujo-checkout');
       await main.getByRole('button', { name: 'Validate', exact: true }).click();
       const bar = main.getByRole('region', { name: 'Package actions' });
-      await expect(bar).toContainText('Valid packages can be snapshotted, run or saved as a revision of a case.');
-      await expect(bar.getByRole('combobox', { name: 'Save into case' })).toHaveValue('flujo-checkout');
+      await expect(bar).toContainText('Valid packages can be snapshotted, run or saved as a version of a problem.');
+      await expect(bar.getByRole('combobox', { name: 'Save into problem' })).toHaveValue('flujo-checkout');
       await capture(page, testInfo, `bar-${name}-valid`);
 
       // One private snapshot, which also draws the workflow.
       await bar.getByRole('button', { name: 'Create snapshot' }).click();
       await expect(main.getByText('Snapshot created. It is private to your account and never changes.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/snapshots/snapshot-1`);
+      // No version of the problem was sealed from this snapshot yet, so the link leads to the list of problems.
+      await expect(main.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems`);
       await expect(bar.getByRole('button', { name: 'Snapshot created' })).toBeVisible();
       await expect(main.getByRole('img', { name: /^Workflow: authenticate/ })).toBeVisible();
       await capture(page, testInfo, `bar-${name}-snapshot`);
 
-      // Saved as a revision of the case, with the snapshot it came from.
-      await expect(bar.getByRole('button', { name: 'Save as case revision' })).toBeEnabled();
-      await bar.getByRole('button', { name: 'Save as case revision' }).click();
-      await expect(main.getByText('Revision 3 of Flujo de checkout saved and sealed.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open it' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/revisions/3`);
+      // Saved as a version of the problem, with the snapshot it came from.
+      await expect(bar.getByRole('button', { name: 'Save as problem version' })).toBeEnabled();
+      await bar.getByRole('button', { name: 'Save as problem version' }).click();
+      await expect(main.getByText('Version 3 of Flujo de checkout saved and sealed.')).toBeVisible();
+      await expect(main.getByRole('link', { name: 'Open it' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=3`);
+      // The snapshot is now the source of version 3, so it opens that version's Source tab.
+      await expect(main.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/source?version=3`);
       const saved = state.sent.saveRevision as { document: { metadata: { name: string } }; source_snapshot_id: string; resources: unknown[] };
       expect(saved.source_snapshot_id).toBe('snapshot-1');
       expect(saved.document.metadata.name).toBe('hello-bim');
@@ -535,8 +541,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The gateway's refusal keeps the package and says why.
       state.refuse.saveRevision = detail(403, 'forbidden', 'The API key does not include projects:write.');
-      await bar.getByRole('button', { name: 'Save as case revision' }).click();
-      await expect(main.getByRole('alert').filter({ hasText: 'The revision wasn’t saved' })).toContainText('(403 · forbidden). Nothing was saved.');
+      await bar.getByRole('button', { name: 'Save as problem version' }).click();
+      await expect(main.getByRole('alert').filter({ hasText: 'The version wasn’t saved' })).toContainText('(403 · forbidden). Nothing was saved.');
       await capture(page, testInfo, `bar-${name}-403`);
 
       // Run with the engine mode the analysis offered; the same snapshot is used.
@@ -557,8 +563,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Validate', exact: true }).click();
       const bar = main.getByRole('region', { name: 'Package actions' });
       await expect(bar).toContainText('You can snapshot and run with your own account; saving into this project needs MEMBER.');
-      await expect(bar.getByRole('button', { name: 'Save as case revision' })).toBeDisabled();
-      await expect(bar.getByRole('combobox', { name: 'Save into case' })).toHaveCount(0);
+      await expect(bar.getByRole('button', { name: 'Save as problem version' })).toBeDisabled();
+      await expect(bar.getByRole('combobox', { name: 'Save into problem' })).toHaveCount(0);
       await expect(bar.getByRole('button', { name: 'Create snapshot' })).toBeEnabled();
       await expect(main.getByRole('button', { name: 'Solve' })).toBeEnabled();
       await capture(page, testInfo, `bar-${name}-viewer`);
@@ -640,7 +646,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await keep.getByRole('combobox', { name: 'Project' }).selectOption({ label: 'Bench · Member Lab' });
       await keep.getByRole('button', { name: 'Save to project' }).click();
       await expect(keep.getByText('Saved to Bench · Member Lab as a synthetic instance.')).toBeVisible();
-      await expect(keep.getByRole('link', { name: 'See the project’s cases' })).toHaveAttribute('href', '/app/member-lab/bench/cases');
+      await expect(keep.getByRole('link', { name: 'See the project’s problems' })).toHaveAttribute('href', '/app/member-lab/bench/problems');
       const saved = (state.sent.instances as Array<Record<string, unknown>>).at(-1) as Record<string, unknown>;
       expect(saved).toMatchObject({ persist: true, project_id: 'project-4', case_name: 'generated_qaco', seed: 7 });
       await capture(page, testInfo, `lab-${name}-saved`);

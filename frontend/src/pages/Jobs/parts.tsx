@@ -40,7 +40,7 @@ export function JobFrame({ organization, project, trail, width = 'wide', childre
   );
 }
 
-/** The frame of the screens that are not about one project (`/app/jobs`). */
+/** The frame of the screens that are not about one project (`/app/runs`). */
 export function AccountFrame({ trail, children }: { trail: Crumb[]; children: ReactNode }) {
   return (
     <div className="proj-frame">

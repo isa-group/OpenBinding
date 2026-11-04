@@ -1,11 +1,11 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { lucia, member, org, project, renderScreen, researchUsage } from './testKit';
+import { addressNow, lucia, member, org, project, renderScreen, researchUsage } from './testKit';
 import { OrgOverview } from './OrgOverview';
 
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn() }));
-const platform = vi.hoisted(() => ({ projects: vi.fn(), members: vi.fn() }));
+const platform = vi.hoisted(() => ({ projects: vi.fn(), members: vi.fn(), createProject: vi.fn() }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
@@ -45,7 +45,7 @@ describe('Organization overview', () => {
 
     const title = await screen.findByRole('heading', { level: 1, name: 'ISA Demo Group' });
     const hero = within(title.closest('header')!);
-    expect(hero.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/app/isa-demo/new-project');
+    expect(hero.getByRole('button', { name: 'New project' })).toBeInTheDocument();
     // [utest->req~frontend-retire-library-entry-points-removed~1]
     expect(hero.queryByRole('link', { name: 'Library' })).toBeNull();
     for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/(library|resources)([/?#]|$)/);
@@ -56,7 +56,7 @@ describe('Organization overview', () => {
 
   it('gives a MEMBER the button to create but not the audit log, and a VIEWER neither', async () => {
     const { unmount } = renderOverview([{ ...group, effective_role: 'MEMBER' }]);
-    expect(await screen.findByRole('link', { name: 'New project' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'New project' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Audit' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: '+ Add' })).not.toBeInTheDocument();
     unmount();
@@ -64,7 +64,7 @@ describe('Organization overview', () => {
     platform.projects.mockResolvedValue([]);
     renderOverview([{ ...group, effective_role: 'VIEWER' }]);
     expect(await screen.findByText('No projects yet')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'New project' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New project' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Create the first project' })).not.toBeInTheDocument();
     expect(screen.getByText('You’re a VIEWER here, so you can’t create projects. A MEMBER or above can.')).toBeInTheDocument();
   });
@@ -92,7 +92,54 @@ describe('Organization overview', () => {
     renderOverview([{ ...group, effective_role: 'ADMIN' }]);
 
     expect(await screen.findByText('No projects yet')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Create the first project' })).toHaveAttribute('href', '/app/isa-demo/new-project');
+    expect(screen.getByRole('link', { name: 'Create the first project' })).toHaveAttribute('href', '/app/isa-demo?create=project');
+  });
+
+  describe('the dialog New project', () => {
+    beforeEach(() => {
+      platform.createProject.mockImplementation(async (_org: string, value: { slug: string; name: string }) => project(value.slug, { name: value.name }));
+    });
+
+    // [utest->req~frontend-nav-create-dialogs~1]
+    it('opens from the New project button with create=project in the address', async () => {
+      renderOverview();
+      fireEvent.click(await screen.findByRole('button', { name: 'New project' }));
+
+      expect(await screen.findByRole('dialog', { name: 'New project' })).toBeInTheDocument();
+      expect(addressNow()).toBe('/app/isa-demo?create=project');
+    });
+
+    // [utest->req~frontend-nav-create-dialogs~1]
+    it('is open when the address holds create=project', async () => {
+      renderScreen(<OrgOverview />, { path: '/app/:org', url: '/app/isa-demo?create=project', organizations: [group, lab] });
+
+      expect(await screen.findByRole('dialog', { name: 'New project' })).toBeInTheDocument();
+    });
+
+    // [utest->req~frontend-nav-create-dialogs~1]
+    it('goes back to the organization on Cancel, returns the focus to New project and creates nothing', async () => {
+      renderScreen(<OrgOverview />, { path: '/app/:org', url: '/app/isa-demo?create=project', organizations: [group, lab] });
+      const dialog = await screen.findByRole('dialog', { name: 'New project' });
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(addressNow()).toBe('/app/isa-demo');
+      expect(screen.getByRole('button', { name: 'New project' })).toHaveFocus();
+      expect(platform.createProject).not.toHaveBeenCalled();
+    });
+
+    // [utest->req~frontend-nav-create-dialogs~1]
+    it('creating demo-two closes the dialog and opens the project', async () => {
+      renderScreen(<OrgOverview />, { path: '/app/:org', url: '/app/isa-demo?create=project', organizations: [group, lab] });
+      const dialog = await screen.findByRole('dialog', { name: 'New project' });
+
+      fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'demo-two' } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Create project' }));
+
+      await waitFor(() => expect(addressNow()).toBe('/app/isa-demo/demo-two'));
+      expect(platform.createProject).toHaveBeenCalledWith('isa-demo', expect.objectContaining({ name: 'demo-two', slug: 'demo-two' }));
+    });
   });
 
   it('lets the projects block fail without taking the rest of the page with it', async () => {
@@ -115,7 +162,7 @@ describe('Organization overview', () => {
     const child = within(subs).getByRole('link', { name: /QoS Lab/ });
     expect(child).toHaveAttribute('href', '/app/qos-lab');
     expect(within(child).getByText('Inherited from ISA Demo Group')).toBeInTheDocument();
-    expect(within(subs).getByRole('link', { name: '+ Add' })).toHaveAttribute('href', '/app/organizations/new');
+    expect(within(subs).getByRole('link', { name: '+ Add' })).toHaveAttribute('href', '/app?create=organization');
 
     // From the child, the breadcrumb leads back to the parent.
     renderOverview([group, lab], 'qos-lab');
@@ -155,7 +202,7 @@ describe('Organization overview', () => {
     renderOverview([group], 'ghost');
 
     expect(await screen.findByRole('heading', { name: 'Organization not available' })).toBeInTheDocument();
-    expect(screen.getByText(/It doesn’t exist, or you’re not a member\. We show the same message in both cases/)).toBeInTheDocument();
+    expect(screen.getByText(/It doesn’t exist, or you’re not a member\. We show the same message either way/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Back to Home' })).toHaveAttribute('href', '/app');
     expect(screen.getByRole('link', { name: 'Explore public projects' })).toHaveAttribute('href', '/explore');
     expect(platform.projects).not.toHaveBeenCalled();

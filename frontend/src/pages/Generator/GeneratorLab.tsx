@@ -7,6 +7,7 @@ import type { PlatformOutletContext } from '../../components/PlatformShell/Platf
 import { Action } from '../../components/ui/Action';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useAuth } from '../../contexts/auth';
+import { PROBLEMS_SEGMENT } from '../../routes/paths/problems';
 import { saveDraft } from '../../utils/workspaceDraft';
 import { useResource } from '../../utils/useResource';
 import { Breadcrumb } from '../Organization/parts';
@@ -151,7 +152,7 @@ export function GeneratorLab() {
       setKeep({
         tone: 'success',
         text: `Saved to ${chosen.label} as ${output.kind === 'corpus' ? 'a collection of synthetic instances' : 'a synthetic instance'}.`,
-        href: `/app/${chosen.org}/${chosen.project}/${output.kind === 'corpus' ? 'collections' : 'cases'}`,
+        href: `/app/${chosen.org}/${chosen.project}/${output.kind === 'corpus' ? 'collections' : PROBLEMS_SEGMENT}`,
       });
     } catch (caught: unknown) {
       setKeep({ tone: 'error', text: labRefusal(caught, 'nothing was saved', 'keep').text });

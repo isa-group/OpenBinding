@@ -197,7 +197,7 @@ describe('engine catalog for a signed-in account', () => {
     expect(screen.getByText(/Showing engines visible to your account: public revisions plus private ones you own\./)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Log in' })).not.toBeInTheDocument();
     const card = within(list).getByRole('link', { name: /edge-solver/ });
-    for (const chip of ['Private · yours', 'Registration active', 'Conformance passed', 'Publication not requested']) {
+    for (const chip of ['Private · yours', 'Registration active', 'Conformance passed', 'Listing not requested']) {
       expect(within(card).getByText(chip)).toBeInTheDocument();
     }
     expect(screen.getByRole('link', { name: 'My registrations' })).toHaveAttribute('href', '/app/engines/registrations');
@@ -269,8 +269,8 @@ describe('engine catalog for a signed-in account', () => {
     await waitFor(() => expect(api.activateEngineRegistration).toHaveBeenCalledOnce());
     await waitFor(() => expect(within(screen.getByRole('heading', { name: 'inactive-deployment' }).closest('li')!).getByText('active for you')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Request publication for private-deployment' }));
-    expect(window.confirm).toHaveBeenCalledWith('Submit private-deployment for publication? Administrators will then be able to discover and review this exact revision.');
+    fireEvent.click(screen.getByRole('button', { name: 'Request listing for private-deployment' }));
+    expect(window.confirm).toHaveBeenCalledWith('Submit private-deployment for listing? Administrators will then be able to discover and review this exact revision.');
     await waitFor(() => expect(api.requestEngineRegistrationPublication).toHaveBeenCalledOnce());
     await waitFor(() => expect(within(screen.getByRole('heading', { name: 'private-deployment' }).closest('li')!).getByText('In review')).toBeInTheDocument());
 
@@ -296,7 +296,7 @@ describe('engine catalog for a signed-in account', () => {
     vi.mocked(window.confirm).mockReturnValueOnce(false);
     renderPage(admin);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Request publication for private-deployment' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Request listing for private-deployment' }));
 
     expect(api.requestEngineRegistrationPublication).not.toHaveBeenCalled();
     expect(within(screen.getByRole('heading', { name: 'private-deployment' }).closest('li')!).getByText('Private')).toBeInTheDocument();

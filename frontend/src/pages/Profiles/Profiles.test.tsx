@@ -97,7 +97,7 @@ describe('language: profiles, dialects and registered resources', () => {
     ]);
     expect(within(chain).getByText('Instance')).toBeInTheDocument();
     expect(within(chain).getByText('Exact revision')).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'Language sections' })).toHaveTextContent('Profiles & dialects');
+    expect(screen.queryByRole('navigation', { name: 'Language sections' })).not.toBeInTheDocument();
     await screen.findByRole('heading', { name: 'Profiles' });
   });
 
@@ -148,7 +148,7 @@ describe('language: profiles, dialects and registered resources', () => {
     unmount();
 
     renderPage(lucia);
-    expect(await screen.findByRole('link', { name: 'Submit a dialect or resource' })).toHaveAttribute('href', '/app/language/extensions');
+    expect(await screen.findByRole('link', { name: 'Submit a dialect or resource' })).toHaveAttribute('href', '/language/extensions');
   });
 
   it('copies the exact reference of a registered resource', async () => {

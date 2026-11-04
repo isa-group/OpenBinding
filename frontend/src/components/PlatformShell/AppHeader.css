@@ -99,7 +99,7 @@
   animation: app-menu-in 160ms var(--ease-out);
 }
 
-.app-tools-panel { left: 0; }
+.app-lab-panel { left: 0; }
 .app-new-panel, .app-account-panel { right: 0; }
 .app-account-panel { top: calc(100% + var(--tp-spacing-xs)); width: 15rem; }
 
@@ -123,7 +123,18 @@
 .app-menu-panel a[aria-current="page"] { color: var(--tp-ink); font-weight: 500; }
 .app-menu-panel a:focus-visible, .app-menu-panel button:focus-visible { outline-offset: -2px; }
 .app-menu-panel small, .app-mobile-menu small { color: var(--tp-steel); font-size: 0.6875rem; font-weight: 400; }
-.app-menu-disabled { color: var(--tp-stone); cursor: not-allowed; }
+.app-menu-disabled, .app-menu-disabled [aria-disabled="true"] { color: var(--tp-stone); cursor: not-allowed; }
+.app-menu-disabled [aria-disabled="true"] { flex: none; }
+/* In the header row the hint stays out of the way: it is read as the description of the disabled entry. */
+.app-nav .app-menu-disabled { position: relative; }
+.app-nav .app-menu-disabled small {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .app-menu-panel hr { width: 100%; margin: var(--tp-spacing-xxs) 0 0; border: 0; border-top: 1px solid var(--tp-hairline); }
 
 .app-account-card { display: grid; gap: 2px; padding: 0.625rem var(--tp-spacing-sm); border-bottom: 1px solid var(--tp-hairline); }

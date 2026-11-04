@@ -101,8 +101,11 @@ describe('public workbench', () => {
     expect(screen.getByText('No package yet')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Log in to run' })).toHaveAttribute('href', '/login');
     expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/register');
-    expect(screen.getByRole('link', { name: 'Browse official examples' })).toHaveAttribute('href', '/examples');
-    expect(screen.getByRole('navigation', { name: 'Language sections' })).toHaveTextContent('Workbench');
+    expect(screen.getByRole('link', { name: 'Browse official examples' })).toHaveAttribute('href', '/explore/examples');
+    const sections = screen.getByRole('navigation', { name: 'Language sections' });
+    expect(Array.from(sections.children).map((child) => child.textContent)).toEqual(['Profiles and dialects', 'Schemas', 'Extensions', 'Examples', 'Workbench']);
+    expect(within(sections).getByText('Workbench')).toHaveAttribute('aria-current', 'page');
+    expect(within(sections).getByRole('link', { name: 'Extensions' })).toHaveAttribute('href', '/language/extensions');
     expect(await screen.findByRole('button', { name: /demo\/01_simple_seq/ })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /Official example package/ })).toHaveLength(3);
     expect(screen.queryByRole('button', { name: 'Validate package' })).not.toBeInTheDocument();

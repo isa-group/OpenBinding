@@ -24,7 +24,7 @@ const ROOT = '/app/isa-demo/qos-benchmarks';
 const refusal = (status: number, code = 'refused') => Object.assign(new HttpError(status, 'refused'), { code });
 
 function renderJob(id = 'job-done-3') {
-  return renderProjectScreen(<JobDetail />, { path: '/app/:org/:project/jobs/:job', url: `${ROOT}/jobs/${id}`, organizations: [group] });
+  return renderProjectScreen(<JobDetail />, { path: '/app/:org/:project/runs/:job', url: `${ROOT}/runs/${id}`, organizations: [group] });
 }
 
 const meta = (status: string, over: Partial<Job> = {}) => jobOf('job-done-3', 'random-search', status, status === 'completed' ? 'FEASIBLE' : null, '2026-09-30T09:00:00Z', status === 'completed' ? '2026-09-30T09:01:05Z' : null, over);
@@ -51,13 +51,13 @@ describe('One run', () => {
     const header = screen.getByRole('heading', { level: 1 }).closest('header') as HTMLElement;
     expect(within(header).getByText('Completed')).toBeInTheDocument();
     expect(within(header).getByText('Feasible: meets every must-hold rule')).toBeInTheDocument();
-    expect(await within(header).findByText(/launched Sep 30, 2026, 09:00 UTC by you · case Flujo de checkout/)).toBeInTheDocument();
+    expect(await within(header).findByText(/launched Sep 30, 2026, 09:00 UTC by you · problem Flujo de checkout/)).toBeInTheDocument();
     expect(within(header).getByText(/random-search 1\.0\.0 · mode sampling/)).toBeInTheDocument();
     // [utest->req~frontend-retire-no-link-to-retired~1]
     expect(within(header).queryByRole('link', { name: 'Analyze' })).not.toBeInTheDocument();
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(crumbs).getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', `${ROOT}/jobs`);
-    expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Jobs' })).toHaveAttribute('aria-current', 'page');
+    expect(within(crumbs).getByRole('link', { name: 'Runs' })).toHaveAttribute('href', `${ROOT}/runs`);
+    expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Runs' })).toHaveAttribute('aria-current', 'page');
     expect(jobsApi.detail).toHaveBeenCalledWith('job-done-3');
   });
 
@@ -173,12 +173,12 @@ describe('One run', () => {
     expect(jobsApi.report).not.toHaveBeenCalled();
   });
 
-  it('says which snapshot and which case revision the run used', async () => {
+  it('says which snapshot and which problem version the run used', async () => {
     renderJob();
 
     const where = (await screen.findByRole('heading', { name: 'Where this result comes from' })).closest('section') as HTMLElement;
-    expect(await within(where).findByRole('link', { name: /^Snapshot snapshot/ })).toHaveAttribute('href', `${ROOT}/snapshots/snapshot-2`);
-    expect(await within(where).findByRole('link', { name: 'Flujo de checkout · revision 2' })).toHaveAttribute('href', `${ROOT}/cases/flujo/revisions/2`);
+    expect(await within(where).findByRole('link', { name: /^Snapshot snapshot/ })).toHaveAttribute('href', `${ROOT}/problems/flujo/source?version=2`);
+    expect(await within(where).findByRole('link', { name: 'Flujo de checkout · version 2' })).toHaveAttribute('href', `${ROOT}/problems/flujo?version=2`);
     expect(within(where).getByText('bim.builtin/random-search 1.0.0 · mode sampling', { exact: false })).toBeInTheDocument();
     expect(within(where).getByText('bim-reference-evaluator/v1')).toBeInTheDocument();
     expect(within(where).getByText('60 s per run')).toBeInTheDocument();
@@ -265,9 +265,9 @@ describe('One run', () => {
     jobsApi.detail.mockRejectedValue(refusal(404, 'not_found'));
     renderJob('job-theirs-2');
 
-    expect(await screen.findByRole('heading', { name: 'Job not found' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Run not found' })).toBeInTheDocument();
     expect(screen.getByText(/Everyone else, including platform administrators, gets this same answer\./)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'All jobs' })).toHaveAttribute('href', `${ROOT}/jobs`);
+    expect(screen.getByRole('link', { name: 'All runs' })).toHaveAttribute('href', `${ROOT}/runs`);
     expect(jobsApi.inProject).not.toHaveBeenCalled();
     expect(jobsApi.instance).not.toHaveBeenCalled();
   });
@@ -275,13 +275,13 @@ describe('One run', () => {
   it('explains a key without jobs:read and a gateway that does not answer', async () => {
     jobsApi.detail.mockRejectedValueOnce(refusal(403, 'api_key_forbidden'));
     const view = renderJob();
-    expect(await screen.findByText(/This API key can’t read jobs or doesn’t include this engine \(403/)).toBeInTheDocument();
+    expect(await screen.findByText(/This API key can’t read runs or doesn’t include this engine \(403/)).toBeInTheDocument();
     view.unmount();
 
     jobsApi.detail.mockRejectedValueOnce(refusal(503, 'unavailable'));
     renderJob();
-    expect(await screen.findByText(/The job couldn’t be loaded \(503/)).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Job not found' })).not.toBeInTheDocument();
+    expect(await screen.findByText(/The run couldn’t be loaded \(503/)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Run not found' })).not.toBeInTheDocument();
   });
 
   it('follows a run that is still going until it finishes', async () => {
@@ -329,7 +329,7 @@ describe('One run', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
     expect(await screen.findByText('Retry queued as a new attempt.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-5`);
+    expect(screen.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/runs/job-new-5`);
   });
 
   it('explains a run that failed because the engine takes single values only, and points at Engines', async () => {
@@ -364,7 +364,7 @@ describe('One run', () => {
 
   it.each([
     [402, 'quota_exceeded', /Retry refused: Out of allowance/],
-    [429, 'concurrency_limit_exceeded', /Retry refused: All your job slots are busy \(429/],
+    [429, 'concurrency_limit_exceeded', /Retry refused: All your run slots are busy \(429/],
     [503, 'pricing_unavailable', /Limits can’t be checked right now \(503/],
   ])('words a refused retry (%i)', async (status, code, words) => {
     jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'failed'));
@@ -400,7 +400,7 @@ describe('One run', () => {
     const heading = await within(run).findByRole('heading', { name: 'Why no combination works' });
     const why = heading.closest('section') as HTMLElement;
     expect(within(why).getByText(/Total latency is 742 ms/)).toBeInTheDocument();
-    expect(await within(why).findByRole('link', { name: 'See the rules' })).toHaveAttribute('href', `${ROOT}/cases/flujo/revisions/2`);
+    expect(await within(why).findByRole('link', { name: 'See the rules' })).toHaveAttribute('href', `${ROOT}/problems/flujo?version=2`);
     expect(within(why).getByRole('link', { name: 'Try faster providers' })).toHaveAttribute('href', `${ROOT}/workbench?case=flujo`);
 
     const badge = within(run).getByText('INFEASIBLE');

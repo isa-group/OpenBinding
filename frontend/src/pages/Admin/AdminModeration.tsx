@@ -107,7 +107,7 @@ function ExtensionApproval({ waiting, onDecided }: { waiting: number | null; onD
 
       <p className="adm-muted">
         The API offers approval only for dialects and resources; there is no reject action for them. Submitters see the decision on{' '}
-        <Link to="/app/language/extensions" viewTransition>Language extensions</Link>.
+        <Link to="/language/extensions" viewTransition>Language extensions</Link>.
       </p>
 
       {asking && (

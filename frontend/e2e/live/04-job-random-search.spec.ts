@@ -19,7 +19,7 @@ test.describe('live · a random-search job and its result', () => {
     test.setTimeout(300_000);
     const errors = watchPageErrors(page);
     await signInByApi(page, 'owner');
-    await page.goto(`${PROJECT_PATH}/jobs/new?case=${CASE}`);
+    await page.goto(`${PROJECT_PATH}/runs/new?case=${CASE}`);
 
     // 1 · what to solve: the case, at its latest revision.
     await expect(page.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
@@ -68,7 +68,7 @@ test.describe('live · a random-search job and its result', () => {
     await page.getByRole('link', { name: 'Follow the run' }).click();
 
     // The run page: it moves from queued to completed and shows what the engine found.
-    await expect(page).toHaveURL(new RegExp(`${PROJECT_PATH}/jobs/[0-9a-f-]+$`));
+    await expect(page).toHaveURL(new RegExp(`${PROJECT_PATH}/runs/[0-9a-f-]+$`));
     await expect(page.getByRole('heading', { level: 1, name: /random-search run/ })).toBeVisible();
     await expect(finishedResult(page)).toBeVisible({ timeout: 180_000 });
     await capture(page, testInfo, 'job-result');

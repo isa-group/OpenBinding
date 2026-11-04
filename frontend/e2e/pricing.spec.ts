@@ -132,7 +132,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       }
 
       await main.getByRole('button', { name: /Per request/ }).click();
-      const perRequest = main.getByRole('table', { name: 'Per request: Ceilings for each job' });
+      const perRequest = main.getByRole('table', { name: 'Per request: Ceilings for each run' });
       await expect(perRequest.getByText('8 MiB', { exact: true })).toBeVisible();
       await expect(perRequest.getByText('8,388,608 bytes', { exact: true })).toBeVisible();
       await main.getByRole('button', { name: 'PRO', exact: true }).click();

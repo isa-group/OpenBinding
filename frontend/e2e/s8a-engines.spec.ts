@@ -472,7 +472,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('row', { name: 'paused-solver 1.2.0' }).getByText('Passed')).toBeVisible();
 
       await main.getByRole('button', { name: 'Deactivate edge-solver 0.3.1' }).click();
-      await expect(main.getByText('Deactivated. You can’t pick it for new jobs until you activate it again.')).toBeVisible();
+      await expect(main.getByText('Deactivated. You can’t pick it for new runs until you activate it again.')).toBeVisible();
       expect(state.sent.deactivated).toEqual(['edge-solver@0.3.1']);
 
       // Publication is asked for with a confirmation, and refused while the registration is inactive.
@@ -506,7 +506,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await page.goto('/app/engines/registrations');
       await expect(main.getByText('You haven’t registered an engine')).toBeVisible();
-      await expect(main.getByText('Bring your own solver: register its deployment and use it in your jobs. It stays private until reviewed.')).toBeVisible();
+      await expect(main.getByText('Bring your own solver: register its deployment and use it in your runs. It stays private until reviewed.')).toBeVisible();
       await capture(page, testInfo, `registrations-${name}-empty`, { height: tall(1300) });
 
       state.refuse.list = unavailable;
@@ -632,16 +632,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await page.goto(`/app/engines/registrations/shared-solver?namespace=${SHARED_SOLVER.namespace}&version=${SHARED_SOLVER.version}&digest=${SHARED_SOLVER.digest}`);
       await expect(main.getByRole('heading', { level: 1, name: 'shared-solver' })).toBeVisible();
-      await expect(main.getByText('Published by priya.nair. You can pick it when launching a job.')).toBeVisible();
+      await expect(main.getByText('Published by priya.nair. You can pick it when launching a run.')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Deactivate' })).toHaveCount(0);
       await expect(main.getByRole('heading', { name: 'Credential' })).toHaveCount(0);
       await expect(main.getByRole('heading', { name: 'Delete this registration' })).toHaveCount(0);
-      await expect(main.getByRole('button', { name: 'Launch a job with it' })).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Launch a run with it' })).toBeVisible();
       await capture(page, testInfo, `detail-${name}-readonly`, { height: tall(1800) });
 
-      // The project picker is the way into a job with this engine.
-      await main.getByRole('button', { name: 'Launch a job with it' }).click();
-      await expect(main.getByRole('link', { name: /ISA Demo Group \/ QoS Benchmarks/ })).toHaveAttribute('href', /\/app\/isa-demo\/qos-benchmarks\/jobs\/new\?engine=/);
+      // The project picker is the way into a run with this engine.
+      await main.getByRole('button', { name: 'Launch a run with it' }).click();
+      await expect(main.getByRole('link', { name: /ISA Demo Group \/ QoS Benchmarks/ })).toHaveAttribute('href', /\/app\/isa-demo\/qos-benchmarks\/runs\/new\?engine=/);
 
       // Someone else’s private registration, or one that does not exist, answer the same.
       state.refuse.detail = problem(404, 'not_found', 'Engine registration not found');
@@ -662,11 +662,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('lang-extensions /app/language/extensions · dialects, adapters and registered resources with their version and provenance', async ({ page }, testInfo) => {
+    test('lang-profiles /language/extensions · dialects, adapters and registered resources with their version and provenance', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto('/app/language/extensions');
-      const main = page.locator('#platform-main');
+      await page.goto('/language/extensions');
+      const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Language extensions' })).toBeVisible();
       await expect(main.getByRole('region', { name: 'What is installed' })).toContainText('2Dialects installed');
@@ -704,28 +704,28 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('lang-extensions /app/language/extensions · nothing installed yet, a key that cannot read it (403) and a catalog that does not answer (503)', async ({ page }, testInfo) => {
+    test('lang-profiles /language/extensions · nothing installed yet, a key that cannot read it (403) and a catalog that does not answer (503)', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      const main = page.locator('#platform-main');
+      const main = page.locator('main');
 
       state.refuse.dialects = json({ dialects: [] });
       state.refuse.resources = json({ resources: [] });
       state.refuse.profiles = json({ profiles: [] });
-      await page.goto('/app/language/extensions');
+      await page.goto('/language/extensions');
       await expect(main.getByText('No dialects installed')).toBeVisible();
       await capture(page, testInfo, `language-${name}-empty`, { height: tall(1200) });
       await main.getByRole('tab', { name: /Registered resources/ }).click();
       await expect(main.getByText('No resources registered yet')).toBeVisible();
 
       state.refuse.resources = problem(403, 'insufficient_api_key_permission', 'The API key does not include this permission');
-      await page.goto('/app/language/extensions?tab=resources');
+      await page.goto('/language/extensions?tab=resources');
       await expect(main.getByText('This API key can’t read the language catalog (403)')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Manage API keys' })).toHaveAttribute('href', '/app/account/keys');
       await capture(page, testInfo, `language-${name}-403`, { height: tall(1100) });
 
       state.refuse.dialects = unavailable;
-      await page.goto('/app/language/extensions');
+      await page.goto('/language/extensions');
       await expect(main.getByText(/The language extensions couldn’t be loaded \(HTTP 503\)/)).toBeVisible();
       await capture(page, testInfo, `language-${name}-503`, { height: tall(1100) });
       state.refuse.dialects = undefined;

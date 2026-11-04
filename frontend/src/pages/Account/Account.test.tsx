@@ -36,7 +36,7 @@ function renderAccount(user: UserProfile = alice, entry = '/app/account') {
           <Route path="/app/account" element={<Account />} />
           <Route path="/app/account/keys" element={<h1>Keys screen</h1>} />
           <Route path="/app/account/identities" element={<h1>Identities screen</h1>} />
-          <Route path="/app/jobs" element={<h1>Job history screen</h1>} />
+          <Route path="/app/runs" element={<h1>Job history screen</h1>} />
           <Route path="/login" element={<h1>Sign in screen</h1>} />
         </Routes>
       </AuthContext.Provider>
@@ -65,7 +65,7 @@ describe('Profile & security', () => {
     expect(screen.getByText('Role · user')).toBeInTheDocument();
     expect(screen.getByText('Plan · BASIC')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Account' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Profile & security' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'API keys' })).toHaveAttribute('href', '/app/account/keys');
     expect(screen.queryByText(/Universidad de Sevilla/)).not.toBeInTheDocument();
   });

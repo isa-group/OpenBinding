@@ -47,7 +47,7 @@ describe('the administration console, now the overview', { timeout: 30000 }, () 
     renderAdmin(<Admin />);
     const moderation = await screen.findByRole('region', { name: 'Moderation' });
     const lines = await within(moderation).findByRole('list', { name: 'Waiting for review' });
-    expect(within(within(lines).getByText('Engine publication requests').closest('li')!).getByText('1')).toBeInTheDocument();
+    expect(within(within(lines).getByText('Engine catalogue requests').closest('li')!).getByText('1')).toBeInTheDocument();
     expect(within(moderation).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/admin/moderation');
     expect(screen.queryByRole('row', { name: /pending/ })).not.toBeInTheDocument();
     expect(api.adminListEngineRegistrations).not.toHaveBeenCalled();

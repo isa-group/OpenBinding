@@ -67,13 +67,14 @@ describe('Project overview', () => {
     expect(within(band).getByText('OWNER')).toBeInTheDocument();
     expect(within(band).getByText('Reference binding cases.')).toBeInTheDocument();
     const root = '/app/isa-demo/qos-benchmarks';
-    expect(within(band).getByRole('link', { name: 'New case' })).toHaveAttribute('href', `${root}/cases`);
-    expect(within(band).getByRole('link', { name: 'Run' })).toHaveAttribute('href', `${root}/jobs/new`);
+    expect(within(band).getByRole('link', { name: 'New problem' })).toHaveAttribute('href', `${root}/problems`);
+    expect(within(band).getByRole('link', { name: 'Run' })).toHaveAttribute('href', `${root}/runs/new`);
     expect(within(band).getByRole('link', { name: 'New study' })).toHaveAttribute('href', `${root}/studies/new`);
     // [utest->req~frontend-retire-reports-entry-points-removed~1]
     expect(within(band).queryByText('New report')).not.toBeInTheDocument();
     expect(within(band).getByRole('link', { name: 'Workbench' })).toHaveAttribute('href', `${root}/workbench`);
-    expect(within(band).getByRole('link', { name: 'Export package' })).toHaveAttribute('href', `${root}/package`);
+    // [utest->req~frontend-nav-files-retired~1]
+    expect(within(band).getByRole('link', { name: 'Export package' })).toHaveAttribute('href', `${root}/settings`);
     const crumbs = within(band).getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo');
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
@@ -86,27 +87,27 @@ describe('Project overview', () => {
 
     const strip = await screen.findByRole('region', { name: 'What’s sealed and what’s still a draft' });
     const chips = within(strip).getByRole('list', { name: 'Sealed and draft items' });
-    expect(within(chips).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['2 case revisions', '1 study run', '1 frozen report', '1 report draft']);
+    expect(within(chips).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['2 problem versions', '1 study run', '1 frozen report', '1 report draft']);
   });
 
   it('lists the cases with their revisions', async () => {
     renderOverview();
 
-    const cases = await screen.findByRole('region', { name: 'Cases' });
+    const cases = await screen.findByRole('region', { name: 'Problems' });
     const card = await within(cases).findByRole('link', { name: /Flujo de checkout/ });
-    expect(card).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/cases/flujo');
+    expect(card).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems/flujo');
     expect(within(card).getByText('2 revisions')).toBeInTheDocument();
     expect(within(card).getByText('r1')).toBeInTheDocument();
     expect(within(card).getByText('r2')).toHaveAttribute('title', expect.stringContaining('latest'));
     expect(within(card).getByText('Catalog grown from 5 to 8 candidates.')).toBeInTheDocument();
-    expect(within(cases).getByRole('link', { name: 'All cases' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/cases');
+    expect(within(cases).getByRole('link', { name: 'All problems' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems');
   });
 
   it('lists every job as a summary but opens only the ones this account launched', async () => {
     renderOverview();
 
-    const card = await screen.findByRole('region', { name: 'Recent jobs' });
-    const list = await within(card).findByRole('list', { name: 'Recent jobs' });
+    const card = await screen.findByRole('region', { name: 'Recent runs' });
+    const list = await within(card).findByRole('list', { name: 'Recent runs' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(3);
     expect(within(list).getByText('Running')).toBeInTheDocument();
     expect(within(list).getByText('No feasible binding')).toBeInTheDocument();
@@ -114,16 +115,16 @@ describe('Project overview', () => {
     expect(within(list).getByText(/Oct 1, 2026, 09:00 UTC · 40 s/)).toBeInTheDocument();
     const opens = within(list).getAllByRole('link');
     expect(opens.map((link) => link.getAttribute('href'))).toEqual([
-      '/app/isa-demo/qos-benchmarks/jobs/job-1', '/app/isa-demo/qos-benchmarks/jobs/job-3',
+      '/app/isa-demo/qos-benchmarks/runs/job-1', '/app/isa-demo/qos-benchmarks/runs/job-3',
     ]);
     expect(within(list).getAllByText('Owner only')).toHaveLength(1);
-    expect(within(list).getByText('Owner only')).toHaveAttribute('title', 'Jobs open only for whoever launched them');
+    expect(within(list).getByText('Owner only')).toHaveAttribute('title', 'Runs open only for whoever launched them');
   });
 
   it('lets a platform administrator open every job', async () => {
     renderOverview({ user: iker });
 
-    const list = await screen.findByRole('list', { name: 'Recent jobs' });
+    const list = await screen.findByRole('list', { name: 'Recent runs' });
     expect(within(list).getAllByRole('link')).toHaveLength(3);
     expect(within(list).queryByText('Owner only')).not.toBeInTheDocument();
   });
@@ -133,7 +134,7 @@ describe('Project overview', () => {
 
     const card = await screen.findByRole('region', { name: 'Studies' });
     expect(await within(card).findByText('Run #1 · partial')).toBeInTheDocument();
-    expect(within(card).getByText('2 case revisions × 2 engines × 2 seeds = 8 cells · Sep 20, 2026')).toBeInTheDocument();
+    expect(within(card).getByText('2 problem versions × 2 engines × 2 seeds = 8 cells · Sep 20, 2026')).toBeInTheDocument();
     expect(within(card).getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8' })).toBeInTheDocument();
   });
 
@@ -141,8 +142,8 @@ describe('Project overview', () => {
   it('has no Reports card, no All reports link and no link to the retired report addresses, and keeps the other cards', async () => {
     renderOverview();
 
-    expect(await screen.findByRole('region', { name: 'Recent jobs' })).toBeInTheDocument();
-    for (const name of ['Cases', 'Studies']) expect(await screen.findByRole('region', { name })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Recent runs' })).toBeInTheDocument();
+    for (const name of ['Problems', 'Studies']) expect(await screen.findByRole('region', { name })).toBeInTheDocument();
     await screen.findByText('Run #1 · partial');
     expect(screen.queryByRole('region', { name: 'Reports' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'All reports' })).not.toBeInTheDocument();
@@ -157,7 +158,7 @@ describe('Project overview', () => {
     platform.reports.mockRejectedValue(refusal(503, 'unavailable'));
     renderOverview();
 
-    for (const name of ['Recent jobs', 'Cases', 'Studies']) expect(await screen.findByRole('region', { name })).toBeInTheDocument();
+    for (const name of ['Recent runs', 'Problems', 'Studies']) expect(await screen.findByRole('region', { name })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
@@ -176,30 +177,30 @@ describe('Project overview', () => {
       platform.projectJobs.mockRejectedValueOnce(refusal(503, 'unavailable'));
       renderOverview();
 
-      const card = await screen.findByRole('region', { name: 'Recent jobs' });
-      expect(await within(card).findByRole('alert')).toHaveTextContent('Jobs couldn’t be loaded (503 · unavailable). The rest of the page is unaffected.');
+      const card = await screen.findByRole('region', { name: 'Recent runs' });
+      expect(await within(card).findByRole('alert')).toHaveTextContent('Runs couldn’t be loaded (503 · unavailable). The rest of the page is unaffected.');
       expect(await screen.findByRole('link', { name: /Flujo de checkout/ })).toBeInTheDocument();
       expect(screen.getByRole('region', { name: 'Studies' })).toBeInTheDocument();
 
       fireEvent.click(within(card).getByRole('button', { name: 'Retry' }));
-      expect(await within(card).findByRole('list', { name: 'Recent jobs' })).toBeInTheDocument();
+      expect(await within(card).findByRole('list', { name: 'Recent runs' })).toBeInTheDocument();
     });
 
     it('jobs: a key without permission is told apart', async () => {
       platform.projectJobs.mockRejectedValue(refusal(403, 'forbidden'));
       renderOverview();
 
-      const card = await screen.findByRole('region', { name: 'Recent jobs' });
-      expect(await within(card).findByRole('alert')).toHaveTextContent('You can’t list jobs with this account or key (403).');
+      const card = await screen.findByRole('region', { name: 'Recent runs' });
+      expect(await within(card).findByRole('alert')).toHaveTextContent('You can’t list runs with this account or key (403).');
     });
 
     it('cases: the strip waits for the numbers it can’t compute', async () => {
       platform.cases.mockRejectedValue(refusal(503));
       renderOverview();
 
-      expect(await screen.findByText(/Cases couldn’t be loaded \(503/)).toBeInTheDocument();
+      expect(await screen.findByText(/Problems couldn’t be loaded \(503/)).toBeInTheDocument();
       expect(screen.queryByRole('region', { name: 'What’s sealed and what’s still a draft' })).not.toBeInTheDocument();
-      expect(await screen.findByRole('list', { name: 'Recent jobs' })).toBeInTheDocument();
+      expect(await screen.findByRole('list', { name: 'Recent runs' })).toBeInTheDocument();
     });
   });
 
@@ -208,18 +209,19 @@ describe('Project overview', () => {
       platform.project.mockResolvedValue(project('qos-benchmarks', { name: 'QoS Benchmarks', organization_id: viewing.id }));
     });
 
-    it('reads everything and exports, but cannot create', async () => {
+    // [utest->req~frontend-nav-files-retired~1]
+    it('reads everything, but cannot create and has no link to the package export of the settings', async () => {
       renderOverview({ slug: 'read-lab' });
 
       const title = await screen.findByRole('heading', { level: 1, name: 'QoS Benchmarks' });
       const band = title.closest('.proj-band') as HTMLElement;
       expect(within(band).getByText('VIEWER')).toBeInTheDocument();
-      expect(within(band).queryByRole('link', { name: 'New case' })).not.toBeInTheDocument();
-      expect(within(band).getByText('New case')).toHaveAttribute('aria-disabled', 'true');
-      expect(within(band).getByText('New case')).toHaveAttribute('title', 'Needs MEMBER');
+      expect(within(band).queryByRole('link', { name: 'New problem' })).not.toBeInTheDocument();
+      expect(within(band).getByText('New problem')).toHaveAttribute('aria-disabled', 'true');
+      expect(within(band).getByText('New problem')).toHaveAttribute('title', 'Needs MEMBER');
       expect(within(band).getByText('Run')).toHaveAttribute('aria-disabled', 'true');
-      expect(within(band).getByRole('link', { name: 'Export package' })).toBeEnabled();
-      expect(within(band).getByText('You’re a VIEWER: you can read everything here and export the package; creating needs MEMBER.')).toBeInTheDocument();
+      expect(within(band).queryByRole('link', { name: 'Export package' })).not.toBeInTheDocument();
+      expect(within(band).getByText('You’re a VIEWER: you can read everything here; creating needs MEMBER.')).toBeInTheDocument();
     });
   });
 
@@ -233,10 +235,10 @@ describe('Project overview', () => {
     const guide = await screen.findByRole('region', { name: 'Get started' });
     const steps = within(guide).getAllByRole('listitem');
     expect(steps).toHaveLength(3);
-    expect(within(guide).getByRole('link', { name: 'Browse examples' })).toHaveAttribute('href', '/examples');
-    expect(within(guide).getByRole('link', { name: 'New case' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/cases');
+    expect(within(guide).getByRole('link', { name: 'Browse examples' })).toHaveAttribute('href', '/explore/examples');
+    expect(within(guide).getByRole('link', { name: 'New problem' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems');
     expect(within(guide).getByRole('link', { name: 'Open Workbench' })).toHaveAttribute('href', '/workbench');
-    expect(screen.queryByRole('region', { name: 'Recent jobs' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Recent runs' })).not.toBeInTheDocument();
   });
 
   describe('a public project opened by someone who is not a member', () => {
@@ -256,15 +258,16 @@ describe('Project overview', () => {
       expect(screen.getByText('You are viewing a public project (read-only).')).toBeInTheDocument();
       expect(within(band).getByText('Public')).toBeInTheDocument();
       expect(within(band).queryByText('No role')).not.toBeInTheDocument();
-      for (const name of ['New case', 'Run', 'New study', 'New report', 'Export package']) {
+      for (const name of ['New problem', 'Run', 'New study', 'New report', 'Export package']) {
         expect(within(band).queryByText(name)).not.toBeInTheDocument();
       }
-      expect(within(band).getByRole('link', { name: 'Browse cases' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/cases');
+      expect(within(band).getByRole('link', { name: 'Browse problems' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/problems');
       const tabs = within(screen.getByRole('navigation', { name: 'Project sections' }));
-      expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Cases', 'Collections', 'Studies', 'Publications', 'Files']);
-      expect(tabs.getByRole('link', { name: 'Publications' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/publications');
+      // [utest->req~frontend-nav-project-tabs~1]
+      expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Problems', 'Collections', 'Studies', 'Published']);
+      expect(tabs.getByRole('link', { name: 'Published' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/published');
       expect(tabs.queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
-      expect(tabs.queryByRole('link', { name: 'Jobs' })).not.toBeInTheDocument();
+      expect(tabs.queryByRole('link', { name: 'Runs' })).not.toBeInTheDocument();
       expect(tabs.queryByRole('link', { name: 'Package' })).not.toBeInTheDocument();
       expect(tabs.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
     });
@@ -275,7 +278,7 @@ describe('Project overview', () => {
       expect(await screen.findByRole('link', { name: /Flujo de checkout/ })).toBeInTheDocument();
       expect(screen.getByRole('region', { name: 'Studies' })).toBeInTheDocument();
       expect(screen.queryByRole('region', { name: 'Reports' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('region', { name: 'Recent jobs' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Recent runs' })).not.toBeInTheDocument();
       expect(platform.projectJobs).not.toHaveBeenCalled();
       expect(api.listOwnJobs).not.toHaveBeenCalled();
     });
@@ -295,7 +298,7 @@ describe('Project overview', () => {
       renderOverview({ slug: 'open-lab', user: iker });
 
       const title = await screen.findByRole('heading', { level: 1, name: 'QoS Benchmarks' });
-      expect(within(title.closest('.proj-band') as HTMLElement).queryByText('New case')).not.toBeInTheDocument();
+      expect(within(title.closest('.proj-band') as HTMLElement).queryByText('New problem')).not.toBeInTheDocument();
     });
   });
 

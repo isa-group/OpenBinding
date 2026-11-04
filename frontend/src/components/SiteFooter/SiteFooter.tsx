@@ -8,7 +8,7 @@ const columns = [
       { label: 'Explore', to: '/explore' },
       { label: 'Engines', to: '/engines' },
       { label: 'Pricing', to: '/pricing' },
-      { label: 'Status', to: '/status' },
+      { label: 'Verify', to: '/verify' },
     ],
   },
   {
@@ -16,7 +16,7 @@ const columns = [
     links: [
       { label: 'Profiles & dialects', to: '/language' },
       { label: 'Schemas', to: '/language/schemas/application' },
-      { label: 'Examples', to: '/examples' },
+      { label: 'Examples', to: '/explore/examples' },
       { label: 'Workbench', to: '/workbench' },
     ],
   },

@@ -1,5 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { detailRows, toCsv } from './auditModel';
+import { actionLabel, detailRows, toCsv } from './auditModel';
+
+describe('actionLabel', () => {
+  // [utest->req~frontend-nav-vocabulary-text~1]
+  it('keeps the labels of the known actions', () => {
+    expect(actionLabel('project.created')).toBe('Project created');
+    expect(actionLabel('organization.member.removed')).toBe('Member removed');
+  });
+
+  // [utest->req~frontend-nav-vocabulary-text~1]
+  it('reads an unknown action in the words of the interface', () => {
+    expect(actionLabel('binding_case.created')).toBe('Binding problem created');
+    expect(actionLabel('job.cancelled')).toBe('Run cancelled');
+    expect(actionLabel('publication.withdrawn')).toBe('Published result withdrawn');
+    expect(actionLabel('study.frozen')).toBe('Study frozen');
+  });
+
+  // [utest->req~frontend-nav-vocabulary-text~1]
+  it('reads the keys of a detail in the same words', () => {
+    expect(detailRows({ case_slug: 'flujo', jobCount: 2 }).map((row) => row.label)).toEqual(['Problem slug', 'Run count']);
+  });
+});
 
 describe('detailRows', () => {
   // [utest->req~frontend-audit-detail-rendered~1]

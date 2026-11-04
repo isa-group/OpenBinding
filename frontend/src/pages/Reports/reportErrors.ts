@@ -1,6 +1,7 @@
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { diagnosticLines } from '../../api/problem';
+import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import { limitInfo } from '../../utils/limits';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import type { Refusal } from '../Jobs/jobErrors';
@@ -40,9 +41,9 @@ function unprocessable(code: string | undefined, said: string, nothing: string, 
       return { ...base, kind: 'incompatible', title: `The provenance names another run${at}`, text: `study.runId and study.matrixDigest must match the run this report is pinned to. ${nothing}` };
     case 'incomplete_evidence':
     case 'invalid_evidence':
-      return { ...base, kind: 'incompatible', title: `The evidence can’t be identified${at}`, text: `${gateway}Every job or run a report cites must be named exactly. ${nothing}` };
+      return { ...base, kind: 'incompatible', title: `The evidence can’t be identified${at}`, text: `${gateway}Every run a report cites must be named exactly. ${nothing}` };
     case 'nonterminal_evidence':
-      return { ...base, kind: 'terminal', title: `The evidence hasn’t finished${at}`, text: `A report is sealed only once every run and job it cites has ended. ${nothing}` };
+      return { ...base, kind: 'terminal', title: `The evidence hasn’t finished${at}`, text: `A report is sealed only once every run it cites has ended. ${nothing}` };
     case 'evidence_digest_mismatch':
       return { ...base, kind: 'conflict', title: `The evidence changed since it was recorded${at}`, text: `A stored result differs from the one this report recorded. ${nothing}` };
     case 'foreign_evidence':
@@ -75,9 +76,10 @@ export function reportRefusal(caught: unknown, action: ReportAction): Refusal {
 
   if (failure.status === 402) {
     const info = limitInfo(quota?.limit_id ?? 'storage');
+    const noun = inInterfaceWords(info.short);
     return {
-      ...base, kind: 'quota', limitId: quota?.limit_id, title: `Out of ${info.short}${at}`,
-      text: `${quota ? `You’ve used ${(quota.used ?? quota.limit).toLocaleString('en-US')} of ${quota.limit.toLocaleString('en-US')} ${info.short}.` : `You’ve used all your ${info.short}.`} ${nothing}`,
+      ...base, kind: 'quota', limitId: quota?.limit_id, title: `Out of ${noun}${at}`,
+      text: `${quota ? `You’ve used ${(quota.used ?? quota.limit).toLocaleString('en-US')} of ${quota.limit.toLocaleString('en-US')} ${noun}.` : `You’ve used all your ${noun}.`} ${nothing}`,
     };
   }
 
@@ -100,7 +102,7 @@ export function reportRefusal(caught: unknown, action: ReportAction): Refusal {
       case 'report_not_frozen':
         return { ...base, kind: 'terminal', title: `Only frozen editions can be published${at}`, text: `Freeze this report first. ${nothing}` };
       case 'publication_conflict':
-        return { ...base, kind: 'conflict', title: `That address is used, or this edition is already published${at}`, text: `Change the public address, or open the existing publication. ${nothing}` };
+        return { ...base, kind: 'conflict', title: `That address is used, or this edition is already published${at}`, text: `Change the public address, or open the existing published result. ${nothing}` };
       case 'publication_withdrawn':
         return { ...base, kind: 'conflict', title: `This edition was published and withdrawn${at}`, text: `A withdrawn edition keeps its link; it can’t be published again. Freeze a new edition. ${nothing}` };
       case 'report_history_retained':

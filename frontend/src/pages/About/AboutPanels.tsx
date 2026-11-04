@@ -63,7 +63,7 @@ export function ResearchPanel({ research, facts }: { research: AboutData['resear
       <section aria-labelledby="about-sources-title" className="about-sources">
         <h2 id="about-sources-title">Sources represented in the executable corpus.</h2>
         <p>
-          Authors retain authorship of the original work; OpenBinding records only its derived test-case provenance and labels every
+          Authors retain authorship of the original work; OpenBinding records only the provenance of the test problems derived from it and labels every
           illustrative value.
         </p>
       </section>

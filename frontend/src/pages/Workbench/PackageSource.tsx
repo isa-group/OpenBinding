@@ -11,7 +11,7 @@ import type { Workbench } from './useWorkbench';
 type SourceTab = 'case' | 'upload' | 'example';
 
 const TABS = [
-  { id: 'case', label: 'Case revision' },
+  { id: 'case', label: 'Problem version' },
   { id: 'upload', label: 'Upload file' },
   { id: 'example', label: 'Example' },
 ] as const;
@@ -23,7 +23,7 @@ interface CaseChoices {
   revisionsState: 'idle' | 'loading' | 'ready' | 'failed';
   picked: string;
   onPickCase: (slug: string) => void;
-  /** The revision the workspace was opened from (id or number), if any. */
+  /** The problem version the workspace was opened from (id or number), if any. */
   openedRevision: string | null;
   onPickRevision: (revision: CaseRevision) => void;
 }
@@ -39,7 +39,7 @@ interface PackageSourceProps {
   casesHref: string;
 }
 
-/** Where the package comes from: a revision of a case, a file from the computer, or one of the examples. */
+/** Where the package comes from: a version of a problem, a file from the computer, or one of the examples. */
 export function PackageSource({ wb, choices, requestedExample, maxBytes, maxLabel, planName, casesHref }: PackageSourceProps) {
   const [tab, setTab] = useState<SourceTab>(requestedExample ? 'example' : 'case');
   const [dragging, setDragging] = useState(false);
@@ -64,20 +64,20 @@ export function PackageSource({ wb, choices, requestedExample, maxBytes, maxLabe
       <TabPanel prefix="wb-source" active={tab}>
         {tab === 'case' && (
           <div className="wb-source-body">
-            {choices.state === 'failed' && <Notice tone="warning">The project’s cases couldn’t be listed. You can still upload a file or open an example.</Notice>}
+            {choices.state === 'failed' && <Notice tone="warning">The project’s problems couldn’t be listed. You can still upload a file or open an example.</Notice>}
             {choices.state === 'ready' && choices.cases.length === 0 && (
-              <p className="wb-muted">This project has no cases yet. Start one in <Link to={casesHref} viewTransition>Cases</Link>, or upload a file.</p>
+              <p className="wb-muted">This project has no problems yet. Start one in <Link to={casesHref} viewTransition>Problems</Link>, or upload a file.</p>
             )}
             <div className="wb-source-row">
               <label className="wb-field">
-                <span>Case</span>
+                <span>Problem</span>
                 <select value={choices.picked} disabled={choices.state !== 'ready' || choices.cases.length === 0} onChange={(event) => choices.onPickCase(event.target.value)}>
-                  <option value="">{choices.state === 'loading' ? 'Loading cases…' : 'Choose a case…'}</option>
+                  <option value="">{choices.state === 'loading' ? 'Loading problems…' : 'Choose a problem…'}</option>
                   {choices.cases.map((item) => <option key={item.id} value={item.slug}>{item.name}</option>)}
                 </select>
               </label>
               <label className="wb-field">
-                <span>Revision</span>
+                <span>Problem version</span>
                 <select
                   value={opened?.id ?? ''}
                   disabled={!choices.picked || choices.revisionsState !== 'ready' || choices.revisions.length === 0}
@@ -86,15 +86,15 @@ export function PackageSource({ wb, choices, requestedExample, maxBytes, maxLabe
                     if (revision) choices.onPickRevision(revision);
                   }}
                 >
-                  <option value="">{choices.revisionsState === 'loading' ? 'Loading revisions…' : choices.picked && choices.revisionsState === 'ready' && choices.revisions.length === 0 ? 'No revisions yet' : 'Choose a revision…'}</option>
+                  <option value="">{choices.revisionsState === 'loading' ? 'Loading versions…' : choices.picked && choices.revisionsState === 'ready' && choices.revisions.length === 0 ? 'No versions yet' : 'Choose a version…'}</option>
                   {choices.revisions.map((revision) => (
-                    <option key={revision.id} value={revision.id}>{pickedCase?.name ?? choices.picked} · revision {revision.revision}</option>
+                    <option key={revision.id} value={revision.id}>{pickedCase?.name ?? choices.picked} · version {revision.revision}</option>
                   ))}
                 </select>
               </label>
-              {opened && wb.hydrated && <Chip tone="accent">Loaded revision {opened.revision}</Chip>}
+              {opened && wb.hydrated && <Chip tone="accent">Loaded version {opened.revision}</Chip>}
             </div>
-            {choices.revisionsState === 'failed' && <Notice tone="warning">That case’s revisions couldn’t be listed.</Notice>}
+            {choices.revisionsState === 'failed' && <Notice tone="warning">That problem’s versions couldn’t be listed.</Notice>}
           </div>
         )}
         {tab === 'upload' && (
@@ -139,7 +139,7 @@ export function PackageSource({ wb, choices, requestedExample, maxBytes, maxLabe
                 {wb.examples.map((path) => <option key={path} value={path}>{path}</option>)}
               </select>
             </label>
-            <p className="wb-muted">Or pick a ready example in <Link to="/examples" viewTransition>Examples</Link> and choose “Open in workbench”.</p>
+            <p className="wb-muted">Or pick a ready example in <Link to="/explore/examples" viewTransition>Examples</Link> and choose “Open in workbench”.</p>
           </div>
         )}
       </TabPanel>

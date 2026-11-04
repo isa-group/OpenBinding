@@ -90,12 +90,12 @@ describe('Workbench', () => {
       await openWorkbench();
 
       expect(screen.getByRole('heading', { level: 1, name: 'Workbench' })).toBeInTheDocument();
-      expect(screen.getByText('Check a package, see which engines can run it, then snapshot, run or save it as a case revision.')).toBeInTheDocument();
+      expect(screen.getByText('Check a package, see which engines can run it, then snapshot, run or save it as a problem version.')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Generate a synthetic instance' })).toHaveAttribute('href', '/app/generator');
-      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Cases' })).toHaveAttribute('aria-current', 'page');
+      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Problems' })).toHaveAttribute('aria-current', 'page');
       expect(within(screen.getByRole('navigation', { name: 'Breadcrumb' })).getByText('Workbench')).toHaveAttribute('aria-current', 'page');
-      expect(screen.getAllByRole('tab').slice(0, 3).map((tab) => tab.textContent)).toEqual(['Case revision', 'Upload file', 'Example']);
-      expect(screen.getByRole('tab', { name: 'Case revision' })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getAllByRole('tab').slice(0, 3).map((tab) => tab.textContent)).toEqual(['Problem version', 'Upload file', 'Example']);
+      expect(screen.getByRole('tab', { name: 'Problem version' })).toHaveAttribute('aria-selected', 'true');
       expect(screen.getByText(/Nothing validated yet/)).toBeInTheDocument();
       expect(screen.queryByRole('region', { name: 'Package actions' })).not.toBeInTheDocument();
 
@@ -107,7 +107,7 @@ describe('Workbench', () => {
       await openWorkbench();
       fireEvent.click(screen.getByRole('tab', { name: 'Example' }));
       expect(await screen.findByRole('option', { name: 'demo/01_simple_seq' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Examples' })).toHaveAttribute('href', '/examples');
+      expect(screen.getByRole('link', { name: 'Examples' })).toHaveAttribute('href', '/explore/examples');
     });
 
     it('keeps the package import control keyboard-focusable', async () => {
@@ -404,15 +404,15 @@ describe('Workbench', () => {
   });
 
   describe('where the package comes from', () => {
-    it('opens a case revision from the address with its registered resources', async () => {
+    it('opens a problem version from the address with its registered resources', async () => {
       const version = refOf('checkout-app', '3', '1');
       const registered = revisionOf(checkout, 2, { document: revisionDocument([['application', 'checkout', version]]) });
       platform.caseRevisions.mockResolvedValue([r1, registered]);
       await openWorkbench({ query: `?case=flujo-checkout&revision=${registered.id}` });
 
-      expect(await screen.findByText('Loaded revision 2')).toBeInTheDocument();
+      expect(await screen.findByText('Loaded version 2')).toBeInTheDocument();
       expect(screen.getByRole('navigation', { name: 'BIM resources' })).toHaveTextContent('isa-demo/checkout-app@3');
-      await waitFor(() => expect(screen.getByRole('combobox', { name: 'Case' })).toHaveValue('flujo-checkout'));
+      await waitFor(() => expect(screen.getByRole('combobox', { name: 'Problem' })).toHaveValue('flujo-checkout'));
     });
 
     it('reads the files of the snapshot a revision came from when it holds local files', async () => {
@@ -426,28 +426,28 @@ describe('Workbench', () => {
       await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('from-snapshot'));
     });
 
-    it('loads the revision chosen in the case and revision selects', async () => {
+    it('loads the version chosen in the problem and problem version selects', async () => {
       const version = refOf('checkout-app', '1', '2');
       platform.caseRevisions.mockResolvedValue([revisionOf(checkout, 1, { document: revisionDocument([['application', 'checkout', version]]) }), r2]);
       await openWorkbench();
 
       await screen.findByRole('option', { name: 'Flujo de checkout' });
-      fireEvent.change(screen.getByRole('combobox', { name: 'Case' }), { target: { value: 'flujo-checkout' } });
-      await waitFor(() => expect(screen.getByRole('combobox', { name: 'Revision' })).toBeEnabled());
-      const options = within(screen.getByRole('combobox', { name: 'Revision' })).getAllByRole('option').map((option) => option.textContent);
-      expect(options).toEqual(['Choose a revision…', 'Flujo de checkout · revision 2', 'Flujo de checkout · revision 1']);
-      fireEvent.change(screen.getByRole('combobox', { name: 'Revision' }), { target: { value: r1.id } });
+      fireEvent.change(screen.getByRole('combobox', { name: 'Problem' }), { target: { value: 'flujo-checkout' } });
+      await waitFor(() => expect(screen.getByRole('combobox', { name: 'Problem version' })).toBeEnabled());
+      const options = within(screen.getByRole('combobox', { name: 'Problem version' })).getAllByRole('option').map((option) => option.textContent);
+      expect(options).toEqual(['Choose a version…', 'Flujo de checkout · version 2', 'Flujo de checkout · version 1']);
+      fireEvent.change(screen.getByRole('combobox', { name: 'Problem version' }), { target: { value: r1.id } });
 
-      expect(await screen.findByText('Loaded revision 1')).toBeInTheDocument();
+      expect(await screen.findByText('Loaded version 1')).toBeInTheDocument();
       expect(screen.getByRole('navigation', { name: 'BIM resources' })).toHaveTextContent('isa-demo/checkout-app@1');
     });
 
-    it('says a revision that cannot be opened was not loaded, and tries again on request', async () => {
+    it('says a version that cannot be opened was not loaded, and tries again on request', async () => {
       renderWorkbench({ query: '?case=flujo-checkout&revision=missing' });
 
       const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('The case revision couldn’t be loaded');
-      expect(alert).toHaveTextContent('That case revision doesn’t exist any more, or you’re not in the organization it belongs to (404). The package was not loaded.');
+      expect(alert).toHaveTextContent('The problem version couldn’t be loaded');
+      expect(alert).toHaveTextContent('That problem version doesn’t exist any more, or you’re not in the organization it belongs to (404). The package was not loaded.');
       expect(screen.queryByRole('navigation', { name: 'BIM resources' })).not.toBeInTheDocument();
       fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
       await waitFor(() => expect(platform.caseRevisions.mock.calls.length).toBeGreaterThan(2));
@@ -504,7 +504,7 @@ describe('Workbench', () => {
     });
   });
 
-  describe('snapshot and revision', () => {
+  describe('snapshot and problem version', () => {
     it('makes one private snapshot, reuses it for the run, and forgets it when the package changes', async () => {
       await validated();
       const bar = screen.getByRole('region', { name: 'Package actions' });
@@ -512,7 +512,8 @@ describe('Workbench', () => {
 
       expect(await screen.findByText('Snapshot created. It is private to your account and never changes.')).toBeInTheDocument();
       expect(within(bar).getByRole('button', { name: 'Snapshot created' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/snapshots/snapshot-1`);
+      // [utest->req~frontend-nav-vocabulary-text~1]
+      expect(screen.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems`);
       expect(await screen.findByRole('img', { name: /^Workflow:/ })).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
@@ -536,52 +537,80 @@ describe('Workbench', () => {
       expect(alert).toHaveTextContent('This package is larger than your plan allows per request (413), so no snapshot was made.');
     });
 
-    it('saves the package as a revision of the chosen case, with the snapshot it came from', async () => {
-      workbench.saveRevision.mockResolvedValue(revisionOf(checkout, 3));
+    // [utest->req~frontend-nav-vocabulary-text~1]
+    it('opens the snapshot on the Source tab of the problem version that was sealed from it', async () => {
+      platform.caseRevisions.mockResolvedValue([r1, r2, revisionOf(checkout, 3, { source_snapshot_id: 'snapshot-1' })]);
+      await openWorkbench({ query: '?case=flujo-checkout' });
+      validate();
+      await screen.findByRole('heading', { name: 'Valid package' });
+      await waitFor(() => expect(screen.getByRole('combobox', { name: 'Save into problem' })).toHaveValue('flujo-checkout'));
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Save as problem version' })).toBeEnabled());
+      fireEvent.click(screen.getByRole('button', { name: 'Create snapshot' }));
+
+      expect(await screen.findByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/source?version=3`);
+    });
+
+    // [utest->req~frontend-nav-vocabulary-text~1]
+    it('opens the problem list for a snapshot that no version of the chosen problem came from', async () => {
+      await openWorkbench({ query: '?case=flujo-checkout' });
+      validate();
+      await screen.findByRole('heading', { name: 'Valid package' });
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Save as problem version' })).toBeEnabled());
+      fireEvent.click(screen.getByRole('button', { name: 'Create snapshot' }));
+
+      expect(await screen.findByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems`);
+    });
+
+    it('saves the package as a version of the chosen problem, with the snapshot it came from', async () => {
+      workbench.saveRevision.mockResolvedValue(revisionOf(checkout, 3, { source_snapshot_id: 'snapshot-1' }));
       await openWorkbench({ query: '?case=flujo-checkout' });
       validate();
       await screen.findByRole('heading', { name: 'Valid package' });
 
-      const target = await screen.findByRole('combobox', { name: 'Save into case' });
+      const target = await screen.findByRole('combobox', { name: 'Save into problem' });
       await waitFor(() => expect(target).toHaveValue('flujo-checkout'));
-      const save = screen.getByRole('button', { name: 'Save as case revision' });
+      const save = screen.getByRole('button', { name: 'Save as problem version' });
       await waitFor(() => expect(save).toBeEnabled());
       fireEvent.click(save);
 
-      expect(await screen.findByText('Revision 3 of Flujo de checkout saved and sealed.')).toBeInTheDocument();
+      expect(await screen.findByText('Version 3 of Flujo de checkout saved and sealed.')).toBeInTheDocument();
       expect(workbench.saveRevision).toHaveBeenCalledWith(
         'isa-demo', 'qos-benchmarks', 'flujo-checkout', expect.objectContaining({ apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: 'hello-bim' } }), 'snapshot-1',
       );
-      expect(screen.getByRole('link', { name: 'Open it' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/revisions/3`);
+      // [utest->req~frontend-nav-vocabulary-text~1]
+      expect(screen.getByRole('link', { name: 'Open it' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=3`);
+      // [utest->req~frontend-nav-vocabulary-text~1]
+      expect(screen.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/source?version=3`);
     });
 
-    it('says when the same content was already a revision, and asks for a case first', async () => {
+    it('says when the same content was already a version, and asks for a problem first', async () => {
       workbench.saveRevision.mockResolvedValue(r2);
       await validated();
 
-      const save = screen.getByRole('button', { name: 'Save as case revision' });
+      const save = screen.getByRole('button', { name: 'Save as problem version' });
       expect(save).toBeDisabled();
-      expect(save).toHaveAttribute('title', 'Choose the case to save into');
-      fireEvent.change(await screen.findByRole('combobox', { name: 'Save into case' }), { target: { value: 'flujo-checkout' } });
+      expect(save).toHaveAttribute('title', 'Choose the problem to save into');
+      fireEvent.change(await screen.findByRole('combobox', { name: 'Save into problem' }), { target: { value: 'flujo-checkout' } });
       await waitFor(() => expect(save).toBeEnabled());
       fireEvent.click(save);
 
-      expect(await screen.findByText('Same content as revision 2, so no new revision was needed.')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'See revisions' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout`);
+      expect(await screen.findByText('Same content as version 2, so no new version was needed.')).toBeInTheDocument();
+      // [utest->req~frontend-nav-vocabulary-text~1]
+      expect(screen.getByRole('link', { name: 'See versions' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/versions`);
     });
 
-    it('keeps the package and says why a revision was not saved (403)', async () => {
+    it('keeps the package and says why a version was not saved (403)', async () => {
       workbench.saveRevision.mockRejectedValue(refusal(403, 'forbidden'));
       await openWorkbench({ query: '?case=flujo-checkout' });
       validate();
       await screen.findByRole('heading', { name: 'Valid package' });
-      const save = screen.getByRole('button', { name: 'Save as case revision' });
+      const save = screen.getByRole('button', { name: 'Save as problem version' });
       await waitFor(() => expect(save).toBeEnabled());
       fireEvent.click(save);
 
       const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('The revision wasn’t saved');
-      expect(alert).toHaveTextContent('You need MEMBER in the organization to save a revision, and an API key needs projects:write (403 · forbidden). Nothing was saved.');
+      expect(alert).toHaveTextContent('The version wasn’t saved');
+      expect(alert).toHaveTextContent('You need MEMBER in the organization to save a version, and an API key needs projects:write (403 · forbidden). Nothing was saved.');
       expect(screen.getByRole('heading', { name: 'Valid package' })).toBeInTheDocument();
     });
 
@@ -592,9 +621,9 @@ describe('Workbench', () => {
 
       const bar = screen.getByRole('region', { name: 'Package actions' });
       expect(bar).toHaveTextContent('You can snapshot and run with your own account; saving into this project needs MEMBER.');
-      expect(within(bar).getByRole('button', { name: 'Save as case revision' })).toBeDisabled();
-      expect(within(bar).getByRole('button', { name: 'Save as case revision' })).toHaveAttribute('title', 'Saving into this project needs MEMBER');
-      expect(within(bar).queryByRole('combobox', { name: 'Save into case' })).not.toBeInTheDocument();
+      expect(within(bar).getByRole('button', { name: 'Save as problem version' })).toBeDisabled();
+      expect(within(bar).getByRole('button', { name: 'Save as problem version' })).toHaveAttribute('title', 'Saving into this project needs MEMBER');
+      expect(within(bar).queryByRole('combobox', { name: 'Save into problem' })).not.toBeInTheDocument();
       expect(within(bar).getByRole('button', { name: 'Create snapshot' })).toBeEnabled();
       expect(screen.getByRole('button', { name: 'Solve' })).toBeEnabled();
     });
@@ -752,7 +781,7 @@ describe('Workbench', () => {
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('The run did not finish');
       expect(alert).toHaveTextContent('The deployment didn’t answer within the budget.');
-      expect(within(alert).getByRole('link', { name: 'See jobs' })).toHaveAttribute('href', `${ROOT}/jobs`);
+      expect(within(alert).getByRole('link', { name: 'See runs' })).toHaveAttribute('href', `${ROOT}/runs`);
     });
 
     describe('with range features', () => {
@@ -923,7 +952,14 @@ describe('Workbench', () => {
       fireEvent.click(screen.getByRole('button', { name: /instance\.json/i }));
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'diffed' } });
       expect(screen.getByText('Modified')).toBeInTheDocument();
-      expect(screen.getByLabelText('Changes to instance.json')).toHaveTextContent('"name": "diffed"');
+      // [utest->req~frontend-nav-allow-list-empty~1]
+      const changes = screen.getByRole('region', { name: 'Changes to instance.json' });
+      expect(changes).toHaveTextContent('"name": "diffed"');
+      const text = changes.querySelector('pre')?.textContent ?? '';
+      expect(text).toMatch(/^\+ *"name": "diffed",?$/m);
+      expect(text).toMatch(/^- *"name": "(?!diffed")/m);
+      expect(changes.querySelector('pre')).not.toBeNull();
+      expect(within(changes).getByRole('button', { name: 'Copy Changes to instance.json' })).toBeInTheDocument();
     });
 
     it('reports invalid BPMN XML without replacing the last valid source or diagram', async () => {

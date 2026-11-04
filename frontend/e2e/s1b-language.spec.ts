@@ -2,7 +2,7 @@ import { expect, test, type Page, type Route, type TestInfo } from '@playwright/
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { zipStore } from '../src/utils/bimZip';
 
-// S1b · public screens, part 2: eng-catalog, eng-detail, lang-profiles, lang-schemas, lang-examples, pub-workbench.
+// S1b · public screens, part 2: eng-catalog, eng-detail, lang-profiles, lang-schemas, the examples section of pub-explore, pub-workbench.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 
@@ -408,7 +408,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByText(/Showing engines visible to your account/)).toBeVisible();
       const edge = main.getByRole('region', { name: 'Engines' }).getByRole('link', { name: /edge-solver/ });
-      for (const chip of ['Private · yours', 'Registration active', 'Conformance passed', 'Publication not requested']) await expect(edge.getByText(chip)).toBeVisible();
+      for (const chip of ['Private · yours', 'Registration active', 'Conformance passed', 'Listing not requested']) await expect(edge.getByText(chip)).toBeVisible();
       await expect(main.getByRole('link', { name: 'My registrations' })).toHaveAttribute('href', '/app/engines/registrations');
       await expect(main.getByRole('link', { name: 'Register engine' })).toHaveAttribute('href', '/app/engines/new');
       await expect(main.getByRole('heading', { name: 'My deployments' })).toBeVisible();
@@ -493,7 +493,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // The run action asks which project.
       await main.getByRole('button', { name: 'Run with this engine' }).click();
       await expect(main.getByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' }))
-        .toHaveAttribute('href', `/app/isa-demo/qos-benchmarks/jobs/new?engine=${encodeURIComponent(`lucia/edge-solver@0.3.1#${EDGE_DIGEST}`)}`);
+        .toHaveAttribute('href', `/app/isa-demo/qos-benchmarks/runs/new?engine=${encodeURIComponent(`lucia/edge-solver@0.3.1#${EDGE_DIGEST}`)}`);
 
       await main.getByRole('tab', { name: /Modes/ }).click();
       await expect(main.getByLabel('Plan to preview')).toHaveValue('RESEARCH');
@@ -556,7 +556,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.route(`${API}/v1/dialects`, json({ detail: 'down' }, 503));
       await page.goto('/language');
       const main = page.locator('main');
-      await expect(main.getByRole('link', { name: 'Submit a dialect or resource' })).toHaveAttribute('href', '/app/language/extensions');
+      await expect(main.getByRole('link', { name: 'Submit a dialect or resource' })).toHaveAttribute('href', '/language/extensions');
       await expect(main.getByRole('alert')).toContainText('The language catalog couldn’t be loaded (HTTP 503). The diagram above still works.');
       await ready(page);
       await shot(page, testInfo, 'language-profiles-error');
@@ -620,13 +620,54 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 2, name: 'Placement' })).toBeVisible();
     });
 
-    test('lang-examples /examples', async ({ page }, testInfo) => {
+    // [utest->req~frontend-nav-language-hub~1]
+    test('lang-profiles hub switches between Profiles, Schemas and Extensions at /language/:section?/:item?', async ({ page }) => {
+      await mockApi(page, { signedIn: true });
+      await page.goto('/language');
+      const main = page.locator('main');
+      const sections = main.getByRole('navigation', { name: 'Language sections' });
+      await expect(main.getByRole('heading', { level: 1, name: 'The BIM language' })).toBeVisible();
+
+      await sections.getByRole('link', { name: 'Schemas' }).click();
+      await expect(page).toHaveURL(/\/language\/schemas$/);
+      await expect(main.getByRole('heading', { level: 2, name: 'Application' })).toBeVisible();
+
+      await sections.getByRole('link', { name: 'Extensions' }).click();
+      await expect(page).toHaveURL(/\/language\/extensions$/);
+      await expect(main.getByRole('heading', { level: 1, name: 'Language extensions' })).toBeVisible();
+    });
+
+    // [utest->req~frontend-nav-language-hub~1]
+    test('lang-profiles hub: signed out, Extensions explains and offers the login', async ({ page }) => {
+      await mockApi(page);
+      await page.goto('/language/extensions');
+      const main = page.locator('main');
+      await expect(main.getByRole('link', { name: 'Log in to see and manage language extensions' })).toHaveAttribute('href', '/login');
+    });
+
+    // [utest->req~frontend-nav-language-hub~1]
+    test('lang-profiles hub: an unknown section answers 404 and the old extensions address moves', async ({ page }) => {
+      await mockApi(page, { signedIn: true });
+      await page.goto('/language/nowhere');
+      await expect(page.locator('main').getByRole('heading', { name: 'Page not found' })).toBeVisible();
+
+      await page.goto('/app/language/extensions?tab=resources');
+      await expect(page).toHaveURL(/\/language\/extensions\?tab=resources$/);
+    });
+
+    // [utest->req~frontend-nav-examples-in-explore~1]
+    test('pub-explore /explore/examples', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto('/examples');
+      await page.goto('/explore/examples');
       const main = page.locator('main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Example packages' })).toBeVisible();
+      await expect(main.getByRole('heading', { level: 1, name: 'BIM examples' })).toBeVisible();
+      await expect(main.getByRole('navigation', { name: 'Explore' }).getByRole('link', { name: 'BIM examples' })).toHaveAttribute('aria-current', 'page');
+      // The header keeps the active style of Explore but leaves aria-current to the page's own link.
+      const headerExplore = page.locator('header.site-header .public-nav a[href="/explore"]');
+      await expect(headerExplore).not.toHaveAttribute('aria-current', 'page');
+      await expect(headerExplore).toHaveClass(/is-active/);
       await expect(main.getByRole('heading', { name: 'Demo · 3 packages' })).toBeVisible();
       await expect(main.getByRole('heading', { name: 'Placement · 1 package' })).toBeVisible();
       await expect(main.getByRole('heading', { name: 'Literature · 1 package' })).toBeVisible();
@@ -651,24 +692,26 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('lang-examples for a signed-in account imports into a chosen project', async ({ page }, testInfo) => {
+    // [utest->req~frontend-nav-examples-in-explore~1]
+    test('pub-explore examples for a signed-in account imports into a chosen project', async ({ page }, testInfo) => {
       await mockApi(page, { signedIn: true });
-      await page.goto('/examples');
+      await page.goto('/explore/examples');
       const main = page.locator('main');
       const first = main.locator('article').filter({ hasText: 'demo/01_simple_seq' });
 
       await expect(main.getByRole('link', { name: 'Log in to import' })).toHaveCount(0);
-      await first.getByRole('button', { name: 'Import as case' }).click();
+      await first.getByRole('button', { name: 'Import as problem' }).click();
       await expect(first.getByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' }))
         .toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/workbench?example=demo%2F01_simple_seq');
       await ready(page);
       await shot(page, testInfo, 'examples-signed-in');
     });
 
-    test('lang-examples names a corrupt example (422) and survives a failed list', async ({ page }, testInfo) => {
+    // [utest->req~frontend-nav-examples-in-explore~1]
+    test('pub-explore examples names a corrupt example (422) and survives a failed list', async ({ page }, testInfo) => {
       await mockApi(page);
       await page.route(`${API}/v1/examples/**`, json({ title: 'invalid_example', detail: 'corrupt package' }, 422));
-      await page.goto('/examples');
+      await page.goto('/explore/examples');
       const main = page.locator('main');
       const second = main.locator('article').filter({ hasText: 'demo/02_parallel' });
       await second.getByRole('button', { name: 'Download .bim.zip' }).click();
@@ -677,7 +720,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await shot(page, testInfo, 'examples-corrupt');
 
       await page.route(`${API}/v1/examples`, json({ detail: 'down' }, 503));
-      await page.goto('/examples');
+      await page.goto('/explore/examples');
       await expect(main.getByText('Live catalogue unavailable')).toBeVisible();
       await expect(main.getByRole('heading', { name: /^Demo · \d+ packages$/ })).toBeVisible();
     });

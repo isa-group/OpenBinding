@@ -7,7 +7,6 @@ import { Chip } from '../../components/ui/Chip';
 import { CopyField } from '../../components/ui/CopyField';
 import { DataTable } from '../../components/ui/DataTable';
 import { Notice } from '../../components/ui/Notice';
-import { LanguageNav } from '../../components/ui/SectionNav';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
 import { useResource } from '../../utils/useResource';
@@ -221,22 +220,23 @@ function SchemaView({ kind, item }: { kind: BimSchemaKind; item: SchemaCatalogIt
 
       <div className="schemas-next">
         <span>See this kind in a full package.</span>
-        <Link to="/examples">Open examples</Link>
+        <Link to="/explore/examples">Open examples</Link>
         <Link to="/workbench">Validate a package</Link>
       </div>
     </section>
   );
 }
 
-export function Schemas() {
-  const { kind: segment = '' } = useParams();
+/** `kind`: the kind the language hub takes from its address; without it the kind comes from the route parameter. */
+export function Schemas({ kind: kindProp }: { kind?: string } = {}) {
+  const { kind: paramKind = '' } = useParams();
+  const segment = kindProp ?? paramKind;
   const kind = resolveSchemaKind(segment);
   const item = kind ? SCHEMA_CATALOG.find((entry) => entry.kind === kind) : undefined;
 
   return (
     <div className="schemas-page">
       <div className="schemas-head">
-        <LanguageNav current="schemas" />
         <h1>Schemas</h1>
         <p>
           What each part of a package contains: every field with its kind, whether it’s required, its unit and its allowed values. Use

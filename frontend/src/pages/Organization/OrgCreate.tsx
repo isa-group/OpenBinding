@@ -1,23 +1,22 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
-import { Check } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import type { Organization } from '../../api/platform';
 import { platformApi } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { Action } from '../../components/ui/Action';
 import { FormField } from '../../components/ui/FormField';
+import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { useAuth } from '../../contexts/auth';
 import { useResource } from '../../utils/useResource';
 import { atLeast, buildForest, flatten, pathOf, SLUG_PATTERN, slugFromName, sponsorName } from './orgModel';
 import { classifyAuthError, generalFailure, marker, quotaOf } from './orgErrors';
-import { Breadcrumb, Choice, OrgTile, RoleChip } from './parts';
+import { Choice, OrgTile, RoleChip } from './parts';
 import { RoomBars } from './room';
 import { roomFromCatalog, roomFromUsage, type RoomRow } from './roomModel';
 import './Organization.css';
 
-const STEPS = ['Name', 'Place', 'Sponsor', 'Review'] as const;
 const ROOM_FOR_CREATE = ['organizations', 'members', 'projects'] as const;
 
 interface SponsorOption {
@@ -68,14 +67,23 @@ function creationRefusal(caught: unknown, sponsor: { label: string; isYou: boole
   return { kind: 'other', text: generalFailure(failure, 'nothing was created') };
 }
 
-/** New organization (`org-create`, `/app/organizations/new`): name it, place it, choose who sponsors it, review. */
-export function OrgCreate() {
+interface OrgCreateProps {
+  /** Cancel, the × button and Escape end here: the address goes back to the screen under the dialog. */
+  onClose: () => void;
+  /** The organization exists and the workspace knows it. The caller opens it. */
+  onCreated: (organization: Organization) => void;
+}
+
+/** New organization: the dialog `New organization`, open at `/app?create=organization`. Name it, place it and choose who sponsors it. */
+// [impl->req~frontend-nav-create-dialogs~1]
+export function OrgCreate({ onClose, onCreated }: OrgCreateProps) {
   const context = useOutletContext<PlatformOutletContext>();
   const { user, isAdmin } = useAuth();
   const slugId = useId();
   const slugHelpId = `${slugId}-help`;
+  const slugInput = useRef<HTMLInputElement>(null);
+  const sponsorGroup = useRef<HTMLFieldSetElement>(null);
 
-  const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [slugTouched, setSlugTouched] = useState(false);
@@ -83,7 +91,6 @@ export function OrgCreate() {
   const [sponsorKey, setSponsorKey] = useState('self');
   const [creating, setCreating] = useState(false);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
-  const [created, setCreated] = useState<Organization | null>(null);
 
   const usage = useResource('create-usage', () => apiClient.getOwnUsage().catch(() => null));
   const catalog = useResource('create-catalog', () => (isAdmin ? apiClient.getPricingCatalog().catch(() => null) : Promise.resolve(null)));
@@ -100,7 +107,7 @@ export function OrgCreate() {
   const slugValid = SLUG_PATTERN.test(slug);
   const slugTaken = organizations.some((item) => item.slug === slug);
   const nameValid = name.trim().length > 0;
-  const step1Valid = nameValid && slugValid && !slugTaken;
+  const nameAndAddressValid = nameValid && slugValid && !slugTaken;
 
   // --- sponsor choices
   const options: SponsorOption[] = [];
@@ -119,6 +126,7 @@ export function OrgCreate() {
   }
   const sponsor = options.find((option) => option.key === sponsorKey) ?? options[0];
   const sponsorLabel = sponsor?.key === 'self' ? `you (${me?.username ?? ''})` : sponsor?.label.replace(/ \(.*\)$| · sponsor of .*$/, '') ?? 'the sponsor';
+  const valid = nameAndAddressValid && Boolean(sponsor);
 
   // --- what the new organization adds to the sponsor's room
   const alreadyMember = sponsor ? organizations.some((item) => item.billing_sponsor_user_id === sponsor.userId) : false;
@@ -150,10 +158,9 @@ export function OrgCreate() {
         billing_sponsor_user_id: sponsor.userId,
       });
       await context.reload();
-      setCreated(organization);
+      onCreated(organization);
     } catch (caught) {
       setRefusal(creationRefusal(caught, { label: sponsorLabel, isYou: sponsor.key === 'self' }, parent?.name ?? null, limitText));
-      setStep(4);
     } finally {
       setCreating(false);
     }
@@ -161,19 +168,8 @@ export function OrgCreate() {
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (creating) return;
-    if (step < 4) {
-      if (step === 1 && !step1Valid) return;
-      setStep(step + 1);
-    } else {
-      void create();
-    }
-  };
-
-  const goTo = (target: number) => {
-    if (target > 1 && !step1Valid) return;
-    setRefusal(null);
-    setStep(target);
+    if (creating || !valid) return;
+    void create();
   };
 
   const slugHelp = !slug
@@ -183,231 +179,155 @@ export function OrgCreate() {
       : slugTaken ? 'Already used by another organization.' : 'Available to try · can’t be changed later.';
   const slugBad = Boolean(slug) && (!slugValid || slugTaken);
 
-  if (created) {
-    return (
-      <div className="org-page is-sm">
-        <Breadcrumb items={[{ label: 'Home', to: '/app' }, { label: 'New organization' }]} />
-        <section className="org-done" role="status" aria-live="polite">
-          <span className="org-done-mark" aria-hidden="true"><Check /></span>
-          <div className="org-done-body">
-            <strong>{created.name} is ready</strong>
-            <span>
-              You’re its <b>OWNER</b>. {parent ? `It sits inside ${parent.name}, so members there keep their roles here. ` : ''}
-              Sponsored by {sponsorLabel}.
-            </span>
-          </div>
-          <div className="org-done-actions">
-            <Action to={`/app/${created.slug}`} variant="primary">Open organization</Action>
-            <Action to={`/app/${created.slug}/new-project`} variant="secondary">Create the first project</Action>
-          </div>
-        </section>
-      </div>
-    );
-  }
-
   return (
-    <div className="org-page is-sm">
-      <Breadcrumb items={[{ label: 'Home', to: '/app' }, { label: 'New organization' }]} />
-      <header className="org-head">
-        <div>
-          <h1>New organization</h1>
-          <p>Three short steps: name it, place it, and choose who sponsors it.</p>
-        </div>
-      </header>
+    <Modal title="New organization" size="lg" onClose={() => !creating && onClose()}>
+      <form className="org-dialog" onSubmit={submit} noValidate>
+        <p className="org-muted">Name it, place it, and choose who sponsors it.</p>
 
-      <ol className="org-steps" aria-label="Steps">
-        {STEPS.map((label, index) => {
-          const n = index + 1;
-          const done = step > n;
-          const sub = [name.trim() || 'Not set', parent ? `Inside ${parent.name}` : 'Top-level', sponsor?.key === 'self' ? 'You' : sponsorLabel, 'Confirm and create'][index];
-          return (
-            <li key={label}>
-              <button
-                type="button"
-                className={`org-step${step === n ? ' is-current' : ''}${done ? ' is-done' : ''}`}
-                aria-current={step === n ? 'step' : undefined}
-                disabled={n > 1 && !step1Valid}
-                onClick={() => goTo(n)}
-              >
-                <span className="org-step-mark">{done ? '✓' : n}</span>
-                <span className="org-step-text"><strong>{label}</strong><small>{sub}</small></span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-
-      <form className="org-wizard" onSubmit={submit} noValidate>
-        <section className="org-wizard-main" aria-live="polite">
-          {step === 1 && (
-            <>
-              <h2>Name and address</h2>
-              <FormField
-                label="Name"
-                value={name}
-                onChange={(event) => typeName(event.target.value)}
-                maxLength={160}
-                placeholder="e.g. Distributed Systems Lab"
-                hint="Shown everywhere. You can change it later."
-                maxWidth="460px"
+        <section className="org-dialog-section">
+          <h3>Name and address</h3>
+          <FormField
+            label="Name"
+            value={name}
+            onChange={(event) => typeName(event.target.value)}
+            maxLength={160}
+            placeholder="e.g. Distributed Systems Lab"
+            hint="Shown everywhere. You can change it later."
+          />
+          <div className="ui-field">
+            <label htmlFor={slugId}>Address</label>
+            <div className={`org-slug${slugBad ? ' is-invalid' : ''}`}>
+              <span aria-hidden="true">/app/</span>
+              <input
+                id={slugId}
+                ref={slugInput}
+                value={slug}
+                onChange={(event) => { setSlug(event.target.value); setSlugTouched(true); }}
+                spellCheck={false}
+                aria-invalid={slugBad || undefined}
+                aria-describedby={slugHelpId}
               />
-              <div className="ui-field org-slug-field">
-                <label htmlFor={slugId}>Address</label>
-                <div className={`org-slug${slugBad ? ' is-invalid' : ''}`}>
-                  <span aria-hidden="true">/app/</span>
-                  <input
-                    id={slugId}
-                    value={slug}
-                    onChange={(event) => { setSlug(event.target.value); setSlugTouched(true); }}
-                    spellCheck={false}
-                    aria-invalid={slugBad || undefined}
-                    aria-describedby={slugHelpId}
-                  />
-                </div>
-                <span id={slugHelpId} className={`ui-field-note${slugBad ? ' is-error' : ''}`}>{slugHelp}</span>
-              </div>
-            </>
-          )}
-
-          {step === 2 && (
-            <>
-              <h2>Where it sits</h2>
-              <p className="org-muted">Place it inside an organization you administer, or keep it top-level. Everyone with a role above it gets the same role inside it.</p>
-              <fieldset className="org-choices">
-                <legend className="sr-only">Parent organization</legend>
-                <Choice
-                  name="parent" value="" checked={parentId === ''} onChange={() => { setParentId(''); setSponsorKey('self'); }}
-                  label="None · top-level organization" sub="Its own tree. Only you start with a role."
-                />
-                {forest.map(({ organization: item }) => {
-                  const allowed = atLeast(item.effective_role, 'ADMIN');
-                  return (
-                    <Choice
-                      key={item.id}
-                      name="parent"
-                      value={item.id}
-                      checked={parentId === item.id}
-                      disabled={!allowed}
-                      onChange={() => { setParentId(item.id); setSponsorKey('self'); }}
-                      label={item.name}
-                      sub={allowed ? 'You can add organizations here' : `Needs ADMIN here; your role is ${item.effective_role}`}
-                      warn={!allowed}
-                      trailing={<RoleChip role={item.effective_role} />}
-                    />
-                  );
-                })}
-              </fieldset>
-            </>
-          )}
-
-          {step === 3 && (
-            <>
-              <h2>Who sponsors it</h2>
-              <p className="org-muted">
-                The sponsor’s plan pays for the organization’s size: organizations, members, projects and storage count against their limits.
-                Sponsoring gives no role and no access.
-              </p>
-              <fieldset className="org-choices">
-                <legend className="sr-only">Sponsor</legend>
-                {options.map((option) => (
-                  <Choice
-                    key={option.key} name="sponsor" value={option.key} checked={sponsor?.key === option.key}
-                    onChange={setSponsorKey} label={option.label} sub={option.sub}
-                  />
-                ))}
-              </fieldset>
-              {isAdmin && <span className="org-muted">As a platform administrator you may choose any account as sponsor.</span>}
-            </>
-          )}
-
-          {step === 4 && (
-            <>
-              <h2>Review</h2>
-              <dl className="org-review">
-                <dt>Name</dt><dd><strong>{name.trim()}</strong></dd>
-                <dt>Address</dt><dd><code>/app/{slug}</code></dd>
-                <dt>Inside</dt><dd>{parent ? parent.name : 'Nothing (top-level)'}</dd>
-                <dt>Sponsor</dt><dd>{sponsor?.key === 'self' ? `you (${me?.username})` : sponsorLabel}</dd>
-                <dt>Your role</dt><dd><RoleChip role="OWNER" /></dd>
-              </dl>
-              {refusal?.kind === 'slug' && (
-                <Notice tone="error">
-                  {refusal.text} Another organization already uses <code>/app/{slug}</code>.{' '}
-                  <button type="button" className="org-link-button" onClick={() => goTo(1)}>Change the address</button>
-                </Notice>
-              )}
-              {refusal?.kind === 'quota' && (
-                <Notice tone="error">
-                  <span>{refusal.text}</span>
-                  <span className="org-notice-links">
-                    <Link to="/app/account/usage">See your plan</Link>
-                    <button type="button" className="org-link-button" onClick={() => goTo(3)}>Choose another sponsor</button>
-                    <Link to="/pricing">Compare plans</Link>
-                  </span>
-                </Notice>
-              )}
-              {refusal?.kind === 'pricing' && (
-                <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={() => void create()} busy={creating}>Try again</Action>}>
-                  {refusal.text}
-                </Notice>
-              )}
-              {refusal && ['parent', 'sponsor', 'other'].includes(refusal.kind) && (
-                <Notice tone={refusal.kind === 'other' ? 'error' : 'warning'}>{refusal.text}</Notice>
-              )}
-            </>
-          )}
-
-          {creating && <div role="status" className="org-creating"><span className="org-spinner" aria-hidden="true" />Creating {name.trim()}…</div>}
-
-          <div className="org-wizard-actions">
-            <span>
-              <Action to="/app" variant="ghost">Cancel</Action>
-              {step > 1 && <Action variant="secondary" onClick={() => goTo(step - 1)}>Back</Action>}
-            </span>
-            {step < 4
-              ? <Action type="submit" variant="primary" disabled={step === 1 && !step1Valid}>Continue</Action>
-              : <Action type="submit" variant="primary" busy={creating} disabled={!sponsor}>Create organization</Action>}
+            </div>
+            <span id={slugHelpId} className={`ui-field-note${slugBad ? ' is-error' : ''}`}>{slugHelp}</span>
           </div>
         </section>
 
-        <aside className="org-wizard-aside">
-          <div className="org-card">
-            <span className="org-eyebrow">Preview</span>
-            <ul aria-label="Organization tree preview" className="org-preview">
-              {above.map((item, depth) => (
-                <li key={item.id} style={{ paddingLeft: depth * 20 }}>
-                  <span className="org-preview-node"><OrgTile organization={item} size="xs" /><span>{item.name}</span></span>
-                </li>
-              ))}
-              <li style={{ paddingLeft: above.length * 20 }}>
-                <span className="org-preview-node is-new">
-                  <OrgTile organization={{ name: name.trim() || 'New organization', slug: slug || 'new' }} size="xs" />
-                  <span>{name.trim() || 'New organization'}</span>
-                  <b>NEW</b>
-                </span>
+        <section className="org-dialog-section">
+          <h3>Where it sits</h3>
+          <p className="org-muted">Place it inside an organization you administer, or keep it top-level. Everyone with a role above it gets the same role inside it.</p>
+          <fieldset className="org-choices">
+            <legend className="sr-only">Parent organization</legend>
+            <Choice
+              name="parent" value="" checked={parentId === ''} onChange={() => { setParentId(''); setSponsorKey('self'); }}
+              label="None · top-level organization" sub="Its own tree. Only you start with a role."
+            />
+            {forest.map(({ organization: item }) => {
+              const allowed = atLeast(item.effective_role, 'ADMIN');
+              return (
+                <Choice
+                  key={item.id}
+                  name="parent"
+                  value={item.id}
+                  checked={parentId === item.id}
+                  disabled={!allowed}
+                  onChange={() => { setParentId(item.id); setSponsorKey('self'); }}
+                  label={item.name}
+                  sub={allowed ? 'You can add organizations here' : `Needs ADMIN here; your role is ${item.effective_role}`}
+                  warn={!allowed}
+                  trailing={<RoleChip role={item.effective_role} />}
+                />
+              );
+            })}
+          </fieldset>
+        </section>
+
+        <section className="org-dialog-section">
+          <h3>Who sponsors it</h3>
+          <p className="org-muted">
+            The sponsor’s plan pays for the organization’s size: organizations, members, projects and storage count against their limits.
+            Sponsoring gives no role and no access.
+          </p>
+          <fieldset className="org-choices" ref={sponsorGroup} tabIndex={-1}>
+            <legend className="sr-only">Sponsor</legend>
+            {options.map((option) => (
+              <Choice
+                key={option.key} name="sponsor" value={option.key} checked={sponsor?.key === option.key}
+                onChange={setSponsorKey} label={option.label} sub={option.sub}
+              />
+            ))}
+          </fieldset>
+          {isAdmin && <span className="org-muted">As a platform administrator you may choose any account as sponsor.</span>}
+        </section>
+
+        <section className="org-dialog-section">
+          <span className="org-eyebrow">Preview</span>
+          <ul aria-label="Organization tree preview" className="org-preview">
+            {above.map((item, depth) => (
+              <li key={item.id} style={{ paddingLeft: depth * 20 }}>
+                <span className="org-preview-node"><OrgTile organization={item} size="xs" /><span>{item.name}</span></span>
               </li>
-            </ul>
+            ))}
+            <li style={{ paddingLeft: above.length * 20 }}>
+              <span className="org-preview-node is-new">
+                <OrgTile organization={{ name: name.trim() || 'New organization', slug: slug || 'new' }} size="xs" />
+                <span>{name.trim() || 'New organization'}</span>
+                <b>NEW</b>
+              </span>
+            </li>
+          </ul>
+          <span className="org-muted">
+            {parent ? `Everyone with a role in ${parent.name} gets at least the same role in the new organization.` : 'A top-level organization starts with only you, as OWNER.'}
+          </span>
+        </section>
+
+        <section className="org-dialog-section">
+          <span className="org-eyebrow">Sponsor’s room after creating</span>
+          {room.length > 0 ? <RoomBars rows={room} /> : (
             <span className="org-muted">
-              {parent ? `Everyone with a role in ${parent.name} gets at least the same role in the new organization.` : 'A top-level organization starts with only you, as OWNER.'}
+              {sponsor?.key === 'self' && usage.status === 'ready'
+                ? 'Your limits can’t be read right now. Creating checks them again.'
+                : 'This sponsor’s plan is visible only to them. The server checks their limits and answers 402 if there’s no room.'}
             </span>
-          </div>
-          <div className="org-card">
-            <span className="org-eyebrow">Sponsor’s room after creating</span>
-            {room.length > 0 ? <RoomBars rows={room} /> : (
-              <span className="org-muted">
-                {sponsor?.key === 'self' && usage.status === 'ready'
-                  ? 'Your limits can’t be read right now. Creating checks them again.'
-                  : 'This sponsor’s plan is visible only to them. The server checks their limits and answers 402 if there’s no room.'}
-              </span>
-            )}
-            {room.length > 0 && (
-              <span className="org-muted">
-                {sponsor?.key === 'self' ? 'Counts come from your usage.' : 'Plan ceilings only; this account’s usage isn’t visible to you.'} Striped = what this organization adds.
-              </span>
-            )}
-          </div>
-        </aside>
+          )}
+          {room.length > 0 && (
+            <span className="org-muted">
+              {sponsor?.key === 'self' ? 'Counts come from your usage.' : 'Plan ceilings only; this account’s usage isn’t visible to you.'} Striped = what this organization adds.
+            </span>
+          )}
+        </section>
+
+        {refusal?.kind === 'slug' && (
+          <Notice tone="error">
+            {refusal.text} Another organization already uses <code>/app/{slug}</code>.{' '}
+            <button type="button" className="org-link-button" onClick={() => slugInput.current?.focus()}>Change the address</button>
+          </Notice>
+        )}
+        {refusal?.kind === 'quota' && (
+          <Notice tone="error">
+            <span>{refusal.text}</span>
+            <span className="org-notice-links">
+              <Link to="/app/account/usage">See your plan</Link>
+              <button type="button" className="org-link-button" onClick={() => sponsorGroup.current?.focus()}>Choose another sponsor</button>
+              <Link to="/pricing">Compare plans</Link>
+            </span>
+          </Notice>
+        )}
+        {refusal?.kind === 'pricing' && (
+          <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={() => void create()} busy={creating}>Try again</Action>}>
+            {refusal.text}
+          </Notice>
+        )}
+        {refusal && ['parent', 'sponsor', 'other'].includes(refusal.kind) && (
+          <Notice tone={refusal.kind === 'other' ? 'error' : 'warning'}>{refusal.text}</Notice>
+        )}
+
+        {creating && <div role="status" className="org-creating"><span className="org-spinner" aria-hidden="true" />Creating {name.trim()}…</div>}
+
+        <div className="ui-modal-actions">
+          <Action variant="secondary" onClick={onClose} disabled={creating}>Cancel</Action>
+          <Action type="submit" variant="primary" busy={creating} disabled={!valid}>Create organization</Action>
+        </div>
       </form>
-    </div>
+    </Modal>
   );
 }

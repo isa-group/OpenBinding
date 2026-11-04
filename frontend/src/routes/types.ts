@@ -18,9 +18,12 @@ export interface RouteDefinition {
    * application layout when there is a session and inside the public layout when there is not.
    */
   sessionHeader?: boolean;
+  /** A screen for the people who build the application: only the registry of a development build holds it. */
+  devOnly?: boolean;
 }
 
 export interface ScreenOptions {
   requireAdmin?: boolean;
   sessionHeader?: boolean;
+  devOnly?: boolean;
 }

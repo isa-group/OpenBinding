@@ -88,7 +88,7 @@ describe('Home', () => {
     it('keeps the shortcuts the previous home offered', () => {
       renderHome();
 
-      expect(screen.getByRole('link', { name: /Learn with an example/ })).toHaveAttribute('href', '/examples');
+      expect(screen.getByRole('link', { name: /Learn with an example/ })).toHaveAttribute('href', '/explore/examples');
       expect(screen.getByRole('link', { name: /Explore extensibility/ })).toHaveAttribute('href', '/language');
       expect(screen.getByRole('heading', { name: 'A stable core, plural problem families.' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Inspect engine modes/ })).toHaveAttribute('href', '/engines');
@@ -111,7 +111,7 @@ describe('Home', () => {
       const tabs = within(screen.getByRole('tablist', { name: 'Pipeline stages' })).getAllByRole('tab');
 
       expect(tabs).toHaveLength(6);
-      expect(screen.getByRole('link', { name: 'Browse example packages' })).toHaveAttribute('href', '/examples');
+      expect(screen.getByRole('link', { name: 'Browse example packages' })).toHaveAttribute('href', '/explore/examples');
       fireEvent.click(screen.getByRole('tab', { name: /Engine/ }));
       expect(screen.getByRole('tab', { name: /Engine/ })).toHaveAttribute('aria-selected', 'true');
       expect(screen.getByRole('link', { name: 'Browse engines' })).toHaveAttribute('href', '/engines');
@@ -125,7 +125,7 @@ describe('Home', () => {
       platform.publicPublications.mockReturnValue(new Promise(() => undefined));
       renderHome();
 
-      expect(screen.getByText('Loading recent publications')).toBeInTheDocument();
+      expect(screen.getByText('Loading recent published results')).toBeInTheDocument();
     });
 
     it('lists publications, projects and engines with the places they open', async () => {
@@ -158,7 +158,7 @@ describe('Home', () => {
       renderHome();
 
       const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('Recent publications couldn’t be loaded (HTTP 503)');
+      expect(alert).toHaveTextContent('Recent published results couldn’t be loaded (HTTP 503)');
       expect(screen.getByRole('heading', { name: 'Free to start, institutional when you scale' })).toBeInTheDocument();
 
       platform.publicProjects.mockResolvedValue([project]);
@@ -175,7 +175,7 @@ describe('Home', () => {
       renderHome();
 
       for (const name of ['Basic', 'Research', 'Advanced', 'Pro']) expect(screen.getByText(name, { selector: '.home-kicker' })).toBeInTheDocument();
-      expect(screen.getByText('1 concurrent job')).toBeInTheDocument();
+      expect(screen.getByText('1 concurrent run')).toBeInTheDocument();
       expect(screen.getByText('Unlimited API keys')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
       expect(screen.getByText(/Headline limits from pricing 0\.1\.0/)).toBeInTheDocument();

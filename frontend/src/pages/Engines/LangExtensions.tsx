@@ -222,15 +222,10 @@ export function LangExtensions() {
 
   return (
     <div className="lang-page">
-      <nav aria-label="Breadcrumb" className="eng-crumbs">
-        <span className="eng-crumb"><Link to="/app" viewTransition>Home</Link><span aria-hidden="true">/</span></span>
-        <span className="eng-crumb"><span aria-current="page">Language extensions</span></span>
-      </nav>
       <PageHeader
         eyebrow="Language"
         title="Language extensions"
         lede="Teach OpenBinding new kinds of resources. A dialect declares them; registered resources are documents written in them. Each submission is a fixed revision that an administrator approves before anyone can use it."
-        actions={<Action to="/language" variant="secondary">Profiles and installed dialects</Action>}
       />
 
       <section className="lang-kpis" aria-label="What is installed">

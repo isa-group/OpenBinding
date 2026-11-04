@@ -3,9 +3,13 @@ import { matchRoutes, MemoryRouter, useLocation, useNavigate } from 'react-route
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../api/auth';
 import { AuthContext } from '../contexts/auth';
+import { followMoved } from './followMoved';
 import { AppRoutes } from './index';
-import { routeDefinitions } from './registry';
+import { movedRoutes, routeDefinitions } from './registry';
 import { RETIRED_ROUTES, type RetiredRoute } from './retiredRoutes';
+
+// The tests name the retired ids and paths, and the addresses the redirects lead to. They name no screen of a live area: a screen is
+// found by the address it ends on, and an address that a later change moves on is followed through the moved routes (followMoved).
 
 vi.mock('../api/platform', async () => ({
   ...await vi.importActual<typeof import('../api/platform')>('../api/platform'),
@@ -20,38 +24,17 @@ vi.mock('../api/client', async () => ({
   apiClient: { listNotifications: vi.fn().mockResolvedValue([]) },
 }));
 
-// Only the location and the headings are asserted, so the screens are replaced.
-vi.mock('../pages/Account/Account', async () => {
+// Only the location and the screen on show are asserted, so every screen of the registry is replaced by a stub that names itself.
+vi.mock('./registry', async () => {
+  const actual = await vi.importActual<typeof import('./registry')>('./registry');
   const { createElement } = await import('react');
-  return { Account: () => createElement('h1', null, 'Account screen') };
-});
-vi.mock('../pages/Auth/Login', async () => {
-  const { createElement } = await import('react');
-  return { Login: () => createElement('h1', null, 'Sign in screen') };
-});
-vi.mock('../pages/Organization/OrgOverview', async () => {
-  const { createElement } = await import('react');
-  return { OrgOverview: () => createElement('h1', null, 'Organization page screen') };
-});
-vi.mock('../pages/Jobs/JobHistory', async () => {
-  const { createElement } = await import('react');
-  return { JobHistory: () => createElement('h1', null, 'Job history screen') };
-});
-vi.mock('../pages/Resources/CollList', async () => {
-  const { createElement } = await import('react');
-  return { CollList: () => createElement('h1', null, 'Collections screen') };
-});
-vi.mock('../pages/Workbench/Workbench', async () => {
-  const { createElement } = await import('react');
-  return { Workbench: () => createElement('h1', null, 'Workbench screen') };
-});
-vi.mock('../pages/Admin/AdminOverview', async () => {
-  const { createElement } = await import('react');
-  return { AdminOverview: () => createElement('h1', null, 'Administration screen') };
-});
-vi.mock('../pages/Reports/ProjPublications', async () => {
-  const { createElement } = await import('react');
-  return { ProjPublications: () => createElement('h1', null, 'Publications screen') };
+  return {
+    ...actual,
+    routeDefinitions: actual.routeDefinitions.map((definition) => ({
+      ...definition,
+      element: createElement('h1', { 'data-screen': definition.id }, `Screen ${definition.id}`),
+    })),
+  };
 });
 
 const person: UserProfile = {
@@ -90,6 +73,26 @@ function renderAt(entries: string[], user: UserProfile | null = person, isAdmin 
 }
 
 const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+const retiredConfig = RETIRED_ROUTES.map((route) => ({ id: route.id, path: route.path }));
+
+/** The screen an address resolves to, by the registry's own paths. */
+const screenAt = (address: string) => matchRoutes(config, address.split(/[?#]/)[0])?.at(-1)?.route.id ?? null;
+/** The screen on show, read from its stub. */
+const shown = () => document.querySelector('[data-screen]')?.getAttribute('data-screen') ?? null;
+/** Where an address ends once the moved addresses have redirected it. */
+const settled = (address: string) => followMoved(address, routeDefinitions, movedRoutes);
+const where = () => screen.getByTestId('location').textContent;
+
+/** The visitor ends on `expected` (the address a retired route names, followed through the moved routes), looking at the screen of that address. */
+async function landsOn(expected: string) {
+  const want = settled(expected);
+  expect(screenAt(want), `${want} is a routed screen`).not.toBeNull();
+  await waitFor(() => expect(where()).toBe(want));
+  await waitFor(() => expect(shown()).toBe(screenAt(want)));
+}
+
+/** The visitor was sent to the sign-in screen. */
+const signInShown = () => waitFor(() => expect(shown()).toBe(screenAt('/login')));
 
 type Params = Readonly<Partial<Record<string, string>>>;
 
@@ -108,49 +111,43 @@ describe('the table of retired addresses', () => {
     const to = (query: string) => targetOf(route, query);
     const study = 'org=isa-demo&project=qos-benchmarks&study=engines-vs-seeds';
 
-    expect(to(`${study}&run=run-1&cell=cell-3`)).toBe('/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds/runs/run-1');
+    expect(to(`${study}&run=run-1&cell=cell-3`)).toBe('/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds/progress?run=run-1');
     expect(to(study)).toBe('/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds');
-    expect(to('org=isa-demo&project=qos-benchmarks&run=run-1')).toBe('/app/jobs');
-    expect(to('job=job-done-1&job=job-done-3')).toBe('/app/jobs');
-    expect(to('report=isa-demo%2Fqos-benchmarks%2Fdecision-choice')).toBe('/app/jobs');
-    expect(to('')).toBe('/app/jobs');
-    expect(to('org=isa-demo&project=qos-benchmarks&study=&run=run-1')).toBe('/app/jobs');
+    expect(to('org=isa-demo&project=qos-benchmarks&run=run-1')).toBe('/app/runs');
+    expect(to('job=job-done-1&job=job-done-3')).toBe('/app/runs');
+    expect(to('report=isa-demo%2Fqos-benchmarks%2Fdecision-choice')).toBe('/app/runs');
+    expect(to('')).toBe('/app/runs');
+    expect(to('org=isa-demo&project=qos-benchmarks&study=&run=run-1')).toBe('/app/runs');
     expect(to('org=isa-demo&project=qos-benchmarks&study=seeds%2F2026&study=other')).toBe('/app/isa-demo/qos-benchmarks/studies/seeds%2F2026');
   });
 
   // [utest->req~frontend-retire-redirect-generic~1]
-  it('leads every target to the routed screen it names and is not itself a route', () => {
-    // The screen each query leads to for the decision-space entries (slice 1); the report entries (slice 2) always lead to the publications,
-    // the library entries (slice 3) to the organization overview or the collections.
-    const cases: Array<[string, string]> = [
-      ['', 'job-history'],
-      ['org=a&project=b&study=c', 'study-detail'],
-      ['org=a&project=b&study=c&run=d', 'study-run'],
-      ['org=a%20b&project=p%2Fq&study=s%23t&run=r%3Fx', 'study-run'],
-      ['org=a%20b&project=p%2Fq&study=s%23t', 'study-detail'],
+  it('leads every target to a routed screen, once the moved addresses are followed, and is not itself a route', () => {
+    // The queries of the decision-space entries (slice 1); the other entries ignore the query.
+    const queries = [
+      '',
+      'org=a&project=b&study=c',
+      'org=a&project=b&study=c&run=d',
+      'org=a%20b&project=p%2Fq&study=s%23t&run=r%3Fx',
+      'org=a%20b&project=p%2Fq&study=s%23t',
     ];
     const encodedQuery = 'org=a%20b&project=p%2Fq&study=s%23t&run=r%3Fx';
-    const fixedScreen: Record<number, (route: RetiredRoute) => string> = {
-      2: () => 'proj-publications',
-      3: (route) => (route.id.startsWith('lib-') ? 'org-overview' : 'coll-list'),
-      4: () => 'wb-workbench',
-      5: () => 'admin-overview',
-    };
+    // The address of the encoded sample: the shape the table promises, the screens behind it are the area's business.
     const fixedTarget: Record<number, (route: RetiredRoute) => string> = {
-      2: () => '/app/a%20b/p%2Fq/publications',
+      2: () => '/app/a%20b/p%2Fq/published',
       3: (route) => (route.id.startsWith('lib-') ? '/app/a%20b' : '/app/a%20b/p%2Fq/collections'),
       4: () => '/app/a%20b/p%2Fq/workbench?case=c%3Fx',
       5: () => '/app/admin',
     };
     for (const route of RETIRED_ROUTES) {
-      for (const [query, slice1Screen] of cases) {
+      for (const query of queries) {
         const target = targetOf(route, query, route.slice === 1 ? {} : SAMPLE);
-        const matches = matchRoutes(config, target);
-        const screenId = fixedScreen[route.slice]?.(route) ?? slice1Screen;
-        expect(matches?.at(-1)?.route.id, `${route.id} ${query} -> ${target}`).toBe(screenId);
+        const landing = new URL(settled(target), 'http://localhost').pathname;
+        expect(matchRoutes(config, landing), `${route.id} ${query} -> ${target} -> ${landing}`).not.toBeNull();
+        expect(matchRoutes(retiredConfig, landing), `${route.id} ${query} -> ${landing} is a retired address`).toBeNull();
       }
       const encoded = targetOf(route, encodedQuery, PARAMS);
-      expect(encoded).toBe(fixedTarget[route.slice]?.(route) ?? '/app/a%20b/p%2Fq/studies/s%23t/runs/r%3Fx');
+      expect(encoded).toBe(fixedTarget[route.slice]?.(route) ?? '/app/a%20b/p%2Fq/studies/s%23t/progress?run=r%3Fx');
       expect(routeDefinitions.map((definition) => definition.path)).not.toContain(route.path);
       expect(route.slice).toBeGreaterThanOrEqual(1);
     }
@@ -220,7 +217,7 @@ describe('the table of retired addresses', () => {
     expect(order('case-composer')).toBeLessThan(order('admin-sponsor'));
     const target = targetOf(slice5[0], 'tab=requests', { org: 'a' });
     expect(target).toBe('/app/admin');
-    expect(matchRoutes(config, target)?.at(-1)?.route.id).toBe('admin-overview');
+    expect(matchRoutes(config, new URL(settled(target), 'http://localhost').pathname)).not.toBeNull();
   });
 
   // [utest->req~frontend-retire-reports-redirect~1]
@@ -233,14 +230,15 @@ describe('the table of retired addresses', () => {
   });
 
   // [utest->req~frontend-retire-reports-redirect~1]
-  it.each(RETIRED_ROUTES.filter((route) => route.slice === 2))('sends $path to the publications of the project, whatever the query and the report', (route) => {
+  // [utest->req~frontend-nav-project-tabs~1]
+  it.each(RETIRED_ROUTES.filter((route) => route.slice === 2))('sends $path to the published results of the project, whatever the query and the report', (route) => {
     const to = (query: string, params: Params) => targetOf(route, query, params);
 
-    expect(to('', { org: 'acme', project: 'demo', report: 'engines' })).toBe('/app/acme/demo/publications');
-    expect(to('', { org: 'acme', project: 'demo' })).toBe('/app/acme/demo/publications');
-    expect(to('org=other&project=other&report=x&tab=blocks', { org: 'acme', project: 'demo', report: 'engines' })).toBe('/app/acme/demo/publications');
-    expect(to('', { org: 'a/b', project: 'p q', report: 'r#1' })).toBe('/app/a%2Fb/p%20q/publications');
-    expect(to('', { org: 'isa-demo', project: 'qos-benchmarks', report: 'engines-vs-seeds-informe' })).toBe('/app/isa-demo/qos-benchmarks/publications');
+    expect(to('', { org: 'acme', project: 'demo', report: 'engines' })).toBe('/app/acme/demo/published');
+    expect(to('', { org: 'acme', project: 'demo' })).toBe('/app/acme/demo/published');
+    expect(to('org=other&project=other&report=x&tab=blocks', { org: 'acme', project: 'demo', report: 'engines' })).toBe('/app/acme/demo/published');
+    expect(to('', { org: 'a/b', project: 'p q', report: 'r#1' })).toBe('/app/a%2Fb/p%20q/published');
+    expect(to('', { org: 'isa-demo', project: 'qos-benchmarks', report: 'engines-vs-seeds-informe' })).toBe('/app/isa-demo/qos-benchmarks/published');
     expect(to('', {})).toBe('/app');
     expect(to('', { org: 'a' })).toBe('/app');
     expect(to('', { org: '', project: 'b' })).toBe('/app');
@@ -254,12 +252,10 @@ describe('the redirect of a retired address', () => {
   it('replaces the history entry, so going back skips the retired address', async () => {
     renderAt(['/app/account', '/app/analysis/workspace?job=job-done-3']);
 
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/jobs$/));
-    expect(await screen.findByRole('heading', { name: 'Job history screen' })).toBeInTheDocument();
+    await landsOn('/app/runs');
 
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/account$/));
-    expect(await screen.findByRole('heading', { name: 'Account screen' })).toBeInTheDocument();
+    await landsOn('/app/account');
   });
 
   // [utest->req~frontend-retire-redirect-generic~1]
@@ -267,40 +263,37 @@ describe('the redirect of a retired address', () => {
     const old = '/app/analysis?org=isa-demo&project=qos-benchmarks&study=engines-vs-seeds';
     const signedOut = renderAt([old], null);
 
-    expect(await screen.findByRole('heading', { name: 'Sign in screen' })).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(/^\/login/);
+    await signInShown();
+    expect(where()).toMatch(/^\/login/);
     expect(screen.getByTestId('from').textContent).toBe(old);
     signedOut.unmount();
 
     renderAt([old]);
-    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(
-      '/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds',
-    ));
+    await landsOn('/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds');
   });
 
   // [utest->req~frontend-retire-redirect-generic~1]
   it('renders no retired screen and no organization page', async () => {
     renderAt(['/app/analysis']);
 
-    expect(await screen.findByRole('heading', { name: 'Job history screen' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: /^(Analysis|Decision space)$/ })).toBeNull();
-    expect(screen.queryByRole('heading', { name: 'Organization page screen' })).toBeNull();
-    expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/jobs$/);
+    await landsOn('/app/runs');
+    expect(document.querySelector('[data-screen^="analysis-"]')).toBeNull();
+    // Without its screen the address would read as an organization called `analysis`.
+    expect(shown()).not.toBe(screenAt('/app/analysis'));
   });
 
   // [utest->req~frontend-retire-reports-redirect~1]
   it.each([
-    ['/app/acme/demo/reports', '/app/acme/demo/publications'],
-    ['/app/acme/demo/reports/engines-vs-seeds-informe', '/app/acme/demo/publications'],
-    ['/app/acme/demo/reports/x?tab=blocks&report=y#top', '/app/acme/demo/publications'],
-    ['/app/acme/demo/reports?x=1', '/app/acme/demo/publications'],
-    ['/app/a%2Fb/my%20proj/reports', '/app/a%2Fb/my%20proj/publications'],
-    ['/app/a%2Fb/my%20proj/reports/r%2F1', '/app/a%2Fb/my%20proj/publications'],
+    ['/app/acme/demo/reports', '/app/acme/demo/published'],
+    ['/app/acme/demo/reports/engines-vs-seeds-informe', '/app/acme/demo/published'],
+    ['/app/acme/demo/reports/x?tab=blocks&report=y#top', '/app/acme/demo/published'],
+    ['/app/acme/demo/reports?x=1', '/app/acme/demo/published'],
+    ['/app/a%2Fb/my%20proj/reports', '/app/a%2Fb/my%20proj/published'],
+    ['/app/a%2Fb/my%20proj/reports/r%2F1', '/app/a%2Fb/my%20proj/published'],
   ])('sends the report address %s to %s, without a query', async (old, expected) => {
     renderAt([old]);
 
-    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(expected));
-    expect(await screen.findByRole('heading', { name: 'Publications screen' })).toBeInTheDocument();
+    await landsOn(expected);
     expect(screen.getByTestId('hash').textContent).toBe('');
   });
 
@@ -312,36 +305,33 @@ describe('the redirect of a retired address', () => {
   ])('sends %s to the organization overview, not to the publications or the collections of a project called library', async (old) => {
     renderAt([old]);
 
-    expect(await screen.findByRole('heading', { name: 'Organization page screen' })).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/isa-demo$/);
-    expect(screen.queryByRole('heading', { name: 'Publications screen' })).toBeNull();
-    expect(screen.queryByRole('heading', { name: 'Collections screen' })).toBeNull();
+    await landsOn('/app/isa-demo');
+    expect(where()).toBe('/app/isa-demo');
   });
 
   // [utest->req~frontend-retire-library-redirect~1]
   it.each([
-    ['/app/acme/library', '/app/acme', 'Organization page screen'],
-    ['/app/acme/library/a1/drafts/d1?x=1#top', '/app/acme', 'Organization page screen'],
-    ['/app/acme/library/a1/versions/v1', '/app/acme', 'Organization page screen'],
-    ['/app/a%2Fb/library/a1', '/app/a%2Fb', 'Organization page screen'],
-    ['/app/acme/demo/library', '/app/acme/demo/collections', 'Collections screen'],
-    ['/app/acme/demo/resources', '/app/acme/demo/collections', 'Collections screen'],
-    ['/app/acme/demo/resources/r1?x=1#top', '/app/acme/demo/collections', 'Collections screen'],
-    ['/app/a%2Fb/my%20proj/resources/r%2F1', '/app/a%2Fb/my%20proj/collections', 'Collections screen'],
-  ])('sends the library address %s to %s, without a query or a hash', async (old, expected, heading) => {
+    ['/app/acme/library', '/app/acme'],
+    ['/app/acme/library/a1/drafts/d1?x=1#top', '/app/acme'],
+    ['/app/acme/library/a1/versions/v1', '/app/acme'],
+    ['/app/a%2Fb/library/a1', '/app/a%2Fb'],
+    ['/app/acme/demo/library', '/app/acme/demo/collections'],
+    ['/app/acme/demo/resources', '/app/acme/demo/collections'],
+    ['/app/acme/demo/resources/r1?x=1#top', '/app/acme/demo/collections'],
+    ['/app/a%2Fb/my%20proj/resources/r%2F1', '/app/a%2Fb/my%20proj/collections'],
+  ])('sends the library address %s to %s, without a query or a hash', async (old, expected) => {
     renderAt([old]);
 
-    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(expected));
-    expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument();
+    await landsOn(expected);
     expect(screen.getByTestId('hash').textContent).toBe('');
   });
 
   // [utest->req~frontend-retire-library-redirect~1]
   it('replaces the history entry and asks a visitor without a session to sign in before the library redirect', async () => {
     const first = renderAt(['/app/account', '/app/acme/library/a1']);
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/acme$/));
+    await landsOn('/app/acme');
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/account$/));
+    await landsOn('/app/account');
     first.unmount();
 
     for (const [old, target] of [
@@ -349,13 +339,13 @@ describe('the redirect of a retired address', () => {
       ['/app/isa-demo/library/checkout-engines/drafts/d-1', '/app/isa-demo'],
     ]) {
       const signedOut = renderAt([old], null);
-      expect(await screen.findByRole('heading', { name: 'Sign in screen' })).toBeInTheDocument();
-      expect(screen.getByTestId('location')).toHaveTextContent(/^\/login/);
+      await signInShown();
+      expect(where()).toMatch(/^\/login/);
       expect(screen.getByTestId('from').textContent).toBe(old);
       signedOut.unmount();
 
       const signedIn = renderAt([old]);
-      await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(target));
+      await landsOn(target);
       signedIn.unmount();
     }
   });
@@ -369,8 +359,7 @@ describe('the redirect of a retired address', () => {
   ])('sends the composer address %s to %s, without the opened query or hash', async (old, expected) => {
     renderAt([old]);
 
-    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(expected));
-    expect(await screen.findByRole('heading', { name: 'Workbench screen' })).toBeInTheDocument();
+    await landsOn(expected);
     expect(screen.getByTestId('hash').textContent).toBe('');
   });
 
@@ -381,40 +370,41 @@ describe('the redirect of a retired address', () => {
   ])('sends %s to the organization overview, the earlier library entry winning over the composer', async (old) => {
     renderAt([old]);
 
-    expect(await screen.findByRole('heading', { name: 'Organization page screen' })).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/isa-demo$/);
-    expect(screen.queryByRole('heading', { name: 'Workbench screen' })).toBeNull();
+    await landsOn('/app/isa-demo');
+    expect(where()).toBe('/app/isa-demo');
   });
 
   // [utest->req~frontend-retire-composer-redirect~1]
+  // [utest->req~frontend-nav-problem-page~1]
   it.each([
-    ['/app/isa-demo/qos/cases/x/compare', 'case-compare'],
-    ['/app/isa-demo/qos/cases/x/revisions/2', 'case-revision'],
-  ])('leaves %s to its screen %s, with no tie with the composer', (address, id) => {
+    ['/app/isa-demo/qos/cases/x/compare', '/app/isa-demo/qos/problems/x/versions'],
+    ['/app/isa-demo/qos/cases/x/revisions/2', '/app/isa-demo/qos/problems/x?version=2'],
+  ])('leaves %s out of the composer path, so there is no tie with the composer, and moves it to the problem page', (address, page) => {
     const composer = RETIRED_ROUTES.find((route) => route.id === 'case-composer');
     expect(composer).toBeDefined();
-    expect(matchRoutes(config, address)?.at(-1)?.route.id).toBe(id);
     expect(matchRoutes([{ path: composer?.path ?? '/never' }], address)).toBeNull();
+    // The M2.6 problem page took the compare and version screens (design.md §7): the old addresses are moved addresses that end on it.
+    expect(settled(address)).toBe(page);
+    expect(matchRoutes(config, new URL(settled(address), 'http://localhost').pathname)?.at(-1)?.route.id).toBe('case-detail');
   });
 
   // [utest->req~frontend-retire-composer-redirect~1]
   it('replaces the history entry and asks a visitor without a session to sign in before the composer redirect', async () => {
     const first = renderAt(['/app/account', '/app/acme/demo/cases/flujo/compose']);
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/acme\/demo\/workbench\?case=flujo$/));
+    await landsOn('/app/acme/demo/workbench?case=flujo');
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/account$/));
+    await landsOn('/app/account');
     first.unmount();
 
     const old = '/app/isa%20demo/qos/cases/flujo/compose?x=1';
     const signedOut = renderAt([old], null);
-    expect(await screen.findByRole('heading', { name: 'Sign in screen' })).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(/^\/login/);
+    await signInShown();
+    expect(where()).toMatch(/^\/login/);
     expect(screen.getByTestId('from').textContent).toBe(old);
-    expect(screen.queryByRole('heading', { name: 'Workbench screen' })).toBeNull();
     signedOut.unmount();
 
     renderAt([old]);
-    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/isa%20demo/qos/workbench?case=flujo'));
+    await landsOn('/app/isa%20demo/qos/workbench?case=flujo');
   });
 
   // [utest->req~frontend-retire-sponsorship-redirect~1]
@@ -428,8 +418,7 @@ describe('the redirect of a retired address', () => {
   ])('sends the sponsorship address %s to /app/admin for an administrator, without a query or a hash', async (old) => {
     renderAt([old], administrator, true);
 
-    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/admin'));
-    expect(await screen.findByRole('heading', { name: 'Administration screen' })).toBeInTheDocument();
+    await landsOn('/app/admin');
     expect(screen.getByTestId('hash').textContent).toBe('');
   });
 
@@ -438,74 +427,70 @@ describe('the redirect of a retired address', () => {
     const user = '/app/admin/users/00000000-0000-4000-8000-000000000002';
     renderAt([user, '/app/admin/organizations/isa-demo/sponsor'], administrator, true);
 
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/admin$/));
+    await landsOn('/app/admin');
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(user));
+    await landsOn(user);
   });
 
   // [utest->req~frontend-retire-sponsorship-redirect~1]
   it('asks a visitor without a session to sign in before the sponsorship redirect', async () => {
     const old = '/app/admin/organizations/isa-demo/sponsor';
     const signedOut = renderAt([old], null);
-    expect(await screen.findByRole('heading', { name: 'Sign in screen' })).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(/^\/login/);
+    await signInShown();
+    expect(where()).toMatch(/^\/login/);
     expect(screen.getByTestId('from').textContent).toBe(old);
     signedOut.unmount();
 
     renderAt([old], administrator, true);
-    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/admin'));
+    await landsOn('/app/admin');
   });
 
   // [utest->req~frontend-retire-sponsorship-redirect~1]
   it('ends a person without the administrator role at /app/account, with no administration screen', async () => {
     renderAt(['/app/admin/organizations/isa-demo/sponsor']);
 
-    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/account'));
-    expect(await screen.findByRole('heading', { name: 'Account screen' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Administration screen' })).toBeNull();
+    await landsOn('/app/account');
+    expect(shown()).not.toBe(screenAt('/app/admin'));
   });
 
   // [utest->req~frontend-retire-sponsorship-redirect~1]
   it.each([
-    ['/app/admin', 'admin-overview'],
-    ['/app/admin/users/00000000-0000-4000-8000-000000000002', 'admin-user-detail'],
-    ['/app/organizations/new', 'org-create'],
-  ])('leaves %s to its screen %s', (address, id) => {
-    expect(matchRoutes(config, address)?.at(-1)?.route.id).toBe(id);
+    '/app/admin',
+    '/app/admin/users/00000000-0000-4000-8000-000000000002',
+    '/app/organizations/new',
+  ])('leaves %s out of the sponsorship path', (address) => {
     expect(matchRoutes([{ path: '/app/admin/organizations/:org/sponsor' }], address)).toBeNull();
+    expect(matchRoutes(config, new URL(settled(address), 'http://localhost').pathname)).not.toBeNull();
   });
 
   // [utest->req~frontend-retire-reports-redirect~1]
   it('replaces the history entry, so going back skips the report address', async () => {
     renderAt(['/app/account', '/app/acme/demo/reports/x']);
 
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/acme\/demo\/publications$/));
+    await landsOn('/app/acme/demo/published');
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
 
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/account$/));
-    expect(await screen.findByRole('heading', { name: 'Account screen' })).toBeInTheDocument();
+    await landsOn('/app/account');
   });
 
   // [utest->req~frontend-retire-reports-redirect~1]
   it.each(['/app/acme/demo/reports', '/app/acme/demo/reports/x?tab=blocks'])('asks a visitor without a session to sign in before the redirect from %s', async (old) => {
     const signedOut = renderAt([old], null);
 
-    expect(await screen.findByRole('heading', { name: 'Sign in screen' })).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(/^\/login/);
+    await signInShown();
+    expect(where()).toMatch(/^\/login/);
     expect(screen.getByTestId('from').textContent).toBe(old);
-    expect(screen.queryByRole('heading', { name: 'Publications screen' })).toBeNull();
     signedOut.unmount();
 
     renderAt([old]);
-    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/app/acme/demo/publications'));
+    await landsOn('/app/acme/demo/published');
   });
 
   // [utest->req~frontend-retire-reports-redirect~1]
   it('renders no report screen', async () => {
     renderAt(['/app/acme/demo/reports/x']);
 
-    expect(await screen.findByRole('heading', { name: 'Publications screen' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: /report/i })).toBeNull();
-    expect(screen.getByTestId('location')).toHaveTextContent(/^\/app\/acme\/demo\/publications$/);
+    await landsOn('/app/acme/demo/published');
+    expect(document.querySelector('[data-screen^="rep-"]')).toBeNull();
   });
 });

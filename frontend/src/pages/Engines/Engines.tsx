@@ -219,7 +219,7 @@ export function Engines() {
                     <th scope="col">Version</th>
                     <th scope="col">Digest</th>
                     <th scope="col">Visibility</th>
-                    <th scope="col">Publication</th>
+                    <th scope="col">Listing</th>
                     <th scope="col"><span className="sr-only">Open</span></th>
                   </tr>
                 </thead>

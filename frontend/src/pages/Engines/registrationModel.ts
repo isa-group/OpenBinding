@@ -41,7 +41,7 @@ export function sameRevision(a: BimResourceRef, b: BimResourceRef): boolean {
 export const PUBLICATION: Record<EngineRegistrationState, { label: string; tone: ChipTone; text: string }> = {
   private: { label: 'Private', tone: 'plain', text: 'Only your account can see and use it. Administrators cannot discover it until you request publication.' },
   pending_review: { label: 'Waiting for review', tone: 'warning', text: 'An administrator is reviewing this exact revision. It stays private until then.' },
-  published: { label: 'Published', tone: 'success', text: 'Everyone can pick it when launching a job.' },
+  published: { label: 'Published', tone: 'success', text: 'Everyone can pick it when launching a run.' },
   rejected: { label: 'Rejected', tone: 'error', text: 'A reviewer declined the request, so it is private again. You can ask again.' },
 };
 
@@ -292,7 +292,7 @@ export const AUTH_LABELS: Record<string, string> = {
   basic: 'Username and password (stored encrypted)',
 };
 
-const MAPPING_LABELS: Record<string, string> = { request: 'Solve', health: 'Health', openapi: 'Contract', job: 'Job status' };
+const MAPPING_LABELS: Record<string, string> = { request: 'Solve', health: 'Health', openapi: 'Contract', job: 'Run status' };
 const MAPPING_ORDER = ['request', 'health', 'openapi', 'job'];
 
 export interface DeploymentView {
