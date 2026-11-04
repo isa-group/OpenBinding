@@ -1,6 +1,6 @@
 import type { PricingCatalog, UsageView } from '../../api/auth';
 import type { StoredBlob } from '../../api/platform';
-import { digestPrefix, shortDigest } from '../../utils/digest';
+import { formatDate } from '../../utils/format';
 import { planLimit } from '../Project/projectModel';
 
 export { SLUG_PATTERN, slugFromName } from '../Project/projectModel';
@@ -85,16 +85,18 @@ export function isZipFile(blob: Pick<StoredBlob, 'media_type'>): boolean {
 /** The names of files uploaded in this visit, by fingerprint: the gateway stores bytes, not names. */
 export type SessionNames = Record<string, string>;
 
-/** What the list calls a file: the name it had when it was uploaded here, otherwise its type and the start of its fingerprint. */
-export function fileTitle(blob: Pick<StoredBlob, 'digest' | 'media_type'>, names: SessionNames): string {
-  return names[blob.digest] ?? `${typeLabel(blob.media_type)} · ${shortDigest(blob.digest)}`;
+/** What the list calls a file: the name it had when it was uploaded here, otherwise its type and the date it was stored. */
+export function fileTitle(blob: Pick<StoredBlob, 'digest' | 'media_type'> & Partial<Pick<StoredBlob, 'created_at'>>, names: SessionNames): string {
+  const stored = formatDate(blob.created_at);
+  return names[blob.digest] ?? `${typeLabel(blob.media_type)}${stored ? ` · stored ${stored}` : ''}`;
 }
 
-/** The name a download is saved under. */
-export function downloadName(blob: Pick<StoredBlob, 'digest' | 'media_type'>, names: SessionNames): string {
+/** The name a download is saved under: the name it had here, otherwise `file` with the day it was stored and a fitting extension. */
+export function downloadName(blob: Pick<StoredBlob, 'digest' | 'media_type'> & Partial<Pick<StoredBlob, 'created_at'>>, names: SessionNames): string {
   if (names[blob.digest]) return names[blob.digest];
   const extension = EXTENSIONS.find(([pattern]) => pattern.test(blob.media_type.toLowerCase()))?.[1] ?? '';
-  return `${digestPrefix(blob.digest)}${extension}`;
+  const day = /^\d{4}-\d{2}-\d{2}/.exec(blob.created_at ?? '')?.[0];
+  return `file${day ? `-${day}` : ''}${extension}`;
 }
 
 export function totalBytes(files: readonly Pick<StoredBlob, 'size_bytes'>[]): number {

@@ -1,5 +1,8 @@
 /* Pieces shared by the engine registration screens: chips, the conformance checklist, the plan meter and a manifest laid out. */
 
+.eng-copy { padding: 0; border: 0; background: transparent; color: var(--tp-primary); font: inherit; font-size: 0.8125rem; font-weight: 500; cursor: pointer; }
+.eng-copy:hover { color: var(--tp-primary-deep); text-decoration: underline; }
+
 .eng-chip {
   display: inline-flex;
   align-items: center;

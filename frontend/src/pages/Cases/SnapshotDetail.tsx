@@ -11,7 +11,6 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
 import { problemsPath } from '../../routes/paths/problems';
-import { shortDigest } from '../../utils/digest';
 import { formatBytes } from '../../utils/format';
 import { readZipArchive, type ZipArchive } from '../../utils/zipExplorer';
 import { useResource } from '../../utils/useResource';
@@ -34,8 +33,17 @@ const FINGERPRINTS: ReadonlyArray<{ key: 'instance' | 'package' | 'compiled'; la
 ];
 
 function Pins({ pins }: { pins: SnapshotPins }) {
+  const { copy, status } = useCopy();
   const files = Object.entries(pins.fileDigests);
   const resources = Object.entries(pins.resourceDigests);
+  const copyCell = (kind: string, name: string, digest: string) => {
+    const key = `${kind}:${name}`;
+    return (
+      <button type="button" className="case-link-button" onClick={() => void copy(digest, key)} aria-label={`Copy digest of ${name}`}>
+        {status(key) === 'copied' ? 'Copied' : status(key) === 'failed' ? 'Copy failed' : 'Copy digest'}
+      </button>
+    );
+  };
   return (
     <details className="snap-pins">
       <summary>Per-file and per-resource fingerprints</summary>
@@ -43,12 +51,12 @@ function Pins({ pins }: { pins: SnapshotPins }) {
         <table className="case-table">
           <caption>Files ({files.length})</caption>
           <thead><tr><th scope="col">File</th><th scope="col">Fingerprint</th></tr></thead>
-          <tbody>{files.map(([path, digest]) => <tr key={path}><th scope="row"><code>{path}</code></th><td><code title={digest}>{digest}</code></td></tr>)}</tbody>
+          <tbody>{files.map(([path, digest]) => <tr key={path}><th scope="row"><code>{path}</code></th><td>{copyCell('file', path, digest)}</td></tr>)}</tbody>
         </table>
         <table className="case-table">
           <caption>Resources ({resources.length})</caption>
           <thead><tr><th scope="col">Resource</th><th scope="col">Fingerprint</th></tr></thead>
-          <tbody>{resources.map(([id, digest]) => <tr key={id}><th scope="row"><code>{id}</code></th><td><code title={digest}>{digest}</code></td></tr>)}</tbody>
+          <tbody>{resources.map(([id, digest]) => <tr key={id}><th scope="row"><code>{id}</code></th><td>{copyCell('resource', id, digest)}</td></tr>)}</tbody>
         </table>
       </div>
     </details>
@@ -75,7 +83,7 @@ function SourceViewer({ snapshot, snapshotId }: { snapshot: Snapshot; snapshotId
           <button type="button" aria-pressed={tab === 'files'} onClick={() => setTab('files')}>Files in the package</button>
         </div>
         {tab === 'ir' && snapshot.ir && (
-          <SourceView source={snapshot.ir.document as object} label="Compiled form (JSON)" language="json" filename={`snapshot-${snapshotId}-compiled.json`} maxHeight="30rem" />
+          <SourceView source={snapshot.ir.document as object} label="Compiled form (JSON)" language="json" filename="snapshot-compiled.json" maxHeight="30rem" />
         )}
         {tab === 'ir' && !snapshot.ir && <p className="org-muted">No compiled form is stored for this snapshot.</p>}
         {tab === 'files' && archive.status === 'loading' && <Skeleton variant="tile" />}
@@ -226,9 +234,9 @@ function SnapshotBody({ organization, project, snapshotId }: { organization: Org
   const download = async (kind: DownloadKind) => {
     setDownloads((current) => ({ ...current, [kind]: { state: 'busy' } }));
     try {
-      if (kind === 'archive') saveBytes(await platformApi.snapshotArchive(snapshotId), `snapshot-${snapshotId}.bim.zip`, 'application/zip');
-      else if (kind === 'source') saveBytes(await casesApi.instanceSource(snapshotId), `snapshot-${snapshotId}-source.bim.zip`, 'application/vnd.bim+zip');
-      else saveBytes(new TextEncoder().encode(JSON.stringify(await casesApi.instanceIr(snapshotId), null, 2)).buffer as ArrayBuffer, `snapshot-${snapshotId}-compiled.json`, 'application/json');
+      if (kind === 'archive') saveBytes(await platformApi.snapshotArchive(snapshotId), 'snapshot.bim.zip', 'application/zip');
+      else if (kind === 'source') saveBytes(await casesApi.instanceSource(snapshotId), 'snapshot-source.bim.zip', 'application/vnd.bim+zip');
+      else saveBytes(new TextEncoder().encode(JSON.stringify(await casesApi.instanceIr(snapshotId), null, 2)).buffer as ArrayBuffer, 'snapshot-compiled.json', 'application/json');
       setDownloads((current) => ({ ...current, [kind]: { state: 'done' } }));
     } catch (caught) {
       const reason = classifyAuthError(caught);
@@ -237,7 +245,7 @@ function SnapshotBody({ organization, project, snapshotId }: { organization: Org
   };
 
   const downloadCards: Array<{ kind: DownloadKind; label: string; detail: string }> = [
-    { kind: 'archive', label: 'Package archive', detail: `snapshot-${snapshotId.slice(0, 8)}.bim.zip · ${formatBytes(data.archiveSize) ?? 'size unknown'}` },
+    { kind: 'archive', label: 'Package archive', detail: `snapshot.bim.zip · ${formatBytes(data.archiveSize) ?? 'size unknown'}` },
     { kind: 'source', label: 'Source files', detail: 'As uploaded, before compiling' },
     { kind: 'ir', label: 'Compiled form', detail: 'For tools that read the engine input (JSON)' },
   ];
@@ -259,7 +267,7 @@ function SnapshotBody({ organization, project, snapshotId }: { organization: Org
             return (
               <div className="snap-digest" key={entry.key}>
                 <span className="snap-digest-label">{entry.label}</span>
-                <code title={digest ?? undefined}>{digest ? shortDigest(digest) : 'not stored'}</code>
+                <span>{digest ? 'Stored' : 'not stored'}</span>
                 <span className="org-muted">{entry.what}</span>
                 {digest && (
                   <button type="button" className="case-link-button" onClick={() => void copy(digest, entry.key)} aria-label={`Copy full ${entry.label.toLowerCase()} fingerprint`}>

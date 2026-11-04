@@ -190,6 +190,7 @@ describe('eng-register · the registration wizard', () => {
     expect(await screen.findByText('my-engine-deployment 1.0.0 is active')).toBeInTheDocument();
     expect(api.activateEngineRegistration).toHaveBeenCalledWith(expect.objectContaining({ digest: REGISTRATION_DIGEST }));
     expect(screen.getByText('Sample problem solved')).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
     expect(screen.getByRole('link', { name: 'Open registration' })).toHaveAttribute('href', expect.stringContaining('/app/engines/registrations/my-engine-deployment?'));
     expect(screen.queryByText(SECRET)).not.toBeInTheDocument();
   });

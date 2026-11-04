@@ -1,6 +1,5 @@
 import type { ArtifactRef } from '../../api/library';
 import type { BindingCase, CaseRevision } from '../../api/platform';
-import { shortDigest } from '../../utils/digest';
 import { formatFeature } from '../../utils/featureRange';
 import { flowText, powerText, rulesText, type BindingModel } from './bindingModel';
 
@@ -160,9 +159,9 @@ export function diffRevisions(from: RevisionView, to: RevisionView): DiffRow[] {
   for (const key of keys) {
     const a = find(from, key);
     const b = find(to, key);
-    const label = (use: ResourceUse | undefined) => (use ? `${refLabel(use.ref)} · ${shortDigest(use.ref.versionDigest)}` : '—');
+    const label = (use: ResourceUse | undefined) => (use ? refLabel(use.ref) : '—');
     const sample = a ?? b;
-    if (sample) rows.push(row('Resources', `${roleLabel(sample.role)} · ${sample.alias}`, label(a), label(b)));
+    if (sample) rows.push({ ...row('Resources', `${roleLabel(sample.role)} · ${sample.alias}`, label(a), label(b)), changed: a?.ref.versionDigest !== b?.ref.versionDigest });
   }
 
   const left = from.model;

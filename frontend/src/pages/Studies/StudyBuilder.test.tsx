@@ -241,7 +241,8 @@ describe('A new study', () => {
     expect(screen.queryByRole('option', { name: 'Providers' })).not.toBeInTheDocument();
     await screen.findByRole('option', { name: 'Engines × seeds' });
     fireEvent.change(screen.getByLabelText('Study definition'), { target: { value: 'art-study' } });
-    await screen.findByRole('option', { name: /v1 · 1/ });
+    await screen.findByRole('option', { name: 'study-1 v1' });
+    expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     fireEvent.change(screen.getByLabelText('Sealed version'), { target: { value: 'ver-1' } });
 
     expect(await screen.findByText(/From the library · 8 cells/)).toBeInTheDocument();

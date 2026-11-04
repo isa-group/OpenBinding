@@ -166,18 +166,19 @@ describe('Workbench', () => {
       ]);
     });
 
-    it('shows the valid package, its fingerprints and what is inside it', async () => {
+    it('shows the valid package, copy buttons for its digests and what is inside it', async () => {
       const writeText = vi.fn().mockResolvedValue(undefined);
       Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
       await validated();
 
       expect(screen.getByText('hello-bim · qos-binding/v1')).toBeInTheDocument();
-      const instance = screen.getByRole('button', { name: 'Copy the instance fingerprint' });
-      expect(instance).toHaveTextContent('Instance · sha256-aaaa…aaaa');
-      expect(screen.getByRole('button', { name: 'Copy the package fingerprint' })).toHaveTextContent('Package · sha256-bbbb…bbbb');
-      expect(screen.getByRole('button', { name: 'Copy the compiled fingerprint' })).toHaveTextContent('Compiled · sha256-cccc…cccc');
+      const instance = screen.getByRole('button', { name: 'Copy the instance digest' });
+      expect(instance).toHaveTextContent('Copy instance digest');
+      expect(screen.getByRole('button', { name: 'Copy the package digest' })).toHaveTextContent('Copy package digest');
+      expect(screen.getByRole('button', { name: 'Copy the compiled digest' })).toHaveTextContent('Copy compiled digest');
+      expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
       fireEvent.click(instance);
-      await waitFor(() => expect(instance).toHaveTextContent('Instance · copied'));
+      await waitFor(() => expect(instance).toHaveTextContent('Instance digest copied'));
       expect(writeText).toHaveBeenCalledWith(`sha256-${'a'.repeat(64)}`);
 
       const counts = within(screen.getByRole('list', { name: 'What the package holds' })).getAllByRole('listitem');
@@ -943,8 +944,10 @@ describe('Workbench', () => {
       fireEvent.click(screen.getByRole('tab', { name: 'Compiled IR' }));
       fireEvent.click(screen.getByRole('button', { name: 'Compile IR' }));
       expect(await screen.findByLabelText('Compiled binding problem IR')).toBeInTheDocument();
-      expect(screen.getByText('snapshot-1')).toBeInTheDocument();
-      expect(screen.getByText('sha256-ir')).toBeInTheDocument();
+      expect(screen.getByText('Saved privately')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Copy digest' })).toBeInTheDocument();
+      expect(screen.queryByText('snapshot-1')).not.toBeInTheDocument();
+      expect(screen.queryByText('sha256-ir')).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Recompile IR' })).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole('tab', { name: 'Source diff' }));
@@ -994,6 +997,6 @@ describe('Workbench', () => {
   it('keeps the digest of a package it received as the fingerprint of the one it checked', async () => {
     workbench.validate.mockResolvedValue(analysis({ instanceDigest: digestOf('f') }));
     await validated();
-    expect(screen.getByRole('button', { name: 'Copy the instance fingerprint' })).toHaveTextContent('Instance · sha256-ffff…ffff');
+    expect(screen.getByRole('button', { name: 'Copy the instance digest' })).toHaveTextContent('Copy instance digest');
   });
 });

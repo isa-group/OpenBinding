@@ -8,7 +8,6 @@ import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { useAuth } from '../../contexts/auth';
-import { shortDigest } from '../../utils/digest';
 import { formatByteSize, formatBytes } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { SelectField } from '../Organization/parts';
@@ -223,7 +222,7 @@ export function ImportPackage({ organization, project, canImport }: { organizati
                   return (
                     <li key={item.id}>
                       <span className={`proj-mark is-${item.outcome}`} aria-hidden="true">{item.outcome === 'verified' || item.outcome === 'reuse' || item.outcome === 'new' ? '✓' : item.outcome === 'later' ? '·' : '!'}</span>
-                      <span className="proj-report-name"><strong>{item.name}</strong><small>{item.kind}{item.fingerprint ? ` · ${shortDigest(item.fingerprint)}` : ''}</small></span>
+                      <span className="proj-report-name"><strong>{item.name}</strong><small>{item.kind}</small></span>
                       <Chip tone={chip.tone}>{chip.label}</Chip>
                     </li>
                   );

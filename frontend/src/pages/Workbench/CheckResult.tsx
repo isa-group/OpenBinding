@@ -7,7 +7,6 @@ import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
-import { shortDigest } from '../../utils/digest';
 import { readBindingProblem } from '../Cases/bindingModel';
 import { FlowDrawing, Power } from '../Cases/parts';
 import { resourcePathForDiagnostic, type Diagnostic, type ResourceEntry } from './bimDocuments';
@@ -141,8 +140,8 @@ function ValidSummary({ wb }: { wb: Workbench }) {
       {chips.length > 0 && (
         <div className="wb-digests">
           {chips.map(([key, label, value]) => (
-            <button type="button" key={key} className="wb-digest" title={value} aria-label={`Copy the ${label.toLowerCase()} fingerprint`} onClick={() => void copy(value, key)}>
-              {label} · <code>{status(key) === 'copied' ? 'copied' : status(key) === 'failed' ? 'copy failed' : shortDigest(value)}</code>
+            <button type="button" key={key} className="wb-digest" aria-label={`Copy the ${label.toLowerCase()} digest`} onClick={() => void copy(value, key)}>
+              {status(key) === 'copied' ? `${label} digest copied` : status(key) === 'failed' ? 'Copy failed' : `Copy ${label.toLowerCase()} digest`}
             </button>
           ))}
         </div>

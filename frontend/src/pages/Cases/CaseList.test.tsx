@@ -65,6 +65,7 @@ describe('Problem list', () => {
     expect(first.getByText('Ready to run')).toBeInTheDocument();
     expect(first.getByText('2 versions')).toBeInTheDocument();
     expect(first.getByText(/latest v2 · /)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     expect(first.getByText('Payments with parallel stock and shipping.')).toBeInTheDocument();
     expect(first.getByRole('link', { name: 'Run latest' })).toHaveAttribute('href', `${root}/runs/new?case=flujo-checkout&revision=2`);
     expect(first.getByRole('link', { name: 'New version' })).toHaveAttribute('href', `${root}/workbench?case=flujo-checkout`);

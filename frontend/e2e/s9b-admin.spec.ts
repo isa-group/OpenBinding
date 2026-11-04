@@ -278,7 +278,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await form.getByLabel('Namespace').fill('maria-santos');
       await form.getByLabel('Name', { exact: true }).fill('edge-annotations');
       await form.getByLabel('Version').fill('1.0.0');
-      await form.getByLabel('Revision (digest)').fill(`sha256-${'a'.repeat(64)}`);
+      await form.getByLabel('Revision', { exact: true }).fill(`sha256-${'a'.repeat(64)}`);
       await capture(page, testInfo, `moderation-${name}-extension-form`, { area: main.getByRole('region', { name: 'Dialects and registered resources' }) });
       await form.getByRole('button', { name: 'Approve…' }).click();
       await page.getByRole('dialog', { name: 'Approve dialect maria-santos/edge-annotations@1.0.0?' }).getByRole('button', { name: 'Approve dialect' }).click();

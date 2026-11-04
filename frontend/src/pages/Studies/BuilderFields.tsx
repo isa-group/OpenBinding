@@ -6,7 +6,7 @@ import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { problemsPath } from '../../routes/paths/problems';
 import { formatDate } from '../../utils/format';
-import { shortDigest } from '../../utils/digest';
+import { collectionVersionLabel, engineLabel } from '../../shared/lib/identity';
 import {
   MAX_SETTINGS, isExecutable, latestExecutable, offeredRevisions, plural, readVariant,
   describeParameters, type EngineChoice, type MatrixSize, type Variant,
@@ -51,7 +51,7 @@ export function CasesField({
                   <span>{caseName} · version {revision.revision}</span>
                   <small>
                     {ready
-                      ? `Sealed ${formatDate(revision.created_at) ?? 'on an unknown date'} · ${shortDigest(revision.digest)}`
+                      ? `Sealed ${formatDate(revision.created_at) ?? 'on an unknown date'}`
                       : 'No compiled snapshot yet, so engines have nothing to run. Compile it in the workbench first.'}
                   </small>
                 </span>
@@ -81,7 +81,7 @@ export function CasesField({
             <span>Sealed version</span>
             <select value={collectionVersion} disabled={!collectionArtifact} onChange={(event) => onCollectionVersion(event.target.value)}>
               <option value="">Choose a version</option>
-              {collectionVersions.map((version) => <option key={version.id} value={version.id}>v{version.ordinal} · {version.ref.version} · {shortDigest(version.contentDigest)}</option>)}
+              {collectionVersions.map((version) => <option key={version.id} value={version.id}>{collectionVersionLabel({ name: version.ref.name, version: version.ordinal })}</option>)}
             </select>
           </label>
         </div>
@@ -110,7 +110,7 @@ export function EnginesField({ choices, selected, onChange, failed }: {
                 <Chip>mode {choice.mode}</Chip>
                 {choice.federated && <Chip tone="warning">federated</Chip>}
               </span>
-              <small>{choice.ref.namespace} · {shortDigest(choice.ref.digest)}{choice.defaultSeconds !== null ? ` · default budget ${choice.defaultSeconds} s` : ''}</small>
+              <small>{choice.ref.namespace} · {engineLabel({ name: choice.ref.name, version: choice.ref.version })}{choice.defaultSeconds !== null ? ` · default budget ${choice.defaultSeconds} s` : ''}</small>
             </span>
           </label>
         ))}
@@ -219,7 +219,7 @@ export function AdoptPanel({ studies, artifact, onArtifact, versions, version, o
           <span>Sealed version</span>
           <select value={version} disabled={!artifact} onChange={(event) => onVersion(event.target.value)}>
             <option value="">Choose a version</option>
-            {versions.map((item) => <option key={item.id} value={item.id}>v{item.ordinal} · {item.ref.version} · {shortDigest(item.contentDigest)}</option>)}
+            {versions.map((item) => <option key={item.id} value={item.id}>{collectionVersionLabel({ name: item.ref.name, version: item.ordinal })}</option>)}
           </select>
         </label>
       </div>

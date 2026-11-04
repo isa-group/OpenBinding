@@ -20,14 +20,16 @@ const group = org('isa-demo', { name: 'ISA Demo Group' });
 const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const flujo = caseOf('flujo', 'Flujo de checkout');
 const ROOT = '/app/isa-demo/qos-benchmarks';
+const JOB_ID = '3f2b9c1e-7d41-4a8e-9b60-c5d1e2f3a4b5';
+const RUN_DIGEST = `sha256-${'ab12cd34ef56'.repeat(5)}`;
 
 const refusal = (status: number, code = 'refused') => Object.assign(new HttpError(status, 'refused'), { code });
 
-function renderJob(id = 'job-done-3') {
+function renderJob(id = JOB_ID) {
   return renderProjectScreen(<JobDetail />, { path: '/app/:org/:project/runs/:job', url: `${ROOT}/runs/${id}`, organizations: [group] });
 }
 
-const meta = (status: string, over: Partial<Job> = {}) => jobOf('job-done-3', 'random-search', status, status === 'completed' ? 'FEASIBLE' : null, '2026-09-30T09:00:00Z', status === 'completed' ? '2026-09-30T09:01:05Z' : null, over);
+const meta = (status: string, over: Partial<Job> = {}) => jobOf(JOB_ID, 'random-search', status, status === 'completed' ? 'FEASIBLE' : null, '2026-09-30T09:00:00Z', status === 'completed' ? '2026-09-30T09:01:05Z' : null, { result: { provenance: { irDigest: RUN_DIGEST } }, ...over });
 
 describe('One run', () => {
   beforeEach(() => {
@@ -35,7 +37,7 @@ describe('One run', () => {
     platform.project.mockResolvedValue(qos);
     platform.cases.mockResolvedValue([flujo]);
     platform.revisions.mockResolvedValue([revisionOf(flujo, 1, { source_snapshot_id: 'snapshot-1' }), revisionOf(flujo, 2, { source_snapshot_id: 'snapshot-2' })]);
-    jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'completed'));
+    jobsApi.detail.mockResolvedValue(detailOf(JOB_ID, 'completed'));
     jobsApi.inProject.mockResolvedValue(meta('completed'));
     jobsApi.mine.mockResolvedValue([meta('completed'), jobOf('job-other-9', 'minizinc', 'completed', 'OPTIMAL', '2026-10-01T09:00:00Z', '2026-10-01T09:00:40Z')]);
     jobsApi.instance.mockResolvedValue(INSTANCE);
@@ -58,7 +60,7 @@ describe('One run', () => {
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'Runs' })).toHaveAttribute('href', `${ROOT}/runs`);
     expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Runs' })).toHaveAttribute('aria-current', 'page');
-    expect(jobsApi.detail).toHaveBeenCalledWith('job-done-3');
+    expect(jobsApi.detail).toHaveBeenCalledWith(JOB_ID);
   });
 
   it('draws the timeline from status changes and says it has no progress bar', async () => {
@@ -119,9 +121,9 @@ describe('One run', () => {
 
     await screen.findByRole('region', { name: 'Chosen providers' });
     expect(jobsApi.ir).toHaveBeenCalledTimes(1);
-    expect(jobsApi.ir).toHaveBeenCalledWith('job-done-3');
+    expect(jobsApi.ir).toHaveBeenCalledWith(JOB_ID);
     expect(jobsApi.report).toHaveBeenCalledTimes(1);
-    expect(jobsApi.report).toHaveBeenCalledWith('job-done-3');
+    expect(jobsApi.report).toHaveBeenCalledWith(JOB_ID);
     expect(screen.queryByRole('region', { name: 'The engine’s own report' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'The engine’s own report' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Compare with the engine' })).not.toBeInTheDocument();
@@ -156,7 +158,7 @@ describe('One run', () => {
     ['cancelled', 'Cancelled before producing a result.'],
     ['failed', 'Engine crashed. Retrying starts a new attempt.'],
   ])('fetches neither the compiled problem nor the report for a %s job', async (status, words) => {
-    jobsApi.detail.mockResolvedValue(detailOf('job-done-3', status, status === 'failed' ? { result: { error: 'Engine crashed' } } : {}));
+    jobsApi.detail.mockResolvedValue(detailOf(JOB_ID, status, status === 'failed' ? { result: { error: 'Engine crashed' } } : {}));
     jobsApi.inProject.mockResolvedValue(meta(status));
     renderJob();
 
@@ -177,11 +179,13 @@ describe('One run', () => {
     renderJob();
 
     const where = (await screen.findByRole('heading', { name: 'Where this result comes from' })).closest('section') as HTMLElement;
-    expect(await within(where).findByRole('link', { name: /^Snapshot snapshot/ })).toHaveAttribute('href', `${ROOT}/problems/flujo/source?version=2`);
+    expect(await within(where).findByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${ROOT}/problems/flujo/source?version=2`);
     expect(await within(where).findByRole('link', { name: 'Flujo de checkout · version 2' })).toHaveAttribute('href', `${ROOT}/problems/flujo?version=2`);
     expect(within(where).getByText('bim.builtin/random-search 1.0.0 · mode sampling', { exact: false })).toBeInTheDocument();
     expect(within(where).getByText('bim-reference-evaluator/v1')).toBeInTheDocument();
     expect(within(where).getByText('60 s per run')).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-|job-/i);
+    expect(within(where).getAllByRole('button', { name: /^Copy .* digest$/ }).length).toBeGreaterThan(0);
   });
 
   // [utest->req~frontend-retire-reports-entry-points-removed~1]
@@ -202,10 +206,10 @@ describe('One run', () => {
 
     const where = (await screen.findByRole('heading', { name: 'Where this result comes from' })).closest('section') as HTMLElement;
     fireEvent.click(within(where).getByRole('button', { name: 'Download compiled problem' }));
-    await waitFor(() => expect(saveBytes).toHaveBeenCalledWith(expect.anything(), 'job-job-done-compiled-problem.json', 'application/json'));
+    await waitFor(() => expect(saveBytes).toHaveBeenCalledWith(expect.anything(), 'run-compiled-problem.json', 'application/json'));
     fireEvent.click(within(where).getByRole('button', { name: 'Download result' }));
-    await waitFor(() => expect(saveBytes).toHaveBeenCalledWith(expect.anything(), 'job-job-done-result.json', 'application/json'));
-    expect(jobsApi.ir).toHaveBeenCalledWith('job-done-3');
+    await waitFor(() => expect(saveBytes).toHaveBeenCalledWith(expect.anything(), 'run-result.json', 'application/json'));
+    expect(jobsApi.ir).toHaveBeenCalledWith(JOB_ID);
   });
 
   it('checks the single swaps on request, never on its own', async () => {
@@ -221,7 +225,7 @@ describe('One run', () => {
     expect(within(list).getByText('Better')).toBeInTheDocument();
     expect(within(list).getByText('cost +0.013 · latency −85')).toBeInTheDocument();
     expect(within(swaps).getByText(/Checked 1 of 3 possible swaps \(up to 128\) without running the engine again\./)).toBeInTheDocument();
-    expect(client.getBindingNeighborhood).toHaveBeenCalledWith('job-done-3', 0, '', 128);
+    expect(client.getBindingNeighborhood).toHaveBeenCalledWith(JOB_ID, 0, '', 128);
   });
 
   it('says so when the analysis is busy or the compiled problem is gone', async () => {
@@ -285,7 +289,7 @@ describe('One run', () => {
   });
 
   it('follows a run that is still going until it finishes', async () => {
-    jobsApi.detail.mockResolvedValueOnce(detailOf('job-done-3', 'running')).mockResolvedValue(detailOf('job-done-3', 'completed'));
+    jobsApi.detail.mockResolvedValueOnce(detailOf(JOB_ID, 'running')).mockResolvedValue(detailOf(JOB_ID, 'completed'));
     jobsApi.inProject.mockResolvedValue(meta('running'));
     renderJob();
 
@@ -298,18 +302,18 @@ describe('One run', () => {
   }, 15_000);
 
   it('cancels a running job and says the engine stops at its next check', async () => {
-    jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'running'));
+    jobsApi.detail.mockResolvedValue(detailOf(JOB_ID, 'running'));
     jobsApi.cancel.mockResolvedValue(meta('running', { cancellation_requested: true }));
     renderJob();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Cancel run' }));
     expect(await screen.findByText('Cancellation requested. The engine stops at its next check.')).toBeInTheDocument();
-    expect(jobsApi.cancel).toHaveBeenCalledWith('job-done-3');
+    expect(jobsApi.cancel).toHaveBeenCalledWith(JOB_ID);
     expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument();
   });
 
   it('says a run had already finished when the gateway refuses to cancel it (409)', async () => {
-    jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'running'));
+    jobsApi.detail.mockResolvedValue(detailOf(JOB_ID, 'running'));
     jobsApi.cancel.mockRejectedValue(refusal(409, 'terminal_job'));
     renderJob();
 
@@ -319,8 +323,8 @@ describe('One run', () => {
   });
 
   it('shows why a run failed and retries it as a new attempt', async () => {
-    jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'failed'));
-    jobsApi.retry.mockResolvedValue(jobOf('job-new-5', 'random-search', 'queued', null, '2026-10-09T08:00:00Z', null, { retry_of_id: 'job-done-3' }));
+    jobsApi.detail.mockResolvedValue(detailOf(JOB_ID, 'failed'));
+    jobsApi.retry.mockResolvedValue(jobOf('job-new-5', 'random-search', 'queued', null, '2026-10-09T08:00:00Z', null, { retry_of_id: JOB_ID }));
     renderJob();
 
     const alert = await screen.findByRole('alert');
@@ -333,7 +337,7 @@ describe('One run', () => {
   });
 
   it('explains a run that failed because the engine takes single values only, and points at Engines', async () => {
-    jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'failed', {
+    jobsApi.detail.mockResolvedValue(detailOf(JOB_ID, 'failed', {
       result: {
         code: 'unsupported_capability_value',
         error: 'unsupported_capability_value: unsupported ["interval"]',
@@ -355,7 +359,7 @@ describe('One run', () => {
   });
 
   it('says nothing about ranges when a run failed for another reason', async () => {
-    jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'failed'));
+    jobsApi.detail.mockResolvedValue(detailOf(JOB_ID, 'failed'));
     renderJob();
 
     await screen.findByRole('alert');
@@ -367,7 +371,7 @@ describe('One run', () => {
     [429, 'concurrency_limit_exceeded', /Retry refused: All your run slots are busy \(429/],
     [503, 'pricing_unavailable', /Limits can’t be checked right now \(503/],
   ])('words a refused retry (%i)', async (status, code, words) => {
-    jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'failed'));
+    jobsApi.detail.mockResolvedValue(detailOf(JOB_ID, 'failed'));
     jobsApi.retry.mockRejectedValue(refusal(status, code));
     renderJob();
 
@@ -376,7 +380,7 @@ describe('One run', () => {
   });
 
   it('shows a cancelled run without a result and lets it be retried', async () => {
-    jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'cancelled'));
+    jobsApi.detail.mockResolvedValue(detailOf(JOB_ID, 'cancelled'));
     jobsApi.inProject.mockResolvedValue(meta('cancelled', { finished_at: '2026-09-30T09:00:03Z' }));
     renderJob();
 
@@ -393,7 +397,7 @@ describe('One run', () => {
       features: { latency: 742, cost: 9.5 },
       violations: [{ constraint: { resource: 'rules', id: 'max-latency' }, enforcement: 'hard', message: 'Total latency is 742 ms; at most 600 ms is allowed.' }],
     };
-    jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'completed', { result: { ...RESULT, termination: 'INFEASIBLE', solutions: [attempt] } }));
+    jobsApi.detail.mockResolvedValue(detailOf(JOB_ID, 'completed', { result: { ...RESULT, termination: 'INFEASIBLE', solutions: [attempt] } }));
     renderJob();
 
     const run = await screen.findByRole('region', { name: 'Run result' });

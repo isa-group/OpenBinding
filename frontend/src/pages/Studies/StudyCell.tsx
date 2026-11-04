@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { jobsApi } from '../../api/jobs';
 import { platformApi, type Job, type StudyCell as StudyCellView } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
-import { CopyField } from '../../components/ui/CopyField';
+import { CopyDigest } from './CopyDigest';
 import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { SourceView } from '../../components/rendering/SourceView';
@@ -13,7 +13,7 @@ import { problemPath } from '../../routes/paths/problems';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
-import { normalizeStatus, shortJobId } from '../Jobs/jobsModel';
+import { normalizeStatus } from '../Jobs/jobsModel';
 import { RefusalNotice } from '../Jobs/parts';
 import { Choice } from '../Organization/parts';
 import { StateChip, StudyGate } from './parts';
@@ -77,7 +77,7 @@ function AttachDialog({ scope, runId, cell, onClose, onAttached }: { scope: Stud
               checked={chosen === job.id}
               onChange={setChosen}
               label={`${job.engine_id} · ${normalizeStatus(job.status)}`}
-              sub={`${shortJobId(job.id)} · ${formatDateTime(job.created_at) ?? 'unknown date'}${job.termination ? ` · ${job.termination.toLowerCase()}` : ''}`}
+              sub={`${formatDateTime(job.created_at) ?? 'unknown date'}${job.termination ? ` · ${job.termination.toLowerCase()}` : ''}`}
             />
           ))}
         </div>
@@ -214,7 +214,7 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
     ['Mode', ref.mode ?? '—'],
     ['Settings', describeParameters(cell.parameters)],
     ['Seed', String(cell.seed)],
-    ['Snapshot', info?.snapshotId ? <Link to={problemPath(root, info.caseSlug, 'source', { version: info.revision })} viewTransition>{info.snapshotId.slice(0, 8)}…</Link> : '—'],
+    ['Snapshot', info?.snapshotId ? <Link to={problemPath(root, info.caseSlug, 'source', { version: info.revision })} viewTransition>Compiled snapshot</Link> : '—'],
   ];
 
   return (
@@ -257,7 +257,7 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
         <SourceView
           source={{ state: cell.state, job_id: cell.job_id, engine: cell.engine_ref, parameters: cell.parameters, seed: cell.seed, metrics: cell.metrics }}
           label="Cell metrics source"
-          filename={`${cell.id}.cell.json`}
+          filename={`cell-${cell.ordinal}.json`}
         />
       ) : (
       <>
@@ -270,7 +270,7 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
         </div>
         <div className="st-fingerprint">
           <span>Fingerprint</span>
-          <CopyField value={cell.fingerprint} label="cell fingerprint" truncate />
+          <CopyDigest value={cell.fingerprint} label="Copy cell digest" />
         </div>
         <span className="st-caption">These never change between runs: the same cell in the next run has the same fingerprint.</span>
       </section>
@@ -298,7 +298,7 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
       <p className="st-job-line">
         <span className="org-muted">Ran as:</span>{' '}
         {cell.job_id
-          ? <><span>{shortJobId(cell.job_id)}</span>{' · '}<Link to={`${root}/runs/${cell.job_id}`} viewTransition title="A run opens for whoever launched it">Open run</Link></>
+          ? <><Link to={`${root}/runs/${cell.job_id}`} viewTransition title="A run opens for whoever launched it">Open run</Link></>
           : <span>none yet</span>}
         {' · '}<Link to={resultsHref} viewTransition>Back to the results</Link>
         {' · '}<Link to={studyPageHref(studyPath, 'progress', { run: runId })} viewTransition>Back to the progress</Link>

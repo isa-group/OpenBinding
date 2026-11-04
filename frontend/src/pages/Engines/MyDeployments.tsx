@@ -7,7 +7,6 @@ import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { shortDigest } from '../../utils/digest';
 
 const deploymentStates: Record<EngineRegistrationState, {
   label: string;
@@ -140,7 +139,6 @@ export function MyDeployments({ username, onChanged }: { username: string; onCha
                   <h3>{registration.name}</h3>
                   <p><code>{registration.namespace}/{registration.name}</code> · <code>{registration.version}</code></p>
                 </div>
-                <code className="deployment-digest" title={registration.digest}>{shortDigest(registration.digest)}</code>
                 <div className="deployment-actions">
                   {!registration.active && (
                     <Button size="sm" disabled={working} aria-label={`Activate ${registration.name}`} onClick={() => void change(registration, (ref) => apiClient.activateEngineRegistration(ref), `${registration.name} is verified and active for your account.`)}>Activate</Button>

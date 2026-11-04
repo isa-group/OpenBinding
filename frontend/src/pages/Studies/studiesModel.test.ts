@@ -138,7 +138,7 @@ describe('case revisions', () => {
     const index = revisionIndex(cases);
     expect(revisionLabel(index, REVISION_2.id)).toBe('Checkout flow · version 2');
     expect(revisionLabel(index, REVISION_2.id, true)).toBe('Checkout flow r2');
-    expect(revisionLabel(index, 'abcdef0123456789')).toBe('Version abcdef01…');
+    expect(revisionLabel(index, 'abcdef0123456789')).toBe('Version from another project');
   });
 
   it('starts the builder from the case, revision or collection another screen named', () => {

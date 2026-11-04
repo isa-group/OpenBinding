@@ -1,4 +1,7 @@
-import { expect, test, type Page, type Route, type TestInfo } from '@playwright/test';
+import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
+
+// The dev server compiles each route on first use, so the first assertion of a test can wait for a cold page.
+const expect = baseExpect.configure({ timeout: 15_000 });
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { zipStore } from '../src/utils/bimZip';
 
@@ -439,7 +442,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'bim.builtin/random-search@1.0.0' })).toBeVisible();
-      await expect(main.getByText(RS_DIGEST, { exact: true })).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Copy exact reference' })).toBeVisible();
+      await expect(main).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await expect(main.getByRole('link', { name: 'Log in to run' })).toHaveAttribute('href', '/login');
       const options = main.getByRole('region', { name: 'Options of mode sampling' });
       await expect(main.getByLabel('Plan to preview')).toHaveValue('BASIC');
@@ -600,7 +604,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(page).toHaveURL(/\/language\/schemas\/engine-contract$/);
       await expect(main.getByRole('heading', { level: 2, name: 'engine-contract' })).toBeVisible();
       await expect(main.getByRole('region', { name: 'Calls of the engine protocol' })).toContainText('/internal/v1/binding-problems');
-      await expect(main.getByText(DIGEST('c0ffee11'), { exact: true })).toBeVisible();
+      await expect(main).not.toContainText(/sha256-|[0-9a-f]{12}/);
+      await main.getByRole('button', { name: 'Copy protocol digest' }).click();
+      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(DIGEST('c0ffee11'));
       await shot(page, testInfo, 'schemas-engine-contract');
 
       await expectNoHorizontalOverflow(page);
@@ -679,7 +685,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       const [download] = await Promise.all([page.waitForEvent('download'), first.getByRole('button', { name: 'Download .bim.zip' }).click()]);
       expect(download.suggestedFilename()).toBe('01_simple_seq.bim.zip');
-      await expect(first.getByRole('status')).toContainText(/^sha256-[0-9a-f]{64}Copy digest$/);
+      await expect(first.getByRole('status')).toContainText(/^Downloaded [\d,]+ bytesCopy digest$/);
+      await expect(first.getByRole('status')).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await shot(page, testInfo, 'examples-visitor');
 
       await main.getByRole('button', { name: 'Placement', exact: true }).click();
@@ -757,7 +764,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(workflow).toContainText('p 0.7');
       const filesCard = main.getByRole('region', { name: 'Package files' });
       await expect(filesCard).toContainText('Candidate catalog');
-      await expect(filesCard).toContainText('sha256-1a2b…3c4d');
+      await expect(filesCard).toContainText('candidates.json');
+      await expect(filesCard).toContainText('application.json');
+      await expect(main.getByRole('button', { name: 'Copy instance digest' })).toBeVisible();
+      await expect(filesCard).toContainText(/\d[\d.,]*\s?(B|bytes|KiB|MiB)\b/);
+      await expect(filesCard).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await expect(main.getByRole('region', { name: 'Constraints' })).toContainText('HARD');
       await expect(main.getByRole('region', { name: 'Constraints' })).toContainText('penalty 5');
       await expect(main.getByRole('region', { name: 'Objective' })).toContainText('weighted');

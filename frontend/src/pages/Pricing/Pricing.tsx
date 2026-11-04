@@ -11,7 +11,6 @@ import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
-import { shortDigest } from '../../utils/digest';
 import { formatDate } from '../../utils/format';
 import { usePricingTokenStatus } from '../../utils/pricingToken';
 import { safeExternalHref } from '../../utils/url';
@@ -269,7 +268,6 @@ export function Pricing() {
             <Chip>Pricing version <span className="pricing-mono">{released.version}</span></Chip>
             {formatDate(released.createdAt) && <Chip>Published {formatDate(released.createdAt)}</Chip>}
             {released.currency && <Chip>{released.currency}{released.periods ? ` · ${released.periods}` : ''}</Chip>}
-            {release?.digest && <span title={release.digest}><Chip>Fingerprint {shortDigest(release.digest)}</Chip></span>}
           </div>
         )}
       </header>

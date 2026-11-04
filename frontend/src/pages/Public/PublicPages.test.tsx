@@ -127,7 +127,7 @@ describe('public workbench', () => {
     expect(screen.getByText('checkout.bim.zip · profile qos-binding/v1 · 3 tasks')).toBeInTheDocument();
     const digests = document.querySelector('.workbench-digests') as HTMLElement;
     expect(digests).toHaveTextContent('Instance digest');
-    expect(digests).toHaveTextContent('sha256-a1b2…c3d4');
+    expect(digests).toHaveTextContent('computed');
     fireEvent.click(within(digests).getByRole('button', { name: 'Copy ir digest' }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(D('c3d4e5f6')));
 
@@ -135,7 +135,7 @@ describe('public workbench', () => {
     const filesCard = screen.getByRole('region', { name: 'Package files' });
     expect(filesCard).toHaveTextContent('candidates.json');
     expect(filesCard).toHaveTextContent('Candidate catalog');
-    expect(filesCard).toHaveTextContent('sha256-1122…3344');
+    expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
     const workflow = screen.getByRole('region', { name: 'Workflow' });
     expect(workflow).toHaveTextContent('SEQUENCE');
     expect(workflow).toHaveTextContent('Binding space ≈ 100.0 combinations');

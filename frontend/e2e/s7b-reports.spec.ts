@@ -290,7 +290,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText(/Report editions made public from QoS Benchmarks\. Withdrawing hides one from listings but keeps every link and fingerprint working\./)).toBeVisible();
       await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Published', exact: true })).toHaveAttribute('aria-current', 'page');
       await expect(main.getByRole('heading', { level: 2, name: 'Engine comparison at checkout' })).toBeVisible();
-      await expect(main.getByText('checkout-comparison · published Sep 25, 2026 · sha256-eeee…eeee')).toBeVisible();
+      await expect(main.getByText('checkout-comparison · published Sep 25, 2026', { exact: true })).toBeVisible();
+      await expect(main.locator('.rp-pub')).not.toContainText(/sha256-|[0-9a-f]{12}/);
+      await expect(main.getByRole('button', { name: 'Copy public link' })).toBeVisible();
       await expect(main.getByText('Alex Rivera (2026). Engine comparison at checkout. ISA Demo Group / QoS Benchmarks.')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Open public verification' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
       await expect(main.getByRole('link', { name: 'Open the report' })).toHaveCount(0);
@@ -368,14 +370,22 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('textbox', { name: 'Link or digest' }).fill(EDITION);
       await main.getByRole('button', { name: 'Verify' }).click();
       await expect(page).toHaveURL(new RegExp(`/verify\\?digest=${EDITION}$`));
-      const verdict = main.getByRole('region', { name: 'Verdict' });
+      const verdict = main.getByRole('status', { name: 'Verdict' });
       await expect(verdict.getByText('Verified', { exact: true })).toBeVisible();
-      await expect(verdict.getByText('OpenBinding recorded an element with this fingerprint.')).toBeVisible();
+      await expect(verdict.getByText('The fingerprint is what OpenBinding recorded.')).toBeVisible();
       const matches = main.getByRole('region', { name: 'Matches' });
       await expect(matches.getByText('Engine comparison at checkout')).toBeVisible();
+      await expect(matches).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await expect(matches.getByRole('link', { name: 'Open' })).toHaveAttribute('href', `${ROOT}/published`);
       await expect(matches.getByRole('link', { name: 'Public record' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
-      await expect(main.getByText('OpenBinding (2026). Engine comparison at checkout. OpenBinding report edition, digest sha256-eeee…eeee.')).toBeVisible();
+      const cite = main.getByRole('region', { name: 'Cite and link' });
+      await expect(cite.getByText('OpenBinding (2026). Engine comparison at checkout. OpenBinding report edition.', { exact: true })).toBeVisible();
+      await expect(cite.locator('.citation-panel__text')).not.toContainText(/sha256-|[0-9a-f]{12}/);
+      for (const label of ['Copy permanent link', 'Copy citation', 'Copy BibTeX', 'Copy CSL-JSON']) await expect(cite.getByRole('button', { name: label })).toBeVisible();
+      // The digest is shown once, as the recorded fingerprint; the permanent link legitimately embeds it in its address.
+      await expect(main.locator('code').filter({ hasText: /^sha256-/ })).toHaveCount(1);
+      await expect(main.getByRole('button', { name: 'Copy recorded fingerprint' })).toBeVisible();
+      await expect(cite.locator('code')).toHaveText(new RegExp(`/resolve/report/${EDITION}$`));
       expect(state.sent.verify.at(-1)).toEqual({ digest: EDITION });
       await capture(page, testInfo, `verify-${name}-verified`, { height: 1700 });
 
@@ -397,7 +407,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // A digest in the address is checked on arrival, and the field holds it.
       await page.goto(`/verify?digest=${EDITION}`);
-      await expect(main.getByRole('region', { name: 'Verdict' }).getByText('Verified', { exact: true })).toBeVisible();
+      await expect(main.getByRole('status', { name: 'Verdict' }).getByText('Verified', { exact: true })).toBeVisible();
       await expect(main.getByRole('textbox', { name: 'Link or digest' })).toHaveValue(EDITION);
       expect(critical).toEqual([]);
     });
@@ -434,7 +444,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `verify-${name}-mismatch`, { height: 1500 });
       await main.getByLabel('Fingerprint it should have (optional)').fill(fingerprint);
       await main.getByRole('button', { name: 'Verify' }).click();
-      await expect(main.getByRole('region', { name: 'Verdict' }).getByText('Verified', { exact: true })).toBeVisible();
+      await expect(main.getByRole('status', { name: 'Verdict' }).getByText('Verified', { exact: true })).toBeVisible();
 
       await main.getByLabel('Paste the document’s text').fill('just words');
       await main.getByRole('button', { name: 'Verify' }).click();
@@ -445,7 +455,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByLabel('Choose file').setInputFiles({ name: 'results.csv', mimeType: 'text/csv', buffer: Buffer.from(FILE_BYTES) });
       await expect(main.getByText(/results\.csv · 8 bytes/)).toBeVisible();
       await main.getByRole('button', { name: 'Verify' }).click();
-      await expect(main.getByRole('region', { name: 'Verdict' }).getByText('Verified', { exact: true })).toBeVisible();
+      await expect(main.getByRole('status', { name: 'Verdict' }).getByText('Verified', { exact: true })).toBeVisible();
       await expect(main.getByText(sha(FILE_BYTES), { exact: true }).first()).toBeVisible();
       await expect(main.getByRole('region', { name: 'Matches' }).getByText('Blob (text/csv, 8 B)')).toBeVisible();
       await capture(page, testInfo, `verify-${name}-file`, { height: 1500 });

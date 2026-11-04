@@ -96,8 +96,8 @@ function ExtensionApproval({ waiting, onDecided }: { waiting: number | null; onD
           <input value={form.version} onChange={set('version')} autoComplete="off" spellCheck={false} placeholder="1.0.0" />
         </label>
         <label className="adm-field adm-wide">
-          <span className="adm-label">Revision (digest)</span>
-          <input value={form.revision} onChange={set('revision')} autoComplete="off" spellCheck={false} placeholder="sha256-…" />
+          <span className="adm-label">Revision</span>
+          <input value={form.revision} onChange={set('revision')} autoComplete="off" spellCheck={false} placeholder="Revision reference" />
         </label>
         <div className="adm-buttons adm-wide">
           <Action type="submit" variant="primary" disabled={!complete}>Approve…</Action>

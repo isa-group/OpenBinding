@@ -14,8 +14,9 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { config } from '../../config';
 import { useAuth } from '../../contexts/auth';
 import { problemsPath } from '../../routes/paths/problems';
-import { formatDate, formatDateTime } from '../../utils/format';
+import { formatDate } from '../../utils/format';
 import { formatCount, formatDuration } from '../../utils/limits';
+import { runLabel } from '../../shared/lib/identity';
 import { useResource } from '../../utils/useResource';
 import { contractChange } from '../Account/notificationsModel';
 import { usageRows } from '../Account/usageModel';
@@ -52,9 +53,9 @@ function jobStatus(job: JobSummary): { label: string; tone: StatusTone } {
 }
 
 function jobMeta(job: JobSummary): string {
-  const started = formatDateTime(job.created_at) ?? job.created_at;
   const seconds = job.finished_at ? (Date.parse(job.finished_at) - Date.parse(job.created_at)) / 1000 : null;
-  return `Run ${job.id.slice(0, 8)}… · started ${started}${seconds !== null && seconds >= 0 ? ` · finished in ${formatDuration(seconds)}` : ''}`;
+  const label = runLabel({ engine: { name: job.engine_id }, createdAt: job.created_at });
+  return `${label}${seconds !== null && seconds >= 0 ? ` · finished in ${formatDuration(seconds)}` : ''}`;
 }
 
 function OrgBranch({ node, all, userId }: { node: TreeNode; all: Organization[]; userId: string | undefined }) {

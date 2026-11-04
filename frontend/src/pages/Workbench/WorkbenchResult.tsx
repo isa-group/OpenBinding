@@ -2,7 +2,7 @@ import { Fragment } from 'react';
 import { FileText, Folder } from 'lucide-react';
 import { Chip } from '../../components/ui/Chip';
 import { DataTable } from '../../components/ui/DataTable';
-import { shortDigest } from '../../utils/digest';
+import { useCopy } from '../../components/ui/useCopy';
 import { formatFeature } from '../../utils/featureRange';
 import { formatBytes } from '../../utils/format';
 import type { DiagnosticGroup } from './diagnostics';
@@ -43,6 +43,7 @@ function FileNode({ node, depth, digests, problems, onShowProblems }: {
   problems: Record<string, number>;
   onShowProblems: (path: string) => void;
 }) {
+  const { copy, status } = useCopy();
   const file = node.file;
   const count = problems[node.path] ?? 0;
   return (
@@ -53,7 +54,11 @@ function FileNode({ node, depth, digests, problems, onShowProblems }: {
         {file?.role && <Chip tone="accent">{ROLE_LABELS[file.role] ?? file.role}</Chip>}
         {file?.kind && file.kind !== ROLE_LABELS[file.role ?? ''] && <Chip>{file.kind}</Chip>}
         {file && <small>{formatBytes(file.bytes)?.split(' (')[0]}</small>}
-        {file && digests[node.path] && <code title={digests[node.path]}>{shortDigest(digests[node.path])}</code>}
+        {file && digests[node.path] && (
+          <button type="button" aria-label={`Copy digest of ${node.name}`} onClick={() => void copy(digests[node.path], node.path)}>
+            {status(node.path) === 'copied' ? 'Copied' : status(node.path) === 'failed' ? 'Copy failed' : 'Copy digest'}
+          </button>
+        )}
         {count > 0 && (
           <button type="button" onClick={() => onShowProblems(node.path)}>{count} {count === 1 ? 'problem' : 'problems'}</button>
         )}

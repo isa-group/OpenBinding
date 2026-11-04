@@ -11,7 +11,6 @@ import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
 import { BIM_PACKAGE_LIMITS, BimPackageError } from '../../utils/bimZip';
 import { formatBytes } from '../../utils/format';
-import { shortDigest } from '../../utils/digest';
 import { useResource } from '../../utils/useResource';
 import { groupDiagnostics, readDiagnostics } from '../Workbench/diagnostics';
 import { readPackageModel, type PackageModel } from '../Workbench/packageModel';
@@ -318,7 +317,7 @@ export function WorkbenchPage() {
                     <div key={label}>
                       <span>
                         <small>{label}</small>
-                        <code title={digest}>{shortDigest(digest)}</code>
+                        <code>computed</code>
                       </span>
                       <button type="button" aria-label={`Copy ${label.toLowerCase()}`} onClick={() => void copy(digest, label)}>
                         {copyStatus(label) === 'copied' ? 'Copied' : 'Copy'}
@@ -345,7 +344,7 @@ export function WorkbenchPage() {
                       <StructurePanel
                         model={model}
                         valid={outcome.valid}
-                        fileDigests={outcome.valid ? outcome.result.fileDigests : {}}
+                        fileDigests={{}}
                         problemsByFile={Object.fromEntries(groups.filter((group) => group.file).map((group) => [group.file, group.items.length]))}
                         onShowProblems={showProblems}
                       />

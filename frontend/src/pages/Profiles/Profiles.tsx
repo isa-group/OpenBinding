@@ -10,7 +10,6 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
-import { shortDigest } from '../../utils/digest';
 import { useResource } from '../../utils/useResource';
 import { schemaPath, schemaPathFor } from '../Schemas/schemaKinds';
 import './Profiles.css';
@@ -303,7 +302,7 @@ export function Profiles() {
                     <tr key={key}>
                       <td>
                         <span className="is-mono">{reference}</span>
-                        <small className="profiles-sub is-mono" title={resource.digest}>{shortDigest(resource.digest)}</small>
+                        <small className="profiles-sub is-mono">{resource.name} {resource.version}</small>
                       </td>
                       <td>{resource.kind} · {resource.role}</td>
                       <td className="is-mono">{resource.dialect || '—'}</td>

@@ -4,10 +4,10 @@ import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useAuth } from '../../contexts/auth';
-import { isDigest, normalizeDigest, shortDigest } from '../../utils/digest';
+import { isDigest, normalizeDigest } from '../../utils/digest';
 import { formatBytes } from '../../utils/format';
 import { ResolveResult } from './ResolveResult';
-import { RESOLVE_KINDS, isKnownKind } from './resolveModel';
+import { RESOLVE_KINDS, isKnownKind, kindLabel } from './resolveModel';
 import { VerifierResult } from './VerifierResult';
 import {
   problemOf, verifyDigest, verifyFile, verifyText, type Mode, type Problem, type Result,
@@ -127,7 +127,7 @@ function VerifyView() {
       <nav aria-label="Breadcrumb" className="resolve-breadcrumb">
         <Link to="/explore">Explore</Link><span aria-hidden="true">/</span><span>Verify</span>
         {addressKind && <><span aria-hidden="true">/</span><span>{addressKind}</span></>}
-        {digest && <><span aria-hidden="true">/</span><span className="resolve-breadcrumb-digest">{shortDigest(normalizeDigest(digest))}</span></>}
+        {digest && <><span aria-hidden="true">/</span><span className="resolve-breadcrumb-digest">{isKnownKind(addressKind) ? kindLabel(addressKind) : 'Element'}</span></>}
       </nav>
 
       <header className="verify-title">

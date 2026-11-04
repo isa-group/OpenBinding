@@ -243,29 +243,64 @@ describe('Verify', () => {
     // [utest->req~frontend-nav-verify-permanent-links~1]
     it('puts the /resolve/<kind>/<digest> form on the clipboard', async () => {
       renderVerify(`/verify/report/${DIGEST}`);
-      const cite = within(await screen.findByRole('region', { name: 'Cite this' }));
+      const cite = within(await screen.findByRole('region', { name: 'Cite and link' }));
 
       fireEvent.click(cite.getByRole('button', { name: 'Copy permanent link' }));
 
       expect(vi.mocked(navigator.clipboard.writeText).mock.calls[0][0]).toBe(`${window.location.origin}/resolve/report/${DIGEST}`);
-      expect(await cite.findByRole('button', { name: 'Permanent link copied' })).toBeInTheDocument();
+      expect(await cite.findByText('permanent link copied')).toBeInTheDocument();
     });
 
-    it('copies a citation and a BibTeX entry built from what was resolved', async () => {
+    it('copies a citation and a BibTeX entry built from what was resolved, without the digest', async () => {
       renderVerify(`/verify/report/${DIGEST}`);
-      const cite = within(await screen.findByRole('region', { name: 'Cite this' }));
+      const cite = within(await screen.findByRole('region', { name: 'Cite and link' }));
 
       fireEvent.click(cite.getByRole('button', { name: 'Copy citation' }));
       const text = vi.mocked(navigator.clipboard.writeText).mock.calls[0][0];
-      expect(text).toContain('lucia.vega (2026). Comparativa de engines en checkout. OpenBinding report edition, digest sha256-e5f6…0718.');
-      expect(text).not.toMatch(/doi/i);
+      expect(text).toBe('lucia.vega (2026). Comparativa de engines en checkout. OpenBinding report edition.');
+      expect(text).not.toMatch(/doi|sha256/i);
       expect(await cite.findByRole('button', { name: 'Citation copied' })).toBeInTheDocument();
 
-      fireEvent.click(cite.getByRole('button', { name: 'Copy for reference manager' }));
+      fireEvent.click(cite.getByRole('button', { name: 'Copy BibTeX' }));
       const bibtex = vi.mocked(navigator.clipboard.writeText).mock.calls[1][0];
       expect(bibtex).toMatch(/^@misc\{lucia\.?vega2026/);
       expect(bibtex).toContain('title        = {Comparativa de engines en checkout}');
-      expect(bibtex).toContain(`note         = {SHA-256 digest ${DIGEST}}`);
+    });
+
+    // [utest->req~citation-panel~1]
+    it('shows the digest exactly once, in the citation panel', async () => {
+      renderVerify(`/verify/report/${DIGEST}`);
+      const cite = within(await screen.findByRole('region', { name: 'Cite and link' }));
+
+      expect(cite.getAllByText(DIGEST)).toHaveLength(1);
+      expect(screen.getAllByText(DIGEST)).toHaveLength(1);
+      expect(screen.getAllByRole('button', { name: 'Copy digest' })).toHaveLength(1);
+    });
+
+    it('names the breadcrumb by kind and never prints a digest prefix', async () => {
+      renderVerify(`/verify/report/${DIGEST}`);
+      await screen.findByText('Verified');
+
+      const crumbs = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
+      expect(crumbs.getByText('Report edition')).toBeInTheDocument();
+      expect(crumbs.queryByText(/sha256|…/)).not.toBeInTheDocument();
+    });
+
+    it('falls back to "Element" in the breadcrumb for an address with an unknown kind', async () => {
+      renderVerify(`/verify/widget/${DIGEST}`);
+
+      const crumbs = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
+      expect(crumbs.getByText('Element')).toBeInTheDocument();
+      expect(crumbs.queryByText(/sha256|…/)).not.toBeInTheDocument();
+    });
+
+    it('never shows the element id of a location without a slug', async () => {
+      platform.resolveElement.mockResolvedValue({ ...element, locations: [{ ...location, slug: null, element_id: 'b7d1c2e4-0000-4000-8000-123456789abc' }] });
+      renderVerify(`/verify/report/${DIGEST}`);
+      const locations = within(await screen.findByRole('region', { name: 'Locations' }));
+
+      expect(locations.getByText('ISA Demo Group / QoS Benchmarks')).toBeInTheDocument();
+      expect(document.body.textContent).not.toMatch(/b7d1c2e4|123456789abc/);
     });
   });
 
@@ -276,7 +311,9 @@ describe('Verify', () => {
       vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
     });
 
-    it('fetches the bytes and offers them as a file', async () => {
+    it('fetches the bytes and offers them as a file named after the kind and the name, not the digest', async () => {
+      const names: string[] = [];
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function click(this: HTMLAnchorElement) { names.push(this.download); });
       platform.resolveContent.mockResolvedValue(new TextEncoder().encode('{"a":1}').buffer);
       renderVerify(`/verify/report/${DIGEST}`);
 
@@ -285,6 +322,7 @@ describe('Verify', () => {
       expect(await screen.findByText('Downloaded 7 bytes of application/json.')).toBeInTheDocument();
       expect(platform.resolveContent).toHaveBeenCalledWith('report', DIGEST);
       expect(URL.createObjectURL).toHaveBeenCalledOnce();
+      expect(names).toEqual(['report-comparativa-de-engines-en-checkout.json']);
     });
 
     it('says when the download fails and keeps the verdict', async () => {
@@ -535,7 +573,7 @@ describe('Verify', () => {
     it('runs the verifier on arrival at /verify?digest=D and lists what has the digest', async () => {
       renderVerify(`/verify?digest=${EDITION}`);
 
-      const result = await screen.findByRole('region', { name: 'Verdict' });
+      const result = await screen.findByRole('status', { name: 'Verdict' });
       expect(within(result).getByText('Verified')).toBeInTheDocument();
       expect(field('Link or digest')).toHaveValue(EDITION);
       expect(platform.verifierCheck).toHaveBeenCalledWith({ digest: EDITION });
@@ -551,12 +589,25 @@ describe('Verify', () => {
       verify();
 
       await waitFor(() => expect(where()).toBe(`/verify?digest=${EDITION}`));
-      const result = await screen.findByRole('region', { name: 'Verdict' });
+      const result = await screen.findByRole('status', { name: 'Verdict' });
       expect(within(result).getByText('Verified')).toBeInTheDocument();
-      expect(within(result).getByText('OpenBinding recorded an element with this fingerprint.')).toBeInTheDocument();
+      expect(within(result).getByText('The fingerprint is what OpenBinding recorded.')).toBeInTheDocument();
       expect(platform.verifierCheck).toHaveBeenCalledWith({ digest: EDITION });
-      expect(screen.getByText('Fingerprint you gave')).toBeInTheDocument();
-      expect(screen.getByText('Recorded by OpenBinding')).toBeInTheDocument();
+      const given = screen.getByText('Fingerprint you gave').closest('.verify-result__side') as HTMLElement;
+      const recorded = screen.getByText('Recorded by OpenBinding').closest('.verify-result__side') as HTMLElement;
+      expect(within(recorded).getByText(EDITION)).toBeInTheDocument();
+      expect(within(given).queryByText(EDITION)).not.toBeInTheDocument();
+      expect(within(given).getByText('Matches the recorded fingerprint')).toBeInTheDocument();
+    });
+
+    it('titles the citation of a study run without a name by its kind and links to the verifier by digest', async () => {
+      const nameless = { entity_type: 'study_run', id: 'run-1', slug: null, title_or_name: null, organization_slug: 'isa-demo', project_slug: 'qos-benchmarks', created_at: '2026-09-25T09:00:00Z' };
+      platform.verifierCheck.mockResolvedValue(verdict({ entities: [nameless as unknown as NonNullable<VerifierVerdict['entities']>[number]] }));
+      renderVerify(`/verify?digest=${EDITION}`);
+
+      const cite = within(await screen.findByRole('region', { name: 'Cite and link' }));
+      expect(cite.getByText(`${window.location.origin}/app/verifier?digest=${EDITION}`)).toBeInTheDocument();
+      expect(cite.getByText(/^OpenBinding \(2026\)\. Study run\./)).toBeInTheDocument();
     });
 
     it('lists the matches with their links and offers a citation that invents nothing', async () => {
@@ -570,12 +621,32 @@ describe('Verify', () => {
       expect(within(matches).getByRole('link', { name: 'Public record' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
 
       // Written from the record, not from the gateway's citation, whose DOI and venue are made up.
-      const text = 'OpenBinding (2026). Comparativa de engines en checkout. OpenBinding report edition, digest sha256-eeee…eeee.';
+      const text = 'OpenBinding (2026). Comparativa de engines en checkout. OpenBinding report edition.';
       expect(screen.getByText(text)).toBeInTheDocument();
       expect(screen.queryByText(/INVENTED/)).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Copy citation' }));
       await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(text));
       expect(await screen.findByRole('button', { name: 'Citation copied' })).toBeInTheDocument();
+    });
+
+    // [utest->req~verify-result~1]
+    it('shows the digest of a verified lookup exactly once in the result', async () => {
+      renderVerify(`/verify?digest=${EDITION}`);
+      await screen.findByRole('status', { name: 'Verdict' });
+
+      expect(screen.getAllByText(EDITION)).toHaveLength(1);
+      expect(screen.getAllByRole('button', { name: /^Copy .*(fingerprint|digest)/ })).toHaveLength(1);
+    });
+
+    // [utest->req~verify-result~1]
+    it('shows two different digests, one each, when the recorded one differs from the one given', async () => {
+      const recorded = `sha256-${'12'.repeat(32)}`;
+      platform.verifierCheck.mockResolvedValue(verdict({ digest: recorded }));
+      renderVerify(`/verify?digest=${EDITION}`);
+      await screen.findByRole('status', { name: 'Verdict' });
+
+      expect(screen.getAllByText(EDITION)).toHaveLength(1);
+      expect(screen.getAllByText(recorded)).toHaveLength(1);
     });
 
     it('shows every match, without a project filter', async () => {
@@ -597,7 +668,7 @@ describe('Verify', () => {
       expect(screen.getByText('nothing recorded')).toBeInTheDocument();
       expect(screen.getByText(/Someone else’s private item reads exactly like one that was never registered/)).toBeInTheDocument();
       expect(screen.queryByRole('region', { name: 'Matches' })).not.toBeInTheDocument();
-      expect(within(screen.getByRole('region', { name: 'Verdict' })).queryByText(/isa-demo|QoS Benchmarks/)).not.toBeInTheDocument();
+      expect(within(screen.getByRole('status', { name: 'Verdict' })).queryByText(/isa-demo|QoS Benchmarks/)).not.toBeInTheDocument();
     });
 
     it('refuses something that is not a fingerprint without asking the server', async () => {
@@ -621,7 +692,7 @@ describe('Verify', () => {
       expect(platform.verifierCheck).toHaveBeenCalledWith({ document: { b: 1, a: 2 }, digest: null });
       expect(platform.verifierCheckFile).not.toHaveBeenCalled();
       expect(screen.getByText('Computed in your browser')).toBeInTheDocument();
-      expect(screen.getByText(fingerprint, { selector: 'div:first-child > code' })).toBeInTheDocument();
+      expect(screen.getByText(fingerprint)).toBeInTheDocument();
     });
 
     // [utest->req~frontend-nav-verify-no-raw-json~1]
@@ -711,7 +782,7 @@ describe('Verify', () => {
       expect(await screen.findByText('Computed, not on record')).toBeInTheDocument();
       expect(platform.verifierCheckFile).toHaveBeenCalledWith(file, 'results.csv');
       expect(platform.verifierCheck).not.toHaveBeenCalled();
-      expect(screen.getByText(fingerprint, { selector: 'div:first-child > code' })).toBeInTheDocument();
+      expect(screen.getByText(fingerprint)).toBeInTheDocument();
       expect(screen.queryByText('Your browser and the server disagree')).not.toBeInTheDocument();
     });
 

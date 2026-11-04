@@ -38,7 +38,9 @@ describe('what to solve', () => {
     const choices = sourceChoices({ cases, caseSlug: null, revision: null, snapshot: 'snap-9' });
     expect(choices.map((choice) => choice.id)).toEqual(['snapshot:snap-9', 'revision:rev-2']);
     expect(choices[1]).toMatchObject({ label: 'Flujo de checkout · version 2', latest: true, snapshotId: 'snap-2' });
-    expect(choices[1].detail).toMatch(/^Latest · Sealed Aug 2, 2026 · sha256-2222…2222$/);
+    expect(choices[0].label).toBe('Compiled snapshot');
+    expect(choices[1].detail).toBe('Latest · Sealed Aug 2, 2026');
+    expect(choices.map((choice) => `${choice.label} ${choice.detail}`).join(' ')).not.toMatch(/sha256-|[0-9a-f]{12}/);
   });
 
   it('lists every revision of the case named by the address', () => {

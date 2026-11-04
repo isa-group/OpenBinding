@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import { Chip } from '../../components/ui/Chip';
 import { useCopy } from '../../components/ui/useCopy';
 import { problemPath } from '../../routes/paths/problems';
-import { shortDigest } from '../../utils/digest';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { changesBetween, describeChange, exactReference, refLabel, resourceUses, roleLabel } from './casesModel';
@@ -41,7 +40,6 @@ function VersionCard({ root, caseSlug, revision, previous, latest, model, public
           <Link to={href} viewTransition><strong>Version {revision.revision}</strong></Link>
           {latest && <Chip tone="accent">Latest</Chip>}
           <span className="case-rev-date">{formatDate(revision.created_at) ?? '—'}</span>
-          <code title={revision.digest}>{shortDigest(revision.digest)}</code>
           <button type="button" className="case-link-button" onClick={() => void copy(exactReference(caseSlug, revision), key)} aria-label={`Copy exact reference of version ${revision.revision}`}>
             {status(key) === 'copied' ? 'Copied' : status(key) === 'failed' ? 'Copy failed' : 'Copy reference'}
           </button>

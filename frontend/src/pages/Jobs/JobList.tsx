@@ -11,6 +11,7 @@ import { FilterPills } from '../../components/ui/FilterPills';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
+import { runLabel } from '../../shared/lib/identity';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
@@ -173,7 +174,7 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
                       <td><StatusChip status={state} /></td>
                       <td>
                         <strong className="job-engine">{job.engine_id}</strong>
-                        {job.retry_of_id && <small className="org-muted">Retry of {job.retry_of_id.slice(0, 8)}…</small>}
+                        {job.retry_of_id && <small className="org-muted">Retry of an earlier run</small>}
                       </td>
                       <td>{state === 'completed' ? <OutcomeChip termination={job.termination} /> : <span className="org-muted">—</span>}</td>
                       <td>
@@ -189,7 +190,7 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
                       <td className="job-actions-cell">
                         <span className="job-row-actions">
                           {canOpen(job)
-                            ? <Link to={`${root}/runs/${job.id}`} viewTransition aria-label={`Open run ${job.id.slice(0, 8)}`}>Open</Link>
+                            ? <Link to={`${root}/runs/${job.id}`} viewTransition aria-label={`Open ${runLabel({ engine: { name: job.engine_id }, createdAt: job.created_at })}`}>Open</Link>
                             : <small className="proj-owner-only" title="Runs open only for whoever launched them">Owner only</small>}
                           {own && canRetryState(state) && (
                             <button type="button" className="job-link-button" onClick={() => void retry(job)} disabled={retrying === job.id}>

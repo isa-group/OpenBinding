@@ -91,9 +91,12 @@ function sentenceCase(key: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+/** A content digest (`sha256-` plus hex), a bare run of 32 or more hex digits, or a UUID: never drawn as text. */
+const IDENTIFIER = /^(sha256-[0-9a-f]+|[0-9a-f]{32,}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
 function detailValue(value: unknown): DetailValue {
   if (value === null || value === undefined) return { kind: 'text', text: 'none' };
-  if (typeof value === 'string') return { kind: 'text', text: value };
+  if (typeof value === 'string') return { kind: 'text', text: IDENTIFIER.test(value.trim()) ? 'identifier' : value };
   if (typeof value === 'boolean') return { kind: 'text', text: value ? 'Yes' : 'No' };
   if (typeof value === 'number') return { kind: 'text', text: value.toLocaleString('en-US') };
   if (Array.isArray(value)) return { kind: 'list', items: value.map(detailValue) };

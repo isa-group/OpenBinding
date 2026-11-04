@@ -2,7 +2,6 @@ import JSZip from 'jszip';
 import type { PackageFormat, PackageImportResult } from '../../api/platform';
 import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import { computeCanonicalDigest, computeRawSha256 } from '../../utils/canonicalDigest';
-import { shortDigest } from '../../utils/digest';
 
 /** The only package version the gateway reads (`import_project_package`). */
 export const PACKAGE_API_VERSION = 'openbinding.dev/package/v1';
@@ -107,11 +106,11 @@ async function rowsOf(pkg: Dict, archive: JSZip | null): Promise<VerificationRow
   }
   rows.push(row('manifest', 'Package manifest', 'Manifest', declared, declared && declared === actual ? 'verified' : 'mismatch'));
 
-  for (const [id, entry] of Object.entries(isDict(pkg.snapshots) ? pkg.snapshots : {})) {
+  for (const [position, [id, entry]] of Object.entries(isDict(pkg.snapshots) ? pkg.snapshots : {}).entries()) {
     const snapshot = isDict(entry) ? entry : {};
     const fingerprint = text(snapshot.packageDigest);
     const actualSnapshot = await digestOfBase64(snapshot.archive);
-    rows.push(row(`snapshot:${id}`, `Snapshot ${id.slice(0, 8)}`, 'Snapshot', fingerprint, fingerprint && fingerprint === actualSnapshot ? 'verified' : 'mismatch'));
+    rows.push(row(`snapshot:${id}`, `Snapshot ${position + 1}`, 'Snapshot', fingerprint, fingerprint && fingerprint === actualSnapshot ? 'verified' : 'mismatch'));
   }
 
   for (const [index, entry] of list(pkg.library).entries()) {
@@ -172,7 +171,7 @@ async function rowsOf(pkg: Dict, archive: JSZip | null): Promise<VerificationRow
     } else {
       present = false;
     }
-    rows.push(row(`file:${fingerprint}`, fingerprint ? shortDigest(fingerprint) : 'File', `File${text(entry.mediaType) ? ` · ${text(entry.mediaType)}` : ''}`, fingerprint, !present ? 'missing' : fingerprint && fingerprint === actualFile ? 'verified' : 'mismatch'));
+    rows.push(row(`file:${fingerprint}`, text(entry.name) ?? 'File', `File${text(entry.mediaType) ? ` · ${text(entry.mediaType)}` : ''}`, fingerprint, !present ? 'missing' : fingerprint && fingerprint === actualFile ? 'verified' : 'mismatch'));
   }
   return rows;
 }
@@ -233,7 +232,7 @@ export async function inspectPackage(file: File): Promise<PackageInspection> {
       title: bad.outcome === 'missing' ? 'A file is missing' : 'Fingerprint doesn’t match',
       text: bad.outcome === 'missing'
         ? `“${bad.name}” is listed in the package but its bytes are not in the file. The file was changed or damaged after export; nothing was imported.`
-        : `“${bad.name}” says ${bad.fingerprint ? shortDigest(bad.fingerprint) : 'a fingerprint'}, but its content hashes to something else. The file was changed or damaged after export; nothing was imported.`,
+        : `“${bad.name}” carries a fingerprint, but its content hashes to something else. The file was changed or damaged after export; nothing was imported.`,
     }
     : undefined;
   return { ...base, readable: true, rows, cases: casesOf(pkg), problem };

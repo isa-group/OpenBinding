@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { KeyRound, UserX } from 'lucide-react';
 import { apiClient, HttpError } from '../../api/client';
 import { Action } from '../../components/ui/Action';
-import { CopyField } from '../../components/ui/CopyField';
+import { CopyButton } from '../Engines/EngineParts';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -84,7 +84,7 @@ function KeysCard({ userId, username, count }: { userId: string; username: strin
       <form className="adm-inline-form" onSubmit={submit}>
         <label className="adm-field">
           <span className="adm-label">Key id</span>
-          <input value={keyId} onChange={(event) => { setKeyId(event.target.value); setMessage(null); }} placeholder="00000000-0000-4000-8000-000000000000" autoComplete="off" spellCheck={false} />
+          <input value={keyId} onChange={(event) => { setKeyId(event.target.value); setMessage(null); }} placeholder="Key id from the user’s key list" autoComplete="off" spellCheck={false} />
         </label>
         <Action type="submit" variant="danger-outline" disabled={!valid}><KeyRound aria-hidden="true" />Revoke key</Action>
       </form>
@@ -165,7 +165,7 @@ function DetailScreen({ param }: { param: string }) {
         <Fact label="Contract">{user.contract_pending ? 'Pending: settles on the next authenticated request' : 'Settled'}</Fact>
         <Fact label="Pricing pinned">{subscription.pricing_version}</Fact>
         <Fact label="API keys">{user.api_key_count}</Fact>
-        <Fact label="Account id"><CopyField value={user.id} label="account id" truncate /></Fact>
+        <Fact label="Account id"><CopyButton value={user.id} label="account id" /></Fact>
       </dl>
 
       <AgreementCard

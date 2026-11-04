@@ -17,7 +17,8 @@ import { Provenance, Settings, Timeline } from './JobFacts';
 import { ResultSection, type Origin } from './JobResult';
 import { rangeFailureOf, refusalOf, type Refusal } from './jobErrors';
 import { findOrigin } from './jobsData';
-import { canRetryState, isActive, normalizeStatus, readPins, shortJobId } from './jobsModel';
+import { canRetryState, isActive, normalizeStatus, readPins } from './jobsModel';
+import { runLabel } from '../../shared/lib/identity';
 import { JobFrame, JobMissing, OutcomeChip, RefusalNotice, StatusChip } from './parts';
 import { useJobLive } from './useJobLive';
 
@@ -54,7 +55,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
 
   const meta: Job | null = inProject.data ?? own.data?.find((row) => row.id === jobId) ?? null;
   const failure = live.phase === 'error' ? classifyAuthError(live.error) : null;
-  const trail = [{ label: 'Runs', to: `${root}/runs` }, { label: `Run ${shortJobId(jobId)}` }];
+  const trail = [{ label: 'Runs', to: `${root}/runs` }, { label: runLabel({ engine: { name: meta?.engine_id }, createdAt: meta?.created_at }) }];
 
   if (live.phase === 'loading') {
     return (
@@ -134,7 +135,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
     setDownloads((current) => ({ ...current, [kind]: 'busy' }));
     try {
       const body = kind === 'ir' ? await jobsApi.ir(jobId) : kind === 'instance' ? await jobsApi.instance(jobId) : (detail.result ?? {});
-      saveBytes(new TextEncoder().encode(JSON.stringify(body, null, 2)).buffer as ArrayBuffer, `job-${jobId.slice(0, 8)}-${file}.json`, 'application/json');
+      saveBytes(new TextEncoder().encode(JSON.stringify(body, null, 2)).buffer as ArrayBuffer, `run-${file}.json`, 'application/json');
       setDownloads((current) => ({ ...current, [kind]: 'done' }));
     } catch (caught) {
       setDownloads((current) => ({ ...current, [kind]: `failed${marker(classifyAuthError(caught))}` }));
@@ -160,7 +161,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
               <span>Another of your runs</span>
               <select aria-label="Another of your runs" value={jobId} onChange={(event) => navigate(`${root}/runs/${event.target.value}`, { viewTransition: true })}>
                 <option value={jobId}>This run</option>
-                {siblings.map((row) => <option key={row.id} value={row.id}>{row.engine_id} · {formatDateTime(row.created_at) ?? row.id.slice(0, 8)}</option>)}
+                {siblings.map((row) => <option key={row.id} value={row.id}>{row.engine_id} · {formatDateTime(row.created_at) ?? 'earlier run'}</option>)}
               </select>
             </label>
           )}

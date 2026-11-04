@@ -57,7 +57,8 @@ describe('Audit log', () => {
     const details = document.getElementById(open.getAttribute('aria-controls')!)!;
     expect(within(details).getByText('lucia.vega')).toBeInTheDocument();
     expect(within(details).getByText('organization.members.batch_updated')).toBeInTheDocument();
-    expect(details).toHaveTextContent('TargetOrganization · org-isa-demo');
+    expect(details).toHaveTextContent('TargetOrganization');
+    expect(details).not.toHaveTextContent('org-isa-demo');
     // The people in the batch are named from the member list; nobody is shown as a bare id.
     expect(within(details).getByText('marco → ADMIN')).toBeInTheDocument();
     expect(within(details).getByText('sofia → removed')).toBeInTheDocument();
@@ -66,7 +67,18 @@ describe('Audit log', () => {
     expect(open).toHaveAttribute('aria-expanded', 'false');
     // An event with no recorded actor says so.
     fireEvent.click(card(/Invitation created/));
-    expect(screen.getByText('Not recorded', { selector: 'dd' })).toBeInTheDocument();
+    expect(screen.getByText('Unknown person', { selector: 'dd' })).toBeInTheDocument();
+    expect(screen.queryByText('Event', { selector: 'dt' })).not.toBeInTheDocument();
+  });
+
+  it('never shows a raw user id for a former member', async () => {
+    const uuid = '3f2b8c1e-5d4a-4e7b-9c6d-1a2b3c4d5e6f';
+    platform.organizationAudit.mockResolvedValue(page([{ ...auditFixture[2], actorId: uuid }]));
+    renderAudit();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Organization created/ }));
+    expect(screen.getByText('Former member', { selector: 'dd' })).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(uuid.slice(0, 8));
   });
 
   // [utest->req~frontend-audit-detail-rendered~1]
@@ -94,6 +106,27 @@ describe('Audit log', () => {
     expect(tags).toEqual(expect.arrayContaining(['alpha', 'beta']));
     // Never stringified: no brace, bracket or quote survives anywhere in the opened card.
     expect(details.textContent).not.toMatch(/[{}[\]"]/);
+  });
+
+  // [utest->req~frontend-audit-detail-rendered~1]
+  it('never draws a target id or a digest in an opened event', async () => {
+    const blob: OrganizationAuditEvent = {
+      ...auditFixture[2],
+      id: 'ev-blob',
+      targetType: 'Blob',
+      targetId: '3f2b8c1e-5d4a-4e7b-9c6d-1a2b3c4d5e6f',
+      action: 'artifact.uploaded',
+      detail: { digest: 'sha256-' + 'ab'.repeat(32) },
+    };
+    platform.organizationAudit.mockResolvedValue(page([blob]));
+    renderAudit();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Artifact uploaded/ }));
+    const open = card(/Artifact uploaded/);
+    const details = document.getElementById(open.getAttribute('aria-controls')!)!;
+    expect(details).toHaveTextContent('TargetBlob');
+    expect(within(details).getByText('identifier')).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{8}-[0-9a-f]{4}-/);
   });
 
   it('copies the reference of an event', async () => {

@@ -177,7 +177,7 @@ export function Examples() {
                     <div className="examples-tags">{meta.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
                     {state?.status === 'done' && (
                       <div role="status" className="examples-done">
-                        <span>{state.digest ?? `Downloaded ${state.bytes.toLocaleString('en-US')} bytes`}</span>
+                        <span>{`Downloaded ${state.bytes.toLocaleString('en-US')} bytes`}</span>
                         {state.digest && (
                           <button type="button" onClick={() => void copy(state.digest ?? '', path)}>{copyStatus(path) === 'copied' ? 'Copied' : 'Copy digest'}</button>
                         )}

@@ -7,7 +7,6 @@ import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
-import { shortDigest } from '../../utils/digest';
 import { useResource } from '../../utils/useResource';
 import { ReadOnlyNote } from '../Cases/parts';
 import { Gate } from '../Organization/parts';
@@ -88,8 +87,8 @@ function ItemRow({ entry, index, count, editable, fresh, onMove, onRemove, copyK
         {entry.href ? <Link to={entry.href} viewTransition>{entry.label}</Link> : <span>{entry.label}</span>}
         <small>{entry.sub}{entry.pin === null && entry.kind === 'resource' ? ' · can’t be re-pinned here' : ''}</small>
       </span>
-      <button type="button" className="res-fingerprint" title={entry.digest} onClick={() => void copy(entry.digest, copyKey)} aria-label={`Copy fingerprint of ${entry.label}`}>
-        {status(copyKey) === 'copied' ? 'copied' : status(copyKey) === 'failed' ? 'copy failed' : shortDigest(entry.digest)}
+      <button type="button" className="res-fingerprint" onClick={() => void copy(entry.digest, copyKey)} aria-label={`Copy digest of ${entry.label}`}>
+        {status(copyKey) === 'copied' ? 'copied' : status(copyKey) === 'failed' ? 'copy failed' : 'Copy digest'}
       </button>
       {editable && (
         <span className="res-item-tools">
@@ -106,8 +105,8 @@ function Changes({ rows }: { rows: readonly Difference[] }) {
   if (rows.length === 0) return <p className="org-muted">No differences.</p>;
   return (
     <ul aria-label="Differences">
-      {rows.map((row) => (
-        <li key={`${row.kind}:${row.label}`}>
+      {rows.map((row, index) => (
+        <li key={`${row.kind}:${index}:${row.label}`}>
           <Chip tone={row.kind === 'added' ? 'success' : row.kind === 'removed' ? 'warning' : 'plain'}>{row.kind === 'added' ? 'Added' : row.kind === 'removed' ? 'Removed' : 'Moved'}</Chip>
           <span>{row.label}{row.kind === 'moved' ? ` · position ${row.from} → ${row.to}` : ''}</span>
         </li>
@@ -369,7 +368,7 @@ function Body({ organization, project, access, collectionSlug }: { organization:
           </ul>
         </section>
       )}
-      <p className="lib-footnote">Each revision is sealed with a fingerprint over its exact list and order. {pins.status === 'error' && 'The project’s problems and resources couldn’t be read, so some items show only their fingerprint.'}</p>
+      <p className="lib-footnote">Each revision is sealed with a fingerprint over its exact list and order. {pins.status === 'error' && 'The project’s problems and resources couldn’t be read, so some items show only their type.'}</p>
 
       {picking && (
         <ItemPickerDialog

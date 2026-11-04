@@ -77,9 +77,9 @@ export function VersionRuns({ organization, project, content, canCreate }: {
             </tr>
           </thead>
           <tbody>
-            {data.map(({ job, revision }) => (
+            {data.map(({ job, revision }, index) => (
               <tr key={job.id}>
-                <td><Link to={`${root}/runs/${encodeURIComponent(job.id)}`} viewTransition>Run {job.id.slice(0, 8)}</Link></td>
+                <td><Link to={`${root}/runs/${encodeURIComponent(job.id)}`} viewTransition>Run {data.length - index}</Link></td>
                 <td><Link to={problemPath(root, item.slug, undefined, { version: revision })} viewTransition>Version {revision}</Link></td>
                 <td>{job.engine_id}</td>
                 <td><StatusChip status={job.status} termination={job.termination} /></td>

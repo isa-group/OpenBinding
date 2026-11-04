@@ -136,7 +136,8 @@ describe('Generator lab', () => {
       expect(facts.getByText('Combinations').nextSibling).toHaveTextContent('≈ 10^4.2');
       expect(facts.getByText('Seed').nextSibling).toHaveTextContent('7');
       expect(facts.getByText('Rules').nextSibling).toHaveTextContent('1');
-      expect(facts.getByText('Synthetic · fingerprint sha256-1111…1111')).toBeInTheDocument();
+      expect(facts.getByText('Synthetic')).toBeInTheDocument();
+      expect(preview().textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
       expect(facts.queryByText('Default settings shown. Generate to see the structure.')).not.toBeInTheDocument();
     });
 

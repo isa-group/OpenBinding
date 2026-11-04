@@ -38,9 +38,10 @@ describe('Publications of a project', () => {
     expect(screen.getByText(/Report editions made public from QoS Benchmarks\. Withdrawing hides one from listings but keeps every link and fingerprint working\./)).toBeInTheDocument();
     expect(await screen.findByRole('heading', { level: 2, name: 'Engine comparison at checkout' })).toBeInTheDocument();
     expect(within(screen.getByRole('article')).getByText('Published')).toBeInTheDocument();
-    expect(screen.getByText('checkout-comparison · published Sep 25, 2026 · sha256-eeee…eeee')).toBeInTheDocument();
+    expect(screen.getByText('checkout-comparison · published Sep 25, 2026')).toBeInTheDocument();
+    expect(screen.getByRole('article').textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
     expect(screen.getByText('Alex Rivera (2026). Engine comparison at checkout. ISA Demo Group / QoS Benchmarks.')).toBeInTheDocument();
-    expect(screen.getByText(new RegExp(`/resolve/report/${EDITION}$`))).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy public link' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open public verification' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
     // [utest->req~frontend-retire-reports-publications-stay~1]
     // [utest->req~frontend-nav-project-tabs~1]

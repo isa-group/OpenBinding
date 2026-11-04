@@ -4,7 +4,6 @@ import { SourceView } from '../../components/rendering/SourceView';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
-import { shortDigest } from '../../utils/digest';
 import { outputFacts, workspaceFilesOf, type Output, type ProjectChoice } from './generatorModel';
 
 /** The files of a result, one at a time, as the text they hold. Behind a control: the preview does not need them. */
@@ -34,7 +33,6 @@ export function Preview({ generating, output }: { generating: boolean; output: O
   const facts = output ? outputFacts(output) : [];
   const tasks = output && output.kind !== 'convert' ? output.params.tasks ?? 0 : 0;
   const shown = Math.min(tasks, 12);
-  const digest = output ? (output.kind === 'corpus' ? '' : output.response.package_digest) : '';
   return (
     <section className="gl-card" aria-label="Preview" aria-live="polite">
       <span className="gl-eyebrow">Preview</span>
@@ -55,11 +53,11 @@ export function Preview({ generating, output }: { generating: boolean; output: O
           </dl>
           {output.kind === 'corpus' && output.response.instances.length > 0 && (
             <ul className="gl-instances" aria-label="Instances of the batch">
-              {output.response.instances.slice(0, 8).map((instance) => <li key={instance.name}><code>{instance.name}</code><span>{shortDigest(instance.package_digest)}</span></li>)}
+              {output.response.instances.slice(0, 8).map((instance) => <li key={instance.name}><code>{instance.name}</code></li>)}
               {output.response.instances.length > 8 && <li className="gl-more">+{output.response.instances.length - 8} more</li>}
             </ul>
           )}
-          <Chip tone="accent">{digest ? `Synthetic · fingerprint ${shortDigest(digest)}` : 'Synthetic · fingerprints assigned by the server'}</Chip>
+          <Chip tone="accent">Synthetic</Chip>
           {output.kind !== 'corpus' && <SourceOfFiles files={output.response.files} />}
         </>
       )}

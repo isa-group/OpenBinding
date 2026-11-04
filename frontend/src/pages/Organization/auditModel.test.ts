@@ -34,6 +34,28 @@ describe('detailRows', () => {
   });
 
   // [utest->req~frontend-audit-detail-rendered~1]
+  it('draws digests, UUIDs and long hex runs as the word identifier, and leaves other strings', () => {
+    const identifier = { kind: 'text', text: 'identifier' };
+    expect(detailRows({
+      digest: 'sha256-' + 'ab'.repeat(32),
+      target: '3F2B8C1E-5D4A-4E7B-9C6D-1A2B3C4D5E6F',
+      hash: 'AB'.repeat(16),
+      role: 'ADMIN',
+      email: 'lucia@example.org',
+      name: 'abc',
+    }).map((row) => row.value)).toEqual([identifier, identifier, identifier, { kind: 'text', text: 'ADMIN' }, { kind: 'text', text: 'lucia@example.org' }, { kind: 'text', text: 'abc' }]);
+  });
+
+  // [utest->req~frontend-audit-detail-rendered~1]
+  it('hides identifiers inside lists and nested objects too', () => {
+    const uuid = '3f2b8c1e-5d4a-4e7b-9c6d-1a2b3c4d5e6f';
+    expect(detailRows({ ids: [uuid, 'owner'], inner: { digest: 'sha256-' + 'cd'.repeat(32) } })).toEqual([
+      { label: 'Ids', value: { kind: 'list', items: [{ kind: 'text', text: 'identifier' }, { kind: 'text', text: 'owner' }] } },
+      { label: 'Inner', value: { kind: 'fields', rows: [{ label: 'Digest', value: { kind: 'text', text: 'identifier' } }] } },
+    ]);
+  });
+
+  // [utest->req~frontend-audit-detail-rendered~1]
   it('reads null and undefined as none', () => {
     expect(detailRows({ note: null, other: undefined })).toEqual([
       { label: 'Note', value: { kind: 'text', text: 'none' } },

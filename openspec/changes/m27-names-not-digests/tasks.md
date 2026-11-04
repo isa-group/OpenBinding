@@ -96,11 +96,10 @@ Owns `frontend/src/components/VerifyResult/{VerifyResult.tsx,VerifyResult.css,ve
 Owns `frontend/src/test/digestHygiene.test.ts` (new).
 
 - [x] D.1 Tests: the scanned set and the stylesheets with content, the pinned `EXEMPT_FILES`, the application
-  sources (digest literal, UUID and helper), the pending list (sorted, no duplicates, existing files, no allowed
-  path), the scan-pipeline self-test, and the detector controls (caught, not caught, whole words). No test asserts
-  that the pending list shrinks.
-- [x] D.2 Source: the allowed set, `EXEMPT_FILES` (39 paths, design.md §5.2), the three detectors and
-  `PENDING_CLEANUP` with the 40 paths of design.md §5.5.
+  sources (digest literal, UUID and helper), the scan-pipeline self-test, and the detector controls (caught, not
+  caught, whole words). Part 1 also tested the pending list; part 2 deleted it (F.2).
+- [x] D.2 Source: the allowed set, `EXEMPT_FILES` (design.md §5.2) and the three detectors. Part 1 also held
+  `PENDING_CLEANUP` with 40 paths (design.md §5.5, history); part 2 removed it.
 - [x] D.3 The `[impl->req~digest-hygiene~1]` tag, next to `[utest->req~digest-hygiene~1]` in the test file header
   (design.md §6).
 - [ ] D.4 Evidence on the PR: FI, VALL (G5), LINT, TSC, G1.
@@ -126,30 +125,43 @@ Owns `frontend/src/test/digestHygiene.test.ts` (new).
 - [ ] After `m21-rendering-catalogue` is archived, archive this change in an explicit archive task:
   `["openspec", "archive", "m27-names-not-digests", "--yes"]`, then `["openspec", "validate", "--all", "--strict"]`.
 
-## F. Follow-ups for the second change (after M2.6)
-`pages/**` and the gateway are untouched by this change. The second M2.7 change, after M2.6 merges, owns these. A
-behaviour change to a requirement of this change is a `~2` revision, with its code and test tags re-tagged.
-- [ ] F.1 Guard identifier-shaped entity names in `VerifyResult` (an entity name that is or contains a digest, a hex
-  run or a UUID, or a short id, reads as missing), and remove the gateway verifier's `Snapshot <id[:8]>` fallback
-  for an unnamed snapshot (`openbinding-gateway/src/openbinding_gateway/routes/verifier.py`, line 253; design.md §7).
-  The gateway part is an API-visible text change, through a gateway task.
-- [ ] F.2 Pending-list ceiling and stale check in `digestHygiene.test.ts`: a `MAX_PENDING_FILES` (or exact-list)
-  assertion so the list cannot grow, and a check that every listed file still offends, so a cleaned file must
-  leave the list (design.md §5.4).
+## F. Follow-ups (part 2, after M2.6)
+Part 2 (the second M2.7 change) edited `pages/**` and `components/**`; the gateway is untouched. A behaviour change to
+a requirement of this change is a `~2` revision, with its code and test tags re-tagged.
+- [x] F.1 Guard identifier-shaped entity names in `VerifyResult`: done (`entityName` in `verifyModel.ts`; a
+  `title_or_name` or `slug` with `sha256-`, a 40+ hex run or a UUID reads as missing; design.md §4.2). The removal of
+  the gateway verifier's `Snapshot <id[:8]>` fallback for an unnamed snapshot
+  (`openbinding-gateway/src/openbinding_gateway/routes/verifier.py`, line 253; design.md §7) is a separate gateway
+  change, an API-visible text change, and is not done here.
+- [x] F.2 Pending-list ceiling and stale check: closed by deletion. There is no pending list, so every shipped file
+  outside the allowed set is scanned (design.md §5.4).
 - [ ] F.3 Touch-target check with Playwright: every copy button of `CitationPanel` and `VerifyResult` has a hit
   area of at least 44×44 px, at 1440×900 and 390×844, on the mounted screens.
 - [ ] F.4 Owner reading of constitution 15.5 ("one copyable value") for two different digests side by side in
   `VerifyResult` (design.md §8, question 5); a `~2` revision of `req~verify-result` if the owner reads it otherwise.
-- [ ] F.5 Page clean-up and wiring: move the 40 pending files onto identity labels, `CitationPanel` and
-  `VerifyResult` and remove their digest text, emptying `PENDING_CLEANUP`; wire the Verify page (M2.6's) to
-  `VerifyResult` and the problem, collection and published-result pages to `CitationPanel`. With it:
-  - MODIFY `frontend-catalog-pricing`'s engine-card requirement ("exact identity (namespace, name, version,
-    digest)") to the engine label;
-  - decide `shortDigest`/`digestPrefix` and `utils/citation.ts` (design.md §8, question 2);
-  - add permanent links by permanent id or slug, or a refusal of digest-bearing links in `CitationPanel`
-    (design.md §8, question 1);
-  - decide the other drafted, unbuilt behaviour of design.md §8 item 7 and "fingerprint" versus "digest"
-    (question 4);
+- [x] F.5 Page clean-up and wiring: the call sites in `pages/**` and `components/**` use identity labels where the
+  objects carry the fields and generic words elsewhere; `VerifyResult` and `CitationPanel` are mounted on the Verify
+  page (`pages/Verify/VerifierResult.tsx`, `ResolveResult.tsx`); `shortDigest` and `digestPrefix` are deleted from
+  `utils/digest.ts`, and `utils/citation.ts` with its test is deleted (design.md §8, question 2); the `SHORTENER`
+  detector stays in the hygiene test as a guard; the pending list is gone; `EngineReportView` shows `<label> pinned`
+  as text with a copy button named in words (`Copy <label>`); `EXEMPT_FILES` holds 39 paths, none under
+  `utils/citation`. The MODIFIED delta `specs/frontend-catalog-pricing/spec.md` moves the
+  engine-card requirement to the engine label. Review round 1 also cleaned AppHome, OrgAudit, Examples and Schemas
+  (the Schemas protocol digest is a copy-only button). `ResolveResult` no longer falls back to a location
+  `element_id`; the id is only a React key. Known leftovers are in F.6 (design.md §7). Also:
+  - identity labels are used where objects carry the fields (Jobs, Studies, Engines, Admin); generic words
+    (`Recorded`, `Stored`, `Copy digest`, `Run n` by list position) are used elsewhere.
+- [x] F.5b Round 2 audit card fix: Target row shows only the type and identifier-shaped detail strings render as the
+  word 'identifier'.
+- [ ] F.6 Still open from part 2:
+  - deferred leftovers: Admin short UUIDs (`adminModel.shortId`, needs lookups); the Workbench registered-reference
+    digest input (authoring field, default 64 zeros); the Verify permanent link that embeds the digest (question 1,
+    needs a gateway route); question 5 (constitution 15.5, two different digests) awaiting the owner; mixed
+    "fingerprint" and "digest" wording in labels;
+  - permanent links by permanent id or slug for the other pages, or a refusal of digest-bearing links in
+    `CitationPanel` (design.md §8, question 1, deferred: the panel is mounted only on the Verify page);
+  - the other drafted, unbuilt behaviour of design.md §8 item 7, `utils/format.ts` dates (question 3) and
+    "fingerprint" versus "digest" (question 4);
   - ui-qa screenshots (G12) of every screen that changed, desktop and mobile.
 - Outside both changes:
   - constitution 15.5's "Enforced: GAP" line names `frontend/src/hygiene.test.ts`. The owner updates it to the

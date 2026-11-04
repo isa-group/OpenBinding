@@ -122,7 +122,8 @@ describe('example packages', () => {
 
     fireEvent.click(within(card('demo/01_simple_seq')).getByRole('button', { name: 'Download .bim.zip' }));
     const status = await within(card('demo/01_simple_seq')).findByRole('status');
-    expect(status).toHaveTextContent(`sha256-${'ab'.repeat(32)}`);
+    expect(status).toHaveTextContent(/^Downloaded [\d,]+ bytes/);
+    expect(status).not.toHaveTextContent('sha256-');
     expect(api.getBimExamplePackage).toHaveBeenCalledWith('demo/01_simple_seq');
     expect(downloaded).toEqual(['01_simple_seq.bim.zip']);
 

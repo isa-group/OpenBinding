@@ -1,7 +1,7 @@
 import type { EngineCatalogEntry } from '../../api/client';
 import type { PublicPublication } from '../../api/platform';
 import { formatDate, yearOf } from '../../utils/format';
-import { isDigest, shortDigest } from '../../utils/digest';
+import { isDigest } from '../../utils/digest';
 
 export type ExploreTab = 'projects' | 'publications' | 'engines';
 
@@ -135,7 +135,7 @@ export function publicationItems(publications: PublicPublication[], projects: Pu
       meta: where,
       title,
       sub: byline || text(citation.abstract) || 'Immutable report with pinned binding and engine provenance.',
-      chips: ['Report edition', ...(validDigest ? [shortDigest(validDigest)] : []), ...(publishedLabel ? [publishedLabel] : [])],
+      chips: ['Report edition', ...(publishedLabel ? [publishedLabel] : [])],
       authors,
       year,
       published: publishedLabel,
@@ -174,7 +174,7 @@ export function engineItems(engines: EngineCatalogEntry[]): EngineItem[] {
       meta: engine.namespace,
       title: `${engine.name} ${engine.version}`,
       sub: modeIds.length ? `Mode${modeIds.length === 1 ? '' : 's'}: ${modeIds.join(', ')}` : 'No modes advertised',
-      chips: ['Public', shortDigest(engine.digest)],
+      chips: ['Public'],
       ref: `${engine.namespace}/${engine.name}@${engine.version}`,
       namespace: engine.namespace,
       name: engine.name,

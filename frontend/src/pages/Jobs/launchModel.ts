@@ -7,7 +7,6 @@ import type { CaseContent } from '../Project/projectModel';
 import { planLimit } from '../Project/projectModel';
 import { RANGE_CODE, RANGE_REFUSAL } from '../../utils/featureRange';
 import { formatDate } from '../../utils/format';
-import { shortDigest } from '../../utils/digest';
 import { parseBindingSpace } from '../../components/BindingSpaceBadge/bindingSpace';
 import { optionFacts } from '../Engines/enginesModel';
 import type { ForecastBar } from './jobsModel';
@@ -46,7 +45,7 @@ export function sourceChoices({ cases, caseSlug, revision, snapshot }: SourceInp
   const choices: SourceChoice[] = [];
   if (snapshot) {
     choices.push({
-      id: `snapshot:${snapshot}`, kind: 'snapshot', label: `Snapshot ${snapshot.slice(0, 8)}…`,
+      id: `snapshot:${snapshot}`, kind: 'snapshot', label: 'Compiled snapshot',
       detail: 'A compiled snapshot · it never changes', snapshotId: snapshot, revision: null, caseSlug: null, latest: false,
     });
   }
@@ -59,7 +58,7 @@ export function sourceChoices({ cases, caseSlug, revision, snapshot }: SourceInp
       const latest = candidate === revisions[0];
       choices.push({
         id: `revision:${candidate.id}`, kind: 'revision', label: `${entry.item.name} · version ${candidate.revision}`,
-        detail: `${latest ? 'Latest · ' : ''}Sealed ${formatDate(candidate.created_at) ?? 'on an unknown date'} · ${shortDigest(candidate.digest)}`,
+        detail: `${latest ? 'Latest · ' : ''}Sealed ${formatDate(candidate.created_at) ?? 'on an unknown date'}`,
         snapshotId: candidate.source_snapshot_id, revision: candidate, caseSlug: entry.item.slug, latest,
       });
     }

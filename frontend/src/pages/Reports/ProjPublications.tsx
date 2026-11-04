@@ -4,13 +4,11 @@ import { Globe2 } from 'lucide-react';
 import { platformApi, type Organization, type Project, type Publication, type Report } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
-import { CopyField } from '../../components/ui/CopyField';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
-import { shortDigest } from '../../utils/digest';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
@@ -33,7 +31,7 @@ function PublicationCard({ publication, report, canWithdraw, onWithdraw }: {
   const digest = report && report.version_id === publication.version_id && report.digest ? report.digest : null;
   const verifyUrl = digest ? `${window.location.origin}/resolve/report/${digest}` : undefined;
   const text = citationText(fields);
-  const meta = [publication.slug, `published ${formatDate(publication.published_at) ?? '—'}`, digest ? shortDigest(digest) : null].filter(Boolean).join(' · ');
+  const meta = [publication.slug, `published ${formatDate(publication.published_at) ?? '—'}`].filter(Boolean).join(' · ');
   return (
     <article className="rp-pub">
       <header>
@@ -49,7 +47,11 @@ function PublicationCard({ publication, report, canWithdraw, onWithdraw }: {
           <button type="button" onClick={() => void copy(citationBibtex(fields, publication.slug, verifyUrl), 'bib')}>{status('bib') === 'copied' ? 'Copied for reference manager' : 'Copy for reference manager'}</button>
         </span>
       </div>
-      {verifyUrl && <CopyField value={verifyUrl} label="public link" truncate />}
+      {verifyUrl && (
+        <span className="rp-links">
+          <button type="button" onClick={() => void copy(verifyUrl, 'link')}>{status('link') === 'copied' ? 'Public link copied' : 'Copy public link'}</button>
+        </span>
+      )}
       <div className="rp-pub-actions">
         {digest && <Action to={`/resolve/report/${digest}`} variant="secondary">Open public verification</Action>}
         {canWithdraw && !publication.withdrawn && <Action variant="danger-outline" onClick={() => onWithdraw(publication)}>Withdraw</Action>}

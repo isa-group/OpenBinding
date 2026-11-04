@@ -3,7 +3,6 @@ import JSZip from 'jszip';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { shortDigest } from '../../utils/digest';
 import { caseOf, lucia, org, project, renderProjectScreen, revisionOf } from '../Project/testKit';
 import { CaseDetail } from './CaseDetail';
 import { digestOf, irDocument } from './fixtures';
@@ -24,7 +23,6 @@ const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const checkout = caseOf('flujo-checkout', 'Flujo de checkout');
 const id = '00000000-0000-4000-8000-0000000000e1';
 const root = '/app/isa-demo/qos-benchmarks';
-const short = shortDigest;
 
 const refusal = (status: number, code = 'refused') => Object.assign(new HttpError(status, 'refused'), { code });
 const snapshotOf = (over: Record<string, unknown> = {}) => ({
@@ -86,9 +84,8 @@ describe('Source tab of the problem page', () => {
     renderSnapshot();
 
     const section = await screen.findByRole('region', { name: 'Fingerprints' });
-    expect(within(section).getByText(short(digestOf('a')))).toBeInTheDocument();
-    expect(within(section).getByText(short(digestOf('b')))).toBeInTheDocument();
-    expect(within(section).getByText(short(digestOf('c')))).toBeInTheDocument();
+    expect(within(section).getAllByText('Stored')).toHaveLength(3);
+    expect(section.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
 
     fireEvent.click(within(section).getByRole('button', { name: 'Copy full package fingerprint' }));
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(digestOf('b')));
@@ -106,8 +103,11 @@ describe('Source tab of the problem page', () => {
     const details = summary.closest('details') as HTMLDetailsElement;
     details.open = true;
     expect(within(details).getByRole('table', { name: 'Files (2)' })).toBeInTheDocument();
-    expect(within(details).getByRole('row', { name: /instance\.json/ })).toHaveTextContent(digestOf('1'));
+    expect(within(details).getByRole('row', { name: /instance\.json/ })).toHaveTextContent('Copy digest');
     expect(within(details).getByRole('table', { name: 'Resources (1)' })).toBeInTheDocument();
+    expect(details.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
+    fireEvent.click(within(details).getByRole('button', { name: 'Copy digest of instance.json' }));
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(digestOf('1')));
   });
 
   it('names the exact language the compiled form was made with', async () => {
@@ -197,7 +197,7 @@ describe('Source tab of the problem page', () => {
       expect(card).toHaveTextContent('47.1 KiB (48,213 bytes)');
       fireEvent.click(card);
 
-      await waitFor(() => expect(download.saveBytes).toHaveBeenCalledWith(buffer, `snapshot-${id}.bim.zip`, 'application/zip'));
+      await waitFor(() => expect(download.saveBytes).toHaveBeenCalledWith(buffer, 'snapshot.bim.zip', 'application/zip'));
       expect(await within(card).findByText('Downloaded')).toBeInTheDocument();
     });
 
@@ -207,11 +207,11 @@ describe('Source tab of the problem page', () => {
       renderSnapshot();
 
       fireEvent.click(await screen.findByRole('button', { name: /^Source files/ }));
-      await waitFor(() => expect(download.saveBytes).toHaveBeenCalledWith(expect.any(ArrayBuffer), `snapshot-${id}-source.bim.zip`, 'application/vnd.bim+zip'));
+      await waitFor(() => expect(download.saveBytes).toHaveBeenCalledWith(expect.any(ArrayBuffer), 'snapshot-source.bim.zip', 'application/vnd.bim+zip'));
       fireEvent.click(screen.getByRole('button', { name: /^Compiled form\s*For tools/ }));
       await waitFor(() => expect(cases.instanceIr).toHaveBeenCalledWith(id));
-      await waitFor(() => expect(download.saveBytes).toHaveBeenCalledWith(expect.anything(), `snapshot-${id}-compiled.json`, 'application/json'));
-      const saved = download.saveBytes.mock.calls.find((call) => call[1] === `snapshot-${id}-compiled.json`);
+      await waitFor(() => expect(download.saveBytes).toHaveBeenCalledWith(expect.anything(), 'snapshot-compiled.json', 'application/json'));
+      const saved = download.saveBytes.mock.calls.find((call) => call[1] === 'snapshot-compiled.json');
       expect(JSON.parse(new TextDecoder().decode(saved?.[0] as ArrayBuffer))).toEqual({ kind: 'BindingProblem' });
     });
 
@@ -239,7 +239,7 @@ describe('Source tab of the problem page', () => {
       expect(screen.getByRole('heading', { name: 'Fingerprints' })).toBeInTheDocument();
       expect(platform.snapshotArchive).not.toHaveBeenCalled();
       fireEvent.click(within(view).getByRole('button', { name: 'Download Compiled form (JSON)' }));
-      expect(saveText).toHaveBeenCalledWith(expect.stringContaining('"kind": "BindingProblem"'), `snapshot-${id}-compiled.json`, 'application/json');
+      expect(saveText).toHaveBeenCalledWith(expect.stringContaining('"kind": "BindingProblem"'), 'snapshot-compiled.json', 'application/json');
       expect(platform.snapshotArchive).not.toHaveBeenCalled();
     });
 

@@ -130,8 +130,9 @@ describe('Analytics of a run, in the Results tab', () => {
     const table = await screen.findByRole('region', { name: 'Provenance of every cell' });
     expect(within(table).getAllByRole('row')).toHaveLength(9);
     expect(within(table).getByRole('link', { name: 'Open cell 2' })).toHaveAttribute('href', `${RESULTS}&cell=${cells[2].id}`);
-    expect(within(table).getByRole('button', { name: 'Copy fingerprint of cell 2' })).toBeInTheDocument();
-    expect(within(table).getByText(cells[2].fingerprint)).toBeInTheDocument();
+    expect(within(table).getByRole('button', { name: 'Copy digest of cell 2' })).toBeInTheDocument();
+    expect(within(table).queryByText(cells[2].fingerprint)).not.toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
   });
 
   it('narrows every chart to one engine, or to another measure', async () => {

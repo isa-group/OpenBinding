@@ -1,5 +1,4 @@
 import type { ApiKeyEngineAccess, ApiKeyPermission, ApiKeySummary, CreateApiKeyRequest } from '../../api/auth';
-import { shortDigest } from '../../utils/digest';
 
 /**
  * What an API key can be given. The permission set is closed (`ApiKeyPermission`): every one appears exactly
@@ -139,7 +138,7 @@ export function needsEngines(permissions: Iterable<ApiKeyPermission>): boolean {
 export function describeEngineAccess(access: ApiKeyEngineAccess): string {
   if (access.all) return 'All engines, including future ones';
   if (access.engines.length === 0) return 'No engines';
-  return `Only ${access.engines.map((engine) => `${engine.namespace}/${engine.name}@${engine.version} (${shortDigest(engine.digest)})`).join(', ')}`;
+  return `Only ${access.engines.map((engine) => `${engine.namespace}/${engine.name}@${engine.version}`).join(', ')}`;
 }
 
 type Boundary = NonNullable<CreateApiKeyRequest['boundary']>;

@@ -8,7 +8,6 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
 import { problemPath, problemsPath } from '../../routes/paths/problems';
-import { shortDigest } from '../../utils/digest';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { useResource, type Resource } from '../../utils/useResource';
 import { roleSource } from '../Organization/orgModel';
@@ -88,7 +87,7 @@ function CasesCard({ root, resource }: { root: string; resource: Resource<CaseCo
                   <li key={revision.id}>
                     <span
                       className={`proj-rev${index === shown.length - 1 ? ' is-latest' : ''}`}
-                      title={`${formatDate(revision.created_at) ?? '—'} · ${shortDigest(revision.digest)}${index === shown.length - 1 ? ' · latest' : ''}`}
+                      title={`${formatDate(revision.created_at) ?? '—'}${index === shown.length - 1 ? ' · latest' : ''}`}
                     >
                       r{revision.revision}
                     </span>

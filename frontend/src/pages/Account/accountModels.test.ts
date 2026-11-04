@@ -42,7 +42,7 @@ describe('API-key permissions', () => {
     expect(describeEngineAccess({ all: true, engines: [] })).toBe('All engines, including future ones');
     expect(describeEngineAccess({ all: false, engines: [] })).toBe('No engines');
     expect(describeEngineAccess({ all: false, engines: [{ namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest }] }))
-      .toBe('Only bim.builtin/random-search@1.0.0 (sha256-b2c3…d4e5)');
+      .toBe('Only bim.builtin/random-search@1.0.0');
   });
 
   it('turns a boundary into short labels, ignoring the nulls the API sends for what is not set', () => {

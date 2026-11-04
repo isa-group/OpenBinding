@@ -189,6 +189,7 @@ describe('Problem page', () => {
       expect(within(region).getAllByRole('link', { name: 'Open' })[0]).toHaveAttribute('href', `${root}/problems/flujo-checkout?version=2`);
       expect(within(region).getByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${root}/problems/flujo-checkout/source?version=2`);
       expect(within(region).getByRole('link', { name: 'Compare with v1' })).toHaveAttribute('href', `${root}/problems/flujo-checkout/versions?from=1&to=2`);
+      expect(region.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     });
 
     it('copies the exact reference of a version', async () => {

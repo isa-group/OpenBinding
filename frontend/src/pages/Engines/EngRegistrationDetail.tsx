@@ -5,7 +5,6 @@ import {
   type BimResourceRef, type EngineRegistrationManifest, type EngineRegistrationReport, type EngineRegistrationRevision,
 } from '../../api/client';
 import { Action } from '../../components/ui/Action';
-import { CopyField } from '../../components/ui/CopyField';
 import { DataTable } from '../../components/ui/DataTable';
 import { ErrorState, StateAction } from '../../components/ui/ErrorState';
 import { Notice, type NoticeTone } from '../../components/ui/Notice';
@@ -13,10 +12,9 @@ import { ProjectPicker } from '../../components/ui/ProjectPicker';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
-import { shortDigest } from '../../utils/digest';
 import { useResource } from '../../utils/useResource';
 import { ConfirmDialog, DeregisterDialog } from './EngineDialogs';
-import { ConformanceChecklist, Crumbs, ManifestPanel, StatusChip } from './EngineParts';
+import { ConformanceChecklist, CopyButton, Crumbs, ManifestPanel, StatusChip } from './EngineParts';
 import {
   activityOf, describeFailure, exactReference, newVersionHref, publicationOf, publicationStep, readDeployment, readProbe,
   refFromAddress, registrationHref, sameRevision,
@@ -157,13 +155,12 @@ function RevisionHistory({ current, revisions }: { current: BimResourceRef; revi
       ) : (
         <DataTable label="Other revisions of this registration" minWidth={560}>
           <thead>
-            <tr><th scope="col">Version</th><th scope="col">Fingerprint</th><th scope="col">Use</th><th scope="col">Publication</th><th scope="col"><span className="sr-only">Open</span></th></tr>
+            <tr><th scope="col">Version</th><th scope="col">Use</th><th scope="col">Publication</th><th scope="col"><span className="sr-only">Open</span></th></tr>
           </thead>
           <tbody>
             {others.map((item) => (
               <tr key={bimResourceKey(item)}>
                 <td>{item.version}</td>
-                <td className="is-mono" title={item.digest}>{shortDigest(item.digest)}</td>
                 <td><StatusChip tone={activityOf(item).tone}>{activityOf(item).label}</StatusChip></td>
                 <td><StatusChip tone={publicationOf(item.status).tone}>{publicationOf(item.status).label}</StatusChip></td>
                 <td><Link to={registrationHref(item)} aria-label={`Open ${item.name} ${item.version}`}>Open</Link></td>
@@ -209,7 +206,7 @@ export function EngRegistrationDetail() {
             {resolved.options.map((item) => (
               <li key={bimResourceKey(item)}>
                 <Link to={registrationHref(item)}>{item.namespace}/{item.name}@{item.version}</Link>
-                <span className="is-mono" title={item.digest}>{shortDigest(item.digest)}</span>
+                <StatusChip tone={publicationOf(item.status).tone}>{publicationOf(item.status).label}</StatusChip>
               </li>
             ))}
           </ul>
@@ -402,10 +399,9 @@ export function EngRegistrationDetail() {
           <div><dt>Namespace</dt><dd className="is-mono">{ref.namespace}</dd></div>
           <div><dt>Name</dt><dd className="is-mono">{ref.name}</dd></div>
           <div><dt>Version</dt><dd className="is-mono">{ref.version}</dd></div>
-          <div><dt>Fingerprint</dt><dd className="is-mono" title={ref.digest}>{shortDigest(ref.digest)}</dd></div>
         </dl>
         <span className="eng-muted">
-          These four together name this deployment exactly. A new version is a new registration.
+          These three together name this deployment exactly. A new version is a new registration.
           {engineRef && <> Engine revision: <Link to={`/engines/${encodeURIComponent(engineRef.namespace)}/${encodeURIComponent(engineRef.name)}/${encodeURIComponent(engineRef.version)}`}>see it in the catalog</Link>.</>}
         </span>
       </section>
@@ -435,7 +431,7 @@ export function EngRegistrationDetail() {
         <section className="reg-card" aria-labelledby="reg-probe-title">
           <div className="reg-card-head">
             <h2 id="reg-probe-title">Last verification</h2>
-            {probe.protocol && <span className="eng-muted">Protocol {probe.protocol}{probe.protocolDigest ? ` · fingerprint ${shortDigest(probe.protocolDigest)}` : ''}</span>}
+            {probe.protocol && <span className="eng-muted">Protocol {probe.protocol}</span>}
           </div>
           <ConformanceChecklist
             probe={probe}
@@ -471,7 +467,7 @@ export function EngRegistrationDetail() {
           </ul>
         )}
         {deployment.contractDigest && (
-          <div className="reg-digest"><span>Pinned contract fingerprint</span><CopyField value={deployment.contractDigest} label="contract fingerprint" truncate /></div>
+          <div className="reg-digest"><span>Pinned contract</span><CopyButton value={deployment.contractDigest} label="contract fingerprint" /></div>
         )}
         {!manifest && <span className="eng-muted">The registration manifest couldn’t be read, so the endpoint and paths aren’t shown.</span>}
       </section>
