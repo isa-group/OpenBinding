@@ -38,7 +38,8 @@ function CaseRow({ root, entry, canCreate, canAdminister, publicRead, onDelete }
         <span className="case-row-meta">
           <span>{plural(revisions.length, 'version')}</span>
           <span aria-hidden="true">·</span>
-          <span>{latest ? `latest v${latest.revision} · ${formatDate(latest.created_at) ?? '—'}` : 'latest none yet'}</span>        </span>
+          <span>{latest ? `latest v${latest.revision} · ${formatDate(latest.created_at) ?? '—'}` : 'latest none yet'}</span>
+        </span>
       </Link>
       <span className="case-row-actions">
         {latest && !publicRead && <Action to={`${root}/runs/new?case=${encodeURIComponent(item.slug)}&revision=${latest.revision}`} variant="secondary" size="sm">Run latest</Action>}

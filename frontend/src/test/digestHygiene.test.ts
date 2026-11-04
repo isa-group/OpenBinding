@@ -9,10 +9,8 @@ import { describe, expect, it } from 'vitest';
 // SourceView / LogPanel. This test reads the shipped sources (as src/hygiene.test.ts does) and fails on a literal of that shape, or on a
 // use of `shortDigest` / `digestPrefix`, outside that allowed set.
 //
-// PENDING_CLEANUP lists the pages and components that still offend today; reviewers keep it shrinking (see
-// design.md section 5; nothing asserts its size). The follow-up change (after M2.6) empties it. An entry that no longer offends is not an error (parallel changes
-// may clean some), but a path that no longer exists must be removed.
-// Known limits: short digests, digests built from a template, offences inside pending files and runtime data are not detected.
+// Every shipped file outside the allowed set is scanned.
+// Known limits: short digests, digests built from a template and runtime data are not detected.
 
 const files = import.meta.glob(['/src/**/*.{ts,tsx,css}', '!/src/**/*.test.*'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
@@ -25,7 +23,7 @@ const stylesheets = readdirSync(root, { recursive: true, encoding: 'utf8' })
 const shipped = [...Object.entries(files).filter(([path]) => !path.endsWith('.css')), ...stylesheets]
   .filter(([path]) => !/(\/src\/test\/setup\.ts$|testKit\.tsx?$|[Tt]estUtils\.tsx?$)/.test(path));
 
-const ALLOWED = /\/src\/(components\/CitationPanel\/|components\/VerifyResult\/|components\/rendering\/(SourceView|LogPanel)|utils\/(digest|uuid|canonicalDigest|citation)|api\/|test\/)|[Ff]ixtures?\.ts$/;
+const ALLOWED = /\/src\/(components\/CitationPanel\/|components\/VerifyResult\/|components\/rendering\/(SourceView|LogPanel)|utils\/(digest|uuid|canonicalDigest)|api\/|test\/)|[Ff]ixtures?\.ts$/;
 
 // Every shipped file the ALLOWED pattern exempts; a new exempt-named file needs an edit here.
 const EXEMPT_FILES: readonly string[] = [
@@ -66,7 +64,6 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/test/rawRenderingAllowList.ts',
   '/src/test/vocabulary.ts',
   '/src/utils/canonicalDigest.ts',
-  '/src/utils/citation.ts',
   '/src/utils/digest.ts',
   '/src/utils/uuid.ts',
 ];
@@ -75,67 +72,7 @@ const DIGEST_LITERAL = /sha256-[0-9a-fA-F]{8,}|(?<![0-9a-fA-F])(?:[0-9a-fA-F]{40
 const UUID_LITERAL = /(?<![0-9a-fA-F])[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?![0-9a-fA-F])/;
 const SHORTENER = /\b(?:shortDigest|digestPrefix)\b/;
 
-const PENDING_CLEANUP: readonly string[] = [
-  // Artifacts
-  '/src/components/Artifacts/ArtifactVersionPicker.tsx',
-  // Account
-  '/src/pages/Account/AccountKeyNew.tsx',
-  '/src/pages/Account/keysModel.ts',
-  // Admin
-  '/src/pages/Admin/AdminEngineReview.tsx',
-  '/src/pages/Admin/AdminUserDetail.tsx',
-  // Cases
-  '/src/pages/Cases/CaseDetail.tsx',
-  '/src/pages/Cases/CaseList.tsx',
-  '/src/pages/Cases/CaseRevision.tsx',
-  '/src/pages/Cases/SnapshotDetail.tsx',
-  '/src/pages/Cases/VersionHistory.tsx',
-  '/src/pages/Cases/casesModel.ts',
-  // Engines
-  '/src/pages/EngineDetail/EngineDetail.tsx',
-  '/src/pages/Engines/EngRegistrationDetail.tsx',
-  '/src/pages/Engines/EngRegistrations.tsx',
-  '/src/pages/Engines/Engines.tsx',
-  '/src/pages/Engines/LangExtensions.tsx',
-  '/src/pages/Engines/MyDeployments.tsx',
-  '/src/pages/Engines/enginesModel.ts',
-  // Generator
-  '/src/pages/Generator/LabAside.tsx',
-  // Jobs
-  '/src/pages/Jobs/JobFacts.tsx',
-  '/src/pages/Jobs/launchModel.ts',
-  // Pricing and profiles
-  '/src/pages/Pricing/Pricing.tsx',
-  '/src/pages/Profiles/Profiles.tsx',
-  // Project
-  '/src/pages/Project/ProjectOverview.tsx',
-  '/src/pages/Project/ProjectPackageSections.tsx',
-  '/src/pages/Project/packageModel.ts',
-  // Public
-  '/src/pages/Public/PublicPages.tsx',
-  '/src/pages/Public/exploreModel.ts',
-  // Engine registration
-  '/src/pages/RegisterEngine/DeploymentForm.tsx',
-  '/src/pages/RegisterEngine/RegisterEngine.tsx',
-  // Reports and resolve
-  '/src/pages/Reports/ProjPublications.tsx',
-  // Resources
-  '/src/pages/Resources/CollDetail.tsx',
-  '/src/pages/Resources/collectionModel.ts',
-  '/src/pages/Resources/resourceModel.ts',
-  // Studies
-  '/src/pages/Studies/BuilderFields.tsx',
-  '/src/pages/Studies/StudyAnalytics.tsx',
-  '/src/pages/Studies/StudyRun.tsx',
-  // Verify
-  '/src/pages/Verify/Verify.tsx',
-  // Workbench
-  '/src/pages/Workbench/CheckResult.tsx',
-  '/src/pages/Workbench/WorkbenchResult.tsx',
-];
-
-const pending = new Set(PENDING_CLEANUP);
-const checked = shipped.filter(([path]) => !ALLOWED.test(path) && !pending.has(path));
+const checked = shipped.filter(([path]) => !ALLOWED.test(path));
 
 const grep = (pattern: RegExp, entries: ReadonlyArray<[string, string]> = checked) => entries
   .flatMap(([path, text]) => text.split('\n').map((line, index) => ({ at: `${path}:${index + 1}`, line })).filter(({ line }) => pattern.test(line)))
@@ -164,15 +101,6 @@ describe('names, not digests: no digest-shaped string or UUID outside the places
 
   it('neither imports nor calls shortDigest or digestPrefix outside the allowed set', () => {
     expect(grep(SHORTENER)).toEqual([]);
-  });
-
-  it('keeps PENDING_CLEANUP sorted, without duplicates, and naming files that exist', () => {
-    expect([...PENDING_CLEANUP]).toEqual([...new Set(PENDING_CLEANUP)].sort());
-    expect(PENDING_CLEANUP.filter((path) => !(path in files))).toEqual([]);
-  });
-
-  it('keeps no allowed-set path in PENDING_CLEANUP', () => {
-    expect(PENDING_CLEANUP.filter((path) => ALLOWED.test(path))).toEqual([]);
   });
 });
 

@@ -5,3 +5,5 @@
 .registration-report-digests { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: var(--tp-spacing-sm); }
 .registration-report-digest { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .registration-report-digest > span { color: var(--tp-steel); font-size: 0.75rem; }
+.registration-report-copy { align-self: flex-start; padding: 0; border: 0; background: transparent; color: var(--tp-primary); font: inherit; font-size: 0.8125rem; font-weight: 500; cursor: pointer; }
+.registration-report-copy:hover { color: var(--tp-primary-deep); text-decoration: underline; }

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { EngineRegistrationReport } from '../../api/client';
 import * as engineReportModule from './EngineReportView';
 import { RegistrationReportView } from './EngineReportView';
@@ -28,7 +28,10 @@ describe('registration conformance report', () => {
     expect(screen.getByText('Conformance failed')).toBeInTheDocument();
     expect(screen.getByText('3 checks · verified Sep 25, 2026, 11:55 UTC')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copy protocol bim-engine/v1' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Copy openapi document digest' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy openapi document' })).toBeInTheDocument();
+    expect(screen.getByText('OpenAPI document pinned')).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain('sha256-');
+    expect(document.body.textContent).not.toMatch(/[0-9a-f]{12}/);
 
     const table = screen.getByRole('region', { name: 'Conformance checks' });
     expect(within(table).getByRole('row', { name: /health passed —/ })).toBeInTheDocument();
@@ -37,10 +40,19 @@ describe('registration conformance report', () => {
     expect(document.body.textContent).not.toContain('"checks"');
   });
 
+  it('copies the full OpenAPI value from a word-labelled button', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    render(<RegistrationReportView registration={registration({ protocol: 'bim-engine/v1', status: 'verified', checks: [] })} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy openapi document' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(DIGEST));
+  });
+
   it('says so when the gateway has not recorded a report yet', () => {
     render(<RegistrationReportView registration={registration(null)} />);
     expect(screen.getByText(/has not recorded a conformance report for this registration yet/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Copy openapi document digest' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy openapi document' })).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain('sha256-');
   });
 
   it('reads a passed report without individual checks', () => {

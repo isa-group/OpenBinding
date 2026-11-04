@@ -127,7 +127,7 @@ function VerifyView() {
       <nav aria-label="Breadcrumb" className="resolve-breadcrumb">
         <Link to="/explore">Explore</Link><span aria-hidden="true">/</span><span>Verify</span>
         {addressKind && <><span aria-hidden="true">/</span><span>{addressKind}</span></>}
-        {digest && <><span aria-hidden="true">/</span><span className="resolve-breadcrumb-digest">{isKnownKind(addressKind) ? kindLabel(addressKind) : 'Verified element'}</span></>}
+        {digest && <><span aria-hidden="true">/</span><span className="resolve-breadcrumb-digest">{isKnownKind(addressKind) ? kindLabel(addressKind) : 'Element'}</span></>}
       </nav>
 
       <header className="verify-title">

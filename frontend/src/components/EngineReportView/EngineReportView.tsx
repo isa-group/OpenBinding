@@ -1,8 +1,8 @@
 import type { EngineRegistrationReport } from '../../api/client';
 import { formatDateTime } from '../../utils/format';
 import { Badge } from '../ui/Badge';
-import { CopyField } from '../ui/CopyField';
 import { DataTable } from '../ui/DataTable';
+import { useCopy } from '../ui/useCopy';
 import './EngineReportView.css';
 
 // [impl->req~frontend-rendering-engine-report-view-retired~1]
@@ -61,7 +61,7 @@ export function RegistrationReportView({ registration }: { registration: EngineR
     return (
       <div className="registration-report">
         <p className="divergence-note">The gateway has not recorded a conformance report for this registration yet.</p>
-        {registration.openapiDigest && <ReportDigest label="OpenAPI document digest" value={registration.openapiDigest} />}
+        {registration.openapiDigest && <ReportDigest label="OpenAPI document" value={registration.openapiDigest} />}
       </div>
     );
   }
@@ -77,8 +77,8 @@ export function RegistrationReportView({ registration }: { registration: EngineR
         </span>
       </div>
       <div className="registration-report-digests">
-        {protocolDigest && <ReportDigest label={`Protocol ${typeof report.protocol === 'string' ? report.protocol : 'digest'}`} value={protocolDigest} />}
-        {registration.openapiDigest && <ReportDigest label="OpenAPI document digest" value={registration.openapiDigest} />}
+        {protocolDigest && <ReportDigest label={`Protocol ${typeof report.protocol === 'string' ? report.protocol : 'contract'}`} value={protocolDigest} />}
+        {registration.openapiDigest && <ReportDigest label="OpenAPI document" value={registration.openapiDigest} />}
       </div>
       {checks.length > 0 ? (
         <DataTable label="Conformance checks" minWidth={520}>
@@ -100,11 +100,16 @@ export function RegistrationReportView({ registration }: { registration: EngineR
   );
 }
 
+/** States in words what the gateway pinned; the button copies the full value without showing it. */
 function ReportDigest({ label, value }: { label: string; value: string }) {
+  const { copy, status } = useCopy();
+  const state = status();
   return (
     <div className="registration-report-digest">
-      <span>{label}</span>
-      <CopyField value={value} label={label.toLowerCase()} truncate />
+      <span>{label} pinned</span>
+      <button type="button" className="registration-report-copy" aria-label={`Copy ${label.toLowerCase()}`} onClick={() => void copy(value)}>
+        {state === 'copied' ? 'Copied' : state === 'failed' ? 'Failed' : 'Copy'}
+      </button>
     </div>
   );
 }
