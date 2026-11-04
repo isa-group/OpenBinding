@@ -232,6 +232,19 @@ Props, sides, wording and the fixtures `D1`, `D2`, `ID` and `entity`: design.md 
 - **AND** the second has a link named `Travel run` to `/routed`
 - **AND** the third has no link
 
+#### Scenario: An entity name that looks like an identifier reads as unnamed
+- **GIVEN** a verified verdict whose `entities` are `entity({ title_or_name: 'sha256-' + 'a1'.repeat(32), slug: null })`, `entity({ title_or_name: ID, slug: 'travel-slug' })` and `entity({ title_or_name: 'run ' + 'e'.repeat(40), slug: ID })`
+- **WHEN** it is rendered
+- **THEN** it shows `unnamed element`, `travel-slug` and `unnamed element`
+- **AND** the rendered text contains neither the digest, nor `ID`, nor the 40-character run
+
+#### Scenario: The Verify page shows the verdict through VerifyResult with the recorded digest once
+- **GIVEN** the Verify page and a verifier answer with status `verified`, a digest and a first match
+- **WHEN** the result is rendered
+- **THEN** the verdict is the element with role `status` named `Verdict`, rendered by `VerifyResult`
+- **AND** the recorded digest is shown once, as the copyable value of the side `Recorded by OpenBinding`
+- **AND** the citation panel under it has no `Digest` field
+
 #### Scenario: Citation slot
 - **GIVEN** `<VerifyResult verdict={{ status: 'verified', digest: D1 }} citation={<p>citation here</p>} />`
 - **WHEN** it is rendered
@@ -247,19 +260,19 @@ Props, sides, wording and the fixtures `D1`, `D2`, `ID` and `entity`: design.md 
 - **WHEN** it is read
 - **THEN** its rule for `.verify-result__matches li > *` sets `overflow-wrap: anywhere` and `min-width: 0`
 
-### Requirement: Digest and UUID hygiene with a pending clean-up list
+### Requirement: Digest and UUID hygiene
 `req~digest-hygiene~1`
-IF a shipped frontend source that is neither in the allowed set nor on the pending clean-up list has a line with a digest-shaped literal, a UUID or the name `shortDigest` or `digestPrefix`, or the files the allowed set exempts differ from the pinned exempt list, or the pending list is unsorted, holds a duplicate, names a missing file or names an allowed path, THEN the frontend test suite SHALL fail.
+IF a shipped frontend source outside the allowed set has a line with a digest-shaped literal, a UUID or the name `shortDigest` or `digestPrefix`, or the files the allowed set exempts differ from the pinned exempt list, THEN the frontend test suite SHALL fail.
 
 Needs: impl, utest
 
-Scanned set, allowed set, exempt list, detectors and the pending list: design.md §5.
+Scanned set, allowed set, exempt list and detectors: design.md §5. There is no pending list.
 
 #### Scenario: The sources are read
 - **GIVEN** the `.ts`, `.tsx` and `.css` files under `frontend/src`, without tests, `src/test/setup.ts` and test kits
 - **WHEN** the hygiene test collects them
 - **THEN** it reads more than 100 shipped files
-- **AND** more than 50 of them are outside the allowed set and the pending list
+- **AND** more than 50 of them are outside the allowed set
 
 #### Scenario: The stylesheets are read with their content
 - **GIVEN** the `.css` files under `frontend/src`, read from disk
@@ -268,7 +281,7 @@ Scanned set, allowed set, exempt list, detectors and the pending list: design.md
 - **AND** `/src/components/CitationPanel/CitationPanel.css` has non-empty content
 
 #### Scenario: The allowed set exempts exactly the pinned files
-- **GIVEN** `EXEMPT_FILES` of `frontend/src/test/digestHygiene.test.ts`: the 39 paths of design.md §5.2
+- **GIVEN** `EXEMPT_FILES` of `frontend/src/test/digestHygiene.test.ts`: the paths of design.md §5.2
 - **WHEN** the hygiene test applies the allowed set to the shipped files
 - **THEN** the sorted exempted paths equal the sorted `EXEMPT_FILES`
 
@@ -279,7 +292,7 @@ Scanned set, allowed set, exempt list, detectors and the pending list: design.md
 - **AND** the digest-literal detector reports nothing
 
 #### Scenario: The application sources pass
-- **GIVEN** the shipped sources outside the allowed set and the pending list
+- **GIVEN** the shipped sources outside the allowed set
 - **WHEN** the hygiene test reads them line by line
 - **THEN** no line matches the digest-literal detector or the UUID detector
 - **AND** no line names `shortDigest` or `digestPrefix`
@@ -301,10 +314,18 @@ Scanned set, allowed set, exempt list, detectors and the pending list: design.md
 - **THEN** it flags the first two
 - **AND** it does not flag the third
 
-#### Scenario: The pending list is well formed
-- **GIVEN** `PENDING_CLEANUP` of `frontend/src/test/digestHygiene.test.ts` as this change leaves it: the 40 paths of design.md §5.5
-- **WHEN** the hygiene test reads it
-- **THEN** it is sorted and has no duplicates
-- **AND** every entry names a file of the scanned glob
-- **AND** no entry is in the allowed set
-- **AND** a listed file that no longer offends does not fail the suite
+#### Scenario: There is no pending list
+- **GIVEN** `frontend/src/test/digestHygiene.test.ts` as this change leaves it
+- **WHEN** it is read
+- **THEN** it holds no pending clean-up list
+- **AND** every shipped file outside the allowed set is scanned
+
+#### Scenario: Pages show no digest text in lists, cards, headers and badges
+- **GIVEN** the pages and components under `frontend/src/pages` and `frontend/src/components` outside the allowed set
+- **WHEN** the hygiene test reads them
+- **THEN** none has a line with a digest-shaped literal, so no list, card, header or badge of them is written to show digest text
+
+#### Scenario: Pages show no UUID or fingerprint in lists, cards, headers and badges
+- **GIVEN** the same pages and components
+- **WHEN** the hygiene test reads them
+- **THEN** none has a line with a UUID, and none names `shortDigest` or `digestPrefix`, so no list, card, header or badge shows a UUID or a shortened fingerprint
