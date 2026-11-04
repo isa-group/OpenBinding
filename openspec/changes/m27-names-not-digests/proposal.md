@@ -54,7 +54,10 @@ The change was specified in parallel with the code. It now describes the code as
   exempts are pinned in an explicit list of 39, and self-tests prove the scan pipeline reports findings. Part 1 also
   held a pending clean-up list; part 2 emptied and deleted it. The file carries both the `[impl->…]` and the
   `[utest->…]` tag.
-- No screen changes. The new components are not mounted on any page yet.
+- Part 2 (screens): the pages and components that called `shortDigest`/`digestPrefix` or carried digest-shaped text
+  were cleaned. Review round 1 also cleaned AppHome, OrgAudit, Examples and Schemas (the Schemas protocol digest
+  becomes a copy-only button). `VerifyResult` and `CitationPanel` are mounted on the Verify page. The hygiene test has
+  no pending list. `shortDigest`, `digestPrefix` and `utils/citation.ts` are retired.
 
 ## Impact
 
@@ -64,15 +67,20 @@ The change was specified in parallel with the code. It now describes the code as
   - new `frontend/src/shared/lib/identity.ts` and its test (the first files under `shared/`, ARCHITECTURE §5.1);
   - new `frontend/src/components/CitationPanel/**` and `frontend/src/components/VerifyResult/**`;
   - new `frontend/src/test/digestHygiene.test.ts`;
+  - part 2: edits to the call sites in `pages/**` and `components/**`, including the Verify page wiring
+    (`pages/Verify/VerifierResult.tsx`, `ResolveResult.tsx`), and deletion of the shorteners in `utils/digest.ts` and of
+    `utils/citation.ts` with its test;
   - one line in the root `.gitignore`, `!/frontend/src/shared/lib/`, because the template rule `lib/` would ignore the
     new directory.
 - Untouched by part 1: `utils/digest.ts` (`shortDigest`, `digestPrefix`), `utils/citation.ts`,
   `components/ui/CopyField` and `useCopy`, every page, and the raw-rendering allow-list and its hygiene test. Part 2
-  deleted `shortDigest`, `digestPrefix`, `utils/citation.ts` and its test (design.md §8, question 2).
+  edited the pages and deleted `shortDigest`, `digestPrefix`, `utils/citation.ts` and its test (design.md §8,
+  question 2).
 - No HTTP API, OpenAPI, gateway, worker, engine or database change. The API keeps every digest (ARCHITECTURE §5.4).
   No `package.json` or lockfile change, so no property-testing library: the exhaustive sample table of design.md §2.6
-  replaces one. No feature flag: nothing is mounted.
-- Tests: Vitest only. No Playwright spec changes, because no route or screen changes.
+  replaces one. No feature flag: the screens change directly.
+- Tests: Vitest only (component tests per screen and the hygiene test). No Playwright spec changes; the touch-target
+  check and ui-qa screenshots stay open (tasks.md F.3, F.6).
 - Traceability: `[impl->…]` and `[utest->…]` tags exist for all four requirements, at `~1` (design.md §6).
 - Risks (design.md §7):
   - the detector is static and line based. Short forms (`sha256-…`) and identifiers from runtime data are not caught;
@@ -80,7 +88,7 @@ The change was specified in parallel with the code. It now describes the code as
     `Snapshot <id[:8]>` name fallback is one such input today;
   - whether two different digests side by side meet constitution 15.5 is the owner's reading (design.md §8,
     question 5);
-  - ui-qa has no mounted screen to capture until the second change.
+  - ui-qa screenshots of the changed screens are still to be taken.
 
 ## Out of scope
 

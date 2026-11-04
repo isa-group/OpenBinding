@@ -146,13 +146,16 @@ a requirement of this change is a `~2` revision, with its code and test tags re-
   detector stays in the hygiene test as a guard; the pending list is gone; `EngineReportView` shows `<label> pinned`
   as text with a copy button named in words (`Copy <label>`); `EXEMPT_FILES` holds 39 paths, none under
   `utils/citation`. The MODIFIED delta `specs/frontend-catalog-pricing/spec.md` moves the
-  engine-card requirement to the engine label. Known leftovers (design.md §7):
-  - the Admin pages still show short account, run and event ids (`adminModel.shortId`), since names need API lookups;
-  - the `ResolveResult` location id (`element_id` as the fallback for a missing slug) is removed by a sibling change
-    that drops `element_id` from the resolve view; it is not edited here;
+  engine-card requirement to the engine label. Review round 1 also cleaned AppHome, OrgAudit, Examples and Schemas
+  (the Schemas protocol digest is a copy-only button). `ResolveResult` no longer falls back to a location
+  `element_id`; the id is only a React key. Known leftovers are in F.6 (design.md §7). Also:
   - identity labels are used where objects carry the fields (Jobs, Studies, Engines, Admin); generic words
     (`Recorded`, `Stored`, `Copy digest`, `Run n` by list position) are used elsewhere.
 - [ ] F.6 Still open from part 2:
+  - deferred leftovers: Admin short UUIDs (`adminModel.shortId`, needs lookups); the Workbench registered-reference
+    digest input (authoring field, default 64 zeros); the Verify permanent link that embeds the digest (question 1,
+    needs a gateway route); question 5 (constitution 15.5, two different digests) awaiting the owner; mixed
+    "fingerprint" and "digest" wording in labels;
   - permanent links by permanent id or slug for the other pages, or a refusal of digest-bearing links in
     `CitationPanel` (design.md §8, question 1, deferred: the panel is mounted only on the Verify page);
   - the other drafted, unbuilt behaviour of design.md §8 item 7, `utils/format.ts` dates (question 3) and

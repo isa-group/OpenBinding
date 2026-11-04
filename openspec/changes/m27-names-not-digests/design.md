@@ -481,13 +481,19 @@ scenarios read the CSS as raw text from disk (the M2.1 "tokens only" pattern).
 - **Digest in the permanent link on the Verify page.** Where the digest is the address, the link embeds it (§3.4), so
   the digest text can appear in the link field as well as in the single copyable field. That is the address itself,
   not a second copyable fingerprint; question 1 stays open for the other pages.
-- **Known leftovers of the page clean-up.** The Admin pages still show short account, run and event ids
-  (`adminModel.shortId`), because names there need API lookups. Identity labels are used where the objects carry the
-  fields (Jobs, Studies, Engines, Admin); elsewhere the pages use generic words (`Recorded`, `Stored`, `Copy digest`,
-  `Run n` by list position).
-- **The resolve view's location id.** At the head of this branch `pages/Verify/ResolveResult.tsx` still falls back to
-  a location's `element_id` when its slug is missing. A sibling change removes `element_id` from the resolve view, so
-  the `ResolveResult` location id goes away with it; this change does not edit that field. The Admin short ids stay.
+- **Known leftovers of the page clean-up**, deferred as follow-ups:
+  - Admin short UUIDs (`adminModel.shortId`: account, run and event ids), because names there need API lookups;
+  - the Workbench registered-reference digest input, an authoring field whose default is 64 zeros;
+  - the Verify permanent link embeds the digest (question 1, needs a gateway route);
+  - question 5 (constitution 15.5, two different digests side by side), awaiting the owner;
+  - mixed "fingerprint" and "digest" wording in labels (question 4).
+
+  Identity labels are used where the objects carry the fields (Jobs, Studies, Engines, Admin); elsewhere the pages use
+  generic words (`Recorded`, `Stored`, `Copy digest`, `Run n` by list position).
+- **Review round 1 clean-up.** AppHome, OrgAudit, Examples and Schemas were cleaned in review round 1; the Schemas
+  protocol digest became a copy-only button.
+- **The resolve view's location id.** `pages/Verify/ResolveResult.tsx` no longer falls back to a location's
+  `element_id`; the id is only a React key and is never rendered.
 
 ## 8. Open questions and follow-ups
 
