@@ -66,7 +66,18 @@ describe('Audit log', () => {
     expect(open).toHaveAttribute('aria-expanded', 'false');
     // An event with no recorded actor says so.
     fireEvent.click(card(/Invitation created/));
-    expect(screen.getByText('Not recorded', { selector: 'dd' })).toBeInTheDocument();
+    expect(screen.getByText('Unknown person', { selector: 'dd' })).toBeInTheDocument();
+    expect(screen.queryByText('Event', { selector: 'dt' })).not.toBeInTheDocument();
+  });
+
+  it('never shows a raw user id for a former member', async () => {
+    const uuid = '3f2b8c1e-5d4a-4e7b-9c6d-1a2b3c4d5e6f';
+    platform.organizationAudit.mockResolvedValue(page([{ ...auditFixture[2], actorId: uuid }]));
+    renderAudit();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Organization created/ }));
+    expect(screen.getByText('Former member', { selector: 'dd' })).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(uuid.slice(0, 8));
   });
 
   // [utest->req~frontend-audit-detail-rendered~1]

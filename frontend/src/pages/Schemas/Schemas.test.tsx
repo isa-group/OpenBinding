@@ -154,7 +154,11 @@ describe('schema reference', () => {
     expect(screen.getByText('Engine protocol', { selector: '.schemas-alias' })).toBeInTheDocument();
     expect(api.getBimSchema).toHaveBeenCalledWith('engine-contract');
     expect(screen.getAllByText('bim-engine/v1').length).toBeGreaterThan(0);
-    expect(screen.getByText(protocolSchema.digest)).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('sha256-');
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Copy protocol digest' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(protocolSchema.digest));
     expect(screen.getByRole('tree', { name: 'engine-contract fields' })).toHaveTextContent('Solution');
     const calls = screen.getByRole('region', { name: 'Calls of the engine protocol' });
     expect(calls).toHaveTextContent('POST');

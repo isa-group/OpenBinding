@@ -99,9 +99,7 @@ function EventCard({ event, who, nameOf, open, onToggle }: {
                 <div key={row.label} className="org-tl-fact">
                   <dt>{row.label}</dt><dd><DetailView value={row.value} /></dd>
                 </div>
-              ))}
-              <dt>Event</dt><dd><code>{event.id}</code></dd>
-            </dl>
+              ))}            </dl>
             <button type="button" className="org-link-button" onClick={() => void copy(event.id, event.id)}>
               {copied === 'copied' ? 'Event reference copied' : copied === 'failed' ? 'Copy failed' : 'Copy event reference'}
             </button>
@@ -133,8 +131,8 @@ function AuditBody({ organization }: { organization: Organization }) {
   const refused = failure !== null && isForbidden(failure);
   const page = data.data?.page ?? null;
   const events = page?.events ?? [];
-  const nameOf = (userId: string) => personName(userId, people.data ?? [], me, `User ${userId.slice(0, 8)}…`);
-  const who = (event: OrganizationAuditEvent) => (event.actorId ? nameOf(event.actorId) : 'Not recorded');
+  const nameOf = (userId: string) => personName(userId, people.data ?? [], me, 'Former member');
+  const who = (event: OrganizationAuditEvent) => (event.actorId ? nameOf(event.actorId) : 'Unknown person');
 
   const actors = [...new Set(events.map((event) => event.actorId))];
   const days = period === 'all' ? null : Number(period);

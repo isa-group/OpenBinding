@@ -4,7 +4,6 @@ import { Link, useParams } from 'react-router-dom';
 import { apiClient, HttpError, type BimSchemaKind } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { Chip } from '../../components/ui/Chip';
-import { CopyField } from '../../components/ui/CopyField';
 import { DataTable } from '../../components/ui/DataTable';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -151,7 +150,9 @@ function SchemaView({ kind, item }: { kind: BimSchemaKind; item: SchemaCatalogIt
             <div><dt>Reusable definitions</dt><dd>{facts.definitions}</dd></div>
           </dl>
           {protocolDigest && (
-            <div className="schemas-digest"><span>Protocol digest</span><CopyField value={protocolDigest} label="protocol digest" truncate /></div>
+            <div className="schemas-digest"><button type="button" className="schemas-copy" onClick={() => void copy(protocolDigest, 'protocol-digest')}>
+              {copyStatus('protocol-digest') === 'copied' ? 'Copied' : 'Copy protocol digest'}
+            </button></div>
           )}
 
           {tree.length > 0 ? (
