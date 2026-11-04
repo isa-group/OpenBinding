@@ -10,7 +10,8 @@ import { describe, expect, it } from 'vitest';
 // use of `shortDigest` / `digestPrefix`, outside that allowed set.
 //
 // Every shipped file outside the allowed set is scanned.
-// Known limits: short digests, digests built from a template and runtime data are not detected.
+// Known limits: short digests, digests built from a template and runtime data are not detected; the generated
+// frontend/src/content/changelog.generated.json is rendered on About but is not scanned (JSON is not in the glob).
 
 const files = import.meta.glob(['/src/**/*.{ts,tsx,css}', '!/src/**/*.test.*'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
@@ -20,13 +21,25 @@ const stylesheets = readdirSync(root, { recursive: true, encoding: 'utf8' })
   .filter((name) => name.endsWith('.css'))
   .map((name): [string, string] => [`/src/${name.replaceAll('\\', '/')}`, readFileSync(join(root, name), 'utf8')]);
 
-const shipped = [...Object.entries(files).filter(([path]) => !path.endsWith('.css')), ...stylesheets]
-  .filter(([path]) => !/(\/src\/test\/setup\.ts$|testKit\.tsx?$|[Tt]estUtils\.tsx?$)/.test(path));
+// Test-support files that are not shipped; anchored on a path segment so a shipped `latestUtils.ts` is still scanned.
+const TEST_KIT = /\/(testKit|[A-Za-z]*TestUtils)\.tsx?$|\/src\/test\/setup\.ts$/;
+
+// Every file the TEST_KIT pattern leaves out of the scan; a new test-kit file needs an edit here.
+const TEST_KIT_FILES: readonly string[] = [
+  '/src/pages/Admin/adminTestUtils.tsx',
+  '/src/pages/Organization/testKit.tsx',
+  '/src/pages/Project/testKit.tsx',
+  '/src/test/setup.ts',
+];
+
+const all = [...Object.entries(files).filter(([path]) => !path.endsWith('.css')), ...stylesheets];
+const shipped = all.filter(([path]) => !TEST_KIT.test(path));
 
 const ALLOWED = /\/src\/(components\/CitationPanel\/|components\/VerifyResult\/|components\/rendering\/(SourceView|LogPanel)|utils\/(digest|uuid|canonicalDigest)|api\/|test\/)|[Ff]ixtures?\.ts$/;
 
 // Every shipped file the ALLOWED pattern exempts; a new exempt-named file needs an edit here.
 const EXEMPT_FILES: readonly string[] = [
+  // api layer: request and response types carry ids and digests as data
   '/src/api/auth.ts',
   '/src/api/cases.ts',
   '/src/api/client.ts',
@@ -38,6 +51,7 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/api/platform.ts',
   '/src/api/problem.ts',
   '/src/api/workbench.ts',
+  // citation and verify components: the places that show a digest on purpose
   '/src/components/CitationPanel/CitationPanel.css',
   '/src/components/CitationPanel/CitationPanel.tsx',
   '/src/components/CitationPanel/citationModel.ts',
@@ -46,10 +60,12 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/components/VerifyResult/VerifyResult.tsx',
   '/src/components/VerifyResult/index.ts',
   '/src/components/VerifyResult/verifyModel.ts',
+  // log and source views: raw engine output and source text are shown verbatim
   '/src/components/rendering/LogPanel.css',
   '/src/components/rendering/LogPanel.tsx',
   '/src/components/rendering/SourceView.css',
   '/src/components/rendering/SourceView.tsx',
+  // fixtures: sample data for tests and demos, with realistic digests and ids
   '/src/components/rendering/runResultFixtures.ts',
   '/src/pages/Cases/fixtures.ts',
   '/src/pages/Organization/auditFixture.ts',
@@ -61,8 +77,10 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/test/fixtures/reports.ts',
   '/src/test/fixtures/resources.ts',
   '/src/test/fixtures/studies.ts',
+  // test support under src/test/, not shipped behaviour
   '/src/test/rawRenderingAllowList.ts',
   '/src/test/vocabulary.ts',
+  // utils: the digest and uuid helpers themselves
   '/src/utils/canonicalDigest.ts',
   '/src/utils/digest.ts',
   '/src/utils/uuid.ts',
@@ -90,6 +108,10 @@ describe('names, not digests: no digest-shaped string or UUID outside the places
     expect(citation?.[1].trim().length).toBeGreaterThan(0);
   });
 
+  it('leaves out exactly the files of the explicit test-kit list', () => {
+    expect(all.map(([path]) => path).filter((path) => TEST_KIT.test(path)).sort()).toEqual([...TEST_KIT_FILES].sort());
+  });
+
   it('exempts exactly the files of the explicit allowed list', () => {
     expect(shipped.map(([path]) => path).filter((path) => ALLOWED.test(path)).sort()).toEqual([...EXEMPT_FILES].sort());
   });
@@ -110,6 +132,16 @@ describe('the scan pipeline', () => {
     expect(grep(SHORTENER, entries)).toEqual(['/src/x/Foo.ts:2  const b = shortDigest(x);']);
     expect(grep(DIGEST_LITERAL, entries)).toEqual([]);
   });
+
+  it('skips the test-kit names on a path segment only', () => {
+    const paths = ['/src/pages/A/testKit.tsx', '/src/pages/A/adminTestUtils.ts', '/src/test/setup.ts'];
+    expect(paths.every((path) => TEST_KIT.test(path))).toBe(true);
+    const shippedNames = ['/src/utils/latestUtils.ts', '/src/pages/A/mytestKit.tsx', '/src/pages/A/setup.ts', '/src/x/test/setup.ts.bak'];
+    expect(shippedNames.some((path) => TEST_KIT.test(path))).toBe(false);
+    const entry: [string, string] = ['/src/utils/latestUtils.ts', `const d = 'sha256-${'ab'.repeat(32)}';`];
+    const scanned = [entry].filter(([path]) => !TEST_KIT.test(path) && !ALLOWED.test(path));
+    expect(grep(DIGEST_LITERAL, scanned)).toHaveLength(1);
+  });
 });
 
 describe('the digest detectors', () => {
@@ -129,6 +161,18 @@ describe('the digest detectors', () => {
     expect(flagged('abcdef012345')).toBe(false);
     expect(flagged('Shown as sha256- followed by a prefix')).toBe(false);
     expect(flagged(`${hex64}0`)).toBe(false);
+  });
+
+  it('catch upper-case digests and UUIDs and a prefixed 64-hex run', () => {
+    expect(DIGEST_LITERAL.test(`sha256-${hex64.toUpperCase()}`)).toBe(true);
+    expect(DIGEST_LITERAL.test(`"${hex64.toUpperCase()}"`)).toBe(true);
+    expect(UUID_LITERAL.test('ID: 123E4567-E89B-12D3-A456-426614174000')).toBe(true);
+    expect(DIGEST_LITERAL.test(`x_${hex64}`)).toBe(true);
+  });
+
+  it('do not flag a UUID with a 13-hex tail or sha256- with fewer than 8 hex', () => {
+    expect(UUID_LITERAL.test('123e4567-e89b-12d3-a456-4266141740001')).toBe(false);
+    expect(DIGEST_LITERAL.test('sha256-abc')).toBe(false);
   });
 
   it('catch the shorteners as whole words only', () => {
