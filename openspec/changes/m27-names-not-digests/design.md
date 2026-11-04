@@ -20,7 +20,7 @@ the delta describes what they do. Fixed inputs:
 | `frontend/src/components/CitationPanel/**` (new: `CitationPanel.tsx`, `CitationPanel.css`, `citationModel.ts`, `index.ts`, `CitationPanel.test.tsx`) | problem, collection and published-result pages (second change) |
 | `frontend/src/components/VerifyResult/**` (new: `VerifyResult.tsx`, `VerifyResult.css`, `verifyModel.ts`, `index.ts`, `VerifyResult.test.tsx`) | the Verify page (M2.6 builds the page; part 2 mounts the component in `pages/Verify/VerifierResult.tsx`) |
 | `frontend/src/test/digestHygiene.test.ts` (new) | every change; part 2 removed the pending list, so every shipped file outside the allowed set is scanned |
-| part 2: call sites in `pages/**` and `components/**` (identity labels where an object carries the fields, generic words elsewhere); `pages/Verify/VerifierResult.tsx` and `pages/Verify/ResolveResult.tsx` (mount `VerifyResult` and `CitationPanel`); the entity-name guard in `components/VerifyResult/verifyModel.ts`; `components/EngineReportView` (digests removed); `utils/digest.ts` and `utils/citation.ts` (`shortDigest`, `digestPrefix` retired) | screens |
+| part 2: call sites in `pages/**` and `components/**` (identity labels where an object carries the fields, generic words elsewhere); `pages/Verify/VerifierResult.tsx` and `pages/Verify/ResolveResult.tsx` (mount `VerifyResult` and `CitationPanel`); the entity-name guard in `components/VerifyResult/verifyModel.ts`; `components/EngineReportView` (digests removed: it shows `<label> pinned` as text, with a copy button named `Copy <label>` in words); `utils/digest.ts` (`shortDigest`, `digestPrefix` deleted) and `utils/citation.ts` with its test (deleted) | screens |
 | root `.gitignore`, one line: `!/frontend/src/shared/lib/` (line 18) | repository |
 
 The `.gitignore` line is needed because the root file carries the Python template rule `lib/` (line 17), which would
@@ -355,27 +355,26 @@ silently.
 
 There is no pending list: every shipped file outside this set is scanned. The set is the `CitationPanel`, the
 `VerifyResult`, the rendering `SourceView` and `LogPanel`, the digest, uuid and canonical-digest utilities, the API
-layer, test support and fixtures. One regular expression, unanchored at the start (as built at the time of part 1; the
-sibling close-out task may narrow the `utils` group when it retires the shorteners, and the reviewer reconciles it):
-`/\/src\/(components\/CitationPanel\/|components\/VerifyResult\/|components\/rendering\/(SourceView|LogPanel)|utils\/(digest|uuid|canonicalDigest|citation)|api\/|test\/)|[Ff]ixtures?\.ts$/`.
+layer, test support and fixtures. One regular expression, unanchored at the start, as built in
+`frontend/src/test/digestHygiene.test.ts`:
+`/\/src\/(components\/CitationPanel\/|components\/VerifyResult\/|components\/rendering\/(SourceView|LogPanel)|utils\/(digest|uuid|canonicalDigest)|api\/|test\/)|[Ff]ixtures?\.ts$/`.
+`utils/citation.ts` and its test are deleted, so the `utils` group no longer names `citation`.
 
 | Path | Why |
 |---|---|
 | `/src/components/CitationPanel/`, `/src/components/VerifyResult/` | the one copyable digest, and one per side (§5.4 of ARCHITECTURE) |
 | `/src/components/rendering/SourceView…`, `/src/components/rendering/LogPanel…` (prefix) | files and logs as they are |
-| `/src/utils/digest…`, `/src/utils/uuid…`, `/src/utils/canonicalDigest…` (prefix) | the digest and UUID utilities, including `shortDigest` and `digestPrefix` |
-| `/src/utils/citation…` (prefix) | the citation helper, treated as a digest utility (open question 2 is decided: the shorteners `shortDigest` and `digestPrefix` are retired, so the helper detector of §5.3 now guards against their return) |
+| `/src/utils/digest…`, `/src/utils/uuid…`, `/src/utils/canonicalDigest…` (prefix) | the digest and UUID utilities. `shortDigest` and `digestPrefix` are deleted from `utils/digest.ts` (open question 2), and the helper detector of §5.3 stays as a guard against their return |
 | `/src/api/` | the API layer keeps every digest |
 | `/src/test/` | test support |
 | a file name ending in `fixture.ts`, `fixtures.ts`, `Fixture.ts` or `Fixtures.ts` | fixtures, imported only by tests (`pages/Cases/fixtures.ts`, `pages/Pricing/pricingFixture.ts`, `pages/Project/packageFixture.ts`); `.tsx` fixtures and `fixtures/` directories are not covered |
 
-The pattern is pinned by `EXEMPT_FILES`, the explicit list of the shipped files it exempts (39 at part 1; the count
-follows the file as built, and the reconciled count is the reviewer's to confirm): 11 under
+The pattern is pinned by `EXEMPT_FILES`, the explicit list of the shipped files it exempts, 39 as built: 11 under
 `api/`, the 4 non-test files of `components/CitationPanel/` and the 4 of `components/VerifyResult/`, the 4
 `LogPanel` and `SourceView` sources and stylesheets, `components/rendering/runResultFixtures.ts`, the 4 page fixtures
 (`pages/Cases/fixtures.ts`, `pages/Organization/auditFixture.ts`, `pages/Pricing/pricingFixture.ts`,
-`pages/Project/packageFixture.ts`), 6 files under `test/fixtures/`, `test/rawRenderingAllowList.ts` and the 4
-utilities `utils/canonicalDigest.ts`, `utils/citation.ts`, `utils/digest.ts` and `utils/uuid.ts`. The test asserts
+`pages/Project/packageFixture.ts`), 6 files under `test/fixtures/`, `test/rawRenderingAllowList.ts`,
+`test/vocabulary.ts` and the 3 utilities `utils/canonicalDigest.ts`, `utils/digest.ts` and `utils/uuid.ts`. The test asserts
 that the sorted set of exempted shipped paths equals the sorted list. A new file whose name the pattern happens to
 exempt (a new `…Fixture.ts`, a new file under `api/`) fails the suite until it is added to the list by an edit that
 review sees.
@@ -446,7 +445,7 @@ Files that the first draft of this design listed and the test does not:
   `pages/Workbench/resourceForms.tsx`. Their only digest-like text is `sha256-` followed by `…`, a space or a template
   `${…}` (a message, a placeholder, a computed value). The digest-literal detector needs eight hexadecimal characters
   after `sha256-`, and none of them names a helper, so they pass unlisted.
-- `utils/citation.ts`, which is in the allowed set (§5.2).
+- `utils/citation.ts`, which part 2 deleted with its test, so it is in no set.
 
 ## 6. Requirements, tests and tags
 
@@ -485,8 +484,10 @@ scenarios read the CSS as raw text from disk (the M2.1 "tokens only" pattern).
 - **Known leftovers of the page clean-up.** The Admin pages still show short account, run and event ids
   (`adminModel.shortId`), because names there need API lookups. Identity labels are used where the objects carry the
   fields (Jobs, Studies, Engines, Admin); elsewhere the pages use generic words (`Recorded`, `Stored`, `Copy digest`,
-  `Run n` by list position). The resolve view lists a location's `element_id` in place of its slug when the slug is
-  missing.
+  `Run n` by list position).
+- **The resolve view's location id.** At the head of this branch `pages/Verify/ResolveResult.tsx` still falls back to
+  a location's `element_id` when its slug is missing. A sibling change removes `element_id` from the resolve view, so
+  the `ResolveResult` location id goes away with it; this change does not edit that field. The Admin short ids stay.
 
 ## 8. Open questions and follow-ups
 
@@ -495,8 +496,9 @@ scenarios read the CSS as raw text from disk (the M2.1 "tokens only" pattern).
    is the address, so nothing refuses such a link. Slug or id links for problem versions, collection versions and
    published results (possibly a gateway route, so a CRP) are needed when the panel reaches those pages, or the panel
    gains the refusal in a `~2` revision.
-2. Decided: `shortDigest` and `digestPrefix` are retired (deleted from `utils/digest.ts` and `utils/citation.ts`
-   when nothing uses them), and the helper detector of §5.3 keeps them out.
+2. Decided: `shortDigest` and `digestPrefix` are retired. They are deleted from `utils/digest.ts`, and
+   `utils/citation.ts` and its test are deleted. The helper detector of §5.3 (`SHORTENER`) stays in the hygiene test
+   as a guard and keeps them out; `utils/citation` is not in the allowed set.
 3. Coordinator: whether the rest of the UI moves from `Aug 20, 2026` (`utils/format.ts`) to the §5.4 form
    `20 Aug 2026`, so one screen does not show both forms.
 4. Coordinator: `VerifyResult` says "fingerprint" while the glossary term is "digest" (INTENT §5). Rewording is a
@@ -523,4 +525,4 @@ scenarios read the CSS as raw text from disk (the M2.1 "tokens only" pattern).
 ## 9. Rollback
 
 Reverting part 1 removes the new files and the `.gitignore` exception; reverting part 2 restores the previous page
-text, the pending list and the shorteners. No data, API or stored state is touched.
+text, the pending list, the shorteners and `utils/citation.ts`. No data, API or stored state is touched.

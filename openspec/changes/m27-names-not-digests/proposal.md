@@ -50,10 +50,10 @@ The change was specified in parallel with the code. It now describes the code as
   Then the matches by name and kind (never by id; long names wrap) and a slot for a citation panel.
 - Hygiene test `frontend/src/test/digestHygiene.test.ts`: the suite fails on a digest literal (`sha256-` with 8 or
   more hexadecimal characters, or a bare 40- or 64-hexadecimal run), a UUID, or the name `shortDigest` or
-  `digestPrefix` in a shipped `.ts`, `.tsx` or `.css` file outside the allowed set and the pending clean-up list. The
-  files the allowed set exempts are pinned in an explicit list of 39, and self-tests prove the scan pipeline reports
-  findings. The pending list holds 40 files, sorted, existing and outside the allowed set; no test asserts that it
-  shrinks (review keeps it shrinking). The file carries both the `[impl->…]` and the `[utest->…]` tag.
+  `digestPrefix` in a shipped `.ts`, `.tsx` or `.css` file outside the allowed set. The files the allowed set
+  exempts are pinned in an explicit list of 39, and self-tests prove the scan pipeline reports findings. Part 1 also
+  held a pending clean-up list; part 2 emptied and deleted it. The file carries both the `[impl->…]` and the
+  `[utest->…]` tag.
 - No screen changes. The new components are not mounted on any page yet.
 
 ## Impact
@@ -66,17 +66,16 @@ The change was specified in parallel with the code. It now describes the code as
   - new `frontend/src/test/digestHygiene.test.ts`;
   - one line in the root `.gitignore`, `!/frontend/src/shared/lib/`, because the template rule `lib/` would ignore the
     new directory.
-- Untouched: `utils/digest.ts` (`shortDigest`, `digestPrefix`), `utils/citation.ts`, `components/ui/CopyField` and
-  `useCopy`, every page, and the raw-rendering allow-list and its hygiene test.
+- Untouched by part 1: `utils/digest.ts` (`shortDigest`, `digestPrefix`), `utils/citation.ts`,
+  `components/ui/CopyField` and `useCopy`, every page, and the raw-rendering allow-list and its hygiene test. Part 2
+  deleted `shortDigest`, `digestPrefix`, `utils/citation.ts` and its test (design.md §8, question 2).
 - No HTTP API, OpenAPI, gateway, worker, engine or database change. The API keeps every digest (ARCHITECTURE §5.4).
   No `package.json` or lockfile change, so no property-testing library: the exhaustive sample table of design.md §2.6
   replaces one. No feature flag: nothing is mounted.
 - Tests: Vitest only. No Playwright spec changes, because no route or screen changes.
 - Traceability: `[impl->…]` and `[utest->…]` tags exist for all four requirements, at `~1` (design.md §6).
 - Risks (design.md §7):
-  - the pending list holds `pages/Resolve/Resolve.tsx`, which M2.6 is editing, so merge order matters;
-  - the detector is static and line based. Short forms (`sha256-…`), identifiers from runtime data and new offences
-    inside pending files are not caught, and no ceiling holds the list size;
+  - the detector is static and line based. Short forms (`sha256-…`) and identifiers from runtime data are not caught;
   - the components show their inputs as given, so callers must pass names and slug links; the gateway's
     `Snapshot <id[:8]>` name fallback is one such input today;
   - whether two different digests side by side meet constitution 15.5 is the owner's reading (design.md §8,
@@ -85,9 +84,9 @@ The change was specified in parallel with the code. It now describes the code as
 
 ## Out of scope
 
-- The call-site clean-up: the 40 pending files under `pages/**` and `components/**` that call
-  `shortDigest`/`digestPrefix` or carry digest-shaped text. That is the second M2.7 change, after M2.6 merges, and it
-  empties the pending list. It also retires or keeps `shortDigest`/`digestPrefix` and `utils/citation.ts`.
+- The call-site clean-up: the 40 files under `pages/**` and `components/**` that called
+  `shortDigest`/`digestPrefix` or carried digest-shaped text. That is the second M2.7 change, after M2.6 merges; it
+  emptied the pending list and retired `shortDigest`, `digestPrefix` and `utils/citation.ts`.
 - Wiring the Verify page to `VerifyResult`, and the problem, collection and published-result pages to
   `CitationPanel`. M2.6 owns the Verify page now, and the second change does the wiring.
 - Permanent links built from permanent ids or slugs (ARCHITECTURE §5.4: "URLs use permanent ids or slugs"). The

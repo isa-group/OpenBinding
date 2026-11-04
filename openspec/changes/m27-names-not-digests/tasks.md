@@ -141,10 +141,15 @@ a requirement of this change is a `~2` revision, with its code and test tags re-
   `VerifyResult` (design.md §8, question 5); a `~2` revision of `req~verify-result` if the owner reads it otherwise.
 - [x] F.5 Page clean-up and wiring: the call sites in `pages/**` and `components/**` use identity labels where the
   objects carry the fields and generic words elsewhere; `VerifyResult` and `CitationPanel` are mounted on the Verify
-  page (`pages/Verify/VerifierResult.tsx`, `ResolveResult.tsx`); `shortDigest` and `digestPrefix` are retired (design.md
-  §8, question 2); the pending list is gone. The MODIFIED delta `specs/frontend-catalog-pricing/spec.md` moves the
+  page (`pages/Verify/VerifierResult.tsx`, `ResolveResult.tsx`); `shortDigest` and `digestPrefix` are deleted from
+  `utils/digest.ts`, and `utils/citation.ts` with its test is deleted (design.md §8, question 2); the `SHORTENER`
+  detector stays in the hygiene test as a guard; the pending list is gone; `EngineReportView` shows `<label> pinned`
+  as text with a copy button named in words (`Copy <label>`); `EXEMPT_FILES` holds 39 paths, none under
+  `utils/citation`. The MODIFIED delta `specs/frontend-catalog-pricing/spec.md` moves the
   engine-card requirement to the engine label. Known leftovers (design.md §7):
   - the Admin pages still show short account, run and event ids (`adminModel.shortId`), since names need API lookups;
+  - the `ResolveResult` location id (`element_id` as the fallback for a missing slug) is removed by a sibling change
+    that drops `element_id` from the resolve view; it is not edited here;
   - identity labels are used where objects carry the fields (Jobs, Studies, Engines, Admin); generic words
     (`Recorded`, `Stored`, `Copy digest`, `Run n` by list position) are used elsewhere.
 - [ ] F.6 Still open from part 2:
