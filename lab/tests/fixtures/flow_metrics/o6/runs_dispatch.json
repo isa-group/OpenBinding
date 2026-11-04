@@ -1,0 +1,7 @@
+{
+  "total_count": 2,
+  "workflow_runs": [
+    {"id": 6, "event": "workflow_dispatch", "status": "completed", "conclusion": "success", "created_at": "2026-10-05T02:00:00Z"},
+    {"id": 7, "event": "workflow_dispatch", "status": "in_progress", "conclusion": null, "created_at": "2026-10-05T12:00:00Z"}
+  ]
+}
