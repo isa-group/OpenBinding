@@ -4,7 +4,6 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { apiClient, HttpError } from '../../api/client';
 import { platformApi } from '../../api/platform';
 import { Button } from '../../components/ui/Button';
-import { CopyField } from '../../components/ui/CopyField';
 import { Notice } from '../../components/ui/Notice';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { ExploreNav } from '../../components/ui/SectionNav';
@@ -13,6 +12,7 @@ import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
 import { NotFoundScreen } from '../../routes/NotFoundScreen';
+import { engineLabel } from '../../shared/lib/identity';
 import { useResource } from '../../utils/useResource';
 import { Examples } from '../Examples/Examples';
 import {
@@ -198,7 +198,7 @@ function ExploreTabContent({ tab, data, initialQuery, onShowPublications }: Cont
               </ul>
             </div>
             <aside aria-label="Details" className="explore-details">
-              {!selected && <span className="explore-details-empty">Select an item to see its citation, digest and where to verify it.</span>}
+              {!selected && <span className="explore-details-empty">Select an item to see its citation and where to verify it.</span>}
               {selected?.tab === 'publications' && <PublicationDetails item={selected} />}
               {selected?.tab === 'projects' && <ProjectDetails item={selected} signedIn={Boolean(user)} onShowPublications={onShowPublications} />}
               {selected?.tab === 'engines' && <EngineDetails item={selected} />}
@@ -222,12 +222,6 @@ function PublicationDetails({ item }: { item: PublicationItem }) {
         <dt>Published</dt><dd>{item.published ?? 'Not listed'}</dd>
         <dt>Where</dt><dd>{item.where}</dd>
       </dl>
-      {item.digest && (
-        <div className="explore-field">
-          <span>Report edition digest</span>
-          <CopyField value={item.digest} label="digest" truncate />
-        </div>
-      )}
       <div className="explore-citation">
         <span>Citation (as listed)</span>
         {item.citation}
@@ -268,11 +262,11 @@ function EngineDetails({ item }: { item: EngineItem }) {
   return (
     <>
       <span className="explore-kind">Engine revision</span>
-      <h2 className="is-mono">{item.ref}</h2>
+      <h2>{engineLabel({ name: item.name, version: item.version })}</h2>
       <dl>
+        <dt>Namespace</dt><dd className="is-mono">{item.namespace}</dd>
         <dt>Modes</dt><dd>{item.modes}</dd>
         <dt>Options</dt><dd>{item.options}</dd>
-        <dt>Digest</dt><dd className="is-mono">{item.digest}</dd>
       </dl>
       <Link className="explore-action" to={`/engines/${item.namespace}/${item.name}/${item.version}`}>Open engine</Link>
     </>

@@ -75,14 +75,14 @@ describe('Pricing', () => {
     expect(api.getPricingToken).not.toHaveBeenCalled();
   });
 
-  it('labels the release: version, date, currency, fingerprint and the development copy', async () => {
+  it('labels the release: version, date, currency and the development copy', async () => {
     renderPricing();
     await heading();
 
     expect(await screen.findByText(/Pricing version/)).toHaveTextContent('Pricing version 0.1.0');
     expect(screen.getByText('Published Sep 1, 2026')).toBeInTheDocument();
     expect(screen.getByText('EUR · monthly periods')).toBeInTheDocument();
-    expect(screen.getByText('Fingerprint sha256-a1b2…c3d4')).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
     expect(screen.getByText('Development pricing.')).toBeInTheDocument();
     expect(screen.getByText(/0\.1\.0 development copy and aren’t verified against the live pricing/)).toBeInTheDocument();
   });

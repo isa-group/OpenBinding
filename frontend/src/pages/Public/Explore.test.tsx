@@ -66,7 +66,7 @@ describe('Explore', () => {
     expect(within(details).getByRole('heading', { name: 'Engines at checkout' })).toBeInTheDocument();
     expect(within(details).getByText('Lucía Vega')).toBeInTheDocument();
     expect(within(details).getByText('ISA Demo Group / QoS Benchmarks')).toBeInTheDocument();
-    expect(within(details).getByText(DIGEST)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
     expect(within(details).getByRole('link', { name: 'Open verification' })).toHaveAttribute('href', `/resolve/report/${DIGEST}`);
   });
 
@@ -117,14 +117,15 @@ describe('Explore', () => {
     fireEvent.click(screen.getByRole('button', { name: 'All organizations' }));
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search this tab' }), { target: { value: 'zzz' } });
     expect(screen.getByText('No public projects match “zzz”.')).toBeInTheDocument();
-    expect(screen.getByText('Select an item to see its citation, digest and where to verify it.')).toBeInTheDocument();
+    expect(screen.getByText('Select an item to see its citation and where to verify it.')).toBeInTheDocument();
   });
 
   it('shows the engine revision with its modes and option defaults', async () => {
     renderExplore('/explore?tab=engines');
 
     const details = await screen.findByRole('complementary', { name: 'Details' });
-    expect(within(details).getByRole('heading', { name: 'bim.builtin/random-search@1.0.0' })).toBeInTheDocument();
+    expect(within(details).getByRole('heading', { name: 'random-search 1.0.0' })).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
     expect(within(details).getByText('sampling')).toBeInTheDocument();
     expect(within(details).getByText('time_budget_ms (ms, default 30,000); iterations (required)')).toBeInTheDocument();
     expect(within(details).getByRole('link', { name: 'Open engine' })).toHaveAttribute('href', '/engines/bim.builtin/random-search/1.0.0');

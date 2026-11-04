@@ -160,6 +160,8 @@ describe('language: profiles, dialects and registered resources', () => {
     expect(within(table).getByText('isa-demo/checkout-catalog@2.0.0')).toBeInTheDocument();
     expect(within(table).getByText('CandidateCatalog · candidateCatalog')).toBeInTheDocument();
     expect(within(table).getByText('Published')).toBeInTheDocument();
+    expect(within(table).getByText('checkout-catalog 2.0.0')).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
     fireEvent.click(within(table).getByRole('button', { name: 'Copy reference of isa-demo/checkout-catalog@2.0.0' }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(`isa-demo/checkout-catalog@2.0.0#${DIGEST}`));
     expect(await within(table).findByText('Copied')).toBeInTheDocument();
