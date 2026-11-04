@@ -285,6 +285,23 @@ describe('Verify', () => {
       expect(crumbs.getByText('Report edition')).toBeInTheDocument();
       expect(crumbs.queryByText(/sha256|…/)).not.toBeInTheDocument();
     });
+
+    it('falls back to "Element" in the breadcrumb for an address with an unknown kind', async () => {
+      renderVerify(`/verify/widget/${DIGEST}`);
+
+      const crumbs = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
+      expect(crumbs.getByText('Element')).toBeInTheDocument();
+      expect(crumbs.queryByText(/sha256|…/)).not.toBeInTheDocument();
+    });
+
+    it('never shows the element id of a location without a slug', async () => {
+      platform.resolveElement.mockResolvedValue({ ...element, locations: [{ ...location, slug: null, element_id: 'b7d1c2e4-0000-4000-8000-123456789abc' }] });
+      renderVerify(`/verify/report/${DIGEST}`);
+      const locations = within(await screen.findByRole('region', { name: 'Locations' }));
+
+      expect(locations.getByText('ISA Demo Group / QoS Benchmarks')).toBeInTheDocument();
+      expect(document.body.textContent).not.toContain('b7d1c2e4');
+    });
   });
 
   describe('downloading', () => {

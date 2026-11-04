@@ -297,7 +297,8 @@ function LocationRow({ kind, location, signedIn }: { kind: string; location: Res
       <span className="resolve-location-tile" aria-hidden="true">{initials(location.organization?.name ?? place)}</span>
       <div>
         <strong>{place}</strong>
-        <code>{location.slug ?? location.element_id}{version}</code>
+        {location.slug && <code>{location.slug}{version}</code>}
+        {!location.slug && version && <span>{version.replace(' · ', '')}</span>}
       </div>
       {location.project && <Chip tone={isPublic ? 'success' : 'plain'}>{isPublic ? 'Public' : 'Private'}</Chip>}
       {target && (target.requiresAccount && !signedIn
