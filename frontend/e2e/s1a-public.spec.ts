@@ -1,4 +1,7 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect as baseExpect, test, type Page, type Route } from '@playwright/test';
+
+// The dev server compiles each route on first use, so the first assertion of a test can wait for a cold page.
+const expect = baseExpect.configure({ timeout: 15_000 });
 
 // S1a · public screens: pub-home, pub-explore, verify, pub-about (with the service-status note that took the place of /status).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
@@ -217,7 +220,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('tab', { name: /Engines/ })).toContainText('3');
       const details = main.getByRole('complementary', { name: 'Details' });
       await expect(details.getByRole('heading', { name: 'Engine comparison at checkout' })).toBeVisible();
-      await expect(details.getByText(DIGEST)).toBeVisible();
+      await expect(details).toContainText('Sep 25, 2026');
+      await expect(details).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await expect(details.getByRole('link', { name: 'Open verification' })).toHaveAttribute('href', `/resolve/report/${DIGEST}`);
       await ready(page);
       await page.screenshot({ path: testInfo.outputPath(`explore-${name}-publications.png`), fullPage: true, animations: 'disabled' });
@@ -230,7 +234,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('1 published result')).toBeVisible();
       await main.getByRole('searchbox', { name: 'Search this tab' }).fill('no such thing');
       await expect(main.getByText('No published results match “no such thing”.')).toBeVisible();
-      await expect(details.getByText('Select an item to see its citation, digest and where to verify it.')).toBeVisible();
+      await expect(details.getByText('Select an item to see its citation and where to verify it.')).toBeVisible();
 
       // Projects: a visitor can see them but must log in to open one.
       await main.getByRole('tab', { name: /Projects/ }).click();
@@ -244,7 +248,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // Engines.
       await main.getByRole('tab', { name: /Engines/ }).click();
-      await expect(details.getByRole('heading', { name: 'bim.builtin/random-search@1.0.0' })).toBeVisible();
+      await expect(details.getByRole('heading', { name: 'random-search 1.0.0' })).toBeVisible();
+      await expect(details.getByText('bim.builtin', { exact: true })).toBeVisible();
+      await expect(details).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await expect(details.getByText('time_budget_ms (ms, default 30,000); iterations (default 100,000)')).toBeVisible();
       await expect(details.getByRole('link', { name: 'Open engine' })).toHaveAttribute('href', '/engines/bim.builtin/random-search/1.0.0');
       await page.screenshot({ path: testInfo.outputPath(`explore-${name}-engines.png`), fullPage: true, animations: 'disabled' });
@@ -297,19 +303,21 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // Download the content as a file.
       const [download] = await Promise.all([page.waitForEvent('download'), main.getByRole('button', { name: 'Download content' }).click()]);
-      expect(download.suggestedFilename()).toBe(`report-${HEX.slice(0, 12)}.json`);
+      expect(download.suggestedFilename()).toBe('report-engine-comparison-at-checkout.json');
       await expect(main.getByText(/Downloaded \d+ bytes of application\/json\./)).toBeVisible();
 
       // Cite it: the permanent link keeps the /resolve/<kind>/<digest> form.
-      const cite = main.getByRole('region', { name: 'Cite this' });
+      const cite = main.getByRole('region', { name: 'Cite and link' });
       await cite.getByRole('button', { name: 'Copy permanent link' }).click();
-      await expect(cite.getByRole('button', { name: 'Permanent link copied' })).toBeVisible();
+      await expect(cite.getByRole('status').filter({ hasText: 'permanent link copied' })).toHaveCount(1);
       expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`${new URL(page.url()).origin}/resolve/report/${DIGEST}`);
-      await cite.getByRole('button', { name: 'Copy for reference manager' }).click();
-      await expect(cite.getByRole('button', { name: 'Copied for reference manager' })).toBeVisible();
+      await expect(cite.locator('.citation-panel__text')).toHaveText('lucia.vega (2026). Engine comparison at checkout. OpenBinding report edition.');
+      await expect(cite.locator('.citation-panel__text')).not.toContainText(/sha256-|[0-9a-f]{12}/);
+      await cite.getByRole('button', { name: 'Copy BibTeX' }).click();
+      await expect(cite.getByRole('button', { name: 'BibTeX copied' })).toBeVisible();
       const bibtex = await page.evaluate(() => navigator.clipboard.readText());
       expect(bibtex).toContain('@misc{');
-      expect(bibtex).toContain(`note         = {SHA-256 digest ${DIGEST}}`);
+      expect(bibtex).toContain('title        = {Engine comparison at checkout}');
       expect(bibtex).not.toMatch(/doi/i);
 
       // Verify another digest from the form.

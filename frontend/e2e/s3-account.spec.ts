@@ -473,7 +473,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       for (const label of ['GET only', 'org isa-demo', 'project qos-benchmarks', 'jobs, studies, reports']) await expect(first.getByText(label, { exact: true })).toBeVisible();
       await expect(first.getByText('All engines, including future ones')).toBeVisible();
       const second = main.getByRole('article', { name: 'ejecucion-engine-fijo' });
-      await expect(second.getByText('Only bim.builtin/random-search@1.0.0 (sha256-b2c3…d4e5)')).toBeVisible();
+      await expect(second.getByText('Only bim.builtin/random-search@1.0.0', { exact: true })).toBeVisible();
+      await expect(second).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await expect(second.getByText('No extra limits')).toBeVisible();
       await expect(main.getByText(/The secret is shown only once/)).toBeVisible();
       await capture(page, testInfo, `keys-${name}-list`);

@@ -93,7 +93,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText(/Pricing version\s+0\.1\.0/)).toBeVisible();
       await expect(main.getByText('Published Sep 1, 2026')).toBeVisible();
       await expect(main.getByText('EUR · monthly periods')).toBeVisible();
-      await expect(main.getByText('Fingerprint sha256-a1b2…c3d4')).toBeVisible();
+      await expect(main).not.toContainText(/fingerprint|sha256-|[0-9a-f]{12}/i);
       await expect(main.getByText('Development pricing.')).toBeVisible();
 
       // Four plans in the order of the document; the paid ones are an agreement, never a price.
