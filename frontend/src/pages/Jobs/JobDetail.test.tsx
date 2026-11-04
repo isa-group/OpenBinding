@@ -177,11 +177,13 @@ describe('One run', () => {
     renderJob();
 
     const where = (await screen.findByRole('heading', { name: 'Where this result comes from' })).closest('section') as HTMLElement;
-    expect(await within(where).findByRole('link', { name: /^Snapshot snapshot/ })).toHaveAttribute('href', `${ROOT}/problems/flujo/source?version=2`);
+    expect(await within(where).findByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${ROOT}/problems/flujo/source?version=2`);
     expect(await within(where).findByRole('link', { name: 'Flujo de checkout · version 2' })).toHaveAttribute('href', `${ROOT}/problems/flujo?version=2`);
     expect(within(where).getByText('bim.builtin/random-search 1.0.0 · mode sampling', { exact: false })).toBeInTheDocument();
     expect(within(where).getByText('bim-reference-evaluator/v1')).toBeInTheDocument();
     expect(within(where).getByText('60 s per run')).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
+    expect(within(where).getAllByRole('button', { name: /^Copy .* digest$/ }).length).toBeGreaterThan(0);
   });
 
   // [utest->req~frontend-retire-reports-entry-points-removed~1]
@@ -202,9 +204,9 @@ describe('One run', () => {
 
     const where = (await screen.findByRole('heading', { name: 'Where this result comes from' })).closest('section') as HTMLElement;
     fireEvent.click(within(where).getByRole('button', { name: 'Download compiled problem' }));
-    await waitFor(() => expect(saveBytes).toHaveBeenCalledWith(expect.anything(), 'job-job-done-compiled-problem.json', 'application/json'));
+    await waitFor(() => expect(saveBytes).toHaveBeenCalledWith(expect.anything(), 'run-compiled-problem.json', 'application/json'));
     fireEvent.click(within(where).getByRole('button', { name: 'Download result' }));
-    await waitFor(() => expect(saveBytes).toHaveBeenCalledWith(expect.anything(), 'job-job-done-result.json', 'application/json'));
+    await waitFor(() => expect(saveBytes).toHaveBeenCalledWith(expect.anything(), 'run-result.json', 'application/json'));
     expect(jobsApi.ir).toHaveBeenCalledWith('job-done-3');
   });
 

@@ -65,6 +65,8 @@ describe('One run of a study, in the Progress tab', () => {
     expect(within(progress).getByText('6 of 6 completed are feasible')).toBeInTheDocument();
     expect(within(progress).getByText('Finished · not live')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Compare results' })).toHaveAttribute('href', RESULTS);
+    expect(screen.getByRole('button', { name: 'Copy matrix digest' })).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}|matrix [0-9a-f]/);
 
     expect(screen.getByRole('heading', { name: 'Cells · cost (lower is better)' })).toBeInTheDocument();
     const heat = screen.getByRole('region', { name: 'Cells of the run as a matrix' });

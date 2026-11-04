@@ -227,10 +227,10 @@ export function revisionsOf(cases: readonly CaseContent[], ids: readonly string[
   return cases.flatMap((entry) => entry.revisions.filter((revision) => wanted.has(revision.id)));
 }
 
-/** `Flujo de checkout · version 2`; a version this project doesn't hold reads by the start of its id. */
+/** `Flujo de checkout · version 2`; a version this project doesn't hold reads as another project's version. */
 export function revisionLabel(index: ReadonlyMap<string, RevisionInfo>, id: string, short = false): string {
   const found = index.get(id);
-  if (!found) return `Version ${id.slice(0, 8)}…`;
+  if (!found) return 'Version from another project';
   return short ? `${found.caseName} r${found.revision}` : `${found.caseName} · version ${found.revision}`;
 }
 

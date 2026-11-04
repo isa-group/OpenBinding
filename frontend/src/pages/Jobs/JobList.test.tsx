@@ -78,6 +78,7 @@ describe('Jobs of a project', () => {
     expect(opens.map((link) => link.getAttribute('href'))).toEqual([`${ROOT}/runs/job-running-1`, `${ROOT}/runs/job-done-3`, `${ROOT}/runs/job-failed-4`]);
     expect(within(table).getByText('Owner only')).toHaveAttribute('title', 'Runs open only for whoever launched them');
     expect(within(table).getByText('Another member')).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
   });
 
   it('lets a platform administrator open every run', async () => {

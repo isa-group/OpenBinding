@@ -66,8 +66,9 @@ describe('One cell of a run, inside the Results tab', () => {
     expect(within(inputs).getByText('random-search 1.0.0')).toBeInTheDocument();
     expect(within(inputs).getByText('sampling')).toBeInTheDocument();
     expect(within(inputs).getByText('Engine defaults')).toBeInTheDocument();
-    expect(within(inputs).getByRole('link', { name: 'snapshot…' })).toHaveAttribute('href', `${ROOT}/problems/checkout-flow/source?version=1`);
-    expect(within(inputs).getByRole('button', { name: 'Copy cell fingerprint' })).toBeInTheDocument();
+    expect(within(inputs).getByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${ROOT}/problems/checkout-flow/source?version=1`);
+    expect(within(inputs).getByRole('button', { name: 'Copy cell digest' })).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     const result = screen.getByRole('region', { name: 'Result' });
     expect(within(result).getByText('Feasible')).toBeInTheDocument();
     expect(within(result).getByText('0.121')).toBeInTheDocument();

@@ -23,7 +23,6 @@ import { MembersOnlyGate, ProjectGate, ProjectSkeleton } from '../Project/parts'
 import type { CaseContent } from '../Project/projectModel';
 import { useRouteProject } from '../Project/useRouteProject';
 import { refusalOf, type Refusal } from './jobErrors';
-import { shortJobId } from './jobsModel';
 import { EngineStep, ForecastBars, SettingsStep, SlotCountdown, SourceStep, type Prepared } from './LaunchSteps';
 import {
   buildRequest, criteriaCountOf, forecastOf, initialChoice, modeChoices, modeOfCatalog, optimizationFor, optionInputs, parseEngineParam,
@@ -184,7 +183,7 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
           <div>
             <h1>Run accepted · {receipt.status === 'queued' ? 'queued' : receipt.status}</h1>
             <p>
-              Run {shortJobId(receipt.id)}. {receipt.idempotent ? 'This exact run had already been sent, so no second run was started. ' : ''}
+              Your run was sent. {receipt.idempotent ? 'This exact run had already been sent, so no second run was started. ' : ''}
               {reduced.length > 0 && settings === 'inline'
                 ? `${reduced.map((plan) => `${plan.input.label} was reduced to ${plan.effective} ${plan.input.unit}`).join(', ')}, what your plan allows; the run carries that note.`
                 : 'Nothing was reduced.'}

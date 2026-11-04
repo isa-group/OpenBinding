@@ -76,8 +76,6 @@ export const tookOf = (job: Pick<Job, 'created_at' | 'finished_at'>): number | n
 /** The length of a bar for a duration, against two minutes. */
 export const tookPercent = (seconds: number | null): number => (seconds === null ? 0 : Math.min(100, Math.round((seconds / 120) * 100)));
 
-export const shortJobId = (id: string): string => `${id.slice(0, 8)}…${id.slice(-4)}`;
-
 // --- the settings of a run: asked, used
 
 const OPTION_LABELS: Record<string, { label: string; unit: string }> = {

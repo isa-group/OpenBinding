@@ -6,12 +6,12 @@ import { BindingAnalysis } from '../../components/BindingAnalysis/BindingAnalysi
 import { BindingSpaceBadge } from '../../components/BindingSpaceBadge/BindingSpaceBadge';
 import { parseBindingSpace, toSuperscript } from '../../components/BindingSpaceBadge/bindingSpace';
 import { Action } from '../../components/ui/Action';
-import { CopyField } from '../../components/ui/CopyField';
+import { CopyDigest } from './CopyDigest';
 import { DataTable } from '../../components/ui/DataTable';
 import { FilterPills } from '../../components/ui/FilterPills';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { shortDigest } from '../../utils/digest';
+import { studyRunLabel } from '../../shared/lib/identity';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
@@ -282,7 +282,7 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
           <section className="st-card" aria-labelledby="st-ledger-title">
             <div className="st-card-head">
               <h2 id="st-ledger-title">Every plotted cell</h2>
-              <small className="org-muted" title={data.run.matrix_digest}>matrix {shortDigest(data.run.matrix_digest)}</small>
+              <small className="org-muted">{studyRunLabel({ study: study.name, number: data.run.run_number, createdAt: data.run.created_at })}</small>
             </div>
             <DataTable label="Provenance of every cell" minWidth={760}>
               <thead>
@@ -291,7 +291,7 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
                   <th scope="col">Engine · seed</th>
                   <th scope="col">State</th>
                   <th scope="col">Took</th>
-                  <th scope="col">Fingerprint</th>
+                  <th scope="col">Digest</th>
                 </tr>
               </thead>
               <tbody>
@@ -301,7 +301,7 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
                     <td>{cell.engine_ref.name}<small className="org-muted">{cell.engine_ref.mode ?? cell.engine_ref.version} · seed {cell.seed}</small></td>
                     <td><StateChip state={cell.state} /></td>
                     <td>{formatSeconds(metricsOf(cell).runtimeSeconds)}</td>
-                    <td><CopyField value={cell.fingerprint} label={`fingerprint of cell ${cell.ordinal}`} truncate /></td>
+                    <td><CopyDigest value={cell.fingerprint} label={`Copy digest of cell ${cell.ordinal}`} /></td>
                   </tr>
                 ))}
               </tbody>

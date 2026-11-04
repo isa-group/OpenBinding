@@ -280,6 +280,7 @@ describe('Start a run', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
     expect(await screen.findByRole('heading', { name: 'Run accepted · queued' })).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     expect(jobsApi.launch).toHaveBeenCalledTimes(1);
     expect(jobsApi.launch).toHaveBeenCalledWith(
       { snapshot: 'snap-2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling', options: { time_budget_ms: 30000, iterations: 100000 } },
@@ -382,7 +383,7 @@ describe('Start a run', () => {
     renderLaunch('?snapshot=snap-9');
 
     const source = await screen.findByRole('radiogroup', { name: 'Source' });
-    expect(within(source).getByRole('radio', { name: /Snapshot snap-9/ })).toBeChecked();
+    expect(within(source).getByRole('radio', { name: /Compiled snapshot/ })).toBeChecked();
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     await screen.findByRole('radiogroup', { name: 'Engine' });
     expect(casesApi.analyseSnapshot).toHaveBeenCalledWith('snap-9');

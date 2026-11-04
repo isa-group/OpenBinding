@@ -5,7 +5,6 @@ import { Chip } from '../../components/ui/Chip';
 import { DataTable } from '../../components/ui/DataTable';
 import { useCopy } from '../../components/ui/useCopy';
 import { problemPath } from '../../routes/paths/problems';
-import { shortDigest } from '../../utils/digest';
 import { formatDateTime } from '../../utils/format';
 import type { Origin } from './JobResult';
 import { readPins, timelineOf, optionRows, type ResourcePin } from './jobsModel';
@@ -88,9 +87,8 @@ export function Provenance({ provenance, instance, origin, root, created, retryO
   const { copy, status } = useCopy();
   const digest = (value: string | null, key: string, label: string) => value && (
     <span className="job-digest">
-      <code title={value}>{shortDigest(value)}</code>
-      <button type="button" className="job-link-button" onClick={() => void copy(value, key)} aria-label={`Copy ${label} fingerprint`}>
-        {status(key) === 'copied' ? 'Copied' : status(key) === 'failed' ? 'Copy failed' : 'Copy'}
+      <button type="button" className="job-link-button" onClick={() => void copy(value, key)} aria-label={`Copy ${label} digest`}>
+        {status(key) === 'copied' ? 'Copied' : status(key) === 'failed' ? 'Copy failed' : 'Copy digest'}
       </button>
     </span>
   );
@@ -101,8 +99,8 @@ export function Provenance({ provenance, instance, origin, root, created, retryO
         <Fact label="Snapshot used">
           {instance
             ? (origin
-              ? <Link to={problemPath(root, origin.caseSlug, 'source', { version: origin.revision })} viewTransition>Snapshot {instance.id.slice(0, 8)}…</Link>
-              : `Snapshot ${instance.id.slice(0, 8)}…`)
+              ? <Link to={problemPath(root, origin.caseSlug, 'source', { version: origin.revision })} viewTransition>Compiled snapshot</Link>
+              : 'Compiled snapshot')
             : 'Not kept for this run'}
         </Fact>
         <Fact label="Problem version">
@@ -120,7 +118,7 @@ export function Provenance({ provenance, instance, origin, root, created, retryO
         <Fact label="Checked by">{pins.checkedBy ?? 'bim-reference-evaluator'}</Fact>
         <Fact label="Limits applied">{pins.limits.length ? pins.limits.join(' · ') : 'Plan defaults'}</Fact>
         {created && <Fact label="Sent">{formatDateTime(created) ?? '—'}</Fact>}
-        {retryOf && <Fact label="Retry of"><Link to={`${root}/runs/${retryOf}`} viewTransition>{retryOf.slice(0, 8)}…</Link></Fact>}
+        {retryOf && <Fact label="Retry of"><Link to={`${root}/runs/${retryOf}`} viewTransition>Earlier run</Link></Fact>}
       </div>
       <span className="job-buttons">{actions}</span>
     </section>

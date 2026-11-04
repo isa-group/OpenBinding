@@ -3,6 +3,7 @@ import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
+import { useCopy } from '../../components/ui/useCopy';
 import { BindingSpaceBadge } from '../../components/BindingSpaceBadge/BindingSpaceBadge';
 import { pretty } from './bimDocuments';
 import { SourceView } from '../../components/rendering/SourceView';
@@ -19,6 +20,7 @@ function EditorLoading() {
  * the compiled form and what changed against the baseline. Everything above this works without opening it.
  */
 export function SourcePanel({ wb }: { wb: Workbench }) {
+  const { copy, status } = useCopy();
   const views: Array<{ id: SourceViewId; label: string }> = [
     { id: 'json', label: 'JSON source' },
     ...(wb.selectedDocument ? [{ id: 'yaml' as const, label: 'YAML view' }] : []),
@@ -88,8 +90,8 @@ export function SourcePanel({ wb }: { wb: Workbench }) {
               {wb.compiledIr ? (
                 <>
                   <dl className="wb-ir-facts">
-                    <div><dt>Snapshot</dt><dd><code>{wb.compiledIr.snapshot}</code></dd></div>
-                    <div><dt>IR digest</dt><dd><code>{wb.compiledIr.digest}</code></dd></div>
+                    <div><dt>Snapshot</dt><dd>Saved privately</dd></div>
+                    <div><dt>IR digest</dt><dd><button type="button" onClick={() => void copy(wb.compiledIr?.digest ?? '', 'ir')}>{status('ir') === 'copied' ? 'Copied' : status('ir') === 'failed' ? 'Copy failed' : 'Copy digest'}</button></dd></div>
                     {wb.analysisData?.bindingSpace && <div><dt>Binding space</dt><dd><BindingSpaceBadge cardinality={wb.analysisData.bindingSpace} /></dd></div>}
                   </dl>
                   <Suspense fallback={<EditorLoading />}>

@@ -4,11 +4,11 @@ import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { formatDateTime } from '../../utils/format';
-import { shortDigest } from '../../utils/digest';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import { RefusalNotice } from '../Jobs/parts';
 import { CellTable, RunHeatmap } from './CellViews';
+import { CopyDigest } from './CopyDigest';
 import { CellBar, StateChip, StudyGate } from './parts';
 import type { StudyScopeValue } from './StudyScope';
 import { loadRun } from './runData';
@@ -132,7 +132,8 @@ export function RunProgress({ scope, runId }: { scope: StudyScopeValue; runId: s
             <StateChip state={run.state} />
           </div>
           <p>
-            {formatDateTime(run.created_at) ?? '—'}{finishedAt ? ` → ${finishedAt}` : ''} · matrix <span title={run.matrix_digest}>{shortDigest(run.matrix_digest)}</span>
+            {formatDateTime(run.created_at) ?? '—'}{finishedAt ? ` → ${finishedAt}` : ''}{' · '}
+            <CopyDigest value={run.matrix_digest} label="Copy matrix digest" />
           </p>
         </div>
         {/* [impl->req~frontend-retire-reports-entry-points-removed~1] */}
@@ -153,7 +154,7 @@ export function RunProgress({ scope, runId }: { scope: StudyScopeValue; runId: s
       )}
 
       {cells.length === 0 ? (
-        <Notice tone="warning">This run has no cells, which shouldn’t happen. Its matrix fingerprint ({shortDigest(run.matrix_digest)}) is still recorded; contact an administrator.</Notice>
+        <Notice tone="warning">This run has no cells, which shouldn’t happen. Its matrix is still recorded; contact an administrator.</Notice>
       ) : (
         <>
           <section className="st-progress" aria-label="Progress of the run">
