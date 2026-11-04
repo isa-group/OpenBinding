@@ -2,9 +2,10 @@
   "platform": [
     {
       "version": "0.1.0",
-      "date": "2026-10-27",
+      "date": "2026-11-02",
       "title": "OpenBinding platform",
       "changes": [
+        "Record M0.8, M0.9 and M2.7 as partly delivered (#79)",
         "Retire the sponsorship screen (M2.4 slice 5, ADR-0020) (#66)",
         "Retire the composer screen (M2.4 slice 4, ADR-0020) (#65)",
         "DEMO_LAB_PORT parametrization of the lab compose files (M0.5 S1a+S2) (#41)",
@@ -107,7 +108,7 @@
       "date": "2026-11-02",
       "title": "OpenBinding documentation",
       "changes": [
-        "Prop-20261102-1 plan and handoff",
+        "Record M0.8, M0.9 and M2.7 as partly delivered (#79)",
         "Retire the sponsorship screen (M2.4 slice 5, ADR-0020) (#66)",
         "Retire the composer screen (M2.4 slice 4, ADR-0020) (#65)",
         "DEMO_LAB_PORT parametrization of the lab compose files (M0.5 S1a+S2) (#41)",
