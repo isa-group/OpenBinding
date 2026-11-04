@@ -114,7 +114,7 @@ describe('Collections', () => {
     expect(screen.getByRole('link', { name: 'Add its first items' })).toHaveAttribute('href', `${root}/collections/mi-lista`);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     // [utest->req~frontend-nav-new-menu~1]
-    expect(where()).toBe(`${root}/collections`);
+    await waitFor(() => expect(where()).toBe(`${root}/collections`));
     await waitFor(() => expect(platform.collections).toHaveBeenCalledTimes(2));
   });
 

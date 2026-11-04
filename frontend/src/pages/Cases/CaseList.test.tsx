@@ -188,7 +188,7 @@ describe('Problem list', () => {
       for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       // [utest->req~frontend-nav-new-menu~1]
-      expect(where()).toBe(`${root}/problems`);
+      await waitFor(() => expect(where()).toBe(`${root}/problems`));
       await waitFor(() => expect(platform.cases).toHaveBeenCalledTimes(2));
     });
 
