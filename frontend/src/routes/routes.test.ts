@@ -2,6 +2,7 @@ import { isValidElement } from 'react';
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { movedRoutes, routeDefinitions } from './registry';
+import { RETIRED_ROUTES } from './retiredRoutes';
 
 // The list of each area, its size and the tests about its own screens are in areas/<area>.test.ts; the total is in screenBudget.test.ts.
 
@@ -130,5 +131,20 @@ describe('route registry', () => {
     const paths = [...routeDefinitions, ...movedRoutes].map((route) => route.path);
     expect(new Set(ids).size).toBe(ids.length);
     expect(new Set(paths).size).toBe(paths.length);
+  });
+
+  // [utest->req~frontend-nav-redirects~1]
+  it.each(movedRoutes.map((route) => [route.id, route] as const))('sends the moved address %s to a routed screen in one hop', (_id, route) => {
+    const params = Object.fromEntries([...route.path.matchAll(/:([A-Za-z]+)/g)].map((match) => [match[1], 'sample']));
+    const address = route.target(new URLSearchParams(), params);
+    const pathname = address.split(/[?#]/)[0] ?? '';
+    const config = [
+      ...routeDefinitions.map(({ id, path }) => ({ id: `screen:${id}`, path })),
+      ...RETIRED_ROUTES.map(({ id, path }) => ({ id: `retired:${id}`, path })),
+      ...movedRoutes.map(({ id, path }) => ({ id: `moved:${id}`, path })),
+    ];
+    const matched = matchRoutes(config, pathname)?.at(-1)?.route.id;
+    expect(matched, `${route.id} -> ${address}`).toBeDefined();
+    expect(matched, `${route.id} -> ${address}`).toMatch(/^screen:/);
   });
 });
