@@ -79,8 +79,12 @@ The change was specified in parallel with the code. It now describes the code as
 - No HTTP API, OpenAPI, gateway, worker, engine or database change. The API keeps every digest (ARCHITECTURE §5.4).
   No `package.json` or lockfile change, so no property-testing library: the exhaustive sample table of design.md §2.6
   replaces one. No feature flag: the screens change directly.
-- Tests: Vitest only (component tests per screen and the hygiene test). No Playwright spec changes; the touch-target
-  check and ui-qa screenshots stay open (tasks.md F.3, F.6).
+- Tests: Vitest (component tests per screen and the hygiene test) and, in part 2, 11 mocked Playwright specs under
+  `frontend/e2e/**`: `pricing`, `s1a-public`, `s1b-language`, `s3-account`, `s5a-cases`, `s5d-workbench`, `s6a-jobs`,
+  `s7a-studies`, `s7b-reports`, `s8a-engines` and `s9b-admin`. They assert the new names and labels and add negative
+  checks: no `sha256-` text, no 12-hexadecimal run and no fingerprint text on the screen. No spec is deleted or
+  weakened; `playwright.config` and the e2e helpers are untouched. The touch-target check and ui-qa screenshots stay
+  open (tasks.md F.3, F.6).
 - Traceability: `[impl->…]` and `[utest->…]` tags exist for all four requirements, at `~1` (design.md §6).
 - Risks (design.md §7):
   - the detector is static and line based. Short forms (`sha256-…`) and identifiers from runtime data are not caught;
@@ -92,21 +96,26 @@ The change was specified in parallel with the code. It now describes the code as
 
 ## Out of scope
 
-- The call-site clean-up: the 40 files under `pages/**` and `components/**` that called
-  `shortDigest`/`digestPrefix` or carried digest-shaped text. That is the second M2.7 change, after M2.6 merges; it
-  emptied the pending list and retired `shortDigest`, `digestPrefix` and `utils/citation.ts`.
-- Wiring the Verify page to `VerifyResult`, and the problem, collection and published-result pages to
-  `CitationPanel`. M2.6 owns the Verify page now, and the second change does the wiring.
+- Done in part 2 (history, not out of scope any more): the call-site clean-up of the 40 files under `pages/**` and
+  `components/**` that called `shortDigest`/`digestPrefix` or carried digest-shaped text, which emptied the pending list
+  and retired `shortDigest`, `digestPrefix` and `utils/citation.ts`; and the mounting of `VerifyResult` and
+  `CitationPanel` on the Verify page.
+- Still out of scope: mounting `CitationPanel` on the problem, collection and published-result pages (the panel is
+  mounted only on the Verify page).
 - Permanent links built from permanent ids or slugs (ARCHITECTURE §5.4: "URLs use permanent ids or slugs"). The
-  `/resolve/<kind>/<digest>` links stay as they are, and `CitationPanel` does not refuse them; the second change
-  decides (design.md §8, question 1).
+  `/resolve/<kind>/<digest>` links stay as they are, and `CitationPanel` does not refuse them; the Verify permanent
+  link still embeds the digest and needs a gateway route (design.md §8, question 1).
+- Deferred leftovers: Admin short UUIDs (`adminModel.shortId`); the Workbench registered-reference digest input
+  (an authoring field); the gateway snapshot `version_or_revision`, a 12-hexadecimal digest prefix from `resolve.py`;
+  and question 5 (constitution 15.5, two different digests side by side), awaiting the owner.
 - Behaviour drafted earlier but not built (Download buttons, a digest `note` in the citation formats, identifier
   guards in the components, comment skipping, a ceiling and a stale check in the hygiene test, a 44 px touch-target
   check): design.md §8, items 6 and 7, and tasks.md section F.
 - Export manifests (the third place §5.4 allows a digest).
 - The living requirement of `frontend-catalog-pricing` that engine cards show the digest
-  (`openspec/specs/frontend-catalog-pricing/spec.md`, "exact identity (namespace, name, version, digest)"): the second
-  change MODIFIES it when it changes the engine cards.
+  (`openspec/specs/frontend-catalog-pricing/spec.md`, "exact identity (namespace, name, version, digest)"): part 2
+  MODIFIES it in this change's delta `specs/frontend-catalog-pricing/spec.md`, which moves the engine-card requirement
+  to the engine label. Part 1 did not touch it.
 - Editing INTENT, the constitution (15.5's "Enforced: GAP" line names `frontend/src/hygiene.test.ts`), ARCHITECTURE
   or ROADMAP. Those are follow-ups for their owners.
 - Archiving this change into `openspec/specs/frontend-rendering/`. That is a separate, explicit archive task.

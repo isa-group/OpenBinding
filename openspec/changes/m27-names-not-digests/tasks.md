@@ -151,6 +151,8 @@ a requirement of this change is a `~2` revision, with its code and test tags re-
   `element_id`; the id is only a React key. Known leftovers are in F.6 (design.md §7). Also:
   - identity labels are used where objects carry the fields (Jobs, Studies, Engines, Admin); generic words
     (`Recorded`, `Stored`, `Copy digest`, `Run n` by list position) are used elsewhere.
+- [x] F.5b Round 2 audit card fix: Target row shows only the type and identifier-shaped detail strings render as the
+  word 'identifier'.
 - [ ] F.6 Still open from part 2:
   - deferred leftovers: Admin short UUIDs (`adminModel.shortId`, needs lookups); the Workbench registered-reference
     digest input (authoring field, default 64 zeros); the Verify permanent link that embeds the digest (question 1,
