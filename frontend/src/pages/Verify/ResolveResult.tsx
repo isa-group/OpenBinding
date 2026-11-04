@@ -4,13 +4,11 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { platformApi, type ResolveLocation, type ResolveResponse } from '../../api/platform';
+import { CitationPanel } from '../../components/CitationPanel';
 import { Button } from '../../components/ui/Button';
 import { Chip } from '../../components/ui/Chip';
-import { CopyField } from '../../components/ui/CopyField';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { useCopy } from '../../components/ui/useCopy';
-import { buildCitation } from '../../utils/citation';
 import { isDigest, normalizeDigest } from '../../utils/digest';
 import { formatBytes, formatDate, formatDateTime, yearOf } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
@@ -139,7 +137,6 @@ interface ResolvedProps {
 }
 
 function ResolvedElement({ element, signedIn, loadingLocations, offset, onPage }: ResolvedProps) {
-  const { copy, status } = useCopy();
   const [download, setDownload] = useState<{ phase: 'idle' | 'busy' | 'done' | 'failed'; message: string }>({ phase: 'idle', message: '' });
   const label = kindLabel(element.kind);
   const author = element.author?.username ?? null;
@@ -152,9 +149,7 @@ function ResolvedElement({ element, signedIn, loadingLocations, offset, onPage }
     : 'No visible location';
   // The permanent-link form that publications cite.
   const uri = `${window.location.origin}/resolve/${element.kind}/${element.digest}`;
-  const citation = buildCitation({
-    title: name, author, year: yearOf(element.created_at), kindLabel: label.toLowerCase(), digest: element.digest, url: uri,
-  });
+  const fileStem = `${element.kind}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'content'}`;
   const structure = summarizeDocument(element.document);
   const reportHref = element.kind === 'report' ? element.locations.map((item) => locationHref(element.kind, item)).find(Boolean) : null;
 
@@ -174,7 +169,7 @@ function ResolvedElement({ element, signedIn, loadingLocations, offset, onPage }
       const url = URL.createObjectURL(new Blob([bytes], { type: element.media_type }));
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${element.kind}-${element.digest.slice(7, 19)}.${extensionOf(element.media_type)}`;
+      link.download = `${fileStem}.${extensionOf(element.media_type)}`;
       document.body.append(link);
       link.click();
       link.remove();
@@ -200,7 +195,6 @@ function ResolvedElement({ element, signedIn, loadingLocations, offset, onPage }
         <div>
           <span className="resolve-verdict-title"><strong>Verified</strong><span className="resolve-kind-pill">kind · {element.kind}</span></span>
           <p>The content’s SHA-256 matches the digest you asked for.</p>
-          <CopyField value={element.digest} label="digest" />
         </div>
       </section>
 
@@ -281,25 +275,7 @@ function ResolvedElement({ element, signedIn, loadingLocations, offset, onPage }
         </div>
       </section>
 
-      <section aria-labelledby="resolve-cite-title" className="resolve-section">
-        <h2 id="resolve-cite-title">Cite this</h2>
-        <div className="resolve-cite">
-          <div>
-            <span>Permanent link</span>
-            <code>{`/resolve/${element.kind}/${element.digest}`}</code>
-            <button type="button" onClick={() => void copy(uri, 'uri')}>{status('uri') === 'copied' ? 'Permanent link copied' : 'Copy permanent link'}</button>
-          </div>
-          <div>
-            <span>Citation</span>
-            <p>{citation.text}</p>
-            <span className="resolve-cite-actions">
-              <button type="button" onClick={() => void copy(citation.text, 'cite')}>{status('cite') === 'copied' ? 'Citation copied' : 'Copy citation'}</button>
-              <button type="button" onClick={() => void copy(citation.bibtex, 'bib')}>{status('bib') === 'copied' ? 'Copied for reference manager' : 'Copy for reference manager'}</button>
-            </span>
-            <small>“Copy for reference manager” puts a BibTeX entry on the clipboard for Zotero, Mendeley or LaTeX.</small>
-          </div>
-        </div>
-      </section>
+      <CitationPanel title={name} kindLabel={label.charAt(0).toLowerCase() + label.slice(1)} url={uri} year={yearOf(element.created_at)} author={author} digest={element.digest} />
     </>
   );
 }

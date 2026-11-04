@@ -134,6 +134,21 @@ describe('VerifyResult', () => {
   });
 
   // [utest->req~verify-result~1]
+  it.each([
+    ['a digest', `sha256-${'ab'.repeat(32)}`],
+    ['a long hex run', 'c0ffee'.repeat(8)],
+    ['a UUID', ID],
+  ])('treats %s as a missing name', (_label, value) => {
+    const { container } = render(
+      <VerifyResult verdict={{ status: 'verified', digest: D1, entities: [entity({ title_or_name: value, slug: value }), entity({ title_or_name: value, slug: 'good-slug' })] }} />,
+    );
+
+    expect(screen.getByText('unnamed element')).toBeInTheDocument();
+    expect(screen.getByText('good-slug')).toBeInTheDocument();
+    expect(container.textContent).not.toContain(value);
+  });
+
+  // [utest->req~verify-result~1]
   it('links matches through renderLink or hrefOf, and shows the name alone otherwise', () => {
     const entities = [entity()];
     const verdict = { status: 'verified', digest: D1, entities } as const;

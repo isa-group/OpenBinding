@@ -19,9 +19,17 @@ export interface Side {
   note?: string;
 }
 
+/** A digest, a long hex run or a UUID: an identifier, not a name. */
+const IDENTIFIER = /sha256-|[0-9a-f]{40,}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+function nameOf(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed && !IDENTIFIER.test(trimmed) ? trimmed : null;
+}
+
 /** The reader's name for an element: never its identifier. */
 export function entityName(entity: VerifierEntity): string {
-  return entity.title_or_name?.trim() || entity.slug?.trim() || 'unnamed element';
+  return nameOf(entity.title_or_name) ?? nameOf(entity.slug) ?? 'unnamed element';
 }
 
 export function kindLabelOf(entityType: string, labels?: Record<string, string>): string {
