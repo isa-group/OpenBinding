@@ -92,7 +92,6 @@
 .deployment-identity h3 { margin: 0; font-family: var(--font-body); font-size: 0.9375rem; font-weight: 500; letter-spacing: 0; }
 .deployment-identity p { margin: 0; color: var(--tp-slate); font-size: 0.8125rem; }
 .deployment-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--tp-steel); font-size: 0.75rem; }
-.deployment-digest { color: var(--tp-steel); font-size: 0.75rem; }
 .deployment-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .credential-editor { display: flex; flex-direction: column; grid-column: 1 / -1; gap: var(--tp-spacing-xs); padding-top: var(--tp-spacing-sm); border-top: 1px solid var(--tp-hairline-soft); }

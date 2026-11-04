@@ -16,6 +16,7 @@ import { Notice } from '../../components/ui/Notice';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
+import { engineLabel } from '../../shared/lib/identity';
 import { useResource } from '../../utils/useResource';
 import {
   BUILTIN_NAMESPACE, engineRows, familyOptions, glyphOf, modeRows,
@@ -255,7 +256,7 @@ function EngineCard({ row }: { row: EngineRow }) {
           <span className={`engines-glyph${builtin ? '' : ' is-private'}`} aria-hidden="true">{glyphOf(engine.name)}</span>
           <span className="is-mono">{engine.namespace}</span>
         </span>
-        <span className="engines-card-title">{engine.name} <span>{engine.version}</span></span>
+        <span className="engines-card-title">{engineLabel({ name: engine.name, version: engine.version })}</span>
         <span className="engines-card-chips">
           {engine.modes.length === 0 && <span className="engines-mode">no modes advertised</span>}
           {engine.modes.map((mode) => <span key={mode.id} className="engines-mode">mode · {mode.id}</span>)}

@@ -29,9 +29,6 @@
 .ba-weights { display: grid; gap: 12px; padding-block: 16px; }
 .ba-weights label { display: grid; grid-template-columns: 1fr auto; }
 .ba-weights input[type=range] { width: 100%; grid-column: 1 / -1; }
-.ba-fingerprint { display: grid; gap: 6px; margin-block: 16px; }
-.ba-fingerprint label { display: grid; grid-template-columns: minmax(0, 1fr) 100px 45px; }
-.ba-fingerprint meter { width: 100%; }
 @media (max-width: 850px) { .ba-layout { grid-template-columns: 1fr; } .ba-layout > article + article { border-left: 0; border-top: 1px solid var(--color-border); } }
 @media (prefers-reduced-motion: reduce) { .binding-analysis *, .trace-chart * { animation: none !important; transition: none !important; } }
 .ba-fixture { border-left: 3px solid var(--color-dialect); padding: 12px; background: var(--color-dialect-subtle); }

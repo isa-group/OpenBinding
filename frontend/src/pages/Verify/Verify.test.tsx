@@ -300,7 +300,7 @@ describe('Verify', () => {
       const locations = within(await screen.findByRole('region', { name: 'Locations' }));
 
       expect(locations.getByText('ISA Demo Group / QoS Benchmarks')).toBeInTheDocument();
-      expect(document.body.textContent).not.toContain('b7d1c2e4');
+      expect(document.body.textContent).not.toMatch(/b7d1c2e4|123456789abc/);
     });
   });
 
@@ -593,8 +593,21 @@ describe('Verify', () => {
       expect(within(result).getByText('Verified')).toBeInTheDocument();
       expect(within(result).getByText('The fingerprint is what OpenBinding recorded.')).toBeInTheDocument();
       expect(platform.verifierCheck).toHaveBeenCalledWith({ digest: EDITION });
-      expect(screen.getByText('Fingerprint you gave')).toBeInTheDocument();
-      expect(screen.getByText('Recorded by OpenBinding')).toBeInTheDocument();
+      const given = screen.getByText('Fingerprint you gave').closest('.verify-result__side') as HTMLElement;
+      const recorded = screen.getByText('Recorded by OpenBinding').closest('.verify-result__side') as HTMLElement;
+      expect(within(recorded).getByText(EDITION)).toBeInTheDocument();
+      expect(within(given).queryByText(EDITION)).not.toBeInTheDocument();
+      expect(within(given).getByText('Matches the recorded fingerprint')).toBeInTheDocument();
+    });
+
+    it('titles the citation of a study run without a name by its kind and links to the verifier by digest', async () => {
+      const nameless = { entity_type: 'study_run', id: 'run-1', slug: null, title_or_name: null, organization_slug: 'isa-demo', project_slug: 'qos-benchmarks', created_at: '2026-09-25T09:00:00Z' };
+      platform.verifierCheck.mockResolvedValue(verdict({ entities: [nameless as unknown as NonNullable<VerifierVerdict['entities']>[number]] }));
+      renderVerify(`/verify?digest=${EDITION}`);
+
+      const cite = within(await screen.findByRole('region', { name: 'Cite and link' }));
+      expect(cite.getByText(`${window.location.origin}/app/verifier?digest=${EDITION}`)).toBeInTheDocument();
+      expect(cite.getByText(/^OpenBinding \(2026\)\. Study run\./)).toBeInTheDocument();
     });
 
     it('lists the matches with their links and offers a citation that invents nothing', async () => {

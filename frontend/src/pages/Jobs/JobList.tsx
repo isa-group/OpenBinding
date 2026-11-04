@@ -190,7 +190,7 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
                       <td className="job-actions-cell">
                         <span className="job-row-actions">
                           {canOpen(job)
-                            ? <Link to={`${root}/runs/${job.id}`} viewTransition aria-label={`Open run ${runLabel({ engine: { name: job.engine_id }, createdAt: job.created_at })}`}>Open</Link>
+                            ? <Link to={`${root}/runs/${job.id}`} viewTransition aria-label={`Open ${runLabel({ engine: { name: job.engine_id }, createdAt: job.created_at })}`}>Open</Link>
                             : <small className="proj-owner-only" title="Runs open only for whoever launched them">Owner only</small>}
                           {own && canRetryState(state) && (
                             <button type="button" className="job-link-button" onClick={() => void retry(job)} disabled={retrying === job.id}>

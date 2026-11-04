@@ -16,10 +16,13 @@ const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
 const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const ROOT = '/app/isa-demo/qos-benchmarks';
 
+const DONE_ID = '3f2b9c1e-7d41-4a8e-9b60-c5d1e2f3a4b5';
+const RUN_DIGEST = `sha256-${'ab12cd34ef56'.repeat(5)}`;
+
 const rows = [
   jobOf('job-running-1', 'minizinc', 'running', null, '2026-10-08T08:00:00Z', null),
   jobOf('job-theirs-2', 'minizinc', 'completed', 'INFEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:00:40Z'),
-  jobOf('job-done-3', 'random-search', 'completed', 'FEASIBLE', '2026-09-30T09:00:00Z', '2026-09-30T09:01:05Z'),
+  jobOf(DONE_ID, 'random-search', 'completed', 'FEASIBLE', '2026-09-30T09:00:00Z', '2026-09-30T09:01:05Z', { result: { termination: 'FEASIBLE', provenance: { irDigest: RUN_DIGEST } } }),
   jobOf('job-failed-4', 'evolutionary', 'failed', 'UNKNOWN', '2026-10-07T15:00:00Z', '2026-10-07T15:00:20Z'),
 ];
 
@@ -75,10 +78,11 @@ describe('Jobs of a project', () => {
 
     const table = await screen.findByRole('region', { name: 'Runs of the project' });
     const opens = within(table).getAllByRole('link', { name: /^Open run/ });
-    expect(opens.map((link) => link.getAttribute('href'))).toEqual([`${ROOT}/runs/job-running-1`, `${ROOT}/runs/job-done-3`, `${ROOT}/runs/job-failed-4`]);
+    expect(opens.map((link) => link.getAttribute('href'))).toEqual([`${ROOT}/runs/job-running-1`, `${ROOT}/runs/${DONE_ID}`, `${ROOT}/runs/job-failed-4`]);
+    expect(opens.map((link) => link.getAttribute('aria-label')).join(' ')).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-|job-|sha256-|Open run run/i);
     expect(within(table).getByText('Owner only')).toHaveAttribute('title', 'Runs open only for whoever launched them');
     expect(within(table).getByText('Another member')).toBeInTheDocument();
-    expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
+    expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-|job-/i);
   });
 
   it('lets a platform administrator open every run', async () => {

@@ -109,7 +109,6 @@
 .keynew-engines label:last-child { border-bottom: 0; }
 .keynew-engines input { width: 1rem; height: 1rem; accent-color: var(--tp-primary); }
 .keynew-engine-ref { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 0.8125rem; overflow-wrap: anywhere; }
-.keynew-engine-digest { color: var(--tp-steel); font-family: var(--font-mono); font-size: 0.75rem; }
 .keynew-engines-note { padding: 10px 14px; }
 
 .keynew-bound { display: flex; flex-direction: column; gap: 6px; }

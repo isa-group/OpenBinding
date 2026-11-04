@@ -55,7 +55,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
 
   const meta: Job | null = inProject.data ?? own.data?.find((row) => row.id === jobId) ?? null;
   const failure = live.phase === 'error' ? classifyAuthError(live.error) : null;
-  const trail = [{ label: 'Runs', to: `${root}/runs` }, { label: runLabel({ engine: { name: meta?.engine_id }, createdAt: meta?.created_at }) || 'Run' }];
+  const trail = [{ label: 'Runs', to: `${root}/runs` }, { label: runLabel({ engine: { name: meta?.engine_id }, createdAt: meta?.created_at }) }];
 
   if (live.phase === 'loading') {
     return (

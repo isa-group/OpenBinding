@@ -101,6 +101,8 @@ describe('engine catalog for a visitor', () => {
     const [first] = within(list).getAllByRole('link');
     expect(first).toHaveAttribute('href', '/engines/bim.builtin/random-search/1.0.0');
     expect(first).toHaveTextContent('mode · sampling');
+    expect(within(first).getByText('bim.builtin')).toBeInTheDocument();
+    expect(within(first).getByText('random-search 1.0.0')).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
     expect(first).toHaveTextContent('Public');
     expect(screen.getByText('Showing public engines. Log in to also see private engines you own.')).toBeInTheDocument();

@@ -113,7 +113,6 @@
 
 .res-item-label { min-width: 200px; flex: 1; font-weight: 600; overflow-wrap: anywhere; }
 .res-item-label small { display: block; color: var(--tp-steel); font-size: 0.6875rem; font-weight: 400; }
-.res-item-digest { color: var(--tp-steel); font-family: var(--font-mono); font-size: 0.75rem; }
 .res-item-tools { display: inline-flex; gap: 4px; }
 
 .res-icon-button {
