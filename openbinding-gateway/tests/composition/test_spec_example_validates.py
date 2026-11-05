@@ -108,3 +108,74 @@ def test_every_template_named_by_the_schema_exists_in_the_model(schema: dict) ->
     assert enumerated == set(composition.TEMPLATES), (
         f"schema templates {sorted(enumerated)} != model templates {sorted(composition.TEMPLATES)}"
     )
+
+
+#: The smallest document the schema accepts, used as the base for the rule tests below.
+def _minimal(exclusive: dict) -> dict:
+    return {
+        "composition": "c",
+        "version": "1.0.0",
+        "properties": {"cost": {"template": "cost", "domain": {"min": 0, "max": 1}}},
+        "tasks": {"A": {"open": True, "requires": "service/A"}, "B": {"local": True}},
+        "workflow": {"exclusive": exclusive},
+    }
+
+
+def _errors(document: dict, schema: dict) -> list[str]:
+    return [e.message for e in jsonschema.Draft202012Validator(schema).iter_errors(document)]
+
+
+@pytest.mark.parametrize(
+    "exclusive,valid",
+    [
+        # Inline probabilities, the default distribution of a composition.
+        ({"id": "x", "branches": [
+            {"probability": 0.8, "flow": {"task": "A"}},
+            {"probability": 0.2, "flow": {"task": "B"}},
+        ]}, True),
+        # The explicit opt-in, which is the only way to say "equally likely".
+        ({"id": "x", "distribution": "uniform", "branches": [
+            {"flow": {"task": "A"}}, {"flow": {"task": "B"}},
+        ]}, True),
+        # Nothing stated, which is not the same as uniform and emits no overlay.
+        ({"id": "x", "branches": [{"flow": {"task": "A"}}, {"flow": {"task": "B"}}]}, True),
+        # A condition is prose and coexists with a probability.
+        ({"id": "x", "branches": [
+            {"probability": 0.8, "condition": "when the problem is small", "flow": {"task": "A"}},
+            {"probability": 0.2, "condition": "when the problem is large", "flow": {"task": "B"}},
+        ]}, True),
+        # An author-named branch id, the escape hatch for reproducing a package exactly.
+        ({"id": "x", "branches": [
+            {"id": "node_routing_choice_branch_1", "probability": 0.8, "flow": {"task": "A"}},
+            {"id": "node_routing_choice_branch_2", "probability": 0.2, "flow": {"task": "B"}},
+        ]}, True),
+        # Saying it twice: a distribution and inline probabilities together.
+        ({"id": "x", "distribution": "uniform", "branches": [
+            {"probability": 0.5, "flow": {"task": "A"}},
+            {"probability": 0.5, "flow": {"task": "B"}},
+        ]}, False),
+        # Only `uniform` is a distribution; computed shares are never a source value.
+        ({"id": "x", "distribution": "weighted", "branches": [
+            {"flow": {"task": "A"}}, {"flow": {"task": "B"}},
+        ]}, False),
+    ],
+    ids=["inline", "uniform", "unstated", "condition", "named-branches", "both", "unknown"],
+)
+def test_the_schema_rules_for_an_exclusive_choice(exclusive: dict, valid: bool, schema: dict) -> None:
+    errors = _errors(_minimal(exclusive), schema)
+    assert bool(errors) != valid, f"expected valid={valid}, got {errors}"
+
+
+def test_a_branch_may_not_carry_a_container_condition() -> None:
+    """``when`` is the container's conditional choice and this version never emits it.
+
+    The exact engine declares its workflow node kinds without conditional choice, so a
+    composition that exposed ``when`` would compile, validate and digest, and then fail at
+    dispatch. The schema refuses the key outright so the trap is never armed.
+    """
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    document = _minimal({"id": "x", "branches": [
+        {"when": "features.cost > 1", "flow": {"task": "A"}},
+        {"flow": {"task": "B"}},
+    ]})
+    assert _errors(document, schema), "the schema accepted a container condition on a branch"

@@ -159,8 +159,14 @@ class Branch:
 
     flow: "Node"
     probability: Decimal | None = None
-    #: An explicit override of the derived ``<exclusive id>_branch_<n>``.
+    #: An explicit override of the derived ``<exclusive id>_branch_<n>``. Overriding must
+    #: stay possible: it is the only way to reproduce an existing package whose branch ids
+    #: follow no scheme, and branch ids are visible in the IR digest.
     id: str | None = None
+    #: Why this branch is taken, in prose. Studio-side: never compiled, and never the
+    #: container's ``when``, which this version does not emit. A condition and a
+    #: probability on the same branch are not in conflict.
+    condition: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,10 +176,20 @@ class Exclusive:
     The branches land in the application workflow without conditions, and the
     probabilities land in a routing overlay that targets the branch ids. The id is
     author-given because the derived branch ids are visible in the IR digest.
+
+    A distribution is a scenario, not a structure, which is why it lives in the overlay:
+    a sweep over load mixes holds the structure fixed, and a probability inside the
+    application would make every point of that sweep a different IR. The inline values are
+    the composition's default; a binding scenario may override them by branch label.
     """
 
     id: str
     branches: tuple[Branch, ...]
+    #: ``uniform`` emits ``{"uniform": true}`` and is the only way to say "equally
+    #: likely": for three branches no decimal literal is exactly one third, so computed
+    #: shares would fail the container's exact comparison against one. Mutually exclusive
+    #: with inline probabilities.
+    distribution: Literal["uniform"] | None = None
 
 
 @dataclass(frozen=True, slots=True)

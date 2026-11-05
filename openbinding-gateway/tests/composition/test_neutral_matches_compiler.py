@@ -28,20 +28,46 @@ import pytest
 from _repo import REPO_ROOT
 from openbinding_gateway.composition.neutral import Unbounded, infer_neutral
 
+#: The example the authoring guide tells an author to start from, used only to find out
+#: whether this environment can compile at all.
+PROBE = REPO_ROOT / "examples" / "demo" / "01_simple_seq"
 
-def _corpus_packages() -> list[Path]:
-    """The corpus as CI discovers it, by loading the same tool CI runs."""
-    tool = REPO_ROOT / "tools" / "check_bim_corpus.py"
-    if not tool.is_file():
-        return []
-    spec = importlib.util.spec_from_file_location("_check_bim_corpus", tool)
+
+def _corpus_tool():
+    """The discovery and non-entry rules CI uses, loaded from the tool CI runs.
+
+    Reusing the tool rather than restating its rules matters for one case in particular:
+    the toolchain's example package deliberately carries a binding beside it that is not
+    an entry of it, and the tool strips exactly that before compiling.
+    """
+    path = REPO_ROOT / "tools" / "check_bim_corpus.py"
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("_check_bim_corpus", path)
     module = importlib.util.module_from_spec(spec)
     sys.modules["_check_bim_corpus"] = module
     try:
         spec.loader.exec_module(module)
-        return list(module.package_directories(REPO_ROOT))
     finally:
         sys.modules.pop("_check_bim_corpus", None)
+    return module
+
+
+TOOL = _corpus_tool()
+PACKAGES = list(TOOL.package_directories(REPO_ROOT)) if TOOL else []
+
+
+def _compile(directory: Path):
+    """Compile one corpus package exactly as the corpus check does."""
+    from bim_core import InstancePackage, compile_instance, load_package
+
+    package = load_package(directory)
+    ignored = TOOL.NON_ENTRY_FILES.get(directory.relative_to(REPO_ROOT), frozenset())
+    if ignored:
+        package = InstancePackage(
+            {name: data for name, data in package.files.items() if name not in ignored}
+        )
+    return compile_instance(package)
 
 
 def _application_source(directory: Path) -> dict | None:
@@ -51,7 +77,8 @@ def _application_source(directory: Path) -> dict | None:
     *compiled* neutral, so the source has to be read rather than taken from the IR.
     """
     instance = json.loads((directory / "instance.json").read_text(encoding="utf-8"))
-    for resource in (instance.get("spec", {}).get("resources", {}).get("application") or {}).values():
+    resources = instance.get("spec", {}).get("resources", {}).get("application") or {}
+    for resource in resources.values():
         if not isinstance(resource, str) or not resource.endswith(".json"):
             continue
         document = json.loads((directory / resource).read_text(encoding="utf-8"))
@@ -60,38 +87,38 @@ def _application_source(directory: Path) -> dict | None:
     return None
 
 
-PACKAGES = _corpus_packages()
-
-
 @pytest.fixture(scope="module")
 def compiler():
     try:
-        from bim_core import compile_instance, load_package
+        import bim_core  # noqa: F401
     except ImportError:  # pragma: no cover - the container always has it
         pytest.skip("bim_core is not importable in this environment")
-    try:
-        compile_instance(load_package(PACKAGES[0]))
-    except FileNotFoundError as exc:
-        pytest.skip(f"the vendored OMG BPMN XSDs are not in place: {exc}")
-    return compile_instance, load_package
+    if PROBE.is_dir():
+        try:
+            _compile(PROBE)
+        except FileNotFoundError as exc:
+            pytest.skip(f"the vendored OMG BPMN XSDs are not in place: {exc}")
+    return _compile
 
 
 def test_the_corpus_was_discovered() -> None:
     """A silent empty corpus would make every assertion below vacuously true."""
+    assert TOOL is not None, "tools/check_bim_corpus.py is not mounted in this environment"
     assert PACKAGES, "no corpus packages were discovered"
 
 
 @pytest.mark.parametrize("directory", PACKAGES, ids=lambda d: d.name)
 def test_inferred_neutral_equals_the_compiled_one(directory: Path, compiler) -> None:
-    compile_instance, load_package = compiler
     source = _application_source(directory)
     if source is None:
         pytest.skip("package declares no Application resource")
+    declared_features = source.get("spec", {}).get("features") or {}
+    if not declared_features:
+        pytest.skip("package declares no features")
 
-    compiled = compile_instance(load_package(directory))
-    features = compiled.document["spec"]["application"]["features"]
+    features = compiler(directory).document["spec"]["application"]["features"]
 
-    for feature_id, declared in (source.get("spec", {}).get("features") or {}).items():
+    for feature_id, declared in declared_features.items():
         if not isinstance(declared, dict):
             continue
         assert feature_id in features, f"{feature_id} is missing from the compiled features"

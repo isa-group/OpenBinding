@@ -263,11 +263,11 @@ An `exclusive` block with inline probabilities compiles to:
 exclusive:
   id: solver_choice
   branches:
-    - {probability: 0.8, flow: {task: C}}
-    - {probability: 0.2, flow: {task: Q}}
+    - {probability: 0.8, condition: when the problem is small, flow: {task: C}}
+    - {probability: 0.2, condition: when the problem is large, flow: {task: Q}}
 ```
 
-becomes, in `application.json`:
+becomes, in `application.json` (the conditions are Studio-side and do not appear):
 
 ```json
 {"exclusive": [
@@ -285,28 +285,66 @@ and in `routing.json`:
 ]}}
 ```
 
+Why the probabilities live in the overlay and not on the branch, which is the decision
+this section records: a distribution is a **scenario, not a structure**. Keeping
+structure, candidates and binding apart is the Studio's own separation, and a sweep over
+load mixes holds the structure fixed while the distribution varies -- with the probability
+inside the application, every point of such a sweep would be a different application and
+a different IR digest. `{uniform: true}` only makes sense as an overlay too. And the
+weights are not decoration: the exact engine's aggregation list includes
+`exclusive.weightedSum` and `exclusive.weightedProduct`, which consume them, so the
+probability is what makes an exclusive choice solvable at all.
+
 Rules, each of which exists because the container enforces it:
 
-- **Branch ids are `<exclusive id>_branch_<n>`, one-based**, in source order. They are
-  the join key between the two documents and they are visible in the IR digest, so they
-  are derived by a pure function of the exclusive's id and the branch's position — never
-  from a counter, a hash or a float. An author may override a branch's `id` explicitly.
+- **Branch ids are stable labels.** The default is `<exclusive id>_branch_<n>`, one-based
+  in source order: a pure function of the exclusive's label and the branch's position,
+  never a counter, a hash or a float. They are the join key between the two documents and
+  they are visible in the IR digest.
+- **An author can always override a branch's `id`, and the language must support it.** It
+  is the escape hatch for reproducing an existing package exactly, which the phase F1 gate
+  demands. For the guiding case the default derivation already reproduces the package's
+  own ids -- an exclusive labelled `node_routing_choice` derives
+  `node_routing_choice_branch_1` and `_2` -- but a package whose ids follow no scheme can
+  be round-tripped only by naming them.
 - **An `exclusive` that carries probabilities and has no `id` is refused**
-  (`c2y_exclusive_id`). The Studio does not invent an id, because an invented id would be
-  digest-visible and unstable.
-- **All probabilities or none.** A partially annotated exclusive is refused.
+  (`c2y_exclusive_id`). The Studio does not invent a label, because an invented one would
+  be digest-visible and unstable.
+- **All probabilities or none**, refused as a diagnostic at authoring time
+  (`c2y_exclusive_probabilities`) rather than as a compile error further away.
 - **They must sum to exactly one.** The container compares the sum against `Decimal(1)`
   with no tolerance, so the Studio parses and sums every probability as a `Decimal` taken
   from the YAML text and never through floating-point arithmetic.
-- **Probability and condition never coexist** on the same branch. This version emits no
-  conditions at all (section 12).
-- An `exclusive` with no probabilities emits **no routing resource**, which leaves the
-  branch distribution unspecified rather than uniform. `{uniform: true}` is a different
-  statement -- it asserts that the branches are equally likely -- and one package in the
-  corpus does use it, so it is not dead syntax. This version never emits it anyway:
-  converting "nothing stated" into "stated to be uniform" would change both the meaning
-  and the digest of every package that had no routing resource. An author who wants
-  uniform routing writes the equal probabilities out.
+- **`distribution: uniform` is the only way to say "equally likely"**, and it emits
+  `{"uniform": true}`. The Studio never computes `1/n` shares itself: for three branches
+  no decimal literal is exactly one third, so three equal literals sum to `0.9999999999`
+  and fail that exact comparison. The container does the division internally and gives the
+  last branch the remainder, so uniform routing is expressible this way and no other.
+  `distribution` and inline probabilities are mutually exclusive.
+- An `exclusive` with neither probabilities nor `distribution` emits **no routing
+  resource**. That leaves the distribution unstated, which is not the same as uniform, and
+  the Studio never silently promotes one into the other.
+- **A `condition` on a branch is prose, not semantics.** It records why a branch is taken
+  ("when the problem is large"), it is Studio-side (section 9) and it is never compiled.
+  It is not the container's `when`, which this version does not emit at all (section 12),
+  so a condition and a probability on the same branch are not in conflict: the guiding
+  case has both, a documented reason and a measured 0.8/0.2.
+
+### 5.3 The distribution is a default, not a fixture
+
+The inline probabilities are the **composition's default distribution**. A binding
+scenario may override it, addressing the branches by those same stable labels, and the
+composition does not change: same structure, same tasks, same candidates, one more
+scenario.
+
+This version declares that contract without implementing its transport. Phase F1 compiles
+the inline path and validates an externally supplied distribution if it is handed one; the
+channel that delivers it belongs to the API and to the studies that use it.
+
+Declaring it now costs this paragraph. Not declaring it would later force either inventing
+branch labels retroactively -- and branch ids live in the application's workflow, which
+the IR digest does not strip, so every existing composition's digest would move -- or
+addressing branches by position, which breaks the moment one is reordered.
 
 ## 6. Candidates
 
@@ -390,17 +428,23 @@ studio:
     execution: [M]
 ```
 
-`studio` carries whatever the Studio needs and **the translation ignores it**. It is
-emitted into `metadata.annotations` of the Instance, which the container declares open.
+`studio` carries whatever the Studio needs, and **it is not emitted into the package at
+all**. Neither is any other field this specification marks as Studio-side: a branch's
+`condition` and a property's `applies_to` stay here too.
 
-It is deliberately **not** emitted under `spec.extensions`: an extension payload at a
-pointer with no installed dialect and no deterministic lowering makes compilation fail,
-and the raw payload is never copied into the IR. `metadata.annotations` is the only place
-in a package where free-form Studio data is both legal and inert.
+Not under `spec.extensions`, where a payload with no installed dialect and no
+deterministic lowering makes compilation fail and is never copied into the IR. And not
+into `metadata.annotations` either, although the container declares that map open:
+keeping Studio data out of the package entirely is what makes it inert *by construction*.
+The annotations route is inert only for as long as something keeps proving that source
+annotations do not reach the IR, and it changes the package digest, so two compositions
+differing only in a Studio tag would compile to different packages.
 
-`metadata` is stripped by `ir_digest`, so the Studio block cannot move the IR digest. It
-*does* change the package digest, which is correct: two packages whose annotations differ
-are different packages, but the same binding problem.
+One consequence to carry into phase F1: a package imported from BIM may already carry
+annotations of its own, as the guiding case does. Those are not the Studio block and must
+not be folded into it -- reproducing such a package byte for byte needs an opaque
+passthrough that re-emits them unchanged. The IR digest is unaffected either way, since it
+strips metadata.
 
 ## 10. Explicit neutral values
 
@@ -501,7 +545,7 @@ literals, property and task paths, comparison and `and`.
 
 | Not expressible | Why | Cost |
 | --- | --- | --- |
-| Branch conditions (`when`) | the exact engine rejects conditional choice | compositions are probabilistic, which is what the editor models anyway |
+| Branch conditions (`when`) | the exact engine rejects conditional choice | none: a branch carries a human-readable `condition` instead, and the distribution carries the semantics |
 | Interval property values | every bundled engine mode accepts scalars only | authors must pick a value |
 | Rules beyond comparison and `and` | the exact engine's expression list | no arithmetic or disjunction in rules |
 | Placement | a separate dialect with its own resource and semantics | two corpus packages do not round-trip |
@@ -569,6 +613,7 @@ container's.
 | `c2y_task_unreached` | a declared task appears nowhere in the workflow |
 | `c2y_exclusive_id` | an exclusive carries probabilities and has no id |
 | `c2y_exclusive_probabilities` | probabilities are partial, or do not sum to exactly one |
+| `c2y_exclusive_distribution` | `distribution` and inline probabilities are both present |
 | `c2y_exclusive_condition` | a branch carries both a probability and a condition |
 | `c2y_repeat_count` | `count` and `expected` are both present, or neither |
 | `c2y_candidate_property` | a candidate value is an interval, or outside the domain |
