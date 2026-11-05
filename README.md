@@ -114,21 +114,19 @@ locally and they are administered in their native UIs:
 
 ```bash
 docker compose --profile dev up -d --build     # development
-docker compose --profile prod up -d --build    # production-like local build behind nginx
 ```
 
-The `prod` profile builds the images from the checkout and pins nothing: it is a
-production-like local build, not a deployment. Production uses the digest-pinned
+Production uses the digest-pinned, standalone
 definition in `deploy/compose/production/` and is operated with
 [`docs/runbooks/production.md`](docs/runbooks/production.md); only the owner
 orders a production deployment. The project deploys with Docker Compose only;
 the standalone bim-service container is described in
 [`bim-toolchain/docs/SERVICE.md`](bim-toolchain/docs/SERVICE.md).
 
-`docker-compose.yml` defines the profiles `dev`, `prod`, `db-tools` (Adminer),
-`federated-example` and `benchmark`. `dev` and `prod` start PostgreSQL, Redis,
+`docker-compose.yml` defines the profiles `dev`, `db-tools` (Adminer),
+`federated-example` and `benchmark`. `dev` starts PostgreSQL, Redis,
 the gateway, the job worker, the four bundled Engines, the frontend and
-nginx. With `APP_ENV=prod` the gateway refuses to start unless
+nginx. With `APP_ENV=prod` (production only) the gateway refuses to start unless
 `CORS_ALLOW_ORIGINS` names exact origins. Whether the stack, SPACE and SPHERE
 work together end to end against the real remote services has not been
 exercised yet.

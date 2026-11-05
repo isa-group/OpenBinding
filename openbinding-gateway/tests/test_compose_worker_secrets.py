@@ -41,9 +41,9 @@ def test_dramatiq_services_do_not_get_jwt_secret(relative: str) -> None:
         assert SECRET not in _env_names(service), f"{relative}:{name} defines {SECRET}"
 
 
-def test_worker_and_worker_dev_run_dramatiq_without_the_jwt_secret() -> None:
+def test_worker_dev_runs_dramatiq_without_the_jwt_secret() -> None:
     services = _load("docker-compose.yml")["services"]
-    for name in ("worker", "worker-dev"):
+    for name in ("worker-dev",):
         assert name in services
         assert "dramatiq" in _command_text(services[name])
         assert SECRET not in _env_names(services[name]), f"{name} defines {SECRET}"
@@ -101,7 +101,7 @@ def test_the_queue_reader_sees_an_analysis_worker() -> None:
     assert _queues({"command": "dramatiq openbinding_gateway.worker --queues default && echo done"}) == ["default"]
 
 
-@pytest.mark.parametrize("name", ["gateway", "gateway-dev"])
+@pytest.mark.parametrize("name", ["gateway-dev"])
 def test_gateway_services_keep_jwt_secret(name: str) -> None:
     services = _load("docker-compose.yml")["services"]
     assert SECRET in _env_names(services[name])

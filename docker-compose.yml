@@ -1,12 +1,12 @@
 x-proxy-build-args: &proxy-build-args
   HTTP_PROXY: ${HTTP_PROXY_ARG:-}
   HTTPS_PROXY: ${HTTPS_PROXY_ARG:-}
-  NO_PROXY: ${NO_PROXY_ARG:-localhost,127.0.0.1,postgres,redis,gateway,gateway-dev,worker,worker-dev,engine-minizinc,engine-random-search,engine-many-heuristic,engine-multi-heuristic,engine-evolutionary-heuristics,frontend-dev,frontend-prod,nginx,nginx-dev}
+  NO_PROXY: ${NO_PROXY_ARG:-localhost,127.0.0.1,postgres,redis,gateway-dev,worker-dev,engine-minizinc,engine-random-search,engine-many-heuristic,engine-multi-heuristic,engine-evolutionary-heuristics,frontend-dev,nginx-dev}
 
 services:
   postgres:
     image: postgres:16-alpine
-    profiles: ["dev", "prod", "db-tools"]
+    profiles: ["dev", "db-tools"]
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-openbinding}
       - POSTGRES_USER=${POSTGRES_USER:-openbinding}
@@ -23,7 +23,7 @@ services:
 
   redis:
     image: redis:7.4-alpine
-    profiles: ["dev", "prod"]
+    profiles: ["dev"]
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redisdata:/data
@@ -32,84 +32,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-
-  gateway:
-    build:
-      context: .
-      dockerfile: openbinding-gateway/Dockerfile
-      args:
-        <<: *proxy-build-args
-    profiles: ["prod"]
-    volumes:
-      - artifacts:/var/lib/openbinding/artifacts
-    environment:
-      - APP_ENV=prod
-      - SCHEMAS_DIR=/app/schemas
-      - PYTHONPATH=/app/src
-      - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS_PROD:-https://openbinding.score.us.es,https://openbinding.us.es}
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-openbinding}:${POSTGRES_PASSWORD:-openbinding}@postgres:5432/${POSTGRES_DB:-openbinding}
-      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:?set GATEWAY_JWT_SECRET (at least 32 random characters) before starting the prod profile}
-      # Networks whose X-Forwarded-For is believed (uvicorn --proxy-headers).
-      # The default trusts nobody: set it to the network of the reverse proxy
-      # in front of the gateway (the nginx service's compose network), or every
-      # client is counted as the proxy by the login throttling.
-      - FORWARDED_ALLOW_IPS=${FORWARDED_ALLOW_IPS:-127.0.0.1}
-      - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
-      - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
-      # Production refuses to start with SPACE_ENABLED=false (APP_ENV=prod).
-      - SPACE_ENABLED=${SPACE_ENABLED:-true}
-      - SPACE_URL=${SPACE_URL:-https://space.score.us.es}
-      - SPACE_API_KEY=${SPACE_API_KEY:-}
-      - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
-      - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
-      - SPACE_DEFAULT_PLAN=${SPACE_DEFAULT_PLAN:-}
-      - REDIS_URL=redis://redis:6379/0
-      - JOB_DISPATCH_MODE=dramatiq
-      - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
-      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-https://openbinding.score.us.es}
-      - SPHERE_ENABLED=${SPHERE_ENABLED:-false}
-      - SPHERE_URL=${SPHERE_URL:-https://sphere.score.us.es}
-      - SPHERE_API_KEY=${SPHERE_API_KEY:-}
-      - SPHERE_ORGANIZATION_ID=${SPHERE_ORGANIZATION_ID:-}
-      - CAS_ENABLED=${CAS_ENABLED:-false}
-      - CAS_ENVIRONMENT=${CAS_ENVIRONMENT:-production}
-      - CAS_STORE_BACKEND=redis
-      - FRONTEND_URL=${FRONTEND_URL:-https://openbinding.score.us.es}
-      # Comma-separated Fernet keys for stored engine credentials: the first
-      # encrypts, all decrypt (rotation). FEDERATION_SECRET_KEY is the legacy
-      # single key, still read after them.
-      - SECRETS_FERNET_KEYS=${SECRETS_FERNET_KEYS:-}
-      - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
-      - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-true}
-      - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
-      - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
-      - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
-      - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
-      # BIM (compile, evaluate, re-evaluate) runs in this process by default. To use a
-      # bim-service instead: BIM_MODE=http, BIM_SERVICE_URL=https://bim.internal and
-      # BIM_SERVICE_TOKEN_FILE=/run/secrets/bim_token (a mounted secret file, never the
-      # token). The service must run the same bim-toolchain release or the gateway
-      # refuses to start.
-      - BIM_MODE=${BIM_MODE:-inproc}
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      engine-minizinc:
-        condition: service_healthy
-      engine-random-search:
-        condition: service_healthy
-      engine-many-heuristic:
-        condition: service_healthy
-      engine-evolutionary-heuristics:
-        condition: service_healthy
 
   gateway-dev:
     build:
@@ -149,7 +71,7 @@ services:
       # No default: a well-known signing key is worse than none. ./up.sh writes
       # a random one into .env when it is missing; otherwise set it (>= 32 chars).
       - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:?set GATEWAY_JWT_SECRET (at least 32 random characters), or start the stack with ./up.sh which generates one}
-      # See the prod service: X-Forwarded-For is believed only from these networks.
+      # X-Forwarded-For is believed only from these networks (a reverse proxy in front of the gateway).
       - FORWARDED_ALLOW_IPS=${FORWARDED_ALLOW_IPS:-127.0.0.1}
       - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
       - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
@@ -213,59 +135,6 @@ services:
         condition: service_healthy
       engine-evolutionary-heuristics:
         condition: service_healthy
-
-  worker:
-    build:
-      context: .
-      dockerfile: openbinding-gateway/Dockerfile
-      args:
-        <<: *proxy-build-args
-    profiles: ["prod"]
-    entrypoint: []
-    command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "4", "--queues", "default"]
-    volumes:
-      - artifacts:/var/lib/openbinding/artifacts
-    environment:
-      - SCHEMAS_DIR=/app/schemas
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-openbinding}:${POSTGRES_PASSWORD:-openbinding}@postgres:5432/${POSTGRES_DB:-openbinding}
-      - REDIS_URL=redis://redis:6379/0
-      - JOB_DISPATCH_MODE=dramatiq
-      # Same gate as the production gateway: SPACE decides plans and contracts.
-      - SPACE_ENABLED=${SPACE_ENABLED:-true}
-      - SPACE_URL=${SPACE_URL:-https://space.score.us.es}
-      - SPACE_API_KEY=${SPACE_API_KEY:-}
-      - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
-      - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
-      - SPACE_DEFAULT_PLAN=${SPACE_DEFAULT_PLAN:-}
-      # Comma-separated Fernet keys for stored engine credentials: the first
-      # encrypts, all decrypt (rotation). FEDERATION_SECRET_KEY is the legacy
-      # single key, still read after them.
-      - SECRETS_FERNET_KEYS=${SECRETS_FERNET_KEYS:-}
-      - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
-      - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-true}
-      - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
-      - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
-      - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
-      - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
-      # The worker re-evaluates every engine answer through BIM: same choice as the gateway.
-      - BIM_MODE=${BIM_MODE:-inproc}
-      - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
-      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-https://openbinding.score.us.es}
-      - SPHERE_ENABLED=${SPHERE_ENABLED:-false}
-      - SPHERE_URL=${SPHERE_URL:-https://sphere.score.us.es}
-      - SPHERE_API_KEY=${SPHERE_API_KEY:-}
-      - SPHERE_ORGANIZATION_ID=${SPHERE_ORGANIZATION_ID:-}
-    depends_on:
-      gateway:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "kill -0 1"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
 
   worker-dev:
     build:
@@ -340,7 +209,7 @@ services:
       dockerfile: Dockerfile
       args:
         <<: *proxy-build-args
-    profiles: ["dev", "prod"]
+    profiles: ["dev"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:3000/health"]
       interval: 10s
@@ -354,7 +223,7 @@ services:
       dockerfile: random-search/Dockerfile
       args:
         <<: *proxy-build-args
-    profiles: ["dev", "prod"]
+    profiles: ["dev"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
       interval: 10s
@@ -368,7 +237,7 @@ services:
       dockerfile: many-heuristic/Dockerfile
       args:
         <<: *proxy-build-args
-    profiles: ["dev", "prod"]
+    profiles: ["dev"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
       interval: 10s
@@ -400,7 +269,7 @@ services:
       dockerfile: evolutionary-heuristics/Dockerfile
       args:
         <<: *proxy-build-args
-    profiles: ["dev", "prod"]
+    profiles: ["dev"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
       interval: 10s
@@ -474,25 +343,6 @@ services:
       retries: 3
       start_period: 10s
 
-  frontend-prod:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: prod-assets
-      args:
-        <<: *proxy-build-args
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL_PROD:-/api}
-    profiles: ["prod"]
-    volumes:
-      - frontend_dist:/out
-    command: ["sh", "-c", "rm -rf /out/* && cp -a /dist/. /out/ && tail -f /dev/null"]
-    healthcheck:
-      test: ["CMD", "test", "-f", "/out/index.html"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-
   nginx-dev:
     build:
       context: ./nginx/local
@@ -516,35 +366,8 @@ services:
       retries: 3
       start_period: 10s
 
-  nginx:
-    build:
-      context: ./nginx/production
-      dockerfile: Dockerfile
-      args:
-        <<: *proxy-build-args
-    profiles: ["prod"]
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - frontend_dist:/usr/share/nginx/html:ro
-      - ./examples:/opt/openbinding/examples:ro
-      - ${NGINX_SSL_DIR:-./nginx/ssl}:/etc/nginx/ssl:ro
-    depends_on:
-      gateway:
-        condition: service_healthy
-      frontend-prod:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "nginx", "-t"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-
 volumes:
   artifacts:
-  frontend_dist:
   pgdata:
   redisdata:
 
