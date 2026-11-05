@@ -12,7 +12,6 @@ interface LogPanelProps {
 }
 
 /** A collapsible, searchable log with stable line numbers. One of the two places that may render a `<pre>`. */
-// [impl->req~frontend-rendering-log-panel~1]
 export function LogPanel({ log, title = 'Log', filename, defaultOpen = false }: LogPanelProps) {
   const [query, setQuery] = useState('');
   const { copy, status } = useCopy();

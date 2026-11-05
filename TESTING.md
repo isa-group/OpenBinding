@@ -1,9 +1,7 @@
-Status: DRAFT for owner review (2026-10-21)
-
 # TESTING — OpenBinding
 
 How behaviour is proven in this repository. Commands are the ones CI (`.github/workflows/ci.yml`) and the existing
-docs use; `AGENTS.md` §3 lists them per component. Counts are from `spec/platform-baseline` (from
+docs use. Counts are from `spec/platform-baseline` (from
 `integration/platform` @ 912648c), counted by file inspection, not by running the suites.
 
 ## 1. Test pyramid per component
@@ -29,14 +27,14 @@ acceptance/
     pytest.ini            # runner configuration (pytest)
     conftest.py           # maps "no tests collected" (exit 5) to exit 0
     <capability>/
-      test_<slug>.py      # tagged [utest->req~<capability>-<slug>~N]
+      test_<slug>.py      # pytest
   ui/
     <capability>/
-      <slug>.spec.ts      # Playwright; tagged the same way
+      <slug>.spec.ts      # Playwright
 ```
 
-- Written only by the test-designer from the spec and public interfaces (OpenAPI, BIM schemas, engine protocol,
-  route registry); never by the implementer; frozen for the duration of a change (G4).
+- Written from the public interfaces (OpenAPI, BIM schemas, engine protocol, route registry), not from the
+  implementation.
 - Gateway acceptance tests are pytest against `create_app()` or the Compose stack; frontend acceptance tests are
   Playwright specs; engine acceptance tests speak `bim-engine/v1` over HTTP.
 - One runner per surface, both exit 0 while `acceptance/` holds no tests:
@@ -51,7 +49,7 @@ acceptance/
 - Engine acceptance tests (`bim-engine/v1` over HTTP) are pytest files under `acceptance/api/<capability>/`.
 
 Decision: one top-level `acceptance/` with one runner per surface, not an `acceptance/` inside each component. The
-tests are frozen apart from the implementation (G4), so they sit outside the component trees that the implementer edits.
+tests target public interfaces, so they sit outside the component trees.
 
 ## 3. Property-based tests
 
@@ -63,7 +61,7 @@ Tools: Hypothesis (Python), fast-check (TS), jqwik (Java). Adding them is a depe
 ## 4. Contract tests
 
 - HTTP: `docs/openapi.json` snapshot (`dump_openapi.py --check`) + `test_openapi_contract.py` (operation ids, tags,
-  security documented equals runtime dependencies, media types, error shape). GAP: no Schemathesis fuzzing (G7).
+  security documented equals runtime dependencies, media types, error shape). GAP: no Schemathesis fuzzing.
 - BIM: `bim-toolchain/contracts/consumers/openbinding/*.json` replayed by `tests/test_bim_consumer_contract.py` (gateway)
   and `tools/consumer_fixtures.py --check` (toolchain).
 - Engines: `schemas/engine-contract.openapi.yaml`; conformance of a registration is verified by the gateway
@@ -73,8 +71,7 @@ Tools: Hypothesis (Python), fast-check (TS), jqwik (Java). Adding them is a depe
 ## 5. Mutation testing
 
 Not configured anywhere (GAP). Proposed tools: `mutmut` (gateway, bim-toolchain), Stryker (frontend, minizinc-csp),
-PIT (Java engines). Run on changed lines only in PR CI (GitHub Actions), threshold calibrated during the pilot and
-recorded in `.agentic/project.yaml`.
+PIT (Java engines). Run on changed lines only in PR CI (GitHub Actions), threshold calibrated during the pilot.
 
 ## 6. End-to-end
 
@@ -109,7 +106,7 @@ The QA gallery (`frontend/e2e/qa-gallery.spec.ts`) writes screenshots to `QA_GAL
 - Red before green for every fix/feature; keep the failing output.
 - No new skips or xfails; SQLite-only coverage of locking code must be declared as such.
 - Report only executed results, with SHA; otherwise `NOT EXECUTED`.
-- Flaky tests are quarantined only through `docs/qa/FLAKY_TESTS.md` with an owner and a deadline.
+- A flaky test is fixed or removed, not skipped indefinitely.
 
 ## 10. CI (`.github/workflows/ci.yml`)
 

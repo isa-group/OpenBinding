@@ -4,8 +4,7 @@
 It talks only HTTP to ``BIM_SERVICE_URL`` (default ``http://bim-service:8080``) with the bearer token of
 ``BIM_SERVICE_TOKEN_FILE`` (default ``/run/bim/token``), exactly as the gateway does, and uses nothing but the public
 limits, inputs and routes of the service. It touches no gateway, database, SPACE or SPHERE: every payload is
-synthetic. Run it through the ``seed`` service of the lab (``DEMO_SEED_TOOL=process_probe.py``), see
-``docs/qa/PROCESS_PROBE.md``.
+synthetic. Run it through the ``seed`` service of the lab (``DEMO_SEED_TOOL=process_probe.py``).
 
 Output: ONE JSON document on stdout, ``{"tool", "ok", "steps": [{name, ok, checks: [{name, ok, expected,
 observed}], ...}], "observations": {...}}``. Progress and the phase marks (monotonic and epoch seconds) go to stderr
@@ -110,7 +109,7 @@ N2_DEFAULTS = {
 DEFAULT_OPERATION_TIMEOUT = 60.0
 PROBE_OPERATION_TIMEOUT = 3.0
 
-# The fit rule of bim_service.workers.memory_fit with the conservative figures of docs/qa/PROCESS_DEPLOYMENT.md.
+# The fit rule of bim_service.workers.memory_fit with conservative figures.
 BODY_MEMORY_FACTOR = 8
 FIT_MARGIN = 0.10
 PARENT_RSS_CONSERVATIVE = 60 * MIB

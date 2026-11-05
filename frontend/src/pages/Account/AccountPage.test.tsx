@@ -21,7 +21,6 @@ function renderAt(address: string) {
 }
 
 describe('AccountPage', () => {
-  // [utest->req~frontend-nav-account-sections~1]
   it.each([
     ['/app/account', 'Profile body'],
     ['/app/account/usage', 'Plan body'],
@@ -35,7 +34,6 @@ describe('AccountPage', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
-  // [utest->req~frontend-nav-account-sections~1]
   it.each(['/app/account/billing', '/app/account/Keys', '/app/account/usage-2'])('%s shows Page not found', (address) => {
     renderAt(address);
 

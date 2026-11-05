@@ -14,7 +14,6 @@ export const OPENER = 'data-create-opener';
  * (replacing the entry, so Back does not reopen the dialog) and, once the dialog is gone, the focus is back on the control that opened it
  * (the Modal does that) or, when the dialog was opened by typing the address, on the control that opens it.
  */
-// [impl->req~frontend-nav-create-dialogs~1]
 export function useCreateDialog(kind: CreateKind, closeTo: string) {
   const [params] = useSearchParams();
   const navigate = useNavigate();

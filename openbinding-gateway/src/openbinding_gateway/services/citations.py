@@ -73,7 +73,6 @@ class PublicationRecord(Protocol):
     published_at: Optional[date]
 
 
-# [impl->req~resolver-verifier-citation-no-invented-metadata~1]
 def valid_doi(value: object) -> Optional[str]:
     """The recorded DOI without its ``https://doi.org/`` prefix, or ``None`` unless it is a well-formed DOI."""
     if not isinstance(value, str):
@@ -82,12 +81,10 @@ def valid_doi(value: object) -> Optional[str]:
     return doi if DOI.fullmatch(doi) else None
 
 
-# [impl->req~resolver-verifier-citation-no-invented-metadata~1]
 def valid_venue(value: object) -> Optional[str]:
     return value if isinstance(value, str) and value.strip() else None
 
 
-# [impl->req~resolver-verifier-citation-no-invented-metadata~1]
 def valid_authors(value: object) -> Optional[list[str]]:
     """The non-blank names of a recorded list, or ``None`` when there is none."""
     if not isinstance(value, (list, tuple)):
@@ -96,7 +93,6 @@ def valid_authors(value: object) -> Optional[list[str]]:
     return names or None
 
 
-# [impl->req~resolver-verifier-citation-year~1]
 def valid_year(value: object) -> Optional[int]:
     """A four-digit integer year; ``True`` is an ``int`` to Python but not a year.
 
@@ -119,7 +115,6 @@ def _recorded(publication: Optional[PublicationRecord]) -> Mapping[str, Any]:
     return citation if isinstance(citation, Mapping) else {}
 
 
-# [impl->req~resolver-verifier-citation-year~1]
 def citation_year(created_at: date, publication: Optional[PublicationRecord] = None) -> int:
     """The recorded integer ``year``, else the year of ``published_at``, else the year of the element's creation."""
     publication = _live(publication)
@@ -132,7 +127,6 @@ def citation_year(created_at: date, publication: Optional[PublicationRecord] = N
     return created_at.year
 
 
-# [impl->req~resolver-verifier-citation-url~1]
 def citation_url(frontend_url: str, kind: Optional[str], digest: str) -> str:
     """The public permanent link of the element on the frontend's origin (``FRONTEND_URL``, never the gateway's).
 
@@ -147,7 +141,6 @@ def citation_url(frontend_url: str, kind: Optional[str], digest: str) -> str:
     return f"{origin}/resolve/{kind}/{quote(digest, safe='')}"
 
 
-# [impl->req~resolver-verifier-citation-no-invented-metadata~1]
 def bibtex_text(value: str) -> str:
     """``value`` as the text of a BibTeX field: it can close neither the field nor the entry.
 
@@ -159,7 +152,6 @@ def bibtex_text(value: str) -> str:
     return text.translate(BIBTEX_ESCAPES)
 
 
-# [impl->req~resolver-verifier-citation-no-invented-metadata~1]
 def _bibtex(
     *,
     key: str,
@@ -187,9 +179,6 @@ def _bibtex(
     return f"@misc{{{UNSAFE_KEY.sub('', key)},\n{body}\n}}"
 
 
-# [impl->req~resolver-verifier-citation-no-invented-metadata~1]
-# [impl->req~resolver-verifier-citation-year~1]
-# [impl->req~resolver-verifier-citation-url~1]
 def build_citation(
     *,
     frontend_url: str,

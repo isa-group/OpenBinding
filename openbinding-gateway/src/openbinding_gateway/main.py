@@ -338,7 +338,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_exception_handler(HTTPException, http_error)
     app.add_exception_handler(Exception, unhandled_error)
 
-    # [impl->req~gateway-api-no-retirement-headers~1] (no layer adds Deprecation or Sunset)
+    # (no layer adds Deprecation or Sunset)
     # Added first, so it is the innermost: a 413 still leaves through the CORS and telemetry
     # layers, and nothing inside it reads a body it has not counted.
     app.add_middleware(BodyLimitMiddleware)

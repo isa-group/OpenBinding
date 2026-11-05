@@ -16,7 +16,6 @@ const headings = () => screen.getAllByRole('heading').map((h) => h.textContent);
 const codes = () => screen.getAllByRole('listitem').map((li) => li.querySelector('code')?.textContent);
 
 describe('DiagnosticsList', () => {
-  // [utest->req~frontend-rendering-diagnostics-list~1]
   it('summarises the counts in a status region, singular and plural', () => {
     const { unmount } = render(<DiagnosticsList diagnostics={DIAGS} />);
     expect(screen.getByRole('status')).toHaveTextContent('3 errors, 1 warning, 1 info');
@@ -26,7 +25,6 @@ describe('DiagnosticsList', () => {
     expect(screen.getByRole('status')).toHaveTextContent('1 error, 1 warning');
   });
 
-  // [utest->req~frontend-rendering-diagnostics-list~1]
   it('omits kinds with a zero count', () => {
     render(<DiagnosticsList diagnostics={[DIAGS[2], DIAGS[2]]} />);
 
@@ -35,7 +33,6 @@ describe('DiagnosticsList', () => {
     expect(status).not.toHaveTextContent(/error|info/);
   });
 
-  // [utest->req~frontend-rendering-diagnostics-list~1]
   it('groups by resource under headings and puts those without resource under General', () => {
     render(<DiagnosticsList diagnostics={DIAGS} />);
 
@@ -46,7 +43,6 @@ describe('DiagnosticsList', () => {
     expect(within(general).getAllByRole('listitem')).toHaveLength(1);
   });
 
-  // [utest->req~frontend-rendering-diagnostics-list~1]
   it('sorts error, warning, info (stable) and orders groups by first appearance after the sort', () => {
     render(<DiagnosticsList diagnostics={DIAGS} />);
 
@@ -55,7 +51,6 @@ describe('DiagnosticsList', () => {
     expect(headings()).toEqual(['b.yaml', 'General', 'a.yaml']);
   });
 
-  // [utest->req~frontend-rendering-diagnostics-list~1]
   it('keeps items with the same pointer together inside a resource', () => {
     render(
       <DiagnosticsList
@@ -72,7 +67,6 @@ describe('DiagnosticsList', () => {
     expect(screen.getAllByRole('list')).toHaveLength(1);
   });
 
-  // [utest->req~frontend-rendering-diagnostics-list~1]
   it('orders pointer groups by worst severity and puts items without pointer in their own group', () => {
     render(
       <DiagnosticsList
@@ -91,14 +85,12 @@ describe('DiagnosticsList', () => {
     expect(codes()).toEqual(['B1', 'B2', 'N2', 'N1', 'A1', 'A2']);
   });
 
-  // [utest->req~frontend-rendering-diagnostics-list~1]
   it('counts several info diagnostics as "2 info"', () => {
     render(<DiagnosticsList diagnostics={[DIAGS[0], DIAGS[0]]} />);
 
     expect(screen.getByRole('status')).toHaveTextContent('2 info');
   });
 
-  // [utest->req~frontend-rendering-diagnostics-list~1]
   it('shows severity as text in a badge, the code, the message, the labelled pointer and the hint', () => {
     render(<DiagnosticsList diagnostics={[DIAGS[1], DIAGS[2]]} />);
 
@@ -115,14 +107,12 @@ describe('DiagnosticsList', () => {
     expect(warning).not.toHaveTextContent(/Pointer|Hint/);
   });
 
-  // [utest->req~frontend-rendering-diagnostics-list~1]
   it('uses the info badge variant for info', () => {
     render(<DiagnosticsList diagnostics={[DIAGS[0]]} />);
 
     expect(screen.getByText('info')).toHaveClass('badge-info');
   });
 
-  // [utest->req~frontend-rendering-diagnostics-list~1]
   it('says No diagnostics for an empty list', () => {
     render(<DiagnosticsList diagnostics={[]} />);
 
@@ -130,7 +120,6 @@ describe('DiagnosticsList', () => {
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
   });
 
-  // [utest->req~frontend-rendering-diagnostics-list~1]
   it('uses h3 headings by default and the level given by headingLevel', () => {
     const { unmount } = render(<DiagnosticsList diagnostics={DIAGS} />);
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3);
@@ -143,7 +132,6 @@ describe('DiagnosticsList', () => {
     }
   });
 
-  // [utest->req~frontend-rendering-diagnostics-list~1]
   it('names each group section by its heading and never renders a pre', () => {
     const { container } = render(<DiagnosticsList diagnostics={DIAGS} />);
 
@@ -151,7 +139,6 @@ describe('DiagnosticsList', () => {
     expect(container.querySelector('pre')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-diagnostics-list~1]
   it('names sections whose resource has spaces and keeps a literal General apart', () => {
     render(
       <DiagnosticsList
@@ -167,7 +154,6 @@ describe('DiagnosticsList', () => {
     expect(screen.getAllByRole('region', { name: 'General' })).toHaveLength(2);
   });
 
-  // [utest->req~frontend-rendering-diagnostics-list~1]
   it('has no hard-coded hex colour in its stylesheet', () => {
     const css = readFileSync(join(process.cwd(), 'src/components/rendering/DiagnosticsList.css'), 'utf8');
 

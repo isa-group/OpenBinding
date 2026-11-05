@@ -106,7 +106,6 @@ const PARAMS: Params = { org: 'a b', project: 'p/q', report: 'r#1', artifact: 'c
 const SAMPLE: Params = { org: 'a', project: 'b', report: 'c', artifact: 'c', draft: 'd', version: 'e', resource: 'f', case: 'g' };
 
 describe('the table of retired addresses', () => {
-  // [utest->req~frontend-retire-redirect-decision-space~1]
   it.each(RETIRED_ROUTES.filter((route) => route.slice === 1))('follows one rule for $path', (route) => {
     const to = (query: string) => targetOf(route, query);
     const study = 'org=isa-demo&project=qos-benchmarks&study=engines-vs-seeds';
@@ -121,7 +120,6 @@ describe('the table of retired addresses', () => {
     expect(to('org=isa-demo&project=qos-benchmarks&study=seeds%2F2026&study=other')).toBe('/app/isa-demo/qos-benchmarks/studies/seeds%2F2026');
   });
 
-  // [utest->req~frontend-retire-redirect-generic~1]
   it('leads every target to a routed screen, once the moved addresses are followed, and is not itself a route', () => {
     // The queries of the decision-space entries (slice 1); the other entries ignore the query.
     const queries = [
@@ -153,7 +151,6 @@ describe('the table of retired addresses', () => {
     }
   });
 
-  // [utest->req~frontend-retire-library-redirect~1]
   it('holds the library catalogue and the project resources as the entries of slice 3, the library artifact before the project routes it ties with', () => {
     const slice3 = RETIRED_ROUTES.filter((route) => route.slice === 3);
     expect(slice3.map((route) => [route.id, route.path])).toEqual([
@@ -169,7 +166,6 @@ describe('the table of retired addresses', () => {
     for (const later of ['rep-list', 'proj-library', 'proj-resources']) expect(order('lib-artifact'), later).toBeLessThan(order(later));
   });
 
-  // [utest->req~frontend-retire-library-redirect~1]
   it.each(RETIRED_ROUTES.filter((route) => route.slice === 3))('sends $path to the organization overview or the collections, whatever the rest', (route) => {
     const to = (query: string, params: Params) => targetOf(route, query, params);
     const organization = route.id.startsWith('lib-');
@@ -185,7 +181,6 @@ describe('the table of retired addresses', () => {
     }
   });
 
-  // [utest->req~frontend-retire-composer-redirect~1]
   it('holds the composer as the only entry of slice 4, after the entries of slice 3', () => {
     const slice4 = RETIRED_ROUTES.filter((route) => route.slice === 4);
     expect(slice4.map((route) => [route.id, route.path])).toEqual([['case-composer', '/app/:org/:project/cases/:case/compose']]);
@@ -193,7 +188,6 @@ describe('the table of retired addresses', () => {
     for (const earlier of RETIRED_ROUTES.filter((route) => route.slice === 3)) expect(order(earlier.id), earlier.id).toBeLessThan(order('case-composer'));
   });
 
-  // [utest->req~frontend-retire-composer-redirect~1]
   it('sends the composer to the workbench with the case, whatever the query, and to /app when a parameter is missing', () => {
     const route = RETIRED_ROUTES.find((entry) => entry.id === 'case-composer');
     if (!route) throw new Error('case-composer is not in the table');
@@ -209,7 +203,6 @@ describe('the table of retired addresses', () => {
     expect(to('', {})).toBe('/app');
   });
 
-  // [utest->req~frontend-retire-sponsorship-redirect~1]
   it('holds the sponsorship screen as the only entry of slice 5, after the entry of slice 4, and leads it to /app/admin', () => {
     const slice5 = RETIRED_ROUTES.filter((route) => route.slice === 5);
     expect(slice5.map((route) => [route.id, route.path])).toEqual([['admin-sponsor', '/app/admin/organizations/:org/sponsor']]);
@@ -220,7 +213,6 @@ describe('the table of retired addresses', () => {
     expect(matchRoutes(config, new URL(settled(target), 'http://localhost').pathname)).not.toBeNull();
   });
 
-  // [utest->req~frontend-retire-reports-redirect~1]
   it('holds the report list and the report editor as the entries of slice 2', () => {
     const slice2 = RETIRED_ROUTES.filter((route) => route.slice === 2);
     expect(slice2.map((route) => [route.id, route.path])).toEqual([
@@ -229,8 +221,6 @@ describe('the table of retired addresses', () => {
     ]);
   });
 
-  // [utest->req~frontend-retire-reports-redirect~1]
-  // [utest->req~frontend-nav-project-tabs~1]
   it.each(RETIRED_ROUTES.filter((route) => route.slice === 2))('sends $path to the published results of the project, whatever the query and the report', (route) => {
     const to = (query: string, params: Params) => targetOf(route, query, params);
 
@@ -248,7 +238,6 @@ describe('the table of retired addresses', () => {
 describe('the redirect of a retired address', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  // [utest->req~frontend-retire-redirect-generic~1]
   it('replaces the history entry, so going back skips the retired address', async () => {
     renderAt(['/app/account', '/app/analysis/workspace?job=job-done-3']);
 
@@ -258,7 +247,6 @@ describe('the redirect of a retired address', () => {
     await landsOn('/app/account');
   });
 
-  // [utest->req~frontend-retire-redirect-generic~1]
   it('asks a visitor without a session to sign in first', async () => {
     const old = '/app/analysis?org=isa-demo&project=qos-benchmarks&study=engines-vs-seeds';
     const signedOut = renderAt([old], null);
@@ -272,7 +260,6 @@ describe('the redirect of a retired address', () => {
     await landsOn('/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds');
   });
 
-  // [utest->req~frontend-retire-redirect-generic~1]
   it('renders no retired screen and no organization page', async () => {
     renderAt(['/app/analysis']);
 
@@ -282,7 +269,6 @@ describe('the redirect of a retired address', () => {
     expect(shown()).not.toBe(screenAt('/app/analysis'));
   });
 
-  // [utest->req~frontend-retire-reports-redirect~1]
   it.each([
     ['/app/acme/demo/reports', '/app/acme/demo/published'],
     ['/app/acme/demo/reports/engines-vs-seeds-informe', '/app/acme/demo/published'],
@@ -297,7 +283,6 @@ describe('the redirect of a retired address', () => {
     expect(screen.getByTestId('hash').textContent).toBe('');
   });
 
-  // [utest->req~frontend-retire-library-redirect~1]
   it.each([
     '/app/isa-demo/library/reports',
     '/app/isa-demo/library/library',
@@ -309,7 +294,6 @@ describe('the redirect of a retired address', () => {
     expect(where()).toBe('/app/isa-demo');
   });
 
-  // [utest->req~frontend-retire-library-redirect~1]
   it.each([
     ['/app/acme/library', '/app/acme'],
     ['/app/acme/library/a1/drafts/d1?x=1#top', '/app/acme'],
@@ -326,7 +310,6 @@ describe('the redirect of a retired address', () => {
     expect(screen.getByTestId('hash').textContent).toBe('');
   });
 
-  // [utest->req~frontend-retire-library-redirect~1]
   it('replaces the history entry and asks a visitor without a session to sign in before the library redirect', async () => {
     const first = renderAt(['/app/account', '/app/acme/library/a1']);
     await landsOn('/app/acme');
@@ -350,7 +333,6 @@ describe('the redirect of a retired address', () => {
     }
   });
 
-  // [utest->req~frontend-retire-composer-redirect~1]
   it.each([
     ['/app/acme/demo/cases/flujo/compose', '/app/acme/demo/workbench?case=flujo'],
     ['/app/acme/demo/cases/flujo/compose?case=other&x=1#top', '/app/acme/demo/workbench?case=flujo'],
@@ -363,7 +345,6 @@ describe('the redirect of a retired address', () => {
     expect(screen.getByTestId('hash').textContent).toBe('');
   });
 
-  // [utest->req~frontend-retire-composer-redirect~1]
   it.each([
     '/app/isa-demo/library/cases/drafts/compose',
     '/app/isa-demo/library/cases/versions/compose',
@@ -374,8 +355,6 @@ describe('the redirect of a retired address', () => {
     expect(where()).toBe('/app/isa-demo');
   });
 
-  // [utest->req~frontend-retire-composer-redirect~1]
-  // [utest->req~frontend-nav-problem-page~1]
   it.each([
     ['/app/isa-demo/qos/cases/x/compare', '/app/isa-demo/qos/problems/x/versions'],
     ['/app/isa-demo/qos/cases/x/revisions/2', '/app/isa-demo/qos/problems/x?version=2'],
@@ -388,7 +367,6 @@ describe('the redirect of a retired address', () => {
     expect(matchRoutes(config, new URL(settled(address), 'http://localhost').pathname)?.at(-1)?.route.id).toBe('case-detail');
   });
 
-  // [utest->req~frontend-retire-composer-redirect~1]
   it('replaces the history entry and asks a visitor without a session to sign in before the composer redirect', async () => {
     const first = renderAt(['/app/account', '/app/acme/demo/cases/flujo/compose']);
     await landsOn('/app/acme/demo/workbench?case=flujo');
@@ -407,7 +385,6 @@ describe('the redirect of a retired address', () => {
     await landsOn('/app/isa%20demo/qos/workbench?case=flujo');
   });
 
-  // [utest->req~frontend-retire-sponsorship-redirect~1]
   it.each([
     '/app/admin/organizations/isa-demo/sponsor',
     '/app/admin/organizations/isa-demo/sponsor?tab=requests#limits',
@@ -422,7 +399,6 @@ describe('the redirect of a retired address', () => {
     expect(screen.getByTestId('hash').textContent).toBe('');
   });
 
-  // [utest->req~frontend-retire-sponsorship-redirect~1]
   it('replaces the history entry, so going back skips the sponsorship address', async () => {
     const user = '/app/admin/users/00000000-0000-4000-8000-000000000002';
     renderAt([user, '/app/admin/organizations/isa-demo/sponsor'], administrator, true);
@@ -432,7 +408,6 @@ describe('the redirect of a retired address', () => {
     await landsOn(user);
   });
 
-  // [utest->req~frontend-retire-sponsorship-redirect~1]
   it('asks a visitor without a session to sign in before the sponsorship redirect', async () => {
     const old = '/app/admin/organizations/isa-demo/sponsor';
     const signedOut = renderAt([old], null);
@@ -445,7 +420,6 @@ describe('the redirect of a retired address', () => {
     await landsOn('/app/admin');
   });
 
-  // [utest->req~frontend-retire-sponsorship-redirect~1]
   it('ends a person without the administrator role at /app/account, with no administration screen', async () => {
     renderAt(['/app/admin/organizations/isa-demo/sponsor']);
 
@@ -453,7 +427,6 @@ describe('the redirect of a retired address', () => {
     expect(shown()).not.toBe(screenAt('/app/admin'));
   });
 
-  // [utest->req~frontend-retire-sponsorship-redirect~1]
   it.each([
     '/app/admin',
     '/app/admin/users/00000000-0000-4000-8000-000000000002',
@@ -463,7 +436,6 @@ describe('the redirect of a retired address', () => {
     expect(matchRoutes(config, new URL(settled(address), 'http://localhost').pathname)).not.toBeNull();
   });
 
-  // [utest->req~frontend-retire-reports-redirect~1]
   it('replaces the history entry, so going back skips the report address', async () => {
     renderAt(['/app/account', '/app/acme/demo/reports/x']);
 
@@ -473,7 +445,6 @@ describe('the redirect of a retired address', () => {
     await landsOn('/app/account');
   });
 
-  // [utest->req~frontend-retire-reports-redirect~1]
   it.each(['/app/acme/demo/reports', '/app/acme/demo/reports/x?tab=blocks'])('asks a visitor without a session to sign in before the redirect from %s', async (old) => {
     const signedOut = renderAt([old], null);
 
@@ -486,7 +457,6 @@ describe('the redirect of a retired address', () => {
     await landsOn('/app/acme/demo/published');
   });
 
-  // [utest->req~frontend-retire-reports-redirect~1]
   it('renders no report screen', async () => {
     renderAt(['/app/acme/demo/reports/x']);
 

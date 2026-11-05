@@ -69,7 +69,6 @@ LAB_COMPOSE_FILES = tuple(sorted(
     path.name for path in REPO_ROOT.iterdir() if fnmatch.fnmatch(path.name, "compose.lab*.json")))
 
 
-# [utest->req~lab-deployment-no-analysis-worker~1]
 @pytest.mark.parametrize(
     "relative", ("docker-compose.yml", "deploy/compose/production/compose.yaml", *LAB_COMPOSE_FILES))
 def test_no_worker_serves_the_analysis_queue(relative: str) -> None:
@@ -81,7 +80,6 @@ def test_no_worker_serves_the_analysis_queue(relative: str) -> None:
             assert "analysis" not in _queues(service), f"{relative}:{name} serves the analysis queue"
 
 
-# [utest->req~lab-deployment-no-analysis-worker~1]
 def test_the_lab_worker_serves_the_default_queue_only() -> None:
     services = _load("compose.lab.json")["services"]
     assert "compose.lab.json" in LAB_COMPOSE_FILES

@@ -13,7 +13,6 @@ import './Project.css';
  * The section Members of the project settings: the people of the project’s organization, who are the people with access to the
  * project, and the way to the organization’s member settings, where they are managed.
  */
-// [impl->req~frontend-nav-project-tabs~1]
 export function ProjectMembers({ organization, project }: { organization: Organization; project: Project }) {
   const slug = organization.slug;
   const people = useResource(`project-members:${slug}`, () => platformApi.members(slug));

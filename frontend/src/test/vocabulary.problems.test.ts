@@ -5,7 +5,6 @@ const CASE = wordPattern(['case', 'cases']);
 const found = (source: string, words: RegExp = CASE) => scanSource(source, words).map((finding) => `${finding.where}: ${finding.text}`);
 
 describe('the vocabulary scanner', () => {
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('takes the words as a parameter and matches whole words in any letter case', () => {
     expect(['case', 'Case', 'CASES', 'No case matches', 'Cases:'].every((text) => CASE.test(text))).toBe(true);
     expect(['showcase', 'cased', 'suitcases', 'Problem'].some((text) => CASE.test(text))).toBe(false);
@@ -13,7 +12,6 @@ describe('the vocabulary scanner', () => {
     expect(CASE.test('Jobs by state')).toBe(false);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('reports the words in JSX text with the line of the text', () => {
     const source = ['export const A = () => (', '  <section>', '    <h1>Cases</h1>', '    <p>Compare a case with another</p>', '  </section>', ');'].join('\n');
     expect(scanSource(source, CASE).map((finding) => [finding.line, finding.where, finding.text])).toEqual([
@@ -22,7 +20,6 @@ describe('the vocabulary scanner', () => {
     expect(found('const A = () => <p>Problems and versions</p>;')).toEqual([]);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('reports a single word in the text-like attributes', () => {
     const source = [
       'const A = () => (',
@@ -34,28 +31,24 @@ describe('the vocabulary scanner', () => {
     expect(found('const A = () => <Field label={ok ? "Case" : "Run"} />;')).toEqual(['attribute label: Case']);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('reports a single word in an object property such as label', () => {
     expect(found("const trail = [{ label: 'Cases' }, { label: 'Problems' }];")).toEqual(['property label: Cases']);
     expect(found("const entry = { 'aria-label': 'Case', to: '/x' };")).toEqual(['property aria-label: Case']);
     expect(found("const entry = { label: `Case ${n}` };")).toEqual(['property label: Case X']);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('reports a multi-word string literal or template anywhere', () => {
     expect(found("const message = 'No case matches your search';")).toEqual(['string: No case matches your search']);
     expect(found('const message = `Case “${name}” deleted.`;')).toEqual(['string: Case “X” deleted.']);
     expect(found("throw new Error('the case is gone');")).toEqual(['string: the case is gone']);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('reports the strings of a JSX child expression, one word included', () => {
     expect(found("const A = () => <p>{ok ? 'Case' : 'Run'}</p>;")).toEqual(['JSX expression: Case']);
     expect(found("const A = () => <p>{count + ' cases'}</p>;")).toEqual(['JSX expression: cases']);
     expect(found("const A = () => <p>{kind === 'case' && 'ready'}</p>;")).toEqual([]);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('does not report a single plain word outside the text-like places', () => {
     const source = [
       "const kind = 'case';",
@@ -67,7 +60,6 @@ describe('the vocabulary scanner', () => {
     expect(found(source)).toEqual([]);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('skips imports, exports, types and comments', () => {
     const source = [
       "import type { BindingCase } from '../../api/cases';",
@@ -84,7 +76,6 @@ describe('the vocabulary scanner', () => {
     expect(found(source)).toEqual([]);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('skips paths and URLs, and class and identifier lists', () => {
     const source = [
       'const a = `${root}/cases/${slug}`;',
@@ -98,7 +89,6 @@ describe('the vocabulary scanner', () => {
     expect(found(source)).toEqual([]);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('skips the subtree of code elements, SourceView and LogPanel', () => {
     const source = [
       'const A = () => (',
@@ -113,14 +103,12 @@ describe('the vocabulary scanner', () => {
     expect(scanSource(source, CASE).map((finding) => [finding.line, finding.text])).toEqual([[6, 'One case']]);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('reads TypeScript files that hold no JSX and numbers lines from 1', () => {
     const source = ["export const messages = {", "  empty: 'Case',", "  full: 'All cases',", '};'].join('\n');
     expect(scanSource(source, CASE, 'model.ts').map((finding) => [finding.line, finding.where])).toEqual([[2, 'property empty'], [3, 'string']]);
     expect(formatFinding({ file: 'model.ts', line: 2, where: 'property empty', text: 'Case' })).toBe('model.ts:2  property empty: "Case"');
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('tells application code from test support files', () => {
     for (const path of ['/src/a/X.test.tsx', '/src/a/xTestKit.tsx', '/src/a/testUtils.ts', '/src/test/fixtures/jobs.ts', '/src/a/fixtures.ts', '/src/pages/Pricing/pricingFixture.ts', '/src/components/rendering/runResultFixtures.ts', '/src/test/setup.ts', '/src/a/x.d.ts']) {
       expect(isTestSupport(path), path).toBe(true);
@@ -130,7 +118,6 @@ describe('the vocabulary scanner', () => {
     }
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('scans many files in order, skips test support and takes the words it is given', () => {
     const files = {
       '/src/b/B.tsx': 'export const B = () => <p>A case</p>;',
@@ -152,7 +139,6 @@ const sources = import.meta.glob(
 const area = Object.fromEntries(Object.entries(sources).filter(([path]) => !/\/pages\/Workbench\/SourcePanel[^/]*$/.test(path)));
 
 describe('the problem area', () => {
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('reads the sources of pages/Cases, pages/Workbench (not SourcePanel) and pages/Resources', () => {
     const paths = Object.keys(area);
     expect(paths.filter((path) => path.includes('/pages/Cases/') && !isTestSupport(path)).length).toBeGreaterThan(10);
@@ -161,7 +147,6 @@ describe('the problem area', () => {
     expect(paths.some((path) => /SourcePanel/.test(path))).toBe(false);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('shows no text with the word case or cases', () => {
     expect(scanFiles(area, CASE).map(formatFinding)).toEqual([]);
   });

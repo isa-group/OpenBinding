@@ -182,7 +182,6 @@ describe('Pricing', () => {
     expect(section.getByText(/429/)).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-nav-system-states-dev-only~1]
   describe('link to the states gallery', () => {
     const link = () => screen.queryByRole('link', { name: 'See every state in the gallery' });
 

@@ -256,7 +256,7 @@ async def pg():
     """A migrated, empty PostgreSQL 16 database for the ``tests/test_*_pg.py`` modules, and sessions on it.
 
     Unlike ``db_session`` this one never touches SQLite: without ``TEST_DATABASE_URL`` it skips, with one that
-    is not a PostgreSQL ``test*`` database it fails (see ``tests/_pg_support.py`` and docs/qa/PG_REAL_RUN.md).
+    is not a PostgreSQL ``test*`` database it fails (see ``tests/_pg_support.py``).
     ``db_session`` stays what it was; do not point it at that URL.
     """
     import _pg_support
@@ -270,7 +270,7 @@ def _pg_test_watchdog(request):
     """The ``tests/test_*_pg.py`` modules get the per-test limit that ``tests/concurrency`` has.
 
     A race test that waits for a lock that never comes would otherwise run until the harness times out and
-    loses its output (docs/qa/PG_HARNESS.md). Every other test, and the ones under ``tests/concurrency``
+    loses its output. Every other test, and the ones under ``tests/concurrency``
     (which arm their own), are untouched.
     """
     path = request.node.path

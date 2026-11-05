@@ -19,7 +19,6 @@ interface ProjectSettingsLayoutProps {
 }
 
 /** The frame of the project settings: the project tabs, the title with the person’s role, the sections General and Members, and the content. */
-// [impl->req~frontend-nav-project-tabs~1]
 export function ProjectSettingsLayout({ organization, project, section, children }: ProjectSettingsLayoutProps) {
   const { isAdmin } = useAuth();
   const nav = useRef<HTMLElement>(null);

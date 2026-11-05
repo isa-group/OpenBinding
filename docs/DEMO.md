@@ -44,7 +44,7 @@ passed for PostgreSQL, it is **superseded** by the table above.
   cut-over; fixed by the cut-over change (`9bbc189f`) and re-verified at `c2d46151`.
 - `smoke_lab.py` gives **9/9** steps in 6.0 s at `c2d46151` with `DEMO_SPACE_ENABLED=false`.
 - Playwright against the live lab (the `e2e` service): **30 passed, 0 failed, 0 skipped** at `c2d46151` (summary
-  2026-10-14T13:41:20Z). `docs/qa/E2E_PLAN.md` still has the older wording ("written, not executed"); the run supersedes it.
+  2026-10-14T13:41:20Z).
 - The PostgreSQL 16 concurrency harness gave **70 passed, 0 skipped** at `bef53047` (67 plus 3 plan-concurrency tests;
   migrations up to `b6c7d8e9f0a1`); it runs separately from the lab, see [PG_HARNESS.md](qa/PG_HARNESS.md).
 - **Pending, no evidence yet** (at `c2d46151`; **superseded**: measured at `31b7de6f`, see the current status): the real
@@ -133,7 +133,7 @@ that limits a compromised process. Consequences for the lab:
 - `bim-service` has `cpus: 1.5` and `pids_limit: 256` in addition to `mem_limit`.
   These are plain Compose service attributes; `mem_limit` is unchanged, so the sum
   above is too. The controller's validator accepted them: the container runs with 1.5 CPUs and
-  `pids_limit` 256 (`docs/qa/PROCESS_DEPLOYMENT.md`; 6 pids were counted in the N2 container after its probe at `ce7229b2`).
+  `pids_limit` 256 (6 pids were counted in the N2 container after its probe at `ce7229b2`).
 - **`bim-service` memory (256 MiB, unchanged), thread mode of `compose.lab.json` (the rollback; the demo now runs the
   process profile N1 described in the next item).** Its environment sets
   `BIM_SERVICE_MAX_BODY_BYTES=16777216` (16 MiB, not the 32 MiB default),
@@ -244,8 +244,7 @@ key (the frontend is built with `VITE_API_BASE_URL=/api` only).
   createdAt field must be a string in the format yyyy-mm-dd or a valid Date
   object"), so SPACE has no service and no contracts. Until that is resolved,
   `/v1/users/me`, job launches, etc. answer `503 pricing_unavailable` (the
-  intended fail-closed behaviour). See `docs/qa/REMOTE_TOOLS.md`, "First real
-  application".
+  intended fail-closed behaviour).
 
 Observed remotely on 2026-10-13:
 
@@ -294,13 +293,11 @@ gateway now refuses this flag (and `FEDERATION_REQUIRE_HTTPS=false`) when
 The controller tools that exist for the lab (named here; their arguments are those of the tool descriptions, which this
 document does not copy): `lab_compose` with `validate`, `up`, `seed`, `down`, `status`, `metrics`, `logs`, `cleanup`, `archive`
 and `result`; `lab_report`; `lab_screenshot` (lists and returns the PNG/JPEG/WebP images of the `lab-e2e` volume, for instance
-`screenshots/_summary.png`, see `docs/qa/E2E_PLAN.md`); `anonymous_http` (`GET` and `HEAD` to the official SPHERE origin, see
-`docs/qa/SPHERE_PRIVACY.md`); and `archive_worktrees`. `metrics` gives the memory figures, `oom_kill` and the number of pids
-that `docs/qa/PROCESS_DEPLOYMENT.md` quotes.
+`screenshots/_summary.png`); `anonymous_http` (`GET` and `HEAD` to the official SPHERE origin); and `archive_worktrees`. `metrics` gives the memory figures, `oom_kill` and the number of pids.
 
 **The `environment` argument of `lab_compose` is a PATCH (merge) over the stored variables.** Omitted or `{}` keeps all of them,
 only the keys sent explicitly are replaced, and `validate` uses the same semantics. (Before, an `environment` replaced the whole
-stored set and a partial one lost the other variables; that was the cause of the incident in `docs/qa/PG_ROLE_RESET.md`, and it is
+stored set and a partial one lost the other variables; that caused a PostgreSQL role reset incident, and it is
 no longer the behaviour.) What `seed` does with the saved environment is described in step 3 below (that text predates this
 change and was not re-verified).
 
@@ -363,7 +360,7 @@ with `frontend/playwright.live.config.ts`:
   `screenshots/<desktop|mobile>-<screen>.png`, `visual-qa-*.json` and
   `test-output/` (traces of failures). **The controller cannot open volumes**, so
   `report.json`, the traces and the other files are not readable: `logs e2e` is, and so are the images of the volume through
-  `lab_screenshot` (for instance `screenshots/_summary.png`, the summary image that `run.sh` renders; `docs/qa/E2E_PLAN.md`).
+  `lab_screenshot` (for instance `screenshots/_summary.png`, the summary image that `run.sh` renders).
 
 Exact sequence with `lab_compose`:
 
@@ -435,7 +432,7 @@ Data: organizations `lab-main` (sponsor `lab-owner`) and `lab-other`; project
 `seed_lab.py --verbose`: 6 users, 2 organizations, 1 project, 1 case with 3
 artifacts and 6 API keys. With `SPACE_ENABLED=true`
 the users also need a contract on the development service
-(`DEMO_SEED_ARGS='--space-contracts'`, see `docs/qa/REMOTE_TOOLS.md`).
+(`DEMO_SEED_ARGS='--space-contracts'`).
 
 ## API smoke
 
@@ -487,8 +484,8 @@ It writes to the lab database only through the API (jobs of `lab-owner` and
 has a job the viewer can read); it never registers users and never touches
 SPACE or SPHERE. Running it again within five minutes finds the login throttle
 already tripped for its probe user, which still counts as a pass. What it does
-not cover (browser, Playwright, the visual mobile/desktop check) and the
-assumptions of its first run are in `docs/qa/E2E_PLAN.md`.
+not cover (browser, Playwright, the visual mobile/desktop check) is
+left to the live Playwright run.
 
 **Run of 2026-10-13, SHA `5aebc7c8` (thread mode, `DEMO_SPACE_ENABLED=false`, without
 `--with-space`): 9/9 steps passed in 24.4 s.** The later run at `b2780381` (process mode N2) also gave 9/9 (duration not
@@ -498,16 +495,14 @@ and was omitted on 2026-10-13 (**not executed**); whether it was run at `b278038
 History: the first complete run passed 8 of 9 steps. The failing one,
 `authorization` ("viewer cannot launch"), had a wrong expectation in the smoke:
 `POST /v1/jobs` is personal work, so a viewer can launch on their own snapshot
-(the expectation was corrected, as described in the table above). Note that this
-backend behaviour is itself under review: see M1 in
-[qa/SECURITY_REVIEW.md](qa/SECURITY_REVIEW.md). An earlier attempt had been
+(the expectation was corrected, as described in the table above). Since then a VIEWER
+may no longer launch work (`test_viewer_read_only.py`). An earlier attempt had been
 blocked by SPACE having no contracts (503 `pricing_unavailable`) and by a job
 body without `optimization` (422, fixed).
 
 ## Mobile and desktop check
 
-The measurable part is automated: `e2e/live/visual-qa.spec.ts` (see above and
-`docs/qa/E2E_PLAN.md`) checks horizontal overflow, console and page errors, 5xx
+The measurable part is automated: `e2e/live/visual-qa.spec.ts` (see above) checks horizontal overflow, console and page errors, 5xx
 answers, the main landmark, touch targets (mobile), clipped text and broken images on
 the main screens at 1280 x 800 and 390 x 844, and takes a screenshot of each. It is part of the live
 Playwright run (30 passed, 0 failed, 0 skipped at `b2780381`; the number of visual findings at that SHA is not restated
@@ -607,31 +602,6 @@ diagnostic guide, not a list of verified results.
    `-Xmx192m -XX:MaxMetaspaceSize=96m` through `JAVA_TOOL_OPTIONS` (the
    evolutionary engine's Dockerfile uses `ENTRYPOINT`, so a `command` override
    would not reach it).
-
-## PR previews
-
-Previews are planned, not running yet. By design (`docs/previews/README.md`) each open PR gets one Compose project
-`openbinding-pr-<n>` on its own loopback port in 18101-18199; 18100 stays the develop lab. They hold synthetic data
-only, expire after 7 idle days and are deleted only through `labctl destroy`.
-
-- `lab/previews/previews.py` (stdlib only, no side effects) is the executable reference of these rules, and
-  `lab/tests/test_previews.py` is its contract.
-- The Compose files are parameterised by `DEMO_LAB_PORT` (see the Variables table); `labctl preview` is not yet in force. Today only the develop lab on `127.0.0.1:18100` runs.
-- Isolation probe: `lab/tests/test_preview_isolation.py` checks on a live Docker host that two preview projects
-  do not reach each other. It needs `OPENBINDING_LAB_PROBE=1`, two project names
-  `OPENBINDING_PROBE_PROJECT_A` and `OPENBINDING_PROBE_PROJECT_B` of the form `openbinding-pr-<n>`, and their ports
-  `OPENBINDING_PROBE_PORT_A` and `OPENBINDING_PROBE_PORT_B` (18101-18199). From preview A it checks that B's port
-  is refused and that A reaches its own `web` (one direction; swap A and B and run again for the other). Until
-  `labctl preview` lands, only two stand-in projects can run the probe. Each needs a
-  `gateway` service with `python` on PATH, a `web` service whose container port 8080 is published on
-  `127.0.0.1:<port>`, and the default network `<project>_default`; both must be up and healthy. (Once real previews
-  exist, stop the develop lab first.) From `openbinding-gateway`:
-
-  ```sh
-  OPENBINDING_LAB_PROBE=1 uv run --locked --extra test pytest -q -rs ../lab/tests/test_preview_isolation.py
-  ```
-
-  With the variable set, a missing lab fails the test instead of skipping it.
 
 ## Known limits
 

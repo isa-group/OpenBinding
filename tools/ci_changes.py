@@ -2,7 +2,7 @@
 """Decide which CI areas a pull request touches, from the file list of `git diff` (no network).
 
 Every doubt runs the area: an event other than pull_request, an unreadable or empty diff, a path no rule knows, or a
-change to the CI definition itself sets all areas to true. [impl->req~ci-speed-change-detection~1]
+change to the CI definition itself sets all areas to true.
 """
 
 from __future__ import annotations
@@ -17,17 +17,14 @@ import sys
 AREAS = ("e2e", "bim", "engines", "gateway")
 NONE: frozenset[str] = frozenset()
 GATEWAY = frozenset({"gateway"})
-CHANGELOG = "frontend/src/content/changelog.generated.json"
 CI_WORKFLOW = ".github/workflows/ci.yml"
 # The gateway tests read these directories (grep of `REPO_ROOT / "..."`), so a change there runs the gateway area.
-GATEWAY_DIRS = ("lab/", "docs/", ".github/", ".agentic/", "deploy/", "space/", "pricings/", "acceptance/")
+GATEWAY_DIRS = ("lab/", "docs/", ".github/", "deploy/", "space/", "pricings/", "acceptance/")
 GATEWAY_ROOT_FILES = ("compose*.json", "docker-compose*.yml", "*.dockerignore", ".gitignore", ".env.example")
-# Root Markdown files no test reads; any other root *.md (README.md, INTENT.md, NOTICE.md ...) is read.
-UNREAD_ROOT_MARKDOWN = {"AGENTS.md", "CLAUDE.md", "CONTRIBUTING.md", "REVIEW.md", "ROADMAP.md", "SECURITY.md", "TESTING.md"}
+# Root Markdown files no test reads; any other root *.md (README.md, NOTICE.md ...) is read.
+UNREAD_ROOT_MARKDOWN = {"CONTRIBUTING.md", "SECURITY.md", "TESTING.md"}
 BIM_ROOT_FILES = ("LICENSE", "THIRD_PARTY_NOTICES.md")
 GATEWAY_VENDOR_BPMN = "openbinding-gateway/src/openbinding_gateway/v1/vendor/omg/bpmn/"
-# A gateway test reads this one file of openspec/, so only it counts there.
-OPENSPEC_READ = "openspec/changes/m09-compose-only/"
 REVISION = re.compile(r"[0-9a-fA-F]{7,64}")
 
 
@@ -36,10 +33,8 @@ def classify(path: str) -> frozenset[str] | None:
     # The bim-core boundary test compares these two root files with their bim-toolchain copies (corpus root = repository).
     if path in BIM_ROOT_FILES:
         return frozenset({"bim", "gateway"})
-    if path == CHANGELOG or path.startswith(("docs/agent-work/", "acceptance/ui/")):
+    if path.startswith("acceptance/ui/"):
         return NONE
-    if path.startswith("openspec/"):
-        return GATEWAY if path.startswith(OPENSPEC_READ) else NONE
     if path.startswith("frontend/"):
         if path.endswith(".md"):
             return NONE

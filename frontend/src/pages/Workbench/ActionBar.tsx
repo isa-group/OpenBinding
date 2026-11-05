@@ -21,7 +21,6 @@ interface ActionBarProps {
 }
 
 /** What a valid package can become: a snapshot, a run, or a version of a problem. Shown only once the gateway has accepted the package. */
-// [impl->req~frontend-nav-vocabulary-text~1]
 export function ActionBar({ wb, canSave, cases, target, onTarget, revisions, revisionsReady, root }: ActionBarProps) {
   if (wb.status !== 'valid') return null;
   const targetCase = cases.find((item) => item.slug === target);

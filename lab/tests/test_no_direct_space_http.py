@@ -29,10 +29,10 @@ TEST_TREES = ("lab/tests/", "openbinding-gateway/tests/", "openbinding-gateway/t
               "frontend/tests/", "frontend/src/test/")
 # test_*.py, *.test.ts and *.spec.ts; the .tsx/.js/.mjs/.cjs variants of the same naming are covered on purpose.
 TEST_NAME = re.compile(r"(^test_.*\.py$|\.(test|spec)\.[cm]?[jt]sx?$)")
-# The plans path is allowed by the brief and constitution 16.6 although the module does not exist yet.  ADR 0022 limits
+# The plans path is allowed although the module does not exist yet.  The bootstrap exception limits
 # the raw-HTTP exception to lab/tools; the plans module is meant to use space-python-client, not raw HTTP.
 ALLOWED_PREFIXES = ("lab/tools/", "openbinding-gateway/src/openbinding_gateway/plans/")
-# The only file under lab/tools that may be a direct caller (ADR 0022); a new one needs a deliberate edit here and in
+# The only file under lab/tools that may be a direct caller; a new one needs a deliberate edit here and in
 # the ADR.
 LAB_TOOLS_DIRECT_CALLERS = {"lab/tools/space_lab_bootstrap.py"}
 
@@ -81,7 +81,7 @@ KNOWN_DEVIATIONS = {
         "development probe: SpaceRemote uses httpx for services and pricings, SphereRemote calls SPHERE directly; "
         "remote_probe.py, remote_provision.py and seed_lab.py reach SPACE only through it (httpx there is for types)",
     "openbinding-gateway/src/openbinding_gateway/sphere_client.py":
-        "the gateway's home-made SPHERE client (httpx with x-api-key), removed later by ADR-0015 section 7",
+        "the gateway's home-made SPHERE client (httpx with x-api-key), removed later",
 }
 
 
@@ -133,7 +133,6 @@ def outside_allowed() -> set[str]:
 
 
 def test_no_direct_http_to_space_or_sphere_outside_the_allowed_paths():
-    # [utest->req~lab-space-no-direct-http~1]
     unexpected = sorted(outside_allowed() - set(KNOWN_DEVIATIONS))
     assert not unexpected, (
         f"direct HTTP to SPACE or SPHERE outside lab/tools and the plans module: {unexpected}; "
@@ -142,7 +141,6 @@ def test_no_direct_http_to_space_or_sphere_outside_the_allowed_paths():
 
 
 def test_known_deviations_are_pinned_and_still_needed():
-    # [utest->req~lab-space-no-direct-http~1]
     assert all(reason.strip() and "*" not in path for path, reason in KNOWN_DEVIATIONS.items())
     for path in KNOWN_DEVIATIONS:
         assert not is_allowed(path), f"{path} is in an allowed path: remove it from KNOWN_DEVIATIONS"
@@ -152,12 +150,6 @@ def test_known_deviations_are_pinned_and_still_needed():
             f"{path} no longer calls SPACE or SPHERE directly: remove it from KNOWN_DEVIATIONS"
         )
     assert outside_allowed() == set(KNOWN_DEVIATIONS)
-
-
-def test_the_lab_tools_exception_is_recorded_in_the_adr():
-    # [utest->req~lab-space-no-direct-http~1]
-    adr = ROOT / "docs" / "adr" / "0022-lab-bootstrap-exception-to-constitution-16-1.md"
-    assert adr.is_file() and "lab/tools" in adr.read_text(encoding="utf-8")
 
 
 # -- controls: the detector on in-memory samples ---------------------------------------------------------------------
@@ -170,7 +162,6 @@ async def services(space_url: str):
 
 
 def test_control_detects_a_direct_call():
-    # [utest->req~lab-space-no-direct-http~1]
     assert is_direct_caller(DIRECT)
     gateway = "openbinding-gateway/src/openbinding_gateway/new_module.py"
     assert is_direct_caller(DIRECT) and not is_allowed(gateway)
@@ -195,7 +186,6 @@ def test_control_detects_a_direct_call():
 
 
 def test_control_detects_more_clients_and_aliases():
-    # [utest->req~lab-space-no-direct-http~1]
     samples = {
         "httpx alias": "import httpx as h\nh.get(f'{SPACE_URL}/api/v1/services')",
         "from httpx import name": "from httpx import AsyncClient\nSPACE_URL = 'x'",
@@ -232,7 +222,6 @@ def test_control_detects_more_clients_and_aliases():
 
 
 def test_control_scans_mts_and_cts_and_prunes_skipped_directories(tmp_path):
-    # [utest->req~lab-space-no-direct-http~1]
     assert {".mts", ".cts"} <= SOURCE_SUFFIXES
     files = {
         "web/a.mts": "await window.fetch(`${spaceUrl}/api/v1/services`)",
@@ -251,7 +240,6 @@ def test_control_scans_mts_and_cts_and_prunes_skipped_directories(tmp_path):
 
 
 def test_control_skips_tests_and_mocks():
-    # [utest->req~lab-space-no-direct-http~1]
     for rel in ("lab/tests/test_x.py", "frontend/e2e/mock.ts", "frontend/src/a.test.ts", "frontend/src/a.spec.tsx",
                 "openbinding-gateway/tests/conftest.py", "openbinding-gateway/tests/helpers.py",
                 "openbinding-gateway/tools/tests/fakes.py", "frontend/e2e/live/support.ts",
@@ -270,14 +258,12 @@ def test_control_skips_tests_and_mocks():
 
 
 def test_lab_tools_has_only_the_bootstrap_as_a_direct_caller():
-    # [utest->req~lab-space-no-direct-http~1]
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
-    # ADR 0022 limits the raw-HTTP exception to the bootstrap; a new raw-HTTP file in lab/tools needs a deliberate
+    # The raw-HTTP exception is limited to the bootstrap; a new raw-HTTP file in lab/tools needs a deliberate
     # edit of LAB_TOOLS_DIRECT_CALLERS and of the ADR.
     in_tools = {rel for rel in detected() if rel.startswith("lab/tools/")}
     assert in_tools == LAB_TOOLS_DIRECT_CALLERS, (
         f"direct SPACE/SPHERE callers under lab/tools: {sorted(in_tools)}; expected {sorted(LAB_TOOLS_DIRECT_CALLERS)}; "
-        "update this test and ADR 0022 deliberately"
+        "update this test deliberately"
     )
     # control: the same comparison on an in-memory tree catches a second raw-HTTP file and ignores a types-only one
     sample = {

@@ -17,7 +17,6 @@ permissions:
   contents: read
 
 jobs:
-  # [impl->req~ci-speed-change-detection~1]
   # Decides which areas a pull request touches; a push or manual run reports every area as changed.
   changes:
     runs-on: ubuntu-latest
@@ -42,10 +41,9 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: python3 tools/ci_changes.py --base "$BASE_SHA" --head "$HEAD_SHA" --event "$EVENT"
 
-  # [impl->req~ci-speed-required-aggregate~1]
   # The one check to require in branch protection: a skipped area passes, a failed or cancelled job does not.
   ci-required:
-    needs: [changes, bim-corpus, bim-toolchain, lab, openspec, trace, engines, gateway-unit, test, frontend, frontend-e2e]
+    needs: [changes, bim-corpus, bim-toolchain, lab, engines, gateway-unit, test, frontend, frontend-e2e]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -216,80 +214,17 @@ jobs:
           OPENBINDING_COMPOSE_CONFIG: "1"
         run: openbinding-gateway/.venv/bin/python -m pytest lab/tests -q
 
-      # Gate G4 runner. It exits 0 while acceptance/api holds no test. It runs after a failing lab test too.
+      # Acceptance runner. It exits 0 while acceptance/api holds no test. It runs after a failing lab test too.
       - name: Run the API acceptance tests
         if: ${{ !cancelled() }}
         run: openbinding-gateway/.venv/bin/python -m pytest -c acceptance/api/pytest.ini acceptance/api
 
-      # Gate G9. Report-only: a broken contract is logged and does not fail the job.
+      # Import contracts. Report-only: a broken contract is logged and does not fail the job.
       - name: Check import contracts (report-only)
         if: ${{ !cancelled() }}
         continue-on-error: true
         working-directory: openbinding-gateway
         run: uv run --locked --extra test --group lint lint-imports --config .importlinter
-
-  # Gate G1 tooling. Report-only: the validate step may fail until a run into
-  # develop exits 0. A broken install or version step still fails the job.
-  openspec:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install OpenSpec 1.14.3
-        run: npm install --global @fission-ai/openspec@1.14.3
-
-      - name: Print the OpenSpec version
-        run: openspec --version
-
-      - name: Validate the specs and changes (report-only)
-        continue-on-error: true
-        run: openspec validate --strict --all
-
-  # Gate G6 tooling. OpenFastTrace is downloaded at an exact version and
-  # verified; only the trace itself is report-only.
-  trace:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Download OpenFastTrace 4.11.0
-        run: |
-          mkdir -p "$RUNNER_TEMP/oft"
-          curl --fail --location --silent --show-error --proto '=https' --proto-redir '=https' --retry 3 --output "$RUNNER_TEMP/oft/openfasttrace-4.11.0.jar" \
-            https://github.com/itsallcode/openfasttrace/releases/download/4.11.0/openfasttrace-4.11.0.jar
-
-      - name: Verify the OpenFastTrace checksum
-        run: echo "f094cd314f0fc4236f513f66fb39260a16f72e2320beb6b4fdeb7940b9b8cf87  $RUNNER_TEMP/oft/openfasttrace-4.11.0.jar" | sha256sum -c -
-
-      - name: Trace requirements (report-only)
-        continue-on-error: true
-        run: |
-          paths=()
-          for path in openspec/specs openbinding-gateway/src openbinding-gateway/tests engines frontend/src acceptance; do
-            if [ -e "$path" ]; then paths+=("$path"); else echo "skipped (absent): $path"; fi
-          done
-          java -jar "$RUNNER_TEMP/oft/openfasttrace-4.11.0.jar" trace -o plain "${paths[@]}"
 
   # The engines' own tests. They were never run here, which is how a MiniZinc
   # builder that could not solve a single repeat workflow, and a Java unit test
@@ -329,7 +264,6 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm test
 
-  # [impl->req~ci-speed-gateway-unit-shards~1]
   # Runs what `test` ran in the gateway image (pytest in openbinding-gateway, marker
   # 'not integration'), natively, in two shards.
   gateway-unit:
@@ -497,22 +431,15 @@ jobs:
         working-directory: frontend
         run: pnpm build
 
-      # The changelog JSON is regenerated on the PR branch by a final chore(changelog) commit, so it can
-      # never contain the squash title that lands on develop; a push run would always be stale.
-      - name: Check generated changelog
-        if: github.event_name == 'pull_request'
-        run: python3 tools/generate_changelog.py --check
-
       - name: Install Playwright Chromium
         working-directory: frontend
         run: pnpm exec playwright install --with-deps chromium
 
-      # Gate G4 runner. It exits 0 while acceptance/ui holds no spec.
+      # Acceptance runner. It exits 0 while acceptance/ui holds no spec.
       - name: Run the UI acceptance tests
         working-directory: frontend
         run: pnpm exec playwright test --config playwright.acceptance.config.ts --pass-with-no-tests
 
-  # [impl->req~ci-speed-e2e-shards~1]
   # The mocked Playwright project in three shards, run only when the e2e area changed.
   frontend-e2e:
     needs: changes

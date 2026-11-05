@@ -97,7 +97,6 @@ describe('moved addresses', () => {
     vi.clearAllMocks();
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it('redirects a public address while signed out, inside the public layout, with the query', async () => {
     renderAt(['/old-about?ref=mail'], null);
 
@@ -107,7 +106,6 @@ describe('moved addresses', () => {
     expect(screen.queryByRole('navigation', { name: 'Main' })).toBeNull();
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it('redirects an application address inside the application layout, carrying the params and the query', async () => {
     renderAt(['/app/acme/atlas/old-home?tab=files&x=1']);
 
@@ -116,7 +114,6 @@ describe('moved addresses', () => {
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it('drops the query when the entry says so', async () => {
     renderAt(['/app/acme/atlas/old-bare?tab=files']);
 
@@ -124,7 +121,6 @@ describe('moved addresses', () => {
     await showing(screenAt('/app/acme'));
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it('redirects a permanent entry like any other: the flag is only for the link check', async () => {
     renderAt(['/app/acme/atlas/old-kept']);
 
@@ -133,7 +129,6 @@ describe('moved addresses', () => {
     expect(TABLE[3].permanent).toBe(true);
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it('asks a visitor without a session to sign in before an application address moves, remembering the target', async () => {
     renderAt(['/app/acme/atlas/old-home?x=1'], null);
 
@@ -142,7 +137,6 @@ describe('moved addresses', () => {
     expect(screen.getByTestId('from').textContent).toBe('/app/acme?x=1');
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it('replaces the old address in the history, so Back does not return to it', async () => {
     renderAt(['/start', '/old-about']);
 
@@ -151,7 +145,6 @@ describe('moved addresses', () => {
     expect(where()).toBe('/start');
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it('serves the not-found page for the old address when the table is empty', async () => {
     render(
       <MemoryRouter initialEntries={['/old-about']}>
@@ -174,7 +167,6 @@ describe('the hash of a moved address', () => {
     vi.clearAllMocks();
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it.each([
     ['/old-about?ref=mail#top', null, `${PUBLIC}?ref=mail`, '#top'],
     ['/old-about#top', null, PUBLIC, '#top'],
@@ -196,7 +188,6 @@ describe('moved addresses without a session', () => {
     vi.clearAllMocks();
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it.each([
     // [old address, where the visitor ends, the hash there, the state.from there]
     ['/app/old?digest=D#h', '/public-target?digest=D', '#h', ''],
@@ -212,7 +203,6 @@ describe('moved addresses without a session', () => {
     expect(screen.getByTestId('from').textContent).toBe(from);
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it('sends an old application address whose target is public to the target, never to /login first', async () => {
     const seen: string[] = [];
     function Spy() {
@@ -237,7 +227,6 @@ describe('moved addresses without a session', () => {
     expect(seen.some((entry) => entry.startsWith('/login'))).toBe(false);
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it('ends at /login when the target of the moved address is an application screen', async () => {
     renderAt(['/app/acme/atlas/old-home'], null);
 
@@ -251,7 +240,6 @@ describe('the rank of a moved address', () => {
     vi.clearAllMocks();
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it('lets a screen win a tie of rank over a moved entry, in either layout', async () => {
     const table = [moved('t-tie-app', appScreen.path, PUBLIC), moved('t-tie-public', PUBLIC, appScreen.path)];
 
@@ -265,7 +253,6 @@ describe('the rank of a moved address', () => {
     expect(where()).toBe(PUBLIC);
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it('lets a static moved path beat a screen with :param segments', async () => {
     const address = '/app/zz-old-org/zz-old-thing';
     expect(screenAt(address)).not.toBeNull();

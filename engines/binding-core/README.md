@@ -41,9 +41,7 @@ changes an engine that does not enable it.
 
 An engine implements `EngineHttp.Engine` (`prepare(payload)` validates the whole
 request and returns the work, so an invalid request is a `422` before a job
-exists) and calls `EngineHttp.install(...)` from its `Server`. The protocol, the
-guarantees and the failure modes are in
-[`docs/qa/ENGINE_CANCELLATION_JAVA.md`](../../docs/qa/ENGINE_CANCELLATION_JAVA.md).
+exists) and calls `EngineHttp.install(...)` from its `Server`.
 `bim-engine/v1` has no `DELETE`: cancellation is an optional extension advertised
 as `extensions.cancellation = {supported: true, idScope: "attempt"}`.
 

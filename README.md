@@ -7,8 +7,7 @@ versioned, citable binding problems, a **collaborative analysis** platform and a
 written in **BIM v1**, the Binding Instance Model, an extensible language whose
 profiles and dialects compile every problem to one canonical IR; the gateway
 re-evaluates every engine answer so results are comparable and verifiable by
-digest. Vision and scope: [`INTENT.md`](INTENT.md); target architecture:
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); plan: [`ROADMAP.md`](ROADMAP.md).
+digest. Target architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 Its layers stay deliberately separate:
 
@@ -19,8 +18,8 @@ Its layers stay deliberately separate:
 - OpenBinding's own pricing lives in SPHERE and is operated by SPACE, which
   follows SPHERE's permanent link. OpenBinding talks to SPACE only through its
   official clients (`space-python-client`, `space-react-client`), reads SPHERE
-  only through its public API and renders pricings with `pricing-renderer`
-  (ADR-0015). It has no pricing editor or contract console of its own.
+  only through its public API and renders pricings with `pricing-renderer`.
+  It has no pricing editor or contract console of its own.
 - Nothing is metered or charged: there are no credits or compute units, and the
   only execution limit that is not a plan entitlement is a technical
   per-account concurrency cap (`MAX_CONCURRENT_JOBS_PER_USER`, answered with
@@ -31,14 +30,13 @@ Its layers stay deliberately separate:
 
 For the layers of the gateway today and the BIM/platform boundary, see
 [`docs/architecture/gateway-as-is.md`](docs/architecture/gateway-as-is.md); for the guarantees of job
-submission and execution, [`docs/IDEMPOTENCY.md`](docs/IDEMPOTENCY.md); for the
-current state of the work, [`docs/qa/JOINT_STATUS.md`](docs/qa/JOINT_STATUS.md).
+submission and execution, [`docs/IDEMPOTENCY.md`](docs/IDEMPOTENCY.md).
 
 See the [interactive BIM v1 architecture map](docs/diagrams/bim-v1-architecture.html) for the package, compilation, and engine boundaries.
 
-## Project governance
+## Contributing
 
-Agents and contributors start at [`AGENTS.md`](AGENTS.md). Purpose and rules: [`INTENT.md`](INTENT.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`ROADMAP.md`](ROADMAP.md), [`constitution.md`](constitution.md), [`REVIEW.md`](REVIEW.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), [`TESTING.md`](TESTING.md), [`SECURITY.md`](SECURITY.md), [Definition of Done](docs/DEFINITION_OF_DONE.md); living specs in [`openspec/`](openspec/project.md); decisions in [`docs/adr/`](docs/adr/0001-record-architecture-decisions.md).
+See [`CONTRIBUTING.md`](CONTRIBUTING.md), [`TESTING.md`](TESTING.md) and [`SECURITY.md`](SECURITY.md).
 
 ## BIM v1 at a glance
 
@@ -133,7 +131,7 @@ the gateway, the job worker, the four bundled Engines, the frontend and
 nginx. With `APP_ENV=prod` the gateway refuses to start unless
 `CORS_ALLOW_ORIGINS` names exact origins. Whether the stack, SPACE and SPHERE
 work together end to end against the real remote services has not been
-exercised yet; see [`docs/qa/JOINT_STATUS.md`](docs/qa/JOINT_STATUS.md).
+exercised yet.
 
 **Development scope.** The development pricing and the development service
 registered in SPACE are private and distinct from the production ones, but

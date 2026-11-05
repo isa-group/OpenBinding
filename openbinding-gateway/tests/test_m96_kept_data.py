@@ -250,10 +250,6 @@ def rows_exist(database: Path, ids: dict) -> dict[str, bool]:
         }
 
 
-# [utest->req~data-retirement-sealed-ir-unchanged~1]
-# [utest->req~data-retirement-publications-answer~1]
-# [utest->req~data-retirement-kept-set~1]
-# [utest->req~collaboration-artifacts-resources-read-only~1]
 async def test_sealed_and_published_data_answer_the_same_after_the_upgrade(tmp_path, monkeypatch, registration):
     monkeypatch.setenv("ARTIFACT_ROOT", str(tmp_path / "artifacts"))
     get_settings.cache_clear()

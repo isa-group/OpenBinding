@@ -1,4 +1,4 @@
-"""B5 (``docs/qa/analysis/BIM_B5_B8_M4_IR.md``): the per-tenant share of ``bim-service`` is keyed by identity.
+"""B5: the per-tenant share of ``bim-service`` is keyed by identity.
 
 The tenant is the one bound to the token that authenticated the request (``bim_service.auth``); ``X-BIM-Tenant`` is
 what the caller claims and decides nothing.  The first part pins what held before and still holds (the global ceiling,

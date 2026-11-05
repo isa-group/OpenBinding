@@ -10,7 +10,7 @@ import { followMoved } from './followMoved';
 import { AppRoutes } from './index';
 import { movedRoutes, routeDefinitions } from './registry';
 
-// M2.4 slice 1 (ADR-0020): the decision-space workspace is retired. Its addresses redirect to the run history or to the study run.
+// The decision-space workspace is retired. Its addresses redirect to the run history or to the study run.
 //
 // The tests name the retired ids and files, and the addresses the redirects lead to. They name no screen of a live area: a screen is
 // found by the address it ends on, and an address that a later change moves on is followed through the moved routes (followMoved).
@@ -106,7 +106,6 @@ describe('the retired decision-space workspace', () => {
     expect(Object.keys(import.meta.glob('../pages/Analysis/**'))).toEqual([]);
   });
 
-  // [utest->req~frontend-nav-vocabulary-urls~1]
   it('sends the old addresses to the run history', async () => {
     await endsAt('/app/analysis', '/app/runs');
     await endsAt('/app/analysis/workspace?job=j1', '/app/runs');
@@ -137,7 +136,6 @@ describe('the retired decision-space workspace', () => {
 describe('the retired report editor', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  // [utest->req~frontend-retire-reports-screens-not-routed~1]
   it('is gone from the route registry', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('rep-list');
@@ -145,7 +143,6 @@ describe('the retired report editor', () => {
     expect(routeDefinitions.map((definition) => definition.path).filter((path) => /\/reports(\/|$)/.test(path))).toEqual([]);
   });
 
-  // [utest->req~frontend-retire-reports-screens-not-routed~1]
   it('has no screen files left', () => {
     const files = Object.keys(import.meta.glob(['../pages/Reports/RepList.tsx', '../pages/Reports/RepDetail.tsx', '../pages/Reports/SavedDecision.tsx']));
     expect(files).toEqual([]);
@@ -155,8 +152,6 @@ describe('the retired report editor', () => {
   // superseded by m26-navigation (design.md section 7): the Verify page and the Published tab replace those screens. Its tests are
   // no longer here; each area test (areas/project.test.ts, areas/verify.test.ts) holds what its own screens need.
 
-  // [utest->req~frontend-retire-reports-redirect~1]
-  // [utest->req~frontend-nav-project-tabs~1]
   it('sends the report list and a report to the published results of their project', async () => {
     await endsAt('/app/acme/atlas/reports', '/app/acme/atlas/published');
     await endsAt('/app/acme/atlas/reports/engines-vs-seeds-informe', '/app/acme/atlas/published');
@@ -169,7 +164,6 @@ describe('the retired report editor', () => {
 describe('the retired library catalogue and project resources', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  // [utest->req~frontend-retire-library-screens-not-routed~1]
   it('is gone from the route registry', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     for (const id of ['lib-list', 'lib-artifact', 'lib-draft', 'lib-version', 'proj-library', 'proj-resources', 'proj-resource-detail']) {
@@ -177,7 +171,6 @@ describe('the retired library catalogue and project resources', () => {
     }
   });
 
-  // [utest->req~frontend-retire-library-screens-not-routed~1]
   it('has no screen files left', () => {
     const files = Object.keys(import.meta.glob([
       '../pages/Library/LibList.tsx', '../pages/Library/LibArtifact.tsx', '../pages/Library/LibDraft.tsx', '../pages/Library/LibVersion.tsx',
@@ -186,7 +179,6 @@ describe('the retired library catalogue and project resources', () => {
     expect(files).toEqual([]);
   });
 
-  // [utest->req~frontend-retire-library-redirect~1]
   it('sends the library of an organization, an artifact, a draft and a version to the organization overview', async () => {
     await endsAt('/app/acme/library', '/app/acme');
     await endsAt('/app/acme/library/a1?tab=x#top', '/app/acme');
@@ -195,7 +187,6 @@ describe('the retired library catalogue and project resources', () => {
     await endsAt('/app/a%2Fb/library/a1/versions/v%231', '/app/a%2Fb');
   });
 
-  // [utest->req~frontend-retire-library-redirect~1]
   it('sends the project library and the project resources to the collections of the project', async () => {
     await endsAt('/app/acme/atlas/library', '/app/acme/atlas/collections');
     await endsAt('/app/acme/atlas/resources', '/app/acme/atlas/collections');
@@ -203,14 +194,12 @@ describe('the retired library catalogue and project resources', () => {
     await endsAt('/app/a%2Fb/my%20proj/resources/r%2F1', '/app/a%2Fb/my%20proj/collections');
   });
 
-  // [utest->req~frontend-retire-library-redirect~1]
   it('sends /app/<org>/library/reports and /app/<org>/library/library to the organization overview, not to a project', async () => {
     await endsAt('/app/o/library/reports', '/app/o');
     await endsAt('/app/o/library/library', '/app/o');
     await endsAt('/app/o/library/resources', '/app/o');
   });
 
-  // [utest->req~frontend-retire-library-redirect~1]
   it('leaves a project called library the screens of its sections, which win the tie with the retired library artifact', async () => {
     // Not `/app/acme`, where the retired library artifact would send it: the address stays (or moves on with its section).
     const address = '/app/acme/library/collections';
@@ -228,18 +217,15 @@ describe('the retired library catalogue and project resources', () => {
 describe('the retired composer', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  // [utest->req~frontend-retire-composer-screen-not-routed~1]
   it('is gone from the route registry', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('case-composer');
   });
 
-  // [utest->req~frontend-retire-composer-screen-not-routed~1]
   it('has no screen file left', () => {
     expect(Object.keys(import.meta.glob('../pages/Cases/CaseComposer*'))).toEqual([]);
   });
 
-  // [utest->req~frontend-retire-composer-redirect~1]
   it('sends the composer to the workbench of the project with the case', async () => {
     const view = renderAt('/app/acme/atlas/cases/flujo/compose?case=other#top');
     const want = new URL(settled('/app/acme/atlas/workbench?case=flujo'), 'http://localhost');
@@ -250,8 +236,6 @@ describe('the retired composer', () => {
     view.unmount();
   });
 
-  // [utest->req~frontend-retire-composer-redirect~1]
-  // [utest->req~frontend-nav-problem-page~1]
   it.each([
     ['/app/acme/atlas/cases/flujo/compare?from=1&to=3', '/app/acme/atlas/problems/flujo/versions', '?from=1&to=3'],
     ['/app/acme/atlas/cases/flujo/revisions/2?x=1', '/app/acme/atlas/problems/flujo', '?version=2'],
@@ -269,24 +253,20 @@ describe('the retired composer', () => {
 describe('the retired sponsorship screen', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  // [utest->req~frontend-retire-sponsorship-screen-not-routed~1]
   it('is gone from the route registry', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('admin-sponsor');
   });
 
-  // [utest->req~frontend-retire-sponsorship-screen-not-routed~1]
   it('has no screen file left', () => {
     expect(Object.keys(import.meta.glob('../pages/Admin/AdminSponsor*'))).toEqual([]);
   });
 
-  // [utest->req~frontend-retire-sponsorship-redirect~1]
   it('sends an administrator to the administration overview, whatever the organization, the query and the hash', async () => {
     await endsAt('/app/admin/organizations/isa-demo/sponsor?tab=requests#limits', '/app/admin', true);
     await endsAt('/app/admin/organizations/isa%20demo/sponsor', '/app/admin', true);
   });
 
-  // [utest->req~frontend-retire-sponsorship-redirect~1]
   it('sends a person without the administrator role on to the account', async () => {
     await endsAt('/app/admin/organizations/isa-demo/sponsor', '/app/account');
   });

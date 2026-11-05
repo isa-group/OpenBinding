@@ -8,7 +8,6 @@ import { LanguageNav } from './languageSections';
 import { Profiles } from './Profiles';
 import './LanguageHub.css';
 
-// [impl->req~frontend-nav-language-hub~1]
 
 type Section = 'profiles' | 'schemas' | 'extensions';
 

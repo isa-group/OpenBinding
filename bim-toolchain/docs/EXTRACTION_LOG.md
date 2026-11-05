@@ -404,16 +404,16 @@ written; it is not a claim that the item is false. This section re-ran no check.
 | `bim-service` `cpus` / `pids_limit` | Cerrado (declarado) | `compose.lab.json`, service `bim-service`: `mem_limit` 256m, `cpus` 1.5, `pids_limit` 256 |
 | Gateway runs as UID 10001; Dockerfile stages `base` / `test` / `production`; uv pinned to 0.8.22 | Cerrado | `openbinding-gateway/Dockerfile` (`FROM python:3.11-slim AS base`, `FROM base AS test`, `FROM base AS production`, `COPY --from=ghcr.io/astral-sh/uv:0.8.22`, `USER 10001:10001`) |
 | `bim-service` image has been built and run | Sin verificar | no build record found; the header of `bim-toolchain/packages/bim-service/Dockerfile` still says "NOT BUILT" |
-| Effect of `cpus` / `pids_limit` under load, container memory (cgroup) limit, OOM behaviour | Pendiente | `docs/qa/BIM_LOAD.md`, "NOT measured" |
+| Effect of `cpus` / `pids_limit` under load, container memory (cgroup) limit, OOM behaviour | Pendiente | not measured |
 | Generic 500 with `correlationId`; hostile inputs answered 4xx | Sin verificar | the described behaviour is not in the files read for this section (no citation); check `bim-toolchain/packages/bim-service/tests/` before relying on it |
-| Rotation, saturation and bounded-memory tests (tokens, slots, body limit) | Cerrado (en proceso, ASGI) | `docs/qa/BIM_LOAD.md`; `bim-toolchain/packages/bim-service/tests/test_rotation_and_saturation.py` (20 tests). Memory is measured with `tracemalloc`; no real load test, no uvicorn, no cgroup |
+| Rotation, saturation and bounded-memory tests (tokens, slots, body limit) | Cerrado (en proceso, ASGI) | `bim-toolchain/packages/bim-service/tests/test_rotation_and_saturation.py` (20 tests). Memory is measured with `tracemalloc`; no real load test, no uvicorn, no cgroup |
 | Per-tenant share keyed by token identity (B5) | Cerrado | `bim-toolchain/CHANGELOG.md`, [Unreleased] / Changed, "Contract change, `bim-service`: the per-tenant concurrency share is keyed by the authenticated identity" |
 | Request body decoded and validated in the bounded worker pool (B8-1) | Cerrado | `bim-toolchain/CHANGELOG.md`, [Unreleased] / Changed |
 | Optional switch interval and memory budget (B8-2, off by default) | Cerrado | `bim-toolchain/CHANGELOG.md`, [Unreleased] / Added; `docs/SERVICE.md` "Memory budget" |
 | Process mode (B8-3) | Pendiente | `bim-toolchain/packages/bim-service/tests/analysis/test_analysis_b8_probe.py` ("Only processes (B8-3) close this"); the GIL stall in thread mode stays a strict `xfail` (`CHANGELOG.md`) |
-| RSS measurement inside the container (B8-0) | Pendiente | `docs/qa/BIM_LOAD.md` ("RSS ... was not used", "No real container memory"); `test_analysis_b8_memory.py` uses `tracemalloc` only |
+| RSS measurement inside the container (B8-0) | Pendiente | `test_analysis_b8_memory.py` uses `tracemalloc` only |
 | Raw ZIP equals the directory | Cerrado, 82/82 | `bim-toolchain/packages/bim-core/tests/test_zip_dir_equivalence_corpus.py` (`test_the_raw_zip_is_the_directory`, `EXPECTED_PACKAGES = 82`) |
-| Canonical ZIP (`to_zip()`) differs from the directory | Cerrado en 0.2.0: 82/82 equal (was 64 of 82 different); MAJOR change decided by the owner on 2026-10-14 | same test file (all 82 and the permutations are ordinary tests; the 64 are `data/zip_divergent_packages.json`, the packages whose semantic digest moved); `bim-toolchain/CHANGELOG.md` `semantic-change`; `docs/qa/IR_NORMALIZATION.md`; `golden/bim_normalized/zip_equivalence.json` |
+| Canonical ZIP (`to_zip()`) differs from the directory | Cerrado en 0.2.0: 82/82 equal (was 64 of 82 different); MAJOR change decided by the owner on 2026-10-14 | same test file (all 82 and the permutations are ordinary tests; the 64 are `data/zip_divergent_packages.json`, the packages whose semantic digest moved); `bim-toolchain/CHANGELOG.md` `semantic-change`; `golden/bim_normalized/zip_equivalence.json` |
 | Publishing `javiercavlop/bim-toolchain` | Pendiente: one external step (below) | `docs/RELEASING.md` |
 | Licence | *Historical (when this table was written):* not decided. **Now: CC-BY-4.0**, holder javiercavlop (titular del repositorio OpenBinding), see step 6 | `NOTICE.md`, `licenses.json`, `docs/LICENSING.md` |
 
@@ -430,8 +430,8 @@ Precisions to the rows above, read from the tree when this note was written (no 
   the owner decided on 2026-10-14 to normalize the order of the sets of the IR (`CHANGELOG.md` `semantic-change`), so
   does the canonical ZIP and any permutation of the JSON members; the 64 strict `xfail` are ordinary tests. The
   `bim-toolchain` CI has never been executed (its nested
-  `.github/` is not run by GitHub inside this monorepo, per `docs/qa/analysis/BIM_B5_B8_M4_IR.md`).
-- **Gateway side, outside this directory** (`docs/qa/SECURITY_REVIEW.md` has the detail): VIEWER is read-only (MEMBER or
+  `.github/` is not run by GitHub inside this monorepo).
+- **Gateway side, outside this directory**: VIEWER is read-only (MEMBER or
   more for launch, retry, cancel and pareto); stable public errors with `correlationId` (`core/public_errors.py`);
   engine evidence kept before BIM re-evaluation (`job_engine_evidence`, `POST /v1/jobs/{id}/reevaluate`); best-effort
   remote cancel of lost attempts (`jobs/remote_attempts.py`, `cancel_engine_attempts`), only for an Engine that declares

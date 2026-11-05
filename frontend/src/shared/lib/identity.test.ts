@@ -25,12 +25,10 @@ const UUID_VALUE = '3f2b9c1e-8a4d-4f6b-9c2e-1a2b3c4d5e6f';
 const SHAPES = [/sha256-/i, /[0-9a-f]{40}/i, /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i];
 
 describe('identity labels', () => {
-  // [utest->req~identity-labels~1]
   it('problem version', () => {
     expect(problemVersionLabel(PV)).toBe('checkout-flow v3 · sealed 20 Aug 2026');
   });
 
-  // [utest->req~identity-labels~1]
   it('collection version, singular and plural', () => {
     expect(collectionVersionLabel(COLLECTION)).toBe('QACOBench icws v2 · 12 problems');
     expect(collectionVersionLabel({ ...COLLECTION, problemCount: 1 })).toBe('QACOBench icws v2 · 1 problem');
@@ -38,7 +36,6 @@ describe('identity labels', () => {
     expect(collectionVersionLabel({ ...COLLECTION, problemCount: 1200 })).toBe('QACOBench icws v2 · 1,200 problems');
   });
 
-  // [utest->req~identity-labels~1]
   it('run, study run, published result and engine', () => {
     expect(runLabel(RUN)).toBe('run 14 of checkout-flow v3 · minizinc-csp 1.1.1 exact · 21 Oct 2026');
     expect(studyRunLabel(STUDY_RUN)).toBe('engines-vs-suite run 3 · 21 Oct 2026');
@@ -46,7 +43,6 @@ describe('identity labels', () => {
     expect(engineLabel(ENGINE)).toBe('minizinc-csp 1.1.1 · mode exact');
   });
 
-  // [utest->req~identity-labels~1]
   it('dates are UTC with fixed month names and no leading zero', () => {
     const at = (sealedAt: string) => problemVersionLabel({ name: 'checkout-flow', version: 3, sealedAt });
     expect(at('2026-09-01T23:30:00-02:00')).toBe('checkout-flow v3 · sealed 2 Sep 2026');
@@ -56,7 +52,6 @@ describe('identity labels', () => {
     expect(at('2026-09-30T23:30:00-02:00')).toBe('checkout-flow v3 · sealed 1 Oct 2026');
   });
 
-  // [utest->req~identity-labels~1]
   it('drops missing parts of a problem version', () => {
     expect(problemVersionLabel({ ...PV, sealedAt: undefined })).toBe('checkout-flow v3');
     expect(problemVersionLabel({ ...PV, version: null })).toBe('checkout-flow · sealed 20 Aug 2026');
@@ -66,7 +61,6 @@ describe('identity labels', () => {
     expect(problemVersionLabel({ sealedAt: SEALED })).toBe('problem version · sealed 20 Aug 2026');
   });
 
-  // [utest->req~identity-labels~1]
   it('drops missing parts of the other labels', () => {
     expect(collectionVersionLabel({ ...COLLECTION, problemCount: undefined })).toBe('QACOBench icws v2');
     expect(collectionVersionLabel({})).toBe('collection version');
@@ -84,7 +78,6 @@ describe('identity labels', () => {
     expect(engineLabel({})).toBe('engine');
   });
 
-  // [utest->req~identity-labels~1]
   it('treats an identifier-shaped value as missing, as a whole', () => {
     expect(problemVersionLabel({ ...PV, name: UUID_VALUE })).toBe('problem v3 · sealed 20 Aug 2026');
     expect(engineLabel({ ...ENGINE, version: FULL_DIGEST })).toBe('minizinc-csp · mode exact');
@@ -92,7 +85,6 @@ describe('identity labels', () => {
     expect(studyRunLabel({ ...STUDY_RUN, study: SHORT_DIGEST })).toBe('study run 3 · 21 Oct 2026');
   });
 
-  // [utest->req~identity-labels~1]
   it('catches a digest prefix in any case, a long hex run glued to letters and a UUID in upper case', () => {
     expect(engineLabel({ name: 'SHA256-ABCDEF0123456789', version: '1' })).toBe('engine 1');
     expect(engineLabel({ name: `build${HEX_64}`, version: '1' })).toBe('engine 1');
@@ -101,7 +93,6 @@ describe('identity labels', () => {
     expect(engineLabel({ name: 'e'.repeat(39), version: '1' })).toBe(`${'e'.repeat(39)} 1`);
   });
 
-  // [utest->req~identity-labels~1]
   it('prefixes a version with v once and shows engine versions as given', () => {
     expect(problemVersionLabel({ name: 'p', version: 'v3' })).toBe('p v3');
     expect(problemVersionLabel({ name: 'p', version: '3' })).toBe('p v3');
@@ -110,7 +101,6 @@ describe('identity labels', () => {
     expect(runLabel({ number: 1014 })).toBe('run 1014');
   });
 
-  // [utest->req~identity-labels~1]
   it('never carries an identifier and is never empty, for a table of values', () => {
     const texts: Array<string | undefined> = ['valid', undefined, FULL_DIGEST, SHORT_DIGEST, HEX_40, HEX_64, UUID_VALUE];
     const numbers: Array<number | undefined> = [3, undefined, 0, -1];
@@ -137,7 +127,6 @@ describe('identity labels', () => {
     expect(bad).toEqual([]);
   });
 
-  // [utest->req~identity-labels~1]
   it('reads a date-time without an offset as UTC', () => {
     expect(problemVersionLabel({ name: 'p', version: 1, sealedAt: '2026-08-20T23:30:00' })).toBe('p v1 · sealed 20 Aug 2026');
     expect(problemVersionLabel({ name: 'p', version: 1, sealedAt: '2026-08-20' })).toBe('p v1 · sealed 20 Aug 2026');
@@ -156,13 +145,11 @@ describe.each(['Pacific/Kiritimati', 'America/Los_Angeles'])('dates in the %s ti
 
   const at = (sealedAt: string) => problemVersionLabel({ name: 'p', version: 1, sealedAt });
 
-  // [utest->req~identity-labels~1]
   it('really runs in the requested zone', () => {
     const offset = new Date('2026-08-20T12:00:00Z').getTimezoneOffset();
     expect(offset).toBe(zone === 'Pacific/Kiritimati' ? -840 : 420);
   });
 
-  // [utest->req~identity-labels~1]
   it('reads offset-bearing, Z, offset-less and date-only values as UTC', () => {
     expect(at('2026-08-20T09:30:00Z')).toBe('p v1 · sealed 20 Aug 2026');
     expect(at('2026-08-20T23:30:00')).toBe('p v1 · sealed 20 Aug 2026');
@@ -176,7 +163,6 @@ describe.each(['Pacific/Kiritimati', 'America/Los_Angeles'])('dates in the %s ti
     expect(at('2026-08-20T01:00:00+05:00')).toBe('p v1 · sealed 19 Aug 2026');
   });
 
-  // [utest->req~identity-labels~1]
   it('reads a date-time with a space and no offset as UTC', () => {
     expect(at('2026-08-20 23:30:00')).toBe('p v1 · sealed 20 Aug 2026');
     expect(at('2026-08-20 23:30')).toBe('p v1 · sealed 20 Aug 2026');

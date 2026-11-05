@@ -16,7 +16,6 @@ const COPIES = [
 ] as const;
 
 /** Permanent link, citation (text, BibTeX, CSL-JSON) and the one copyable digest of a problem, collection or published result. */
-// [impl->req~citation-panel~1]
 export function CitationPanel({ digest, ...source }: CitationPanelProps) {
   const headingId = useId();
   const { copy, status } = useCopy();

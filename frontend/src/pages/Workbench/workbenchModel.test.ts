@@ -118,7 +118,6 @@ describe('the words for a refusal', () => {
     expect(refusalText(refusalOf(new Error('The deployment did not answer.')), 'the run did not finish')).toBe('The deployment did not answer.');
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('words the refusals of saving a problem version, each ending in nothing being saved', () => {
     expect(saveRefusalText(refusalOf(failure(403, 'forbidden')))).toBe(
       'You need MEMBER in the organization to save a version, and an API key needs projects:write (403 · forbidden). Nothing was saved.',
@@ -129,7 +128,6 @@ describe('the words for a refusal', () => {
     expect(saveRefusalText(refusalOf(failure(401)))).toContain('Nothing was saved.');
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('words a problem version that could not be opened', () => {
     expect(loadRefusalText(refusalOf(failure(404)))).toBe(
       'That problem version doesn’t exist any more, or you’re not in the organization it belongs to (404). The package was not loaded.',
@@ -201,13 +199,11 @@ describe('Open snapshot', () => {
     { revision: 0, source_snapshot_id: null },
   ];
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('leads to the Source tab of the problem at the sealed version made from the snapshot', () => {
     expect(snapshotHref(root, 'routing', versions, 'snap-a')).toBe(`${root}/problems/routing/source?version=1`);
     expect(snapshotHref(root, 'routing', versions, 'snap-b')).toBe(`${root}/problems/routing/source?version=2`);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('leads to the problem list when no version came from the snapshot, or no problem is chosen', () => {
     expect(snapshotHref(root, 'routing', versions, 'snap-z')).toBe(`${root}/problems`);
     expect(snapshotHref(root, 'routing', [], 'snap-a')).toBe(`${root}/problems`);

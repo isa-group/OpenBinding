@@ -309,7 +309,6 @@ describe('eng-register · the registration wizard', () => {
     expect(manifest.spec.modes[0].capabilities.featureValues).toEqual({ selector: 'only', values: ['scalar', 'interval'] });
   });
 
-  // [utest->req~frontend-registration-fixed-option-rendered~1]
   it('shows an option fixed by the manifest as words, never as JSON text', async () => {
     renderPage();
     fireEvent.change(await screen.findByLabelText('Engine manifest JSON'), { target: { value: JSON.stringify(ENGINE_DOCUMENT) } });
@@ -320,7 +319,6 @@ describe('eng-register · the registration wizard', () => {
     expect(fixed.textContent).not.toContain('{"');
   });
 
-  // [utest->req~frontend-engines-source-view~1]
   it('keeps the manifest being built in a catalogue source view behind View source', async () => {
     renderPage();
     const summary = await screen.findByText('View source');

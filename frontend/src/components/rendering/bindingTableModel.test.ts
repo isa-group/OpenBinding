@@ -42,7 +42,6 @@ const COMPILED = {
 const NULLS = { latency: null, cost: null, availability: null };
 
 describe('bindingRowsOf', () => {
-  // [utest->req~frontend-rendering-binding-table~1]
   it('derives rows with the compiled problem, in the problem task order', () => {
     expect(bindingRowsOf(BINDING, PROBLEM)).toEqual([
       { task: 'pay', taskName: 'Payment', candidate: 'stripe', candidateName: 'Stripe Payments', provider: 'Stripe', values: { latency: 120, cost: 0.3, availability: 0.999 } },
@@ -50,7 +49,6 @@ describe('bindingRowsOf', () => {
     ]);
   });
 
-  // [utest->req~frontend-rendering-binding-table~1]
   it('derives rows without the problem, in binding order', () => {
     expect(bindingRowsOf(BINDING, null)).toEqual([
       { task: 'ship', taskName: 'ship', candidate: 'dhl', candidateName: 'dhl', provider: null, values: {} },
@@ -58,21 +56,18 @@ describe('bindingRowsOf', () => {
     ]);
   });
 
-  // [utest->req~frontend-rendering-binding-table~1]
   it('puts a task the problem does not know after the known ones', () => {
     const rows = bindingRowsOf({ audit: { resource: 'tools', id: 'logger' }, pay: { resource: 'payments', id: 'stripe' } }, PROBLEM);
     expect(rows.map((row) => row.task)).toEqual(['pay', 'audit']);
     expect(rows[1]).toEqual({ task: 'audit', taskName: 'audit', candidate: 'logger', candidateName: 'logger', provider: null, values: NULLS });
   });
 
-  // [utest->req~frontend-rendering-binding-table~1]
   it('keeps the id only for a candidate that is not eligible for its task', () => {
     expect(bindingRowsOf({ pay: { resource: 'payments', id: 'paypal' } }, PROBLEM)).toEqual([
       { task: 'pay', taskName: 'Payment', candidate: 'paypal', candidateName: 'paypal', provider: null, values: NULLS },
     ]);
   });
 
-  // [utest->req~frontend-rendering-binding-table~1]
   it('gives no guessed rows for malformed bindings and never throws', () => {
     for (const bad of [null, [], 'pay']) expect(bindingRowsOf(bad, PROBLEM)).toEqual([]);
     const rows = bindingRowsOf(
@@ -83,7 +78,6 @@ describe('bindingRowsOf', () => {
     expect(rows[0].task).toBe('ship');
   });
 
-  // [utest->req~frontend-rendering-binding-table~1]
   it('reads the value that readBindingProblem returns', () => {
     const problem = readBindingProblem(COMPILED);
     expect(problem).not.toBeNull();
@@ -95,7 +89,6 @@ describe('bindingRowsOf', () => {
 });
 
 describe('bindingFeaturesOf', () => {
-  // [utest->req~frontend-rendering-binding-table~1]
   it('lists the features with their units in declaration order, or none without a problem', () => {
     expect(bindingFeaturesOf(PROBLEM)).toEqual([
       { name: 'latency', unit: 'ms' },

@@ -1,7 +1,7 @@
 # Production runbook
 
 How to install, deploy, verify, back up, restore, roll back and operate OpenBinding in production with Docker
-Compose ([ADR-0021](../adr/0021-docker-compose-only.md)).
+Compose.
 
 **Status: written against `deploy/compose/production/compose.yaml`, `images.env` and `ci.env`, and never run on a
 production host.** Where this runbook and `compose.yaml` disagree, `compose.yaml` wins and this runbook is the defect.
@@ -11,7 +11,7 @@ non-root hardening and the host facts are open (see [What stays blocked](#what-s
 
 ## Who may order a deployment
 
-Only the owner orders a production deployment (`INTENT.md` §9 and §10; ADR-0021). Agents prepare the release pull
+Only the owner orders a production deployment. Maintainers prepare the release pull
 request and this runbook; they never run any command below against production. Anyone with host access follows these
 steps only on the owner's written order that names the release.
 
@@ -65,7 +65,7 @@ with a marker: the [pre-flight](#pre-flight) refuses it. `site.env` never define
 
 ## Host prerequisites
 
-Starting values, **pending owner facts** (ROADMAP M0.9, question Q3). Replace them once the host is chosen.
+Starting values, **pending owner facts**. Replace them once the host is chosen.
 
 | Item | Starting value | Status |
 |---|---|---|
@@ -898,7 +898,6 @@ docker system df
 
 ## Remote SPACE
 
-<!-- [impl->req~lab-deployment-runbook-remote-space~1] -->
 
 Production and the laboratory use the remote SPACE, `https://space.score.us.es`. The gateway and the workers reach it
 through `SPACE_URL` (required, set in `site.env`; the value is `https://space.score.us.es`) and the secret file `space_api_key`. The key never goes into

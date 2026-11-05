@@ -1,4 +1,4 @@
-"""``tools/latency_probe.py``: the lab latency probe of ``POST /v1/jobs`` and ``POST /v1/validate`` (INTENT O9).
+"""``tools/latency_probe.py``: the lab latency probe of ``POST /v1/jobs`` and ``POST /v1/validate``.
 
 The gateway is a fake behind ``httpx.MockTransport`` and the clock is injected, so the durations are chosen by the test
 and nothing here depends on the wall clock.

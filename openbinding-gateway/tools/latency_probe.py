@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lab latency probe for INTENT O9: p95 of ``POST /v1/jobs`` (accept) and ``POST /v1/validate`` on corpus packages.
+"""Lab latency probe: p95 of ``POST /v1/jobs`` (accept) and ``POST /v1/validate`` on corpus packages.
 
 It talks only HTTP (httpx) to the ``web`` service as a seeded synthetic user, one client, one request at a time. Only
 the request itself is timed (for the ZIP variant that includes the multipart encoding; the Idempotency-Key is built
@@ -314,7 +314,7 @@ def run_probe(
 
 def markdown(report: Mapping[str, Any]) -> str:
     lines = [
-        f"# Latency probe (INTENT O9), {report['measuredAt']}", "",
+        f"# Latency probe, {report['measuredAt']}", "",
         f"Base URL `{report['baseUrl']}`, gateway {report['gatewayVersion'] or 'unknown'}, "
         f"{report['config']['samples']} samples after {report['config']['warmup']} warmup, one client, sequential.", "",
         "Packages: " + (", ".join(f"`{p['path']}` ({p['bytes']} B)" for p in report["packages"]) or "none"), "",
@@ -339,7 +339,7 @@ def markdown(report: Mapping[str, Any]) -> str:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Lab latency probe of POST /v1/jobs and POST /v1/validate (INTENT O9).")
+    parser = argparse.ArgumentParser(description="Lab latency probe of POST /v1/jobs and POST /v1/validate.")
     parser.add_argument("--base-url", default=None, help=f"proxy origin (default $SMOKE_BASE_URL or {DEFAULT_BASE_URL})")
     parser.add_argument("--user", default="lab-member", help="seeded user to sign in as")
     parser.add_argument("--samples", type=int, default=40, help="timed requests per route and package")

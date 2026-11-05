@@ -28,7 +28,6 @@ const term = (over: Partial<ObjectiveTerm> = {}): ObjectiveTerm => ({
 const cells = (row: HTMLElement) => within(row).getAllByRole('cell').map((c) => c.textContent);
 
 describe('ObjectiveBreakdown', () => {
-  // [utest->req~frontend-rendering-objective-breakdown~1]
   it('renders a region named by label with the summary', () => {
     const { unmount, container } = render(<ObjectiveBreakdown {...single()} />);
     const region = screen.getByRole('region', { name: 'Objective breakdown' });
@@ -40,7 +39,6 @@ describe('ObjectiveBreakdown', () => {
     expect(screen.getByRole('region', { name: 'Solution 1 objective' })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-rendering-objective-breakdown~1]
   it('renders the terms table of a weighted sum with its total', () => {
     render(<ObjectiveBreakdown {...single()} />);
     const region = screen.getByRole('region', { name: 'Objective terms' });
@@ -58,7 +56,6 @@ describe('ObjectiveBreakdown', () => {
     expect(footer[0]).toHaveTextContent('0.375');
   });
 
-  // [utest->req~frontend-rendering-objective-breakdown~1]
   it('renders a list score by criterion, without weight columns or total', () => {
     const { container } = render(<ObjectiveBreakdown {...lex()} />);
     const list = screen.getByRole('list', { name: 'Score' });
@@ -70,7 +67,6 @@ describe('ObjectiveBreakdown', () => {
     expect(screen.queryByText('Total weighted loss')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-objective-breakdown~1]
   it('names list score positions for lists of another length', () => {
     const { unmount } = render(<ObjectiveBreakdown {...lex()} score={[0.25]} />);
     expect(within(screen.getByRole('list', { name: 'Score' })).getAllByRole('listitem').map((i) => i.textContent)).toEqual(['fast: 0.25']);
@@ -82,7 +78,6 @@ describe('ObjectiveBreakdown', () => {
     ]);
   });
 
-  // [utest->req~frontend-rendering-objective-breakdown~1]
   it('keeps the weight columns but drops the total for a weighted sum with a list score', () => {
     render(<ObjectiveBreakdown {...single()} score={[0.25, 0.5, 2]} />);
     expect(screen.getByRole('columnheader', { name: 'Weight' })).toBeInTheDocument();
@@ -90,7 +85,6 @@ describe('ObjectiveBreakdown', () => {
     expect(screen.queryByText('Total weighted loss')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-objective-breakdown~1]
   it('shows a dash read as no value for missing data', () => {
     const props = { terms: [term({ unit: 'ms' })], score: null, penalty: null };
     const { container, unmount } = render(<ObjectiveBreakdown {...props} scalarization="weighted-sum" />);
@@ -113,7 +107,6 @@ describe('ObjectiveBreakdown', () => {
     expect(screen.queryByRole('columnheader', { name: 'Weight' })).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-objective-breakdown~1]
   it('shows no value for the total when a weighted loss is missing', () => {
     const data = single();
     data.terms[1] = { ...data.terms[1], weighted: null };
@@ -124,7 +117,6 @@ describe('ObjectiveBreakdown', () => {
     expect(total).not.toHaveTextContent('0.125');
   });
 
-  // [utest->req~frontend-rendering-objective-breakdown~1]
   it('formats numbers in en-US with at most three decimals', () => {
     const terms = [0, 1234.5678, -99.5].map((value, i) => term({ criterion: `c${i}`, value }));
     const { container } = render(<ObjectiveBreakdown terms={terms} score={1} penalty={0} scalarization="feasibility" />);
@@ -132,7 +124,6 @@ describe('ObjectiveBreakdown', () => {
     expect(values).toEqual(['0', '1,234.568', '-99.5']);
   });
 
-  // [utest->req~frontend-rendering-objective-breakdown~1]
   it('shows a note and no table without terms', () => {
     const { container } = render(<ObjectiveBreakdown terms={[]} scalarization="feasibility" score={0} penalty={0} />);
     expect(screen.getByText('No objective terms')).toBeInTheDocument();
@@ -141,7 +132,6 @@ describe('ObjectiveBreakdown', () => {
     expect(Array.from(container.querySelectorAll('dd')).map((e) => e.textContent)).toEqual(['feasibility', '0', '0']);
   });
 
-  // [utest->req~frontend-rendering-objective-breakdown~1]
   it('renders strings as text only', () => {
     const data = single();
     data.terms[0] = { ...data.terms[0], criterion: '<b>fast</b>' };
@@ -151,7 +141,6 @@ describe('ObjectiveBreakdown', () => {
     expect(container.querySelector('b, i, pre')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-objective-breakdown~1]
   it('uses tokens only in its stylesheet', () => {
     const css = readFileSync(join(__dirname, 'ObjectiveBreakdown.css'), 'utf8');
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);

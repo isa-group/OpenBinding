@@ -70,10 +70,8 @@ describe('Project overview', () => {
     expect(within(band).getByRole('link', { name: 'New problem' })).toHaveAttribute('href', `${root}/problems`);
     expect(within(band).getByRole('link', { name: 'Run' })).toHaveAttribute('href', `${root}/runs/new`);
     expect(within(band).getByRole('link', { name: 'New study' })).toHaveAttribute('href', `${root}/studies/new`);
-    // [utest->req~frontend-retire-reports-entry-points-removed~1]
     expect(within(band).queryByText('New report')).not.toBeInTheDocument();
     expect(within(band).getByRole('link', { name: 'Workbench' })).toHaveAttribute('href', `${root}/workbench`);
-    // [utest->req~frontend-nav-files-retired~1]
     expect(within(band).getByRole('link', { name: 'Export package' })).toHaveAttribute('href', `${root}/settings`);
     const crumbs = within(band).getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo');
@@ -139,7 +137,6 @@ describe('Project overview', () => {
     expect(within(card).getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8' })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-retire-reports-entry-points-removed~1]
   it('has no Reports card, no All reports link and no link to the retired report addresses, and keeps the other cards', async () => {
     renderOverview();
 
@@ -210,7 +207,6 @@ describe('Project overview', () => {
       platform.project.mockResolvedValue(project('qos-benchmarks', { name: 'QoS Benchmarks', organization_id: viewing.id }));
     });
 
-    // [utest->req~frontend-nav-files-retired~1]
     it('reads everything, but cannot create and has no link to the package export of the settings', async () => {
       renderOverview({ slug: 'read-lab' });
 
@@ -264,7 +260,6 @@ describe('Project overview', () => {
       }
       expect(within(band).getByRole('link', { name: 'Browse problems' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/problems');
       const tabs = within(screen.getByRole('navigation', { name: 'Project sections' }));
-      // [utest->req~frontend-nav-project-tabs~1]
       expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Problems', 'Collections', 'Studies', 'Published']);
       expect(tabs.getByRole('link', { name: 'Published' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/published');
       expect(tabs.queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();

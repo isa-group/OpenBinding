@@ -8,7 +8,6 @@ const SECTIONS: Array<[string, string]> = [
   ['/app/account/identities', 'Identities'], ['/app/account/notifications', 'Notifications'],
 ];
 
-// [utest->req~frontend-nav-account-sections~1]
 for (const [path, name] of SECTIONS) {
   test(`account section ${name} at ${path} is marked in the account navigation`, async ({ page }) => {
     await mockApi(page);
@@ -23,7 +22,6 @@ for (const [path, name] of SECTIONS) {
   });
 }
 
-// [utest->req~frontend-nav-account-sections~1]
 test('new API key opens as a dialog over the API keys section', async ({ page }) => {
   test.slow(); // two full page loads in one test
   await mockApi(page);
@@ -39,7 +37,6 @@ test('new API key opens as a dialog over the API keys section', async ({ page })
   await expect.poll(() => pathAndSearch(page)).toBe('/app/account/keys');
 });
 
-// [utest->req~frontend-nav-account-sections~1]
 test('an unknown account section shows Page not found', async ({ page }) => {
   await mockApi(page);
   await page.goto('/app/account/billing');

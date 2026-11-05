@@ -99,9 +99,6 @@ def missing_url(kind: str, resource) -> str:
     return resource["url"][: resource["url"].rindex("/")] + "/missing" if kind != "org" else "/v1/organizations/missing"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-covered~1]
-# [utest->req~gateway-api-optimistic-concurrency-etag-format~1]
-# [utest->req~gateway-api-optimistic-concurrency-etag-on-read~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_get_carries_a_strong_etag(api_client, resources, kind) -> None:
     tag = await current_tag(api_client, resources[kind], resources["headers"])
@@ -110,8 +107,6 @@ async def test_get_carries_a_strong_etag(api_client, resources, kind) -> None:
     assert await current_tag(api_client, resources[kind], resources["headers"]) == tag
 
 
-# [utest->req~gateway-api-optimistic-concurrency-etag-on-write~1]
-# [utest->req~gateway-api-optimistic-concurrency-revision-bump~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_patch_with_the_current_etag_succeeds_and_returns_a_new_one(api_client, resources, kind) -> None:
     resource, headers = resources[kind], resources["headers"]
@@ -124,9 +119,6 @@ async def test_patch_with_the_current_etag_succeeds_and_returns_a_new_one(api_cl
     assert edited.headers["ETag"] == await current_tag(api_client, resource, headers)
 
 
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-unchanged~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_replaying_the_old_etag_is_412_with_the_current_one(api_client, resources, kind) -> None:
     resource, headers = resources[kind], resources["headers"]
@@ -147,7 +139,6 @@ async def test_replaying_the_old_etag_is_412_with_the_current_one(api_client, re
     assert stored.json()["name"] != "Lost update"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-absent~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_without_if_match_the_edit_still_succeeds(api_client, resources, kind) -> None:
     resource, headers = resources[kind], resources["headers"]
@@ -158,7 +149,6 @@ async def test_without_if_match_the_edit_still_succeeds(api_client, resources, k
     assert edited.headers["ETag"] == await current_tag(api_client, resource, headers)
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-any~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_wildcard_matches_any_existing_row(api_client, resources, kind) -> None:
     resource, headers = resources[kind], resources["headers"]
@@ -168,7 +158,6 @@ async def test_wildcard_matches_any_existing_row(api_client, resources, kind) ->
     assert edited.status_code == 200, edited.text
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-weak~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_weak_tag_never_matches(api_client, resources, kind) -> None:
     resource, headers = resources[kind], resources["headers"]
@@ -180,7 +169,6 @@ async def test_weak_tag_never_matches(api_client, resources, kind) -> None:
     assert refused.headers["ETag"] == tag
 
 
-# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_malformed_if_match_is_400(api_client, resources, kind) -> None:
     resource, headers = resources[kind], resources["headers"]
@@ -191,7 +179,6 @@ async def test_malformed_if_match_is_400(api_client, resources, kind) -> None:
     assert refused.json()["detail"]["code"] == "invalid_if_match"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-access~1]
 @pytest.mark.parametrize("who", ["viewer", "outsider"])
 @pytest.mark.parametrize("kind", KINDS)
 async def test_unauthorised_caller_gets_403_not_412(api_client, resources, kind, who) -> None:
@@ -206,7 +193,6 @@ async def test_unauthorised_caller_gets_403_not_412(api_client, resources, kind,
     assert "ETag" not in refused.headers
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-access~1]
 async def test_a_stranger_gets_404_for_an_organization_that_does_not_exist(api_client, resources) -> None:
     refused = await api_client.patch(
         "/v1/organizations/missing", headers={**resources["outsider"], "If-Match": '"stale"'}, json={"name": "X"}
@@ -217,7 +203,6 @@ async def test_a_stranger_gets_404_for_an_organization_that_does_not_exist(api_c
     assert "ETag" not in refused.headers
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-access~1]
 async def test_an_admin_who_is_not_the_owner_is_refused_the_sponsor_before_the_tag(api_client, resources) -> None:
     resource, admin = resources["org"], resources["admin"]
     stale = await moved_on(api_client, resource, resources["headers"])
@@ -234,7 +219,6 @@ async def test_an_admin_who_is_not_the_owner_is_refused_the_sponsor_before_the_t
     assert renamed.status_code == 412, renamed.text
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-access~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_missing_resource_is_404_not_412(api_client, resources, kind) -> None:
     resource = resources[kind]
@@ -245,8 +229,6 @@ async def test_missing_resource_is_404_not_412(api_client, resources, kind) -> N
     assert refused.status_code == 404, refused.text
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-access~1]
-# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_a_malformed_if_match_on_a_missing_resource_is_404(api_client, resources, kind) -> None:
     resource = resources[kind]
@@ -259,8 +241,6 @@ async def test_a_malformed_if_match_on_a_missing_resource_is_404(api_client, res
     assert "ETag" not in refused.headers
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-state~1]
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
 async def test_stale_tag_beats_business_validation(api_client, resources) -> None:
     resource, headers = resources["org"], resources["headers"]
     tag = await current_tag(api_client, resource, headers)
@@ -282,7 +262,6 @@ async def test_stale_tag_beats_business_validation(api_client, resources) -> Non
     assert invalid.json()["code"] == "ambiguous_parent"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-state~1]
 async def test_sponsor_rule_still_runs_after_authorisation(api_client, registration, resources) -> None:
     resource, headers = resources["org"], resources["headers"]
     other, _ = await account(api_client, registration)
@@ -296,8 +275,6 @@ async def test_sponsor_rule_still_runs_after_authorisation(api_client, registrat
     assert refused.json()["code"] == "sponsor_must_be_caller"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-state~1]
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
 async def test_a_stale_tag_beats_the_sponsor_rule(api_client, resources) -> None:
     resource, headers = resources["org"], resources["headers"]
     stale = await moved_on(api_client, resource, headers)
@@ -313,8 +290,6 @@ async def test_a_stale_tag_beats_the_sponsor_rule(api_client, resources) -> None
     assert retried.json()["code"] == "sponsor_must_be_caller"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-state~1]
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
 async def test_a_stale_tag_beats_an_acyclic_move_refusal(api_client, resources) -> None:
     resource, headers = resources["org"], resources["headers"]
     child = await api_client.post(
@@ -333,7 +308,6 @@ async def test_a_stale_tag_beats_an_acyclic_move_refusal(api_client, resources) 
     assert cycle.json()["code"] == "organization_cycle"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-state~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_a_body_that_fails_validation_is_refused_before_a_stale_tag(api_client, resources, kind) -> None:
     resource, headers = resources[kind], resources["headers"]
@@ -345,9 +319,6 @@ async def test_a_body_that_fails_validation_is_refused_before_a_stale_tag(api_cl
     assert "ETag" not in refused.headers
 
 
-# [utest->req~gateway-api-optimistic-concurrency-atomic~1]
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_a_writer_that_commits_between_read_and_write_loses(
     api_client, resources, kind, db_session, monkeypatch
@@ -384,8 +355,6 @@ async def test_a_writer_that_commits_between_read_and_write_loses(
     assert stored.json()["name"] != "Loser"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-atomic~1]
-# [utest->req~gateway-api-optimistic-concurrency-if-match-any~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_wildcard_is_not_refused_by_a_concurrent_bump(api_client, resources, kind, db_session, monkeypatch) -> None:
     resource, headers = resources[kind], resources["headers"]
@@ -411,8 +380,6 @@ async def test_wildcard_is_not_refused_by_a_concurrent_bump(api_client, resource
     assert edited.status_code == 200, edited.text
 
 
-# [utest->req~gateway-api-optimistic-concurrency-revision-bump~1]
-# [utest->req~gateway-api-optimistic-concurrency-etag-on-write~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_a_no_op_edit_with_if_match_still_returns_a_new_valid_etag(api_client, resources, kind) -> None:
     resource, headers = resources[kind], resources["headers"]
@@ -427,8 +394,6 @@ async def test_a_no_op_edit_with_if_match_still_returns_a_new_valid_etag(api_cli
     assert guarded.headers["ETag"] == await current_tag(api_client, resource, headers)
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-state~1]
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
 async def test_stale_tag_is_reported_on_project_and_case_whatever_the_edit(api_client, resources) -> None:
     headers = resources["headers"]
     project, case = resources["project"], resources["case"]
@@ -449,7 +414,6 @@ async def test_stale_tag_is_reported_on_project_and_case_whatever_the_edit(api_c
     assert case_refusal.status_code == 412, case_refusal.text
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-access~1]
 async def test_unauthorised_new_parent_is_refused_before_a_stale_tag(api_client, registration, resources) -> None:
     resource, headers = resources["org"], resources["headers"]
     _, stranger = await account(api_client, registration)
@@ -469,7 +433,6 @@ async def test_unauthorised_new_parent_is_refused_before_a_stale_tag(api_client,
     assert missing.status_code == 404, missing.text
 
 
-# [utest->req~gateway-api-optimistic-concurrency-openapi~1]
 def test_openapi_documents_if_match_and_both_failures() -> None:
     from openbinding_gateway.main import app
 
@@ -489,7 +452,6 @@ def test_openapi_documents_if_match_and_both_failures() -> None:
         assert "content" in patch["responses"]["200"]  # the response model survives the merge
 
 
-# [utest->req~gateway-api-optimistic-concurrency-openapi~1]
 def test_openapi_declares_the_etag_of_the_reads() -> None:
     from openbinding_gateway.main import app
 
@@ -504,7 +466,6 @@ def test_openapi_declares_the_etag_of_the_reads() -> None:
         assert "content" in ok
 
 
-# [utest->req~gateway-api-optimistic-concurrency-revision-bump~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_the_etag_changes_even_when_the_clock_is_behind_the_held_revision(
     api_client, resources, kind, db_session
@@ -531,7 +492,6 @@ async def test_the_etag_changes_even_when_the_clock_is_behind_the_held_revision(
     assert revision.normalise(stored) > revision.normalise(future)
 
 
-# [utest->req~gateway-api-optimistic-concurrency-atomic~1]
 async def test_a_row_deleted_between_load_and_claim_is_404_not_500(
     api_client, resources, db_session, monkeypatch
 ) -> None:
@@ -556,7 +516,6 @@ async def test_a_row_deleted_between_load_and_claim_is_404_not_500(
     assert "ETag" not in gone.headers
 
 
-# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 async def test_repeated_if_match_fields_use_the_first(api_client, resources) -> None:
     resource, headers = resources["org"], resources["headers"]
     tag = await current_tag(api_client, resource, headers)
@@ -570,7 +529,6 @@ async def test_repeated_if_match_fields_use_the_first(api_client, resources) -> 
     assert stale_first.status_code == 412, stale_first.text
 
 
-# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 async def test_an_if_match_over_the_length_cap_is_400(api_client, resources) -> None:
     resource, headers = resources["org"], resources["headers"]
     long = ", ".join(['"a"'] * 700)
@@ -582,8 +540,6 @@ async def test_an_if_match_over_the_length_cap_is_400(api_client, resources) -> 
     assert refused.json()["detail"]["code"] == "invalid_if_match"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_the_412_document_is_complete(api_client, resources, kind) -> None:
     resource, headers = resources[kind], resources["headers"]
@@ -602,8 +558,6 @@ async def test_the_412_document_is_complete(api_client, resources, kind) -> None
     assert refused.headers["ETag"] == await current_tag(api_client, resource, headers)
 
 
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-unchanged~1]
-# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 @pytest.mark.parametrize("header", ['"stale"', "not a tag"], ids=["412", "400"])
 @pytest.mark.parametrize("kind", KINDS)
 async def test_a_refused_precondition_changes_nothing(api_client, resources, kind, header, db_session) -> None:
@@ -628,8 +582,6 @@ async def test_a_refused_precondition_changes_nothing(api_client, resources, kin
     assert await audit_events(db_session) == events
 
 
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-unchanged~1]
-# [utest->req~gateway-api-optimistic-concurrency-order-state~1]
 @pytest.mark.parametrize("header", ['"stale"', "not a tag"], ids=["412", "400"])
 async def test_a_refused_precondition_leaves_the_sponsor_alone(
     api_client, registration, resources, header, db_session
@@ -654,7 +606,6 @@ async def test_a_refused_precondition_leaves_the_sponsor_alone(
     assert await audit_events(db_session) == events
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-list~1]
 @pytest.mark.parametrize("form", ['"stale", {tag}', '"stale" ,{tag} ', ", {tag},"], ids=["list", "spaces", "empty-elements"])
 @pytest.mark.parametrize("kind", KINDS)
 async def test_a_list_naming_the_current_tag_is_accepted(api_client, resources, kind, form) -> None:
@@ -669,8 +620,6 @@ async def test_a_list_naming_the_current_tag_is_accepted(api_client, resources, 
     assert edited.headers["ETag"] != tag
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-any~1]
-# [utest->req~gateway-api-optimistic-concurrency-revision-bump~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_a_wildcard_edit_changes_the_stored_value_and_the_etag(api_client, resources, kind) -> None:
     resource, headers = resources[kind], resources["headers"]
@@ -686,7 +635,6 @@ async def test_a_wildcard_edit_changes_the_stored_value_and_the_etag(api_client,
     assert stored.headers["ETag"] == edited.headers["ETag"]
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-absent~1]
 @pytest.mark.parametrize("kind", KINDS)
 async def test_without_if_match_twice_both_edits_apply_and_the_second_stays(api_client, resources, kind) -> None:
     resource, headers = resources[kind], resources["headers"]
@@ -700,7 +648,6 @@ async def test_without_if_match_twice_both_edits_apply_and_the_second_stays(api_
     assert (await api_client.get(resource["url"], headers=headers)).json()[field] == "Two"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-etag-on-read~1]
 async def test_a_refused_read_carries_no_etag(api_client, resources) -> None:
     owner, outsider = resources["headers"], resources["outsider"]
     project, case = resources["project"], resources["case"]
@@ -717,7 +664,6 @@ async def test_a_refused_read_carries_no_etag(api_client, resources) -> None:
         assert "ETag" not in response.headers
 
 
-# [utest->req~gateway-api-optimistic-concurrency-covered~1]
 async def test_a_member_upsert_ignores_if_match_and_carries_no_etag(api_client, resources) -> None:
     viewer = resources["viewer_id"]
 
@@ -731,7 +677,6 @@ async def test_a_member_upsert_ignores_if_match_and_carries_no_etag(api_client, 
     assert "ETag" not in upserted.headers
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-state~1]
 async def test_a_refusal_after_the_claim_leaves_the_etag_unchanged(api_client, resources, db_session) -> None:
     """The shared test session never rolls back on an error, so the request-scoped rollback is done by hand.
 

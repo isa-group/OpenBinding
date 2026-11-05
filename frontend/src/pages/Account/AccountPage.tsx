@@ -10,7 +10,6 @@ import { AccountUsage } from './AccountUsage';
  * The account page (`acct-profile`, `/app/account/:section?`): Profile (no segment), Plan (`usage`), API keys (`keys`),
  * Identities (`identities`) and Notifications (`notifications`). Any other section is a page that does not exist.
  */
-// [impl->req~frontend-nav-account-sections~1]
 export function AccountPage() {
   const { section } = useParams();
   if (section === undefined) return <Account />;

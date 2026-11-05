@@ -1,8 +1,7 @@
 """Static checks of ``compose.lab-process-n2-probe.json``, without Docker.
 
 It is ``compose.lab-process-n2.json`` with one more variable for ``bim-service``,
-``BIM_SERVICE_OPERATION_TIMEOUT_SECONDS=3``, so that the timeout probe of ``tools/process_probe.py`` (see
-``docs/qa/PROCESS_PROBE.md``) can see a real ``503 operation_timeout`` in a few seconds. It must pass the rules that
+``BIM_SERVICE_OPERATION_TIMEOUT_SECONDS=3``, so that the timeout probe of ``tools/process_probe.py`` can see a real ``503 operation_timeout`` in a few seconds. It must pass the rules that
 ``test_lab_process_profiles.py`` applies to the process profiles (which are those of ``test_lab_compose.py``) and
 differ from the N2 manifest only by that variable.
 
@@ -41,8 +40,6 @@ TIMEOUT_VARIABLE = "BIM_SERVICE_OPERATION_TIMEOUT_SECONDS"
 TIMEOUT_SECONDS = "3"
 ACQUIRE_LINE = '        "BIM_SERVICE_ACQUIRE_TIMEOUT_MS": "2000"\n'
 TOOL = ROOT / "openbinding-gateway" / "tools" / "process_probe.py"
-DOC = ROOT / "docs" / "qa" / "PROCESS_PROBE.md"
-
 #: Rules of ``test_lab_process_profiles.py`` that apply to the probe manifest as they are.
 RULES = [
     "test_shape_and_names_follow_the_validator_rules",
@@ -134,7 +131,7 @@ def test_the_time_budget_is_short_but_leaves_the_slot_back_within_the_acquire_ti
     assert budget == 3
     # Long enough for a valid request of the probe to be running when the budget ends; short enough to see it in seconds.
     assert 1 <= budget < 60
-    # The worker is killed at the budget and its replacement is up within about a second (docs/qa/PROCESS_DEPLOYMENT.md).
+    # The worker is killed at the budget and its replacement is up within about a second.
     assert int(env["BIM_SERVICE_ACQUIRE_TIMEOUT_MS"]) >= 1000
 
 
@@ -169,34 +166,3 @@ def test_the_defaults_of_the_tool_are_the_figures_of_the_n2_profile():
     ) == profiles.required_bytes(N2, profiles.PARENT_CONSERVATIVE, profiles.CHILD_CONSERVATIVE)
 
 
-def test_the_documentation_says_how_to_run_the_probe_and_what_it_proves():
-    text = DOC.read_text(encoding="utf-8")
-    for needle in (
-        "compose.lab-process-n2-probe.json",
-        "lab_compose up file=compose.lab-process-n2-probe.json",
-        "lab_compose seed",
-        "DEMO_SEED_TOOL=process_probe.py",
-        "DEMO_SEED_ARGS",
-        "--timeout-probe",
-        "--hold",
-        "operation_timeout",
-        "service_busy",
-        "pending_body_bytes",
-        "payload_too_large",
-        "lab_compose metrics",
-        "oom_kill",
-        "Exit code",
-        "compose.lab-process-n2.json",
-        "BIM_SERVICE_OPERATION_TIMEOUT_SECONDS",
-    ):
-        assert needle in text, needle
-    for step in (
-        "capabilities",
-        "valid_operations",
-        "hostile_small",
-        "large_bodies",
-        "saturation",
-        "healthz_under_load",
-        "timeout_replacement",
-    ):
-        assert f"`{step}`" in text, step

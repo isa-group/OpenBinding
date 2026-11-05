@@ -115,9 +115,6 @@ def export(url: str, tmp_path, seeded: dict):
     return out / "manifest.json"
 
 
-# [utest->req~data-retirement-guard~1]
-# [utest->req~data-retirement-removed-set~1]
-# [utest->req~data-retirement-kept-set~1]
 def test_postgresql_refuses_without_an_export_then_drops_exactly_with_one(database, tmp_path):
     url, seeded = database
     before = pg(url, _snapshot)
@@ -144,7 +141,6 @@ def test_postgresql_refuses_without_an_export_then_drops_exactly_with_one(databa
         assert after[table] == before[table], table
 
 
-# [utest->req~data-retirement-removed-set~1]
 def test_a_delete_that_fails_midway_leaves_every_table_and_row_as_it_was(database, tmp_path):
     url, seeded = database
     manifest = export(url, tmp_path, seeded)
@@ -169,7 +165,6 @@ def test_a_delete_that_fails_midway_leaves_every_table_and_row_as_it_was(databas
     assert before["alembic_version"] == [f'{{"version_num":"{HEAD}"}}']
 
 
-# [utest->req~data-retirement-downgrade~1]
 def test_the_downgrade_recreates_both_tables_with_the_schema_of_b6c7d8e9f0a1(database, tmp_path):
     url, seeded = database
     schemas = pg(url, _schemas)

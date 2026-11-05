@@ -25,7 +25,7 @@ What a reading means (the gateway decides, the source only reports):
 Retries and replays do not count twice because the gateway never counts: it asks
 before it creates a job, and an idempotent replay returns the existing job before
 the question is asked (``services/job_submission.py``). What the source counts,
-and from which event, is SPACE's to define; see ``docs/qa/USAGE_LIMITS.md``.
+and from which event, is SPACE's to define.
 """
 
 from __future__ import annotations

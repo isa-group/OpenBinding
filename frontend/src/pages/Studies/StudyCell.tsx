@@ -145,7 +145,6 @@ function RivalsCard({ cell, cells, measure, onMeasure, measures, cellHref }: {
 }
 
 /** One cell of the study run `runId`, shown inside the Results tab: what it ran on, how it ended, and how the engines compare on it. */
-// [impl->req~frontend-nav-study-page~1]
 export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; runId: string; cellId: string }) {
   const { study, organization, project, access, root } = scope;
   const org = organization.slug;
@@ -253,7 +252,6 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
       <TabBar items={TABS} value={tab} onChange={(id) => setTab(id as 'result' | 'source')} ariaLabel="Cell views" prefix="st-cell-view" />
       <TabPanel prefix="st-cell-view" active={tab}>
       {tab === 'source' ? (
-        // [impl->req~frontend-studies-source-tab~1]
         <SourceView
           source={{ state: cell.state, job_id: cell.job_id, engine: cell.engine_ref, parameters: cell.parameters, seed: cell.seed, metrics: cell.metrics }}
           label="Cell metrics source"

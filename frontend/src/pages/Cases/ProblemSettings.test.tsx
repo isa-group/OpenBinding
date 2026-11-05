@@ -23,7 +23,6 @@ function renderSettings(organization = member) {
   });
 }
 
-// [utest->req~frontend-nav-problem-page~1]
 describe('Settings tab of the problem page', () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -9,11 +9,6 @@ const StudyList = lazy(() => import('../../pages/Studies/StudyList').then((modul
 const StudyBuilder = lazy(() => import('../../pages/Studies/StudyBuilder').then((module) => ({ default: module.StudyBuilder })));
 const StudyDetail = lazy(() => import('../../pages/Studies/StudyDetail').then((module) => ({ default: module.StudyDetail })));
 
-// [impl->req~frontend-retire-screens-not-routed~1]
-// [impl->req~frontend-retire-screen-count~1]
-// [impl->req~frontend-retire-reports-screens-not-routed~1]
-// [impl->req~frontend-retire-reports-screen-count~1]
-// [impl->req~frontend-nav-study-page~1]
 export const routes: RouteDefinition[] = [
   live('study-list', '/app/:org/:project/studies', <StudyList />),
   live('study-builder', '/app/:org/:project/studies/new', <StudyBuilder />),
@@ -27,7 +22,6 @@ const onStudyPage = (tab: string, withCell = false): MovedRoute['target'] => (_q
   return `${fillPath(`/app/:org/:project/studies/:study/${tab}`, params)}?${query.toString()}`;
 };
 
-// [impl->req~frontend-nav-study-page~1]
 const movedAddresses: MovedRoute[] = [
   moved('study-run-moved', '/app/:org/:project/studies/:study/runs/:run', '/app/:org/:project/studies/:study/progress', { target: onStudyPage('progress'), keepQuery: false }),
   moved('study-analytics-moved', '/app/:org/:project/studies/:study/runs/:run/analytics', '/app/:org/:project/studies/:study/results', { target: onStudyPage('results'), keepQuery: false }),

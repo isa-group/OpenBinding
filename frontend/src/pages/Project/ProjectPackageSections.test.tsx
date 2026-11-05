@@ -58,7 +58,6 @@ describe('Export package and Import package in the General section of the projec
     api.getPricingCatalog.mockResolvedValue({});
   });
 
-  // [utest->req~frontend-nav-files-retired~1]
   it('holds both sections for someone who may change the project', async () => {
     renderSettings();
 
@@ -67,7 +66,6 @@ describe('Export package and Import package in the General section of the projec
     expect(screen.queryByRole('heading', { name: 'Portable package' })).not.toBeInTheDocument();
   });
 
-  // [utest->req~frontend-nav-files-retired~1]
   it('shows neither to someone who may not change the project, and a visitor gets the neutral gate', async () => {
     platform.project.mockResolvedValue({ ...qos, organization_id: viewing.id });
     const viewer = renderSettings('read-lab');
@@ -86,7 +84,6 @@ describe('Export package and Import package in the General section of the projec
   });
 
   describe('export', () => {
-    // [utest->req~frontend-nav-files-retired~1]
     it('asks for the ZIP by default, downloads it and never shows its content', async () => {
       renderSettings();
       fireEvent.click(await screen.findByRole('button', { name: 'Export package' }));
@@ -97,7 +94,6 @@ describe('Export package and Import package in the General section of the projec
       expect(document.body.textContent).not.toContain(REPORT_MARKER);
     });
 
-    // [utest->req~frontend-nav-files-retired~1]
     it('downloads the file of the chosen format', async () => {
       renderSettings();
       const format = await screen.findByRole('combobox', { name: 'Format' });
@@ -129,7 +125,6 @@ describe('Export package and Import package in the General section of the projec
       expect(screen.getByRole('button', { name: 'Choose package' })).toBeEnabled();
     });
 
-    // [utest->req~frontend-nav-files-retired~1]
     it('checks the fingerprints on this device, shows the report, and imports only after confirming', async () => {
       platform.cases.mockResolvedValue([]);
       renderSettings();
@@ -213,7 +208,6 @@ describe('Export package and Import package in the General section of the projec
       await waitFor(() => expect(platform.importPackage).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', file, 'yaml'));
     });
 
-    // [utest->req~frontend-nav-files-retired~1]
     it('leaves a ZIP this page cannot open to the gateway, which receives it as a ZIP', async () => {
       renderSettings();
       const file = new File([new Uint8Array([0x50, 0x4b, 0x05, 0x06])], 'qos.openbinding.zip', { type: 'application/zip' });

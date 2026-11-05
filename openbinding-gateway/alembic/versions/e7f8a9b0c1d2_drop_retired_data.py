@@ -127,8 +127,6 @@ def _file_keys(source, path):
     return keys
 
 
-# [impl->req~data-retirement-guard~1]
-# [impl->req~data-retirement-guard-empty~1]
 def _guard(bind):
     """Return the selected key rows of every source, or raise before anything has changed."""
     selected = {source: _select(bind, source) for source in SOURCES}
@@ -179,8 +177,6 @@ def _delete(bind, table, column, values, expected):
         raise RuntimeError(f"M9.6 migration: deleted {deleted} rows of {table}, expected {expected}; nothing is committed")
 
 
-# [impl->req~data-retirement-removed-set~1]
-# [impl->req~data-retirement-kept-set~1]
 def upgrade():
     bind = op.get_bind()
     selected = _guard(bind)
@@ -194,7 +190,6 @@ def upgrade():
     op.drop_table('analysis_tasks')
 
 
-# [impl->req~data-retirement-downgrade~1]
 def downgrade():
     """Both tables come back empty, as they were at b6c7d8e9f0a1 (a2b3c4d5e6f7 + f2a3b4c5d6e7, d1e2f3a4b5c6)."""
     op.create_table(

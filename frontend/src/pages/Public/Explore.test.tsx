@@ -171,7 +171,6 @@ describe('Explore', () => {
     expect(platform.publicPublications).toHaveBeenCalledTimes(2);
   });
 
-  // [utest->req~frontend-nav-examples-in-explore~1]
   it('shows the BIM examples as the section examples, marked in the Explore navigation', async () => {
     api.getBimExamples.mockResolvedValue(['demo/01_simple_seq']);
     renderSection('/explore/examples');
@@ -182,7 +181,6 @@ describe('Explore', () => {
     expect(api.getPublicEngines).not.toHaveBeenCalled();
   });
 
-  // [utest->req~frontend-nav-examples-in-explore~1]
   it('marks Public work on /explore and links to the examples', async () => {
     renderSection('/explore');
 
@@ -192,7 +190,6 @@ describe('Explore', () => {
     expect(await screen.findByRole('button', { name: /Engines at checkout/ })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-nav-examples-in-explore~1]
   it('shows Page not found for any other section', () => {
     renderSection('/explore/everything');
 

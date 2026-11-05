@@ -75,7 +75,6 @@ interface OrgCreateProps {
 }
 
 /** New organization: the dialog `New organization`, open at `/app?create=organization`. Name it, place it and choose who sponsors it. */
-// [impl->req~frontend-nav-create-dialogs~1]
 export function OrgCreate({ onClose, onCreated }: OrgCreateProps) {
   const context = useOutletContext<PlatformOutletContext>();
   const { user, isAdmin } = useAuth();

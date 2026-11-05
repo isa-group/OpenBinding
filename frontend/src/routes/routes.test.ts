@@ -12,7 +12,6 @@ const P = '/app/:org/:project';
 const sample = (path: string) => path.replace(/\/:[A-Za-z]+\?/g, '').replace(/:[A-Za-z]+/g, 'sample') || '/';
 
 describe('route registry', () => {
-  // [utest->req~frontend-retire-library-screens-not-routed~1]
   it('declares none of the library catalogue and project resources screens', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     const paths = routeDefinitions.map((definition) => definition.path);
@@ -22,7 +21,6 @@ describe('route registry', () => {
     expect(paths.filter((path) => /\/(library|resources)(\/|$)/.test(path))).toEqual([]);
   });
 
-  // [utest->req~frontend-retire-screens-not-routed~1]
   it('declares no screen retired by M2.4', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     const paths = routeDefinitions.map((definition) => definition.path);
@@ -32,7 +30,6 @@ describe('route registry', () => {
     expect(paths).not.toContain('/app/analysis/workspace');
   });
 
-  // [utest->req~frontend-retire-reports-screens-not-routed~1]
   it('declares neither the report list nor the report editor', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     const paths = routeDefinitions.map((definition) => definition.path);
@@ -66,7 +63,6 @@ describe('route registry', () => {
     }
   });
 
-  // [utest->req~frontend-retire-sponsorship-screen-not-routed~1]
   it('requires an administrator for every admin screen and for nothing else', () => {
     const admin = routeDefinitions.filter((definition) => definition.id.startsWith('admin-'));
     expect(admin.length).toBeGreaterThan(0);
@@ -91,7 +87,6 @@ describe('route registry', () => {
     }
   });
 
-  // [utest->req~frontend-retire-library-screens-not-routed~1]
   it('answers the retired library addresses by no screen of the registry', () => {
     const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
     const retired = [
@@ -106,7 +101,6 @@ describe('route registry', () => {
     expect(id).toBe(matchRoutes(config, '/app/acme/atlas')?.at(-1)?.route.id);
   });
 
-  // [utest->req~frontend-retire-reports-screens-not-routed~1]
   it('answers the retired report addresses by no screen of the registry', () => {
     const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
     for (const path of ['/app/acme/atlas/reports', '/app/acme/atlas/reports/engine-comparison']) expect(matchRoutes(config, path), path).toBeNull();
@@ -125,7 +119,6 @@ describe('route registry', () => {
     expect(routeDefinitions.filter((definition) => 'paramAliases' in definition)).toEqual([]);
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it('gives every moved address an id and a path of its own, never the address of a screen', () => {
     const ids = [...routeDefinitions, ...movedRoutes].map((route) => route.id);
     const paths = [...routeDefinitions, ...movedRoutes].map((route) => route.path);
@@ -133,12 +126,10 @@ describe('route registry', () => {
     expect(new Set(paths).size).toBe(paths.length);
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it('declares moved addresses, so the table below is never empty', () => {
     expect(movedRoutes.length).toBeGreaterThan(0);
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it.each(movedRoutes.map((route) => [route.id, route] as const))('sends the moved address %s to a routed screen in one hop', (_id, route) => {
     const params = Object.fromEntries([...route.path.matchAll(/:([A-Za-z]+)/g)].map((match) => [match[1], `${match[1]}-value`]));
     const address = route.target(new URLSearchParams(), params);

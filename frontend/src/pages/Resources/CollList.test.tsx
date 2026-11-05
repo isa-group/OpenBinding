@@ -54,7 +54,6 @@ describe('Collections', () => {
     client.getOwnUsage.mockResolvedValue(usageOf());
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('lists the collections as cards with what they pin and their latest revision', async () => {
     renderList();
 
@@ -68,7 +67,6 @@ describe('Collections', () => {
     expect(within(cards[0]).getByText('3 items · revision 1')).toBeInTheDocument();
     expect(within(cards[1]).getByText('No revision yet')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Collections' })).toBeInTheDocument();
-    // [utest->req~frontend-retire-library-entry-points-removed~1]
     expect(screen.queryByRole('navigation', { name: 'Library sections' })).toBeNull();
     expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Collections' })).toHaveAttribute('aria-current', 'page');
     for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href') ?? '').not.toMatch(/\/(library|resources)([/?#]|$)/);
@@ -113,12 +111,10 @@ describe('Collections', () => {
     expect(platform.createCollection).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', { slug: 'mi-lista', name: 'Mi lista', description: '' });
     expect(screen.getByRole('link', { name: 'Add its first items' })).toHaveAttribute('href', `${root}/collections/mi-lista`);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    // [utest->req~frontend-nav-new-menu~1]
     await waitFor(() => expect(where()).toBe(`${root}/collections`));
     await waitFor(() => expect(platform.collections).toHaveBeenCalledTimes(2));
   });
 
-  // [utest->req~frontend-nav-create-dialogs~1]
   it('shows the toast with no dialog left open after a successful create', async () => {
     platform.createCollection.mockResolvedValue(collectionOf('mi-lista', 'Mi lista'));
     renderList();
@@ -133,7 +129,6 @@ describe('Collections', () => {
   });
 
   describe('the dialog in the address', () => {
-    // [utest->req~frontend-nav-new-menu~1]
     it('opens from the New collection button with create=collection in the address', async () => {
       renderList();
       await screen.findByRole('list', { name: 'Collections' });
@@ -144,7 +139,6 @@ describe('Collections', () => {
       expect(where()).toBe(`${root}/collections?create=collection`);
     });
 
-    // [utest->req~frontend-nav-new-menu~1]
     it('is open when the address holds create=collection, over the list', async () => {
       renderList(member, '?create=collection');
 
@@ -152,7 +146,6 @@ describe('Collections', () => {
       expect(screen.getByRole('heading', { level: 1, name: 'Collections' })).toBeInTheDocument();
     });
 
-    // [utest->req~frontend-nav-new-menu~1]
     it.each([
       ['Cancel', (dialog: HTMLElement) => fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))],
       ['the close button', (dialog: HTMLElement) => fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))],
@@ -169,7 +162,6 @@ describe('Collections', () => {
       expect(platform.createCollection).not.toHaveBeenCalled();
     });
 
-    // [utest->req~frontend-nav-new-menu~1]
     it('closes by replacing the entry, so Back does not open the dialog again', async () => {
       renderList();
       await screen.findByRole('list', { name: 'Collections' });
@@ -187,7 +179,6 @@ describe('Collections', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
-    // [utest->req~frontend-nav-new-menu~1]
     it('gives a VIEWER no dialog when the address asks for one', async () => {
       renderList(viewer, '?create=collection');
 

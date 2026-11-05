@@ -18,7 +18,6 @@ const ARROW = { up: '↑', down: '↓', flat: '→' } as const;
 const number = new Intl.NumberFormat('en-US', { maximumFractionDigits: 3 });
 
 /** Key figures as cards. A missing value reads "no value", a trend reads as text with a decorative arrow. */
-// [impl->req~frontend-rendering-metric-cards~1]
 export function MetricCards({ metrics, label = 'Key figures' }: MetricCardsProps) {
   if (metrics.length === 0) return null;
 

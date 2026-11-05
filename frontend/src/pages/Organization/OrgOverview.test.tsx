@@ -46,7 +46,6 @@ describe('Organization overview', () => {
     const title = await screen.findByRole('heading', { level: 1, name: 'ISA Demo Group' });
     const hero = within(title.closest('header')!);
     expect(hero.getByRole('button', { name: 'New project' })).toBeInTheDocument();
-    // [utest->req~frontend-retire-library-entry-points-removed~1]
     expect(hero.queryByRole('link', { name: 'Library' })).toBeNull();
     for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/(library|resources)([/?#]|$)/);
     expect(hero.getByRole('link', { name: 'Members' })).toHaveAttribute('href', '/app/isa-demo/settings/members');
@@ -100,7 +99,6 @@ describe('Organization overview', () => {
       platform.createProject.mockImplementation(async (_org: string, value: { slug: string; name: string }) => project(value.slug, { name: value.name }));
     });
 
-    // [utest->req~frontend-nav-create-dialogs~1]
     it('opens from the New project button with create=project in the address', async () => {
       renderOverview();
       fireEvent.click(await screen.findByRole('button', { name: 'New project' }));
@@ -109,14 +107,12 @@ describe('Organization overview', () => {
       expect(addressNow()).toBe('/app/isa-demo?create=project');
     });
 
-    // [utest->req~frontend-nav-create-dialogs~1]
     it('is open when the address holds create=project', async () => {
       renderScreen(<OrgOverview />, { path: '/app/:org', url: '/app/isa-demo?create=project', organizations: [group, lab] });
 
       expect(await screen.findByRole('dialog', { name: 'New project' })).toBeInTheDocument();
     });
 
-    // [utest->req~frontend-nav-create-dialogs~1]
     it('goes back to the organization on Cancel, returns the focus to New project and creates nothing', async () => {
       renderScreen(<OrgOverview />, { path: '/app/:org', url: '/app/isa-demo?create=project', organizations: [group, lab] });
       const dialog = await screen.findByRole('dialog', { name: 'New project' });
@@ -129,7 +125,6 @@ describe('Organization overview', () => {
       expect(platform.createProject).not.toHaveBeenCalled();
     });
 
-    // [utest->req~frontend-nav-create-dialogs~1]
     it('creating demo-two closes the dialog and opens the project', async () => {
       renderScreen(<OrgOverview />, { path: '/app/:org', url: '/app/isa-demo?create=project', organizations: [group, lab] });
       const dialog = await screen.findByRole('dialog', { name: 'New project' });

@@ -85,7 +85,6 @@ describe('AppHeader', () => {
     api.listNotifications.mockResolvedValue([]);
   });
 
-  // [utest->req~frontend-nav-signed-in-navigation~1]
   it('lists Home, Problems, Lab, Engines, Language and, for an administrator, Admin, in this order', () => {
     renderHeader(adminUser, { path: '/app/isa-demo/qos/problems' });
 
@@ -100,7 +99,6 @@ describe('AppHeader', () => {
     expect(nav.getByRole('link', { name: 'Admin' })).toHaveAttribute('href', '/app/admin');
   });
 
-  // [utest->req~frontend-nav-signed-in-navigation~1]
   it('offers the Admin entry only to administrators, and no Administration link in the account menu', () => {
     const { unmount } = renderHeader(user);
     expect(within(mainNav()).queryByRole('link', { name: 'Admin' })).toBeNull();
@@ -113,7 +111,6 @@ describe('AppHeader', () => {
     expect(screen.queryByRole('link', { name: 'Administration' })).toBeNull();
   });
 
-  // [utest->req~frontend-nav-signed-in-navigation~1]
   it('has none of the former entries', () => {
     renderHeader(adminUser);
 
@@ -125,7 +122,6 @@ describe('AppHeader', () => {
     expect(retired).toEqual([]);
   });
 
-  // [utest->req~frontend-nav-signed-in-navigation~1]
   it('opens the Lab menu with Runs, Studies and Generator, and closes it with Escape, returning focus', () => {
     renderHeader(user);
     const toggle = labToggle();
@@ -144,7 +140,6 @@ describe('AppHeader', () => {
     expect(toggle).toHaveFocus();
   });
 
-  // [utest->req~frontend-nav-signed-in-navigation~1]
   it('disables Problems and Studies with the hint "Needs a project" and keeps Runs and Generator without a project', () => {
     renderHeader(user, { withProject: false });
 
@@ -173,7 +168,6 @@ describe('AppHeader', () => {
     expect(within(mobileNav()).getByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' })).toHaveAttribute('href', '/app');
   });
 
-  // [utest->req~frontend-nav-signed-in-navigation~1]
   it.each([
     ['/app', 'Home'],
     ['/app/isa-demo/settings/members', 'Home'],
@@ -196,7 +190,6 @@ describe('AppHeader', () => {
     expect(marked).toEqual(expected ? [expected] : []);
   });
 
-  // [utest->req~frontend-nav-signed-in-navigation~1]
   it('marks the entry of the Lab menu that matches the address', () => {
     renderHeader(user, { path: '/app/isa-demo/qos/studies' });
     fireEvent.click(labToggle());
@@ -206,7 +199,6 @@ describe('AppHeader', () => {
     expect(within(menu).getByRole('link', { name: 'Runs' })).not.toHaveAttribute('aria-current');
   });
 
-  // [utest->req~frontend-nav-new-menu~1]
   it('lists Problem, Collection, Study and Run in the current project from the New menu', () => {
     renderHeader();
     const toggle = newToggle();
@@ -224,7 +216,6 @@ describe('AppHeader', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 
-  // [utest->req~frontend-nav-new-menu~1]
   it('disables the four items of the New menu with the hint "Needs a project" when there is no project', () => {
     renderHeader(user, { withProject: false });
     fireEvent.click(newToggle());
@@ -238,7 +229,6 @@ describe('AppHeader', () => {
     for (const item of menu.querySelectorAll('[aria-disabled="true"]')) expect(item).toHaveAccessibleDescription('Needs a project');
   });
 
-  // [utest->req~frontend-nav-new-menu~1]
   it('has none of the former New items', () => {
     renderHeader();
     fireEvent.click(newToggle());
@@ -249,7 +239,6 @@ describe('AppHeader', () => {
     }
   });
 
-  // [utest->req~frontend-nav-account-menu~1]
   it('opens the account menu with the five sections then Sign out', () => {
     renderHeader();
     const toggle = screen.getByRole('button', { name: 'Account menu' });
@@ -320,8 +309,6 @@ describe('AppHeader', () => {
       expect(screen.getByRole('button', { name: 'Open menu' })).toHaveFocus();
     });
 
-    // [utest->req~frontend-nav-signed-in-navigation~1]
-    // [utest->req~frontend-nav-new-menu~1]
     it('mirrors the entries of the desktop header, the Lab menu and the New menu', () => {
       renderHeader(adminUser);
 

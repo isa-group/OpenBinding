@@ -2258,7 +2258,7 @@ def _normalize_candidates(
         candidates[catalog.id] = {"providers": providers, "featureBindings": feature_bindings, "candidates": catalog_candidates}
     # The eligible candidates of a task are a set.  They are collected in the order the JSON objects were written, which
     # no two forms of one package share, so the list is put in the one canonical order: by (catalog id, candidate id).
-    # Engines index it with their seeds, so this order is part of the IR contract (docs/qa/IR_NORMALIZATION.md).
+    # Engines index it with their seeds, so this order is part of the IR contract.
     for eligible in eligibility.values():
         eligible.sort(key=_ref_key)
     for task_id, eligible in eligibility.items():
@@ -2909,7 +2909,7 @@ def _constraints(
 ) -> list[dict[str, Any]]:
     # Constraints are a set, collected in the order the JSON objects were written.  They end in the canonical order, by
     # ``ref`` (constraint set id, constraint id), and the source map is written after sorting because it indexes this
-    # list (docs/qa/IR_NORMALIZATION.md).
+    # list.
     gathered: list[tuple[dict[str, Any], _Resource, str, dict[str, Any]]] = []
     for resource in resources:
         source = resource.document.get("spec", {}).get("constraints", {})
@@ -3037,8 +3037,8 @@ def _placement(
     lowered: list[dict[str, Any]] = []
     # Placement models, the demands of a model and its transitions are sets, collected in the order the JSON objects
     # were written.  They are lowered, and listed, in the canonical order: models by resource id, demands by candidate
-    # and transitions by ``ref``.  ``len(lowered)`` below is the final index of the model in the source map
-    # (docs/qa/IR_NORMALIZATION.md).  ``network`` and ``capacityRules`` are arrays the author writes: their order is data
+    # and transitions by ``ref``.  ``len(lowered)`` below is the final index of the model in the source map.
+    # ``network`` and ``capacityRules`` are arrays the author writes: their order is data
     # (a capacity rule is identified by its position) and is kept.
     for resource in sorted(resources, key=lambda item: item.id):
         spec = resource.document.get("spec", {})

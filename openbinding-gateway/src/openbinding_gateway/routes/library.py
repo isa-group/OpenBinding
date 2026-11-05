@@ -3,9 +3,6 @@
 Since M9.6 no route creates, renames, drafts, seals, publishes or withdraws a library artifact, and the project
 library association is gone (design.md §2.1 rows 16 to 28), so none of them is routed or documented.
 """
-# [impl->req~collaboration-artifacts-library-read-only~1]
-# [impl->req~gateway-api-removed-operations-not-routed~1]
-# [impl->req~gateway-api-removed-operations-not-documented~1]
 from __future__ import annotations
 
 import re

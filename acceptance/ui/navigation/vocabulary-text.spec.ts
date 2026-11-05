@@ -5,7 +5,6 @@ import {
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
-// [utest->req~frontend-nav-vocabulary-text~1]
 test('the project screens are headed Problems and Runs and the Problems tab offers New problem', async ({ page }) => {
   await mockGateway(page);
   await page.goto(PROBLEMS_FINAL);
@@ -15,7 +14,6 @@ test('the project screens are headed Problems and Runs and the Problems tab offe
   await expect(page.getByRole('heading', { name: 'Runs', exact: true }).first()).toBeVisible();
 });
 
-// [utest->req~frontend-nav-vocabulary-text~1]
 test('the Verify kind selector reads Problem version for the kind case-revision', async ({ page }) => {
   await mockGateway(page, { role: null });
   await page.goto(`/verify?digest=${VERIFY_DIGEST}`);
@@ -27,7 +25,6 @@ const SIGNED_IN_SCREENS = [
   '/app/acme/demo/collections', '/app/acme/demo/studies', '/app/acme/demo/published', '/app/account/usage',
 ];
 
-// [utest->req~frontend-nav-vocabulary-text~1]
 test('no signed-in screen shows the words case or job outside code, SourceView and LogPanel', async ({ page }) => {
   test.setTimeout(120_000);
   await mockGateway(page);

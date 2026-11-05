@@ -2,7 +2,6 @@
 // Unlike RETIRED_ROUTES (retiredRoutes.tsx, screens that are gone) a moved address keeps its parameters and, by default, its query.
 // Keep one call per line with literal arguments, `moved('id', '/from', '/to'…`: the end-to-end smoke test reads them from the area files.
 
-// [impl->req~frontend-nav-redirects~1]
 
 /** What React Router hands to a matched route: decoded segments, absent when the path has none. */
 export type MovedParams = Readonly<Partial<Record<string, string>>>;

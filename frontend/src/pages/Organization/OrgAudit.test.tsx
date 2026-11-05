@@ -81,7 +81,6 @@ describe('Audit log', () => {
     expect(document.body).not.toHaveTextContent(uuid.slice(0, 8));
   });
 
-  // [utest->req~frontend-audit-detail-rendered~1]
   it('shows nested object and array details as readable text, never as JSON', async () => {
     const rich: OrganizationAuditEvent = {
       ...auditFixture[2],
@@ -108,7 +107,6 @@ describe('Audit log', () => {
     expect(details.textContent).not.toMatch(/[{}[\]"]/);
   });
 
-  // [utest->req~frontend-audit-detail-rendered~1]
   it('never draws a target id or a digest in an opened event', async () => {
     const blob: OrganizationAuditEvent = {
       ...auditFixture[2],

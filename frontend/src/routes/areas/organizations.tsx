@@ -6,7 +6,6 @@ import type { RouteDefinition } from '../types';
 
 // Area: organizations. The workspace home and the organization pages. A new organization is made in the dialog over the home,
 // open at `/app?create=organization`.
-// [impl->req~frontend-nav-create-dialogs~1]
 
 const AppHome = lazy(() => import('../../pages/AppHome/AppHome').then((module) => ({ default: module.AppHome })));
 const OrgOverview = lazy(() => import('../../pages/Organization/OrgOverview').then((module) => ({ default: module.OrgOverview })));

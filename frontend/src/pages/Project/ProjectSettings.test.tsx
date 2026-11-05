@@ -138,7 +138,6 @@ describe('Project settings', () => {
   });
 
   describe('sections', () => {
-    // [utest->req~frontend-nav-project-tabs~1]
     it('marks General at /settings and offers Members', async () => {
       renderSettings();
 
@@ -151,7 +150,6 @@ describe('Project settings', () => {
       expect(platform.members).not.toHaveBeenCalled();
     });
 
-    // [utest->req~frontend-nav-project-tabs~1]
     it('lists the members of the organization at /settings/members, and links to manage them', async () => {
       renderSettings('isa-demo', 'members');
 
@@ -170,7 +168,6 @@ describe('Project settings', () => {
       expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page');
     });
 
-    // [utest->req~frontend-nav-project-tabs~1]
     it('says the members could not be loaded, and tries again', async () => {
       platform.members.mockRejectedValueOnce(refusal(503, 'unavailable'));
       renderSettings('isa-demo', 'members');
@@ -180,7 +177,6 @@ describe('Project settings', () => {
       expect(await screen.findByText('tomas')).toBeInTheDocument();
     });
 
-    // [utest->req~frontend-nav-project-tabs~1]
     it('is for members at /settings/members too: a visitor of a public project gets the neutral gate', async () => {
       platform.project.mockResolvedValue({ ...qos, visibility: 'public', organization_id: 'org-open', created_by_id: null, access: 'public_read', effective_role: null });
       renderSettings('open-lab', 'members');
@@ -189,7 +185,6 @@ describe('Project settings', () => {
       expect(platform.members).not.toHaveBeenCalled();
     });
 
-    // [utest->req~frontend-nav-project-tabs~1]
     it('shows Page not found for any other section', async () => {
       renderSettings('isa-demo', 'billing');
 
@@ -199,7 +194,6 @@ describe('Project settings', () => {
   });
 
   describe('below ADMIN', () => {
-    // [utest->req~frontend-nav-files-retired~1]
     it('offers no package export or import', async () => {
       platform.project.mockResolvedValue({ ...qos, organization_id: member.id });
       renderSettings('member-lab');

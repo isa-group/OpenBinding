@@ -196,9 +196,6 @@ def comparable(body: dict) -> str:
 # -- a visible match is cited ---------------------------------------------------------
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
-# [utest->req~resolver-verifier-citation-year~1]
-# [utest->req~resolver-verifier-citation-url~1]
 @pytest.mark.parametrize("name", SOURCES)
 async def test_every_match_cites_recorded_facts_and_its_link(name, world):
     source = SOURCES[name]
@@ -213,7 +210,6 @@ async def test_every_match_cites_recorded_facts_and_its_link(name, world):
     assert_cites_recorded_facts_only(body, expected_url(source.kind, seeded.digest), authors=[seeded.username])
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.skipif(
     bool(os.environ.get("TEST_DATABASE_URL")), reason="an owner that is not recorded needs unenforced foreign keys"
 )
@@ -230,9 +226,6 @@ async def test_without_a_recorded_owner_the_authors_are_empty(world):
 RESOLVABLE_SOURCES = [name for name, source in SOURCES.items() if source.kind is not None]
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
-# [utest->req~resolver-verifier-citation-year~1]
-# [utest->req~resolver-verifier-citation-url~1]
 @pytest.mark.parametrize("name", RESOLVABLE_SOURCES)
 async def test_the_verifier_cites_a_digest_as_the_resolver_does(name, world):
     source = SOURCES[name]
@@ -249,7 +242,6 @@ async def test_the_verifier_cites_a_digest_as_the_resolver_does(name, world):
     assert verified["url"] == resolved["url"]
 
 
-# [utest->req~resolver-verifier-citation-url~1]
 @pytest.mark.parametrize("name", SOURCES)
 async def test_the_trailing_slash_of_the_frontend_origin_is_removed(name, world, monkeypatch):
     # The verifier looks the digest up as sent, so only the configured origin varies here.
@@ -263,7 +255,6 @@ async def test_the_trailing_slash_of_the_frontend_origin_is_removed(name, world,
     assert "//resolve" not in json.dumps(citation) and "//app" not in json.dumps(citation)
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 async def test_a_mismatch_has_no_citation_even_when_the_claimed_digest_is_visible(world):
     seeded = await seed_case_revision(world, public=True)
     document = {"apiVersion": "bim/v1", "kind": "BindingCase", "title": uuid.uuid4().hex}
@@ -276,9 +267,6 @@ async def test_a_mismatch_has_no_citation_even_when_the_claimed_digest_is_visibl
     assert body["citation"] is None
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
-# [utest->req~resolver-verifier-citation-year~1]
-# [utest->req~resolver-verifier-citation-url~1]
 @pytest.mark.parametrize("name", PUBLISHABLE)
 async def test_a_published_version_is_cited_as_its_publication_records_it(name, world):
     source = SOURCES[name]
@@ -297,7 +285,6 @@ async def test_a_published_version_is_cited_as_its_publication_records_it(name, 
         assert_links_to(body["citation"], expected_url(source.kind, seeded.digest))
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize("name", PUBLISHABLE)
 async def test_a_malformed_recorded_doi_is_dropped_and_the_venue_kept(name, world):
     seeded = await SOURCES[name].seeder(world, public=True)
@@ -311,8 +298,6 @@ async def test_a_malformed_recorded_doi_is_dropped_and_the_venue_kept(name, worl
     assert dict(parse_entry(citation["bibtex"])[1])["howpublished"] == "V"
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
-# [utest->req~resolver-verifier-citation-year~1]
 @pytest.mark.parametrize("name", PUBLISHABLE)
 async def test_a_publication_of_a_sibling_version_is_not_cited(name, world):
     source = SOURCES[name]
@@ -327,8 +312,6 @@ async def test_a_publication_of_a_sibling_version_is_not_cited(name, world):
     assert "zenodo" not in json.dumps(body)
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
-# [utest->req~resolver-verifier-citation-year~1]
 @pytest.mark.parametrize("name", PUBLISHABLE)
 async def test_a_withdrawn_publication_is_not_cited(name, world):
     source = SOURCES[name]
@@ -342,7 +325,6 @@ async def test_a_withdrawn_publication_is_not_cited(name, world):
     assert "zenodo" not in json.dumps(body)
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize("name", PUBLISHABLE)
 async def test_a_hostile_recorded_venue_cannot_break_the_bibtex_entry(name, world):
     seeded = await SOURCES[name].seeder(world, public=True)
@@ -357,7 +339,6 @@ async def test_a_hostile_recorded_venue_cannot_break_the_bibtex_entry(name, worl
     assert citation["venue"] == HOSTILE_VENUE
 
 
-# [utest->req~resolver-verifier-citation-year~1]
 async def test_a_report_citation_is_dated_by_its_version_like_the_resolver_does(world):
     seeded = await seed_library_version(world, "report", "Dataset")
     _, proj = await project_of(world, seeded.headers, "public")
@@ -378,7 +359,6 @@ async def test_a_report_citation_is_dated_by_its_version_like_the_resolver_does(
     assert_cites_recorded_facts_only(body, expected_url("report", seeded.digest), authors=[seeded.username])
 
 
-# [utest->req~resolver-verifier-citation-url~1]
 async def test_a_file_outside_any_project_links_to_the_verifier_screen(world):
     # The resolver finds blobs through their project only, so a project-less blob has no permanent link.
     user, headers = await member(world)
@@ -401,7 +381,6 @@ async def test_a_file_outside_any_project_links_to_the_verifier_screen(world):
 # -- nothing visible, nothing cited ---------------------------------------------------
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize("name", SOURCES)
 async def test_a_hidden_match_answers_exactly_like_an_unknown_digest(name, world):
     seeded = await SOURCES[name].seeder(world, public=False)
@@ -417,7 +396,6 @@ async def test_a_hidden_match_answers_exactly_like_an_unknown_digest(name, world
     assert comparable(hidden) == comparable(unknown)
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize("name", PUBLISHABLE)
 async def test_the_publication_of_a_sibling_never_leaks_to_a_hidden_version(name, world):
     published_version = await SOURCES[name].seeder(world, public=True)
@@ -432,7 +410,6 @@ async def test_the_publication_of_a_sibling_never_leaks_to_a_hidden_version(name
     assert comparable(answer) == comparable(unknown)
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 async def test_an_unregistered_digest_or_document_has_no_citation(world):
     _, headers = await member(world)
     document = {"apiVersion": "bim/v1", "kind": "BindingCase", "title": uuid.uuid4().hex}
@@ -472,9 +449,6 @@ async def uploaded_blob(world, public: bool) -> tuple[Seeded, bytes]:
     return Seeded("artifact", digest, headers, user["username"], user["id"], org), content
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
-# [utest->req~resolver-verifier-citation-year~1]
-# [utest->req~resolver-verifier-citation-url~1]
 async def test_an_uploaded_file_cites_its_visible_match(world):
     seeded, content = await uploaded_blob(world, public=True)
 
@@ -485,7 +459,6 @@ async def test_an_uploaded_file_cites_its_visible_match(world):
     assert_cites_recorded_facts_only(body, expected_url("artifact", seeded.digest), authors=[seeded.username])
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 async def test_a_hidden_file_answers_exactly_like_an_unknown_one(world):
     seeded, content = await uploaded_blob(world, public=False)
     _, stranger = await member(world)

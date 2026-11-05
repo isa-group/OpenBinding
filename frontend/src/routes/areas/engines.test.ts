@@ -15,7 +15,6 @@ const config = routeDefinitions.map((definition) => ({ id: definition.id, path: 
 const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id;
 
 describe('area engines', () => {
-  // [utest->req~frontend-nav-route-areas~1]
   it('has 5 screens, with the ids and routes of the prototype', () => {
     expect(routesByArea.engines).toHaveLength(5);
     expect(routesByArea.engines.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
@@ -32,7 +31,6 @@ describe('area engines', () => {
   });
 
   describe('address resolution', () => {
-    // [utest->req~frontend-nav-route-areas~1]
     it.each([
       ['/engines/bim.builtin/random-search/1.0.0', 'eng-detail'],
       ['/engines/new', null],

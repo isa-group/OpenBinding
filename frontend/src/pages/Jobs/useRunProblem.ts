@@ -13,7 +13,6 @@ const LOADING: RunProblemState = { problem: undefined, constraints: [] };
 const UNAVAILABLE: RunProblemState = { problem: null, constraints: [] };
 
 /** The compiled problem of a run, read once when `enabled`: what RunResult needs to name tasks and candidates and to show bounds. */
-// [impl->req~frontend-rendering-job-run-result~1]
 export function useRunProblem(jobId: string | undefined, enabled: boolean): RunProblemState {
   const [state, setState] = useState<{ jobId: string | undefined; value: RunProblemState }>({ jobId, value: LOADING });
 

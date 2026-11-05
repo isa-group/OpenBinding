@@ -64,7 +64,6 @@ function Pins({ pins }: { pins: SnapshotPins }) {
 }
 
 /** The Source tab: the compiled form, or the files of the package (the archive is read only when that view opens). */
-// [impl->req~frontend-snapshot-source-tab~1]
 function SourceViewer({ snapshot, snapshotId }: { snapshot: Snapshot; snapshotId: string }) {
   const [tab, setTab] = useState<'ir' | 'files'>('ir');
   const [file, setFile] = useState<string | null>(null);
@@ -320,8 +319,6 @@ function SnapshotBody({ organization, project, snapshotId }: { organization: Org
  * The Source tab of the problem page: the compiled form and the package files of the problem version on show, then its fingerprints, what the
  * engines receive and the downloads. A version sealed without a snapshot shows the sealed document.
  */
-// [impl->req~frontend-nav-problem-page~1]
-// [impl->req~frontend-snapshot-source-tab~1]
 export function VersionSource({ organization, project, revision }: { organization: Organization; project: Project; revision: CaseRevision }) {
   if (!revision.source_snapshot_id) {
     return (

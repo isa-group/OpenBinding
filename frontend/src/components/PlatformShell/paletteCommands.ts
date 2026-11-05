@@ -25,7 +25,6 @@ const glyphOf = (label: string) => label
   .map((word, index) => (index === 0 ? word[0].toUpperCase() : word[0].toLowerCase()))
   .join('') || '·';
 
-// [impl->req~frontend-retire-palette~1]
 /** Everything the palette can reach comes from the screen map and from data the workspace already loaded. */
 export function buildCommands({ organizations = [], projects = [], organization, project, isAdmin }: PaletteContext): Command[] {
   const command = (group: string, label: string, desc: string, href: string, glyph = glyphOf(label)): Command => ({ group, label, desc, href, glyph });
@@ -54,19 +53,14 @@ export function buildCommands({ organizations = [], projects = [], organization,
     const studies = labEntries(organization, project).find((entry) => entry.id === 'studies');
     const sections: Array<[string, string, string | undefined]> = [
       ['Problems', 'Binding problems and their versions', problems.to],
-      // [impl->req~frontend-retire-library-navigation~1]
       ['Collections', 'Problems grouped into suites', `${root}/collections`],
       ['Studies', 'Problems × engines × parameters × seeds', studies?.to],
-      // [impl->req~frontend-retire-reports-navigation~1]
-      // [impl->req~frontend-nav-project-tabs~1]
       ['Published', 'Published editions and how to cite them', `${root}/published`],
-      // [impl->req~frontend-nav-files-retired~1]
       ['Project settings', 'Name, visibility, members and package', `${root}/settings`],
     ];
     for (const [label, desc, href] of sections) {
       if (href) commands.push(command('Project', label, `${desc} · ${project.name}`, href));
     }
-    // [impl->req~frontend-nav-new-menu~1]
     const where = `in ${project.name}`;
     const created = createItems(organization, project);
     const describe: Record<string, string> = {
@@ -77,7 +71,6 @@ export function buildCommands({ organizations = [], projects = [], organization,
     }
   }
 
-  // [impl->req~frontend-nav-account-menu~1]
   const accountDesc: Record<string, string> = {
     Profile: 'Your details and security', Plan: 'Your plan and the SPACE and SPHERE consoles', 'API keys': 'Keys for scripts and CI',
     Identities: 'Accounts you sign in with', Notifications: 'Everything sent to your account',

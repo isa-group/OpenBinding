@@ -47,7 +47,6 @@ interface TabData {
  * Explore (`pub-explore`, `/explore/:section?`): the public work and, as the section `examples`, the BIM examples.
  * Any other section is a page that does not exist.
  */
-// [impl->req~frontend-nav-examples-in-explore~1]
 export function ExplorePage() {
   const { section } = useParams();
   if (section === undefined) return <PublicWork />;

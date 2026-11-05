@@ -9,7 +9,6 @@ import { DESCRIPTION_MAX, NAME_MAX } from './casesModel';
 import { DeleteCaseDialog } from './dialogs';
 
 /** The Settings tab of the problem page: the name and the description, and deleting the problem. */
-// [impl->req~frontend-nav-problem-page~1]
 export function ProblemSettings({ organization, project, item, sealed, canEdit, canAdminister, onSaved, onDeleted }: {
   organization: Organization; project: Project; item: BindingCase; sealed: number;
   /** MEMBER or above: the name and the description change; the page already says what a role below it can do. */

@@ -38,7 +38,6 @@ function renderRevision(revision = '2') {
   });
 }
 
-// [utest->req~frontend-nav-problem-page~1]
 describe('Overview tab of the problem page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -152,7 +151,6 @@ describe('Overview tab of the problem page', () => {
     expect(placement).toHaveTextContent('1 demand · 0 network links');
   });
 
-  // [utest->req~frontend-retire-library-entry-points-removed~1]
   it('names each resource by its exact version and says whether it is published, without a link to the library', async () => {
     renderRevision();
 
@@ -166,7 +164,6 @@ describe('Overview tab of the problem page', () => {
     expect(cases.resolveVersion).toHaveBeenCalledWith(catalog3);
   });
 
-  // [utest->req~frontend-retire-library-entry-points-removed~1]
   it('says a withdrawn resource is withdrawn, still without a link to the library', async () => {
     cases.resolveVersion.mockImplementation(async (ref: ReturnType<typeof refOf>) => versionOf(ref, `artifact-${ref.name}`, { withdrawn: ref.name === 'providers-eu' }));
     renderRevision();

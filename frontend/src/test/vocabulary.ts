@@ -37,7 +37,6 @@ const EXEMPT_TAGS: ReadonlySet<string> = new Set(['code', 'SourceView', 'LogPane
 const escapeRegExp = (word: string): string => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** The pattern of the given words as whole words in any letter case. It has no `g` flag, so `test` keeps no state. */
-// [impl->req~frontend-nav-vocabulary-text~1]
 export const wordPattern = (words: readonly string[]): RegExp => new RegExp(`\\b(?:${words.map(escapeRegExp).join('|')})\\b`, 'i');
 
 /** True for a file that is not application code: tests, test kits and utilities, fixtures (`fixtures.ts`, `pricingFixture.ts`), declarations and everything under `test/`. */
@@ -92,7 +91,6 @@ const propertyName = (name: ts.PropertyName): string | undefined => (
  * The places in `source` that show a word of `words` (see `wordPattern`). `file` names the file in the findings and tells TSX from TS by its
  * extension.
  */
-// [impl->req~frontend-nav-vocabulary-text~1]
 export function scanSource(source: string, words: RegExp, file = 'source.tsx'): Finding[] {
   const kind = /\.[jt]sx$/.test(file) ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   const tree = ts.createSourceFile(file, source, ts.ScriptTarget.ES2022, true, kind);
@@ -153,7 +151,6 @@ const API_PATH = /(^|\/)v\d+\//;
  * engine's endpoint) and the HTTP client layer (`src/api/`, which names the gateway's paths) are not reported, nor are test files, test kits
  * and fixtures. The files that name old addresses on purpose (the route areas, the moved and retired tables) are left out by the caller.
  */
-// [impl->req~frontend-nav-vocabulary-urls~1]
 export function scanAddresses(files: Readonly<Record<string, string>>, segments: readonly string[] = OLD_ADDRESS_SEGMENTS): string[] {
   const old = new RegExp(`/(?:${segments.map(escapeRegExp).join('|')})(?=$|[/?#$])`);
   return Object.keys(files).sort()
@@ -183,7 +180,6 @@ export const formatFinding = (finding: Finding): string => `${finding.file}:${fi
  * The findings of many files (path to source). Test files, test kits, fixtures and declarations are not application code and are skipped.
  * `.ts` and `.tsx` files only.
  */
-// [impl->req~frontend-nav-vocabulary-text~1]
 export function scanFiles(files: Readonly<Record<string, string>>, words: RegExp): Finding[] {
   return Object.keys(files).sort()
     .filter((path) => /\.tsx?$/.test(path) && !isTestSupport(path))

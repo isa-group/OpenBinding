@@ -43,7 +43,6 @@ function Status({ met, enforcement, penalty }: { met: boolean | null; enforcemen
 const kindOf = (enforcement: 'hard' | 'soft') => (enforcement === 'soft' ? 'should' : 'must');
 
 /** Each bound of a solution with its value and margin, and the other rules as text; the status is the gateway's. */
-// [impl->req~frontend-rendering-qos-against-bounds~1]
 export function QoSAgainstBounds({ bounds, rules, label = 'QoS against bounds' }: QoSAgainstBoundsProps) {
   const unchecked = bounds.length + rules.length > 0 && [...bounds, ...rules].every((row) => row.met === null);
 

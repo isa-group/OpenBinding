@@ -4,7 +4,6 @@ import { libraryApi } from './library';
 import { platformApi } from './platform';
 
 // M9.6 removed these operations from the gateway: no source of the application may bind them again.
-// [utest->req~frontend-workspace-no-removed-operation-binding~1]
 
 const REMOVED_BINDINGS = [
   'analysisApi',

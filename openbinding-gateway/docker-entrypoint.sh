@@ -16,7 +16,6 @@
 # is written outside the paths that user owns (ARTIFACT_ROOT, /run/bim).
 set -e
 
-# [impl->req~lab-deployment-migrate-on-start~2]
 mode="${OPENBINDING_MIGRATE:-auto}"
 case "$mode" in
     auto | skip | only) ;;
@@ -26,7 +25,6 @@ case "$mode" in
         ;;
 esac
 
-# [impl->req~lab-deployment-entrypoint-secret-files~1]
 for name in DATABASE_URL GATEWAY_JWT_SECRET SPACE_API_KEY SPHERE_API_KEY \
     SECRETS_FERNET_KEYS FEDERATION_SECRET_KEY BOOTSTRAP_ADMIN_PASSWORD; do
     eval "file=\${${name}_FILE:-}"

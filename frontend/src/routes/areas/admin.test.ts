@@ -15,13 +15,11 @@ const PROTOTYPE: Array<[string, string]> = [
 ];
 
 describe('area admin', () => {
-  // [utest->req~frontend-nav-route-areas~1]
   it('has 8 screens, with the ids and routes of the prototype', () => {
     expect(routesByArea.admin).toHaveLength(8);
     expect(routesByArea.admin.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
   });
 
-  // [utest->req~frontend-retire-sponsorship-screen-not-routed~1]
   it('declares no sponsorship screen, and keeps the eight administration screens', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     const paths = routeDefinitions.map((definition) => definition.path);
@@ -50,7 +48,6 @@ describe('area admin', () => {
   describe('address resolution', () => {
     const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
 
-    // [utest->req~frontend-nav-route-areas~1]
     it.each([
       ['/app/admin', 'admin-overview'],
       ['/app/admin/users', 'admin-users'],

@@ -5,8 +5,6 @@ service consumes ``analysis`` (``compose.lab*.json`` cannot carry comments; test
 checks them all).
 """
 
-# [impl->req~job-execution-default-queue-only~1]
-# [impl->req~lab-deployment-no-analysis-worker~1]
 from .job_dispatch import configure_broker, run_persisted_job_message
 
 configure_broker()

@@ -163,32 +163,26 @@ def assert_api_location(text: str | None = None) -> None:
     assert location(server, "=", "/api") == [["return", "308", "/api/", ";"]]
 
 
-# [utest->req~lab-deployment-production-proxy-upstream~1]
 def test_tls_server_has_a_docker_resolver_with_a_short_cache_no_ipv6_and_a_timeout():
     assert_resolver()
 
 
-# [utest->req~lab-deployment-production-proxy-upstream~1]
 def test_tls_server_keeps_the_gateway_address_in_a_server_level_variable():
     assert_gateway_variable()
 
 
-# [utest->req~lab-deployment-production-proxy-upstream~1]
 def test_every_proxy_pass_uses_the_gateway_variable_and_none_is_literal():
     assert_proxy_passes()
 
 
-# [utest->req~lab-deployment-production-proxy-upstream~1]
 def test_no_rewrite_and_no_literal_gateway_address_besides_the_set_line():
     assert_no_rewrite_and_no_literal_address()
 
 
-# [utest->req~lab-deployment-production-proxy-upstream~1]
 def test_the_map_yields_empty_by_default_and_the_tail_after_api():
     assert_map_regex()
 
 
-# [utest->req~lab-deployment-production-proxy-upstream~1]
 def test_api_location_rejects_an_empty_tail_inside_the_if_and_bare_api_redirects():
     assert_api_location()
 
@@ -198,14 +192,12 @@ def tail(uri: str) -> str | None:
     return match[1] if match else None
 
 
-# [utest->req~lab-deployment-production-proxy-upstream~1]
 def test_the_map_regex_strips_api_from_the_raw_uri():
     assert tail("/api/") == "/"
     assert tail("/api/x?y=1") == "/x?y=1"
     assert tail("/api/v1/a%2Fb?x=1&y=%20") == "/v1/a%2Fb?x=1&y=%20"
 
 
-# [utest->req~lab-deployment-production-proxy-upstream~1]
 def test_the_map_regex_does_not_match_uris_that_reach_api_only_after_normalisation():
     for uri in ("//api/x", "/%61pi/x", "/a/../api/x", "/apix", "/API/x"):
         assert tail(uri) is None, uri
@@ -248,7 +240,6 @@ def test_the_rules_hold_for_the_file_and_fail_on_copies_that_break_them():
     assert request_time_resolution_problems(commented) == ["no resolver"]
 
 
-# [utest->req~lab-deployment-production-proxy-upstream~1]
 def test_the_pinning_assertions_fail_on_mutated_copies():
     """Each pinning assertion runs on an in-memory copy that breaks the rule it pins and must raise."""
     text = conf_text()

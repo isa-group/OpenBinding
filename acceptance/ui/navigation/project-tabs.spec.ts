@@ -13,14 +13,12 @@ const TAB_HREFS = [PROJECT, PROBLEMS, `${PROJECT}/collections`, `${PROJECT}/${RU
 
 // ---- frontend-nav-project-tabs ----------------------------------------------------------------------------------
 
-// [utest->req~frontend-nav-project-tabs~1]
 test('the project tabs of a member read Overview, Problems, Collections, Runs, Studies, Published, Settings', async ({ page }) => {
   await mockProject(page);
   await page.goto(`${PROJECT}/studies`);
   await expect(projectTabs(page).getByRole('link')).toHaveText(PROJECT_TABS);
 });
 
-// [utest->req~frontend-nav-project-tabs~1]
 test('the project tabs link to the project, its areas and its settings', async ({ page }) => {
   await mockProject(page);
   await page.goto(`${PROJECT}/studies`);
@@ -30,7 +28,6 @@ test('the project tabs link to the project, its areas and its settings', async (
   }
 });
 
-// [utest->req~frontend-nav-project-tabs~1]
 test('the tab of the current area carries aria-current page', async ({ page }) => {
   await mockProject(page);
   await page.goto(`${PROJECT}/studies`);
@@ -39,14 +36,12 @@ test('the tab of the current area carries aria-current page', async ({ page }) =
   await expect(tabs.getByRole('link', { name: 'Overview', exact: true })).not.toHaveAttribute('aria-current', 'page');
 });
 
-// [utest->req~frontend-nav-project-tabs~1]
 test('the project tabs of a public visitor read Overview, Problems, Collections, Studies, Published', async ({ page }) => {
   await mockProject(page, { visitor: true });
   await page.goto(`${PROJECT}/studies`);
   await expect(projectTabs(page, VISITOR_TABS).getByRole('link')).toHaveText(VISITOR_TABS);
 });
 
-// [utest->req~frontend-nav-project-tabs~1]
 test('the settings section General is marked at /settings', async ({ page }) => {
   await mockProject(page);
   await page.goto(`${PROJECT}/settings`);
@@ -56,7 +51,6 @@ test('the settings section General is marked at /settings', async ({ page }) => 
   await expect(page).toHaveURL(/\/app\/acme\/demo\/settings$/);
 });
 
-// [utest->req~frontend-nav-project-tabs~1]
 test('the settings section Members lists the members of acme and links to manage them', async ({ page }) => {
   await mockProject(page);
   await page.goto(`${PROJECT}/settings/members`);
@@ -67,7 +61,6 @@ test('the settings section Members lists the members of acme and links to manage
   await expect(page.getByRole('link', { name: 'Manage members', exact: true })).toHaveAttribute('href', '/app/acme/settings/members');
 });
 
-// [utest->req~frontend-nav-project-tabs~1]
 test('the old publications address becomes /published and marks the Published tab', async ({ page }) => {
   await mockProject(page);
   await page.goto(`${PROJECT}/publications`);
@@ -75,7 +68,6 @@ test('the old publications address becomes /published and marks the Published ta
   await expect(projectTabs(page).getByRole('link', { name: 'Published', exact: true })).toHaveAttribute('aria-current', 'page');
 });
 
-// [utest->req~frontend-nav-project-tabs~1]
 test('the former tabs Cases, Jobs, Publications, Files and Package are gone', async ({ page }) => {
   await mockProject(page);
   await page.goto(PROJECT);
@@ -89,7 +81,6 @@ test('the former tabs Cases, Jobs, Publications, Files and Package are gone', as
 
 // ---- frontend-nav-files-retired ---------------------------------------------------------------------------------
 
-// [utest->req~frontend-nav-files-retired~1]
 test('the General section of the settings holds Export package and Import package', async ({ page }) => {
   await mockProject(page);
   await page.goto(`${PROJECT}/settings`);
@@ -97,7 +88,6 @@ test('the General section of the settings holds Export package and Import packag
   await expect(page.getByRole('heading', { name: 'Import package' })).toBeVisible();
 });
 
-// [utest->req~frontend-nav-files-retired~1]
 test('exporting as ZIP from the settings requests the package with format zip', async ({ page }) => {
   const calls = await mockProject(page);
   await page.goto(`${PROJECT}/settings`);
@@ -106,7 +96,6 @@ test('exporting as ZIP from the settings requests the package with format zip', 
   await expect.poll(() => packageCalls(calls).filter((call) => call.method === 'GET').map((call) => call.search)).toContain('?format=zip');
 });
 
-// [utest->req~frontend-nav-files-retired~1]
 test('importing a ZIP from the settings posts the package', async ({ page }) => {
   const calls = await mockProject(page);
   await page.goto(`${PROJECT}/settings`);
@@ -115,7 +104,6 @@ test('importing a ZIP from the settings posts the package', async ({ page }) => 
   await expect.poll(() => packageCalls(calls).filter((call) => call.method === 'POST').length).toBeGreaterThan(0);
 });
 
-// [utest->req~frontend-nav-files-retired~1]
 test('the old files and package addresses become the overview and the settings', async ({ page }) => {
   await mockProject(page);
   await page.goto(`${PROJECT}/files`);

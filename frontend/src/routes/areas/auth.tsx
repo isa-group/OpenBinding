@@ -9,7 +9,6 @@ import type { MovedRoute } from '../moved';
 import type { RouteDefinition } from '../types';
 
 // Area: auth. Signing in, registering, password reset and the invitation link.
-// [impl->req~frontend-nav-reset-single-screen~1]
 
 const AcceptInvitation = lazy(() => import('../../pages/Invitations/AcceptInvitation').then((module) => ({ default: module.AcceptInvitation })));
 

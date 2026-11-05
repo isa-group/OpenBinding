@@ -26,7 +26,6 @@ const rowTexts = () => {
 };
 
 describe('TradeOffChart', () => {
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('renders the region and the table of non-dominated solutions', () => {
     const { container } = render(<TradeOffChart points={POINTS} objectives={THREE} />);
     const region = screen.getByRole('region', { name: 'Trade-off set' });
@@ -42,14 +41,12 @@ describe('TradeOffChart', () => {
     expect(container.querySelector('pre')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('names the region by label', () => {
     render(<TradeOffChart points={POINTS} objectives={['cost', 'latency']} label="Pareto set of run 14" />);
     expect(screen.getByRole('region', { name: 'Pareto set of run 14' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Trade-off set' })).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('formats numbers en-US with at most three decimals', () => {
     const p: TradeOffPoint = { id: 'p', label: 'P', values: { cost: 1234.5678, latency: 1 }, losses: { cost: 1234.5678, latency: 1 } };
     const q: TradeOffPoint = { id: 'q', label: 'Q', values: { cost: 0, latency: 2 }, losses: { cost: 0, latency: 2 } };
@@ -57,13 +54,11 @@ describe('TradeOffChart', () => {
     expect(rowTexts().map((r) => r[1])).toEqual(['1,234.568', '0']);
   });
 
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('names the chart by its summary', () => {
     render(<TradeOffChart points={POINTS} objectives={THREE} />);
     expect(screen.getByRole('img', { name: SUMMARY })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('offers two native axis selects over the objectives', () => {
     render(<TradeOffChart points={POINTS} objectives={THREE} />);
     const h = screen.getByRole('combobox', { name: 'Horizontal axis' });
@@ -77,7 +72,6 @@ describe('TradeOffChart', () => {
     }
   });
 
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('changes the vertical axis without changing the table', () => {
     render(<TradeOffChart points={POINTS} objectives={THREE} />);
     const before = rowTexts();
@@ -86,7 +80,6 @@ describe('TradeOffChart', () => {
     expect(rowTexts()).toEqual(before);
   });
 
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('swaps the axes when the same criterion is chosen twice', () => {
     render(<TradeOffChart points={POINTS} objectives={THREE} />);
     fireEvent.change(screen.getByRole('combobox', { name: 'Horizontal axis' }), { target: { value: 'latency' } });
@@ -95,7 +88,6 @@ describe('TradeOffChart', () => {
     expect(screen.getByRole('img', { name: '4 solutions plotted by latency (horizontal) and cost (vertical); 3 not dominated: Solution 1 (440, 12); Solution 2 (412, 15); Solution 4 (300, 20)' })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('shows a text legend with decorative marks outside the image', () => {
     render(<TradeOffChart points={POINTS} objectives={['cost', 'latency']} />);
     const img = screen.getByRole('img');
@@ -106,7 +98,6 @@ describe('TradeOffChart', () => {
     }
   });
 
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('shows only the table and a note for one solution', () => {
     render(<TradeOffChart points={[POINTS[0]]} objectives={['cost', 'latency']} />);
     expect(screen.getByRole('region', { name: 'Trade-off set' })).toBeInTheDocument();
@@ -116,7 +107,6 @@ describe('TradeOffChart', () => {
     expect(screen.queryByRole('combobox')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('renders nothing for fewer than two objectives or no point', () => {
     for (const [points, objectives] of [[POINTS, ['cost']], [POINTS, []], [[], ['cost', 'latency']]] as const) {
       const { container, unmount } = render(<TradeOffChart points={points} objectives={objectives} />);
@@ -125,7 +115,6 @@ describe('TradeOffChart', () => {
     }
   });
 
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('uses tokens only and a 24px target on the selects', () => {
     const css = readFileSync(join(__dirname, 'TradeOffChart.css'), 'utf8');
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);

@@ -168,9 +168,6 @@ async def _get_accessible_org_ids(session: AsyncSession, user: Optional[User]) -
 # The citation of every kind comes from services.citations: recorded facts only, linked to the element's public
 # permanent link on FRONTEND_URL. The publication of a library version is read only once the caller may see that
 # exact version, so a hidden digest answers like an unknown one.
-# [impl->req~resolver-verifier-citation-no-invented-metadata~1]
-# [impl->req~resolver-verifier-citation-year~1]
-# [impl->req~resolver-verifier-citation-url~1]
 @router.get(
     "/{kind}/{digest_value}",
     response_model=ResolveResponse,

@@ -60,8 +60,6 @@ describe('Problem page', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockResolvedValue(undefined) }, configurable: true });
   });
 
-  // [utest->req~frontend-nav-problem-page~1]
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('opens with the name, the address, the description and the number of versions', async () => {
     renderDetail();
 
@@ -74,7 +72,6 @@ describe('Problem page', () => {
     expect(platform.case).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'flujo-checkout');
   });
 
-  // [utest->req~frontend-nav-problem-page~1]
   it('serves the tabs Overview, Runs, Versions, Source and Settings, Overview first, showing the latest version', async () => {
     renderDetail();
 
@@ -87,7 +84,6 @@ describe('Problem page', () => {
     expect(await screen.findByRole('region', { name: 'Identity' })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-nav-problem-page~1]
   it.each([
     ['/runs', 'Runs'], ['/versions', 'Versions'], ['/source', 'Source'], ['/settings', 'Settings'],
   ])('selects the tab named by the address %s', async (address, label) => {
@@ -98,7 +94,6 @@ describe('Problem page', () => {
     expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'false');
   });
 
-  // [utest->req~frontend-nav-problem-page~1]
   it('moves between the tabs by address and keeps the version it shows', async () => {
     renderDetail(owner, 'flujo-checkout', '?version=1');
 
@@ -108,7 +103,6 @@ describe('Problem page', () => {
     await waitFor(() => expect(where()).toBe(`${root}/problems/flujo-checkout?version=1`));
   });
 
-  // [utest->req~frontend-nav-problem-page~1]
   it('shows the version the query names, and a version chosen in the header sets the query', async () => {
     renderDetail(owner, 'flujo-checkout', '/source');
 
@@ -122,7 +116,6 @@ describe('Problem page', () => {
     expect(await screen.findByRole('region', { name: 'Sealed document (JSON)' })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-nav-problem-page~1]
   it('answers an unknown tab with Page not found, before reading the problem', async () => {
     renderDetail(owner, 'flujo-checkout', '/history');
 
@@ -131,7 +124,6 @@ describe('Problem page', () => {
     expect(platform.case).not.toHaveBeenCalled();
   });
 
-  // [utest->req~frontend-nav-problem-page~1]
   it('answers a missing version in neutral words, with a way to all of them', async () => {
     cases.revision.mockRejectedValue(refusal(404, 'not_found'));
     renderDetail(owner, 'flujo-checkout', '?version=9');
@@ -141,7 +133,6 @@ describe('Problem page', () => {
     expect(cases.revision).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'flujo-checkout', '9');
   });
 
-  // [utest->req~frontend-nav-problem-page~1]
   it('finds a version named by its fingerprint when the query is not a number', async () => {
     cases.revision.mockResolvedValue(r1);
     renderDetail(owner, 'flujo-checkout', `?version=${r1.digest}`);
@@ -154,7 +145,6 @@ describe('Problem page', () => {
   describe('a visitor of a public project', () => {
     beforeEach(() => platform.project.mockResolvedValue({ ...qos, organization_id: 'org-open', created_by_id: null, access: 'public_read', effective_role: null }));
 
-    // [utest->req~frontend-nav-problem-page~1]
     it('sees only Overview, Versions and Source, and nothing to run or change', async () => {
       renderDetail(owner, 'flujo-checkout', '', 'open-lab');
 
@@ -165,7 +155,6 @@ describe('Problem page', () => {
       expect(screen.queryByRole('link', { name: 'Add to study' })).not.toBeInTheDocument();
     });
 
-    // [utest->req~frontend-nav-problem-page~1]
     it.each(['/runs', '/settings'])('answers %s with Page not found', async (address) => {
       renderDetail(owner, 'flujo-checkout', address, 'open-lab');
 
@@ -174,7 +163,6 @@ describe('Problem page', () => {
   });
 
   describe('Versions tab', () => {
-    // [utest->req~frontend-nav-problem-page~1]
     it('draws the versions as a timeline, newest first, with what changed between them', async () => {
       renderDetail(owner, 'flujo-checkout', '/versions');
 
@@ -200,7 +188,6 @@ describe('Problem page', () => {
       expect(await screen.findByText('Copied')).toBeInTheDocument();
     });
 
-    // [utest->req~frontend-nav-problem-page~1]
     it('keeps the history and does not ask for a comparison before there are two versions', async () => {
       platform.revisions.mockResolvedValue([r1]);
       renderDetail(owner, 'flujo-checkout', '/versions');
@@ -211,7 +198,6 @@ describe('Problem page', () => {
   });
 
   describe('roles', () => {
-    // [utest->req~frontend-retire-composer-entry-points-repointed~1]
     it('gives a MEMBER a new version in the workbench, a run and the workbench, but not deleting', async () => {
       renderDetail(member);
 
@@ -225,7 +211,6 @@ describe('Problem page', () => {
       for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
     });
 
-    // [utest->req~frontend-retire-composer-entry-points-repointed~1]
     it('lets a VIEWER read and compare, and nothing else', async () => {
       renderDetail(viewer);
 
@@ -241,7 +226,6 @@ describe('Problem page', () => {
   describe('a problem without versions', () => {
     beforeEach(() => platform.revisions.mockResolvedValue([]));
 
-    // [utest->req~frontend-retire-composer-entry-points-repointed~1]
     it('points a MEMBER to the workbench instead of the version tabs', async () => {
       renderDetail(member);
 
@@ -251,7 +235,6 @@ describe('Problem page', () => {
       for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
     });
 
-    // [utest->req~frontend-retire-composer-entry-points-repointed~1]
     it('does not offer a VIEWER a way to create the first version', async () => {
       renderDetail(viewer);
 
@@ -275,7 +258,6 @@ describe('Problem page', () => {
     });
   });
 
-  // [utest->req~frontend-nav-problem-page~1]
   it('does not let an ADMIN delete a problem that holds sealed versions', async () => {
     renderDetail(admin, 'flujo-checkout', '/settings');
 

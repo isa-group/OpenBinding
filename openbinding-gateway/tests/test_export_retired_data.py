@@ -343,7 +343,6 @@ def seeded(seeded_template) -> dict:
 # --- tests ------------------------------------------------------------------------------------------------
 
 
-# [utest->req~data-retirement-export-files~1]
 def test_export_writes_the_six_files_and_the_manifest(database, seeded, tmp_path):
     before = dump(database)
     out = tmp_path / "export" / "m96"
@@ -363,7 +362,6 @@ def test_export_writes_the_six_files_and_the_manifest(database, seeded, tmp_path
     assert dump(database) == before
 
 
-# [utest->req~data-retirement-export-files~1]
 def test_values_are_written_as_the_spec_says(database, seeded, tmp_path):
     out = tmp_path / "export"
     assert export_run(sqlite_url(database), out).returncode == 0
@@ -384,7 +382,6 @@ def test_values_are_written_as_the_spec_says(database, seeded, tmp_path):
     assert all(row["sealed_version_id"] is None for row in drafts.values())
 
 
-# [utest->req~data-retirement-export-selection~1]
 def test_each_file_holds_exactly_its_selection_ordered_by_primary_key(database, seeded, tmp_path):
     out = tmp_path / "export"
     assert export_run(sqlite_url(database), out).returncode == 0
@@ -395,7 +392,6 @@ def test_each_file_holds_exactly_its_selection_ordered_by_primary_key(database, 
         assert len(keys) == len(seeded["expected"][source]), source
 
 
-# [utest->req~data-retirement-export-selection~1]
 def test_mixed_reports_only_the_never_versioned_draft_is_selected(database, seeded, tmp_path):
     out = tmp_path / "export"
     assert export_run(sqlite_url(database), out).returncode == 0
@@ -412,7 +408,6 @@ def test_mixed_reports_only_the_never_versioned_draft_is_selected(database, seed
     assert ids["artifact:ds-draft"] not in everything and ids["artifact:ds-empty"] not in everything
 
 
-# [utest->req~data-retirement-export-manifest~1]
 def test_the_manifest_describes_the_files(database, tmp_path):
     out = tmp_path / "export"
     assert export_run(sqlite_url(database), out).returncode == 0
@@ -428,7 +423,6 @@ def test_the_manifest_describes_the_files(database, tmp_path):
     assert set(manifest) == {"format", "alembic_head", "exported_at", "sources"}
 
 
-# [utest->req~data-retirement-export-files~1]
 def test_an_empty_selection_gives_empty_files_and_zero_rows(empty_template, tmp_path):
     database = copy_database(empty_template, tmp_path / "db")
     out = tmp_path / "export"
@@ -440,7 +434,6 @@ def test_an_empty_selection_gives_empty_files_and_zero_rows(empty_template, tmp_
             "file": f"{source}.jsonl", "rows": 0, "sha256": hashlib.sha256(b"").hexdigest()}
 
 
-# [utest->req~data-retirement-export-manifest~1]
 def test_the_export_is_deterministic_and_the_sync_url_form_gives_the_same_bytes(database, tmp_path):
     first, second = tmp_path / "first", tmp_path / "second"
     assert export_run(sqlite_url(database), first).returncode == 0
@@ -453,7 +446,6 @@ def test_the_export_is_deterministic_and_the_sync_url_form_gives_the_same_bytes(
     assert one == two
 
 
-# [utest->req~data-retirement-export-files~1]
 def test_the_export_reads_only(database, tmp_path):
     folder = database.parent
     listing = sorted(path.name for path in folder.iterdir())
@@ -473,7 +465,6 @@ def test_url_forms_map_to_the_async_drivers():
     assert tool.async_url("postgresql+asyncpg://u:p@h/d") == "postgresql+asyncpg://u:p@h/d"
 
 
-# [utest->req~data-retirement-export-refusals~1]
 def test_a_directory_that_holds_an_entry_is_refused_and_left_alone(database, tmp_path):
     out = tmp_path / "export"
     assert export_run(sqlite_url(database), out).returncode == 0
@@ -488,7 +479,6 @@ def test_a_directory_that_holds_an_entry_is_refused_and_left_alone(database, tmp
     assert [path.name for path in stranger.iterdir()] == ["notes.txt"]
 
 
-# [utest->req~data-retirement-export-refusals~1]
 def test_a_migrated_database_is_refused_and_nothing_is_written(empty_template, tmp_path):
     database = copy_database(empty_template, tmp_path / "db")
     upgraded = alembic(sqlite_url(database), "upgrade", MIGRATION)
@@ -504,7 +494,6 @@ def test_a_migrated_database_is_refused_and_nothing_is_written(empty_template, t
     assert not missing.exists()
 
 
-# [utest->req~data-retirement-export-refusals~1]
 def test_missing_database_configuration_or_file_is_refused(tmp_path):
     out = tmp_path / "export"
     assert export_run(None, out).returncode == 2

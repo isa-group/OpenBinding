@@ -10,9 +10,6 @@ const CaseList = lazy(() => import('../../pages/Cases/CaseList').then((module) =
 const CaseDetail = lazy(() => import('../../pages/Cases/CaseDetail').then((module) => ({ default: module.CaseDetail })));
 const Workbench = lazy(() => import('../../pages/Workbench/Workbench').then((module) => ({ default: module.Workbench })));
 
-// [impl->req~frontend-retire-composer-screen-not-routed~1]
-// [impl->req~frontend-retire-composer-screen-count~1]
-// [impl->req~frontend-nav-problem-page~1]
 export const routes: RouteDefinition[] = [
   live('case-list', '/app/:org/:project/problems', <CaseList />),
   live('case-detail', '/app/:org/:project/problems/:case/:tab?', <CaseDetail />),
@@ -21,7 +18,6 @@ export const routes: RouteDefinition[] = [
 
 const projectRoot = (params: Readonly<Partial<Record<string, string>>>) => `/app/${encodeURIComponent(params.org ?? '')}/${encodeURIComponent(params.project ?? '')}`;
 
-// [impl->req~frontend-nav-problem-page~1]
 const movedAddresses: MovedRoute[] = [
   // The addresses of the problem list and the problem page before the segment became `problems` (slice 13). The tab, the query and the
   // hash go on. The static entries below (`revisions`, `compare`) and the retired composer outrank `:tab`, so every redirect is one hop.

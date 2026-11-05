@@ -2,16 +2,14 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-// [impl->req~digest-hygiene~1]
-// [utest->req~digest-hygiene~1]
-// INTENT principle 13 and docs/ARCHITECTURE.md §5.4: the interface shows names, not digests. A digest-shaped string (`sha256-` followed
+// docs/ARCHITECTURE.md §5.4: the interface shows names, not digests. A digest-shaped string (`sha256-` followed
 // by hexadecimal, a bare 40- or 64-hexadecimal run) or a UUID is rendered only by CitationPanel, VerifyResult, the export manifests and
 // SourceView / LogPanel. This test reads the shipped sources (as src/hygiene.test.ts does) and fails on a literal of that shape, or on a
 // use of `shortDigest` / `digestPrefix`, outside that allowed set.
 //
 // Every shipped file outside the allowed set is scanned.
 // Known limits: short digests, digests built from a template and runtime data are not detected; the generated
-// frontend/src/content/changelog.generated.json is rendered on About but is not scanned (JSON is not in the glob).
+// frontend/src/content/changelog.json is rendered on About but is not scanned (JSON is not in the glob).
 
 const files = import.meta.glob(['/src/**/*.{ts,tsx,css}', '!/src/**/*.test.*'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 

@@ -27,7 +27,6 @@ interface ResolveResultProps {
 }
 
 /** What `GET /v1/resolve/{kind}/{digest}` answers for the address: the element, or why there is none. */
-// [impl->req~frontend-nav-verify-signed-out~1]
 export function ResolveResult({ kind, digest, signedIn }: ResolveResultProps) {
   const [offset, setOffset] = useState(0);
   const normalized = normalizeDigest(digest);

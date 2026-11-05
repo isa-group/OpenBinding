@@ -1,6 +1,6 @@
 """VIEWER is a read role: it reads authorized results and never launches, repeats, cancels or deletes work.
 
-Finding M1 of ``docs/qa/SECURITY_REVIEW.md``: ``POST /v1/jobs`` accepted a VIEWER on a snapshot shared with
+A security review found that ``POST /v1/jobs`` accepted a VIEWER on a snapshot shared with
 the organization. Starting, repeating, cancelling or deleting work needs MEMBER (deleting a study, ADMIN) in
 the organization that owns it; reading needs VIEWER, with the redaction a VIEWER already has. Work with no
 organization (a user's own upload or snapshot) is personal and needs no role. An API key inherits the role

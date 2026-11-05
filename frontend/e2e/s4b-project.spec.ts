@@ -303,7 +303,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S4b projects`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    // [utest->req~frontend-nav-create-dialogs~1]
     test('proj-create dialog /app/:org?create=project', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);

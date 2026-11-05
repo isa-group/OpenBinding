@@ -1,10 +1,8 @@
-Status: PROPOSED for owner review (2026-10-22). INTENT decision D9.
-
 # OpenBinding pricing
 
 This folder holds OpenBinding's pricing proposals and the reasons behind them. The published versions live in SPHERE
-under the permanent link `https://sphere.score.us.es/p/6ab0a323697330667ccce891`. Only the owner publishes there
-(constitution 16.2). SPACE operates whatever is published (ADR-0015).
+under the permanent link `https://sphere.score.us.es/p/6ab0a323697330667ccce891`. Only the owner publishes there.
+SPACE operates whatever is published.
 
 | File | What |
 |---|---|
@@ -36,7 +34,7 @@ The cycle follows the SaaS pricification process of García-Fernández et al. [1
 The process has two roles. The domain expert is the owner. The pricing manager reviews each stage. We suggest one of
 the group's SPHERE/SPACE authors for that role.
 
-The cycle also applies INTENT principle 12: what no journey of INTENT §2 needs does not enter the pricing.
+The cycle also applies one rule: what no user journey needs does not enter the pricing.
 
 ## 2. What the cycle found in 0.1.5
 
@@ -44,17 +42,17 @@ The cycle also applies INTENT principle 12: what no journey of INTENT §2 needs 
    institutional branding, and has higher limits on every count. The pricing page therefore shows a paid plan that a
    free one dominates.
 2. **Add-ons have no purchase path.** Six "contact us" add-ons raise the configuration space from 4 to 50, but
-   OpenBinding has no checkout (INTENT §8). Raising a limit by agreement is the same as assigning a larger plan.
-3. **Some features belong to retired areas** (ADR-0020):
+   OpenBinding has no checkout. Raising a limit by agreement is the same as assigning a larger plan.
+3. **Some features belong to retired areas**:
    - `advancedAnalytics` belongs to the decision-space workspace;
    - `reproducibilityArchive` and `jobHistoryDays` are retention, which is a platform rule (ARCHITECTURE §10);
    - `institutionalBranding` serves no journey.
 4. **Some limits are counted across sponsored organization subtrees.** These are `organizations`, `members`,
-   `projects`, `privateProjects`, `collections`, `studies` and `storageBytes`. Sponsorship retires (INTENT D3).
+   `projects`, `privateProjects`, `collections`, `studies` and `storageBytes`. Sponsorship retires.
 5. **Technical safety ceilings are presented as plan limits.** These are `maxIterations`, `maxPayloadBytes` and
    `maxInstanceComplexityLog10`. Users do not choose a plan for them; they protect the platform.
 6. **Four renewable counters are metered locally** (`taskStarts`, `federatedTaskStarts`, `solverSeconds`,
-   `studyRuns`). Solver time alone captures the cost driver (INTENT D4).
+   `studyRuns`). Solver time alone captures the cost driver.
 7. **Several features are essential, so they are not levers.** `authoring`, `publishing` and `reproducibleExport`
    are in every plan and never differentiate one.
 
@@ -144,8 +142,8 @@ with `pricing4ts` 0.12.1, the library SPACE 1.7.1 uses (3 plans, 0 add-ons, 7 fe
 
 - **Strategy.** FREE uses penetration pricing (price 0): adoption by researchers is the goal. RESEARCH is
   institutional (price 0): Universidad de Sevilla runs the platform, and CAS proves eligibility. LAB is set by
-  agreement and should cover at least the OpEx of a fully-utilizing LAB account. Nothing is charged inside OpenBinding
-  (INTENT §8). Demand-driven pricing needs data on perceived value that does not exist yet; we revisit after a year of
+  agreement and should cover at least the OpEx of a fully-utilizing LAB account. Nothing is charged inside OpenBinding.
+  Demand-driven pricing needs data on perceived value that does not exist yet; we revisit after a year of
   SPACE usage data (accounts per plan, hours used against allowance).
 - **OpEx of a fully-utilizing account.** This is an account that spends all its solver hours every month:
   OpEx ≈ `solverHours` × *c*, where *c* is the cost of one core-hour on the production host. Storage and the gateway's
@@ -167,7 +165,7 @@ with `pricing4ts` 0.12.1, the library SPACE 1.7.1 uses (3 plans, 0 add-ons, 7 fe
 - **Annual discount.** The process recommends monthly prices plus a discounted annual price. That does not apply,
   because nothing is charged. `billing` keeps `monthly: 1` only.
 
-## 6. How OpenBinding enforces it (input for `ROADMAP.md` M4.2)
+## 6. How OpenBinding enforces it
 
 Feature ids in SPACE are `openbinding-<feature>`; limit ids are `openbinding-<limit>`.
 

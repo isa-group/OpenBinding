@@ -9,7 +9,7 @@ canonical ZIP of ``InstancePackage.to_zip()`` and with the members of its JSON o
 compared: (a) the semantic digest, (b) the canonical IR, (c) ``irDigest``, (d) ``packageDigest`` and (e) the order of the
 eligibility lists.  All of them are equal.
 
-History (``docs/qa/IR_NORMALIZATION.md``): the canonical form sorts the members of every JSON object and the compiler used
+History: the canonical form sorts the members of every JSON object and the compiler used
 to build the eligibility, constraint and placement lists by iterating objects in document order, so a package that
 declared them out of alphabetical order had another IR in canonical form.  The compiler now lists those sets in one
 canonical order, whatever the order of the JSON members, and the four ``unordered-*`` variants, which used to be strict

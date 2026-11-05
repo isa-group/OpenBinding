@@ -12,14 +12,11 @@ const PROTOTYPE: Array<[string, string]> = [
 ];
 
 describe('area auth', () => {
-  // [utest->req~frontend-nav-route-areas~1]
-  // [utest->req~frontend-nav-reset-single-screen~1]
   it('has 5 screens, with the ids and routes of the prototype', () => {
     expect(routesByArea.auth).toHaveLength(5);
     expect(routesByArea.auth.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
   });
 
-  // [utest->req~frontend-nav-reset-single-screen~1]
   it('does not route the second password-reset screen', () => {
     expect(routeDefinitions.map((definition) => definition.id)).not.toContain('auth-reset-complete');
     expect(routeDefinitions.map((definition) => definition.path)).not.toContain('/password-reset/complete');
@@ -35,21 +32,17 @@ describe('area auth', () => {
   describe('address resolution', () => {
     const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
 
-    // [utest->req~frontend-nav-route-areas~1]
     it.each([
       ['/password-reset', 'auth-reset-request'],
     ])('%s -> %s', (path, id) => {
       expect(matchRoutes(config, path)?.at(-1)?.route.id ?? null).toBe(id);
     });
 
-    // [utest->req~frontend-nav-reset-single-screen~1]
     it('leaves /password-reset/complete to the moved-routes table', () => {
       expect(matchRoutes(config, '/password-reset/complete')).toBeNull();
     });
   });
 
-  // [utest->req~frontend-nav-reset-single-screen~1]
-  // [utest->req~frontend-nav-redirects~1]
   it('moves /password-reset/complete to /password-reset for good, with the token', () => {
     const route = movedRoutes.find((entry) => entry.path === '/password-reset/complete');
     expect(route?.id).toBe('reset-complete-link');

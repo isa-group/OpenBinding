@@ -51,8 +51,6 @@ describe('Problem list', () => {
     platform.revisions.mockImplementation(async (_org: string, _project: string, slug: string) => (slug === 'flujo-checkout' ? [revisionOf(checkout, 1), revisionOf(checkout, 2)] : []));
   });
 
-  // [utest->req~frontend-retire-composer-entry-points-repointed~1]
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('lists the problems with their versions, what is ready to run and where each one leads', async () => {
     renderList();
 
@@ -121,11 +119,9 @@ describe('Problem list', () => {
     renderList();
 
     const guide = await screen.findByRole('region', { name: 'No problems yet' });
-    // [utest->req~frontend-retire-composer-entry-points-repointed~1]
     expect(guide).toHaveTextContent('Start from a ready example, or create a problem and save its first version from the workbench.');
     expect(guide.textContent).not.toMatch(/composer|compose one/);
     expect(within(guide).getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/explore/examples');
-    // [utest->req~frontend-retire-library-entry-points-removed~1]
     expect(within(guide).queryByRole('link', { name: /library/i })).toBeNull();
   });
 
@@ -139,7 +135,6 @@ describe('Problem list', () => {
     expect(await screen.findByRole('list', { name: 'Problems' })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-retire-composer-entry-points-repointed~1]
   it('lets a VIEWER read and compare but not create, edit or delete', async () => {
     renderList(viewing);
 
@@ -172,7 +167,6 @@ describe('Problem list', () => {
       return screen.findByRole('dialog', { name: 'New problem' });
     }
 
-    // [utest->req~frontend-retire-composer-entry-points-repointed~1]
     it('suggests the address from the name and creates the problem', async () => {
       cases.createCase.mockResolvedValue(caseOf('analisis-de-latencia', 'Análisis de latencia'));
       const dialog = await openDialog();
@@ -188,12 +182,10 @@ describe('Problem list', () => {
       expect(within(toast).getByRole('link', { name: 'Compose its first version' })).toHaveAttribute('href', `${root}/workbench?case=analisis-de-latencia`);
       for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      // [utest->req~frontend-nav-new-menu~1]
       await waitFor(() => expect(where()).toBe(`${root}/problems`));
       await waitFor(() => expect(platform.cases).toHaveBeenCalledTimes(2));
     });
 
-    // [utest->req~frontend-nav-create-dialogs~1]
     it('shows the toast with no dialog left open after a successful create', async () => {
       cases.createCase.mockResolvedValue(caseOf('analisis-de-latencia', 'Análisis de latencia'));
       const dialog = await openDialog();
@@ -237,7 +229,6 @@ describe('Problem list', () => {
   });
 
   describe('the dialog in the address', () => {
-    // [utest->req~frontend-nav-new-menu~1]
     it('opens from the New problem button with create=problem in the address', async () => {
       renderList();
       await screen.findByRole('list', { name: 'Problems' });
@@ -248,7 +239,6 @@ describe('Problem list', () => {
       expect(where()).toBe(`${root}/problems?create=problem`);
     });
 
-    // [utest->req~frontend-nav-new-menu~1]
     it('is open when the address holds create=problem, over the list', async () => {
       renderList(group, group.slug, '?create=problem');
 
@@ -256,7 +246,6 @@ describe('Problem list', () => {
       expect(screen.getByRole('heading', { level: 1, name: 'Problems' })).toBeInTheDocument();
     });
 
-    // [utest->req~frontend-nav-new-menu~1]
     it.each([
       ['Cancel', (dialog: HTMLElement) => fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))],
       ['the close button', (dialog: HTMLElement) => fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))],
@@ -273,7 +262,6 @@ describe('Problem list', () => {
       expect(cases.createCase).not.toHaveBeenCalled();
     });
 
-    // [utest->req~frontend-nav-new-menu~1]
     it('closes by replacing the entry, so Back does not open the dialog again', async () => {
       renderList();
       await screen.findByRole('list', { name: 'Problems' });
@@ -291,7 +279,6 @@ describe('Problem list', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
-    // [utest->req~frontend-nav-new-menu~1]
     it('gives a VIEWER no dialog when the address asks for one', async () => {
       renderList(viewing, viewing.slug, '?create=problem');
 

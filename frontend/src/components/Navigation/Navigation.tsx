@@ -20,7 +20,6 @@ interface PublicLink {
   pageMarks?: (pathname: string) => boolean;
 }
 
-// [impl->req~frontend-nav-public-navigation~1]
 const publicLinks: readonly PublicLink[] = [
   { to: '/', label: 'Home', active: (pathname) => pathname === '/' },
   {

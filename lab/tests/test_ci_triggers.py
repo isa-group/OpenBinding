@@ -66,8 +66,6 @@ def _check_job_ifs(jobs: dict) -> None:
             assert word not in condition, f"job {name!r} if names {word}"
 
 
-# [utest->req~ci-develop-push~1]
-# [utest->req~ci-develop-push~2]
 def test_ci_runs_on_push_to_develop():
     trigger = _triggers()
     push = _mapping(trigger, "push")
@@ -80,8 +78,6 @@ def test_ci_runs_on_push_to_develop():
     _check_job_ifs(_ci()["jobs"])
 
 
-# [utest->req~ci-develop-push~2]
-# [utest->req~ci-speed-e2e-shards~1]
 def test_job_conditions_read_only_the_change_outputs():
     jobs = _ci()["jobs"]
     gated = {name: AREA_IF.fullmatch(job["if"]).group(1) for name, job in jobs.items()
@@ -90,8 +86,6 @@ def test_job_conditions_read_only_the_change_outputs():
     _check_job_ifs(jobs)
 
 
-# [utest->req~ci-develop-push~1]
-# [utest->req~ci-develop-push~2]
 def test_triggers_leave_permissions_and_pull_request_unchanged():
     assert set(_triggers()) == {"pull_request", "push", "workflow_dispatch"}, sorted(map(str, _triggers()))
     assert _ci().get("permissions") == {"contents": "read"}
@@ -108,8 +102,6 @@ def _concurrency_group(event: str, ref: str = "refs/heads/develop", pr: int | No
     return f"ci-{event}-{key}"
 
 
-# [utest->req~ci-develop-push-concurrency~1]
-# [utest->req~ci-develop-push-concurrency~2]
 def test_concurrency_cancels_push_and_pull_request_runs_and_never_manual_ones():
     data = _ci()
     concurrency = data.get("concurrency")
@@ -130,7 +122,6 @@ def test_concurrency_cancels_push_and_pull_request_runs_and_never_manual_ones():
     assert _concurrency_group("workflow_dispatch", run_id=1) != _concurrency_group("push")
 
 
-# [utest->req~ci-develop-dispatch~1]
 def test_ci_can_be_dispatched_manually():
     trigger = _triggers()
     assert "workflow_dispatch" in trigger, f"ci.yml has no workflow_dispatch trigger: {sorted(map(str, trigger))}"
@@ -141,25 +132,15 @@ def test_ci_can_be_dispatched_manually():
         assert "permissions" not in job, f"job {name!r} declares its own permissions"
 
 
-# [utest->req~ci-develop-changelog-pr-only~1]
-def test_changelog_check_runs_only_on_pull_requests():
+def test_no_step_depends_on_the_event():
     jobs = _ci()["jobs"]
-    assert "frontend" in jobs, f"ci.yml has no frontend job: {sorted(jobs)}"
-    steps = jobs["frontend"].get("steps")
-    assert isinstance(steps, list), f"the frontend job has no steps: {steps!r}"
-    checks = [s for s in steps if "tools/generate_changelog.py --check" in str(s.get("run", ""))]
-    assert len(checks) == 1, f"{len(checks)} frontend steps run the changelog check"
-    check = checks[0]
-    assert check.get("if") == "github.event_name == 'pull_request'", f"if: {check.get('if')!r}"
-    assert "continue-on-error" not in check, "the changelog check is report-only"
     _check_job_ifs(jobs)
     for name, job in jobs.items():
         assert "permissions" not in job, f"job {name!r} declares its own permissions"
         for step in job.get("steps", []):
-            if step is not check:
-                assert "github.event_name" not in str(step.get("if", "")), (
-                    f"job {name!r}, step {step.get('name')!r} has an event_name condition"
-                )
+            assert "github.event_name" not in str(step.get("if", "")), (
+                f"job {name!r}, step {step.get('name')!r} has an event_name condition"
+            )
 
 
 def _job(name: str) -> dict:
@@ -168,7 +149,6 @@ def _job(name: str) -> dict:
     return jobs[name]
 
 
-# [utest->req~ci-speed-change-detection~1]
 def test_changes_job_exposes_the_four_area_outputs():
     job = _job("changes")
     assert job.get("runs-on") == "ubuntu-latest"
@@ -194,7 +174,6 @@ def test_changes_job_exposes_the_four_area_outputs():
     assert "if" not in job and "needs" not in job
 
 
-# [utest->req~ci-speed-required-aggregate~1]
 def test_ci_required_aggregates_every_other_job():
     jobs = _ci()["jobs"]
     job = _job("ci-required")
@@ -212,7 +191,6 @@ def test_ci_required_aggregates_every_other_job():
     assert "continue-on-error" not in runs[0]
 
 
-# [utest->req~ci-speed-job-timeouts~1]
 def test_every_job_has_a_timeout():
     jobs = _ci()["jobs"]
     for name, job in jobs.items():

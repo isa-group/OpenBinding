@@ -104,8 +104,6 @@ async def moved_on(client, lab) -> str:
     return tag
 
 
-# [utest->req~gateway-api-optimistic-concurrency-etag-on-write~1]
-# [utest->req~gateway-api-optimistic-concurrency-revision-bump~1]
 async def test_patch_with_the_current_etag_succeeds_and_returns_a_new_one(api_client, lab) -> None:
     tag = await first_tag(api_client, lab)
 
@@ -116,9 +114,6 @@ async def test_patch_with_the_current_etag_succeeds_and_returns_a_new_one(api_cl
     assert edited.headers["ETag"] not in ("", tag)
 
 
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-unchanged~1]
 async def test_replaying_the_old_etag_is_412_with_the_current_one(api_client, lab, db_session) -> None:
     old = await first_tag(api_client, lab)
     first = await api_client.patch(lab["url"], headers={**lab["headers"], "If-Match": old}, json={"name": "Winner"})
@@ -137,7 +132,6 @@ async def test_replaying_the_old_etag_is_412_with_the_current_one(api_client, la
     assert stored.name == "Winner"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-absent~1]
 async def test_without_if_match_the_edit_still_succeeds(api_client, lab) -> None:
     edited = await api_client.patch(lab["url"], headers=lab["headers"], json={"description": "Edited"})
 
@@ -147,14 +141,12 @@ async def test_without_if_match_the_edit_still_succeeds(api_client, lab) -> None
     assert again.headers["ETag"] == edited.headers["ETag"]
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-any~1]
 async def test_wildcard_matches_any_existing_study(api_client, lab) -> None:
     edited = await api_client.patch(lab["url"], headers={**lab["headers"], "If-Match": "*"}, json={"description": "Edited"})
 
     assert edited.status_code == 200, edited.text
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-weak~1]
 async def test_weak_tag_never_matches(api_client, lab) -> None:
     tag = await first_tag(api_client, lab)
 
@@ -164,7 +156,6 @@ async def test_weak_tag_never_matches(api_client, lab) -> None:
     assert refused.headers["ETag"] == tag
 
 
-# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 async def test_malformed_if_match_is_400(api_client, lab) -> None:
     refused = await api_client.patch(lab["url"], headers={**lab["headers"], "If-Match": "not a tag"}, json={"name": "X"})
 
@@ -172,7 +163,6 @@ async def test_malformed_if_match_is_400(api_client, lab) -> None:
     assert refused.json()["detail"]["code"] == "invalid_if_match"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-access~1]
 @pytest.mark.parametrize("who", ["viewer", "outsider"])
 async def test_viewer_and_outsider_get_403_not_412(api_client, lab, who) -> None:
     refused = await api_client.patch(
@@ -184,7 +174,6 @@ async def test_viewer_and_outsider_get_403_not_412(api_client, lab, who) -> None
     assert "ETag" not in refused.headers
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-access~1]
 async def test_unknown_study_is_404_not_412(api_client, lab) -> None:
     url = lab["url"][: lab["url"].rindex("/")] + "/missing"
 
@@ -193,8 +182,6 @@ async def test_unknown_study_is_404_not_412(api_client, lab) -> None:
     assert refused.status_code == 404, refused.text
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-access~1]
-# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 async def test_a_malformed_if_match_on_an_unknown_study_is_404(api_client, lab) -> None:
     url = lab["url"][: lab["url"].rindex("/")] + "/missing"
 
@@ -205,8 +192,6 @@ async def test_a_malformed_if_match_on_an_unknown_study_is_404(api_client, lab) 
     assert "ETag" not in refused.headers
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-state~1]
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
 async def test_stale_tag_beats_foreign_study_version(api_client, lab) -> None:
     stale = await first_tag(api_client, lab)
     moved = await api_client.patch(lab["url"], headers={**lab["headers"], "If-Match": stale}, json={"name": "Moved on"})
@@ -221,7 +206,6 @@ async def test_stale_tag_beats_foreign_study_version(api_client, lab) -> None:
     assert current.json()["code"] == "foreign_study_version"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-state~1]
 async def test_a_body_that_fails_validation_is_refused_before_a_stale_tag(api_client, lab) -> None:
     refused = await api_client.patch(lab["url"], headers={**lab["headers"], "If-Match": '"stale"'}, json={"name": 5})
 
@@ -230,9 +214,6 @@ async def test_a_body_that_fails_validation_is_refused_before_a_stale_tag(api_cl
     assert "ETag" not in refused.headers
 
 
-# [utest->req~gateway-api-optimistic-concurrency-atomic~1]
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
 async def test_a_writer_that_commits_between_read_and_write_loses(api_client, lab, db_session, monkeypatch) -> None:
     """The guarded UPDATE, not the earlier comparison, is what refuses the second writer."""
     tag = await first_tag(api_client, lab)
@@ -264,8 +245,6 @@ async def test_a_writer_that_commits_between_read_and_write_loses(api_client, la
     assert stored.name != "Loser"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
 async def test_the_412_document_is_complete(api_client, lab) -> None:
     stale = await moved_on(api_client, lab)
 
@@ -283,8 +262,6 @@ async def test_the_412_document_is_complete(api_client, lab) -> None:
     assert refused.headers["ETag"] == current
 
 
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-unchanged~1]
-# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 @pytest.mark.parametrize("header", ['"stale"', "not a tag"], ids=["412", "400"])
 async def test_a_refused_precondition_changes_nothing(api_client, lab, db_session, header) -> None:
     tag = await first_tag(api_client, lab)
@@ -304,7 +281,6 @@ async def test_a_refused_precondition_changes_nothing(api_client, lab, db_sessio
     assert await first_tag(api_client, lab) == tag
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-list~1]
 @pytest.mark.parametrize("form", ['"stale", {tag}', '"stale" ,{tag} ', ", {tag},"], ids=["list", "spaces", "empty-elements"])
 async def test_a_list_naming_the_current_tag_is_accepted(api_client, lab, form) -> None:
     tag = await first_tag(api_client, lab)
@@ -317,8 +293,6 @@ async def test_a_list_naming_the_current_tag_is_accepted(api_client, lab, form) 
     assert edited.headers["ETag"] != tag
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-any~1]
-# [utest->req~gateway-api-optimistic-concurrency-revision-bump~1]
 async def test_a_wildcard_edit_changes_the_stored_value_and_the_etag(api_client, lab, db_session) -> None:
     tag = await first_tag(api_client, lab)
 
@@ -330,7 +304,6 @@ async def test_a_wildcard_edit_changes_the_stored_value_and_the_etag(api_client,
     assert await first_tag(api_client, lab) == edited.headers["ETag"]
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-absent~1]
 async def test_without_if_match_twice_both_edits_apply_and_the_second_stays(api_client, lab, db_session) -> None:
     first = await api_client.patch(lab["url"], headers=lab["headers"], json={"description": "One"})
     second = await api_client.patch(lab["url"], headers=lab["headers"], json={"description": "Two"})
@@ -340,7 +313,6 @@ async def test_without_if_match_twice_both_edits_apply_and_the_second_stays(api_
     assert (await stored_study(db_session, lab)).description == "Two"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-order-state~1]
 async def test_a_refusal_after_the_claim_leaves_the_etag_unchanged(api_client, lab, db_session) -> None:
     """The shared test session never rolls back on an error, so the request-scoped rollback is done by hand.
 
@@ -362,7 +334,6 @@ async def test_a_refusal_after_the_claim_leaves_the_etag_unchanged(api_client, l
     assert await first_tag(api_client, lab) == current
 
 
-# [utest->req~gateway-api-optimistic-concurrency-openapi~1]
 def test_openapi_documents_if_match_and_both_failures() -> None:
     from openbinding_gateway.main import app
 

@@ -17,7 +17,6 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('CitationPanel', () => {
-  // [utest->req~citation-panel~1]
   it('shows the digest in the DOM exactly once, and not in the citation sentence', () => {
     const { container } = render(<CitationPanel {...BASE} digest={DIGEST} />);
 
@@ -26,7 +25,6 @@ describe('CitationPanel', () => {
     expect(screen.getByText(/ISA Group \(2026\)\. Travel booking \(version 1\.2\.0\)\./)).toBeInTheDocument();
   });
 
-  // [utest->req~citation-panel~1]
   it('copies the permanent link, the digest, BibTeX and CSL-JSON', async () => {
     render(<CitationPanel {...BASE} digest={DIGEST} />);
     const expected = buildPanelCitation(BASE);
@@ -43,7 +41,6 @@ describe('CitationPanel', () => {
     await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(expected.text));
   });
 
-  // [utest->req~citation-panel~1]
   it('renders with no digest when none is given', () => {
     render(<CitationPanel {...BASE} />);
 
@@ -51,7 +48,6 @@ describe('CitationPanel', () => {
     expect(screen.getByRole('region', { name: 'Cite and link' })).toBeInTheDocument();
   });
 
-  // [utest->req~citation-panel~1]
   it('announces a copy to assistive technology', async () => {
     render(<CitationPanel {...BASE} />);
 
@@ -63,7 +59,6 @@ describe('CitationPanel', () => {
     await waitFor(() => expect(screen.getAllByRole('status').some((node) => node.textContent === 'Citation text copied')).toBe(true));
   });
 
-  // [utest->req~citation-panel~1]
   it('announces only the latest outcome, a failure replacing an earlier success', async () => {
     render(<CitationPanel {...BASE} />);
 
@@ -75,7 +70,6 @@ describe('CitationPanel', () => {
     expect(screen.queryByText(/BibTeX copied/)).not.toBeInTheDocument();
   });
 
-  // [utest->req~citation-panel~1]
   it('has no hard-coded hex colour in its stylesheet', () => {
     const css = readFileSync(join(import.meta.dirname, 'CitationPanel.css'), 'utf8');
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
@@ -83,13 +77,11 @@ describe('CitationPanel', () => {
 });
 
 describe('buildPanelCitation', () => {
-  // [utest->req~citation-panel~1]
   it('carries no digest in text, BibTeX or CSL-JSON', () => {
     const built = buildPanelCitation({ ...BASE });
     for (const output of [built.text, built.bibtex, built.cslJson]) expect(output).not.toMatch(/sha256|digest/i);
   });
 
-  // [utest->req~citation-panel~1]
   it('escapes BibTeX specials in title, author, version and kind', () => {
     const { bibtex } = buildPanelCitation({ ...BASE, title: 'A_B & 50% {x} #1 $ ^ ~ \\', author: 'R&D', version: 'v_1', kindLabel: 'a_b' });
 
@@ -99,7 +91,6 @@ describe('buildPanelCitation', () => {
     expect(bibtex).toContain('howpublished = {OpenBinding a\\_b}');
   });
 
-  // [utest->req~citation-panel~1]
   it('writes valid CSL-JSON of type dataset by default and document on request', () => {
     const dataset = JSON.parse(buildPanelCitation(BASE).cslJson);
     expect(dataset).toHaveLength(1);
@@ -107,7 +98,6 @@ describe('buildPanelCitation', () => {
     expect(JSON.parse(buildPanelCitation({ ...BASE, cslType: 'document' }).cslJson)[0].type).toBe('document');
   });
 
-  // [utest->req~citation-panel~1]
   it('falls back to OpenBinding and n.d. and leaves out missing fields', () => {
     const built = buildPanelCitation({ title: 'T', kindLabel: 'collection', url: 'https://x.example/c' });
 

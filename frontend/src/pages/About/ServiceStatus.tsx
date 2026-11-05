@@ -1,7 +1,6 @@
 import { checkGateway, type GatewayStatus } from '../../api/health';
 import { useResource } from '../../utils/useResource';
 
-// [impl->req~frontend-nav-status-retired~1]
 
 /** What the note says about a check. Nothing answering at all is a different thing from the gateway reporting an error. */
 function describeGateway(status: GatewayStatus): string {

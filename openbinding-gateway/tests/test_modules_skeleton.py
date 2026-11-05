@@ -3,8 +3,6 @@
 import-linter lives in the ``lint`` dependency group only, so the static tests read the configuration files;
 the teeth test runs ``lint-imports`` on a copy of the source with one planted violation per contract.
 
-[utest->req~gateway-architecture-skeleton~1]
-[utest->req~gateway-architecture-module-contracts~1]
 """
 
 from __future__ import annotations

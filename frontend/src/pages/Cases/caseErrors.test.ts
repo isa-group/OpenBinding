@@ -4,7 +4,6 @@ import { classifyAuthError, createRefusal, deleteRefusal, isMissing, snapshotFai
 
 const http = (status: number) => new HttpError(status, 'refused');
 
-// [utest->req~frontend-retire-composer-entry-points-repointed~1]
 describe('the refusals of the case screens that remain', () => {
   it('words a refused create', () => {
     expect(createRefusal(http(409)).kind).toBe('address');

@@ -32,7 +32,6 @@ function scoreItemName(terms: ObjectiveTerm[], index: number): string {
 }
 
 /** One solution's objective evaluation: score and penalty as the gateway gave them, and one row per objective term. */
-// [impl->req~frontend-rendering-objective-breakdown~1]
 export function ObjectiveBreakdown({ terms, penalty, score, scalarization, label = 'Objective breakdown' }: ObjectiveBreakdownProps) {
   const weighted = scalarization === 'weighted-sum';
   const showTotal = weighted && !Array.isArray(score);

@@ -12,7 +12,6 @@ const project: Project = {
 };
 
 describe('buildCommands', () => {
-  // [utest->req~frontend-retire-palette~1]
   it('offers no command for a retired address, with data loaded and an administrator', () => {
     const commands = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: true });
 
@@ -22,8 +21,6 @@ describe('buildCommands', () => {
     expect(commands.map((command) => command.href)).toContain('/app/isa-demo/qos-benchmarks/studies');
   });
 
-  // [utest->req~frontend-retire-reports-navigation~1]
-  // [utest->req~frontend-nav-project-tabs~1]
   it('offers Published instead of Reports and Publications in a project', () => {
     const commands = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: false });
 
@@ -34,7 +31,6 @@ describe('buildCommands', () => {
     expect(published[0]?.desc).toContain('QoS benchmarks');
   });
 
-  // [utest->req~frontend-nav-files-retired~1]
   it('offers no Files command and keeps the package with the project settings', () => {
     const commands = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: false });
 
@@ -42,7 +38,6 @@ describe('buildCommands', () => {
     expect(commands.filter((command) => command.label === 'Project settings').map((command) => command.href)).toEqual(['/app/isa-demo/qos-benchmarks/settings']);
   });
 
-  // [utest->req~frontend-retire-library-navigation~1]
   it('offers Collections instead of Library in a project, and no library or resources command anywhere', () => {
     const inProject = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: true });
     const without = buildCommands({ organizations: [organization], isAdmin: true });
@@ -57,7 +52,6 @@ describe('buildCommands', () => {
     }
   });
 
-  // [utest->req~frontend-nav-account-sections~1]
   it('opens the New API key dialog of the API keys section, not the moved address', () => {
     const commands = buildCommands({ organizations: [organization], isAdmin: false });
 
@@ -65,7 +59,6 @@ describe('buildCommands', () => {
     expect(commands.filter((command) => /^\/app\/account\/keys\/new([/?#]|$)/.test(command.href))).toEqual([]);
   });
 
-  // [utest->req~frontend-nav-create-dialogs~1]
   it('opens the New organization dialog of the workspace home, not the moved address', () => {
     const commands = buildCommands({ organizations: [organization], isAdmin: false });
 
@@ -73,7 +66,6 @@ describe('buildCommands', () => {
     expect(commands.filter((command) => /^\/app\/organizations\/new([/?#]|$)/.test(command.href))).toEqual([]);
   });
 
-  // [utest->req~frontend-nav-signed-in-navigation~1]
   it('has no Tools group and goes where the header goes', () => {
     const commands = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: false });
     const goTo = commands.filter((command) => command.group === 'Go to');
@@ -87,7 +79,6 @@ describe('buildCommands', () => {
     expect(commands.filter((command) => command.label === 'Problems').map((command) => command.href)).toEqual(['/app/isa-demo/qos-benchmarks/problems']);
   });
 
-  // [utest->req~frontend-nav-new-menu~1]
   it('offers New problem, collection, study and run in the current project, and none without one', () => {
     const inProject = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: false });
     const without = buildCommands({ organizations: [organization], isAdmin: false });
@@ -104,7 +95,6 @@ describe('buildCommands', () => {
     expect(inProject.filter((command) => command.label === 'New job' || command.label === 'New case')).toEqual([]);
   });
 
-  // [utest->req~frontend-nav-account-menu~1]
   it('names the account commands as the account menu does', () => {
     const commands = buildCommands({ organizations: [organization], isAdmin: false });
     const account = commands.filter((command) => command.group === 'Account');
@@ -116,7 +106,6 @@ describe('buildCommands', () => {
     expect(commands.filter((command) => command.label === 'Account' || command.label === 'Plan & permissions')).toEqual([]);
   });
 
-  // [utest->req~frontend-retire-reports-navigation~1]
   it('offers no report command without a project either', () => {
     const commands = buildCommands({ organizations: [organization], isAdmin: true });
 

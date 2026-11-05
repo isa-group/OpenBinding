@@ -1,4 +1,4 @@
-# OpenBinding production (ADR-0021 decision 3). A standalone Compose project, not an overlay.
+# OpenBinding production. A standalone Compose project, not an overlay.
 #
 #   docker compose -f deploy/compose/production/compose.yaml \
 #     --env-file deploy/compose/production/images.env --env-file <site.env> up -d
@@ -8,10 +8,8 @@
 # disagree, this file wins. The mem_limit and cpus values are starting values, tuned after the first measured week.
 name: openbinding-production
 
-# [impl->req~lab-deployment-no-local-space~4] (no SPACE or SPHERE service, network or volume: SPACE is remote)
-# [impl->req~lab-deployment-production-limits-logs~1]
-# [impl->req~lab-deployment-production-pinned-images~1] (every image is ${..._IMAGE:?} from images.env)
-# [impl->req~lab-deployment-compose-only~1]
+# (no SPACE or SPHERE service, network or volume: SPACE is remote)
+# (every image is ${..._IMAGE:?} from images.env)
 x-logging: &logging
   driver: json-file
   options:
@@ -71,7 +69,6 @@ services:
       - openbinding
 
   # One-shot: applies the database migrations of the gateway image and exits. The gateway waits for it.
-  # [impl->req~lab-deployment-production-health-restart~1]
   migrate:
     image: ${GATEWAY_IMAGE:?set GATEWAY_IMAGE in images.env}
     environment:
@@ -372,7 +369,6 @@ services:
   # Daily pg_dump -Fc into OPENBINDING_BACKUP_DIR (owned by uid 70). A dump is written as .partial and renamed when
   # complete; stale .partial files are removed at the start of each round. Dumps older than BACKUP_RETENTION_DAYS go.
   # Every shell dollar is doubled so that Compose leaves it alone.
-  # [impl->req~lab-deployment-production-backups~1]
   pg-backup:
     image: ${POSTGRES_IMAGE:?set POSTGRES_IMAGE in images.env}
     init: true
@@ -413,7 +409,6 @@ services:
     networks:
       - openbinding
 
-# [impl->req~lab-deployment-production-secret-files~1]
 secrets:
   postgres_password:
     file: ${OPENBINDING_SECRETS_DIR:?set OPENBINDING_SECRETS_DIR in site.env}/postgres_password

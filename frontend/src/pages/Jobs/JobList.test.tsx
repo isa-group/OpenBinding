@@ -133,7 +133,6 @@ describe('Jobs of a project', () => {
     expect(await screen.findByText(/All your run slots are busy \(429/)).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-retire-no-link-to-retired~1]
   it('offers no selection and no Analyze action', async () => {
     renderList();
 

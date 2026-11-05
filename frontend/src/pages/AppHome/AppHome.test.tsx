@@ -176,7 +176,6 @@ describe('Home', () => {
       platform.createOrganization.mockResolvedValue(org('lab-two', { name: 'lab-two' }));
     });
 
-    // [utest->req~frontend-nav-create-dialogs~1]
     it('opens from the New organization button with create=organization in the address', async () => {
       renderHome();
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -187,14 +186,12 @@ describe('Home', () => {
       expect(addressNow()).toBe('/app?create=organization');
     });
 
-    // [utest->req~frontend-nav-create-dialogs~1]
     it('is open when the address holds create=organization', async () => {
       renderScreen(<AppHome />, { path: '/app', url: '/app?create=organization', organizations: [group, lab] });
 
       expect(await screen.findByRole('dialog', { name: 'New organization' })).toBeInTheDocument();
     });
 
-    // [utest->req~frontend-nav-create-dialogs~1]
     it('goes back to /app on Cancel, returns the focus to New organization and creates nothing', async () => {
       renderScreen(<AppHome />, { path: '/app', url: '/app?create=organization', organizations: [group, lab] });
       const dialog = await screen.findByRole('dialog', { name: 'New organization' });
@@ -207,7 +204,6 @@ describe('Home', () => {
       expect(platform.createOrganization).not.toHaveBeenCalled();
     });
 
-    // [utest->req~frontend-nav-create-dialogs~1]
     it('closes on Escape too', async () => {
       renderScreen(<AppHome />, { path: '/app', url: '/app?create=organization', organizations: [group, lab] });
       const dialog = await screen.findByRole('dialog', { name: 'New organization' });
@@ -218,7 +214,6 @@ describe('Home', () => {
       expect(addressNow()).toBe('/app');
     });
 
-    // [utest->req~frontend-nav-create-dialogs~1]
     it('creating lab-two closes the dialog and opens /app/lab-two', async () => {
       renderScreen(<AppHome />, { path: '/app', url: '/app?create=organization', organizations: [group, lab] });
       const dialog = await screen.findByRole('dialog', { name: 'New organization' });

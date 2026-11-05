@@ -95,7 +95,6 @@ def test_the_analysis_workspace_is_gone_and_the_neighbourhood_stays_a_job_read()
 
 
 def test_the_library_report_and_resource_writes_are_gone_and_the_kept_reads_keep_their_permissions():
-    # [utest->req~gateway-api-removed-operations-not-routed~1]
     project = "/v1/organizations/{org}/projects/{project}"
     retired = {
         ("POST", "/v1/organizations/{org}/library"),

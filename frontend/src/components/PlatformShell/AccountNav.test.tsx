@@ -12,7 +12,6 @@ const SECTIONS: Array<[AccountSection, string, string]> = [
 ];
 
 describe('AccountNav', () => {
-  // [utest->req~frontend-nav-account-sections~1]
   it('names the five sections of the account page and links their addresses, in order', () => {
     render(<MemoryRouter><AccountNav /></MemoryRouter>);
 
@@ -22,7 +21,6 @@ describe('AccountNav', () => {
     );
   });
 
-  // [utest->req~frontend-nav-account-sections~1]
   it.each(SECTIONS)('marks %s (%s) with aria-current="page" and no other section', (active, label) => {
     render(<MemoryRouter><AccountNav active={active} /></MemoryRouter>);
 
@@ -31,7 +29,6 @@ describe('AccountNav', () => {
     expect(nav.getAllByRole('link', { current: 'page' })).toHaveLength(1);
   });
 
-  // [utest->req~frontend-nav-account-sections~1]
   it('marks Profile when no section is given', () => {
     render(<MemoryRouter><AccountNav /></MemoryRouter>);
 

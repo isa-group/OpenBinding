@@ -22,7 +22,6 @@ type Outcome =
   | { tone: 'error'; refusal: Refusal };
 
 /** The Progress tab of the study page: the study run `runId` with every cell and its state, kept up to date while it runs. */
-// [impl->req~frontend-nav-study-page~1]
 export function RunProgress({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
   const { study, organization, project, access, root } = scope;
   const org = organization.slug;
@@ -136,7 +135,6 @@ export function RunProgress({ scope, runId }: { scope: StudyScopeValue; runId: s
             <CopyDigest value={run.matrix_digest} label="Copy matrix digest" />
           </p>
         </div>
-        {/* [impl->req~frontend-retire-reports-entry-points-removed~1] */}
         <div className="proj-actions">
           <Action to={studyPageHref(studyPath, 'results', { run: runId })} variant="primary">Compare results</Action>
           {access.canCreate && isActiveState(run.state) && (

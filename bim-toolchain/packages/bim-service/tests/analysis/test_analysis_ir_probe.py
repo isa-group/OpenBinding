@@ -1,6 +1,6 @@
-"""M4 / IR (``docs/qa/analysis/BIM_B5_B8_M4_IR.md``, ``docs/qa/IR_NORMALIZATION.md``): a directory and its canonical ZIP.
+"""M4 / IR: a directory and its canonical ZIP.
 
-``docs/qa/BIM_EQUIVALENCE.md`` measured that 64 of the 82 packages compiled to another IR from ``to_zip()`` than from the
+A measurement found that 64 of the 82 packages compiled to another IR from ``to_zip()`` than from the
 directory, because the compiler listed eligibility, constraints and placement in the order the JSON members were written
 and the canonical form sorts them.  This module began as the measurement of *what kind* of change that was, list by list,
 and what the evaluator and a seeded draw did with it (strict ``xfail`` for the defect).  The compiler now lists those sets

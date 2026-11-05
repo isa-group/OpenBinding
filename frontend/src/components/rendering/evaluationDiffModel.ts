@@ -83,7 +83,6 @@ function same(a: DiffValue, b: DiffValue): boolean {
 }
 
 /** Compares what an engine claimed with what the gateway evaluated; solutions are paired by position. */
-// [impl->req~frontend-rendering-evaluation-diff~1]
 export function evaluationDiffOf(evaluated: RunValues, claimed?: RunValues | null): EvaluationDiffView {
   const ev = readRun(evaluated);
   const evSide = { termination: ev.termination, solutions: ev.solutions.length };
@@ -143,7 +142,6 @@ export function evaluationDiffOf(evaluated: RunValues, claimed?: RunValues | nul
 }
 
 /** Keeps the first MAX_TEXT code points of engine text and marks the cut with an ellipsis. */
-// [impl->req~frontend-rendering-evaluation-diff~1]
 export function shortText(text: string): string {
   const points = Array.from(text);
   return points.length <= MAX_TEXT ? text : `${points.slice(0, MAX_TEXT).join('')}…`;

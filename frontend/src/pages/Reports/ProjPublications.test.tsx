@@ -43,8 +43,6 @@ describe('Publications of a project', () => {
     expect(screen.getByText('Alex Rivera (2026). Engine comparison at checkout. ISA Demo Group / QoS Benchmarks.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copy public link' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open public verification' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
-    // [utest->req~frontend-retire-reports-publications-stay~1]
-    // [utest->req~frontend-nav-project-tabs~1]
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
     expect(within(tabs).getByRole('link', { name: 'Published' })).toHaveAttribute('aria-current', 'page');
     expect(within(tabs).getByRole('link', { name: 'Published' })).toHaveAttribute('href', `${ROOT}/published`);
@@ -54,7 +52,6 @@ describe('Publications of a project', () => {
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expect.stringMatching(/^@misc\{alexrivera2026checkoutcomparison,/));
   });
 
-  // [utest->req~frontend-retire-reports-publications-stay~1]
   it('leads nowhere to the retired report pages: no Open the report, no Reports crumb, tab or action', async () => {
     renderPublications();
 
@@ -123,7 +120,6 @@ describe('Publications of a project', () => {
     expect(screen.queryByRole('link', { name: 'Open the report' })).not.toBeInTheDocument();
   });
 
-  // [utest->req~frontend-retire-reports-publications-stay~1]
   it('says nothing is published yet, with no way on to the retired report list', async () => {
     platform.publications.mockResolvedValue([]);
     renderPublications();

@@ -10,7 +10,7 @@ __all__ = ["two_sessions"]
 def _test_watchdog():
     """Fail any test of this directory (fixtures included) that outlives its limit, with a dump.
 
-    Limit: ``OPENBINDING_PG_TEST_TIMEOUT`` seconds, 60 by default. See docs/qa/PG_HARNESS.md.
+    Limit: ``OPENBINDING_PG_TEST_TIMEOUT`` seconds, 60 by default.
     """
     with watchdog(timeout_seconds()):
         yield

@@ -7,7 +7,6 @@ import { Notice } from '../../components/ui/Notice';
 import { outputFacts, workspaceFilesOf, type Output, type ProjectChoice } from './generatorModel';
 
 /** The files of a result, one at a time, as the text they hold. Behind a control: the preview does not need them. */
-// [impl->req~frontend-generator-files-source-view~1]
 function SourceOfFiles({ files }: { files: Record<string, unknown> }) {
   const text = workspaceFilesOf(files);
   const names = Object.keys(text);

@@ -34,7 +34,6 @@ describe('New project', () => {
     ));
   });
 
-  // [utest->req~frontend-nav-create-dialogs~1]
   it('is the dialog New project, with the name first and a disabled Create until the form is valid', async () => {
     renderCreate();
 
@@ -45,7 +44,6 @@ describe('New project', () => {
     expect(within(dialog).getByRole('radio', { name: /^Private/ })).toBeChecked();
   });
 
-  // [utest->req~frontend-nav-create-dialogs~1]
   it('ends at onClose from Cancel, the × button and Escape, and creates nothing', async () => {
     renderCreate();
     await screen.findByRole('dialog', { name: 'New project' });
@@ -106,7 +104,6 @@ describe('New project', () => {
     expect(screen.queryByRole('meter')).not.toBeInTheDocument();
   });
 
-  // [utest->req~frontend-nav-create-dialogs~1]
   it('creates the project with what was typed, reloads the workspace and hands the project over', async () => {
     const { reload } = renderCreate();
     await screen.findByRole('dialog', { name: 'New project' });

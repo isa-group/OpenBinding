@@ -73,7 +73,6 @@ function SettingsBody({ organization }: { organization: Organization }) {
   const previewPath = targetOrg ? pathOf(targetOrg, context.organizations) : [];
 
   // --- who sponsors it: a user may only name themselves
-  // [impl->req~frontend-workspace-org-sponsor-self-only~1]
   const canTakeSponsorship = Boolean(me && organization.billing_sponsor_user_id !== me.id);
 
   const flash = (text: string) => {
@@ -381,7 +380,6 @@ function GeneralSection() {
  * Organization settings (`org-settings`, `/app/:org/settings/:section?`): General, Members (`members`) and Audit (`audit`).
  * Any other section is a page that does not exist.
  */
-// [impl->req~frontend-nav-org-settings-sections~1]
 export function OrgSettings() {
   const { section } = useParams();
   if (section === undefined) return <GeneralSection />;

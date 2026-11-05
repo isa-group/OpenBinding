@@ -125,7 +125,6 @@ const readViolations = (violations: unknown): Violation[] | null => {
 const penaltyOf = (matches: Violation[]) => matches.reduce((sum, v) => sum + (v.penalty ?? 0), 0);
 
 /** Bounds and rules of the compiled form's constraints, with the status taken from the gateway's violations only. */
-// [impl->req~frontend-rendering-qos-against-bounds~1]
 export function qosBoundsOf(
   constraints: unknown,
   features: Record<string, unknown> | null | undefined,

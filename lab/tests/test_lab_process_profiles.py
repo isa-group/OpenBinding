@@ -29,7 +29,6 @@ rules = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(rules)
 
 BASE = ROOT / "compose.lab.json"
-DOC = ROOT / "docs" / "qa" / "PROCESS_DEPLOYMENT.md"
 DEMO_DOC = ROOT / "docs" / "DEMO.md"
 SERVICE_DIR = ROOT / "bim-toolchain" / "packages" / "bim-service" / "src" / "bim_service"
 
@@ -215,7 +214,6 @@ def test_secrets_are_references_never_literals_and_references_have_no_defaults(p
     assert rules.DESTRUCTIVE_KEY not in text and "VITE_API_KEY" not in text
 
 
-# [utest->req~lab-deployment-single-loopback-port~2]
 def test_only_the_gateway_holds_the_jwt_secret_and_one_port_is_published(profile, manifest):
     services = manifest["services"]
     holders = {n for n, s in services.items() if rules.JWT_SECRET in json.dumps(s)}
@@ -418,59 +416,3 @@ def test_compose_lab_is_the_thread_rollback(base):
 # -- documentation ---------------------------------------------------------------------------------
 
 
-def _doc() -> str:
-    return DOC.read_text(encoding="utf-8")
-
-
-def test_the_deployment_doc_states_the_terms_of_the_fit_rule_for_both_profiles():
-    doc = _doc()
-    for p in PROFILES:
-        for parent, child in ((PARENT_MEASURED, CHILD_MEASURED), (PARENT_CONSERVATIVE, CHILD_CONSERVATIVE)):
-            required = required_bytes(p, parent, child)
-            assert str(required) in doc, (p.name, parent, child, required)
-            assert str(MEMORY_MAX - required) in doc, (p.name, parent, child)
-        for value in (p.body, p.budget, p.pending, p.acquire_ms):
-            assert str(value) in doc, (p.name, value)
-    assert "P + Q + N*C + B + N*(L + R) + margin" in doc
-    assert str(int(FIT_MARGIN * MEMORY_MAX)) in doc
-
-
-def test_the_deployment_doc_publishes_the_capabilities_each_profile_must_show():
-    blocks = [json.loads(b) for b in re.findall(r"```json\n(.*?)```", _doc(), re.DOTALL)]
-    limits = [b for b in blocks if isinstance(b, dict) and "executor" in b]
-    assert limits == [N2.limits, N1.limits]  # in the order of the document: the recommended profile first
-
-
-def test_the_deployment_doc_covers_activation_rollback_and_verification():
-    doc = _doc()
-    for needle in (
-        "compose.lab.json",
-        "compose.lab-process.json",
-        "compose.lab-process-n2.json",
-        "lab_compose up file=compose.lab-process-n2.json",
-        "lab_compose up file=compose.lab-process.json",
-        "lab_compose up file=compose.lab.json",
-        "metrics",
-        "oom_kill",
-        "READY",
-        "healthz",
-        "capabilities",
-        "413",
-        "429",
-        "operation_timeout",
-        "4032 MiB",
-        "256 MiB",
-        "16 MiB",
-        "32 MiB",
-    ):
-        assert needle in doc, needle
-    assert "does not admit 16" in doc or "NOT admit 16" in doc or "not admit 16" in doc
-    assert "recommend" in doc.lower()
-    assert "assumption" in doc.lower()
-
-
-def test_demo_doc_links_to_the_deployment_doc_and_keeps_the_memory_sum():
-    demo = DEMO_DOC.read_text(encoding="utf-8")
-    assert "qa/PROCESS_DEPLOYMENT.md" in demo
-    assert "4032 MiB" in demo
-    assert DOC.is_file()

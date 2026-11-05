@@ -1,7 +1,7 @@
 """The normalized IR against the baseline that preceded it, package by package and by identifier.
 
 ``golden/bim_baseline`` is the baseline of the toolchain that listed eligible candidates, constraints and placement in
-the order the JSON objects were written (commit ``b2780381``; see ``docs/qa/IR_NORMALIZATION.md``).  It is frozen: its
+the order the JSON objects were written (commit ``b2780381``).  It is frozen: its
 files are not edited and ``golden/ir_previous/evidence.json`` pins their SHA-256.  That evidence file also holds, for each
 of the 82 corpus packages, the evaluation of bindings chosen *by identifier* (never by position in a list) and the digest
 of the members of every set of the IR, both computed with that previous toolchain.
@@ -110,7 +110,7 @@ def test_the_normalized_corpus_moved_exactly_where_the_order_of_a_set_changed(ba
 
 
 def test_what_the_order_did_to_the_baseline_evaluations_of_the_moved_packages(baseline_tool) -> None:
-    """The figures quoted in ``docs/qa/IR_NORMALIZATION.md``, from the two corpus goldens.
+    """The figures of the IR normalization, from the two corpus goldens.
 
     Of the 64 packages that moved, 14 are evaluated exhaustively and 50 are sampled. Exhaustive: the same summary,
     another enumeration order (so another ``rollupDigest``) for 13; ``examples/literature/zhang`` keeps every digest.

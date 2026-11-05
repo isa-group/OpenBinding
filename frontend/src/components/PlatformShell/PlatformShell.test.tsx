@@ -230,7 +230,6 @@ describe('PlatformShell (application layout)', () => {
     for (const link of adminLinks) expect(link).toHaveAttribute('href', '/app/admin');
   });
 
-  // [utest->req~frontend-retire-reports-navigation~1]
   it('has no link to the retired report address in the header of a project, and fills the palette with the commands of the project', async () => {
     renderShell(user, '/app/test-org/atlas');
     await ready();

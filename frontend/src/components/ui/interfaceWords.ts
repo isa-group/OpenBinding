@@ -7,7 +7,6 @@ const SHOWN: Readonly<Record<string, string>> = {
 };
 
 /** `text` with the whole words case(s), job(s) and publication(s) replaced by problem(s), run(s) and published result(s), keeping the first letter's case. */
-// [impl->req~frontend-nav-vocabulary-text~1]
 export function inInterfaceWords(text: string): string {
   return text.replace(/\b(cases?|jobs?|publications?)\b/gi, (word) => {
     const shown = SHOWN[word.toLowerCase()];

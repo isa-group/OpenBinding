@@ -6,7 +6,6 @@ import {
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
-// [utest->req~frontend-nav-vocabulary-urls~1]
 test('the Problems and Runs screens read the problems and runs from the unchanged API paths', async ({ page }) => {
   const gateway = await mockGateway(page);
   await page.goto(PROBLEMS_FINAL);
@@ -18,7 +17,6 @@ test('the Problems and Runs screens read the problems and runs from the unchange
   expect(new URL(page.url()).pathname).toBe(RUNS_FINAL);
 });
 
-// [utest->req~frontend-nav-vocabulary-urls~1]
 test('the old global runs address keeps its query and becomes /app/runs', async ({ page }) => {
   await mockGateway(page);
   await page.goto('/app/jobs?state=running');

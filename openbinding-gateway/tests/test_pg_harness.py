@@ -3,7 +3,7 @@
 This file lives in the ordinary gateway suite, where the repository checkout (and so the compose file)
 exists.  It used to sit in ``tests/concurrency`` and was skipped in the lab PostgreSQL run, because the
 image carries ``schemas`` and ``examples`` but not the compose file.  A missing compose file is now an
-error, never a silent skip, unless ``OPENBINDING_SKIP_COMPOSE_SHAPE=1`` is set (see docs/qa/PG_HARNESS.md).
+error, never a silent skip, unless ``OPENBINDING_SKIP_COMPOSE_SHAPE=1`` is set.
 Do not list this file in ``DEMO_PYTEST_ARGS``: the container has no checkout.
 """
 
@@ -279,7 +279,6 @@ def test_compose_has_no_real_secret_shapes(compose):
 # -- the PostgreSQL tests of the ordinary suite (tests/test_*_pg.py) ------------------------------------
 
 TESTS_DIR = REPO_ROOT / "openbinding-gateway" / "tests"
-PG_RUN_DOC = REPO_ROOT / "docs" / "qa" / "PG_REAL_RUN.md"
 #: The modules beside the ordinary suite that run on PostgreSQL; ``tests/concurrency`` has its own guard.
 PG_MODULES = (
     "test_federated_engines_pg.py",
@@ -313,22 +312,3 @@ def test_a_pg_module_skips_only_through_the_shared_fixture(module):
     assert "async def pg()" in conftest and "_pg_test_watchdog" in conftest
 
 
-def test_the_pg_run_doc_has_the_exact_command_and_lists_every_new_test():
-    doc = _read(PG_RUN_DOC)
-    match = re.search(r"DEMO_PYTEST_ARGS='([^']*)'", doc)
-    assert match, "docs/qa/PG_REAL_RUN.md must give the command as DEMO_PYTEST_ARGS='...'"
-    words = match.group(1).split()
-    paths = [word for word in words if not word.startswith("-")]
-    assert "tests/concurrency" in paths
-    for module in PG_MODULES:
-        assert f"tests/{module}" in paths, module
-    # The container has no checkout: the compose-shape tests and a bare ``tests`` would fail by design there.
-    assert "tests" not in paths and "tests/test_pg_harness.py" not in paths
-    for path in paths:
-        assert (REPO_ROOT / "openbinding-gateway" / path).exists(), path
-    assert any(word.startswith("-r") and "s" in word[2:] for word in words)  # the reason of any skip is printed
-    for module in PG_MODULES:
-        names = re.findall(r"^(?:async )?def (test_\w+)", (TESTS_DIR / module).read_text(encoding="utf-8"), re.MULTILINE)
-        assert names, module
-        missing = [name for name in names if name not in doc]
-        assert not missing, (module, missing)

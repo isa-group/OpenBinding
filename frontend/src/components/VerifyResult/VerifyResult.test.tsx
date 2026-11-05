@@ -17,7 +17,6 @@ beforeEach(() => {
 });
 
 describe('VerifyResult', () => {
-  // [utest->req~verify-result~1]
   it.each([
     ['verified', 'Verified', 'The fingerprint is what OpenBinding recorded.'],
     ['computed', 'Computed, not on record', 'We computed its fingerprint, but OpenBinding hasn’t recorded anything with it. That’s normal for drafts or local files.'],
@@ -32,7 +31,6 @@ describe('VerifyResult', () => {
     expect(within(region).getByText('because')).toBeInTheDocument();
   });
 
-  // [utest->req~verify-result~1]
   it('shows a verified fingerprint once, with one copy button, and says the other side matches', async () => {
     const { container } = render(<VerifyResult verdict={{ status: 'verified', digest: D1, entities: [entity()] }} given={D1} />);
 
@@ -44,7 +42,6 @@ describe('VerifyResult', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(D1));
   });
 
-  // [utest->req~verify-result~1]
   it('shows only the recorded side when nothing was given or computed', () => {
     const { container } = render(<VerifyResult verdict={{ status: 'verified', digest: D1, entities: [entity()] }} />);
 
@@ -54,7 +51,6 @@ describe('VerifyResult', () => {
     expect(screen.getAllByRole('button', { name: /^Copy / })).toHaveLength(1);
   });
 
-  // [utest->req~verify-result~1]
   it('shows a matching computed fingerprint once and keeps product names in labels', () => {
     const { container } = render(<VerifyResult verdict={{ status: 'verified', digest: D1, entities: [entity()] }} computed={D1} />);
 
@@ -64,7 +60,6 @@ describe('VerifyResult', () => {
     expect(screen.getByRole('button', { name: 'Copy recorded fingerprint' })).toBeInTheDocument();
   });
 
-  // [utest->req~verify-result~1]
   it('shows a given fingerprint that matches the expected one once', () => {
     const { container } = render(<VerifyResult verdict={{ status: 'mismatch', digest: D1 }} given={D1} />);
 
@@ -73,7 +68,6 @@ describe('VerifyResult', () => {
     expect(screen.getAllByRole('button', { name: /^Copy / })).toHaveLength(1);
   });
 
-  // [utest->req~verify-result~1]
   it('shows two different given and recorded digests, one copy button each', () => {
     render(<VerifyResult verdict={{ status: 'verified', digest: D1, entities: [entity()] }} given={D2} />);
 
@@ -84,7 +78,6 @@ describe('VerifyResult', () => {
     expect(screen.getByText('Recorded by OpenBinding').nextElementSibling).toHaveTextContent(D1);
   });
 
-  // [utest->req~verify-result~1]
   it('shows the computed and expected sides of a mismatch', () => {
     render(<VerifyResult verdict={{ status: 'mismatch', digest: D2 }} computed={D1} />);
 
@@ -94,7 +87,6 @@ describe('VerifyResult', () => {
     expect(screen.getAllByRole('button', { name: /^Copy / })).toHaveLength(2);
   });
 
-  // [utest->req~verify-result~1]
   it('says nothing is recorded, without a copy button for it', () => {
     render(<VerifyResult verdict={{ status: 'computed', digest: D1 }} computed={D1} />);
 
@@ -102,14 +94,12 @@ describe('VerifyResult', () => {
     expect(screen.getAllByRole('button', { name: /^Copy / })).toHaveLength(1);
   });
 
-  // [utest->req~verify-result~1]
   it('warns when the browser and the server disagree', () => {
     render(<VerifyResult verdict={{ status: 'computed', digest: D2 }} computed={D1} />);
 
     expect(screen.getByText('Your browser and the server disagree')).toBeInTheDocument();
   });
 
-  // [utest->req~verify-result~1]
   it('does not warn when they agree or nothing was computed in the browser', () => {
     const { unmount } = render(<VerifyResult verdict={{ status: 'verified', digest: D1 }} computed={D1} />);
     expect(screen.queryByText('Your browser and the server disagree')).not.toBeInTheDocument();
@@ -118,7 +108,6 @@ describe('VerifyResult', () => {
     expect(screen.queryByText('Your browser and the server disagree')).not.toBeInTheDocument();
   });
 
-  // [utest->req~verify-result~1]
   it('names matches with a kind chip and never shows an entity identifier', () => {
     const { container } = render(
       <VerifyResult
@@ -133,7 +122,6 @@ describe('VerifyResult', () => {
     expect(container.textContent).not.toContain(ID);
   });
 
-  // [utest->req~verify-result~1]
   it.each([
     ['a digest', `sha256-${'ab'.repeat(32)}`],
     ['a long hex run', 'c0ffee'.repeat(8)],
@@ -148,7 +136,6 @@ describe('VerifyResult', () => {
     expect(container.textContent).not.toContain(value);
   });
 
-  // [utest->req~verify-result~1]
   it('links matches through renderLink or hrefOf, and shows the name alone otherwise', () => {
     const entities = [entity()];
     const verdict = { status: 'verified', digest: D1, entities } as const;
@@ -164,20 +151,17 @@ describe('VerifyResult', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
-  // [utest->req~verify-result~1]
   it('renders the citation slot', () => {
     render(<VerifyResult verdict={{ status: 'verified', digest: D1 }} citation={<p>citation here</p>} />);
 
     expect(screen.getByText('citation here')).toBeInTheDocument();
   });
 
-  // [utest->req~verify-result~1]
   it('has no hard-coded hex colour in its stylesheet', () => {
     const css = readFileSync(join(import.meta.dirname, 'VerifyResult.css'), 'utf8');
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });
 
-  // [utest->req~verify-result~1]
   it('lets long match names wrap instead of overflowing', () => {
     const css = readFileSync(join(import.meta.dirname, 'VerifyResult.css'), 'utf8');
     expect(css).toMatch(/\.verify-result__matches li > \*\s*\{[^}]*overflow-wrap:\s*anywhere[^}]*min-width:\s*0/);

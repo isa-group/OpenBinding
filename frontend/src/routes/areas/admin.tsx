@@ -3,8 +3,6 @@ import { live } from '../define';
 import type { MovedRoute } from '../moved';
 import type { RouteDefinition } from '../types';
 
-// [impl->req~frontend-retire-sponsorship-screen-not-routed~1]
-// [impl->req~frontend-retire-sponsorship-screen-count~1]
 // Area: admin. Every one of them is admin-only. Pricing is administered in the SPACE and SPHERE consoles.
 
 const AdminOverview = lazy(() => import('../../pages/Admin/AdminOverview').then((module) => ({ default: module.AdminOverview })));

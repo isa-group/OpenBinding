@@ -109,7 +109,6 @@ async def written(db_session) -> tuple[int, int]:
 
 
 async def test_an_owner_naming_another_member_is_refused_and_nothing_is_applied(api_client, db_session, acme):
-    # [utest->req~auth-roles-entitlements-sponsor-caller-only~1]
     alice, carol = acme["alice"][0], acme["carol"][0]
     before = await written(db_session)
 
@@ -128,7 +127,6 @@ async def test_an_owner_naming_another_member_is_refused_and_nothing_is_applied(
 
 
 async def test_unknown_and_inactive_users_get_identical_answers(api_client, db_session, registration, acme):
-    # [utest->req~auth-roles-entitlements-sponsor-caller-only~1]
     erin, _ = await account(api_client, registration)
     user = await db_session.get(User, uuid.UUID(erin["id"]))
     user.is_active = False
@@ -147,7 +145,6 @@ async def test_unknown_and_inactive_users_get_identical_answers(api_client, db_s
 
 
 async def test_the_refusal_comes_before_any_other_validation(api_client, db_session, acme):
-    # [utest->req~auth-roles-entitlements-sponsor-caller-only~1]
     # ``move_to_root`` together with ``parent_id`` is ``ambiguous_parent`` on its own;
     # a foreign sponsor is refused first, and the parent is untouched.
     refused = await api_client.patch(
@@ -169,7 +166,6 @@ async def test_the_refusal_comes_before_any_other_validation(api_client, db_sess
 
 
 async def test_the_retired_request_field_is_a_validation_error(api_client, db_session, acme):
-    # [utest->req~auth-roles-entitlements-sponsor-caller-only~1]
     bob, bob_headers = acme["bob"]
 
     refused = await api_client.patch(
@@ -186,7 +182,6 @@ async def test_the_retired_request_field_is_a_validation_error(api_client, db_se
 
 
 def test_the_contract_documents_the_refusal():
-    # [utest->req~auth-roles-entitlements-sponsor-caller-only~1]
     responses = app.openapi()["paths"]["/v1/organizations/{org}"]["patch"]["responses"]
 
     assert "202" not in responses and "409" not in responses
@@ -199,7 +194,6 @@ def test_the_contract_documents_the_refusal():
 
 
 async def test_an_owner_takes_the_sponsorship_of_the_whole_subtree(api_client, db_session, gate, acme):
-    # [utest->req~auth-roles-entitlements-sponsor-self-transfer~1]
     alice, bob, bob_headers = acme["alice"][0], *acme["bob"]
     gate.plans[uuid.UUID(bob["id"])] = LARGER_PLAN
 
@@ -221,7 +215,6 @@ async def test_an_owner_takes_the_sponsorship_of_the_whole_subtree(api_client, d
 
 
 async def test_a_plan_too_small_is_refused_and_the_sponsor_stays(api_client, db_session, acme):
-    # [utest->req~auth-roles-entitlements-sponsor-self-transfer~1]
     bob, bob_headers = acme["bob"]
 
     refused = await api_client.patch(acme["url"], headers=bob_headers, json={"billing_sponsor_user_id": bob["id"]})
@@ -232,7 +225,6 @@ async def test_a_plan_too_small_is_refused_and_the_sponsor_stays(api_client, db_
 
 
 async def test_an_admin_who_is_not_owner_is_forbidden_whoever_they_name(api_client, db_session, gate, acme):
-    # [utest->req~auth-roles-entitlements-sponsor-self-transfer~1]
     dave, dave_headers = acme["dave"]
     gate.plans[uuid.UUID(dave["id"])] = LARGER_PLAN
 
@@ -244,7 +236,6 @@ async def test_an_admin_who_is_not_owner_is_forbidden_whoever_they_name(api_clie
 
 
 async def test_naming_the_current_sponsor_changes_nothing_but_the_rest(api_client, db_session, acme):
-    # [utest->req~auth-roles-entitlements-sponsor-self-transfer~1]
     alice = acme["alice"][0]
 
     renamed = await api_client.patch(
@@ -268,7 +259,6 @@ async def tables(db_session) -> set[str]:
 
 
 async def test_deactivation_works_on_a_schema_without_proposals(api_client, db_session, registration, gate):
-    # [utest->req~auth-roles-entitlements-account-lifecycle-without-proposals~1]
     assert "sponsor_proposals" not in Base.metadata.tables
     assert "sponsor_proposals" not in await tables(db_session)
     erin, _ = await account(api_client, registration)
@@ -285,7 +275,6 @@ async def test_deactivation_works_on_a_schema_without_proposals(api_client, db_s
 
 
 async def test_deletion_works_on_a_schema_without_proposals(api_client, db_session, registration, gate):
-    # [utest->req~auth-roles-entitlements-account-lifecycle-without-proposals~1]
     assert "sponsor_proposals" not in await tables(db_session)
     frank, frank_headers = await account(api_client, registration)
 

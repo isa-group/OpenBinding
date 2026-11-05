@@ -19,7 +19,6 @@ export const routes: RouteDefinition[] = [
   live('gen-lab', '/app/generator', <GeneratorLab />),
 ];
 
-// [impl->req~frontend-nav-vocabulary-urls~1]
 const movedAddresses: MovedRoute[] = [
   // The addresses of the run history, the run list, the launcher and a run before the segment became `runs` (slice 14). The query and the
   // hash go on. The static `new` outranks `:job`, so every redirect is one hop.

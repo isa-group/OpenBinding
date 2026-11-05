@@ -6,7 +6,7 @@ import {
   UNLISTED_REASON,
 } from './rawRenderingAllowList';
 
-// Render, never dump (constitution Article 15, ADR 0014): outside the two catalogue components no screen puts a `<pre>` or a stringified
+// Render, never dump: outside the two catalogue components no screen puts a `<pre>` or a stringified
 // object on screen. The detector is line based and deliberately simple:
 //   (a) a line with a `<pre` JSX tag is a finding (the `<pre>` line itself, whatever feeds it);
 //   (b) a `JSON.stringify(` is a finding when it is RENDERED: the innermost `{` still open at the call is a JSX child expression
@@ -132,21 +132,18 @@ export function wrongLineNumbers(sources: Record<string, string>, allow: Accepte
   }));
 }
 
-// [impl->req~frontend-retire-allow-list-ceiling~1]
 /** A message when the ceiling is not the number of entries, otherwise nothing. */
 export function ceilingMismatch(max: number, entries: readonly unknown[]): string | undefined {
   return max === entries.length ? undefined : `MAX_ALLOWED_OFFENDERS is ${max} but the allow-list has ${entries.length} entries`;
 }
 
 describe('the detector of raw rendering', () => {
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('reports a <pre> tag', () => {
     expect(findRawRendering('<pre>{text}</pre>')).toHaveLength(1);
     expect(findRawRendering('  <pre className="x" aria-label="Log">')).toHaveLength(1);
     expect(findRawRendering('<pre tabIndex={0}><code>{source}</code></pre>')[0]?.kind).toBe('pre');
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('reports a stringify rendered as a JSX child', () => {
     expect(findRawRendering('<code>{JSON.stringify(option.rest)}</code>')).toHaveLength(1);
     expect(findRawRendering("<dd>{typeof v === 'string' ? v : JSON.stringify(v)}</dd>")).toHaveLength(1);
@@ -157,7 +154,6 @@ describe('the detector of raw rendering', () => {
     expect(findRawRendering('<ul>{items.map((i) => JSON.stringify(i))}</ul>')).toHaveLength(1);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('reports a child expression alone on its line', () => {
     expect(findRawRendering("  {typeof v === 'string' ? v : JSON.stringify(v)}")).toHaveLength(1);
     expect(findRawRendering('  {items.map((i) => JSON.stringify(i))}')).toHaveLength(1);
@@ -166,59 +162,48 @@ describe('the detector of raw rendering', () => {
     expect(findRawRendering('  { ...JSON.stringify(x) }')).toEqual([]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('reports a stringify inside a template literal rendered as a child', () => {
     expect(findRawRendering('<p>{`Value: ${JSON.stringify(x)}`}</p>')).toHaveLength(1);
     expect(findRawRendering('const init = { body: `${JSON.stringify(x)}` };')).toEqual([]);
     expect(findRawRendering('<Row key={`${JSON.stringify(a)}`} />')).toEqual([]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('skips a JSX comment line', () => {
     expect(findRawRendering('{/* <pre>{JSON.stringify(x)}</pre> */}')).toEqual([]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('known limit: an apostrophe in JSX text hides a later finding on the same line', () => {
     expect(findRawRendering("<p>don't {JSON.stringify(x)} isn't</p>")).toEqual([]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('known limit: a stringify on a different line from the brace that opened its expression is not seen', () => {
     expect(findRawRendering('<p>{\n  JSON.stringify(x)\n}</p>')).toEqual([]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('known limit: a template literal that is only part of a child expression is not seen', () => {
     expect(findRawRendering('<p>{label + `: ${JSON.stringify(x)}`}</p>')).toEqual([]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('skips a line made of JSX comments only, not one with code between them', () => {
     expect(findRawRendering('{/* a */}<pre>{x}</pre>{/* b */}')).toHaveLength(1);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('known limit: a stringify wrapped inside an attribute value is not seen', () => {
     expect(findRawRendering('<Field title={x ?? JSON.stringify(y)} />')).toEqual([]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('known limit: a <pre inside a string literal is not reported', () => {
     expect(findRawRendering('const tag = "<pre>";')).toEqual([]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('known limit: a line with a <pre tag and a rendered stringify yields one finding', () => {
     expect(findRawRendering('<pre>{JSON.stringify(x)}</pre>')).toEqual([{ line: 1, text: '<pre>{JSON.stringify(x)}</pre>', kind: 'pre' }]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('reports a stringify given as a JSX attribute value', () => {
     expect(findRawRendering('<CodeEditor value={JSON.stringify(doc, null, 2)} readOnly />')).toHaveLength(1);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('does not report stringify that is not rendered', () => {
     const quiet = [
       "const r = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });",
@@ -238,12 +223,10 @@ describe('the detector of raw rendering', () => {
     for (const sample of quiet) expect(findRawRendering(sample), sample).toEqual([]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('numbers lines from 1 and keeps the trimmed text', () => {
     expect(findRawRendering('const a = 1;\n    <pre>{a}</pre>')).toEqual([{ line: 2, text: '<pre>{a}</pre>', kind: 'pre' }]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('exempts the catalogue files by exact path and nothing else', () => {
     const sample = '<pre>{JSON.stringify(x)}</pre>';
     const hits = (file: string) => scan({ [`/src/${file}`]: sample }).length;
@@ -253,7 +236,6 @@ describe('the detector of raw rendering', () => {
     expect(hits('pages/Jobs/JobResult.tsx')).toBe(1);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('exempts exactly the two catalogue components', () => {
     expect(EXEMPT_FILES).toEqual(['components/rendering/SourceView.tsx', 'components/rendering/LogPanel.tsx']);
     for (const file of EXEMPT_FILES) expect(files[`/src/${file}`], file).toBeDefined();
@@ -261,26 +243,19 @@ describe('the detector of raw rendering', () => {
 });
 
 describe('raw rendering in the application sources', () => {
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('reads the sources', () => {
     expect(Object.keys(sources).length).toBeGreaterThan(100);
     expect(Object.keys(sources).some((path) => path.startsWith('/src/test/'))).toBe(false);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
-  // [utest->req~frontend-m25-leave-allow-list~1]
   it('has no raw rendering outside the allow-list', () => {
     expect(unlistedFindings(sources, accepted)).toEqual([]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
-  // [utest->req~frontend-m25-leave-allow-list~1]
   it('has no stale allow-list entry: the list may only shrink', () => {
     expect(staleEntries(sources, accepted)).toEqual([]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
-  // [utest->req~frontend-m25-leave-allow-list~1]
   it('keeps the line numbers of the allow-list correct', () => {
     expect(wrongLineNumbers(sources, accepted)).toEqual([]);
   });
@@ -291,26 +266,22 @@ describe('the allow-list checks', () => {
   const at = (file: string, ...lines: string[]) => ({ [`/src/${file}`]: lines.join('\n') });
   const allow = (file: string, ...lines: { line: number; text: string }[]): Accepted => [{ file, lines }];
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('reports a new raw finding in an unlisted file, with file:line, text and the instruction', () => {
     const found = unlistedFindings(at('pages/New.tsx', 'const a = 1;', dump), []);
     expect(found).toEqual([`pages/New.tsx:2  ${dump}  — render with the catalogue (SourceView, LogPanel, ...) instead of adding an entry to rawRenderingAllowList.ts`]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('reports an entry whose line no longer exists as stale, with file:line, text and the instruction', () => {
     const stale = staleEntries(at('pages/Old.tsx', 'const a = 1;'), allow('pages/Old.tsx', { line: 3, text: dump }));
     expect(stale).toEqual([`pages/Old.tsx:3  ${dump}  — no longer raw rendering: remove this entry from rawRenderingAllowList.ts`]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('accepts a listed finding and reports nothing', () => {
     const sources = at('pages/Ok.tsx', dump);
     const list = allow('pages/Ok.tsx', { line: 1, text: dump });
     expect([unlistedFindings(sources, list), staleEntries(sources, list), wrongLineNumbers(sources, list)]).toEqual([[], [], []]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('reports a moved line only as a wrong line number', () => {
     const sources = at('pages/Moved.tsx', 'const a = 1;', dump);
     const list = allow('pages/Moved.tsx', { line: 1, text: dump });
@@ -319,12 +290,10 @@ describe('the allow-list checks', () => {
     expect(wrongLineNumbers(sources, list)).toEqual([`pages/Moved.tsx:1 is "const a = 1;", expected ${JSON.stringify(dump)}`]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('reports a line number past the end of the file', () => {
     expect(wrongLineNumbers(at('pages/Short.tsx', dump), allow('pages/Short.tsx', { line: 9, text: dump }))).toEqual([`pages/Short.tsx:9 is undefined, expected ${JSON.stringify(dump)}`]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('counts: an extra identical raw line in a listed file is unlisted', () => {
     const sources = at('pages/Dup.tsx', dump, 'const a = 1;', dump);
     const list = allow('pages/Dup.tsx', { line: 1, text: dump });
@@ -332,7 +301,6 @@ describe('the allow-list checks', () => {
     expect(staleEntries(sources, list)).toEqual([]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('counts: a removed copy of two identical listed lines is stale', () => {
     const sources = at('pages/Dup.tsx', dump);
     const list = allow('pages/Dup.tsx', { line: 1, text: dump }, { line: 3, text: dump });
@@ -340,37 +308,30 @@ describe('the allow-list checks', () => {
     expect(staleEntries(sources, list)).toEqual([`pages/Dup.tsx:3  ${dump}  — no longer raw rendering: remove this entry from rawRenderingAllowList.ts`]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('counts: two identical lines listed twice are accepted', () => {
     const sources = at('pages/Dup.tsx', dump, dump);
     const list = allow('pages/Dup.tsx', { line: 1, text: dump }, { line: 2, text: dump });
     expect([unlistedFindings(sources, list), staleEntries(sources, list), wrongLineNumbers(sources, list)]).toEqual([[], [], []]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
   it('matches by file: the same text in another file is not covered', () => {
     expect(unlistedFindings(at('pages/B.tsx', dump), allow('pages/A.tsx', { line: 1, text: dump }))).toHaveLength(1);
   });
 });
 
 describe('the allow-list', () => {
-  // [utest->req~frontend-retire-allow-list-ceiling~1]
   it('reports a ceiling that differs from the entries, naming both numbers', () => {
     expect(ceilingMismatch(14, new Array(13))).toBe('MAX_ALLOWED_OFFENDERS is 14 but the allow-list has 13 entries');
     expect(ceilingMismatch(12, new Array(13))).toBe('MAX_ALLOWED_OFFENDERS is 12 but the allow-list has 13 entries');
     expect(ceilingMismatch(13, new Array(13))).toBeUndefined();
   });
 
-  // [utest->req~frontend-rendering-run-result-allow-list~1]
-  // [utest->req~frontend-m25-leave-allow-list~1]
-  // [utest->req~frontend-nav-verify-no-raw-json~1]
   it('has a ceiling of 0 once the Verify page replaces offender 6, as many as its entries', () => {
     expect(MAX_ALLOWED_OFFENDERS).toBe(0);
     expect(RAW_RENDERING_ALLOW_LIST).toHaveLength(0);
     expect(ceilingMismatch(MAX_ALLOWED_OFFENDERS, RAW_RENDERING_ALLOW_LIST)).toBeUndefined();
   });
 
-  // [utest->req~frontend-retire-allow-list-ceiling~1]
   it('has a ceiling equal to its entries, numbered as a strictly increasing subset of 1 to 15', () => {
     expect(ceilingMismatch(MAX_ALLOWED_OFFENDERS, RAW_RENDERING_ALLOW_LIST)).toBeUndefined();
     const numbers = RAW_RENDERING_ALLOW_LIST.map((entry) => entry.offender);
@@ -381,12 +342,6 @@ describe('the allow-list', () => {
     }
   });
 
-  // [utest->req~frontend-retire-allow-list-leaves~1]
-  // [utest->req~frontend-retire-reports-allow-list~1]
-  // [utest->req~frontend-retire-library-allow-list~1]
-  // [utest->req~frontend-rendering-run-result-allow-list~1]
-  // [utest->req~frontend-m25-leave-allow-list~1]
-  // [utest->req~frontend-nav-verify-no-raw-json~1]
   it('holds exactly the offenders that remain after the Verify page', () => {
     expect(RAW_RENDERING_ALLOW_LIST.map((entry) => entry.offender)).toEqual([]);
     expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => /^pages\/(Reports\/Verifier|Verify\/)/.test(entry.file))).toEqual([]);
@@ -394,7 +349,6 @@ describe('the allow-list', () => {
     expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file.startsWith('pages/Analysis'))).toEqual([]);
   });
 
-  // [utest->req~frontend-nav-allow-list-empty~1]
   it('holds no offender and no unlisted finding, with a ceiling of 0', () => {
     expect(RAW_RENDERING_ALLOW_LIST).toEqual([]);
     expect(UNLISTED_FINDINGS).toEqual([]);
@@ -404,7 +358,6 @@ describe('the allow-list', () => {
     expect(wrongLineNumbers(sources, [])).toEqual([]);
   });
 
-  // [utest->req~frontend-nav-allow-list-empty~1]
   it('renders the workbench diff through SourceView, with no <pre> of its own', () => {
     const panel = Object.entries(sources).find(([path]) => path.endsWith('/pages/Workbench/SourcePanel.tsx'))?.[1];
     expect(panel).toBeDefined();
@@ -412,21 +365,16 @@ describe('the allow-list', () => {
     expect(panel).not.toMatch(/<pre[\s>]/);
   });
 
-  // [utest->req~frontend-retire-reports-allow-list~1]
   it('has no entry for the report editor, which slice 2 retires', () => {
     expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file === 'pages/Reports/RepDetail.tsx')).toEqual([]);
     expect(Object.keys(sources).filter((path) => path.endsWith('/pages/Reports/RepDetail.tsx'))).toEqual([]);
   });
 
-  // [utest->req~frontend-retire-library-allow-list~1]
   it('has no entry for the library content view, which slice 3 retires', () => {
     expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file.startsWith('pages/Library/'))).toEqual([]);
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
-  // [utest->req~frontend-rendering-run-result-allow-list~1]
-  // [utest->req~frontend-m25-leave-allow-list~1]
-  it('retires the offenders in the slices ROADMAP names', () => {
+  it('keeps the retired offenders retired', () => {
     const slice = (n: number) => RAW_RENDERING_ALLOW_LIST.find((entry) => entry.offender === n)?.retiredBy;
     expect(slice(2)).toBeUndefined();
     for (const n of [1, 3, 4]) expect(slice(n), `offender ${n}`).toBeUndefined();
@@ -436,8 +384,7 @@ describe('the allow-list', () => {
     expect(slice(6)).toBeUndefined();
   });
 
-  // [utest->req~frontend-rendering-raw-hygiene~1]
-  it('documents every finding that ROADMAP M2 does not list', () => {
+  it('documents every finding outside the original list', () => {
     for (const entry of UNLISTED_FINDINGS) {
       expect(entry.reason, entry.file).toBe(UNLISTED_REASON);
       expect(entry.retiredBy, entry.file).toBeNull();

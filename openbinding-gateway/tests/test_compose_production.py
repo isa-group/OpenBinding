@@ -1,4 +1,4 @@
-"""Tests of the Docker Compose production definition (M0.9, ADR-0021).
+"""Tests of the Docker Compose production definition.
 
 Nothing here starts a container or reaches a database. The entrypoint tests run ``docker-entrypoint.sh`` with
 ``sh`` against a fake ``alembic`` that only records how it was called; later slices append their own sections.
@@ -123,7 +123,6 @@ def secret_file(tmp_path):
 # -- OPENBINDING_MIGRATE ----------------------------------------------------------------------------------
 
 
-# [utest->req~lab-deployment-migrate-on-start~2]
 def test_entrypoint_auto_migrates_when_database_url_is_set(entrypoint):
     run = entrypoint({"DATABASE_URL": "postgresql://db/app"})
     assert run.returncode == 0
@@ -131,7 +130,6 @@ def test_entrypoint_auto_migrates_when_database_url_is_set(entrypoint):
     assert "DATABASE_URL=postgresql://db/app" in run.stdout
 
 
-# [utest->req~lab-deployment-migrate-on-start~2]
 def test_entrypoint_auto_is_the_default_and_explicit_auto_is_the_same(entrypoint):
     default = entrypoint({"DATABASE_URL": "postgresql://db/app"})
     explicit = entrypoint({"DATABASE_URL": "postgresql://db/app", "OPENBINDING_MIGRATE": "auto"})
@@ -139,7 +137,6 @@ def test_entrypoint_auto_is_the_default_and_explicit_auto_is_the_same(entrypoint
     assert default.alembic_calls == explicit.alembic_calls == ["upgrade head"]
 
 
-# [utest->req~lab-deployment-migrate-on-start~2]
 @pytest.mark.parametrize("mode", [None, "auto", ""], ids=["unset", "auto", "empty"])
 @pytest.mark.parametrize("database_url", [None, ""], ids=["no-database-url", "empty-database-url"])
 def test_entrypoint_auto_without_database_url_starts_without_migrating(entrypoint, mode, database_url):
@@ -152,7 +149,6 @@ def test_entrypoint_auto_without_database_url_starts_without_migrating(entrypoin
     assert run.alembic_calls == []
 
 
-# [utest->req~lab-deployment-migrate-on-start~2]
 @pytest.mark.parametrize("mode", [None, "auto", ""], ids=["unset", "auto", "empty"])
 def test_entrypoint_auto_and_an_empty_mode_migrate_when_database_url_is_set(entrypoint, mode):
     env = {"DATABASE_URL": "postgresql://db/app"}
@@ -164,7 +160,6 @@ def test_entrypoint_auto_and_an_empty_mode_migrate_when_database_url_is_set(entr
     assert run.stdout.endswith("ran\n")
 
 
-# [utest->req~lab-deployment-migrate-on-start~2]
 def test_entrypoint_skip_never_migrates(entrypoint):
     run = entrypoint({"OPENBINDING_MIGRATE": "skip", "DATABASE_URL": "postgresql://db/app"})
     assert run.returncode == 0
@@ -172,7 +167,6 @@ def test_entrypoint_skip_never_migrates(entrypoint):
     assert "DATABASE_URL=postgresql://db/app" in run.stdout
 
 
-# [utest->req~lab-deployment-migrate-on-start~2]
 def test_entrypoint_only_migrates_and_exits_without_running_the_command(entrypoint):
     run = entrypoint({"OPENBINDING_MIGRATE": "only", "DATABASE_URL": "postgresql://db/app"}, "echo", "ran")
     assert run.returncode == 0
@@ -180,7 +174,6 @@ def test_entrypoint_only_migrates_and_exits_without_running_the_command(entrypoi
     assert "ran" not in run.stdout
 
 
-# [utest->req~lab-deployment-migrate-on-start~2]
 @pytest.mark.parametrize("database_url", [None, ""])
 def test_entrypoint_only_without_database_url_exits_2(entrypoint, database_url):
     env = {"OPENBINDING_MIGRATE": "only"}
@@ -193,7 +186,6 @@ def test_entrypoint_only_without_database_url_exits_2(entrypoint, database_url):
     assert "DATABASE_URL" in run.stderr
 
 
-# [utest->req~lab-deployment-migrate-on-start~2]
 @pytest.mark.parametrize("mode", ["always", "AUTO", "true", " skip", "only "])
 def test_entrypoint_invalid_mode_exits_2(entrypoint, mode):
     run = entrypoint({"OPENBINDING_MIGRATE": mode, "DATABASE_URL": "postgresql://db/app"}, "echo", "ran")
@@ -203,7 +195,6 @@ def test_entrypoint_invalid_mode_exits_2(entrypoint, mode):
     assert "OPENBINDING_MIGRATE" in run.stderr
 
 
-# [utest->req~lab-deployment-migrate-on-start~2]
 def test_entrypoint_a_failed_migration_stops_the_start(entrypoint):
     run = entrypoint(
         {"DATABASE_URL": "postgresql://db/app", "FAKE_ALEMBIC_EXIT": "3"},
@@ -214,7 +205,6 @@ def test_entrypoint_a_failed_migration_stops_the_start(entrypoint):
     assert "ran" not in run.stdout
 
 
-# [utest->req~lab-deployment-migrate-on-start~2]
 def test_entrypoint_only_exits_with_the_status_of_a_failed_migration(entrypoint):
     run = entrypoint(
         {"OPENBINDING_MIGRATE": "only", "DATABASE_URL": "postgresql://db/app", "FAKE_ALEMBIC_EXIT": "3"},
@@ -234,7 +224,6 @@ def print_variable(name: str) -> tuple[str, ...]:
     return ("sh", "-c", f'printf "%s|" "${name}"')
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 @pytest.mark.parametrize("name", SECRET_VARIABLES, ids=FILE_IDS)
 @pytest.mark.parametrize("suffix", ["", "\n", "\n\n"], ids=["no-newline", "newline", "newlines"])
 def test_entrypoint_file_content_is_exported_without_trailing_newlines(entrypoint, secret_file, name, suffix):
@@ -244,7 +233,6 @@ def test_entrypoint_file_content_is_exported_without_trailing_newlines(entrypoin
     assert run.stdout == FILE_SECRET + "|"
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 @pytest.mark.parametrize("value", AWKWARD_VALUES, ids=["metacharacters", "dash-n", "dash-e", "spaces", "substitution", "backslash-n"])
 @pytest.mark.parametrize("suffix", ["", "\n"], ids=["no-newline", "newline"])
 def test_entrypoint_file_values_with_shell_metacharacters_are_read_back_verbatim(
@@ -257,7 +245,6 @@ def test_entrypoint_file_values_with_shell_metacharacters_are_read_back_verbatim
     assert run.stderr == ""
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 @pytest.mark.parametrize("value", AWKWARD_VALUES, ids=["metacharacters", "dash-n", "dash-e", "spaces", "substitution", "backslash-n"])
 def test_entrypoint_database_url_file_values_reach_alembic_verbatim(entrypoint, secret_file, value):
     run = entrypoint({"DATABASE_URL_FILE": secret_file(value + "\n")}, "true")
@@ -265,7 +252,6 @@ def test_entrypoint_database_url_file_values_reach_alembic_verbatim(entrypoint, 
     assert run.alembic_urls == [value]
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 @pytest.mark.parametrize("name", SECRET_VARIABLES, ids=FILE_IDS)
 def test_entrypoint_a_successful_start_prints_no_secret_and_nothing_on_stderr(entrypoint, secret_file, name):
     path = secret_file(NEVER_PRINTED + "\n")
@@ -275,7 +261,6 @@ def test_entrypoint_a_successful_start_prints_no_secret_and_nothing_on_stderr(en
     assert run.stderr == ""
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 def test_entrypoint_database_url_file_in_auto_mode_prints_no_secret_and_nothing_on_stderr(entrypoint, secret_file):
     run = entrypoint({"DATABASE_URL_FILE": secret_file(NEVER_PRINTED + "\n")}, "true")
     assert run.returncode == 0
@@ -285,7 +270,6 @@ def test_entrypoint_database_url_file_in_auto_mode_prints_no_secret_and_nothing_
     assert run.stderr == ""
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 @pytest.mark.parametrize("mode", [None, "auto", "skip"], ids=["unset", "auto", "skip"])
 def test_entrypoint_without_file_variables_the_command_sees_the_environment_it_received(entrypoint, mode):
     env = {"EXTRA_SETTING": "kept as it is", "SPACE_URL": "https://space.example.org"}
@@ -305,7 +289,6 @@ def test_entrypoint_without_file_variables_the_command_sees_the_environment_it_r
         assert name not in seen, f"{name} appeared out of nowhere"
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 def test_entrypoint_file_keeps_inner_spaces_and_newlines(entrypoint, secret_file):
     path = secret_file("key one,key two\n")
     run = entrypoint({"SECRETS_FERNET_KEYS_FILE": path, "OPENBINDING_MIGRATE": "skip"})
@@ -315,7 +298,6 @@ def test_entrypoint_file_keeps_inner_spaces_and_newlines(entrypoint, secret_file
     assert run.alembic_urls == ["first", "second"]
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 def test_entrypoint_database_url_file_is_read_before_the_migration(entrypoint, secret_file):
     path = secret_file("postgresql://user:pw@db/app\n")
     run = entrypoint({"DATABASE_URL_FILE": path})
@@ -324,7 +306,6 @@ def test_entrypoint_database_url_file_is_read_before_the_migration(entrypoint, s
     assert run.alembic_urls == ["postgresql://user:pw@db/app"]
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 def test_entrypoint_database_url_file_satisfies_only(entrypoint, secret_file):
     path = secret_file("postgresql://user:pw@db/app\n")
     run = entrypoint({"DATABASE_URL_FILE": path, "OPENBINDING_MIGRATE": "only"}, "echo", "ran")
@@ -333,7 +314,6 @@ def test_entrypoint_database_url_file_satisfies_only(entrypoint, secret_file):
     assert "ran" not in run.stdout
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 @pytest.mark.parametrize("name", SECRET_VARIABLES, ids=FILE_IDS)
 def test_entrypoint_empty_file_variable_counts_as_unset(entrypoint, name):
     run = entrypoint({f"{name}_FILE": "", name: ENV_SECRET, "OPENBINDING_MIGRATE": "skip"})
@@ -341,7 +321,6 @@ def test_entrypoint_empty_file_variable_counts_as_unset(entrypoint, name):
     assert run.environment[name] == ENV_SECRET
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 @pytest.mark.parametrize("name", SECRET_VARIABLES, ids=FILE_IDS)
 def test_entrypoint_empty_value_with_a_file_variable_takes_the_file(entrypoint, secret_file, name):
     env = {f"{name}_FILE": secret_file(FILE_SECRET + "\n"), name: "", "OPENBINDING_MIGRATE": "skip"}
@@ -350,7 +329,6 @@ def test_entrypoint_empty_value_with_a_file_variable_takes_the_file(entrypoint, 
     assert run.stdout == FILE_SECRET + "|"
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 @pytest.mark.parametrize("name", SECRET_VARIABLES, ids=FILE_IDS)
 def test_entrypoint_file_and_value_together_exit_2(entrypoint, secret_file, name):
     # Auto mode with a database set, so that a conflict which did not stop the start would reach `alembic`.
@@ -366,7 +344,6 @@ def test_entrypoint_file_and_value_together_exit_2(entrypoint, secret_file, name
     assert ENV_SECRET not in run.output
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 @pytest.mark.parametrize("name", SECRET_VARIABLES, ids=FILE_IDS)
 def test_entrypoint_missing_file_exits_2(entrypoint, tmp_path, name):
     env = {f"{name}_FILE": str(tmp_path / "absent")}
@@ -380,7 +357,6 @@ def test_entrypoint_missing_file_exits_2(entrypoint, tmp_path, name):
     assert ENV_SECRET not in run.output
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 @pytest.mark.parametrize("name", SECRET_VARIABLES, ids=FILE_IDS)
 def test_entrypoint_directory_instead_of_file_exits_2(entrypoint, tmp_path, name):
     directory = tmp_path / "a-directory"
@@ -397,7 +373,6 @@ def test_entrypoint_directory_instead_of_file_exits_2(entrypoint, tmp_path, name
     assert "ran" not in run.stdout
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 @pytest.mark.parametrize("name", SECRET_VARIABLES, ids=FILE_IDS)
 def test_entrypoint_unreadable_file_exits_2(entrypoint, secret_file, name):
     path = secret_file(FILE_SECRET)
@@ -417,7 +392,6 @@ def test_entrypoint_unreadable_file_exits_2(entrypoint, secret_file, name):
     assert FILE_SECRET not in run.output
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 def test_entrypoint_source_keeps_the_readability_and_regular_file_checks():
     """Stands in for the unreadable-file test when the suite runs as root and that test is skipped."""
     code = [
@@ -434,7 +408,6 @@ def test_entrypoint_source_keeps_the_readability_and_regular_file_checks():
     assert any(line.startswith("value=$(cat -- ") for line in code), "the file is read with cat -- (no option parsing)"
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 def test_entrypoint_a_bad_file_stops_the_start_before_any_migration(entrypoint, secret_file, tmp_path):
     run = entrypoint(
         {
@@ -448,7 +421,6 @@ def test_entrypoint_a_bad_file_stops_the_start_before_any_migration(entrypoint, 
     assert FILE_SECRET not in run.output
 
 
-# [utest->req~lab-deployment-entrypoint-secret-files~1]
 def test_entrypoint_several_files_are_all_exported(entrypoint, secret_file):
     run = entrypoint(
         {
@@ -465,7 +437,6 @@ def test_entrypoint_several_files_are_all_exported(entrypoint, secret_file):
 # -- exec -------------------------------------------------------------------------------------------------
 
 
-# [utest->req~lab-deployment-migrate-on-start~2]
 def test_entrypoint_runs_the_command_with_its_arguments_and_exit_code(entrypoint):
     run = entrypoint({}, "sh", "-c", 'echo "args:$1:$2"; exit 7', "sh", "one two", "three")
     assert run.returncode == 7
@@ -764,19 +735,16 @@ def project_problems(config: dict) -> list[str]:
     return problems
 
 
-# [utest->req~lab-deployment-production-network~1]
 def test_production_file_exists():
     assert PRODUCTION.is_file(), "deploy/compose/production/compose.yaml"
 
 
-# [utest->req~lab-deployment-production-network~1]
 def test_production_is_a_standalone_project_with_the_exact_service_set():
     config = production()
     assert not project_problems(config)
     assert len(config["services"]) == 12
 
 
-# [utest->req~lab-deployment-production-network~1]
 @pytest.mark.parametrize(
     ("mutation", "fragment"),
     [
@@ -838,7 +806,6 @@ def _images_with(**changes: str) -> dict[str, str]:
     return {**images_env(), **changes}
 
 
-# [utest->req~lab-deployment-production-pinned-images~1]
 def test_production_every_image_is_a_pinned_required_variable():
     config, images = production(), images_env()
     assert not image_problems(config, images)
@@ -847,7 +814,6 @@ def test_production_every_image_is_a_pinned_required_variable():
     assert set(EXPECTED_IMAGE_VARIABLE.values()) == IMAGE_VARIABLES
 
 
-# [utest->req~lab-deployment-production-pinned-images~1]
 def test_production_third_party_images_are_pinned_and_repository_images_are_markers_or_digests():
     images = images_env()
     for variable in THIRD_PARTY_IMAGES:
@@ -858,7 +824,6 @@ def test_production_third_party_images_are_pinned_and_repository_images_are_mark
     assert images["REDIS_IMAGE"].startswith("redis:7.4-alpine@sha256:")
 
 
-# [utest->req~lab-deployment-production-pinned-images~1]
 def test_production_images_env_marks_the_unpublished_images_in_its_header():
     text = IMAGES_ENV.read_text(encoding="utf-8")
     assert text.lstrip().startswith("#")
@@ -867,7 +832,6 @@ def test_production_images_env_marks_the_unpublished_images_in_its_header():
     assert "before deploying" in header
 
 
-# [utest->req~lab-deployment-production-pinned-images~1]
 @pytest.mark.parametrize(
     ("changes", "fragment"),
     [
@@ -901,7 +865,6 @@ def test_production_image_rule_detects_bad_images_env(changes, fragment):
     assert fragment in " | ".join(problems)
 
 
-# [utest->req~lab-deployment-production-pinned-images~1]
 @pytest.mark.parametrize(
     ("mutation", "fragment"),
     [
@@ -938,7 +901,6 @@ def test_production_image_rule_detects_bad_compose(mutation, fragment):
     assert_caught(lambda config: image_problems(config, images_env()), mutation, fragment)
 
 
-# [utest->req~lab-deployment-production-pinned-images~1]
 def test_production_image_rule_accepts_the_marker_of_the_scenario():
     marker = "gap.invalid/openbinding-gateway:0.0.0@sha256:" + "0" * 64
     assert not image_problems(production(), _images_with(GATEWAY_IMAGE=marker))
@@ -992,20 +954,17 @@ def secret_problems(config: dict) -> list[str]:
     return problems
 
 
-# [utest->req~lab-deployment-production-secret-files~1]
 def test_production_secrets_are_files_under_the_secrets_directory():
     config = production()
     assert not secret_problems(config)
     assert list(config["secrets"]) == list(SECRET_NAMES)
 
 
-# [utest->req~lab-deployment-production-secret-files~1]
 def test_production_only_the_gateway_mounts_the_jwt_secret():
     holders = [n for n, s in _services(production()).items() if "gateway_jwt_secret" in _secret_sources(s)]
     assert holders == ["gateway"]
 
 
-# [utest->req~lab-deployment-production-secret-files~1]
 def test_production_has_no_literal_secret_shape_in_the_files():
     text = production_text()
     assert "-----BEGIN" not in text
@@ -1015,7 +974,6 @@ def test_production_has_no_literal_secret_shape_in_the_files():
         assert variable == "OPENBINDING_SECRETS_DIR" or not SECRET_ENVIRONMENT_NAME.search(variable), variable
 
 
-# [utest->req~lab-deployment-production-secret-files~1]
 @pytest.mark.parametrize(
     ("mutation", "fragment"),
     [
@@ -1097,7 +1055,6 @@ def test_production_secret_rule_detects(mutation, fragment):
     assert_caught(secret_problems, mutation, fragment)
 
 
-# [utest->req~lab-deployment-production-secret-files~1]
 def test_production_app_env_default_is_the_one_of_the_gateway_settings():
     """The rule above treats an unset APP_ENV as the settings do; this keeps that assumption true."""
     source = (REPO_ROOT / "openbinding-gateway" / "src" / "openbinding_gateway" / "core" / "settings.py").read_text(
@@ -1161,7 +1118,6 @@ def health_problems(config: dict) -> list[str]:
     return problems
 
 
-# [utest->req~lab-deployment-production-health-restart~1]
 def test_production_health_restart_and_start_order():
     config = production()
     assert not health_problems(config)
@@ -1171,7 +1127,6 @@ def test_production_health_restart_and_start_order():
     assert "healthcheck" not in services["migrate"]
 
 
-# [utest->req~lab-deployment-production-health-restart~1]
 @pytest.mark.parametrize(
     ("mutation", "fragment"),
     [
@@ -1231,14 +1186,12 @@ def test_production_health_rule_detects(mutation, fragment):
     assert_caught(health_problems, mutation, fragment)
 
 
-# [utest->req~lab-deployment-production-health-restart~1]
 def test_production_only_nginx_restarts_with_the_gateway_and_the_workers_wait_for_it():
     services = production()["services"]
     assert services["nginx"]["depends_on"]["gateway"] == {"condition": HEALTHY, "restart": True}
     assert services["worker"]["depends_on"]["gateway"] == {"condition": HEALTHY}
 
 
-# [utest->req~lab-deployment-production-health-restart~1]
 def test_production_postgres_is_healthy_only_when_the_final_server_answers_over_tcp():
     test = production()["services"]["postgres"]["healthcheck"]["test"]
     command = test[-1] if test[0] == "CMD-SHELL" else " ".join(test[1:])
@@ -1247,7 +1200,6 @@ def test_production_postgres_is_healthy_only_when_the_final_server_answers_over_
     assert "-d openbinding" in command
 
 
-# [utest->req~lab-deployment-production-health-restart~1]
 def test_production_long_lived_shell_services_have_an_init_process():
     services = production()["services"]
     for name in ("pg-backup", "frontend-assets"):
@@ -1286,19 +1238,16 @@ def lab_services() -> dict[str, dict]:
     return json.loads(LAB_COMPOSE.read_text(encoding="utf-8"))["services"]
 
 
-# [utest->req~lab-deployment-production-limits-logs~1]
 def test_production_every_service_has_limits_logging_and_no_new_privileges():
     assert not limit_problems(production(), lab_services())
 
 
-# [utest->req~lab-deployment-production-limits-logs~1]
 def test_production_logging_comes_from_the_shared_anchor():
     text = production_text()
     assert text.count("logging: *logging") == len(EXPECTED_SERVICES)
     assert "x-logging: &logging" in text
 
 
-# [utest->req~lab-deployment-production-limits-logs~1]
 @pytest.mark.parametrize(
     ("mutation", "fragment"),
     [
@@ -1396,7 +1345,6 @@ def backup_problems(config: dict) -> list[str]:
     return problems
 
 
-# [utest->req~lab-deployment-production-backups~1]
 def test_production_pg_backup_dumps_daily_with_retention():
     config = production()
     assert not backup_problems(config)
@@ -1405,7 +1353,6 @@ def test_production_pg_backup_dumps_daily_with_retention():
     assert "-mmin" in script
 
 
-# [utest->req~lab-deployment-production-backups~1]
 def test_production_pg_backup_keeps_no_default_for_site_variables():
     text = production_text()
     for variable in ("OPENBINDING_BACKUP_DIR", "BACKUP_RETENTION_DAYS", "OPENBINDING_SECRETS_DIR"):
@@ -1413,7 +1360,6 @@ def test_production_pg_backup_keeps_no_default_for_site_variables():
         assert f"${{{variable}:-" not in text
 
 
-# [utest->req~lab-deployment-production-backups~1]
 @pytest.mark.parametrize(
     ("mutation", "fragment"),
     [
@@ -1466,12 +1412,10 @@ def rewrite_backup_script(old: str, new: str, count: int = 1):
     return apply
 
 
-# [utest->req~lab-deployment-production-backups~1]
 def test_production_backup_rule_detects_an_unescaped_dollar_in_the_script():
     assert_caught(backup_problems, rewrite_backup_script("$${stamp}", "${stamp}"), "unescaped $")
 
 
-# [utest->req~lab-deployment-production-backups~1]
 def test_production_backup_stops_on_a_failed_dump():
     service = production()["services"]["pg-backup"]
     assert service["entrypoint"] == ["sh", "-ec"]
@@ -1479,7 +1423,6 @@ def test_production_backup_stops_on_a_failed_dump():
     assert script.index("pg_dump") < script.index('mv "openbinding-')
 
 
-# [utest->req~lab-deployment-production-backups~1]
 @pytest.mark.parametrize(
     "mutation",
     [
@@ -1493,7 +1436,6 @@ def test_production_backup_rule_detects_a_script_that_goes_on_after_a_failed_dum
     assert_caught(backup_problems, mutation, "stops on a failed dump")
 
 
-# [utest->req~lab-deployment-production-backups~1]
 def test_production_backup_rule_accepts_a_plain_shell_when_the_script_begins_with_set_e():
     config = production()
     config["services"]["pg-backup"]["entrypoint"] = ["sh", "-c"]
@@ -1503,7 +1445,6 @@ def test_production_backup_rule_accepts_a_plain_shell_when_the_script_begins_wit
     assert any("stops on a failed dump" in problem for problem in backup_problems(config))
 
 
-# [utest->req~lab-deployment-production-backups~1]
 @pytest.mark.parametrize(
     ("mutation", "fragment"),
     [
@@ -1527,14 +1468,12 @@ def test_production_backup_rule_detects_a_retention_that_can_delete_other_files(
     assert_caught(backup_problems, mutation, fragment)
 
 
-# [utest->req~lab-deployment-production-backups~1]
 def test_production_backup_changes_into_the_backup_directory_before_the_loop():
     script = production()["services"]["pg-backup"]["command"][0]
     assert 0 <= script.index("cd /backups") < script.index("while true")
     assert script.index("umask 077") < script.index("while true")
 
 
-# [utest->req~lab-deployment-production-backups~1]
 @pytest.mark.parametrize(
     ("text", "unescaped"),
     [
@@ -1587,7 +1526,6 @@ def network_problems(config: dict) -> list[str]:
     return problems
 
 
-# [utest->req~lab-deployment-production-network~1]
 def test_production_only_nginx_publishes_ports_and_one_network_carries_everything():
     config = production()
     assert not network_problems(config)
@@ -1597,7 +1535,6 @@ def test_production_only_nginx_publishes_ports_and_one_network_carries_everythin
     assert config["x-subnet"] == ipam[0]["subnet"]
 
 
-# [utest->req~lab-deployment-production-network~1]
 @pytest.mark.parametrize(
     ("mutation", "fragment"),
     [
@@ -1638,7 +1575,6 @@ def test_production_network_rule_detects(mutation, fragment):
     assert_caught(network_problems, mutation, fragment)
 
 
-# [utest->req~lab-deployment-production-network~1]
 def test_production_mounts_the_checkout_examples_for_nginx():
     mounts = production()["services"]["nginx"]["volumes"]
     assert "../../../examples:/opt/openbinding/examples:ro" in mounts
@@ -1678,12 +1614,10 @@ def ci_env_text() -> str:
     return CI_ENV.read_text(encoding="utf-8")
 
 
-# [utest->req~lab-deployment-production-secret-files~1]
 def test_production_ci_env_holds_placeholders_only():
     assert not ci_env_problems(ci_env_text())
 
 
-# [utest->req~lab-deployment-production-secret-files~1]
 def test_production_every_required_variable_is_defined_for_ci():
     site, problems = parse_env_file(ci_env_text())
     assert not problems
@@ -1691,7 +1625,6 @@ def test_production_every_required_variable_is_defined_for_ci():
     assert set(REQUIRED_VARIABLE.findall(production_text())) == IMAGE_VARIABLES | set(SITE_VARIABLES)
 
 
-# [utest->req~lab-deployment-production-secret-files~1]
 @pytest.mark.parametrize(
     ("change", "fragment"),
     [
@@ -1711,7 +1644,6 @@ def test_production_ci_env_rule_detects(change, fragment):
     assert fragment in " | ".join(problems)
 
 
-# [utest->req~lab-deployment-production-secret-files~1]
 def test_production_variable_rule_detects_an_undefined_or_unused_variable():
     site, _ = parse_env_file(ci_env_text())
     text = production_text()
@@ -1720,7 +1652,6 @@ def test_production_variable_rule_detects_an_undefined_or_unused_variable():
     assert variable_problems(text, images_env(), {k: v for k, v in site.items() if k != "SPACE_URL"})
 
 
-# [utest->req~lab-deployment-production-network~1]
 def test_production_files_name_no_real_host():
     for path in (PRODUCTION, IMAGES_ENV, CI_ENV):
         assert path.is_file(), str(path.relative_to(REPO_ROOT))
@@ -1814,19 +1745,16 @@ def runbook_problems(config: dict, text: str, compose_text: str) -> list[str]:
     return problems
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_names_everything_of_the_compose_file():
     assert not runbook_problems(production(), runbook_text(), production_text())
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_names_every_image_variable_and_site_variable():
     text = runbook_text()
     for variable in sorted(IMAGE_VARIABLES | set(SITE_VARIABLES)):
         assert _names_in(text, variable), variable
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 @pytest.mark.parametrize(
     ("kind", "name"),
     [("service", "frontend-assets"), ("secret", "secrets_fernet_keys"), ("variable", "ENGINE_MANY_HEURISTIC_IMAGE")],
@@ -1837,7 +1765,6 @@ def test_runbook_rule_detects_an_unnamed_item(kind, name):
     assert f"{kind} {name} is not named" in problems
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_rule_detects_a_new_service_without_documentation():
     config = production()
     config["services"]["engine-quantum"] = {"image": "${ENGINE_QUANTUM_IMAGE:?set it}"}
@@ -1847,7 +1774,6 @@ def test_runbook_rule_detects_a_new_service_without_documentation():
     assert "variable ENGINE_QUANTUM_IMAGE is not named" in problems
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_rule_detects_a_missing_render_command_and_a_real_host():
     text = runbook_text().replace(RENDER_COMMAND, "docker compose config")
     assert "the render command is missing" in runbook_problems(production(), text, production_text())
@@ -1855,7 +1781,6 @@ def test_runbook_rule_detects_a_missing_render_command_and_a_real_host():
     assert "a real host name (us.es)" in runbook_problems(production(), text, production_text())
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 @pytest.mark.parametrize(("what", "needle"), RUNBOOK_FACTS, ids=[what for what, _ in RUNBOOK_FACTS])
 def test_runbook_states(what, needle):
     assert needle in runbook_text(), what
@@ -1876,7 +1801,6 @@ def first_code_block(body: str, where: str) -> str:
     return blocks[0]
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_preflight_checks_values_not_comments_before_deploying():
     deploy = section(runbook_text(), "Deploying a release")
     markers = ("git describe", "git checkout", "gap\\.invalid", "predump()", "$DC pull", "$DC up -d", "$DC restart nginx")
@@ -1892,7 +1816,6 @@ def preflight_body() -> str:
     return match[1]
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 @pytest.mark.parametrize(
     ("what", "needle"),
     [
@@ -1926,7 +1849,6 @@ def test_runbook_preflight_checks(what, needle):
     assert needle in preflight_body(), what
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_preflight_refuses_with_a_non_zero_status_each_time():
     body = preflight_body()
     assert body.count("refuse:") >= 9
@@ -1946,14 +1868,12 @@ def run_shell(script: str, env: dict[str, str]) -> subprocess.CompletedProcess[s
     )
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 @pytest.mark.parametrize("days", ["1", "14", "365"])
 def test_runbook_preflight_accepts_a_whole_number_of_retention_days(days):
     result = run_shell(retention_check(), {"BACKUP_RETENTION_DAYS": days})
     assert result.returncode == 0, result.stderr
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 @pytest.mark.parametrize(
     "days", ["", "0", "00", "014", "08", "-1", "1.5", "abc", "14d", " 14", "14 ", "1e3", "0x10"],
 )
@@ -1963,13 +1883,11 @@ def test_runbook_preflight_refuses_retention_days_that_are_not_an_integer_of_at_
     assert "refuse: BACKUP_RETENTION_DAYS" in result.stderr
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_preflight_refuses_unset_retention_days():
     result = run_shell(retention_check(), {})
     assert result.returncode == 1 and "refuse:" in result.stderr
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_preflight_refuses_a_checkout_that_is_not_exactly_a_tag_before_anything_else():
     body = preflight_body()
     steps = positions(body, ("git status --porcelain", "git describe --exact-match --tags HEAD", "refuse: HEAD is not exactly a release tag", "grep -En"), "preflight")
@@ -1977,7 +1895,6 @@ def test_runbook_preflight_refuses_a_checkout_that_is_not_exactly_a_tag_before_a
     assert re.search(r"if ! git describe --exact-match --tags HEAD > /dev/null 2>&1; then\n[^\n]*refuse:[^\n]*\n\s+return 1\n", body)
 
 
-# [utest->req~lab-deployment-production-backups~1]
 def test_runbook_pre_release_dump_is_checked_before_deploying():
     body = section(runbook_text(), "Deploying a release")
     match = re.search(r"^predump\(\) \{\n(.*?)^\}\n", body, re.MULTILINE | re.DOTALL)
@@ -1992,7 +1909,6 @@ def test_runbook_pre_release_dump_is_checked_before_deploying():
     assert body.index("predump\n") < body.index("$DC pull"), "the dump is taken, and checked, before the pull"
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_owner_uids_of_the_secret_files():
     body = section(runbook_text(), "Secrets directory")
     assert re.search(r"postgres_password[^\n]*\b70\b", body)
@@ -2000,7 +1916,6 @@ def test_runbook_owner_uids_of_the_secret_files():
     assert "10001" in body
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_rollback_depends_on_whether_the_release_added_a_migration():
     body = section(runbook_text(), "Rollback")
     assert "added a migration" in body
@@ -2014,7 +1929,6 @@ def test_runbook_rollback_depends_on_whether_the_release_added_a_migration():
     assert "cp /srv/openbinding/releases" not in body, "images.env is not a file to copy over a tracked file"
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_rollback_checks_the_dump_and_restores_aside_before_touching_the_live_database():
     body = section(runbook_text(), "Rollback")
     steps = positions(
@@ -2041,7 +1955,6 @@ def test_runbook_rollback_checks_the_dump_and_restores_aside_before_touching_the
     assert "DROP DATABASE openbinding_failed_<timestamp>" in body, "the failed database is dropped by hand later"
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_rollback_swaps_the_database_only_when_the_restore_aside_succeeded():
     body = section(runbook_text(), "Rollback")
     swap = function_body(body, "rollback_swap")
@@ -2075,7 +1988,6 @@ def test_runbook_rollback_swaps_the_database_only_when_the_restore_aside_succeed
     assert chain in without_migration
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_rotation_commands_use_sudo_because_the_files_are_owned_by_service_uids():
     body = section(runbook_text(), "Rotation")
     assert "sudo" in body
@@ -2083,7 +1995,6 @@ def test_runbook_rotation_commands_use_sudo_because_the_files_are_owned_by_servi
     assert "sudo cat" in body
 
 
-# [utest->req~lab-deployment-production-backups~1]
 def test_runbook_snapshot_section_names_the_volumes_and_stops_the_backup_service():
     body = section(runbook_text(), "Volume snapshots")
     for needle in ("pgdata", "artifacts", "restore drill"):
@@ -2093,7 +2004,6 @@ def test_runbook_snapshot_section_names_the_volumes_and_stops_the_backup_service
     assert {"pg-backup", "postgres"} <= set(stops[0].split())
 
 
-# [utest->req~lab-deployment-production-backups~1]
 def test_runbook_snapshots_are_created_private_and_copied_off_host_encrypted():
     body = section(runbook_text(), "Volume snapshots")
     assert "umask 077; tar czf" in body, "the archive is created inside the container, with umask 077"
@@ -2104,14 +2014,12 @@ def test_runbook_snapshots_are_created_private_and_copied_off_host_encrypted():
     assert "mode 0600" in backups
 
 
-# [utest->req~lab-deployment-production-backups~1]
 def test_runbook_restore_drill_is_for_a_spare_host():
     body = section(runbook_text(), "Restore drill")
     assert "spare host" in body
     assert "172.29.40.0/24" in body
 
 
-# [utest->req~lab-deployment-production-backups~1]
 def test_runbook_restore_drill_refuses_to_run_on_a_host_that_is_not_marked_as_the_drill_host():
     body = section(runbook_text(), "Restore drill")
     match = re.search(r"^drill\(\) \{\n(.*?)^\}\n", body, re.MULTILINE | re.DOTALL)
@@ -2144,14 +2052,12 @@ def bare_down_problems(text: str) -> list[str]:
     return problems
 
 
-# [utest->req~lab-deployment-production-backups~1]
 def test_runbook_drill_removes_volumes_only_through_the_guarded_drill_down():
     assert bare_down_problems(runbook_text()) == []
     body = section(runbook_text(), "Restore drill")
     assert "`drill_down`" in body
 
 
-# [utest->req~lab-deployment-production-backups~1]
 @pytest.mark.parametrize(
     ("change", "fragment"),
     [
@@ -2176,7 +2082,6 @@ def drill_down_script(text: str) -> str:
     return "drill_down() {\n" + match[1] + "}\n"
 
 
-# [utest->req~lab-deployment-production-backups~1]
 @pytest.mark.parametrize("host", [None, "", "no", "YES", "yes "], ids=["unset", "empty", "no", "uppercase", "trailing-space"])
 def test_runbook_drill_down_refuses_on_a_host_that_is_not_the_drill_host(host):
     env = {"DC": "echo REMOVED"} | ({} if host is None else {"DRILL_HOST": host})
@@ -2185,14 +2090,12 @@ def test_runbook_drill_down_refuses_on_a_host_that_is_not_the_drill_host(host):
     assert "REMOVED" not in result.stdout and "abort:" in result.stderr
 
 
-# [utest->req~lab-deployment-production-backups~1]
 def test_runbook_drill_down_removes_the_volumes_on_the_drill_host():
     result = run_shell(drill_down_script(runbook_text()) + "drill_down\n", {"DC": "echo REMOVED", "DRILL_HOST": "yes"})
     assert result.returncode == 0
     assert result.stdout == "REMOVED down -v\n"
 
 
-# [utest->req~lab-deployment-production-backups~1]
 def test_runbook_drill_never_uses_a_production_space_key():
     body = " ".join(section(runbook_text(), "Restore drill").split())
     assert "**The drill never uses a production SPACE key.**" in body
@@ -2200,7 +2103,6 @@ def test_runbook_drill_never_uses_a_production_space_key():
         assert needle in body, needle
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_renders_with_the_command_of_ci():
     assert RENDER_COMMAND in runbook_text()
 
@@ -2225,7 +2127,6 @@ def remote_space_problems(text: str) -> list[str]:
     return problems
 
 
-# [utest->req~lab-deployment-runbook-remote-space~1]
 def test_remote_space_rule_refuses_incomplete_sections():
     good = "## Remote SPACE\n\n" + " ".join(REMOTE_SPACE_NEEDLES) + "\n"
     assert remote_space_problems(good) == []
@@ -2236,7 +2137,6 @@ def test_remote_space_rule_refuses_incomplete_sections():
     assert remote_space_problems("## Other\n\ntext\n")
 
 
-# [utest->req~lab-deployment-runbook-remote-space~1]
 def test_runbook_remote_space_section_and_compose_has_no_space_service():
     text = runbook_text()
     assert not remote_space_problems(text)
@@ -2247,7 +2147,6 @@ def test_runbook_remote_space_section_and_compose_has_no_space_service():
     assert "gap.invalid/space-api" not in text
     blocked = section(text, "What stays blocked")
     assert not re.search(r"(?i)\bSPACE\b", blocked), "an item of 'What stays blocked' waits for a SPACE"
-    assert "<!-- [impl->req~lab-deployment-runbook-remote-space~1] -->" in section(text, REMOTE_SPACE_HEADING)
     body = " ".join(section(text, REMOTE_SPACE_HEADING).split())
     assert not re.search(r"(?i)\bdefault", body), "SPACE_URL has no default: compose requires it in site.env"
     assert "`SPACE_URL` (required, set in `site.env`" in body
@@ -2294,7 +2193,6 @@ def gateway_restart_problems(text: str) -> list[str]:
     return problems
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_restarts_nginx_after_every_gateway_recreate():
     text = runbook_text()
     assert not gateway_restart_problems(text)
@@ -2302,7 +2200,6 @@ def test_runbook_restarts_nginx_after_every_gateway_recreate():
     assert len(recreates) >= 5, "first install, JWT, Fernet, SPACE key and PostgreSQL password"
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_gateway_restart_rule_detects_a_missing_nginx_restart():
     text = runbook_text()
     assert gateway_restart_problems(text.replace("$DC restart nginx\n", "", 1))
@@ -2330,7 +2227,6 @@ def typed_secret_problems(text: str) -> list[str]:
     return problems
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_secrets_that_a_person_provides_are_never_typed_in_a_command():
     text = runbook_text()
     assert not typed_secret_problems(text)
@@ -2344,7 +2240,6 @@ def test_runbook_secrets_that_a_person_provides_are_never_typed_in_a_command():
     assert "HISTCONTROL=ignorespace" in section(text, "Secrets directory")
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 @pytest.mark.parametrize(
     "bad",
     [
@@ -2360,7 +2255,6 @@ def test_runbook_typed_secret_rule_detects(bad):
     assert typed_secret_problems(f"```bash\n{bad}\n```\n")
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_put_secret_writes_a_private_temp_file_and_moves_it_into_place():
     body = function_body(section(runbook_text(), "Secrets directory"), "put_secret")
     steps = positions(
@@ -2380,7 +2274,6 @@ def test_runbook_put_secret_writes_a_private_temp_file_and_moves_it_into_place()
     assert 'sudo rm -f "$OPENBINDING_SECRETS_DIR"/*.prev' not in runbook_text()
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_fernet_rotation_fails_unless_both_keys_are_set_and_forgets_them():
     body = section(runbook_text(), "Rotation")
     start = body.index("new=$(openssl rand -base64 32")
@@ -2391,7 +2284,6 @@ def test_runbook_fernet_rotation_fails_unless_both_keys_are_set_and_forgets_them
     assert block.index("put_secret secrets_fernet_keys") < block.index("--force-recreate")
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_postgres_password_rotation_keeps_the_password_out_of_arguments():
     body = section(runbook_text(), "Rotation")
     start = body.index("password=$(openssl rand -hex 24)")
@@ -2469,12 +2361,10 @@ def put_secret_problems(text: str, tmp_path) -> list[str]:
     return problems
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_put_secret_keeps_a_previous_file_or_stops(tmp_path):
     assert put_secret_problems(runbook_text(), tmp_path) == []
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_put_secret_without_the_abort_on_a_failed_copy_is_detected(tmp_path):
     abort = ' || { sudo rm -f "$f.new"; echo "refuse: cannot keep $1.prev" >&2; return 1; }'
     assert abort in runbook_text()
@@ -2483,7 +2373,6 @@ def test_runbook_put_secret_without_the_abort_on_a_failed_copy_is_detected(tmp_p
     assert any("replaces the file" in problem for problem in problems), problems
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_put_secret_refuses_an_empty_value_and_writes_the_first_file_without_a_previous_one(tmp_path):
     secrets = tmp_path / "secrets"
     secrets.mkdir()
@@ -2536,12 +2425,10 @@ def undo_problems(text: str, tmp_path) -> list[str]:
     return problems
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_undo_of_the_password_rotation_refuses_without_a_usable_previous_file(tmp_path):
     assert undo_problems(runbook_text(), tmp_path) == []
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 @pytest.mark.parametrize(
     ("original", "replacement", "label"),
     [
@@ -2561,7 +2448,6 @@ def test_runbook_undo_without_a_guard_is_detected(tmp_path, original, replacemen
     assert any(problem.startswith(label) for problem in problems), problems
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_undo_of_the_password_rotation_sets_the_old_password_and_moves_the_files_back(tmp_path):
     secrets = tmp_path / "secrets"
     secrets.mkdir()
@@ -2613,7 +2499,6 @@ def failing_mv_problems(text: str, tmp_path) -> list[str]:
     return problems
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_undo_stops_when_a_mv_fails(tmp_path):
     assert failing_mv_problems(runbook_text(), tmp_path / "ok") == []
     assert ' "$1/$f" || exit 1; done' in runbook_text()
@@ -2658,13 +2543,11 @@ def password_rotation_problems(text: str, tmp_path, generated: str) -> list[str]
     return problems
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_postgres_password_rotation_alters_the_role_only_with_a_non_empty_password(tmp_path):
     assert password_rotation_problems(runbook_text(), tmp_path / "a", "abc123") == []
     assert password_rotation_problems(runbook_text(), tmp_path / "b", "") == []
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_postgres_password_rotation_without_the_empty_check_is_detected(tmp_path):
     guard = 'if [ -n "$password" ]; then'
     assert guard in runbook_text()
@@ -2672,7 +2555,6 @@ def test_runbook_postgres_password_rotation_without_the_empty_check_is_detected(
     assert "ALTER ROLE ran with an empty password" in problems, problems
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_postgres_password_rotation_removes_stale_previous_files_before_altering_the_role(tmp_path):
     body = section(runbook_text(), "Rotation")
     start = body.index("password=$(openssl rand -hex 24)")
@@ -2767,13 +2649,11 @@ OLD_UNDO_LINE = '''    old=$(sudo cat "$dir/postgres_password.prev") && [ -n "$o
 '''
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_never_passes_a_secret_variable_as_an_argument_of_a_command():
     assert secret_argument_problems(runbook_text()) == []
     assert len([line for line in commands(runbook_text()) if SECRET_REFERENCE.search(line)]) >= 6, "the scan sees the secrets"
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_secret_argument_rule_detects_the_old_undo_line():
     text = runbook_text()
     assert OLD_UNDO_LINE in text, "the control is stale"
@@ -2781,7 +2661,6 @@ def test_runbook_secret_argument_rule_detects_the_old_undo_line():
     assert any("grep -qF" in problem for problem in secret_argument_problems(reintroduced))
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 @pytest.mark.parametrize(
     ("line", "bad"),
     [
@@ -2823,7 +2702,6 @@ def dc_services(text: str) -> list[str]:
     return found
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_compose_commands_name_services_that_exist():
     names = dc_services(runbook_text())
     assert len(names) >= 25, "the parser found too few service names: it no longer reads the runbook"
@@ -2832,14 +2710,12 @@ def test_runbook_compose_commands_name_services_that_exist():
     assert not [name for name in names if "analysis" in name]
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_compose_service_check_detects_an_unknown_service():
     assert "gatway" in dc_services("```bash\n$DC restart gatway\n```\n")
     assert "gatway" in dc_services("```bash\n$DC up -d --force-recreate gateway gatway\n```\n")
     assert dc_services("```bash\n$DC up -d --scale worker=3\n```\n") == []
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_tls_directory_and_key_modes():
     text = runbook_text()
     site = section(text, "site.env")
@@ -2849,8 +2725,6 @@ def test_runbook_tls_directory_and_key_modes():
     assert "`privkey.pem` at 0600 root" in section(text, "Deploying a release")
 
 
-# [utest->req~lab-deployment-production-runbook~1]
-# [utest->req~lab-deployment-runbook-remote-space~1]
 def test_runbook_site_env_states_that_space_url_is_https_and_the_checks_agree():
     site = section(runbook_text(), "site.env")
     assert "`SPACE_URL` **must be an `https://` URL**" in site
@@ -2858,7 +2732,6 @@ def test_runbook_site_env_states_that_space_url_is_https_and_the_checks_agree():
     assert "SPACE_URL=https://" in CI_ENV.read_text(encoding="utf-8")
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_first_install_empties_the_bootstrap_password_after_the_first_login():
     body = section(runbook_text(), "First install")
     start = body.index("7. After the first sign-in")
@@ -2882,7 +2755,6 @@ def test_runbook_first_install_empties_the_bootstrap_password_after_the_first_lo
     assert "harmless" not in runbook_text()
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_first_install_clearing_of_the_bootstrap_variables_works_on_a_site_env(tmp_path):
     body = section(runbook_text(), "First install")
     start = body.index("sudo sed -i -e 's/^BOOTSTRAP_ADMIN_USERNAME=")
@@ -2900,7 +2772,6 @@ def test_runbook_first_install_clearing_of_the_bootstrap_variables_works_on_a_si
     )
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_first_install_secrets_block_is_for_a_fresh_host_only():
     body = section(runbook_text(), "Secrets directory")
     assert "**The block after the function is for a fresh host only.**" in body
@@ -2910,7 +2781,6 @@ def test_runbook_first_install_secrets_block_is_for_a_fresh_host_only():
     assert "FRESH HOST ONLY" not in section(runbook_text(), "Rotation")
 
 
-# [utest->req~lab-deployment-production-runbook~1]
 def test_runbook_host_prerequisites_and_blocked_items_state_what_was_not_done():
     text = runbook_text()
     host = section(text, "Host prerequisites")
@@ -2921,15 +2791,6 @@ def test_runbook_host_prerequisites_and_blocked_items_state_what_was_not_done():
     assert "Compose 2.17" in section(text, "What is deployed")
 
 
-# [utest->req~lab-deployment-production-runbook~1]
-def test_runbook_follow_up_f7_and_the_trace_follow_up_are_recorded_in_the_tasks():
-    tasks = (REPO_ROOT / "openspec" / "changes" / "m09-compose-only" / "tasks.md").read_text(encoding="utf-8")
-    assert "F7" in tasks and "cap_drop" in tasks and "R1-SEC-003" in tasks
-    assert "F8" in tasks and "OFT trace paths" in tasks
-    assert "F9" in tasks and "R2-REV-002" in tasks and "resolver" in tasks
-
-
-# [utest->req~lab-deployment-production-health-restart~1]
 def test_runbook_says_that_only_nginx_restarts_with_the_gateway_and_follows_a_new_gateway_address_by_itself():
     text = runbook_text()
     deployed = " ".join(section(text, "What is deployed").split())

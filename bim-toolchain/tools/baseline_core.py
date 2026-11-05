@@ -14,8 +14,8 @@ writes documents that have no OpenBinding original (see ``docs/DIGESTS.md``).
 
 ``golden/bim_baseline`` is OpenBinding's baseline of the toolchain that listed eligible candidates, constraints and
 placement in the order the JSON objects were written (commit ``b2780381``).  It is frozen: the tool never writes it, and
-``golden/ir_previous/evidence.json`` pins its SHA-256 and the evaluations of that toolchain by identifier
-(``docs/qa/IR_NORMALIZATION.md``).  The normalized IR lists those sets in one canonical order, so the documents that
+``golden/ir_previous/evidence.json`` pins its SHA-256 and the evaluations of that toolchain by identifier.
+The normalized IR lists those sets in one canonical order, so the documents that
 moved with it live in ``golden/bim_normalized`` (``corpus.json`` and ``zip_equivalence.json``); ``negatives.json`` and
 ``vectors.json`` did not move and are still compared with the frozen baseline.
 
@@ -710,7 +710,7 @@ def build_zip_equivalence(directories: list[Path], corpus_root: Path, jobs: int 
             "STORED ZIP (rawZip, the platform's form; reversedZip, entries in the opposite order), "
             "InstancePackage.to_zip() (canonicalZip, JSON with sorted members) and the members of every JSON object "
             "shuffled (permuted<seed>). All of them must have the same IR and semantic digest. Under the previous "
-            "toolchain (golden/bim_baseline) 64 packages differed in canonicalZip (docs/qa/IR_NORMALIZATION.md)."
+            "toolchain (golden/bim_baseline) 64 packages differed in canonicalZip."
         ),
         "packageCount": len(results),
         "packages": {item["path"]: item for item in results},

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { inInterfaceWords } from './interfaceWords';
 
 describe('inInterfaceWords', () => {
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('replaces the whole words case, job and publication in any letter case', () => {
     expect(inInterfaceWords('Terminal jobs')).toBe('Terminal runs');
     expect(inInterfaceWords('binding cases')).toBe('binding problems');
@@ -12,7 +11,6 @@ describe('inInterfaceWords', () => {
     expect(inInterfaceWords('JOBS')).toBe('RUNS');
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('leaves other words and parts of words alone', () => {
     expect(inInterfaceWords('showcase, jobless, suitcases, Expired api keys')).toBe('showcase, jobless, suitcases, Expired api keys');
   });

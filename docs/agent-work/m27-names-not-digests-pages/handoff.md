@@ -1,3 +1,0 @@
-State: head 79c100b0 + this docs commit. All fixes integrated (OrgAudit target/identifier masking, proposal alignment); changelog fresh, full vitest 3187/tsc/eslint green. Next: push, CI green, ONE narrow reviewer re-check (audit card + proposal only), set_review_package, lead_ready with panel [re-check, dc6714d0feac4822, c28c5e54bbe04060]. Another major -> escalate.
-Followups for ready summary: R2-REV-002 gateway resolve.py:738 12-hex snapshot version; R2-REV-004 unrelated prop-* agent-work files; shared OrgAudit/AdminAudit guard; s5d 90s timeout comment.
-Open: q5 15.5 owner; Verify permalink embeds digest; Admin short UUIDs; Workbench digest input authoring field.

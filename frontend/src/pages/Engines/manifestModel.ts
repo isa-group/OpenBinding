@@ -132,7 +132,6 @@ function keywordValue(value: unknown): string {
 }
 
 /** What a fixed option schema says, in words: the `const`/`enum` reading of the options table, plus the other keywords as pairs. */
-// [impl->req~frontend-registration-fixed-option-rendered~1]
 export function describeFixedOption(schema: unknown): FixedOptionView {
   const body = isRecord(schema) ? schema : {};
   const summary = 'const' in body

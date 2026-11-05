@@ -30,7 +30,6 @@ function summary(diagnostics: Diagnostic[]): string {
 }
 
 /** Diagnostics grouped by resource, most severe first. Severity is always text, never colour alone. */
-// [impl->req~frontend-rendering-diagnostics-list~1]
 export function DiagnosticsList({ diagnostics, headingLevel = 3 }: DiagnosticsListProps) {
   const base = useId();
   const Heading = `h${headingLevel}` as const;

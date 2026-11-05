@@ -317,8 +317,6 @@ function SettingsPage({ section }: { section: 'general' | 'members' }) {
  * Project settings (`proj-settings`, `/app/:org/:project/settings/:section?`): General (name, description, visibility, the package
  * export and import, deletion) and Members (`members`). Any other section is a page that does not exist.
  */
-// [impl->req~frontend-nav-project-tabs~1]
-// [impl->req~frontend-nav-files-retired~1]
 export function ProjectSettings() {
   const { section } = useParams();
   if (section === undefined) return <SettingsPage section="general" />;

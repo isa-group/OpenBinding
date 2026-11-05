@@ -35,7 +35,6 @@ describe('Public header', () => {
     auth.isAdmin = false;
   });
 
-  // [utest->req~frontend-nav-public-navigation~1]
   it('lists the nine links in order with their addresses', () => {
     renderHeader();
 
@@ -45,7 +44,6 @@ describe('Public header', () => {
     expect(screen.getByRole('link', { name: /OpenBinding home/i })).toHaveAttribute('href', '/');
   });
 
-  // [utest->req~frontend-nav-public-navigation~1]
   it('has no menu and none of the links of the former header', () => {
     renderHeader();
 
@@ -56,7 +54,6 @@ describe('Public header', () => {
     }
   });
 
-  // [utest->req~frontend-nav-public-navigation~1]
   it('marks the current page with aria-current', () => {
     renderHeader('/pricing');
 
@@ -65,7 +62,6 @@ describe('Public header', () => {
     expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
   });
 
-  // [utest->req~frontend-nav-public-navigation~1]
   it('marks Home only at the root and Language under the language hub', () => {
     const { unmount } = renderHeader('/');
     expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
@@ -76,7 +72,6 @@ describe('Public header', () => {
     expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
   });
 
-  // [utest->req~frontend-nav-public-navigation~1]
   it('leaves aria-current on /explore/examples to the page and keeps the active style of Explore', () => {
     renderHeader('/explore/examples');
 
@@ -104,7 +99,6 @@ describe('Public header', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 
-  // [utest->req~frontend-nav-public-navigation~1]
   it('lists the same nine links in the phone menu and closes it after navigating', () => {
     renderHeader();
 

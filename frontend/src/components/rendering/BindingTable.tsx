@@ -27,7 +27,6 @@ function Named({ name, id }: { name: string; id: string }) {
 }
 
 /** The chosen candidate of each task, its provider and its own feature values, in a sideways-scrolling table. */
-// [impl->req~frontend-rendering-binding-table~1]
 export function BindingTable({ rows, features = NO_FEATURES, label = 'Chosen providers' }: BindingTableProps) {
   if (rows.length === 0) return <p>This solution carries no binding assignment.</p>;
   const withProvider = rows.some((row) => row.provider !== null);

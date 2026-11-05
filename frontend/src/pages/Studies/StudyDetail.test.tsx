@@ -67,7 +67,6 @@ describe('One study', () => {
     library.libraryApi.versions.mockResolvedValue([version(VERSION_ID, 1)]);
   });
 
-  // [utest->req~frontend-nav-study-page~1]
   it('opens Progress on the latest study run when the study has runs, and Setup when it has none', async () => {
     platform.studyRuns.mockResolvedValue([runFixture(), runTwo()]);
     const view = renderDetail('isa-demo', 'engines-vs-seeds', '');
@@ -86,7 +85,6 @@ describe('One study', () => {
     expect(await screen.findByText('No runs yet. Running uses 1 study run from your month and runs up to 8 cells.')).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-nav-study-page~1]
   it('shows the study run named by ?run= and sets the query when another one is chosen', async () => {
     platform.studyRuns.mockResolvedValue([runFixture(), runTwo()]);
     renderDetail('isa-demo', 'engines-vs-seeds', '/results');
@@ -100,7 +98,6 @@ describe('One study', () => {
     expect(platform.analytics).toHaveBeenLastCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds', RUN_ID);
   });
 
-  // [utest->req~frontend-nav-study-page~1]
   it('keeps the chosen run when another tab is chosen, and says so for a run that is not the study’s', async () => {
     platform.studyRuns.mockResolvedValue([runFixture(), runTwo()]);
     const view = renderDetail('isa-demo', 'engines-vs-seeds', `/progress?run=${RUN_ID}`);
@@ -114,7 +111,6 @@ describe('One study', () => {
     expect(await screen.findByRole('heading', { name: 'Run not found' })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-nav-study-page~1]
   it('holds the CSV export of the study run and a link to the Published tab in Publish', async () => {
     platform.studyRuns.mockResolvedValue([runFixture(), runTwo()]);
     renderDetail('isa-demo', 'engines-vs-seeds', `/publish?run=${RUN_ID}`);
@@ -129,7 +125,6 @@ describe('One study', () => {
     expect(screen.getByRole('link', { name: 'Published results of this project' })).toHaveAttribute('href', `${ROOT}/published`);
   });
 
-  // [utest->req~frontend-nav-study-page~1]
   it('says Progress and Results have nothing to show before the first study run', async () => {
     platform.studyRuns.mockResolvedValue([]);
     renderDetail('isa-demo', 'engines-vs-seeds', '/progress');
@@ -140,7 +135,6 @@ describe('One study', () => {
     expect(platform.studyCells).not.toHaveBeenCalled();
   });
 
-  // [utest->req~frontend-nav-study-page~1]
   it('does not say a study has no run while its runs load, and offers a retry when they cannot', async () => {
     platform.studyRuns.mockRejectedValueOnce(refusal(503, 'unavailable'));
     renderDetail('isa-demo', 'engines-vs-seeds', '/results');
@@ -152,7 +146,6 @@ describe('One study', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Compare results · run #1' })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-nav-study-page~1]
   it('answers a tab the page does not have with Page not found', async () => {
     renderDetail('isa-demo', 'engines-vs-seeds', '/runs');
 
@@ -176,14 +169,12 @@ describe('One study', () => {
     expect(await screen.findByRole('region', { name: 'Runs' })).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: /Run #1/ })).toHaveAttribute('href', `${STUDY}/progress?run=00000000-0000-4000-8000-000000000101`);
     expect(screen.getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })).toBeInTheDocument();
-    // [utest->req~frontend-retire-library-entry-points-removed~1]
     expect(screen.queryByRole('link', { name: /library/i })).toBeNull();
     expect(screen.getByText('Only one version exists. A new version appears when the definition is sealed again.')).toBeInTheDocument();
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
     expect(within(tabs).getByRole('link', { name: 'Studies' })).toHaveAttribute('aria-current', 'page');
   });
 
-  // [utest->req~frontend-studies-source-tab~1]
   it('keeps the raw definition in the Source tab, with Overview as the default', async () => {
     renderDetail();
 

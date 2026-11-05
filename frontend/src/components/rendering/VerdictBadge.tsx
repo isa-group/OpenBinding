@@ -18,8 +18,6 @@ const KNOWN: Record<string, { variant: 'success' | 'info' | 'error' | 'warning' 
 };
 
 /** The outcome of a solve as text in a badge, with a plain-language description for assistive technology. */
-// [impl->req~frontend-rendering-verdict-badge~1]
-// [impl->req~frontend-rendering-verdict-terminations~1]
 export function VerdictBadge({ verdict, reasons = [], size = 'sm' }: VerdictBadgeProps) {
   const known = Object.hasOwn(KNOWN, verdict) ? KNOWN[verdict] : undefined;
 

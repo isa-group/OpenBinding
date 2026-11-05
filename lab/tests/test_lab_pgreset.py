@@ -27,7 +27,6 @@ _spec.loader.exec_module(rules)
 
 BASE = ROOT / "compose.lab.json"
 RESET = ROOT / "compose.lab-pgreset.json"
-DOC = ROOT / "docs" / "qa" / "PG_ROLE_RESET.md"
 OK_LINE = "pg-role-password-reset-ok"
 
 
@@ -187,20 +186,3 @@ def test_nothing_in_the_script_prints_server_or_client_output_to_stdout(script):
 # -- documentation --------------------------------------------------------------------------------
 
 
-def test_doc_describes_cause_procedure_verification_and_secrecy():
-    doc = DOC.read_text(encoding="utf-8")
-    for needle in (
-        "compose.lab-pgreset.json",
-        "compose.lab.json",
-        "lab-pg-3",
-        "DEMO_PG_PASSWORD",
-        "environment",
-        "lab_compose down",
-        "lab_compose up file=compose.lab-pgreset.json",
-        "lab_compose up file=compose.lab.json",
-        OK_LINE,
-        "complete",
-        "never printed",
-    ):
-        assert needle in doc, needle
-    assert doc.index("lab_compose up file=compose.lab-pgreset.json") < doc.index("lab_compose up file=compose.lab.json")

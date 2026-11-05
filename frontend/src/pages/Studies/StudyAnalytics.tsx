@@ -93,7 +93,6 @@ function CellSolutions({ cells, index }: { cells: readonly StudyCell[]; index: R
 }
 
 /** The Results tab of the study page: the analytics of the study run `runId` and its cells. */
-// [impl->req~frontend-nav-study-page~1]
 export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
   const { study, organization, project, root } = scope;
   const org = organization.slug;
@@ -147,7 +146,6 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
 
   return (
     <>
-      {/* [impl->req~frontend-retire-reports-entry-points-removed~1] */}
       <header className="proj-title-row">
         <div className="proj-title">
           <h2>Compare results · run #{data.run.run_number}</h2>

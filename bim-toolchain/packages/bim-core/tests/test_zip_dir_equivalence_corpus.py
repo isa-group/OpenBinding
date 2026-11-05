@@ -11,7 +11,7 @@ behaviour of ``bim_core`` is pinned by its own tests.
 
 All of them have the directory's ``irDigest``, ``packageDigest``, canonical IR, semantic digest and list order (82/82), and
 evaluate the same bindings to the same evaluations, including the order and the text of the violations.  Until the IR was
-normalised (``docs/qa/IR_NORMALIZATION.md``) 64 of the 82 differed from the directory in the canonical ZIP: those cases
+normalised 64 of the 82 differed from the directory in the canonical ZIP: those cases
 were strict ``xfail``.
 
 ``data/zip_divergent_packages.json`` keeps the names of those 64 packages. The gate test requires the packages whose

@@ -27,9 +27,6 @@ interface Tab {
   trailing?: true;
 }
 
-// [impl->req~frontend-nav-project-tabs~1]
-// [impl->req~frontend-retire-reports-navigation~1]
-// [impl->req~frontend-retire-library-navigation~1]
 const TABS: readonly Tab[] = [
   { key: 'overview', label: 'Overview', suffix: '' },
   { key: 'cases', label: 'Problems', suffix: `/${PROBLEMS_SEGMENT}` },

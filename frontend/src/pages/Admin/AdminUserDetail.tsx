@@ -188,7 +188,6 @@ function DetailScreen({ param }: { param: string }) {
   );
 }
 
-// [impl->req~frontend-retire-sponsorship-entry-points-removed~1]
 /** admin-user-detail: one account’s identity, agreement, usage and the administrative actions on it. */
 export function AdminUserDetail() {
   const { user } = useParams();

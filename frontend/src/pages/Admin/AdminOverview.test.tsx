@@ -134,7 +134,6 @@ describe('admin-overview · how the platform is doing', () => {
     expect(within(tools).getByRole('link', { name: /^Maintenance/ })).toHaveAttribute('href', '/app/admin/maintenance');
   });
 
-  // [utest->req~frontend-retire-sponsorship-entry-points-removed~1]
   it('holds exactly the seven tools, with no sponsorship form, and a lede that names no sponsorship', async () => {
     renderAdmin(<AdminOverview />);
     await screen.findByText('Tools');

@@ -122,7 +122,6 @@ def test_the_running_app_was_built_from_a_closed_list():
 
 
 def test_retry_after_is_always_among_the_exposed_headers():
-    # [utest->req~gateway-api-cors-exposed-headers~1]
     assert "Retry-After" in CORS_EXPOSED_HEADERS
     assert set(CORS_EXPOSED_HEADERS) == {
         "Retry-After", "ETag", "Location", "Content-Disposition", "Digest", "Idempotency-Key",

@@ -37,7 +37,6 @@ CONTRACT = TOOLCHAIN / "contracts" / "consumers" / "openbinding" / "compile.json
 MANIFESTS = TOOLCHAIN / "packages" / "bim-core" / "tests" / "fixtures" / "manifests"
 COMPOSE_N2 = REPO_ROOT / "compose.lab-process-n2.json"
 COMPOSE_PROBE = REPO_ROOT / "compose.lab-process-n2-probe.json"
-DEPLOYMENT_DOC = REPO_ROOT / "docs" / "qa" / "PROCESS_DEPLOYMENT.md"
 TOKEN = "probe-test-token-" + "0123456789abcdef" * 2
 MIB = 1024 * 1024
 
@@ -99,15 +98,6 @@ def test_the_engine_manifest_is_the_one_of_the_consumer_contract() -> None:
     checkout()
     fixture = json.loads((MANIFESTS / "random-search.json").read_text(encoding="utf-8"))
     assert probe.RANDOM_SEARCH_MANIFEST == fixture
-
-
-def test_the_fit_rule_reproduces_the_documented_figure_of_the_n2_profile() -> None:
-    required = probe.fit_required_bytes(body=2 * MIB, workers=2, budget=16 * MIB, pending=4 * MIB, container=256 * MIB)
-    assert required == 261724569
-    checkout()
-    assert str(required) in DEPLOYMENT_DOC.read_text(encoding="utf-8")
-    thread_lab = probe.fit_required_bytes(body=16 * MIB, workers=2, budget=128 * MIB, pending=32 * MIB, container=256 * MIB)
-    assert thread_lab > 256 * MIB, "the thread laboratory's limits do not fit a process-mode container"
 
 
 def test_the_helpers() -> None:

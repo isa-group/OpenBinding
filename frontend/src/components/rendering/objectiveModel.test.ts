@@ -14,7 +14,6 @@ const PROBLEM: ObjectiveProblem = {
 };
 
 describe('objectiveTermsOf', () => {
-  // [utest->req~frontend-rendering-objective-breakdown~1]
   it('derives terms with a problem', () => {
     const data = objectiveTermsOf(OBJ_SINGLE, PROBLEM);
     expect(data).not.toBeNull();
@@ -27,7 +26,6 @@ describe('objectiveTermsOf', () => {
     ]);
   });
 
-  // [utest->req~frontend-rendering-objective-breakdown~1]
   it('derives terms without a problem', () => {
     const data = objectiveTermsOf(OBJ_SINGLE, null);
     expect(data?.terms.map((t) => [t.direction, t.unit])).toEqual([[null, null], [null, null]]);
@@ -37,18 +35,15 @@ describe('objectiveTermsOf', () => {
     ]);
   });
 
-  // [utest->req~frontend-rendering-objective-breakdown~1]
   it('gives no direction or unit when the problem names neither', () => {
     const data = objectiveTermsOf(OBJ_SINGLE, { criteria: [{ id: 'other', direction: 'maximize' }], features: {} });
     expect(data?.terms.map((t) => [t.direction, t.unit])).toEqual([[null, null], [null, null]]);
   });
 
-  // [utest->req~frontend-rendering-objective-breakdown~1]
   it.each([null, undefined, 'x', [], { mode: 'single', score: 3 }])('returns null for %j', (value) => {
     expect(objectiveTermsOf(value, PROBLEM)).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-objective-breakdown~1]
   it('reads components tolerantly', () => {
     const data = objectiveTermsOf(
       { components: [{ feature: 'latency', value: 'fast', loss: 0.5 }, null], scalarization: 7, penalty: '2', score: [0.25, 'x', 0] },

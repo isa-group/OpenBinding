@@ -472,7 +472,6 @@ def one_pass(db_session, monkeypatch):
 
 
 async def test_a_cycle_needs_no_analysis_tasks_or_sponsor_proposals(one_pass, db_session, owner, logs):
-    # [utest->req~job-execution-reconciler-without-retired-sweeps~1]
     from openbinding_gateway.db.base import Base
 
     assert "analysis_tasks" not in Base.metadata.tables

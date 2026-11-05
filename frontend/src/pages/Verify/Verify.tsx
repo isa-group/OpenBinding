@@ -40,7 +40,6 @@ function settle(setState: (next: Checking) => void, job: Promise<Result>, isCurr
  * checks a document or a file. The view is rebuilt for every navigation, so the form always starts from what is shown and a new
  * submit always asks again.
  */
-// [impl->req~frontend-nav-verify-page~1]
 export function Verify() {
   const location = useLocation();
   return <VerifyView key={location.key} />;
@@ -86,7 +85,6 @@ function VerifyView() {
 
   const parsedInput = parseVerifyInput(digestInput);
   const typedDigest = parsedInput.digest;
-  // [impl->req~frontend-nav-verify-signed-out~1]
   // The selector appears when neither the address nor the pasted link names a kind.
   const showKind = !signedIn && !isKnownKind(addressKind) && parsedInput.kind === null;
   const invalidDigest = emptyInput || (addressed && digest !== '' && !isDigest(normalizeDigest(digest)));

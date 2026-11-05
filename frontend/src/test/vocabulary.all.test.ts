@@ -35,7 +35,6 @@ const findings = (): Finding[] => [
 ];
 
 describe('the vocabulary of every source file', () => {
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('reads the application sources, the engine-registration screens among them', () => {
     const paths = Object.keys(scanned);
     expect(paths.length).toBeGreaterThan(200);
@@ -44,20 +43,17 @@ describe('the vocabulary of every source file', () => {
     expect(paths.some((path) => path.startsWith('/src/api/') || path.startsWith('/src/test/') || /\.test\./.test(path))).toBe(false);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('shows no case, job or publication text outside the listed exemptions', () => {
     const reported = findings().filter((finding) => !(finding.file in EXEMPT));
     expect(reported.map(formatFinding)).toEqual([]);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('keeps the engine publication text only on the three engine-registration screens', () => {
     const registration = pick((path) => ENGINE_REGISTRATION.test(path));
     expect(scan(registration, wordPattern(['publication', 'publications'])).length).toBeGreaterThan(0);
     expect(scan(registration, WORDS_WITHOUT_PUBLICATION).map(formatFinding)).toEqual([]);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('keeps the message strings of the HTTP client free of the word job', () => {
     const client = sources['/src/api/client.ts'];
     expect(client).toBeDefined();
@@ -65,7 +61,6 @@ describe('the vocabulary of every source file', () => {
     expect(client).not.toContain('The job could not be found');
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('lists only exemptions that still show a forbidden word', () => {
     const stale = Object.keys(EXEMPT).filter((file) => !(file in scanned) || scan({ [file]: scanned[file] }, ALL_WORDS).length === 0);
     expect(stale).toEqual([]);

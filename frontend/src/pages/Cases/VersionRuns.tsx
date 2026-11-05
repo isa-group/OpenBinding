@@ -23,7 +23,6 @@ interface ProblemRun {
 }
 
 /** The Runs tab of the problem page: the runs that started from a revision of this problem, newest first, each linking to its page. */
-// [impl->req~frontend-nav-problem-page~1]
 export function VersionRuns({ organization, project, content, canCreate }: {
   organization: Organization; project: Project; content: RouteCaseContent; canCreate: boolean;
 }) {

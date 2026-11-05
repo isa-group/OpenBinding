@@ -45,12 +45,10 @@ const NO_PROBLEM =
   'The compiled problem of this run is not available, so tasks and candidates are shown by id, without feature values, bounds or units.';
 
 /** The whole run: verdict, summary, the shown solution's parts, claims, trade-offs, sources and log, in that order. */
-// [impl->req~frontend-rendering-run-result-order~1]
 export function RunResult({ result, problem, constraints, report, notice, children, label = 'Run result' }: RunResultProps) {
   const [chosen, setChosen] = useState(0);
   const solutions = solutionsOf(result);
   const n = solutions.length;
-  // [impl->req~frontend-rendering-run-result-solution-choice~1]
   const index = Math.min(chosen, Math.max(n - 1, 0));
   if (index !== chosen) setChosen(index);
   const solution = solutions[index];
@@ -68,7 +66,6 @@ export function RunResult({ result, problem, constraints, report, notice, childr
 
   return (
     <section aria-label={label} className="rendering-run">
-      {/* [impl->req~frontend-rendering-run-result-verdict~1] */}
       <div className="rendering-run__verdict">
         <VerdictBadge verdict={verdictOf(result.termination)} />
       </div>
@@ -76,7 +73,6 @@ export function RunResult({ result, problem, constraints, report, notice, childr
         {n} {n === 1 ? 'solution' : 'solutions'}
         {type !== null ? ` · optimization ${type}` : ''}
       </p>
-      {/* [impl->req~frontend-rendering-run-result-without-problem~1] */}
       {problem === null && <p>{NO_PROBLEM}</p>}
       {notice}
       {n === 0 && <p>This run finished without producing a binding.</p>}
@@ -98,7 +94,6 @@ export function RunResult({ result, problem, constraints, report, notice, childr
       )}
       {solution && (
         <>
-          {/* [impl->req~frontend-rendering-run-result-names~1] */}
           <BindingTable
             rows={bindingRowsOf((solution.decision as { binding?: unknown } | undefined)?.binding, known)}
             features={bindingFeaturesOf(known)}
@@ -107,12 +102,9 @@ export function RunResult({ result, problem, constraints, report, notice, childr
           {data && <ObjectiveBreakdown {...data} />}
         </>
       )}
-      {/* [impl->req~frontend-rendering-run-result-claimed-values~1] */}
       <EvaluationDiff evaluated={{ termination, solutions: solutions as RunValues['solutions'] }} notes={notesOf(report)} />
-      {/* [impl->req~frontend-rendering-run-result-trade-offs~1] */}
       {objectives.length >= 2 && <TradeOffChart points={points} objectives={objectives} />}
       {children}
-      {/* [impl->req~frontend-rendering-run-result-source~1] */}
       {(n > 0 || remote !== null) && (
         <details className="rendering-run__source">
           <summary>View source</summary>
@@ -120,7 +112,6 @@ export function RunResult({ result, problem, constraints, report, notice, childr
           {remote !== null && <SourceView source={remote} label="Engine report source" filename="engine-report.json" />}
         </details>
       )}
-      {/* [impl->req~frontend-rendering-run-result-log~1] */}
       {logs !== null && <LogPanel log={logs} title="Engine log" filename="engine.log" />}
     </section>
   );

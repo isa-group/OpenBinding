@@ -34,7 +34,6 @@ function renderCompare(query = '') {
   });
 }
 
-// [utest->req~frontend-nav-problem-page~1]
 describe('Versions tab of the problem page: compare', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -45,7 +44,6 @@ describe('Versions tab of the problem page: compare', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockResolvedValue(undefined) }, configurable: true });
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('compares the previous version with the latest by default', async () => {
     renderCompare();
 
@@ -132,7 +130,6 @@ describe('Versions tab of the problem page: compare', () => {
     expect(screen.getByLabelText('From')).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-retire-composer-entry-points-repointed~1]
   it('asks a viewer for a second version without offering a new one', async () => {
     platform.revisions.mockResolvedValue([r1]);
     renderCompare();
@@ -141,7 +138,6 @@ describe('Versions tab of the problem page: compare', () => {
     expect(screen.queryByRole('link', { name: /New version|Compose the first version/ })).toBeNull();
   });
 
-  // [utest->req~frontend-retire-composer-entry-points-repointed~1]
   it('asks a member for a second version when the problem has only one', async () => {
     platform.revisions.mockResolvedValue([r1]);
     renderProjectScreen(<CaseDetail />, {

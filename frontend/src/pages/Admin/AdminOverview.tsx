@@ -209,7 +209,6 @@ function OverviewScreen() {
   );
 }
 
-// [impl->req~frontend-retire-sponsorship-entry-points-removed~1]
 /** admin-overview: how the platform is doing, and a way into every administration screen. */
 export function AdminOverview() {
   return <AdminOnly><OverviewScreen /></AdminOnly>;

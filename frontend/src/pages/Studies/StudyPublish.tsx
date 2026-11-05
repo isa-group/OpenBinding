@@ -11,7 +11,6 @@ import { measuresOf } from './studiesModel';
 import { useRevisionIndex } from './useRevisionIndex';
 
 /** The Publish tab of the study page: the CSV export of the study run `runId` and the way to the project's published results. */
-// [impl->req~frontend-nav-study-page~1]
 export function RunPublish({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
   const { study, organization, project, root } = scope;
   const { index } = useRevisionIndex(organization.slug, project.slug);

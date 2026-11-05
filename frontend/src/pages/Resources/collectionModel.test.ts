@@ -17,12 +17,10 @@ const pins = buildPins([{ item: flujo, revisions: [c1, c2] }], [{ resource: weig
 const entry = (key: string): Entry => ({ kind: 'case', key, label: key, sub: '', digest: key, pin: null });
 
 describe('buildPins', () => {
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('offers the newest version of each problem and revision of each resource first, problems before resources', () => {
     expect(pins.map((pin) => pin.label)).toEqual(['Flujo de checkout · version 2', 'Flujo de checkout · version 1', 'Weights · revision 2', 'Weights · revision 1']);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('pins a problem version by its id and fingerprint, and links to the problem page at that version', () => {
     expect(pins[0]).toMatchObject({
       kind: 'case', key: `case:${c2.digest}`, sub: 'Problem version', href: `${root}/problems/flujo-checkout?version=2`,
@@ -30,7 +28,6 @@ describe('buildPins', () => {
     });
   });
 
-  // [utest->req~frontend-retire-library-no-link~1]
   it('pins a resource by its revision id and content fingerprint, and remembers how the gateway will name it, with no address of its own', () => {
     expect(pins[3]).toMatchObject({
       kind: 'resource', key: `resource:${w1.digest}`, slug: 'weights', ordinal: 1,
@@ -42,14 +39,12 @@ describe('buildPins', () => {
 });
 
 describe('entryOf', () => {
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('matches a stored problem item with its version', () => {
     const found = entryOf(caseItem(c1.id, c1.digest), pins);
     expect(found).toMatchObject({ kind: 'case', label: 'Flujo de checkout · version 1', href: `${root}/problems/flujo-checkout?version=1` });
     expect(found.pin).toEqual({ target_kind: 'case', target_digest: c1.digest, target_ref: { caseRevisionId: c1.id } });
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('keeps a problem item whose version is no longer listed, and can still send it back', () => {
     const found = entryOf(caseItem('case-gone-r9', digestOf('9')), pins);
     expect(found.label).toBe('Problem version');

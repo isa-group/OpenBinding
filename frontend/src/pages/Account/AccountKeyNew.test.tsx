@@ -58,7 +58,6 @@ describe('New API key', () => {
     platform.projects.mockResolvedValue([{ id: 'p1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks' }]);
   });
 
-  // [utest->req~frontend-nav-account-sections~1]
   it('starts with the name and expiry, in a five-step wizard inside the dialog New API key', async () => {
     renderWizard();
 
@@ -72,7 +71,6 @@ describe('New API key', () => {
     expect(dialog.getByLabelText('Name')).toHaveFocus();
   });
 
-  // [utest->req~frontend-nav-account-sections~1]
   it('asks to be closed from Cancel, × and Escape, and creates nothing', async () => {
     const { onClose, onCreated } = renderWizard();
     const dialog = await screen.findByRole('dialog', { name: 'New API key' });
@@ -292,7 +290,6 @@ describe('New API key', () => {
       expect(api.createApiKey.mock.calls[0][0]).not.toHaveProperty('expires_at');
     });
 
-    // [utest->req~frontend-nav-account-sections~1]
     it('shows the secret once in place of the wizard, and only goes on after it is confirmed as stored', async () => {
       const { onClose, onCreated } = await toReview();
       fireEvent.click(screen.getByRole('button', { name: 'Create key' }));

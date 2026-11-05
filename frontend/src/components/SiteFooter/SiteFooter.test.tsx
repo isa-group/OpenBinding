@@ -36,7 +36,6 @@ describe('SiteFooter', () => {
     expect(within(nav).getAllByRole('link')).toHaveLength(12);
   });
 
-  // [utest->req~frontend-nav-public-navigation~1]
   it('lists Verify in the Platform column', () => {
     renderFooter();
 
@@ -44,7 +43,6 @@ describe('SiteFooter', () => {
     expect(within(platform).getAllByRole('link').map((link) => link.textContent)).toEqual(['Explore', 'Engines', 'Pricing', 'Verify']);
   });
 
-  // [utest->req~frontend-nav-status-retired~1]
   it('links to no status page', () => {
     renderFooter();
 

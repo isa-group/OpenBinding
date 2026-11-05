@@ -1,4 +1,4 @@
-"""Docker Compose is the only deployment target (ADR-0021): no Kubernetes files remain.
+"""Docker Compose is the only deployment target: no Kubernetes files remain.
 
 Guards four things: no deploy/kubernetes directory, no kustomization file, no
 Kubernetes manifest (top-level apiVersion and kind) and no kubectl or kustomize
@@ -21,7 +21,7 @@ ROOT = REPO_ROOT
 SKIP_DIRS = {"node_modules", ".venv", ".git"}
 # Not deployment manifests: specs and docs describe or quote manifests, GitHub
 # templates and workflows use other schemas.
-MANIFEST_SKIP_DIRS = SKIP_DIRS | {"openspec", "docs", "lab", ".github"}
+MANIFEST_SKIP_DIRS = SKIP_DIRS | {"docs", "lab", ".github"}
 KUSTOMIZATION_NAMES = {"kustomization.yaml", "kustomization.yml"}
 WORKFLOW_SUFFIXES = {".yml", ".yaml"}
 API_VERSION = re.compile(r"^apiVersion:", re.MULTILINE)
@@ -103,59 +103,50 @@ def _write(root: Path, relative: str, text: str) -> None:
 DEPLOYMENT = "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: gateway\n"
 
 
-# [utest->req~lab-deployment-compose-only~1]
 def test_no_deploy_kubernetes_directory() -> None:
     assert not _kubernetes_directories()
 
 
-# [utest->req~lab-deployment-compose-only~1]
 def test_no_kustomization_file() -> None:
     found = _kustomization_files()
     assert not found, f"kustomization files: {found}"
 
 
-# [utest->req~lab-deployment-compose-only~1]
 def test_no_kubernetes_manifest() -> None:
     found = _manifest_files()
     assert not found, f"Kubernetes manifests: {found}"
 
 
-# [utest->req~lab-deployment-compose-only~1]
 def test_workflows_do_not_use_kubectl_or_kustomize() -> None:
     assert (ROOT / ".github" / "workflows").is_dir()
     offenders = _workflow_offenders()
     assert not offenders, f"workflows using kubectl or kustomize: {offenders}"
 
 
-# [utest->req~lab-deployment-compose-only~1]
 def test_negative_control_manifest_is_detected() -> None:
     assert _is_kubernetes_manifest(DEPLOYMENT)
     assert not _is_kubernetes_manifest("services:\n  gateway:\n    image: x\n")
     assert not _is_kubernetes_manifest("  apiVersion: v1\n  kind: Pod\n")
 
 
-# [utest->req~lab-deployment-compose-only~1]
 def test_negative_control_workflow_tools_are_detected() -> None:
     assert WORKFLOW_TOOLS.search("run: kubectl apply -f x")
     assert WORKFLOW_TOOLS.search("run: kustomize build deploy")
     assert not WORKFLOW_TOOLS.search("run: docker compose config")
 
 
-# [utest->req~lab-deployment-compose-only~1]
 def test_real_scan_is_not_empty() -> None:
     scanned = {_rel(p, ROOT) for p in _files(MANIFEST_SKIP_DIRS, {".yaml", ".yml"})}
     assert "deploy/compose/production/compose.yaml" in scanned
     assert _workflow_files()
 
 
-# [utest->req~lab-deployment-compose-only~1]
 def test_scan_finds_deploy_kubernetes_directory(tmp_path: Path) -> None:
     assert _kubernetes_directories(tmp_path) == []
     _write(tmp_path, "deploy/kubernetes/base.txt", "x")
     assert _kubernetes_directories(tmp_path) == ["deploy/kubernetes"]
 
 
-# [utest->req~lab-deployment-compose-only~1]
 def test_scan_finds_kustomization_file(tmp_path: Path) -> None:
     assert _kustomization_files(tmp_path) == []
     _write(tmp_path, "deploy/kubernetes/kustomization.yaml", "resources: []\n")
@@ -166,7 +157,6 @@ def test_scan_finds_kustomization_file(tmp_path: Path) -> None:
     ]
 
 
-# [utest->req~lab-deployment-compose-only~1]
 def test_scan_finds_manifest_under_ops_and_src(tmp_path: Path) -> None:
     _write(tmp_path, "ops/gateway.yaml", DEPLOYMENT)
     _write(tmp_path, "src/app/pod.yml", "apiVersion: v1\nkind: Pod\n")
@@ -174,10 +164,9 @@ def test_scan_finds_manifest_under_ops_and_src(tmp_path: Path) -> None:
     assert _manifest_files(tmp_path) == ["ops/gateway.yaml", "src/app/pod.yml"]
 
 
-# [utest->req~lab-deployment-compose-only~1]
 def test_scan_skips_excluded_directories(tmp_path: Path) -> None:
     assert {"node_modules", ".venv", ".git"} == SKIP_DIRS
-    for skipped in ("node_modules", ".venv", ".git", "openspec", "docs", "lab", ".github"):
+    for skipped in ("node_modules", ".venv", ".git", "docs", "lab", ".github"):
         _write(tmp_path, f"{skipped}/pkg/manifest.yaml", DEPLOYMENT)
     # A Kustomize file under each directory that every scan skips, at the top and nested.
     for skipped in sorted(SKIP_DIRS):
@@ -185,12 +174,11 @@ def test_scan_skips_excluded_directories(tmp_path: Path) -> None:
         _write(tmp_path, f"{skipped}/pkg/kustomization.yml", "resources: []\n")
     assert _manifest_files(tmp_path) == []
     assert _kustomization_files(tmp_path) == []
-    # Only the manifest scan skips openspec, docs, lab and .github.
+    # Only the manifest scan skips docs, lab and .github.
     _write(tmp_path, "docs/kustomization.yaml", "resources: []\n")
     assert _kustomization_files(tmp_path) == ["docs/kustomization.yaml"]
 
 
-# [utest->req~lab-deployment-compose-only~1]
 def test_scan_skips_unreadable_entries(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write(tmp_path, "ops/ok.yaml", "services: {}\n")
     _write(tmp_path, "ops/stray.yaml", "services: {}\n")
@@ -214,7 +202,6 @@ def test_scan_skips_unreadable_entries(tmp_path: Path, monkeypatch: pytest.Monke
     assert _manifest_files(tmp_path) == []
 
 
-# [utest->req~lab-deployment-compose-only~1]
 def test_scan_finds_workflow_using_kubectl(tmp_path: Path) -> None:
     ok = "steps:\n  - run: docker compose config\n"
     bad = "steps:\n  - run: kubectl kustomize deploy/kubernetes\n"

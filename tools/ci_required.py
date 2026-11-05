@@ -2,7 +2,6 @@
 """The one required CI check: fail when a needed job failed, or was skipped although its area has changes or no area gates it.
 
 Reads the environment variable NEEDS, the JSON of `toJSON(needs)`: {job: {result, outputs}}.
-[impl->req~ci-speed-required-aggregate~1]
 """
 
 from __future__ import annotations

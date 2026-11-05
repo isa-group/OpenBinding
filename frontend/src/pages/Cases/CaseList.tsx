@@ -20,7 +20,6 @@ import { useCreateDialog } from './createDialog';
 import { DeleteCaseDialog, NewCaseDialog } from './dialogs';
 import { CaseFrame, ReadOnlyNote } from './parts';
 
-// [impl->req~frontend-retire-composer-entry-points-repointed~1]
 function CaseRow({ root, entry, canCreate, canAdminister, publicRead, onDelete }: {
   root: string; entry: CaseContent; canCreate: boolean; canAdminister: boolean; publicRead: boolean; onDelete: () => void;
 }) {
@@ -185,7 +184,6 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
  * Problems (`case-list`, `/app/:org/:project/problems`): the project’s problems, how many versions each has, and the way to create one. The dialog
  * `New problem` is open while the address holds `?create=problem`, for the people who may create.
  */
-// [impl->req~frontend-nav-new-menu~1]
 export function CaseList() {
   const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
   if (waiting) return <ProjectSkeleton />;

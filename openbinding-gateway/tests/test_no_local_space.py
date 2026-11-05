@@ -92,7 +92,6 @@ def _manifests() -> list[tuple[str, dict, str]]:
     return found
 
 
-# [utest->req~lab-deployment-no-local-space~4]
 def test_no_manifest_has_local_space() -> None:
     manifests = _manifests()
     assert manifests
@@ -101,13 +100,11 @@ def test_no_manifest_has_local_space() -> None:
         assert not _local_space_problems(parsed, text), label
 
 
-# [utest->req~lab-deployment-no-local-space~4]
 def test_no_manifest_defines_sphere() -> None:
     for label, parsed, _ in _manifests():
         assert not _sphere_problems(parsed), label
 
 
-# [utest->req~lab-deployment-no-local-space~4]
 def test_pricing_profile_is_one_bootstrap_service_without_volumes() -> None:
     assert PRICING.is_file()
     manifest = yaml.safe_load(PRICING.read_text(encoding="utf-8"))
@@ -118,7 +115,6 @@ def test_pricing_profile_is_one_bootstrap_service_without_volumes() -> None:
     assert FORBIDDEN_KEY not in PRICING.read_text(encoding="utf-8")
 
 
-# [utest->req~lab-deployment-no-local-space~4]
 def test_lab_space_directory_is_gone() -> None:
     # Git keeps no empty directory, so a leftover empty lab/space in a working tree is not a committed path.
     directory = ROOT / "lab" / "space"
@@ -129,7 +125,6 @@ def _sample(**services: dict) -> dict:
     return {"services": services}
 
 
-# [utest->req~lab-deployment-no-local-space~4]
 @pytest.mark.parametrize(
     "manifest",
     [
@@ -146,7 +141,6 @@ def test_negative_control_local_space_is_detected(manifest: dict) -> None:
     assert _local_space_problems(manifest, "")
 
 
-# [utest->req~lab-deployment-no-local-space~4]
 def test_negative_control_pricing_like_manifest_with_local_space_is_detected() -> None:
     manifest = _sample(
         **{
@@ -160,7 +154,6 @@ def test_negative_control_pricing_like_manifest_with_local_space_is_detected() -
     assert _local_space_problems(manifest, "")
 
 
-# [utest->req~lab-deployment-no-local-space~4]
 def test_negative_control_bootstrap_is_not_a_space_service_unless_renamed() -> None:
     plain = _sample(**{"pricing-bootstrap": {"image": "x:1"}})
     assert not _space_service_names(plain)
@@ -168,12 +161,10 @@ def test_negative_control_bootstrap_is_not_a_space_service_unless_renamed() -> N
     assert _space_service_names(renamed)
 
 
-# [utest->req~lab-deployment-no-local-space~4]
 def test_negative_control_destructive_key_is_detected() -> None:
     assert _local_space_problems(_sample(), f"environment: {FORBIDDEN_KEY}")
 
 
-# [utest->req~lab-deployment-no-local-space~4]
 @pytest.mark.parametrize(
     "service", [("sphere-api", {}), ("api", {"image": "registry.example/SPHERE-ui:1"})]
 )
@@ -181,7 +172,6 @@ def test_negative_control_sphere_is_detected(service: tuple[str, dict]) -> None:
     assert _sphere_problems(_sample(**{service[0]: service[1]}))
 
 
-# [utest->req~lab-deployment-no-local-space~4]
 def test_no_space_services_or_profile() -> None:
     services = _compose()["services"]
     assert not [name for name in services if name.startswith("space")]

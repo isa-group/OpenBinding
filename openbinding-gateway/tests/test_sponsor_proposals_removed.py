@@ -66,7 +66,6 @@ async def session_headers(api_client, registration) -> dict[str, str]:
 
 @pytest.mark.parametrize(("method", "path"), REMOVED)
 async def test_a_removed_operation_answers_like_an_unrouted_path(api_client, session_headers, method, path):
-    # [utest->req~gateway-api-removed-operations-not-routed~1]
     unrouted = await api_client.get("/v1/m96-never-routed")
     assert unrouted.status_code == 404
 
@@ -78,14 +77,12 @@ async def test_a_removed_operation_answers_like_an_unrouted_path(api_client, ses
 
 @pytest.mark.parametrize(("method", "path"), REMOVED)
 def test_no_route_serves_a_removed_path(method, path):
-    # [utest->req~gateway-api-removed-operations-not-routed~1]
     target = concrete(path)
     serving = [route.path_format for route in routes() if route.path_regex.match(target)]
     assert serving == [], (method, path, serving)
 
 
 def test_the_route_table_and_the_document_have_no_removed_template():
-    # [utest->req~gateway-api-removed-operations-not-documented~1]
     routed = {route.path_format for route in routes()}
     documented = set(app.openapi()["paths"])
 

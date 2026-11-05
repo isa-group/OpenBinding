@@ -53,8 +53,6 @@ const movedAt = (address: string) => matchRoutes(moves, address)?.at(-1)?.route.
 const entry = (path: string) => movedRoutes.find((route) => route.path === path);
 
 describe('area verify', () => {
-  // [utest->req~frontend-nav-route-areas~1]
-  // [utest->req~frontend-nav-verify-page~1]
   it('has one screen, verify, in the public layout and with no sign-in requirement', () => {
     expect(routesByArea.verify.map((definition) => [definition.id, definition.path])).toEqual(SCREENS);
     const [definition] = routesByArea.verify;
@@ -63,7 +61,6 @@ describe('area verify', () => {
     expect(definition.requireAdmin).toBe(false);
   });
 
-  // [utest->req~frontend-nav-verify-page~1]
   it('declares neither pub-resolve nor verifier', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('pub-resolve');
@@ -72,7 +69,6 @@ describe('area verify', () => {
   });
 
   describe('address resolution', () => {
-    // [utest->req~frontend-nav-verify-page~1]
     it.each([
       ['/verify', 'verify'],
       ['/verify/report', 'verify'],
@@ -84,7 +80,6 @@ describe('area verify', () => {
       expect(screenAt(address)).toBe(id);
     });
 
-    // [utest->req~frontend-nav-verify-permanent-links~1]
     it.each([
       ['/resolve/report/sha256-abc', 'verify-resolve'],
       ['/app/verifier', 'verify-verifier'],
@@ -95,7 +90,6 @@ describe('area verify', () => {
 });
 
 describe('the permanent links of the Verify page', () => {
-  // [utest->req~frontend-nav-verify-permanent-links~1]
   it('keeps the entries /resolve/:kind/:digest and /app/verifier, both marked permanent', () => {
     const resolve = entry('/resolve/:kind/:digest');
     const verifier = entry('/app/verifier');
@@ -105,14 +99,12 @@ describe('the permanent links of the Verify page', () => {
     expect(verifier?.permanent).toBe(true);
   });
 
-  // [utest->req~frontend-nav-verify-permanent-links~1]
   it.each(KINDS)('moves /resolve/%s/D to /verify/%s/D, and the target is the verify screen', (kind) => {
     const target = entry('/resolve/:kind/:digest')?.target(new URLSearchParams(''), { kind, digest: D });
     expect(target).toBe(`/verify/${kind}/${D}`);
     expect(screenAt(target ?? '')).toBe('verify');
   });
 
-  // [utest->req~frontend-nav-verify-permanent-links~1]
   it('keeps the query of the old address', () => {
     expect(entry('/resolve/:kind/:digest')?.target(new URLSearchParams('page=2'), { kind: 'report', digest: D })).toBe(`/verify/report/${D}?page=2`);
     expect(entry('/app/verifier')?.target(new URLSearchParams(`digest=${D}`), {})).toBe(`/verify?digest=${D}`);
@@ -155,7 +147,6 @@ describe('opening a permanent link', () => {
     seen.length = 0;
   });
 
-  // [utest->req~frontend-nav-verify-permanent-links~1]
   it.each(KINDS)('lands on /verify/%s/D without a session, and never on /login', async (kind) => {
     open(`/resolve/${kind}/${D}`, null);
 
@@ -164,7 +155,6 @@ describe('opening a permanent link', () => {
     expect(seen.some((entryOfHistory) => entryOfHistory.startsWith('/login'))).toBe(false);
   });
 
-  // [utest->req~frontend-nav-verify-permanent-links~1]
   it.each(KINDS)('lands on /verify/%s/D signed in', async (kind) => {
     open(`/resolve/${kind}/${D}`, person);
 
@@ -172,14 +162,12 @@ describe('opening a permanent link', () => {
     await waitFor(() => expect(shown()).toBe('verify'));
   });
 
-  // [utest->req~frontend-nav-verify-permanent-links~1]
   it('keeps the query and the hash', async () => {
     open(`/resolve/report/${D}?page=2#locations`, person);
 
     await waitFor(() => expect(seen.at(-1)).toBe(`/verify/report/${D}?page=2#locations`));
   });
 
-  // [utest->req~frontend-nav-verify-permanent-links~1]
   it('sends the gateway citation link /app/verifier?digest=D to /verify?digest=D without a session, never through /login', async () => {
     open(`/app/verifier?digest=${D}`, null);
 
@@ -189,7 +177,6 @@ describe('opening a permanent link', () => {
     expect(screen.getByText('Screen verify')).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-nav-verify-permanent-links~1]
   it('sends /app/verifier?digest=D to /verify?digest=D signed in', async () => {
     open(`/app/verifier?digest=${D}#top`, person);
 

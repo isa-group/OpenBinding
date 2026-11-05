@@ -44,7 +44,6 @@ export interface ResourceContent {
 export const pinKey = (kind: string, digest: string) => `${kind}:${digest}`;
 
 /** Every problem version and resource revision of the project, as things a collection can point at. */
-// [impl->req~frontend-nav-vocabulary-text~1]
 export function buildPins(cases: readonly CaseContent[], resources: readonly ResourceContent[], root: string): Pin[] {
   const pins: Pin[] = [];
   for (const { item, revisions } of cases) {

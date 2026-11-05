@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { MetricCards } from './MetricCards';
 
 describe('MetricCards', () => {
-  // [utest->req~frontend-rendering-metric-cards~1]
   it('renders a list named Key figures by default, or by label', () => {
     const metrics = [{ label: 'Cost', value: 3 }];
     const { unmount } = render(<MetricCards metrics={metrics} />);
@@ -16,7 +15,6 @@ describe('MetricCards', () => {
     expect(screen.getByRole('list', { name: 'Run totals' })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-rendering-metric-cards~1]
   it('renders each metric as a list item with the label as dt and the value as dd', () => {
     const { container } = render(<MetricCards metrics={[{ label: 'Cost', value: 7 }, { label: 'Latency', value: 9, unit: 'ms' }]} />);
 
@@ -29,7 +27,6 @@ describe('MetricCards', () => {
     expect(container.querySelector('pre')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-metric-cards~1]
   it('formats numbers in en-US with at most three decimals, including 0', () => {
     render(<MetricCards metrics={[{ label: 'Zero', value: 0 }, { label: 'Big', value: 1234.5678 }]} />);
 
@@ -38,14 +35,12 @@ describe('MetricCards', () => {
     expect(big.querySelector('dd')).toHaveTextContent(/^1,234\.568$/);
   });
 
-  // [utest->req~frontend-rendering-metric-cards~1]
   it('shows a string value as is', () => {
     render(<MetricCards metrics={[{ label: 'Engine', value: 'cp-sat 9.1' }]} />);
 
     expect(screen.getByRole('listitem').querySelector('dd')).toHaveTextContent('cp-sat 9.1');
   });
 
-  // [utest->req~frontend-rendering-metric-cards~1]
   it('shows a dash with the accessible text no value for null', () => {
     render(<MetricCards metrics={[{ label: 'Gap', value: null }]} />);
 
@@ -55,14 +50,12 @@ describe('MetricCards', () => {
     expect(within(dd).getByText('—')).toHaveAttribute('aria-hidden', 'true');
   });
 
-  // [utest->req~frontend-rendering-metric-cards~1]
   it('shows no unit for a null value', () => {
     render(<MetricCards metrics={[{ label: 'Gap', value: null, unit: 'ms' }]} />);
 
     expect(screen.getByRole('listitem').querySelector('dd')).not.toHaveTextContent('ms');
   });
 
-  // [utest->req~frontend-rendering-metric-cards~1]
   it('renders same-label metrics without ids without a key warning', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     render(<MetricCards metrics={[{ label: 'Cost', value: 1 }, { label: 'Cost', value: 2 }]} />);
@@ -72,7 +65,6 @@ describe('MetricCards', () => {
     spy.mockRestore();
   });
 
-  // [utest->req~frontend-rendering-metric-cards~1]
   it('shows the trend label as visible text with an aria-hidden arrow', () => {
     render(
       <MetricCards
@@ -92,7 +84,6 @@ describe('MetricCards', () => {
     }
   });
 
-  // [utest->req~frontend-rendering-metric-cards~1]
   it('shows the hint as small text and omits it when absent', () => {
     render(<MetricCards metrics={[{ label: 'A', value: 1, hint: 'lower is better' }, { label: 'B', value: 2 }]} />);
 
@@ -101,21 +92,18 @@ describe('MetricCards', () => {
     expect(b.querySelector('small')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-metric-cards~1]
   it('accepts metrics with the same label when ids differ', () => {
     render(<MetricCards metrics={[{ id: 'x', label: 'Cost', value: 1 }, { id: 'y', label: 'Cost', value: 2 }]} />);
 
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
   });
 
-  // [utest->req~frontend-rendering-metric-cards~1]
   it('renders nothing for empty metrics', () => {
     const { container } = render(<MetricCards metrics={[]} />);
 
     expect(container).toBeEmptyDOMElement();
   });
 
-  // [utest->req~frontend-rendering-metric-cards~1]
   it('has no hard-coded hex colour in its stylesheet', () => {
     const css = readFileSync(join(process.cwd(), 'src/components/rendering/MetricCards.css'), 'utf8');
 

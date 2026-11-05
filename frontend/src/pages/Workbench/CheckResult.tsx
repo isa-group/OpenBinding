@@ -41,7 +41,6 @@ function fixOf(item: Diagnostic): string | null {
 
 const NO_DIAGNOSTIC_TEXT = 'The gateway sent no message for this diagnostic.';
 
-// [impl->req~frontend-rendering-check-result-diagnostic-text~1]
 /** The words of a diagnostic: its message, else its detail, when they are text; never a dump of the item. */
 function textOf(item: Diagnostic): string {
   const fields = item as Record<string, unknown>;

@@ -142,7 +142,6 @@ test.describe('route registry', () => {
     expect(screens.filter((screen) => screen.requireAdmin).every((screen) => screen.id.startsWith('admin-'))).toBe(true);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   test('rejects the six words, whatever their letter case, except the engine registration publication text', () => {
     expect(forbiddenIn('job-list', ['Jobs', 'my case', 'Cases and JOB'])).toHaveLength(4);
     expect(forbiddenIn('pub-home', ['Publications and public projects'])).toEqual(['"Publications" in "Publications and public projects"']);
@@ -152,7 +151,6 @@ test.describe('route registry', () => {
     expect(forbiddenIn('case-list', ['Problems', 'showcase', 'Runs', 'Published'])).toEqual([]);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   test('knows which pathnames are screens of the registry', () => {
     expect(isScreenAddress('/app/isa-demo/qos/problems/checkout')).toBe(true);
     expect(isScreenAddress('/app/runs')).toBe(true);
@@ -191,7 +189,6 @@ for (const screen of screens) {
     expect(critical, `${screen.path} should not raise critical console errors`).toEqual([]);
 
     // The vocabulary of the interface: Problem and Run, never case or job (nor publication outside the engine registration).
-    // [utest->req~frontend-nav-vocabulary-text~1]
     expect(forbiddenIn(screen.id, await visibleTexts(page)), `${screen.id} (${screen.path}) shows words the vocabulary rules out`).toEqual([]);
   });
 }

@@ -3,8 +3,7 @@
 The tool holds one credential, a MANAGEMENT api key of that SPACE (``SPACE_API_KEY``), sent as ``x-api-key`` on every
 request to the host of ``SPACE_URL``.  It never authenticates a user and never touches an organization or an api key.
 
-This is the one module allowed to call SPACE's HTTP API directly (the constitution 16.1 exception of ADR 0022,
-``docs/adr/0022-lab-bootstrap-exception-to-constitution-16-1.md``): ``space-python-client`` has no service operation.
+This is the one module allowed to call SPACE's HTTP API directly: ``space-python-client`` has no service operation.
 Contracts go through the client.  The tool imports nothing from the gateway, reads no variable of SPHERE, holds no
 SPHERE key and sends nothing to SPHERE (SPACE reads the public link itself).  It never writes a file and never
 prints, logs or raises the api key: error messages are built from the item, method, route, status code or exception
@@ -31,8 +30,6 @@ from typing import Any
 import httpx
 from space_client import SpaceApiError, SpaceClientFactory
 
-# [impl->req~lab-space-remote-bootstrap~1]
-# [impl->req~lab-space-remote-bootstrap-secrets~1]
 DEFAULT_SPACE_URL = "https://space.score.us.es"
 SPHERE_LINK = "https://sphere.score.us.es/p/6ab0a323697330667ccce891"
 SERVICE_NAME = "openbinding"
@@ -56,8 +53,6 @@ class BootstrapError(Exception):
     """A step failed; the message names the item and never carries a response body, header or secret."""
 
 
-# [impl->req~lab-space-remote-bootstrap~1]
-# [impl->req~lab-space-remote-bootstrap-secrets~1]
 @dataclass(frozen=True)
 class Config:
     space_url: str
@@ -259,7 +254,6 @@ async def _contracts(contracts: Any, config: Config, version: str) -> dict[str, 
     return result
 
 
-# [impl->req~lab-space-remote-bootstrap-secrets~1]
 def _connect(config: Config, key: str) -> Any:
     failure = None
     _scrub_proxy_environment()  # the SDK builds an httpx client that would read them, nothing is restored
@@ -280,7 +274,6 @@ async def _close(sdk: Any, *, quiet: bool = False) -> None:
         raise BootstrapError(f"contracts: closing the SPACE client failed ({failure})")
 
 
-# [impl->req~lab-space-remote-bootstrap~1]
 async def bootstrap(config: Config, *, transport: httpx.AsyncBaseTransport | None = None, contracts: Any = None,
                     sleep: Callable[[float], Any] = asyncio.sleep) -> dict[str, Any]:
     # The HTTP sequence comes from the documentation of SPACE's main branch and is UNVERIFIED against a live v1.7.1.
@@ -334,8 +327,6 @@ async def bootstrap(config: Config, *, transport: httpx.AsyncBaseTransport | Non
     return report
 
 
-# [impl->req~lab-space-remote-bootstrap~1]
-# [impl->req~lab-space-remote-bootstrap-secrets~1]
 def main(argv: Sequence[str] | None = None, environ: Mapping[str, str] | None = None) -> int:
     _scrub_proxy_environment()  # before any client is built, whatever the mapping given for the configuration
     try:

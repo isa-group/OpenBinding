@@ -22,7 +22,6 @@ const UNITS = { latency: 'ms', cost: 'EUR', load: null, fee: 'EUR' };
 const VIOLATIONS = [{ constraint: ref('cost-band'), enforcement: 'soft', penalty: 2.5 }];
 
 describe('qosBoundsOf', () => {
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('turns comparisons of one quality with a number into bounds, flipping a number on the left', () => {
     const { bounds } = qosBoundsOf(QOS, FEATURES, VIOLATIONS, UNITS);
     expect(bounds).toEqual([
@@ -33,7 +32,6 @@ describe('qosBoundsOf', () => {
     expect(bounds[0]).not.toHaveProperty('penalty');
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('turns other rules into text, with their condition', () => {
     const { rules } = qosBoundsOf(QOS, FEATURES, VIOLATIONS, UNITS);
     expect(rules).toEqual([
@@ -44,7 +42,6 @@ describe('qosBoundsOf', () => {
     expect(bounds.some((b) => b.rule === 'busy-latency')).toBe(false);
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('keeps shapes that are not a bound as text', () => {
     const asserts = [
       cmp('eq', x('latency'), lit(600)),
@@ -74,7 +71,6 @@ describe('qosBoundsOf', () => {
     expect(rules.map((r) => r.rule)).toEqual(asserts.map((_, i) => `r${i}`));
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('never splits a mixed conjunction and flattens nested ones', () => {
     const mixed = rule('mixed', 'hard', lit(true), and(cmp('lte', x('latency'), lit(600)), cmp('eq', x('region'), lit('eu'))));
     const nested = rule('nested', 'hard', lit(true),
@@ -86,7 +82,6 @@ describe('qosBoundsOf', () => {
     expect(bounds.map((b) => [b.rule, b.op, b.limit])).toEqual([['nested', 'gte', 1], ['nested', 'lte', 9], ['nested', 'lt', 700]]);
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('takes the status from the gateway, not from the value', () => {
     const one = [QOS[0]];
     const first = qosBoundsOf(one, { latency: 700 }, [], UNITS).bounds[0];
@@ -96,7 +91,6 @@ describe('qosBoundsOf', () => {
     expect(second).not.toHaveProperty('penalty');
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it.each([undefined, null, {}])('reads %j violations as not checked', (violations) => {
     const { bounds, rules } = qosBoundsOf(QOS, FEATURES, violations, UNITS);
     expect(bounds).toHaveLength(3);
@@ -107,7 +101,6 @@ describe('qosBoundsOf', () => {
     }
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('reports violations of rules the compiled problem does not hold', () => {
     const violations = [
       { constraint: ref('edge-capacity', 'placement'), enforcement: 'hard', penalty: 0, message: 'Pool edge over capacity' },
@@ -123,7 +116,6 @@ describe('qosBoundsOf', () => {
     expect(mixed.rules.map((r) => r.rule)).toEqual(['busy-latency', 'bundle-cost', 'edge-capacity', 'core-capacity']);
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('matches a violation by resource and id', () => {
     const { bounds, rules } = qosBoundsOf([QOS[0]], FEATURES, [{ constraint: ref('max-latency', 'other'), enforcement: 'hard', penalty: 0 }], UNITS);
     expect(bounds[0].met).toBe(true);
@@ -132,7 +124,6 @@ describe('qosBoundsOf', () => {
     ]);
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('leaves unexpected input out without throwing', () => {
     const empty = { bounds: [], rules: [] };
     expect(qosBoundsOf('x', null, null)).toEqual(empty);
@@ -141,7 +132,6 @@ describe('qosBoundsOf', () => {
     expect(qosBoundsOf(junk, null, [null, { constraint: {} }, { enforcement: 'hard' }])).toEqual(empty);
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it.each([{ latency: 'fast' }, {}, undefined])('gives a missing value as null (%j)', (features) => {
     expect(qosBoundsOf([QOS[0]], features, [], UNITS).bounds[0].value).toBeNull();
   });

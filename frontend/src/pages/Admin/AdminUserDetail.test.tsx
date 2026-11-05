@@ -250,7 +250,6 @@ describe('admin-user-detail · one account', () => {
     expect(await screen.findByText('No such API key (404)')).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-retire-sponsorship-entry-points-removed~1]
   it('offers no Organizations card and no way to the sponsorship screen, and keeps the key form', async () => {
     open();
     await ready();

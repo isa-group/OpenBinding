@@ -178,7 +178,6 @@ function SetupTab({ scope, runs, versions, onPick, busy }: {
             </div>
           </>
         ) : (
-          // [impl->req~frontend-studies-source-tab~1]
           <SourceView source={study.definition} label="Study definition source" filename={`${study.slug}.definition.json`} />
         )}
       </TabPanel>
@@ -190,7 +189,6 @@ function NoRuns() {
   return <p className="org-muted">This study has no run yet. Start one with Run study; its progress and results appear here.</p>;
 }
 
-// [impl->req~frontend-nav-study-page~1]
 function DetailBody({ scope, tab }: { scope: StudyScopeValue; tab: StudyTabId | undefined }) {
   const { study, organization, project, access, root, reloadStudy } = scope;
   const org = organization.slug;
@@ -418,7 +416,6 @@ function EditDialog({ study, org, project, onClose, onSaved }: { study: Study; o
  * One study (`study-detail`, `/app/:org/:project/studies/:study/:tab?`): Setup (the definition), Progress, Results and Publish of the study run
  * named by `?run=` (the latest when none). Any other tab is a page that does not exist.
  */
-// [impl->req~frontend-nav-study-page~1]
 export function StudyDetail() {
   const { tab } = useParams();
   if (tab !== undefined && !isStudyTab(tab)) return <NotFoundScreen />;

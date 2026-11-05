@@ -15,7 +15,6 @@ interface SourceViewProps {
 }
 
 /** The only place that may stringify an object source and render it in a `<pre>`: read-only, copyable, downloadable. */
-// [impl->req~frontend-rendering-source-view~1]
 export function SourceView({ source, label, language, filename, maxHeight }: SourceViewProps) {
   const { copy, status } = useCopy();
   const state = status();

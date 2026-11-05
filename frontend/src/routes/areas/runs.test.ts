@@ -17,20 +17,17 @@ const PROTOTYPE: Array<[string, string]> = [
 const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
 
 describe('area runs', () => {
-  // [utest->req~frontend-nav-route-areas~1]
   it('has 5 screens, with the ids and routes of the prototype', () => {
     expect(routesByArea.runs).toHaveLength(5);
     expect(routesByArea.runs.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
   });
 
-  // [utest->req~frontend-nav-vocabulary-urls~1]
   it('routes no path with a jobs segment, and names the segment once', () => {
     expect(routeDefinitions.map((definition) => definition.path).filter((path) => path.split('/').includes('jobs'))).toEqual([]);
     expect(RUNS_SEGMENT).toBe('runs');
     expect(RUN_HISTORY_PATH).toBe('/app/runs');
   });
 
-  // [utest->req~frontend-retire-library-screens-not-routed~1]
   it('keeps the generator lab', () => {
     expect(routeDefinitions.map((definition) => definition.id)).toContain('gen-lab');
   });
@@ -45,7 +42,6 @@ describe('area runs', () => {
   });
 
   describe('address resolution', () => {
-    // [utest->req~frontend-nav-route-areas~1]
     it.each([
       ['/app/runs', 'job-history'],
       ['/app/generator', 'gen-lab'],
@@ -70,7 +66,6 @@ describe('the moved addresses of the runs area', () => {
   const entry = (path: string) => moves.find((route) => route.path === path);
   const target = (path: string, search = '', given = params) => entry(path)?.target(new URLSearchParams(search), given);
 
-  // [utest->req~frontend-nav-vocabulary-urls~1]
   it('declares the history, list, launcher and run addresses, with ids of their own', () => {
     expect(moves.map((route) => route.path)).toEqual([HISTORY, LIST, LAUNCH, RUN]);
     expect(moves.map((route) => route.id)).toEqual(['job-history-moved', 'job-list-moved', 'job-launch-moved', 'job-moved']);
@@ -81,7 +76,6 @@ describe('the moved addresses of the runs area', () => {
     }
   });
 
-  // [utest->req~frontend-nav-vocabulary-urls~1]
   it('moves each address to /runs, keeping the run, the query and the hash', () => {
     expect(target(HISTORY)).toBe('/app/runs');
     expect(target(HISTORY, 'status=failed')).toBe('/app/runs?status=failed');
@@ -94,7 +88,6 @@ describe('the moved addresses of the runs area', () => {
     expect(followMoved('/app/acme/atlas/jobs/j1?x=1#top', routeDefinitions, movedRoutes)).toBe('/app/acme/atlas/runs/j1?x=1#top');
   });
 
-  // [utest->req~frontend-nav-vocabulary-urls~1]
   it('lets the static launcher address win over the run entry, each in one hop', () => {
     const table = [...config, ...movedRoutes.map((route) => ({ id: `moved:${route.id}`, path: route.path }))];
     const entryOf = (address: string) => matchRoutes(table, address)?.at(-1)?.route.id;
@@ -114,7 +107,6 @@ describe('the moved addresses of the runs area', () => {
     }
   });
 
-  // [utest->req~frontend-nav-vocabulary-urls~1]
   it('does not collide with the study run addresses', () => {
     expect(movedRoutes.filter((route) => route.path.includes('/studies/')).map((route) => route.path)).toEqual([
       '/app/:org/:project/studies/:study/runs/:run',

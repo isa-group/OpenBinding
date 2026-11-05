@@ -79,7 +79,6 @@ interface AccountKeyNewProps {
 }
 
 /** New API key: a five-step wizard in a dialog over the API keys section, open at `/app/account/keys?create=key`. */
-// [impl->req~frontend-nav-account-sections~1]
 export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';

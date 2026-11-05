@@ -38,7 +38,6 @@ export function kindOf(action: string): AuditKind {
 }
 
 /** An action the list does not know, as words of the interface: `binding_case.created` reads “Binding problem created”. */
-// [impl->req~frontend-nav-vocabulary-text~1]
 function humanize(action: string): string {
   const words = inInterfaceWords(action.replace(/[._]+/g, ' ').trim());
   return words.charAt(0).toUpperCase() + words.slice(1);
@@ -105,7 +104,6 @@ function detailValue(value: unknown): DetailValue {
 }
 
 /** The detail of an event as typed rows, so the page draws it without ever stringifying a value. */
-// [impl->req~frontend-audit-detail-rendered~1]
 export function detailRows(detail: Record<string, unknown> | null | undefined, skip: readonly string[] = []): DetailRow[] {
   return Object.entries(detail ?? {})
     .filter(([key]) => !skip.includes(key))

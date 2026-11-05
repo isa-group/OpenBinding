@@ -35,7 +35,6 @@ interface ProjectCreateProps {
 }
 
 /** New project: the dialog `New project`, open at `/app/:org?create=project`. Name, address, description and who can see it. */
-// [impl->req~frontend-nav-create-dialogs~1]
 export function ProjectCreate({ onClose, onCreated }: ProjectCreateProps) {
   const context = useOutletContext<PlatformOutletContext>();
   const { org: orgSlug = '' } = useParams();
