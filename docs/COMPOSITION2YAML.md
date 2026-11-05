@@ -586,6 +586,38 @@ any of this machinery — it reuses the container's:
   `catalog`, `routing`, `constraints`, `optimization`. Naming the catalog anything else
   produces a semantically identical package with a different digest and no hint why.
 
+### 11.1 The golden set the next phase is measured against
+
+Phase F1 must reproduce an existing package exactly, and the repository holds more than
+one answer to "exactly". Decided in review: the **live normalized golden**,
+`bim-toolchain/golden/bim_normalized/corpus.json`.
+
+Three facts make that choice cheap rather than brave:
+
+- **The pipeline already compares against it.** The gateway keeps a byte copy in a
+  directory named `bim_baseline`, and those bytes are the normalized corpus, not the
+  frozen one: `test_bim_baseline.py` asserts the two files are byte-identical, the
+  informative members included. Naming the live golden therefore changes no test and no
+  job -- it writes down what the pipeline already enforces.
+- **The newest frozen set could not gate a package anyway.**
+  `golden/bim_baseline_1_1_1` records engine-mode compatibility per package, the one
+  recorded move of an Engine and the protocol digests. It carries no corpus document and
+  no semantic digest at all, so it never held the thing a compiler would be compared
+  with. The three-way choice was a two-way one.
+- **"Live" is not "a moving target."** Only the informative `toolchain` members
+  (`compilerDigest`, `irDigest`) are ever refreshed, by
+  `bim-toolchain/tools/regen_normalized_metadata.py`, which refuses to write unless the
+  semantic digests, the section digests, the evaluations, the binding spaces and
+  `zip_equivalence.json` are the recorded ones, and then verifies that every changed line
+  holds one of those two members. The baseline comparison strips them before comparing.
+  What a compiler has to reproduce is exactly the part that cannot be rebaked.
+
+The frozen baselines keep their own job, and it is not this one: `golden/bim_baseline` and
+`golden/ir_previous` record the previous IR and are never recomputed, which is what makes
+them evidence of what moved between toolchain versions. Normalization moved the semantic
+digest of 64 of the 82 packages -- a figure a test pins -- so implementing against a
+frozen baseline is the mistake that looks like a compiler bug and never goes green.
+
 ## 12. What this version deliberately cannot say
 
 Each omission is a reviewable decision, not a gap. Three of them are forced by the only
@@ -765,14 +797,14 @@ decision on it — recorded as an open question in `docs/FMS_CASE.md`.
 
 ## 16. Open questions for review
 
-1. **Which golden set** the F1 gate means. The repository carries a live normalized
-   golden, a frozen baseline and a newer frozen baseline; the first two disagree for 64
-   of 82 packages. Recommendation: the live normalized one.
-2. **The virtual dialect** of section 13: accept it for this version, or pay for the
+Which golden set the F1 gate means was answered in review -- the live normalized one, for
+the reasons in section 11.1. These are the rest.
+
+1. **The virtual dialect** of section 13: accept it for this version, or pay for the
    faithful reading.
-3. **Which corpus packages must round trip.** Placement rules out two; dropping
+2. **Which corpus packages must round trip.** Placement rules out two; dropping
    `scope: selectedCandidate` rules out a third.
-4. **The orchestrator task** (`R` above): is an orchestrator a task with candidates, or
+3. **The orchestrator task** (`R` above): is an orchestrator a task with candidates, or
    is it the composition itself? The guiding case models it both ways across versions.
-5. **The relationship with the four existing high-level-to-package compilers** already in
+4. **The relationship with the four existing high-level-to-package compilers** already in
    the repository: absorb them, delegate to them, or coexist.

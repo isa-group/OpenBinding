@@ -25,10 +25,13 @@ import pytest
 
 from _repo import REPO_ROOT
 
-#: The live golden the toolchain recomputes. The frozen baselines beside it record an
-#: older IR and disagree with it for most of the corpus, so a compiler must reproduce
-#: THIS one. Implementing against a frozen baseline is the mistake that looks like a
-#: compiler bug and never passes.
+#: The golden the phase F1 gate means, decided in review (specification section 11.1):
+#: the live normalized one. The frozen baselines beside it record an older IR and
+#: disagree with it for 64 of the 82 packages, so a compiler must reproduce THIS one --
+#: implementing against a frozen baseline is the mistake that looks like a compiler bug
+#: and never passes. Only its informative ``toolchain`` members are ever refreshed, and
+#: ``test_bim_baseline.py`` pins the gateway's byte copy of this very file, so naming it
+#: here records what the pipeline already enforces instead of adding a second target.
 NORMALIZED_CORPUS = REPO_ROOT / "bim-toolchain" / "golden" / "bim_normalized" / "corpus.json"
 
 #: The guiding case, version 1, as the live golden records it.
