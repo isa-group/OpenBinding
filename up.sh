@@ -2,14 +2,13 @@
 # Start the complete OpenBinding stack. SPACE and SPHERE are remote services
 # configured through .env; nothing of them is deployed locally.
 #
-#   ./up.sh                 OpenBinding; contract operations wait for active pricing
-#   PROFILE=prod ./up.sh    production Compose profile
+#   ./up.sh                 OpenBinding (development profile); contract operations wait for active pricing
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$repo"
 
-profile="${PROFILE:-${COMPOSE_PROFILES:-dev}}"
+profile=dev
 if [ "$#" -gt 0 ]; then
   printf 'Usage: %s\n' "$0" >&2
   exit 2

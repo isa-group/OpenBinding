@@ -200,9 +200,9 @@ def test_destructive_key_is_not_referenced() -> None:
 
 def test_remote_space_defaults_without_keys() -> None:
     services = _compose()["services"]
-    # Production services default to the real SPACE (APP_ENV=prod refuses the
-    # open gate); the development ones default to the stateless open gate.
-    defaults = {"gateway": "true", "worker": "true", "gateway-dev": "false", "worker-dev": "false"}
+    # The development services default to the stateless open gate; production (deploy/compose/production)
+    # sets SPACE_ENABLED itself.
+    defaults = {"gateway-dev": "false", "worker-dev": "false"}
     for name, enabled in defaults.items():
         env = _env(services[name])
         assert env["SPACE_URL"] == "${SPACE_URL:-https://space.score.us.es}", name
