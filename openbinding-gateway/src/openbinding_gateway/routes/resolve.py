@@ -732,7 +732,8 @@ async def resolve_element(
                 project=None,
                 element_id=str(snap.id),
                 slug=snap.name,
-                version_or_revision=snap.package_digest[:12],
+                # A snapshot has no version: its digest is shown once, by the Verify result, never as a version.
+                version_or_revision=None,
                 created_at=snap.created_at,
                 web_url=await _snapshot_web_url(session, snap, user, accessible_orgs),
             )
