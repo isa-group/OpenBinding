@@ -217,6 +217,7 @@ JOB_FAILURES: Mapping[str, str] = {
     "engine_unreachable": "The engine could not be reached.",
     "engine_timeout": "The engine did not answer in time.",
     "engine_rejected": "The engine rejected the request.",
+    "engine_incompatible": "The engine does not support a construct or option of this problem.",
     "engine_protocol_error": "The engine answered in a form the gateway cannot accept.",
     "engine_failed": "The engine reported that it could not solve the problem.",
     "engine_endpoint_invalid": "The engine endpoint is not acceptable under the network policy of the gateway.",
