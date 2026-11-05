@@ -19,7 +19,6 @@ export const OPENER = 'data-create-opener';
  * not reopen the dialog. Once the dialog is gone the focus is back on the control that opened it (the Modal does that) or, when the address
  * opened the dialog, on the control that opens it.
  */
-// [impl->req~frontend-nav-new-menu~1]
 export function useCreateDialog(kind: CreateKind, closeTo: string, allowed: boolean) {
   const [params] = useSearchParams();
   const navigate = useNavigate();

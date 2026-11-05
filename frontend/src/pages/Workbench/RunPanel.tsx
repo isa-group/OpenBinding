@@ -11,8 +11,6 @@ import { refusesRanges } from './workbenchModel';
 import type { Workbench } from './useWorkbench';
 
 /** Solve the package with an engine: which mode, and the evaluated answer. */
-// [impl->req~frontend-rendering-workbench-run-result~1]
-// [impl->req~frontend-rendering-run-result-allow-list~1]
 export function RunPanel({ wb, orgSlug, jobsHref }: { wb: Workbench; orgSlug: string; jobsHref: string }) {
   const loaded = useRunProblem(wb.resultJobId, Boolean(wb.result));
   // A run with no job id has no compiled problem to wait for.

@@ -268,7 +268,7 @@ per interval, medians per round:
 
 | Load | 5 ms (default) | 1 ms | 0.1 ms |
 | --- | --- | --- | --- |
-| synthetic pure Python (analysis test; earlier runs, `docs/qa/analysis/BIM_B5_B8_M4_IR.md`) | 60-118 ms | 21-34 ms | 3.6-6.4 ms |
+| synthetic pure Python (analysis test; earlier runs) | 60-118 ms | 21-34 ms | 3.6-6.4 ms |
 | real `/evaluate`, 1000 bindings of the demo IR (last run) | 34.3, 35.9, 43.9 ms | 26.7, 17.8, 18.8 ms | 9.4, 9.0, 7.7 ms |
 | the same, previous run | 26.3, 80.5, 40.1 ms | 24.3, 22.2, 31.9 ms | 6.5, 9.4, 7.0 ms |
 | real `/compile`, demo package (last run) | 2.2, 4.1, 2.1 ms | 2.2, 2.8, 2.6 ms | 2.0, 2.0, 2.5 ms |
@@ -435,7 +435,7 @@ resident size; client and service share one process):
   conservative figures of the probe) and `capabilities` publishes the profile. `lab_compose metrics` before the load:
   parent (PID 1) RSS 61.6 MB, workers 54.7 and 54.1 MB, cgroup `memory.current` 127156224 of 268435456, `oom_kill` 0; after the
   probe: parent 67.6 MB (peak 68.9), workers 53.8 and 53.5 MB (pids 45 and 47 against 10 and 11 at the start: replaced by the
-  real timeout), cgroup 133955584, `oom_kill` 0, 6 pids. The acceptance probe ran with exit 0 (`docs/qa/PROCESS_PROBE.md`).
+  real timeout), cgroup 133955584, `oom_kill` 0, 6 pids. The acceptance probe ran with exit 0.
   The 6 MiB profile (N=1) was not needed and was not deployed.
 
 **What process mode does not do.** It does not make the service faster per request (see the single-request note above) and
@@ -705,7 +705,7 @@ a request is the identity of the caller.
   `CLIENT.md`). The file is read at start only.
 
 The rotation, saturation and memory behaviour is exercised locally (in process, no real load) by
-`packages/bim-service/tests/test_rotation_and_saturation.py`; `docs/qa/BIM_LOAD.md` lists what is and is not measured.
+`packages/bim-service/tests/test_rotation_and_saturation.py`.
 
 `GET /healthz` and `/readyz` need no token and reveal nothing (no version, no digest, no configuration).
 

@@ -39,7 +39,6 @@ describe('reading an engine manifest', () => {
     expect(mode?.limits).toEqual([['maxIterations', 100000], ['maxTimeBudgetMs', 3600000]]);
   });
 
-  // [utest->req~frontend-registration-fixed-option-rendered~1]
   it('describes a fixed option as words: const, enum and any other keyword as keyword/value pairs', () => {
     expect(describeFixedOption({ const: 'tabu', default: 'tabu' })).toEqual({ summary: 'always tabu', pairs: [{ keyword: 'default', value: 'tabu' }] });
     expect(describeFixedOption({ enum: ['a', 'b', 3] })).toEqual({ summary: 'one of a, b, 3', pairs: [] });

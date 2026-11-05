@@ -6,7 +6,6 @@ test.use({ viewport: { width: 1280, height: 800 } });
 const opener = (page: import('@playwright/test').Page, name: string) => page.getByRole('button', { name, exact: true })
   .or(page.getByRole('link', { name, exact: true })).first();
 
-// [utest->req~frontend-nav-create-dialogs~1]
 test('New organization opens a dialog on /app and creating lab-two opens the new organization', async ({ page }) => {
   await mockApi(page);
   await page.goto('/app');
@@ -22,7 +21,6 @@ test('New organization opens a dialog on /app and creating lab-two opens the new
   await expect.poll(() => pathAndSearch(page)).toBe('/app/lab-two');
 });
 
-// [utest->req~frontend-nav-create-dialogs~1]
 test('cancelling the organization dialog returns to /app, restores focus and creates nothing', async ({ page }) => {
   const requests = await mockApi(page);
   await page.goto('/app?create=organization');
@@ -35,7 +33,6 @@ test('cancelling the organization dialog returns to /app, restores focus and cre
   expect(requests.filter((request) => request.method === 'POST')).toEqual([]);
 });
 
-// [utest->req~frontend-nav-create-dialogs~1]
 test('New project opens a dialog on the organization overview and creating demo-two opens the project', async ({ page }) => {
   await mockApi(page);
   await page.goto('/app/acme');
@@ -50,7 +47,6 @@ test('New project opens a dialog on the organization overview and creating demo-
   await expect.poll(() => pathAndSearch(page)).toBe('/app/acme/demo-two');
 });
 
-// [utest->req~frontend-nav-create-dialogs~1]
 test('old creation addresses land on the open dialogs', async ({ page }) => {
   await mockApi(page);
   await page.goto('/app/organizations/new');

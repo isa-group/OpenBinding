@@ -38,7 +38,6 @@ export interface BindingProblemShape {
 const isPlainObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** The features of the problem in declaration order, each with its unit; `[]` without a problem. */
-// [impl->req~frontend-rendering-binding-table~1]
 export function bindingFeaturesOf(problem: BindingProblemShape | null): BindingFeature[] {
   if (!problem) return [];
   return Object.entries(problem.features).map(([name, feature]) => ({ name, unit: feature.unit }));
@@ -48,7 +47,6 @@ export function bindingFeaturesOf(problem: BindingProblemShape | null): BindingF
  * One row per task of a solution's `decision.binding`, with the chosen candidate's own declared values. Tasks the problem knows
  * come first in its order, then the others in binding order. Malformed input leaves rows out, never guesses and never throws.
  */
-// [impl->req~frontend-rendering-binding-table~1]
 export function bindingRowsOf(binding: unknown, problem: BindingProblemShape | null): BindingRow[] {
   if (!isPlainObject(binding)) return [];
   const chosen = new Map<string, string>();

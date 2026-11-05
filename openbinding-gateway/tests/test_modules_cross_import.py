@@ -118,14 +118,12 @@ def _check(source: str, path: str) -> list[tuple[int, str]]:
     return cross_module_violations(source, PurePosixPath(path))
 
 
-# [utest->req~gateway-architecture-application-only~1]
 def test_another_modules_domain_is_flagged_with_file_line_and_module() -> None:
     source = f"from {MODULES}.execution.domain import run\n"
 
     assert _check(source, "modules/laboratory/application/runs.py") == [(1, f"{MODULES}.execution.domain")]
 
 
-# [utest->req~gateway-architecture-application-only~1]
 def test_adapters_application_internals_and_package_root_are_flagged() -> None:
     source = "\n".join(
         [
@@ -141,14 +139,12 @@ def test_adapters_application_internals_and_package_root_are_flagged() -> None:
     assert [line for line, _ in _check(source, "services/probe.py")] == [1, 2, 3, 4, 5, 6]
 
 
-# [utest->req~gateway-architecture-application-only~1]
 def test_a_bare_import_of_a_sibling_modules_internals_is_flagged() -> None:
     source = f"import {MODULES}.repository\n"
 
     assert _check(source, "modules/publishing/application/cite.py") == [(1, f"{MODULES}.repository")]
 
 
-# [utest->req~gateway-architecture-application-only~1]
 def test_another_modules_application_is_allowed() -> None:
     source = "\n".join(
         [
@@ -162,7 +158,6 @@ def test_another_modules_application_is_allowed() -> None:
     assert _check(source, "services/probe.py") == []
 
 
-# [utest->req~gateway-architecture-application-only~1]
 def test_relative_imports_are_resolved_at_any_nesting_level() -> None:
     source = "\n".join(
         [
@@ -180,7 +175,6 @@ def test_relative_imports_are_resolved_at_any_nesting_level() -> None:
     ]
 
 
-# [utest->req~gateway-architecture-application-only~1]
 def test_same_module_imports_are_exempt_absolute_and_relative() -> None:
     source = "\n".join(
         [
@@ -194,14 +188,12 @@ def test_same_module_imports_are_exempt_absolute_and_relative() -> None:
     assert _check(source, "modules/laboratory/application/runs.py") == []
 
 
-# [utest->req~gateway-architecture-application-only~1]
 def test_a_module_importing_a_sibling_module_is_flagged() -> None:
     source = "from ...execution.domain import run\nfrom ...execution.application import api\n"
 
     assert _check(source, "modules/laboratory/application/runs.py") == [(1, f"{MODULES}.execution.domain")]
 
 
-# [utest->req~gateway-architecture-application-only~1]
 def test_main_and_the_app_package_are_exempt_but_app_py_and_application_py_are_not() -> None:
     source = f"from {MODULES}.engines.adapters import router\n"
     flagged = [(1, f"{MODULES}.engines.adapters")]
@@ -215,7 +207,6 @@ def test_main_and_the_app_package_are_exempt_but_app_py_and_application_py_are_n
     assert _check(source, "routes/main.py") == flagged
 
 
-# [utest->req~gateway-architecture-application-only~1]
 def test_unrelated_imports_and_the_modules_package_itself_are_not_cross_imports() -> None:
     source = f"import json\nfrom ..db import models\nimport {MODULES}\nfrom {PACKAGE} import routes\n"
 
@@ -229,7 +220,6 @@ def _plant(root: Path, files: dict[str, str]) -> None:
         path.write_text(text, encoding="utf-8")
 
 
-# [utest->req~gateway-architecture-application-only~1]
 def test_a_submodule_of_another_modules_application_is_flagged_but_an_object_is_not(tmp_path: Path) -> None:
     _plant(
         tmp_path,
@@ -248,7 +238,6 @@ def test_a_submodule_of_another_modules_application_is_flagged_but_an_object_is_
     ]
 
 
-# [utest->req~gateway-architecture-application-only~1]
 def test_violations_in_tree_reports_file_line_and_module(tmp_path: Path) -> None:
     _plant(
         tmp_path,
@@ -263,14 +252,12 @@ def test_violations_in_tree_reports_file_line_and_module(tmp_path: Path) -> None
     ]
 
 
-# [utest->req~gateway-architecture-application-only~1]
 def test_a_tree_without_modules_has_no_violations(tmp_path: Path) -> None:
     _plant(tmp_path, {"routes/health.py": "import json\n"})
 
     assert violations_in_tree(tmp_path) == []
 
 
-# [utest->req~gateway-architecture-application-only~1]
 def test_aliased_imports_are_reported_by_the_imported_name() -> None:
     source = "\n".join(
         [
@@ -287,7 +274,6 @@ def test_aliased_imports_are_reported_by_the_imported_name() -> None:
     ]
 
 
-# [utest->req~gateway-architecture-application-only~1]
 def test_conditional_and_class_body_imports_are_flagged() -> None:
     source = "\n".join(
         [
@@ -310,7 +296,6 @@ def test_conditional_and_class_body_imports_are_flagged() -> None:
     ]
 
 
-# [utest->req~gateway-architecture-application-only~1]
 def test_the_package_wide_rule_passes_on_the_real_tree() -> None:
     assert any(SOURCE.rglob("*.py")), "the gateway package has no Python files to check"
     offenders = violations_in_tree(SOURCE)

@@ -9,18 +9,12 @@ import { RETIRED_ROUTES, type RetiredRoute } from './retiredRoutes';
 import { SessionLayout } from './SessionLayout';
 import type { RouteDefinition } from './types';
 
-// [impl->req~frontend-retire-redirect-generic~1]
-// [impl->req~frontend-retire-reports-redirect~1]
-// [impl->req~frontend-retire-library-redirect~1]
-// [impl->req~frontend-retire-composer-redirect~1]
-// [impl->req~frontend-retire-sponsorship-redirect~1]
 function RetiredRedirect({ route }: { route: RetiredRoute }) {
   const [query] = useSearchParams();
   const params = useParams();
   return <Navigate to={route.target(query, params)} replace />;
 }
 
-// [impl->req~frontend-nav-redirects~1]
 function MovedRedirect({ route }: { route: MovedRoute }) {
   const [query] = useSearchParams();
   const params = useParams();

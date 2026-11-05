@@ -280,7 +280,6 @@ async def update_user(
     # Only a real change is recorded, as one event carrying every field that
     # moved. A refused request never reaches this point, so it leaves nothing.
     changes: dict[str, dict[str, Any]] = {}
-    # [impl->req~auth-roles-entitlements-account-lifecycle-without-proposals~1]
     if request.is_active is not None and request.is_active != user.is_active:
         changes["is_active"] = {"from": user.is_active, "to": request.is_active}
         user.is_active = request.is_active

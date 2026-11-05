@@ -46,7 +46,6 @@ afterEach(() => {
 });
 
 describe('SourceView', () => {
-  // [utest->req~frontend-rendering-source-view~1]
   it('shows a string source as is, keeping its line breaks, in a region named by the label', () => {
     render(<SourceView source={'line one\nline two'} label="BIM source" />);
 
@@ -56,7 +55,6 @@ describe('SourceView', () => {
     expect(pre?.querySelector('code')?.textContent).toBe('line one\nline two');
   });
 
-  // [utest->req~frontend-rendering-source-view~1]
   it('pretty-prints an object source as JSON with two spaces', () => {
     const source = { a: 1, nested: { b: [true] } };
     render(<SourceView source={source} label="Problem" />);
@@ -64,7 +62,6 @@ describe('SourceView', () => {
     expect(document.querySelector('pre code')?.textContent).toBe(JSON.stringify(source, null, 2));
   });
 
-  // [utest->req~frontend-rendering-source-view~1]
   it('says Empty for an empty source and offers nothing to show', () => {
     render(<SourceView source="" label="Problem" />);
 
@@ -72,14 +69,12 @@ describe('SourceView', () => {
     expect(document.querySelector('pre code')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-source-view~1]
   it('exposes the language as a data attribute', () => {
     render(<SourceView source="x" label="Problem" language="json" />);
 
     expect(screen.getByRole('region', { name: 'Problem' })).toHaveAttribute('data-language', 'json');
   });
 
-  // [utest->req~frontend-rendering-source-view~1]
   it('copies the full text and announces it in a status region', async () => {
     render(<SourceView source={{ k: 'v' }} label="Problem" />);
 
@@ -90,7 +85,6 @@ describe('SourceView', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Problem copied'));
   });
 
-  // [utest->req~frontend-rendering-source-view~1]
   it('says so when the clipboard refuses', async () => {
     writeText.mockRejectedValue(new Error('denied'));
     render(<SourceView source="x" label="Problem" />);
@@ -100,14 +94,12 @@ describe('SourceView', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Could not copy the Problem'));
   });
 
-  // [utest->req~frontend-rendering-source-view~1]
   it('offers no download without a filename', () => {
     render(<SourceView source="x" label="Problem" />);
 
     expect(screen.queryByRole('button', { name: 'Download Problem' })).not.toBeInTheDocument();
   });
 
-  // [utest->req~frontend-rendering-source-view~1]
   it('downloads a text source as text/plain through a temporary anchor and revokes the URL later', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout'] });
     render(<SourceView source="plain" label="Problem" filename="problem.txt" />);
@@ -125,7 +117,6 @@ describe('SourceView', () => {
     expect(anchorClick.mock.invocationCallOrder[0]).toBeLessThan(revokeObjectURL.mock.invocationCallOrder[0]);
   });
 
-  // [utest->req~frontend-rendering-source-view~1]
   it('downloads an object source as pretty-printed application/json', async () => {
     render(<SourceView source={{ a: 1 }} label="Problem" filename="problem.json" />);
 
@@ -138,7 +129,6 @@ describe('SourceView', () => {
     expect(anchor.download).toBe('problem.json');
   });
 
-  // [utest->req~frontend-rendering-source-view~1]
   it('is reachable by keyboard: a focusable pre and buttons that are not removed from the tab order', () => {
     render(<SourceView source="x" label="Problem" filename="p.txt" />);
 
@@ -149,7 +139,6 @@ describe('SourceView', () => {
     }
   });
 
-  // [utest->req~frontend-rendering-source-view~1]
   it('does not rely on colour alone: the copy outcome is also text', async () => {
     render(<SourceView source="x" label="Problem" />);
 
@@ -158,14 +147,12 @@ describe('SourceView', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Copy Problem' })).toHaveTextContent('Copied'));
   });
 
-  // [utest->req~frontend-rendering-source-view~1]
   it('applies maxHeight to the scrolling area', () => {
     render(<SourceView source="x" label="Problem" maxHeight="10rem" />);
 
     expect(document.querySelector('pre')?.getAttribute('style')).toContain('max-height: 10rem');
   });
 
-  // [utest->req~frontend-rendering-source-view~1]
   it('has no hard-coded hex colour in its stylesheet', () => {
     const css = readFileSync(join(process.cwd(), 'src/components/rendering/SourceView.css'), 'utf8');
 

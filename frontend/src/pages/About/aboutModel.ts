@@ -1,4 +1,4 @@
-import changelogJson from '../../content/changelog.generated.json';
+import changelogJson from '../../content/changelog.json';
 import {
   contributionTracks, fundingEntities, relatedProjects, researchCorpus, researchFacts, team,
   type ContributionTrack, type FundingEntity, type RelatedProject, type ResearchPaper, type TeamMember,
@@ -29,7 +29,7 @@ export interface AboutData {
   funding: readonly FundingEntity[];
   relatedProjects: readonly RelatedProject[];
   contributions: readonly ContributionTrack[];
-  /** Release streams by name, as written to changelog.generated.json. */
+  /** Release streams by name, as written to changelog.json. */
   changelog: Readonly<Record<string, readonly Release[]>>;
 }
 

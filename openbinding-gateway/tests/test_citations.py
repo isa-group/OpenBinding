@@ -172,18 +172,15 @@ def assert_nothing_invented(citation) -> None:
 # -- DOI, venue and authors: typed recorded values only -----------------------
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize("value", ["10.5281/zenodo.123", "10.1234/x", "10.123456789/a.b-c_d(1)", "10.1000/x}y"])
 def test_a_well_formed_doi_is_kept(value):
     assert citations().valid_doi(value) == value
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 def test_the_doi_resolver_prefix_is_removed():
     assert citations().valid_doi("https://doi.org/10.5281/zenodo.456") == "10.5281/zenodo.456"
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize(
     "value",
     [
@@ -222,7 +219,6 @@ def test_a_malformed_doi_is_dropped(value):
     assert citations().valid_doi(value) is None
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 def test_a_venue_is_a_non_empty_string():
     module = citations()
 
@@ -232,7 +228,6 @@ def test_a_venue_is_a_non_empty_string():
         assert module.valid_venue(value) is None, value
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 def test_authors_are_a_list_of_names():
     module = citations()
 
@@ -242,7 +237,6 @@ def test_authors_are_a_list_of_names():
         assert module.valid_authors(value) is None, value
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 def test_an_element_without_a_publication_has_no_doi_venue_or_author():
     citation = build()
 
@@ -255,8 +249,6 @@ def test_an_element_without_a_publication_has_no_doi_venue_or_author():
     assert_nothing_invented(citation)
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
-# [utest->req~resolver-verifier-citation-year~1]
 def test_a_recorded_publication_citation_is_reproduced():
     record = {"doi": "10.5281/zenodo.123", "venue": "V", "year": 2025, "authors": ["A. Researcher"]}
 
@@ -271,7 +263,6 @@ def test_a_recorded_publication_citation_is_reproduced():
     assert entry["year"] == "2025"
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 def test_the_bibtex_entry_keeps_its_layout():
     record = {"doi": "https://doi.org/10.5281/zenodo.123", "venue": "V", "year": 2025, "authors": ["A", "B"]}
 
@@ -300,7 +291,6 @@ def test_the_bibtex_entry_keeps_its_layout():
     )
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 def test_a_doi_with_the_resolver_prefix_is_returned_without_it():
     citation = build(publication=published({"doi": "https://doi.org/10.5281/zenodo.456"}))
 
@@ -308,7 +298,6 @@ def test_a_doi_with_the_resolver_prefix_is_returned_without_it():
     assert fields(citation)["doi"] == "10.5281/zenodo.456"
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 def test_a_malformed_doi_is_dropped_and_the_venue_kept():
     citation = build(publication=published({"doi": "not-a-doi", "venue": "V"}))
 
@@ -318,7 +307,6 @@ def test_a_malformed_doi_is_dropped_and_the_venue_kept():
     assert fields(citation)["howpublished"] == "V"
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize(
     "doi", [1234, "10.12/x", "10.1234567890/x", "10.5281/", "10.5281/zen odo", "10.5281/zenodo\n", None]
 )
@@ -330,7 +318,6 @@ def test_a_doi_of_the_wrong_type_or_shape_never_reaches_the_citation(doi):
     assert "doi" not in fields(citation)
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize("venue", ["", 7, None, "  "])
 def test_an_empty_or_non_string_venue_is_dropped(venue):
     citation = build(publication=published({"venue": venue}))
@@ -339,7 +326,6 @@ def test_an_empty_or_non_string_venue_is_dropped(venue):
     assert "howpublished =" not in citation.bibtex
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize("record", [None, {}, [], "10.5281/zenodo.1", 7])
 def test_without_a_recorded_citation_object_there_is_no_doi_or_venue(record):
     citation = build(publication=published(record), title="10.5281/zenodo.123", slug="V")
@@ -349,8 +335,6 @@ def test_without_a_recorded_citation_object_there_is_no_doi_or_venue(record):
     assert_nothing_invented(citation)
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
-# [utest->req~resolver-verifier-citation-year~1]
 def test_a_withdrawn_publication_is_not_cited():
     record = {"doi": "10.5281/zenodo.789", "venue": "V", "year": 2025, "authors": ["A. Researcher"]}
     withdrawn = published(record, withdrawn=True)
@@ -360,7 +344,6 @@ def test_a_withdrawn_publication_is_not_cited():
     assert (citation.doi, citation.venue, citation.authors, citation.year) == (None, None, [], 2022)
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 def test_authors_fall_back_to_the_recorded_username():
     citation = build(authors=["alice"])
 
@@ -368,7 +351,6 @@ def test_authors_fall_back_to_the_recorded_username():
     assert fields(citation)["author"] == "{alice}"
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize("recorded", ["A. Researcher", [1, 2], [], [""], None])
 def test_unusable_recorded_authors_fall_back_to_the_usernames(recorded):
     citation = build(publication=published({"authors": recorded}), authors=["alice"])
@@ -376,7 +358,6 @@ def test_unusable_recorded_authors_fall_back_to_the_usernames(recorded):
     assert citation.authors == ["alice"]
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize("authors", [None, [], [None], [""]])
 def test_authors_are_empty_when_none_is_recorded(authors):
     citation = build(authors=authors, publication=published({"venue": "V"}))
@@ -386,7 +367,6 @@ def test_authors_are_empty_when_none_is_recorded(authors):
     assert_nothing_invented(citation)
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 def test_a_name_containing_and_stays_one_author():
     citation = build(publication=published({"authors": ["Smith and Jones", "Doe"]}))
 
@@ -397,7 +377,6 @@ def test_a_name_containing_and_stays_one_author():
 # -- BibTeX: user-written text cannot leave its field ---------------------------
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize(
     "value,expected",
     [
@@ -428,13 +407,11 @@ FORMAT_CHARACTERS = [
 ]
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize("character", FORMAT_CHARACTERS, ids=lambda character: f"U+{ord(character):04X}")
 def test_bibtex_text_drops_unicode_format_characters(character):
     assert citations().bibtex_text(f"a{character}b") == "ab"
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 def test_a_bidi_override_in_a_recorded_value_never_reaches_the_bibtex():
     venue = "Proc.\N{RIGHT-TO-LEFT OVERRIDE} V\N{POP DIRECTIONAL FORMATTING}\N{ZERO WIDTH SPACE}"
     citation = build(publication=published({"venue": venue, "authors": ["A\N{RIGHT-TO-LEFT ISOLATE}lice"]}))
@@ -446,7 +423,6 @@ def test_a_bidi_override_in_a_recorded_value_never_reaches_the_bibtex():
     assert citation.venue == venue
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 def test_publisher_braces_cannot_break_out_of_a_field():
     citation = build(publication=published({"venue": "Proc. }, title = {X"}))
 
@@ -456,7 +432,6 @@ def test_publisher_braces_cannot_break_out_of_a_field():
     assert citation.venue == "Proc. }, title = {X"
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 def test_a_backslash_in_an_author_is_escaped():
     citation = build(publication=published({"authors": ["A. \\ Researcher"]}))
 
@@ -483,7 +458,6 @@ HOSTILE = [
 ]
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize("value", HOSTILE)
 @pytest.mark.parametrize("slot", ["title", "slug", "venue", "author", "username", "doi"])
 def test_a_hostile_value_leaves_one_entry_with_the_builders_fields_only(slot, value):
@@ -511,7 +485,6 @@ def test_a_hostile_value_leaves_one_entry_with_the_builders_fields_only(slot, va
         assert "\n" not in text, (name, text)
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize(
     "slug,expected",
     [
@@ -528,7 +501,6 @@ def test_the_citation_key_is_reduced_to_safe_characters(slug, expected):
     assert KEY.fullmatch(key)
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 def test_the_title_is_kept_as_given_outside_the_bibtex():
     citation = build(title="A {b} \\ c")
 
@@ -536,7 +508,6 @@ def test_the_title_is_kept_as_given_outside_the_bibtex():
     assert fields(citation)["title"] == r"A b \textbackslash{} c"
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize("kind", [*RESOLVABLE, None])
 @pytest.mark.parametrize("record", [None, {}, {"venue": "V", "doi": "10.5281/zenodo.1", "authors": ["A"]}])
 def test_no_constant_author_venue_doi_or_host_in_any_output(kind, record):
@@ -548,7 +519,6 @@ def test_no_constant_author_venue_doi_or_host_in_any_output(kind, record):
 # -- year: the first recorded date ----------------------------------------------
 
 
-# [utest->req~resolver-verifier-citation-year~1]
 def test_valid_year_is_an_integer_and_not_a_boolean():
     module = citations()
 
@@ -557,19 +527,16 @@ def test_valid_year_is_an_integer_and_not_a_boolean():
         assert module.valid_year(value) is None, value
 
 
-# [utest->req~resolver-verifier-citation-year~1]
 @pytest.mark.parametrize("year", [1000, 9999])
 def test_a_four_digit_year_is_kept(year):
     assert citations().valid_year(year) == year
 
 
-# [utest->req~resolver-verifier-citation-year~1]
 @pytest.mark.parametrize("year", [0, -5, 999, 10000, 10**4000], ids=["0", "-5", "999", "10000", "10**4000"])
 def test_a_year_outside_four_digits_is_not_a_year(year):
     assert citations().valid_year(year) is None
 
 
-# [utest->req~resolver-verifier-citation-year~1]
 @pytest.mark.parametrize("year", [0, -5, 999, 10000, 10**4000], ids=["0", "-5", "999", "10000", "10**4000"])
 def test_an_out_of_range_recorded_year_falls_through_to_the_publication_date(year):
     citation = build(publication=published({"year": year}))
@@ -578,7 +545,6 @@ def test_an_out_of_range_recorded_year_falls_through_to_the_publication_date(yea
     assert fields(citation)["year"] == str(PUBLISHED.year)
 
 
-# [utest->req~resolver-verifier-citation-year~1]
 def test_the_recorded_year_comes_first():
     publication = published({"year": 2025}, published_at=datetime(2026, 3, 1, tzinfo=timezone.utc))
 
@@ -590,7 +556,6 @@ def test_the_recorded_year_comes_first():
     assert citations().citation_year(CREATED, publication) == 2025
 
 
-# [utest->req~resolver-verifier-citation-year~1]
 def test_the_publication_date_gives_the_year_without_a_recorded_one():
     citation = build(publication=published({}))
 
@@ -599,7 +564,6 @@ def test_the_publication_date_gives_the_year_without_a_recorded_one():
     assert citations().citation_year(CREATED, published({})) == 2024
 
 
-# [utest->req~resolver-verifier-citation-year~1]
 @pytest.mark.parametrize("publication", [None, published({}, published_at=None)])
 def test_the_created_date_gives_the_year_without_a_publication_date(publication):
     citation = build(publication=publication)
@@ -609,7 +573,6 @@ def test_the_created_date_gives_the_year_without_a_publication_date(publication)
     assert citations().citation_year(CREATED, publication) == 2023
 
 
-# [utest->req~resolver-verifier-citation-year~1]
 @pytest.mark.parametrize("year", ["2025", True, False, 2025.0, None, [2025]])
 def test_a_non_integer_recorded_year_is_ignored(year):
     citation = build(publication=published({"year": year}))
@@ -618,7 +581,6 @@ def test_a_non_integer_recorded_year_is_ignored(year):
     assert fields(citation)["year"] == "2024"
 
 
-# [utest->req~resolver-verifier-citation-year~1]
 @pytest.mark.parametrize("year", [1999, 2031])
 def test_the_year_is_never_a_constant(year):
     citation = build(created_at=datetime(year, 1, 1, tzinfo=timezone.utc))
@@ -630,7 +592,6 @@ def test_the_year_is_never_a_constant(year):
 # -- url: the public permanent link on the frontend origin -----------------------
 
 
-# [utest->req~resolver-verifier-citation-url~1]
 def test_the_resolvable_kinds_are_the_resolvers():
     kinds = citations().RESOLVABLE_KINDS
 
@@ -638,14 +599,12 @@ def test_the_resolvable_kinds_are_the_resolvers():
     assert kinds == frozenset(RESOLVABLE)
 
 
-# [utest->req~resolver-verifier-citation-url~1]
 def test_the_resolvable_kinds_are_exactly_the_kinds_the_resolver_accepts():
     from openbinding_gateway.routes.resolve import VALID_KINDS
 
     assert set(VALID_KINDS) == set(citations().RESOLVABLE_KINDS)
 
 
-# [utest->req~resolver-verifier-citation-url~1]
 @pytest.mark.parametrize("kind", RESOLVABLE)
 def test_every_resolvable_kind_links_to_its_permanent_link(kind):
     citation = build(kind=kind)
@@ -658,7 +617,6 @@ def test_every_resolvable_kind_links_to_its_permanent_link(kind):
     assert_is_a_frontend_screen(expected.removeprefix(ORIGIN))
 
 
-# [utest->req~resolver-verifier-citation-url~1]
 @pytest.mark.parametrize("origin", [f"{ORIGIN}/", ORIGIN])
 def test_the_trailing_slash_of_the_frontend_origin_is_removed(origin):
     module = citations()
@@ -668,7 +626,6 @@ def test_the_trailing_slash_of_the_frontend_origin_is_removed(origin):
     assert build(frontend_url=origin).url == f"{ORIGIN}/resolve/case-revision/{DIGEST}"
 
 
-# [utest->req~resolver-verifier-citation-url~1]
 def test_the_link_carries_the_normalised_digest():
     citation = build(kind="report")
 
@@ -676,7 +633,6 @@ def test_the_link_carries_the_normalised_digest():
     assert f"Digest: {DIGEST}" in fields(citation)["note"]
 
 
-# [utest->req~resolver-verifier-citation-url~1]
 def test_without_a_resolvable_kind_the_link_is_the_verifier():
     citation = build(kind=None)
 
@@ -687,21 +643,18 @@ def test_without_a_resolvable_kind_the_link_is_the_verifier():
     assert_is_a_frontend_screen(expected.removeprefix(ORIGIN))
 
 
-# [utest->req~resolver-verifier-citation-url~1]
 @pytest.mark.parametrize("kind", ["study_run", "reports", "", "Case-Revision"])
 def test_an_unknown_kind_is_refused_rather_than_linked(kind):
     with pytest.raises(ValueError):
         citations().citation_url(ORIGIN, kind, DIGEST)
 
 
-# [utest->req~resolver-verifier-citation-url~1]
 def test_the_badge_keeps_its_image_and_links_to_the_url():
     citation = build(kind="engine")
 
     assert citation.markdown_badge == f"{BADGE_IMAGE}({ORIGIN}/resolve/engine/{DIGEST})"
 
 
-# [utest->req~resolver-verifier-citation-url~1]
 def test_the_gateway_origin_is_never_used(monkeypatch):
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://api.ob.example")
     monkeypatch.setenv("FRONTEND_URL", "https://configured.example")
@@ -737,8 +690,6 @@ def _imported_roots(tree: ast.AST) -> set[str]:
     return roots
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
-# [utest->req~resolver-verifier-citation-url~1]
 def test_the_builder_does_no_io_keeps_no_state_and_never_imports_routes():
     module = citations()
     source = Path(module.__file__).read_text(encoding="utf-8")
@@ -762,8 +713,6 @@ def test_the_builder_does_no_io_keeps_no_state_and_never_imports_routes():
     assert mutable == []
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
-# [utest->req~resolver-verifier-citation-year~1]
 def test_the_builder_is_deterministic_and_leaves_its_inputs_alone():
     record = {"doi": "10.5281/zenodo.1", "venue": "V", "year": 2025, "authors": ["A", 3]}
     usernames = ["alice"]
@@ -1128,9 +1077,6 @@ def assert_cites(citation: dict, record: dict) -> None:
     assert entry["year"] == str(record["year"])
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
-# [utest->req~resolver-verifier-citation-year~1]
-# [utest->req~resolver-verifier-citation-url~1]
 @pytest.mark.parametrize("source", SEEDERS)
 async def test_every_kind_cites_recorded_facts_and_its_permanent_link(source, world):
     seeded = await SEEDERS[source](world, public=True)
@@ -1141,7 +1087,6 @@ async def test_every_kind_cites_recorded_facts_and_its_permanent_link(source, wo
     assert_cites_recorded_facts_only(body, seeded, authors=[seeded.username])
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.skipif(
     bool(os.environ.get("TEST_DATABASE_URL")), reason="an owner that is not recorded needs unenforced foreign keys"
 )
@@ -1155,9 +1100,6 @@ async def test_without_a_recorded_owner_the_authors_are_empty(seeder, world):
     assert_cites_recorded_facts_only(body, seeded, authors=[])
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
-# [utest->req~resolver-verifier-citation-year~1]
-# [utest->req~resolver-verifier-citation-url~1]
 @pytest.mark.parametrize("kind", LIBRARY_KINDS)
 async def test_a_published_version_is_cited_as_its_publication_records_it(kind, world):
     seeded = await SEEDERS[kind](world, public=True)
@@ -1171,7 +1113,6 @@ async def test_a_published_version_is_cited_as_its_publication_records_it(kind, 
         assert_links_to_the_permanent_link(citation, seeded)
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize("kind", LIBRARY_KINDS)
 async def test_a_malformed_recorded_doi_is_dropped_and_the_venue_kept(kind, world):
     seeded = await SEEDERS[kind](world, public=True)
@@ -1186,8 +1127,6 @@ async def test_a_malformed_recorded_doi_is_dropped_and_the_venue_kept(kind, worl
     assert_links_to_the_permanent_link(citation, seeded)
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
-# [utest->req~resolver-verifier-citation-year~1]
 @pytest.mark.parametrize("kind", LIBRARY_KINDS)
 async def test_a_publication_of_a_sibling_version_is_not_cited(kind, world):
     first = await SEEDERS[kind](world, public=True)
@@ -1198,8 +1137,6 @@ async def test_a_publication_of_a_sibling_version_is_not_cited(kind, world):
     assert_cites_recorded_facts_only(await resolved(world, second), second, authors=[second.username])
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
-# [utest->req~resolver-verifier-citation-year~1]
 @pytest.mark.parametrize("kind", LIBRARY_KINDS)
 async def test_a_withdrawn_publication_is_not_cited_by_the_endpoint(kind, world):
     seeded = await SEEDERS[kind](world, public=True)
@@ -1224,7 +1161,6 @@ async def assert_answers_like_an_unknown_digest(world, kind: str, digest: str) -
         assert "citation" not in hidden.text and "zenodo" not in hidden.text
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize("source", SEEDERS)
 async def test_a_hidden_element_answers_exactly_like_an_unknown_digest(source, world):
     seeded = await SEEDERS[source](world, public=False)
@@ -1234,7 +1170,6 @@ async def test_a_hidden_element_answers_exactly_like_an_unknown_digest(source, w
     await assert_answers_like_an_unknown_digest(world, seeded.kind, seeded.digest)
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize("kind", LIBRARY_KINDS)
 async def test_the_publication_of_a_sibling_never_leaks_to_a_hidden_version(kind, world):
     published_version = await SEEDERS[kind](world, public=True)
@@ -1245,7 +1180,6 @@ async def test_the_publication_of_a_sibling_never_leaks_to_a_hidden_version(kind
     await assert_answers_like_an_unknown_digest(world, kind, hidden.digest)
 
 
-# [utest->req~resolver-verifier-citation-no-invented-metadata~1]
 @pytest.mark.parametrize("kind", LIBRARY_KINDS)
 async def test_a_hostile_recorded_venue_cannot_break_the_bibtex_entry(kind, world):
     seeded = await SEEDERS[kind](world, public=True)
@@ -1261,7 +1195,6 @@ async def test_a_hostile_recorded_venue_cannot_break_the_bibtex_entry(kind, worl
     assert_links_to_the_permanent_link(citation, seeded)
 
 
-# [utest->req~resolver-verifier-citation-year~1]
 async def test_the_report_citation_year_is_the_cited_versions_not_the_report_rows(world):
     seeded = await seed_library_version(world, "report", "Dataset")
     _, proj = await project_of(world, seeded.headers, "public")
@@ -1282,7 +1215,6 @@ async def test_the_report_citation_year_is_the_cited_versions_not_the_report_row
     assert dict(parse_entry(body["citation"]["bibtex"])[1])["year"] == str(OLD.year)
 
 
-# [utest->req~resolver-verifier-citation-url~1]
 @pytest.mark.parametrize("source", SEEDERS)
 async def test_a_digest_without_its_prefix_links_to_the_normalised_permanent_link(source, world, monkeypatch):
     # The configured origin ends with "/", and the caller sends the bare hexadecimal digest.
@@ -1302,7 +1234,6 @@ async def test_a_digest_without_its_prefix_links_to_the_normalised_permanent_lin
     assert "//resolve" not in json.dumps(citation)
 
 
-# [utest->req~resolver-verifier-citation-year~1]
 @pytest.mark.parametrize("kind", LIBRARY_KINDS)
 async def test_a_recorded_publication_without_a_year_is_dated_by_its_publication(kind, world):
     seeded = await SEEDERS[kind](world, public=True)

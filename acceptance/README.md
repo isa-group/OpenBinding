@@ -1,6 +1,6 @@
 # Acceptance tests
 
-Executable acceptance tests derived from the OpenSpec requirements and the public interfaces only.
+Executable acceptance tests derived from the public interfaces only.
 
 ## Layout
 
@@ -26,6 +26,4 @@ exit status is kept.
 
 ## Rules
 
-- Only the test-designer writes tests under `acceptance/` (gate G4).
-- Tests are derived from the specs and the public interfaces only, never from the implementation.
-- Every test carries a `[utest->req~name~rev]` tag.
+- Tests are derived from the public interfaces only, never from the implementation.

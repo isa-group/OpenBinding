@@ -222,14 +222,3 @@ def test_the_other_compose_files_are_not_touched_by_this_profile():
     assert base["build"] == {"context": "engines/minizinc-csp", "dockerfile": "Dockerfile"}  # still the production stage
 
 
-def test_the_procedure_is_documented():
-    doc = (ROOT / "docs" / "qa" / "ENGINE_CANCELLATION.md").read_text(encoding="utf-8")
-    for needle in (
-        "compose.lab-engines.json",
-        "lab_compose up file=compose.lab-engines.json",
-        "lab_compose seed",
-        "engine-real-tests",
-        "REAL_TESTS_EXIT=0",
-        "NO EJECUTADO",
-    ):
-        assert needle in doc, needle

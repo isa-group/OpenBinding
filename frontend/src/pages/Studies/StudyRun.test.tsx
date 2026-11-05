@@ -36,7 +36,6 @@ function renderRun(options: { slug?: string; run?: string } = {}) {
 
 const draftOf = (over: Partial<Report> = {}) => reportOf('engines-vs-seeds-run-1', 'draft', { study_run_id: RUN_ID, ...over });
 
-// [utest->req~frontend-nav-study-page~1]
 describe('One run of a study, in the Progress tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -182,7 +181,6 @@ describe('One run of a study, in the Progress tab', () => {
     expect(screen.getByText(/Its results can’t change now\. Start a new run instead\./)).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-retire-reports-entry-points-removed~1]
   it('offers no report action, whether or not a draft report of the run exists, and reads no report', async () => {
     const action = /create (a |draft )?report|open the report/i;
     const view = renderRun();

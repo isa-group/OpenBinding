@@ -38,7 +38,6 @@ describe('example packages', () => {
     vi.restoreAllMocks();
   });
 
-  // [utest->req~frontend-nav-examples-in-explore~1]
   it('groups the packages by family with their lessons, and hides the retired example', async () => {
     renderPage();
 
@@ -60,7 +59,6 @@ describe('example packages', () => {
     expect(card('bpmn/order_flow')).toHaveTextContent('Order Flow · BIM package');
   });
 
-  // [utest->req~frontend-nav-examples-in-explore~1]
   it('opens a package in the workbench', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Demo · 2 packages' });

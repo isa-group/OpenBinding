@@ -155,7 +155,6 @@ const OPTION_TYPES: ReadonlyArray<Option<OptionType>> = [
 ];
 
 /** An option the manifest fixes: its rule in words, other schema keywords as a keyword/value list. */
-// [impl->req~frontend-registration-fixed-option-rendered~1]
 function FixedOption({ option, index }: { option: OptionDraft; index: number }) {
   const { summary, pairs } = describeFixedOption(option.rest);
   return (

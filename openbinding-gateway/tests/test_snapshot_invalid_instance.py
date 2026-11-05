@@ -3,7 +3,7 @@
 ``recompile_stale_snapshots`` leaves a snapshot as it was when its package does not compile again. These tests
 age a snapshot as a previous toolchain release would have stored it (``test_ir_cutover.age_snapshot``) and give
 it three kinds of stored package, all synthetic: one the compiler accepts (it is recompiled), one it reads but
-refuses (``invalid_instance``), and one it cannot read at all. The rules pinned here (docs/qa/SNAPSHOT_INVALID_INSTANCE.md):
+refuses (``invalid_instance``), and one it cannot read at all. The rules pinned here:
 
 * the refusal is reported with the compiler's exact, stable, redacted findings, not just a code;
 * nothing is deleted, hidden or rewritten: package, IR, revision and digests stay byte for byte;

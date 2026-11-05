@@ -37,7 +37,6 @@ function renderCell(ordinal: number, slug = 'isa-demo') {
   });
 }
 
-// [utest->req~frontend-nav-study-page~1]
 describe('One cell of a run, inside the Results tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -264,7 +263,6 @@ describe('One cell of a run, inside the Results tab', () => {
     expect(screen.queryByRole('region', { name: 'Result' })).not.toBeInTheDocument();
   });
 
-  // [utest->req~frontend-studies-source-tab~1]
   it('marks a result that meets no rule as infeasible and keeps the raw metrics in the Source tab', async () => {
     const infeasible = { ...cells[2], metrics: { ...cells[2].metrics, feasible: false, termination: 'INFEASIBLE' } };
     platform.studyCell.mockResolvedValue(infeasible);

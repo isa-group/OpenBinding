@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { installMockApi } from './helpers/mockApi';
 
-// S5b · the library screens are retired (M2.4 slice 3, ADR-0020): an old link still lands somewhere useful.
+// S5b · the library screens are retired: an old link still lands somewhere useful.
 // There is no backend: the API origin is answered by the shared mock.
 
 test.setTimeout(60_000);

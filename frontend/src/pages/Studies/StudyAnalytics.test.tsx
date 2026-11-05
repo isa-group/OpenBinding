@@ -40,7 +40,6 @@ function renderAnalytics(options: { slug?: string; run?: string } = {}) {
 
 const figure = (label: string) => within(screen.getByLabelText('Counts of the run')).getByText(label).previousElementSibling;
 
-// [utest->req~frontend-nav-study-page~1]
 describe('Analytics of a run, in the Results tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -67,7 +66,6 @@ describe('Analytics of a run, in the Results tab', () => {
     expect(figure('feasible')).toHaveTextContent('6');
     expect(figure('infeasible')).toHaveTextContent('0');
     expect(figure('median time')).toHaveTextContent('1 min');
-    // [utest->req~frontend-retire-no-link-to-retired~1]
     expect(screen.queryByRole('link', { name: 'Weigh trade-offs' })).not.toBeInTheDocument();
 
     expect(screen.getByRole('heading', { name: 'Cost found, per engine' })).toBeInTheDocument();
@@ -154,7 +152,6 @@ describe('Analytics of a run, in the Results tab', () => {
     expect(screen.queryByRole('button', { name: 'Export CSV' })).not.toBeInTheDocument();
   });
 
-  // [utest->req~frontend-retire-reports-entry-points-removed~1]
   it('offers no report action, whether or not a draft report of the run exists, and reads no report', async () => {
     const action = /create (a |draft )?report|open the report/i;
     const view = renderAnalytics();

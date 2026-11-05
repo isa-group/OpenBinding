@@ -5,7 +5,7 @@ of every package of the OpenBinding corpus, the negative cases, the Engine mode 
 the re-evaluation and result-validation vectors and the protocol digests.  ``toolchain`` fields (compilerDigest,
 irDigest) change with the toolchain bytes on purpose and are never compared.
 
-Two baselines are involved (``docs/qa/IR_NORMALIZATION.md``).  ``golden/bim_baseline`` is OpenBinding's, taken from the
+Two baselines are involved.  ``golden/bim_baseline`` is OpenBinding's, taken from the
 toolchain that listed eligible candidates, constraints and placement in document order; it is frozen.  The normalized
 toolchain lists them in one canonical order, which moves the semantic digest of 64 packages and the enumeration order
 of their evaluations, so ``corpus.json`` and ``zip_equivalence.json`` are pinned in ``golden/bim_normalized``;

@@ -2,7 +2,7 @@
 
 > Removed by M9.6 (2026-10-27); kept as history. The `--analysis-only` seeder option named below no longer exists.
 >
-> Historical. The decision-space workspace retires (ADR-0020); only the trade-off set of multi-objective
+> Historical. The decision-space workspace retires; only the trade-off set of multi-objective
 > runs survives, in the run and study pages (`docs/ARCHITECTURE.md` §5.2).
 
 ## A. Audit (2026-09-08)

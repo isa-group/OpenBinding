@@ -87,7 +87,6 @@ describe('inspecting a package before it is sent', () => {
     expect(inspection.problem).toBeUndefined();
   });
 
-  // [utest->req~frontend-nav-files-retired~1]
   it('leaves a ZIP this page cannot open to the gateway', async () => {
     const inspection = await inspectPackage(new File([new Uint8Array([0x50, 0x4b, 0x05, 0x06])], 'broken.zip', { type: 'application/zip' }));
 

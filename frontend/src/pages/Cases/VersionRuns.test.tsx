@@ -33,7 +33,6 @@ function renderRuns() {
 /** The table of the runs, which the data table names through the region around it. */
 const runsTable = async () => within(await screen.findByRole('region', { name: 'Runs of the problem' })).getByRole('table');
 
-// [utest->req~frontend-nav-problem-page~1]
 describe('Runs tab of the problem page', () => {
   beforeEach(() => {
     vi.clearAllMocks();

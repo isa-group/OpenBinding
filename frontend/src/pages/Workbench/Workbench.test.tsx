@@ -513,7 +513,6 @@ describe('Workbench', () => {
 
       expect(await screen.findByText('Snapshot created. It is private to your account and never changes.')).toBeInTheDocument();
       expect(within(bar).getByRole('button', { name: 'Snapshot created' })).toBeInTheDocument();
-      // [utest->req~frontend-nav-vocabulary-text~1]
       expect(screen.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems`);
       expect(await screen.findByRole('img', { name: /^Workflow:/ })).toBeInTheDocument();
 
@@ -538,7 +537,6 @@ describe('Workbench', () => {
       expect(alert).toHaveTextContent('This package is larger than your plan allows per request (413), so no snapshot was made.');
     });
 
-    // [utest->req~frontend-nav-vocabulary-text~1]
     it('opens the snapshot on the Source tab of the problem version that was sealed from it', async () => {
       platform.caseRevisions.mockResolvedValue([r1, r2, revisionOf(checkout, 3, { source_snapshot_id: 'snapshot-1' })]);
       await openWorkbench({ query: '?case=flujo-checkout' });
@@ -551,7 +549,6 @@ describe('Workbench', () => {
       expect(await screen.findByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/source?version=3`);
     });
 
-    // [utest->req~frontend-nav-vocabulary-text~1]
     it('opens the problem list for a snapshot that no version of the chosen problem came from', async () => {
       await openWorkbench({ query: '?case=flujo-checkout' });
       validate();
@@ -578,9 +575,7 @@ describe('Workbench', () => {
       expect(workbench.saveRevision).toHaveBeenCalledWith(
         'isa-demo', 'qos-benchmarks', 'flujo-checkout', expect.objectContaining({ apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: 'hello-bim' } }), 'snapshot-1',
       );
-      // [utest->req~frontend-nav-vocabulary-text~1]
       expect(screen.getByRole('link', { name: 'Open it' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=3`);
-      // [utest->req~frontend-nav-vocabulary-text~1]
       expect(screen.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/source?version=3`);
     });
 
@@ -596,7 +591,6 @@ describe('Workbench', () => {
       fireEvent.click(save);
 
       expect(await screen.findByText('Same content as version 2, so no new version was needed.')).toBeInTheDocument();
-      // [utest->req~frontend-nav-vocabulary-text~1]
       expect(screen.getByRole('link', { name: 'See versions' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/versions`);
     });
 
@@ -667,7 +661,6 @@ describe('Workbench', () => {
         return { region, run: await within(region).findByRole('region', { name: 'Run result' }) };
       }
 
-      // [utest->req~frontend-rendering-workbench-run-result~1]
       it('shows the run through the run result: verdict, names, feature values, bounds, objectives and source', async () => {
         const { region, run } = await solved();
 
@@ -694,7 +687,6 @@ describe('Workbench', () => {
         expect(jobs.ir).toHaveBeenCalledWith('job-1');
       });
 
-      // [utest->req~frontend-rendering-workbench-run-result~1]
       it('has no result summary line and no dump of metrics, penalties or violations outside the source view', async () => {
         const { region } = await solved();
         await within(region).findByRole('region', { name: 'Chosen providers' });
@@ -706,7 +698,6 @@ describe('Workbench', () => {
         expect(screen.queryByText(/View source · evaluation, penalties and violations/)).not.toBeInTheDocument();
       });
 
-      // [utest->req~frontend-rendering-workbench-run-result~1]
       it('shows task and candidate ids with no note while the compiled problem is loading', async () => {
         answerIr(jobs.ir, 'pending');
         const { run } = await solved();
@@ -718,7 +709,6 @@ describe('Workbench', () => {
         expect(run).not.toHaveTextContent('The compiled problem of this run is not available');
       });
 
-      // [utest->req~frontend-rendering-workbench-run-result~1]
       it('says the compiled problem is not available when it cannot be read', async () => {
         answerIr(jobs.ir, 'missing');
         const { run } = await solved();
@@ -727,7 +717,6 @@ describe('Workbench', () => {
         expect(within(run).getByRole('region', { name: 'Chosen providers' })).toHaveTextContent('c1');
       });
 
-      // [utest->req~frontend-rendering-workbench-run-result~1]
       it('says the compiled problem is not available, without asking for it, when the run has no job id', async () => {
         client.createBimJob.mockResolvedValue({ status: 'queued', irDigest: 'sha256-ir' });
         const { run } = await solved();
@@ -736,7 +725,6 @@ describe('Workbench', () => {
         expect(jobs.ir).not.toHaveBeenCalled();
       });
 
-      // [utest->req~frontend-rendering-workbench-run-result~1]
       it('shows the empty binding text and the source for a decision that is not a binding', async () => {
         const base = runResult();
         const { run } = await solved({ ...base, solutions: [{ ...base.solutions[0], decision: { kind: 'placement', placement: { p1: 'pool-a' } } }] });
@@ -955,7 +943,6 @@ describe('Workbench', () => {
       fireEvent.click(screen.getByRole('button', { name: /instance\.json/i }));
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'diffed' } });
       expect(screen.getByText('Modified')).toBeInTheDocument();
-      // [utest->req~frontend-nav-allow-list-empty~1]
       const changes = screen.getByRole('region', { name: 'Changes to instance.json' });
       expect(changes).toHaveTextContent('"name": "diffed"');
       const text = changes.querySelector('pre')?.textContent ?? '';

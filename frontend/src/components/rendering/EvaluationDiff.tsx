@@ -68,7 +68,6 @@ function needsExact({ claimed, evaluated }: DiffRow): boolean {
 }
 
 /** Engine-claimed against gateway-evaluated values, with the engine's notes and the gateway's downgrade reasons. */
-// [impl->req~frontend-rendering-evaluation-diff~1]
 export function EvaluationDiff({ evaluated, claimed, notes, downgrades, label = 'Claimed and evaluated values' }: EvaluationDiffProps) {
   const view = evaluationDiffOf(evaluated, claimed);
   const termination = view.evaluated.termination ?? 'no termination';

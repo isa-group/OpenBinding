@@ -36,7 +36,6 @@ describe('New organization', () => {
     platform.createOrganization.mockResolvedValue(org('distributed-systems-lab', { name: 'Distributed Systems Lab' }));
   });
 
-  // [utest->req~frontend-nav-create-dialogs~1]
   it('is the dialog New organization, with the name first and a disabled Create until the name and the address are valid', async () => {
     renderCreate();
 
@@ -61,7 +60,6 @@ describe('New organization', () => {
     expect(screen.getByLabelText('Address')).toHaveValue('isa-demo');
   });
 
-  // [utest->req~frontend-nav-create-dialogs~1]
   it('ends at onClose from Cancel, the × button and Escape, and creates nothing', () => {
     renderCreate();
 
@@ -101,7 +99,6 @@ describe('New organization', () => {
     expect(screen.queryByRole('meter')).not.toBeInTheDocument();
   });
 
-  // [utest->req~frontend-nav-create-dialogs~1]
   it('creates the organization under the chosen parent and sponsor, reloads the workspace and hands the organization over', async () => {
     const { reload } = renderCreate();
     type('Name', 'Distributed Systems Lab');

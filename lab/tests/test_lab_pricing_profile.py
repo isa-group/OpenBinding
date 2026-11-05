@@ -1,6 +1,5 @@
 """Static checks of ``compose.lab-pricing.json``, the optional laboratory profile with the one-shot
-``pricing-bootstrap`` that talks to the remote SPACE (https://space.score.us.es), and of its runbook
-``docs/qa/PRICING_PROFILE.md``, without Docker.
+``pricing-bootstrap`` that talks to the remote SPACE (https://space.score.us.es), without Docker.
 
 The rules are plain functions of a manifest dict (and the runbook text) that return a failure message or None.  The
 ``control`` tests call them on a conforming in-memory SAMPLE, mutated, so every rule is proven to refuse what it must;
@@ -29,7 +28,6 @@ rules = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(rules)
 
 COMPOSE = ROOT / "compose.lab-pricing.json"
-RUNBOOK = ROOT / "docs" / "qa" / "PRICING_PROFILE.md"
 TOOLS_DOCKERFILE = ROOT / "lab" / "tools" / "Dockerfile"
 
 SERVICE = "pricing-bootstrap"
@@ -232,64 +230,31 @@ def _manifest() -> dict:
     return json.loads(COMPOSE.read_text(encoding="utf-8"))
 
 
-def _runbook() -> str:
-    assert RUNBOOK.is_file()
-    return RUNBOOK.read_text(encoding="utf-8")
-
-
 # -- the real files ------------------------------------------------------------------------------------------------
 
 
 def test_profile_is_the_single_bootstrap_service():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     assert rule_shape(_manifest()) is None
 
 
 def test_profile_has_nothing_forbidden():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     assert rule_forbidden(_manifest()) is None
 
 
 def test_profile_environment_is_the_remote_space_and_one_bare_key_reference():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     assert rule_environment(_manifest()) is None
 
 
 def test_profile_only_address_is_the_remote_space_over_https():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     assert rule_hosts(_manifest()) is None
 
 
 def test_profile_file_has_exactly_one_dollar():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     text = COMPOSE.read_text(encoding="utf-8")
     assert text.count("$") == 1 and KEY_REFERENCE in text
 
 
-def test_memory_budget_matches_the_runbook():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
-    text = _runbook()
-    assert documented_sum(text) == 96, "the runbook must state the sum of 96 MiB"
-    assert rule_memory(_manifest(), documented_sum(text)) is None
-    assert 2 * rules.EXPECTED_MIB + 96 <= 9216
-
-
-def test_runbook_documents_the_remote_design():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
-    digests = base_digests()
-    assert len(digests) == 1, "lab/tools/Dockerfile holds one base-image digest"
-    assert rule_runbook(_runbook(), digests) is None
-
-
-def test_runbook_key_variable_and_tool_variables():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
-    text = _runbook()
-    for name in (KEY_VARIABLE, "SPACE_URL", "SPACE_API_KEY", "SPACE_BOOTSTRAP_PLAN"):
-        assert f"`{name}`" in text, name
-
-
 def test_compose_lab_keeps_no_space_service():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     names = json.loads((ROOT / "compose.lab.json").read_text(encoding="utf-8"))["services"]
     assert not [n for n in names if n.startswith("space") or "space" in n.split("-")]
     assert rules._total_mib(names) == rules.EXPECTED_MIB
@@ -321,7 +286,6 @@ DIGESTS = ["11" * 32]  # stand-in for the base-image digest of the tool Dockerfi
 
 
 def test_control_sample_conforms():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     assert first_failure(sample()) is None
     assert rule_memory(sample(), 96) is None
     assert rule_runbook(_good_runbook(), set(DIGESTS)) is None
@@ -366,7 +330,6 @@ def _two_keys(m): _env_of(m)["OTHER"] = KEY_REFERENCE
     ids=lambda f: f.__name__,
 )
 def test_control_refuses_what_the_profile_must_not_hold(mutate):
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     manifest = sample()
     mutate(manifest)
     assert first_failure(manifest)
@@ -391,28 +354,24 @@ def test_control_refuses_what_the_profile_must_not_hold(mutate):
     ids=lambda x: getattr(x, "__name__", str(x)),
 )
 def test_control_each_rule_refuses_its_own_mutation(mutate, rule):
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     manifest = sample()
     mutate(manifest)
     assert rule(manifest)
 
 
 def test_control_hosts_rule_needs_the_remote_address():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     manifest = sample()
     _env_of(manifest)["SPACE_URL"] = "space.score.us.es"
     assert "no URL" in rule_hosts(manifest)
 
 
 def test_control_refuses_a_missing_key_reference():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     manifest = sample()
     del _env_of(manifest)["SPACE_API_KEY"]
     assert "pinned" in rule_environment(manifest)
 
 
 def test_control_refuses_a_changed_memory_limit_or_runbook_sum():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     bigger = sample()
     _boot(bigger)["mem_limit"] = "128m"
     assert "expected" in rule_memory(bigger, 128)
@@ -426,7 +385,6 @@ def test_control_refuses_a_changed_memory_limit_or_runbook_sum():
 
 
 def test_control_runbook_parsers_refuse_malformed_text():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     good = _good_runbook()
     assert documented_sum(good) == 96 and verified_images(good) == []
     assert documented_sum(good.replace("Memory sum:", "Total:")) is None
@@ -436,7 +394,6 @@ def test_control_runbook_parsers_refuse_malformed_text():
 
 
 def test_control_runbook_rule_refuses_each_defect():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     digests = set(DIGESTS)
     good = _good_runbook()
     assert rule_runbook(good, digests) is None

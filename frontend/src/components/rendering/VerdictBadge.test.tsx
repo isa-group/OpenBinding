@@ -18,14 +18,12 @@ const TERMINATIONS = [
 ] as const;
 
 describe('VerdictBadge', () => {
-  // [utest->req~frontend-rendering-verdict-badge~1]
   it.each(CASES)('shows %s as text in the %s badge variant', (verdict, variant) => {
     render(<VerdictBadge verdict={verdict} />);
 
     expect(screen.getByText(verdict)).toHaveClass('badge', `badge-${variant}`);
   });
 
-  // [utest->req~frontend-rendering-verdict-badge~1]
   it.each(CASES)('reads %s followed by its plain-language description, visually hidden', (verdict, _variant, description) => {
     const { container } = render(<VerdictBadge verdict={verdict} />);
 
@@ -37,14 +35,12 @@ describe('VerdictBadge', () => {
     expect(wrapper).toContainElement(hidden);
   });
 
-  // [utest->req~frontend-rendering-verdict-badge~1]
   it('uses a div as outer element so the reasons list is not inside a span', () => {
     const { container } = render(<VerdictBadge verdict="UNSAT" reasons={['x']} />);
 
     expect((container.firstElementChild as HTMLElement).tagName).toBe('DIV');
   });
 
-  // [utest->req~frontend-rendering-verdict-badge~1]
   it('renders an unknown verdict neutral, with its own text and no description', () => {
     const { container } = render(<VerdictBadge verdict="WEIRD" />);
 
@@ -54,7 +50,6 @@ describe('VerdictBadge', () => {
     expect(container.querySelector('.sr-only')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-verdict-badge~1]
   it('uses the small size by default and the medium size on request', () => {
     const { unmount } = render(<VerdictBadge verdict="OPTIMAL" />);
     expect(screen.getByText('OPTIMAL')).toHaveClass('badge-sm');
@@ -64,7 +59,6 @@ describe('VerdictBadge', () => {
     expect(screen.getByText('OPTIMAL')).toHaveClass('badge-md');
   });
 
-  // [utest->req~frontend-rendering-verdict-badge~1]
   it('renders no reasons list when reasons are absent or empty', () => {
     const { unmount } = render(<VerdictBadge verdict="UNSAT" />);
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
@@ -74,7 +68,6 @@ describe('VerdictBadge', () => {
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
   });
 
-  // [utest->req~frontend-rendering-verdict-badge~1]
   it('lists the reasons in a list named Reasons after the badge', () => {
     const { container } = render(<VerdictBadge verdict="UNSAT" reasons={['Budget too low', 'No engine']} />);
 
@@ -85,7 +78,6 @@ describe('VerdictBadge', () => {
     expect(container.querySelector('pre')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-verdict-terminations~1]
   it.each(TERMINATIONS)('reads %s as a known verdict in the %s variant with its description', (verdict, variant, description) => {
     const { container } = render(<VerdictBadge verdict={verdict} />);
 
@@ -99,7 +91,6 @@ describe('VerdictBadge', () => {
     expect(wrapper).toContainElement(hidden);
   });
 
-  // [utest->req~frontend-rendering-verdict-terminations~1]
   it('gives every API termination one distinct, non-empty description', () => {
     const descriptions = ['OPTIMAL', 'FEASIBLE', 'INFEASIBLE', 'UNKNOWN'].map((verdict) => {
       const { container, unmount } = render(<VerdictBadge verdict={verdict} />);
@@ -114,7 +105,6 @@ describe('VerdictBadge', () => {
     expect(new Set(descriptions).size).toBe(4);
   });
 
-  // [utest->req~frontend-rendering-verdict-terminations~1]
   it('tells INFEASIBLE apart from UNSAT while both are errors', () => {
     const { unmount } = render(<VerdictBadge verdict="INFEASIBLE" />);
     expect(screen.getByText('INFEASIBLE')).toHaveClass('badge-error');
@@ -126,7 +116,6 @@ describe('VerdictBadge', () => {
     expect(screen.getByText('UNSAT').parentElement?.textContent).toBe('UNSAT, no combination satisfies the rules');
   });
 
-  // [utest->req~frontend-rendering-verdict-terminations~1]
   it('lists the reasons of an INFEASIBLE verdict after the badge', () => {
     const reason = 'Hard rule latency ≤ 600 ms fails for every candidate';
     const { container } = render(<VerdictBadge verdict="INFEASIBLE" reasons={[reason]} />);
@@ -138,7 +127,6 @@ describe('VerdictBadge', () => {
     expect(container.querySelector('pre')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-verdict-terminations~1]
   it.each(['infeasible', 'Unknown', 'toString'])('keeps the spelling %s as an unknown value', (verdict) => {
     const { container } = render(<VerdictBadge verdict={verdict} />);
 
@@ -148,7 +136,6 @@ describe('VerdictBadge', () => {
     expect(container.querySelector('.sr-only')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-verdict-badge~1]
   it('has no hard-coded hex colour in its stylesheet', () => {
     const css = readFileSync(join(process.cwd(), 'src/components/rendering/VerdictBadge.css'), 'utf8');
 

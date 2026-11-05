@@ -17,7 +17,7 @@ server with row locks can keep, and one SQLite cannot even state. Here several s
   registration and no place used.
 
 Two tests state what two concurrent *replays* answer: the caller that loses the race is given the registration the
-winner made or activated, not a 402 / 409 (see docs/qa/PG_REAL_RUN.md); the tests beside them pin what must hold
+winner made or activated, not a 402 / 409; the tests beside them pin what must hold
 whatever the answer.
 
 Needs ``TEST_DATABASE_URL`` (the ``pg`` fixture skips without it) and nothing else: no SPACE, no network.

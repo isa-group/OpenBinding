@@ -53,7 +53,6 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
 }
 
 /** JSON or YAML as written, folded away: the readable views are the way in, this is for people who want the bytes. */
-// [impl->req~frontend-engines-source-view~1]
 export function ViewSource({ value, label = 'View source', sourceLabel, filename }: {
   value: unknown;
   /** The disclosure’s summary. */
@@ -298,7 +297,6 @@ function ModePanel({ mode }: { mode: ModeView }) {
 const MANIFEST_VIEWS = [{ id: 'manifest', label: 'Manifest' }, { id: 'source', label: 'Source' }] as const;
 
 /** An Engine manifest as fields, chips and tables on the Manifest tab; the document itself on the Source tab. */
-// [impl->req~frontend-engines-manifest-source-tab~1]
 export function ManifestPanel({ document }: { document: unknown }) {
   const view = useMemo(() => readManifest(document), [document]);
   const [tab, setTab] = useState<string>('manifest');

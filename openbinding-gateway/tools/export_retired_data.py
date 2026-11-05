@@ -67,7 +67,6 @@ PRIMARY_KEYS = {
     "report_project_artifacts": ("project_id", "artifact_id"),
 }
 
-# [impl->req~data-retirement-export-selection~1]
 # Draft reports that never produced a sealed version, a version of their artifact or a publication.
 _REPORT_DRAFTS = (
     "SELECT rd.id FROM reports rd WHERE rd.state = 'draft' AND rd.version_id IS NULL "
@@ -229,9 +228,6 @@ def _check_target(url: str, out: Path) -> None:
             raise ExportRefused(f"the SQLite database {database.database} does not exist")
 
 
-# [impl->req~data-retirement-export-files~1]
-# [impl->req~data-retirement-export-manifest~1]
-# [impl->req~data-retirement-export-refusals~1]
 def export(url: str, out: Path, *, now: datetime | None = None) -> Path:
     """Write the six files and the manifest into ``out``; return the manifest's path."""
     out = out.resolve()

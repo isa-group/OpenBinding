@@ -2,7 +2,7 @@
 
 > Removed by M9.6 (2026-10-27); kept as history.
 >
-> Historical. The decision-space workspace retires (ADR-0020); only the trade-off set of multi-objective
+> Historical. The decision-space workspace retires; only the trade-off set of multi-objective
 > runs survives, in the run and study pages (`docs/ARCHITECTURE.md` §5.2).
 
 **Recommendation.** Use a polynomial-time analysis layer over explicitly supplied candidates: objective-budget attainment maps, preference slices, exact candidate ranking, and linked inspection of actual bindings. Voronoi diagrams remain useful for proximity; power diagrams can represent some preference partitions exactly. The analysis must not depend on fresh NP-hard optimization, implicit solution enumeration, exact high-dimensional volume, or unrestricted symbolic projection. A timeout does not make an NP-hard algorithm a polynomial-time solution.

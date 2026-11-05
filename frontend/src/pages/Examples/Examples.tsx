@@ -58,7 +58,6 @@ type Download =
   | { status: 'done'; digest: string | null; bytes: number }
   | { status: 'error'; code: string | null; message: string };
 
-// [impl->req~frontend-nav-examples-in-explore~1]
 export function Examples() {
   const { user } = useAuth();
   const list = useResource('examples', () => apiClient.getBimExamples());

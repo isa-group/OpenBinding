@@ -64,12 +64,10 @@ describe('registration conformance report', () => {
 });
 
 describe('the retired engine report view', () => {
-  // [utest->req~frontend-rendering-engine-report-view-retired~1]
   it('exports the registration report and no engine report view', () => {
     expect(Object.keys(engineReportModule)).toEqual(['RegistrationReportView']);
   });
 
-  // [utest->req~frontend-rendering-engine-report-view-retired~1]
   it('keeps only the rules of the registration report in the stylesheet', () => {
     const css = readFileSync(`${process.cwd()}/src/components/EngineReportView/EngineReportView.css`, 'utf8');
     for (const retired of ['.engine-report', '.engine-claimed', '.divergence-notes', '.divergence-hint']) {

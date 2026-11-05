@@ -2,7 +2,7 @@
 
 Record of the gateway API operations that were retired and removed. M9.6 removed all of them on **2026-10-27**, with
 no deprecation period and no `Sunset` date: nothing ran in production, and the owner decided to remove them at once.
-The reason is [ADR-0020](adr/0020-smaller-platform.md) (smaller platform) and the owner decision of 2026-10-27.
+The reason is a smaller platform (owner decision of 2026-10-27).
 
 The routes are gone, not stubbed. After removal the gateway gives its generic unrouted answer:
 

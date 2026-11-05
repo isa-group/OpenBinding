@@ -7,7 +7,6 @@ test.use({ viewport: { width: 1280, height: 800 } });
 const STUDY = '/app/acme/demo/studies/s1';
 const TABS = ['Setup', 'Progress', 'Results', 'Publish'];
 
-// [utest->req~frontend-nav-study-page~1]
 test('a study with runs opens Progress and the run selector shows the latest run r2', async ({ page }) => {
   await mockStudies(page);
   await page.goto(STUDY);
@@ -19,7 +18,6 @@ test('a study with runs opens Progress and the run selector shows the latest run
   await expect.poll(() => shownBy(runs)).toContain('r2');
 });
 
-// [utest->req~frontend-nav-study-page~1]
 test('a study without runs opens Setup', async ({ page }) => {
   await mockStudies(page);
   await page.goto('/app/acme/demo/studies/s0');
@@ -28,7 +26,6 @@ test('a study without runs opens Setup', async ({ page }) => {
   await expect(selectedTab(group, 'Setup')).toBeVisible();
 });
 
-// [utest->req~frontend-nav-study-page~1]
 test('choosing r1 in the run selector sets ?run=r1 and shows the results of r1', async ({ page }) => {
   await mockStudies(page);
   const gets = trackGets(page);
@@ -42,7 +39,6 @@ test('choosing r1 in the run selector sets ?run=r1 and shows the results of r1',
   expect(analytics[analytics.length - 1]).toContain('/runs/r1/analytics');
 });
 
-// [utest->req~frontend-nav-study-page~1]
 test('the three old study run addresses redirect into the study page', async ({ page }) => {
   test.slow(); // three full page loads in one test
   await mockStudies(page);
@@ -57,7 +53,6 @@ test('the three old study run addresses redirect into the study page', async ({ 
   }
 });
 
-// [utest->req~frontend-nav-study-page~1]
 test('a cell inside Results links Open run to the run it ran as', async ({ page }) => {
   await mockStudies(page);
   await page.goto(`${STUDY}/results?run=r1&cell=c7`);
@@ -66,7 +61,6 @@ test('a cell inside Results links Open run to the run it ran as', async ({ page 
   await expect(open).toHaveAttribute('href', `/app/acme/demo/${RUNS_SEGMENT}/j9`);
 });
 
-// [utest->req~frontend-nav-study-page~1]
 test('an unknown study tab shows Page not found', async ({ page }) => {
   await mockStudies(page);
   await page.goto(`${STUDY}/runs`);

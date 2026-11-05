@@ -43,7 +43,6 @@ DUMMY_ENV = {
 REFERENCE_NAME = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)")
 
 
-# [utest->req~lab-deployment-single-loopback-port~2]
 @pytest.mark.parametrize("name", COMPOSE_FILES)
 def test_every_reference_but_the_port_has_a_dummy_value(name: str) -> None:
     text = (REPO_ROOT / name).read_text(encoding="utf-8").replace("$$", "")
@@ -53,7 +52,6 @@ def test_every_reference_but_the_port_has_a_dummy_value(name: str) -> None:
     assert not missing, f"{name} references variables with no dummy value: {sorted(missing)}"
 
 
-# [utest->req~lab-deployment-single-loopback-port~2]
 @pytest.mark.skipif(
     os.environ.get("OPENBINDING_COMPOSE_CONFIG") != "1",
     reason="set OPENBINDING_COMPOSE_CONFIG=1 to run docker compose config",

@@ -49,7 +49,6 @@ afterEach(() => {
 const details = () => document.querySelector('details') as HTMLDetailsElement;
 
 describe('LogPanel', () => {
-  // [utest->req~frontend-rendering-log-panel~1]
   it('is collapsed by default and open with defaultOpen', () => {
     const { unmount } = render(<LogPanel log={LOG} />);
     expect(details().open).toBe(false);
@@ -59,7 +58,6 @@ describe('LogPanel', () => {
     expect(details().open).toBe(true);
   });
 
-  // [utest->req~frontend-rendering-log-panel~1]
   it('summarises the title and the line count, singular for one line', () => {
     const { unmount } = render(<LogPanel log={LOG} />);
     expect(screen.getByText('Log (4 lines)')).toBeInTheDocument();
@@ -73,14 +71,12 @@ describe('LogPanel', () => {
     expect(screen.getByText('Log (0 lines)')).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-rendering-log-panel~1]
   it('shows No log for an empty log', () => {
     render(<LogPanel log="" defaultOpen />);
 
     expect(screen.getByText('No log')).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-rendering-log-panel~1]
   it('shows every line with its number in a pre named by the title', () => {
     render(<LogPanel log={LOG} title="Run log" defaultOpen />);
 
@@ -91,7 +87,6 @@ describe('LogPanel', () => {
     expect(screen.getByRole('status')).toHaveTextContent('4 of 4 lines');
   });
 
-  // [utest->req~frontend-rendering-log-panel~1]
   it('filters case-insensitively, keeps the original line numbers and updates the status', () => {
     render(<LogPanel log={LOG} defaultOpen />);
     const input = screen.getByLabelText('Search the log');
@@ -110,7 +105,6 @@ describe('LogPanel', () => {
     expect(screen.getByRole('status')).toHaveTextContent('1 of 4 lines');
   });
 
-  // [utest->req~frontend-rendering-log-panel~1]
   it('says No lines match when nothing matches', () => {
     render(<LogPanel log={LOG} defaultOpen />);
 
@@ -120,7 +114,6 @@ describe('LogPanel', () => {
     expect(screen.getByRole('status')).toHaveTextContent('0 of 4 lines');
   });
 
-  // [utest->req~frontend-rendering-log-panel~1]
   it('copies the whole log, not the filtered view, and announces it', async () => {
     render(<LogPanel log={LOG} defaultOpen />);
     fireEvent.change(screen.getByLabelText('Search the log'), { target: { value: 'error' } });
@@ -131,7 +124,6 @@ describe('LogPanel', () => {
     await waitFor(() => expect(screen.getAllByRole('status').some((s) => /copied/i.test(s.textContent ?? ''))).toBe(true));
   });
 
-  // [utest->req~frontend-rendering-log-panel~1]
   it('shows Download only with a filename and downloads the whole log as text, revoking the URL later', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout'] });
     const { unmount } = render(<LogPanel log={LOG} defaultOpen />);
@@ -152,21 +144,18 @@ describe('LogPanel', () => {
     expect(anchorClick.mock.invocationCallOrder[0]).toBeLessThan(revokeObjectURL.mock.invocationCallOrder[0]);
   });
 
-  // [utest->req~frontend-rendering-log-panel~1]
   it('keeps the log pre in the tab order', () => {
     render(<LogPanel log={LOG} defaultOpen filename="run.log" />);
 
     expect(screen.getByLabelText('Log')).toHaveAttribute('tabindex', '0');
   });
 
-  // [utest->req~frontend-rendering-log-panel~1]
   it('says "1 of 1 line" for a single line', () => {
     render(<LogPanel log="only" defaultOpen />);
 
     expect(screen.getByRole('status')).toHaveTextContent(/^1 of 1 line$/);
   });
 
-  // [utest->req~frontend-rendering-log-panel~1]
   it('shows the line numbers as text, original ones after filtering', () => {
     render(<LogPanel log={LOG} defaultOpen />);
     const nums = () => [...document.querySelectorAll('.rendering-log__num')].map((n) => n.textContent);
@@ -176,14 +165,12 @@ describe('LogPanel', () => {
     expect(nums()).toEqual(['2', '4']);
   });
 
-  // [utest->req~frontend-rendering-log-panel~1]
   it('lets long lines scroll instead of breaking the layout', () => {
     const css = readFileSync(join(process.cwd(), 'src/components/rendering/LogPanel.css'), 'utf8');
 
     expect(css).toMatch(/overflow:\s*auto/);
   });
 
-  // [utest->req~frontend-rendering-log-panel~1]
   it('has no hard-coded hex colour in its stylesheet', () => {
     const css = readFileSync(join(process.cwd(), 'src/components/rendering/LogPanel.css'), 'utf8');
 

@@ -138,6 +138,6 @@ def test_the_time_budget_is_short_but_leaves_the_slot_back_within_the_acquire_ti
     assert budget == 3
     # Short enough to see a real timeout in seconds, below the service default.
     assert 1 <= budget < 60
-    # The worker is killed at the budget and its replacement is up within about a second (docs/qa/PROCESS_DEPLOYMENT.md);
+    # The worker is killed at the budget and its replacement is up within about a second;
     # with one slot, the next request waits for it.
     assert int(env["BIM_SERVICE_ACQUIRE_TIMEOUT_MS"]) >= 1000

@@ -126,9 +126,6 @@ async def read_own_profile(
     return await profile_of(session, user)
 
 
-# [impl->req~gateway-api-optimistic-concurrency-covered~1]
-# [impl->req~gateway-api-optimistic-concurrency-order-access~1]
-# [impl->req~gateway-api-optimistic-concurrency-order-state~1]
 @router.patch(
     "/me",
     response_model=UserProfile,
@@ -806,6 +803,5 @@ async def delete_own_account(
             await remove_contract(user.id)
     except PricingUnavailable as exc:
         raise pricing_unavailable_error(exc, where="contract removal") from exc
-    # [impl->req~auth-roles-entitlements-account-lifecycle-without-proposals~1]
     await session.delete(user)
     await session.flush()

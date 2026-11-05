@@ -12,7 +12,6 @@ const TICK = { fontSize: 11, fill: 'var(--color-text-secondary)' };
 interface Dot { x: number; y: number; name: string }
 
 /** Non-dominated solutions as a table and, from two solutions, a scatter chart whose axes are chosen among the objectives. */
-// [impl->req~frontend-rendering-trade-off-chart~1]
 export function TradeOffChart({ points, objectives, label = 'Trade-off set' }: TradeOffChartProps) {
   const [axes, setAxes] = useState<{ x: string; y: string }>({ x: objectives[0] ?? '', y: objectives[1] ?? '' });
   const optimal = useMemo(() => nonDominated(points, objectives), [points, objectives]);

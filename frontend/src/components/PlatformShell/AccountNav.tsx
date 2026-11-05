@@ -15,7 +15,6 @@ const sections: ReadonlyArray<{ key: AccountSection; label: string; to: string; 
 ];
 
 /** Side navigation of the account page: the five sections, the current one marked `aria-current="page"`. */
-// [impl->req~frontend-nav-account-sections~1]
 export function AccountNav({ active = 'profile' }: { active?: AccountSection }) {
   const nav = useRef<HTMLElement>(null);
   useCurrentIntoView(nav, active);

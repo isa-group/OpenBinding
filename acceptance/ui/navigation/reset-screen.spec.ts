@@ -3,7 +3,6 @@ import { mockApi, pathAndSearch } from './helpers';
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
-// [utest->req~frontend-nav-reset-single-screen~1]
 test('/password-reset shows the request form', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.goto('/password-reset');
@@ -11,7 +10,6 @@ test('/password-reset shows the request form', async ({ page }) => {
   await expect(page.getByLabel('Email address')).toBeVisible();
 });
 
-// [utest->req~frontend-nav-reset-single-screen~1]
 test('/password-reset with a token shows the new-password form and submits the token', async ({ page }) => {
   const requests = await mockApi(page, { role: null });
   await page.goto('/password-reset?token=abc123');
@@ -24,7 +22,6 @@ test('/password-reset with a token shows the new-password form and submits the t
     && request.body.includes('abc123') && request.body.includes('Correct-horse-9'))).toBe(true);
 });
 
-// [utest->req~frontend-nav-reset-single-screen~1]
 test('the link of a reset e-mail lands on /password-reset with its token', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.goto('/password-reset/complete?token=abc123');
@@ -33,7 +30,6 @@ test('the link of a reset e-mail lands on /password-reset with its token', async
   await expect(page.getByLabel('Confirm password', { exact: true })).toBeVisible();
 });
 
-// [utest->req~frontend-nav-reset-single-screen~1]
 test('an empty token shows the request form', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.goto('/password-reset?token=');

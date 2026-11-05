@@ -8,9 +8,8 @@ https://sphere.score.us.es/p/6ab0a323697330667ccce891:
 
 **Both are derived, not recorded live.** The worker that wrote them had no network.
 `openbinding-0.2.0.yml` is a byte copy of `docs/pricing/openbinding-0.2.0.yml`;
-`manifest.json` was written by hand from the shape in
-`openspec/changes/m43-plans-pricing-route/design.md` section 1, with `contentHash` set to the
-SHA-256 of that YAML.
+`manifest.json` was written by hand from the shape of SPHERE's public manifest, with
+`contentHash` set to the SHA-256 of that YAML.
 
 The public API needs no key and no cookie. Nothing in this directory needs a credential.
 
@@ -26,9 +25,9 @@ The public API needs no key and no cookie. Nothing in this directory needs a cre
 ## Digest discrepancy (unresolved)
 
 The SHA-256 of `docs/pricing/openbinding-0.2.0.yml` in this tree is
-`4b9c7203c2771991be54c11bddf1fee5fc385c8cc5fa28b21e6d06b37d5b75b1`. `ROADMAP.md` line 133
-claims `3db4ad99b33f0a591fcc71167bb7410e10a477429d48a0105afd17bf629b182c`. The coordinator
-settles which is right (line endings, a later edit, or the bytes SPHERE serves). Here the file in
+`4b9c7203c2771991be54c11bddf1fee5fc385c8cc5fa28b21e6d06b37d5b75b1`. The owner's record of the
+SPHERE publication claims `3db4ad99b33f0a591fcc71167bb7410e10a477429d48a0105afd17bf629b182c`; to be
+settled which is right (line endings, a later edit, or the bytes SPHERE serves). Here the file in
 the tree is authoritative, so the manifest carries the first digest.
 
 ## Tests

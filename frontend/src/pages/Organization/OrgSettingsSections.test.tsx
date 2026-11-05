@@ -25,7 +25,6 @@ function renderSection(section?: string, organizations = [group, readOnly], slug
 
 const navOf = () => screen.getByRole('navigation', { name: 'Organization settings' });
 
-// [utest->req~frontend-nav-org-settings-sections~1]
 describe('org-settings sections', () => {
   beforeEach(() => {
     vi.clearAllMocks();

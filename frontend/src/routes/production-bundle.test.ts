@@ -29,7 +29,6 @@ describe('production bundle', () => {
     }
   });
 
-  // [utest->req~frontend-nav-system-states-dev-only~1]
   it('holds the text of the states screen in no file of the output of pnpm build', () => {
     // The runner sets NODE_ENV=test, which would make the build a development one.
     const env = { ...process.env, NODE_ENV: 'production' };

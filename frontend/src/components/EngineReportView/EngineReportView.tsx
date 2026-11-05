@@ -5,7 +5,6 @@ import { DataTable } from '../ui/DataTable';
 import { useCopy } from '../ui/useCopy';
 import './EngineReportView.css';
 
-// [impl->req~frontend-rendering-engine-report-view-retired~1]
 // The engine's own answer view (solutions, provenance and raw response dumped in <pre>) is retired; only the registration report remains.
 
 function isRecord(value: unknown): value is Record<string, unknown> {

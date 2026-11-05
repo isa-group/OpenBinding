@@ -3,8 +3,7 @@
 #
 # Usage: [DEMO_PYTEST_ARGS='-rfE --tb=short tests/concurrency'] sh tools/test_pg.sh
 #
-# This mirrors the official harness, lab_compose with file=compose.pgtest.json (see
-# docs/qa/PG_HARNESS.md): `up` builds the `test` stage of the gateway image and waits for a
+# This mirrors the official harness, lab_compose with file=compose.pgtest.json: `up` builds the `test` stage of the gateway image and waits for a
 # healthy postgres, then the `seed` service (behind a profile) migrates and runs pytest, and
 # its exit code is the script's. The database is in tmpfs and publishes no port.
 set -eu

@@ -58,7 +58,6 @@ describe('Collection detail', () => {
     platform.resourceRevisions.mockResolvedValue([w1]);
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('shows the items of the latest revision in order, each with its type and fingerprint', async () => {
     renderDetail();
 
@@ -72,7 +71,6 @@ describe('Collection detail', () => {
     expect(within(rows[0]).getByRole('button', { name: 'Copy digest of Flujo de checkout · version 1' })).toHaveTextContent('Copy digest');
     expect(list.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     expect(within(rows[1]).getByRole('link', { name: 'Flujo de checkout · version 2' })).toBeInTheDocument();
-    // [utest->req~frontend-retire-library-entry-points-removed~1]
     expect(within(rows[2]).queryByRole('link')).toBeNull();
     for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/(library|resources)([/?#]|$)/);
     expect(within(rows[2]).getByText('Weights · revision 1')).toBeInTheDocument();

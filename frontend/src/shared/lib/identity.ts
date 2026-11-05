@@ -1,5 +1,4 @@
-// [impl->req~identity-labels~1]
-// Identity labels (docs/ARCHITECTURE.md §5.4, openspec change m27-names-not-digests design §2): a thing is named by its name, version,
+// Identity labels (docs/ARCHITECTURE.md §5.4): a thing is named by its name, version,
 // count, engine mode and date, never by an id, a digest or a fingerprint. Every function is pure, reads no clock, locale or time zone,
 // and returns a non-empty string. A text field that looks like an identifier counts as missing, as a whole.
 

@@ -10,7 +10,7 @@ says about each: (a) the semantic digest, (b) the canonical IR, (c) ``irDigest``
 * ``reversed-zip``: the same raw bytes, entries written in reverse order (no medium-dependent order).
 * ``canonical-zip``: ``InstancePackage.to_zip()``, the portable form (JSON in RFC 8785 form, keys sorted).
 
-Since ``bim-core`` 0.2.0 (``docs/qa/IR_NORMALIZATION.md``) the compiler lists the
+Since ``bim-core`` 0.2.0 the compiler lists the
 sets of the IR (eligible candidates, constraints, placement, demands, transitions) in one order that depends only
 on identifiers, so the four forms compile to the same IR in all 82 packages.  Before, ``to_zip()`` sorted the
 members of every JSON object while the compiler iterated them in document order, and 64 packages had another IR

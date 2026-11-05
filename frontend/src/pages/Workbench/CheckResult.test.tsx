@@ -33,7 +33,6 @@ function buttons(): string[] {
 }
 
 describe('the diagnostics of a failed validation', () => {
-  // [utest->req~frontend-rendering-check-result-diagnostic-text~1]
   it('says the gateway sent no message, and never dumps the diagnostic', () => {
     show(failed([{ code: 'E_REF', pointer: '/spec/tasks/0' }]));
 
@@ -46,7 +45,6 @@ describe('the diagnostics of a failed validation', () => {
     expect(within(list).getByText('Package')).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-rendering-check-result-diagnostic-text~1]
   it('shows the message, then the detail when there is no message', () => {
     show(failed([
       { code: 'E1', message: 'Unknown task' },
@@ -57,7 +55,6 @@ describe('the diagnostics of a failed validation', () => {
     expect(buttons()).toEqual(['E1 Unknown task', 'E2 Missing candidate', 'diagnostic No code']);
   });
 
-  // [utest->req~frontend-rendering-check-result-diagnostic-text~1]
   it('does not crash nor dump a message that is not text', () => {
     const odd = { code: 'E3', message: { en: 'x' } } as unknown as Diagnostic;
     expect(() => show(failed([odd]))).not.toThrow();
@@ -68,7 +65,6 @@ describe('the diagnostics of a failed validation', () => {
     expect(list.textContent).not.toContain('"en"');
   });
 
-  // [utest->req~frontend-rendering-check-result-diagnostic-text~1]
   it('still opens the resource of the diagnostic when its button is pressed', () => {
     const item: Diagnostic = { code: 'E_REF', pointer: '/spec/tasks/0' };
     const open = vi.fn();

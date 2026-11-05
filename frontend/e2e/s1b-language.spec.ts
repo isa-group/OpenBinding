@@ -626,7 +626,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 2, name: 'Placement' })).toBeVisible();
     });
 
-    // [utest->req~frontend-nav-language-hub~1]
     test('lang-profiles hub switches between Profiles, Schemas and Extensions at /language/:section?/:item?', async ({ page }) => {
       await mockApi(page, { signedIn: true });
       await page.goto('/language');
@@ -643,7 +642,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'Language extensions' })).toBeVisible();
     });
 
-    // [utest->req~frontend-nav-language-hub~1]
     test('lang-profiles hub: signed out, Extensions explains and offers the login', async ({ page }) => {
       await mockApi(page);
       await page.goto('/language/extensions');
@@ -651,7 +649,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: 'Log in to see and manage language extensions' })).toHaveAttribute('href', '/login');
     });
 
-    // [utest->req~frontend-nav-language-hub~1]
     test('lang-profiles hub: an unknown section answers 404 and the old extensions address moves', async ({ page }) => {
       await mockApi(page, { signedIn: true });
       await page.goto('/language/nowhere');
@@ -661,7 +658,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(page).toHaveURL(/\/language\/extensions\?tab=resources$/);
     });
 
-    // [utest->req~frontend-nav-examples-in-explore~1]
     test('pub-explore /explore/examples', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
@@ -699,7 +695,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    // [utest->req~frontend-nav-examples-in-explore~1]
     test('pub-explore examples for a signed-in account imports into a chosen project', async ({ page }, testInfo) => {
       await mockApi(page, { signedIn: true });
       await page.goto('/explore/examples');
@@ -714,7 +709,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await shot(page, testInfo, 'examples-signed-in');
     });
 
-    // [utest->req~frontend-nav-examples-in-explore~1]
     test('pub-explore examples names a corrupt example (422) and survives a failed list', async ({ page }, testInfo) => {
       await mockApi(page);
       await page.route(`${API}/v1/examples/**`, json({ title: 'invalid_example', detail: 'corrupt package' }, 422));

@@ -9,13 +9,11 @@ const PROTOTYPE: Array<[string, string]> = [
 ];
 
 describe('area collections', () => {
-  // [utest->req~frontend-nav-route-areas~1]
   it('has 2 screens, with the ids and routes of the prototype', () => {
     expect(routesByArea.collections).toHaveLength(2);
     expect(routesByArea.collections.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
   });
 
-  // [utest->req~frontend-retire-library-screens-not-routed~1]
   it('keeps the collections', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     for (const id of ['coll-list', 'coll-detail']) expect(ids, id).toContain(id);
@@ -24,7 +22,6 @@ describe('area collections', () => {
   describe('address resolution', () => {
     const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
 
-    // [utest->req~frontend-nav-route-areas~1]
     it.each([
       ['/app/acme/atlas/collections', 'coll-list'],
       ['/app/acme/atlas/collections/k1', 'coll-detail'],

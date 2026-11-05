@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Print the test files of shard i/n, balanced greedily longest-first.
 
-[impl->req~ci-speed-gateway-unit-shards~1]
 """
 
 import argparse

@@ -96,7 +96,6 @@ describe('lang-extensions', () => {
     expect(within(community).getByText('/spec/annotations')).toBeInTheDocument();
     expect(within(community).getByText('Application')).toBeInTheDocument();
     expect(within(community).getByRole('button', { name: 'Copy edge-annotations-adapter binary fingerprint' })).toBeInTheDocument();
-    // [utest->req~frontend-engines-source-view~1]
     const summary = within(community).getByText('View source');
     const disclosure = summary.closest('details') as HTMLDetailsElement;
     expect(disclosure).not.toHaveAttribute('open');

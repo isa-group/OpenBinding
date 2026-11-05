@@ -33,7 +33,6 @@ function featureOf(raw: unknown): string | null {
 }
 
 /** Reads the canonical objective evaluation of a solution; `null` when it is not canonical (nothing is guessed). */
-// [impl->req~frontend-rendering-objective-breakdown~1]
 export function objectiveTermsOf(objectives: unknown, problem: ObjectiveProblem | null): ObjectiveBreakdownData | null {
   if (!isRecord(objectives) || !Array.isArray(objectives.components)) return null;
 

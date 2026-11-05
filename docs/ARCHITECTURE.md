@@ -1,10 +1,6 @@
-Status: PROPOSED for owner review (2026-10-22, revision 2: smaller platform, plans topology, Docker Compose).
-
 # OpenBinding architecture (target)
 
-This document describes the architecture OpenBinding is moving to and the rules that get it there. The product
-reasons are in [`INTENT.md`](../INTENT.md), the order of work in [`ROADMAP.md`](../ROADMAP.md), the binding rules in
-[`constitution.md`](../constitution.md) and the decisions in [`docs/adr/`](adr/). The gateway as it is at 912648c,
+This document describes the architecture OpenBinding is moving to and the rules that get it there. The gateway as it is at 912648c,
 with file-level evidence, is in [`docs/architecture/gateway-as-is.md`](architecture/gateway-as-is.md); the BIM
 language is in [`BIM_V1.md`](BIM_V1.md) and [`BIM_CORE.md`](BIM_CORE.md).
 
@@ -21,16 +17,16 @@ Contents: 1 Principles · 2 System context · 3 Containers · 4 Backend · 5 Fro
 3. **Everything external behind a port, everything shared behind a contract.** BIM toolchain, engines, SPACE,
    SPHERE, CAS, blob storage and mail are adapters; contracts are versioned and tested on both sides.
 4. **Render, never dump.** The frontend renders every domain object with a shared catalogue of components; source
-   views are secondary (constitution, Article 15).
+   views are secondary.
 5. **Immutable evidence, named for people and addressed by digest for machines.** Problem and collection versions,
    compiled forms, runs, study runs and published results are sealed; permanent links and digests make them citable
    and verifiable. Screens name them by name, version number and date; a digest appears only where verifying is the
    task (§5.4).
 6. **Small, reversible steps.** The target is reached by strangling the current code module by module, never by a
    rewrite.
-7. **Small surface.** Every module, endpoint and screen serves a journey of `INTENT.md` §2; what none needs is
-   retired before anything is moved or polished (ADR-0020).
-8. **One way to deploy.** Docker Compose runs every environment, production included (ADR-0021).
+7. **Small surface.** Every module, endpoint and screen serves a user journey; what none needs is
+   retired before anything is moved or polished.
+8. **One way to deploy.** Docker Compose runs every environment, production included.
 
 ## 2. System context
 
@@ -66,7 +62,7 @@ SPHERE and SPACE are separate deployments of the group. The OpenBinding pricing 
 at `sphere.score.us.es`, under the permanent link `https://sphere.score.us.es/p/6ab0a323697330667ccce891`, and
 every environment reads it there through SPHERE's public API. SPACE follows that permanent link and operates
 subscriptions. OpenBinding uses the remote SPACE at `https://space.score.us.es` in every environment; no SPACE runs
-inside any stack (§9.4, INTENT D5). OpenBinding never writes to SPHERE and never re-implements SPACE (§9).
+inside any stack (§9.4). OpenBinding never writes to SPHERE and never re-implements SPACE (§9).
 
 ## 3. Containers
 
@@ -169,23 +165,23 @@ openbinding-gateway/src/openbinding_gateway/
   planted violations (the teeth test); it is skipped where `lint-imports` is not installed (the CI `test` job syncs
   only `--extra test`) until the blocking CI step, pending, runs it with the `lint` group.
   The legacy `.importlinter` stays report-only and unchanged, next to the existing `tests/test_architecture_layers.py` ratchets. Pending (owner/CI
-  follow-up): running the new contracts as a blocking CI step and as a G9 gate entry; until then they are not
+  follow-up): running the new contracts as a blocking CI step; until then they are not
   enforced in CI.
 
 ### 4.3 Migration: strangler, one module at a time
 
-0. Retire first (ADR-0020). The decision-space workspace, the report editor, the library as a catalogue (organization
+0. Retire first. The decision-space workspace, the report editor, the library as a catalogue (organization
    library, project resources, project library), the composer and sponsorship lose their screens, then their
    endpoints, then their code, so nothing retired is ever moved. Done by M9.6 (2026-10-27): the owner skipped the
    `Deprecation`/`Sunset` period because nothing ran in production, and the 41 operations are removed
    ([`API_DEPRECATIONS.md`](API_DEPRECATIONS.md)). The versioned-artifact store itself stays as the repository's internal storage of sealed parts:
    problems are edited and versioned as a whole, and sealed problem versions keep referencing their parts by exact
-   digest, so nothing sealed changes. Data follows CRP rules (INTENT §11.5): existing publications keep their
+   digest, so nothing sealed changes. Existing publications keep their
    permanent links as read-only published results; report drafts, decision-space workspaces and sponsorship
    proposals are exported for the owner and dropped (the export tool and the guarded migration are in M9.6; see
    [`runbooks/retired-data-export.md`](runbooks/retired-data-export.md)).
 1. Create `app/`, `shared/` and `modules/` with import-linter contracts; move nothing. Packages and contracts exist
-   (§4.2); the blocking CI step and G9 entry are pending.
+   (§4.2); the blocking CI step is pending.
 2. New capabilities land directly in modules: `plans` (M4) and the language registry (M5) are the first.
 3. Move existing code one module per `refactor/<id>` change, behind characterization tests, keeping
    `docs/openapi.json` byte-identical. Order: plans → language → engines → execution → laboratory → publishing →
@@ -211,7 +207,7 @@ frontend/src/
 
 Imports go downwards only (`pages → widgets → features → entities → shared`); features never import each other;
 only `shared/api` performs HTTP. The 1,659-line `api/client.ts` is split into `entities/*/api.ts` over generated
-types. Enforced with `eslint-plugin-boundaries` (constitution 6.6).
+types. Enforced with `eslint-plugin-boundaries`.
 
 ### 5.2 Information architecture
 
@@ -229,8 +225,8 @@ types. Enforced with `eslint-plugin-boundaries` (constitution 6.6).
 - **Study page:** Setup · Progress · Results (protocol metrics, verdicts, gaps, times, ranking, trade-offs) ·
   Publish.
 - **Published result page:** what was frozen and when, the rendered results and the citation panel.
-- **Screen budget:** at most 45 routed screens (INTENT O12). A test counts the route registry, and each journey of
-  INTENT §2 has a Playwright flow that completes in at most five screens.
+- **Screen budget:** at most 45 routed screens. A test counts the route registry, and each user
+  journey has a Playwright flow that completes in at most five screens.
 
 ### 5.3 Rendering catalogue
 
@@ -261,12 +257,11 @@ types. Enforced with `eslint-plugin-boundaries` (constitution 6.6).
 | `VerifyResult` | what a permanent link, a digest or a file resolves to, and whether it matches | Verify |
 
 Charts use Recharts (already a dependency). A hygiene test forbids rendering `JSON.stringify` output or `<pre>`
-outside `SourceView` and `LogPanel`, and digest-shaped text outside the components that §5.4 allows (constitution,
-Article 15).
+outside `SourceView` and `LogPanel`, and digest-shaped text outside the components that §5.4 allows.
 
 ### 5.4 Identifiers on screen
 
-People read names, machines read digests (INTENT principle 13).
+People read names, machines read digests.
 
 | Thing | Shown as | Not shown |
 |---|---|---|
@@ -314,7 +309,7 @@ classDiagram
 Mapping to `v1` names: Problem = `BindingCase`, ProblemVersion = case revision, CompiledForm = snapshot (`InstanceSnapshot`
 and its IR), Run = `Job`, Result = job result plus re-evaluation, PublishedResult = a simplified `publications`
 record (no report, no editions). A problem version's resources are sealed parts in the internal versioned-artifact
-store, addressed by digest; there is no component catalogue (ADR-0020). Every sealed entity has a content digest
+store, addressed by digest; there is no component catalogue. Every sealed entity has a content digest
 that the API returns and Verify checks;
 screens name it as §5.4 says. Permanent links address problems, collections and published results independently of
 slugs.
@@ -413,7 +408,7 @@ parent's roles, cardinalities, resource types, vocabularies and output schema, a
 - extend the output IR with new sections described by a schema delta, without changing the meaning of any parent
   field;
 - add evaluation semantics (constraints, aggregation operators, objective terms) implemented in the canonical
-  evaluator, so the gateway can re-evaluate every binding (constitution 17.3);
+  evaluator, so the gateway can re-evaluate every binding;
 - add compile hooks: deterministic pre-solve transforms from extension resources to features or constraints.
 
 Compilation resolves the chain from the root, validates roles and cardinalities against the merged contract, lowers
@@ -445,7 +440,7 @@ dialects.
 `draft → submitted → checked → approved → installed → deprecated → retired`, per exact version. Checking runs schema
 validation, the golden examples, double lowering, and for tier 2 the conformance probes. A deprecated version still
 compiles existing problem versions and is not offered for new ones; a version used by a sealed or cited problem
-version is never retired. Approval in production is an owner decision (constitution 17.6).
+version is never retired. Approval in production is an owner decision.
 
 ### 8.5 Language API
 
@@ -506,7 +501,7 @@ flowchart LR
 | Environment | SPHERE | SPACE |
 |---|---|---|
 | Unit tests and CI | a recorded copy of the pricing in `tests/fixtures`; no network | a fake `PlanPort` or `OpenGate` |
-| Lab, PR previews, develop preview | `sphere.score.us.es`, read only | `space.score.us.es` |
+| Lab, develop preview | `sphere.score.us.es`, read only | `space.score.us.es` |
 | Production | `sphere.score.us.es` | `space.score.us.es` |
 
 ### 9.2 Gateway side
@@ -535,7 +530,7 @@ flowchart LR
   ETag-cached). OpenBinding holds no SPHERE key.
 - Removed: `sphere_client.py`, `pricing_catalog.py`, the deprecated `/v1/pricing` proxy and `/v1/pricing/catalog`,
   admin pricing validation, `space_client/deployments.py`, the release sweeps, local metering
-  (`domain/usage_counters.py`) and the sponsorship capacity checks (ADR-0015, ADR-0020).
+  (`domain/usage_counters.py`) and the sponsorship capacity checks.
 
 ### 9.3 Browser side
 
@@ -579,48 +574,36 @@ remote SPACE and its routes are unverified until the first live run of the one-s
 | Uploads not referenced by any version | blob store | 30 days |
 | Notifications | PostgreSQL | 180 days |
 | Audit events | PostgreSQL | permanent |
-| Lab previews | lab Docker volumes | expire after 7 idle days; `develop` preview is permanent |
-| Factory work trees and task branches | lab project directory | archived within 24 h of merge or cancellation; archives kept 30 days |
-| Factory and gate reports | lab state | 90 days, except release evidence |
+| Develop preview | lab Docker volumes | permanent |
 | Datasets, raw campaign results | Zenodo | never in Git or the platform database |
 
-Purges run through `/v1/admin/maintenance/preview|purge` and scheduled workers; factory retention runs through the
-factory's maintenance operations (constitution, Article 18).
+Purges run through `/v1/admin/maintenance/preview|purge` and scheduled workers.
 
 ## 11. Quality architecture
 
-| Level | What | Where | Gate |
-|---|---|---|---|
-| Specification | EARS requirements with `req~…~N` ids, scenarios | `openspec/` | G1, G2 |
-| Acceptance | executable scenarios written from the spec before the code: API flows with pytest, UI flows with Playwright | `acceptance/api/`, `acceptance/ui/` | G3, G4 |
-| Unit and property | pytest, Hypothesis, Vitest | per package | G5 |
-| Contract | OpenAPI snapshot, JSON Schemas, Schemathesis, BIM and engine consumer contracts; SPHERE against a recorded pricing in CI and `sphere.score.us.es` in the lab; SPACE against its pinned image in the lab | CI and lab | G7 |
-| Traceability | OpenFastTrace over specs, code, tests and acceptance | CI | G6 |
-| Mutation | mutmut (Python), Stryker (TypeScript) on changed code | Actions | G8 |
-| Static | ruff, mypy (ratcheted), ESLint, Semgrep, dependency audit, licences, import-linter, boundaries | CI | G9 |
-| Secrets and ownership | secret scan, owned globs | CI | G10 |
-| Review panel | reviewers by risk | factory | G11 |
-| Preview | lab deployment, Playwright flows, ui-qa screenshots (desktop and mobile), axe | NiPoGi lab | G12 |
-
-Acceptance tests are the specification made executable: each scenario carries `[utest->req~…]`, is frozen before
-implementation and runs against the preview of the change's head.
+| Level | What | Where |
+|---|---|---|
+| Acceptance | executable scenarios from the public interfaces: API flows with pytest, UI flows with Playwright | `acceptance/api/`, `acceptance/ui/` |
+| Unit and property | pytest, Hypothesis, Vitest | per package |
+| Contract | OpenAPI snapshot, JSON Schemas, BIM and engine consumer contracts; SPHERE against a recorded pricing in CI and `sphere.score.us.es` in the lab | CI and lab |
+| Static | ruff, mypy (ratcheted), ESLint, import-linter, boundaries | CI |
+| Preview | lab deployment, Playwright flows, screenshots (desktop and mobile) | NiPoGi lab |
 
 ## 12. Environments and previews
 
 | Environment | Where | Compose files | Data | Purpose |
 |---|---|---|---|---|
-| Development | developer machine or factory work tree | `docker-compose.yml` (profile `dev`) | synthetic | build and unit tests |
-| Lab | NiPoGi rootless lab Docker | `deploy/compose/lab*.json` profiles | synthetic seed | integration, gates, e2e |
-| PR preview | NiPoGi lab, one stack per PR head on demand | the lab files | synthetic seed | G12 before merging into `develop` |
+| Development | developer machine | `docker-compose.yml` (profile `dev`) | synthetic | build and unit tests |
+| Lab | NiPoGi rootless lab Docker | `compose.lab*.json` profiles | synthetic seed | integration, e2e |
 | Develop preview | NiPoGi lab, follows `develop`; `https://openbinding.home.javiercavlop.com` | the lab files | synthetic seed | the owner reviews `develop` from the Mac or the iPhone |
 | Production | Universidad de Sevilla servers (`openbinding.score.us.es`) | `deploy/compose/production` overlay | real | only on the owner's order |
 
-Docker Compose is the only deployment tool (ADR-0021): one base definition and an overlay per environment, images
+Docker Compose is the only deployment tool: one base definition and an overlay per environment, images
 pinned by digest, secrets mounted as files, health checks on every service, PostgreSQL backups by a scheduled
 `pg_dump` service and volume snapshots. There are no Kubernetes manifests.
 
 The develop preview sits behind the homelab Caddy (TLS, home network and WireGuard VPN only) with an AdGuard
-rewrite; web and API share its origin (`/api`), so no CORS entry is needed. PR previews expire after 7 idle days.
+rewrite; web and API share its origin (`/api`), so no CORS entry is needed.
 
 ## 13. Repository layout
 
@@ -630,12 +613,12 @@ The application directories keep their names; the clutter at the root moves:
 |---|---|
 | `compose.lab*.json`, `compose.pgtest.json` | `deploy/compose/` |
 | `docker-compose.yml` | stays at the root as the development entry point |
-| `deploy/kubernetes/` | removed (ADR-0021) |
+| `deploy/kubernetes/` | removed |
 | `nginx/`, `up.sh` | `deploy/` |
 | `pricings/` (FaaS iPricings of CLASP) | `experimentation/clasp/pricings/` |
 | `output/` (Zenodo packaging) | `experimentation/qacobench/zenodo/` |
 | — | `acceptance/` (new), `deploy/compose/production/` (new), `docs/pricing/` (OpenBinding's pricing proposals and their rationale; SPHERE holds the published versions) |
-| `bim-toolchain/` | removed after the extraction to `isa-group/bim-toolchain` (ADR-0004) |
+| `bim-toolchain/` | removed after the extraction to `isa-group/bim-toolchain` |
 
 Each move is one `refactor/<id>` change that updates CI, Dockerfiles, documentation links and tests together.
 

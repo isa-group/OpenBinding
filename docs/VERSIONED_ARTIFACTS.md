@@ -1,6 +1,6 @@
 # Organization artifact library
 
-> Being reduced (ADR-0020). The library as a catalogue (organization library, project resources, project
+> Being reduced. The library as a catalogue (organization library, project resources, project
 > library, its pages and endpoints) retires; the versioned-artifact store described here stays as the
 > repository's internal storage of sealed parts, and sealed problem versions keep their exact references.
 

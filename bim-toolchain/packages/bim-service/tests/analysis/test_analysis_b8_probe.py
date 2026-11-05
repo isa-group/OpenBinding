@@ -1,4 +1,4 @@
-"""B8 (analysis, ``docs/qa/analysis/BIM_B5_B8_M4_IR.md``): what runs in the event loop of ``bim-service``.
+"""B8 (analysis): what runs in the event loop of ``bim-service``.
 
 Synthetic and local: the ASGI application is driven in-process (``httpx.ASGITransport``), the operations are replaced
 by stand-ins, and the cost is measured on the event loop of the test.  Nothing here changes ``bim-service``.

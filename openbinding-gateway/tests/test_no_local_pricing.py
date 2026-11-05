@@ -46,7 +46,6 @@ INFRASTRUCTURE = (
     REPO_ROOT / ".env.example",
     GATEWAY / "Dockerfile",
     GATEWAY / ".env.example",
-    REPO_ROOT / "tools" / "generate_changelog.py",
 )
 
 #: The third-party FaaS pricing inputs of the BIM analysis, which this change leaves alone.

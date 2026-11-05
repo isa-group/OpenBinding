@@ -152,7 +152,6 @@ function Body({ organization, project, access }: { organization: Organization; p
  * Collections (`coll-list`, `/app/:org/:project/collections`): the project’s ordered, versioned lists of exact references. The dialog
  * `New collection` is open while the address holds `?create=collection`, for the people who may create.
  */
-// [impl->req~frontend-nav-new-menu~1]
 export function CollList() {
   const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
   if (waiting) return <ProjectSkeleton />;

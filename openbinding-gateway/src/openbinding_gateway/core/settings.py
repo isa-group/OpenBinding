@@ -43,7 +43,6 @@ DEV_CORS_ORIGINS = (
 #: or uses are listed: ``Retry-After`` (429/503), ``ETag`` (content-addressed
 #: downloads), ``Location`` (redirects), ``Content-Disposition`` and ``Digest``
 #: (archive downloads), and ``Idempotency-Key`` (job submission).
-# [impl->req~gateway-api-cors-exposed-headers~1]
 CORS_EXPOSED_HEADERS = (
     "Retry-After",
     "ETag",
@@ -81,9 +80,6 @@ def _mask_userinfo(value: str) -> str:
 HOST_PATTERN = re.compile(r"[A-Za-z0-9.-]+|\[[0-9A-Fa-f:.]+\]")
 
 
-# [impl->req~gateway-api-public-origin-format~1]
-# [impl->req~gateway-api-cors-origin-format~1]
-# [impl->req~gateway-api-origin-error-masking~1]
 def _require_origin(name: str, value: str, *, trailing_slash: bool) -> None:
     """Raise unless ``value`` is ``http(s)://host[:port]``, naming ``name`` if not.
 

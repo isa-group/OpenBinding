@@ -59,7 +59,6 @@ describe('Notifications', () => {
     api.markAllNotificationsRead.mockResolvedValue([]);
   });
 
-  // [utest->req~frontend-workspace-no-sponsor-requests~1]
   it('lists the notices, says how many are unread and marks them', async () => {
     renderNotifications();
 

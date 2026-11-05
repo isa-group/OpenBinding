@@ -291,7 +291,6 @@ export function packageImportCounts(result: PackageImportResult | null | undefin
 }
 
 /** `caseRevisions` → `problem versions`, `jobs` → `runs`, `publications` → `published results`. */
-// [impl->req~frontend-nav-vocabulary-text~1]
 export function humanizeCount(id: string): string {
   return inInterfaceWords(id.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase()).replace(/\brevision(s?)\b/g, 'version$1');
 }

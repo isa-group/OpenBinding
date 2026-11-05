@@ -256,7 +256,6 @@ def _read(path: Path) -> str:
 
 
 def test_tool_dockerfile_pins_digest_and_requirements():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     assert rule_tool_dockerfile(_read(TOOL_DOCKERFILE)) is None
     assert rule_requirements(_read(REQUIREMENTS)) is None
 
@@ -299,7 +298,6 @@ REQUIREMENT_MUTATIONS = {
 
 
 def test_control_dockerfile_rules_refuse_violations():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     assert rule_tool_dockerfile(SAMPLE_TOOL) is None and rule_requirements(SAMPLE_REQUIREMENTS) is None
     for label, mutate in TOOL_MUTATIONS.items():
         mutated = mutate(SAMPLE_TOOL)
@@ -329,7 +327,6 @@ ALONE_CONTROLS = [
 
 
 def test_control_each_dockerfile_rule_refuses_its_mutations_alone():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     for rule, labels in ALONE_CONTROLS:
         assert rule(SAMPLE_TOOL) is None, f"{rule.__name__}: the conforming sample must pass"
         for label in labels:
@@ -345,7 +342,6 @@ SAMPLE_IGNORE = ["*", "!requirements.txt", "!space_lab_bootstrap.py"]
 
 
 def test_every_host_copy_survives_the_ignore_rules_of_its_context():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     ignore = TOOL_CONTEXT / ".dockerignore"
     assert ignore.is_file(), f"{ignore.relative_to(ROOT)} does not exist"
     text = _read(TOOL_DOCKERFILE)
@@ -357,7 +353,6 @@ def test_every_host_copy_survives_the_ignore_rules_of_its_context():
 
 
 def test_control_the_context_matcher_refuses_excluded_copies():
-    # [utest->req~lab-deployment-remote-bootstrap-profile~1]
     assert rule_context_copies(SAMPLE_TOOL, SAMPLE_IGNORE) is None
     assert host_copy_sources(SAMPLE_TOOL) == ["requirements.txt", "space_lab_bootstrap.py"]
     assert rule_context_copies(SAMPLE_TOOL, ["*"]), "everything excluded must be refused"
@@ -598,7 +593,6 @@ def _existing_report() -> dict:
 
 
 def test_the_configuration_comes_from_the_environment(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     config = tool.Config.from_environ({"SPACE_API_KEY": API_KEY})
     assert (config.space_url, config.plan) == ("https://space.score.us.es", "FREE")
     assert (config.poll_attempts, config.poll_seconds) == (60, 5)
@@ -613,7 +607,6 @@ def test_the_configuration_comes_from_the_environment(tool):
 
 
 def test_the_admin_user_and_password_are_gone(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     names = {field.name for field in dataclasses.fields(tool.Config)}
     assert not {name for name in names if "admin" in name or "password" in name}, names
     # an old SPACE_ADMIN_* configuration neither satisfies nor changes the new one
@@ -624,7 +617,6 @@ def test_the_admin_user_and_password_are_gone(tool):
 
 @pytest.mark.parametrize("environ", [{}, {"SPACE_API_KEY": ""}, {"SPACE_URL": SPACE_URL}])
 def test_a_missing_api_key_is_refused(tool, environ):
-    # [utest->req~lab-space-remote-bootstrap~1]
     with pytest.raises(tool.BootstrapError) as raised:
         tool.Config.from_environ(environ)
     assert str(raised.value) == "configuration: SPACE_API_KEY is required"
@@ -639,7 +631,6 @@ def test_a_missing_api_key_is_refused(tool, environ):
                                  "https://space.score.us.es\t", "https://space.score.us.es/\x00",
                                  "https://space.score.us.es?", "https://space.score.us.es/#"])
 def test_an_invalid_space_url_is_refused(tool, url):
-    # [utest->req~lab-space-remote-bootstrap~1]
     with pytest.raises(tool.BootstrapError) as raised:
         tool.Config.from_environ({"SPACE_URL": url, "SPACE_API_KEY": API_KEY})
     assert url not in str(raised.value) and "user:pw" not in _error_text(raised.value)
@@ -654,12 +645,10 @@ def test_an_invalid_space_url_is_refused(tool, url):
     ("https://other-space.example:8443/", "https://other-space.example:8443"),
 ])
 def test_a_valid_space_url_is_accepted_and_normalised(tool, url, expected):
-    # [utest->req~lab-space-remote-bootstrap~1]
     assert tool.Config.from_environ({"SPACE_URL": url, "SPACE_API_KEY": API_KEY}).space_url == expected
 
 
 def test_the_constants_and_the_synthetic_users_follow_the_seed(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     assert (tool.SPHERE_LINK, tool.SERVICE_NAME, tool.SOURCE, tool.POLICY) == (
         SPHERE_LINK, "openbinding", "sphere", "all_last")
     assert tuple(tool.SYNTHETIC_USERS) == USERS
@@ -676,7 +665,6 @@ def test_the_constants_and_the_synthetic_users_follow_the_seed(tool):
 
 
 def test_it_creates_the_service_and_the_contracts_with_the_key_only(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(), FakeContracts()
     report = run(tool, fake, contracts)
     assert report == _created_report()
@@ -696,7 +684,6 @@ def test_it_creates_the_service_and_the_contracts_with_the_key_only(tool):
 
 
 def test_the_service_comes_from_the_sphere_link_with_all_last(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     posted: list[dict] = []
     fake, contracts = FakeSpace(), FakeContracts()
     inner = fake._handle
@@ -713,7 +700,6 @@ def test_the_service_comes_from_the_sphere_link_with_all_last(tool):
 
 
 def test_every_request_goes_to_the_host_of_the_configured_url(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(host="other-space.example", port=8443), FakeContracts()
     config = make_config(tool, {"SPACE_URL": "https://other-space.example:8443"})
     report = asyncio.run(tool.bootstrap(config, transport=fake.transport(), contracts=contracts, sleep=Sleeps()))
@@ -722,7 +708,6 @@ def test_every_request_goes_to_the_host_of_the_configured_url(tool):
 
 
 def test_it_waits_for_the_first_synchronization(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts, sleeps = FakeSpace(sync_script=("queued", "checking", "applying", "ready")), FakeContracts(), Sleeps()
     report = run(tool, fake, contracts, sleeps)
     assert report["synchronization"] == "ready"
@@ -737,7 +722,6 @@ def test_it_waits_for_the_first_synchronization(tool):
 
 
 def test_contracts_use_the_client_and_the_ids_of_the_seed(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     pricings = [{"version": "1.0.0", "id": "a"}, {"version": "1.10.0", "id": "b"}, {"version": "1.2.0", "id": "c"}]
     fake, contracts = FakeSpace(pricings=pricings), FakeContracts()
     run(tool, fake, contracts, plan="PRO")
@@ -753,7 +737,6 @@ def test_contracts_use_the_client_and_the_ids_of_the_seed(tool):
 
 
 def test_the_plan_comes_from_the_environment(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(), FakeContracts()
     asyncio.run(tool.bootstrap(make_config(tool, {"SPACE_BOOTSTRAP_PLAN": "PRO"}), transport=fake.transport(),
                                contracts=contracts, sleep=Sleeps()))
@@ -761,7 +744,6 @@ def test_the_plan_comes_from_the_environment(tool):
 
 
 def test_archived_pricings_are_ignored_in_the_map_shape(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     pricings = {"activePricings": {"1.0.0": {}, "1.1.0": {}}, "archivedPricings": {"2.0.0": {}}}
     fake, contracts = FakeSpace(pricings=pricings), FakeContracts()
     run(tool, fake, contracts)
@@ -769,7 +751,6 @@ def test_archived_pricings_are_ignored_in_the_map_shape(tool):
 
 
 def test_archived_pricings_are_ignored_in_the_list_shape(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     pricings = [{"version": "1.0.0", "status": "active"}, {"version": "1.1.0"},
                 {"version": "2.0.0", "status": "archived"}]
     fake, contracts = FakeSpace(pricings=pricings), FakeContracts()
@@ -798,7 +779,6 @@ def _assert_aborted(tool, fake: FakeSpace, contracts: FakeContracts, named: str 
 
 @pytest.mark.parametrize("status", ["failed", "blocked", "degraded"])
 def test_a_failed_synchronization_aborts(tool, status, capsys, monkeypatch):
-    # [utest->req~lab-space-remote-bootstrap~1]
     _assert_aborted(tool, FakeSpace(sync_script=("queued", status)), FakeContracts(), "synchroni")
 
     # through main: non-zero status, nothing on stdout and one redacted line on stderr
@@ -817,7 +797,6 @@ def test_a_failed_synchronization_aborts(tool, status, capsys, monkeypatch):
 
 
 def test_a_synchronization_that_never_gets_ready_aborts_after_the_polls(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts, sleeps = FakeSpace(sync_script=("checking",)), FakeContracts(), Sleeps()
     with pytest.raises(tool.BootstrapError):
         asyncio.run(tool.bootstrap(make_config(tool, poll_attempts=3), transport=fake.transport(), contracts=contracts,
@@ -826,7 +805,6 @@ def test_a_synchronization_that_never_gets_ready_aborts_after_the_polls(tool):
 
 
 def test_a_created_service_with_a_foreign_name_aborts(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(created_name="something-else"), FakeContracts()
     with pytest.raises(tool.BootstrapError) as raised:
         asyncio.run(tool.bootstrap(make_config(tool), transport=fake.transport(), contracts=contracts, sleep=Sleeps()))
@@ -837,7 +815,6 @@ def test_a_created_service_with_a_foreign_name_aborts(tool):
 
 
 def test_no_active_pricing_version_aborts(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     _assert_aborted(tool, FakeSpace(pricings=[]), FakeContracts(), "pricing")
     _assert_aborted(tool, FakeSpace(pricings={"activePricings": {}, "archivedPricings": {"2.0.0": {}}}),
                     FakeContracts(), "pricing")
@@ -846,7 +823,6 @@ def test_no_active_pricing_version_aborts(tool):
 @pytest.mark.parametrize("override", [{"source": "local"}, {"permanentUrl": "https://sphere.score.us.es/p/other"},
                                       {"policy": "all_first"}])
 def test_an_existing_service_with_other_settings_aborts_unchanged(tool, override):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(), FakeContracts()
     before = dict(fake.add_service(**override))
     _assert_aborted(tool, fake, contracts, "service")
@@ -858,7 +834,6 @@ def test_an_existing_service_with_other_settings_aborts_unchanged(tool, override
 
 
 def test_a_second_run_sends_no_create_or_run_request(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(), FakeContracts(missing="404")
     assert run(tool, fake, contracts) == _created_report()
     fake.requests.clear()
@@ -871,7 +846,6 @@ def test_a_second_run_sends_no_create_or_run_request(tool):
 
 
 def test_a_partial_state_is_completed(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     # a ready service present; contracts for two users only
     fake, contracts = FakeSpace(), FakeContracts()
     fake.add_service(ready=True)
@@ -886,7 +860,6 @@ def test_a_partial_state_is_completed(tool):
 
 
 def test_an_existing_service_still_synchronizing_is_polled_until_ready(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts, sleeps = FakeSpace(sync_script=("checking", "applying", "ready")), FakeContracts(), Sleeps()
     fake.add_service(sync="queued")
     report = run(tool, fake, contracts, sleeps)
@@ -898,7 +871,6 @@ def test_an_existing_service_still_synchronizing_is_polled_until_ready(tool):
 
 @pytest.mark.parametrize("status", ["blocked", "degraded", "failed"])
 def test_an_existing_service_with_a_broken_synchronization_aborts(tool, status):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(), FakeContracts()
     fake.add_service(sync=status)
     _assert_aborted(tool, fake, contracts, f"synchronization.*{status}")
@@ -906,7 +878,6 @@ def test_an_existing_service_with_a_broken_synchronization_aborts(tool, status):
 
 
 def test_a_top_level_status_and_a_flat_service_are_accepted(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(sync_shape="top"), FakeContracts()
     assert run(tool, fake, contracts)["synchronization"] == "ready"
     fake.requests.clear()
@@ -918,7 +889,6 @@ def test_a_top_level_status_and_a_flat_service_are_accepted(tool):
 
 
 def test_a_summary_entry_is_completed_from_the_item_route(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(summaries=True), FakeContracts()
     fake.add_service()
     report = run(tool, fake, contracts)
@@ -930,7 +900,6 @@ def test_a_summary_entry_is_completed_from_the_item_route(tool):
 @pytest.mark.parametrize("override", [{"source": "local"}, {"permanentUrl": "https://sphere.score.us.es/p/other"},
                                       {"policy": "all_first"}])
 def test_a_summary_entry_with_other_settings_aborts_unchanged(tool, override):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(summaries=True), FakeContracts()
     before = dict(fake.add_service(**override))
     _assert_aborted(tool, fake, contracts, "service")
@@ -938,7 +907,6 @@ def test_a_summary_entry_with_other_settings_aborts_unchanged(tool, override):
 
 
 def test_a_full_list_entry_needs_no_item_read(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(), FakeContracts()
     fake.add_service()
     run(tool, fake, contracts)
@@ -949,7 +917,6 @@ def test_a_full_list_entry_needs_no_item_read(tool):
 
 
 def test_a_response_body_over_one_mebibyte_is_refused_before_decoding(tool, monkeypatch):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     big = b'["' + b"A" * (1024 * 1024) + b'"]'
     monkeypatch.setattr(tool.json, "loads", lambda *a, **kw: pytest.fail("the body was decoded"))
     monkeypatch.setattr(httpx.Response, "json", lambda self, **kw: pytest.fail("the body was decoded"))
@@ -963,7 +930,6 @@ def test_a_response_body_over_one_mebibyte_is_refused_before_decoding(tool, monk
 
 
 def test_a_body_of_exactly_one_mebibyte_is_still_read(tool):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     fake, contracts = FakeSpace(), FakeContracts()
     fake.add_service()
     inner = fake._handle
@@ -981,7 +947,6 @@ def test_a_body_of_exactly_one_mebibyte_is_still_read(tool):
 
 
 def test_pricing_versions_that_do_not_look_like_versions_are_ignored(tool):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     invalid = ["9.0.0/../x", "9.1 ", "9.2.0\n", "v9", "9.3.0?x=1", "9.4.0#a", "9..0", "9.5.", "", "9.6\\0", "9.7.0-"]
     pricings = [{"version": "1.0.0"}, {"version": "1.1.0+build.5"}, *({"version": v} for v in invalid)]
     fake, contracts = FakeSpace(pricings=pricings), FakeContracts()
@@ -993,7 +958,6 @@ def test_pricing_versions_that_do_not_look_like_versions_are_ignored(tool):
 
 
 def test_a_release_ranks_above_its_pre_release(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     for pricings in ([{"version": "2.0.0"}, {"version": "2.0.0-rc.1"}], [{"version": "2.0.0-rc.1"}, {"version": "2.0.0"}],
                      [{"version": "2.0.0-rc.1"}, {"version": "2.0.0+build.7"}, {"version": "1.9.9"}]):
         fake, contracts = FakeSpace(pricings=pricings), FakeContracts()
@@ -1003,12 +967,10 @@ def test_a_release_ranks_above_its_pre_release(tool):
 
 
 def test_a_version_with_an_enormous_digit_run_is_ignored(tool):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     assert tool._valid_versions(["1.0.0", "9" * 5000, "1." + "9" * 5000]) == ["1.0.0"]
 
 
 def test_without_a_valid_pricing_version_it_aborts(tool):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     _assert_aborted(tool, FakeSpace(pricings=[{"version": "../x"}, {"version": "9.1\n"}]), FakeContracts(), "no active pricing")
     _assert_aborted(tool, FakeSpace(pricings={"activePricings": {"latest": {}}}), FakeContracts(), "no active pricing")
 
@@ -1032,7 +994,6 @@ def _assert_trust_variables_kept() -> None:
 
 
 def test_the_sdk_client_is_created_without_proxy_variables(tool, monkeypatch):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     fake, contracts = FakeSpace(), FakeContracts()
     seen: list[list[str]] = []
 
@@ -1052,7 +1013,6 @@ def test_the_sdk_client_is_created_without_proxy_variables(tool, monkeypatch):
 
 
 def test_every_variable_ending_in_proxy_is_removed_whatever_its_case(tool, monkeypatch):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     odd = ("Https_Proxy", "FTP_PROXY", "socks_proxy", "Grpc_Proxy")
     for name in odd:
         monkeypatch.setenv(name, "http://proxy.invalid:3128")
@@ -1066,7 +1026,6 @@ def test_every_variable_ending_in_proxy_is_removed_whatever_its_case(tool, monke
 
 
 def test_main_removes_the_proxy_variables_before_any_client_is_built(tool, monkeypatch, capsys):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     seen: list[list[str]] = []
 
     async def stub(config, **kwargs):
@@ -1082,7 +1041,6 @@ def test_main_removes_the_proxy_variables_before_any_client_is_built(tool, monke
 
 
 def test_main_removes_the_proxy_variables_even_when_the_configuration_is_refused(tool, monkeypatch, capsys):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     _set_proxies(monkeypatch)
     assert tool.main([], {}) == 1
     assert _visible_proxies() == []
@@ -1093,7 +1051,6 @@ def test_main_removes_the_proxy_variables_even_when_the_configuration_is_refused
 
 
 def test_a_missing_contract_reported_as_404_is_created(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(), FakeContracts(missing="404")
     contracts.preload("lab-admin")
     report = run(tool, fake, contracts)
@@ -1102,7 +1059,6 @@ def test_a_missing_contract_reported_as_404_is_created(tool):
 
 
 def test_a_contract_refused_without_an_error_aborts(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(), FakeContracts(refuse=True)
     with pytest.raises(tool.BootstrapError) as raised:
         asyncio.run(tool.bootstrap(make_config(tool), transport=fake.transport(), contracts=contracts, sleep=Sleeps()))
@@ -1111,7 +1067,6 @@ def test_a_contract_refused_without_an_error_aborts(tool):
 
 
 def test_a_contract_with_another_plan_is_not_confirmed(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(), FakeContracts()
     real_add = contracts.add_contract
 
@@ -1127,7 +1082,6 @@ def test_a_contract_with_another_plan_is_not_confirmed(tool):
 
 
 def test_a_contract_stored_with_another_version_is_not_confirmed(tool):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(), FakeContracts()
     real_add = contracts.add_contract
 
@@ -1143,7 +1097,6 @@ def test_a_contract_stored_with_another_version_is_not_confirmed(tool):
 
 
 def test_the_contracts_client_gets_the_key_and_is_closed(tool, monkeypatch):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(), FakeContracts()
     calls: list[tuple] = []
     closed: list[bool] = []
@@ -1167,7 +1120,6 @@ def test_the_contracts_client_gets_the_key_and_is_closed(tool, monkeypatch):
 
 
 def test_main_prints_one_sorted_json_line_on_success(tool, capsys, monkeypatch):
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake, contracts = FakeSpace(), FakeContracts()
     real = tool.bootstrap
 
@@ -1183,7 +1135,6 @@ def test_main_prints_one_sorted_json_line_on_success(tool, capsys, monkeypatch):
 
 
 def test_main_refuses_a_missing_key_without_output_on_stdout(tool, capsys):
-    # [utest->req~lab-space-remote-bootstrap~1]
     capsys.readouterr()
     assert tool.main([], {}) == 1
     out, err = capsys.readouterr()
@@ -1212,7 +1163,6 @@ def _code_strings(source: str) -> list[str]:
 
 
 def test_the_tool_has_no_retired_route_or_variable_and_never_writes(tool):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     source = _source()
     code = "\n".join(line for line in source.splitlines() if not line.lstrip().startswith("#"))
     strings = "\n".join(_code_strings(source))
@@ -1231,7 +1181,6 @@ def test_the_tool_has_no_retired_route_or_variable_and_never_writes(tool):
 
 
 def test_the_tool_imports_only_the_standard_library_httpx_and_space_client():
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     tree = ast.parse(_source())
     imported = set()
     for node in ast.walk(tree):
@@ -1246,7 +1195,6 @@ def test_the_tool_imports_only_the_standard_library_httpx_and_space_client():
 
 
 def test_the_api_key_is_held_out_of_the_representation(tool):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     config = make_config(tool)
     assert API_KEY not in repr(config) and API_KEY not in str(config)
     holders = [f for f in dataclasses.fields(config) if getattr(config, f.name) == API_KEY]
@@ -1258,7 +1206,6 @@ def _logging_records(caplog):
 
 
 def test_nothing_secret_is_printed_or_persisted(tool, capsys, caplog, tmp_path, monkeypatch):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     monkeypatch.chdir(tmp_path)
     caplog.set_level(logging.DEBUG)
 
@@ -1319,7 +1266,6 @@ def test_nothing_secret_is_printed_or_persisted(tool, capsys, caplog, tmp_path, 
 
 
 def test_a_contract_lookup_error_names_only_its_type(tool):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     fake = FakeSpace()
     contracts = FakeContracts(error=space_api_error(500, {"error": f"broken for {API_KEY}"}))
     with pytest.raises(tool.BootstrapError) as raised:
@@ -1332,7 +1278,6 @@ def test_a_contract_lookup_error_names_only_its_type(tool):
 
 
 def test_a_contracts_error_behind_the_sdk_client_closes_it_and_swallows_the_close_error(tool, monkeypatch):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     fake = FakeSpace()
     contracts = FakeContracts(error=space_api_error(500, {"error": "broken"}))
     closed: list[bool] = []
@@ -1357,7 +1302,6 @@ def test_a_contracts_error_behind_the_sdk_client_closes_it_and_swallows_the_clos
 
 @pytest.mark.parametrize("step", ["connect", "close"])
 def test_a_failing_contracts_client_names_only_the_exception_type(tool, monkeypatch, step):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     fake, contracts = FakeSpace(), FakeContracts()
 
     async def close():
@@ -1379,7 +1323,6 @@ def test_a_failing_contracts_client_names_only_the_exception_type(tool, monkeypa
 
 
 def test_a_key_that_cannot_be_sent_does_not_travel_in_the_error(tool):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     odd_key = "mgmt-clé-sample"
     fake = FakeSpace(key=odd_key)
     with pytest.raises(tool.BootstrapError) as raised:
@@ -1389,7 +1332,6 @@ def test_a_key_that_cannot_be_sent_does_not_travel_in_the_error(tool):
 
 
 def test_a_redirect_is_not_followed_and_proxies_are_not_read(tool):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     fake, contracts = FakeSpace(redirect_services="https://elsewhere.example/api/v1/services"), FakeContracts()
     _assert_aborted(tool, fake, contracts, "service")
     assert fake.count("GET", "/api/v1/services") == 1
@@ -1398,7 +1340,6 @@ def test_a_redirect_is_not_followed_and_proxies_are_not_read(tool):
 
 
 def test_main_reports_an_unexpected_error_by_its_type_only(tool, capsys, monkeypatch):
-    # [utest->req~lab-space-remote-bootstrap-secrets~1]
     async def exploding(config, **kwargs):
         raise RuntimeError(f"boom {API_KEY}")
 
@@ -1409,7 +1350,6 @@ def test_main_reports_an_unexpected_error_by_its_type_only(tool, capsys, monkeyp
 
 
 def test_control_the_fake_records_retired_routes_and_modifications():
-    # [utest->req~lab-space-remote-bootstrap~1]
     fake = FakeSpace()
     fake.add_service()
 
@@ -1459,7 +1399,6 @@ def _dependency_closure(packages: dict, roots: set[str]) -> set[str]:
 
 
 def test_the_tool_requirements_follow_the_gateway_lock():
-    # [utest->req~lab-space-remote-bootstrap~1]
     packages = {_normalise(p["name"]): p for p in tomllib.loads(_read(UV_LOCK))["package"]}
     locked = {name: p["version"] for name, p in packages.items() if "version" in p}
     pins = {}

@@ -75,7 +75,6 @@ function VersionCard({ root, caseSlug, revision, previous, latest, model, public
 }
 
 /** The history of a problem: its versions as a timeline, newest first, with what changed between them. */
-// [impl->req~frontend-nav-problem-page~1]
 export function VersionHistory({ root, content, publicRead }: { root: string; content: RouteCaseContent; publicRead: boolean }) {
   const { item, revisions } = content;
   const latest = revisions[0];

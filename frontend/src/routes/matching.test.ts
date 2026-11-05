@@ -2,7 +2,6 @@ import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { movedRoutes, routeDefinitions, routesByArea, type AreaName } from './registry';
 
-// [utest->req~frontend-nav-route-areas~1]
 // Resolution across the areas. Addresses where a fixed segment meets a `:param` segment are the ones a reordering of the registry could
 // change, and the registry order decides ties of rank. This file names no screen: it asserts the AREA of the screen an address
 // resolves to, and what the address of each screen of an area resolves to is checked in that area's own test (areas/<area>.test.ts),
@@ -71,14 +70,12 @@ describe('address resolution across the registry', () => {
     expect(areaAt(path)).toBe(area);
   });
 
-  // [utest->req~frontend-nav-create-dialogs~1]
   it('has no screen called org-create or proj-create', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('org-create');
     expect(ids).not.toContain('proj-create');
   });
 
-  // [utest->req~frontend-nav-create-dialogs~1]
   it.each([
     ['/app/organizations/new', '/app?create=organization'],
     ['/app/acme/new-project', '/app/acme?create=project'],

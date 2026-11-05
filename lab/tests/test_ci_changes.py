@@ -24,7 +24,6 @@ ROOT = Path(__file__).resolve().parents[2]
 TOOLS = ROOT / "tools"
 GATEWAY_TESTS = ROOT / "openbinding-gateway" / "tests"
 AREAS = ("e2e", "bim", "engines", "gateway")
-CHANGELOG = "frontend/src/content/changelog.generated.json"
 
 
 def _load(name: str):
@@ -55,35 +54,21 @@ def _all(value: bool) -> dict[str, bool]:
     return {area: value for area in AREAS}
 
 
-# [utest->req~ci-speed-change-detection~1]
-def test_changelog_only_pull_request_runs_no_area(changes):
-    assert changes.changed_paths([CHANGELOG]) == _all(False)
-
-
-# [utest->req~ci-speed-change-detection~1]
 def test_docs_only_pull_request_runs_no_area(changes):
-    paths = ["docs/agent-work/ci-speed/handoff.md", "openspec/changes/x/proposal.md", "acceptance/ui/a.spec.ts"]
+    paths = ["acceptance/ui/a.spec.ts"]
     assert changes.changed_paths(paths) == _all(False)
     assert changes.changed_paths(["CONTRIBUTING.md", "frontend/README.md"]) == _all(False)
 
 
-# [utest->req~ci-speed-change-detection~1]
-def test_changelog_does_not_hide_a_real_change(changes):
-    assert _only(changes.changed_paths([CHANGELOG, "frontend/e2e/a.spec.ts"]), "e2e")
-
-
-# [utest->req~ci-speed-change-detection~1]
 def test_e2e_spec_only_runs_e2e(changes):
     assert _only(changes.changed_paths(["frontend/e2e/playground.spec.ts"]), "e2e")
 
 
-# [utest->req~ci-speed-change-detection~1]
 def test_frontend_source_runs_e2e_and_gateway(changes):
     # The gateway tests read frontend/src (routes, bim-package fixtures), so the gateway area follows.
     assert _only(changes.changed_paths(["frontend/src/routes/d1.tsx"]), "e2e", "gateway")
 
 
-# [utest->req~ci-speed-change-detection~1]
 def test_engines_and_bim_paths(changes):
     assert _only(changes.changed_paths(["engines/multi-heuristic/pom.xml"]), "engines", "bim", "gateway")
     assert _only(changes.changed_paths(["schemas/bim/v1/instance.schema.json"]), "engines", "bim", "gateway")
@@ -96,7 +81,6 @@ def test_engines_and_bim_paths(changes):
     assert _only(changes.changed_paths(["openbinding-gateway/tests/test_app.py"]), "gateway")
 
 
-# [utest->req~ci-speed-change-detection~1]
 def test_files_the_bim_core_tests_compare_with_the_repository_run_the_bim_area(changes):
     # test_boundary.py compares the root LICENSE and THIRD_PARTY_NOTICES.md with the bim-toolchain copies.
     assert _only(changes.changed_paths(["LICENSE"]), "bim", "gateway")
@@ -106,24 +90,20 @@ def test_files_the_bim_core_tests_compare_with_the_repository_run_the_bim_area(c
     assert _only(changes.changed_paths([vendored]), "bim", "gateway")
     # The corpus tests discover every directory with an instance.json in the repository.
     assert _only(changes.changed_paths(["pricings/new/instance.json"]), "bim", "gateway")
-    assert _only(changes.changed_paths(["docs/agent-work/x/instance.json"]), "bim", "gateway")
+    assert _only(changes.changed_paths(["docs/x/instance.json"]), "bim", "gateway")
     assert _only(changes.changed_paths(["README.md"]), "gateway")
 
 
-# [utest->req~ci-speed-change-detection~1]
 def test_unknown_path_runs_everything(changes):
     assert changes.changed_paths(["weird/file.xyz"]) == _all(True)
-    assert changes.changed_paths([CHANGELOG, "weird/file.xyz"]) == _all(True)
     assert changes.changed_paths(["WEIRD_ROOT_FILE"]) == _all(True)
 
 
-# [utest->req~ci-speed-change-detection~1]
 @pytest.mark.parametrize("path", [".github/workflows/ci.yml", "tools/ci_changes.py", "tools/ci_required.py", "tools/ci_shard.py"])
 def test_ci_definition_change_runs_everything(changes, path):
-    assert changes.changed_paths([path, CHANGELOG]) == _all(True)
+    assert changes.changed_paths([path]) == _all(True)
 
 
-# [utest->req~ci-speed-change-detection~1]
 @pytest.mark.parametrize("event", ["push", "workflow_dispatch", "schedule", ""])
 def test_other_events_run_everything(changes, event, capsys, monkeypatch):
     monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
@@ -157,10 +137,9 @@ def repo(tmp_path, monkeypatch):
     return tmp_path
 
 
-# [utest->req~ci-speed-change-detection~1]
 def test_main_uses_git_diff_and_writes_github_output(changes, repo, capsys, monkeypatch):
-    base = _commit(repo, {"README.md": "a", CHANGELOG: "1"})
-    head = _commit(repo, {CHANGELOG: "2", "frontend/e2e/a.spec.ts": "x"})
+    base = _commit(repo, {"README.md": "a", "acceptance/ui/a.spec.ts": "1"})
+    head = _commit(repo, {"acceptance/ui/a.spec.ts": "2", "frontend/e2e/a.spec.ts": "x"})
     out = repo / "out.txt"
     monkeypatch.setenv("GITHUB_OUTPUT", str(out))
     assert changes.main(["--base", base, "--head", head, "--event", "pull_request"]) == 0
@@ -169,15 +148,13 @@ def test_main_uses_git_diff_and_writes_github_output(changes, repo, capsys, monk
     assert out.read_text(encoding="utf-8") == expected
 
 
-# [utest->req~ci-speed-change-detection~1]
-def test_main_changelog_only_pull_request(changes, repo, capsys):
-    base = _commit(repo, {CHANGELOG: "1"})
-    head = _commit(repo, {CHANGELOG: "2"})
+def test_main_ui_acceptance_only_pull_request(changes, repo, capsys):
+    base = _commit(repo, {"acceptance/ui/a.spec.ts": "1"})
+    head = _commit(repo, {"acceptance/ui/a.spec.ts": "2"})
     assert changes.main(["--base", base, "--head", head, "--event", "pull_request"]) == 0
     assert capsys.readouterr().out.split() == [f"{area}=false" for area in AREAS]
 
 
-# [utest->req~ci-speed-change-detection~1]
 @pytest.mark.parametrize("base", ["", "0" * 40, "not-a-sha", "--output=x"])
 def test_git_error_or_bad_base_runs_everything(changes, repo, capsys, base):
     head = _commit(repo, {"README.md": "a"})
@@ -187,7 +164,6 @@ def test_git_error_or_bad_base_runs_everything(changes, repo, capsys, base):
     assert captured.err.strip()
 
 
-# [utest->req~ci-speed-change-detection~1]
 def test_empty_diff_runs_everything(changes, repo, capsys):
     # base == head lists no path; that is a doubt (fail closed), not a docs-only pull request.
     head = _commit(repo, {"README.md": "a"})
@@ -196,7 +172,6 @@ def test_empty_diff_runs_everything(changes, repo, capsys):
     assert capsys.readouterr().out.split() == [f"{area}=true" for area in AREAS]
 
 
-# [utest->req~ci-speed-change-detection~1]
 def test_outside_a_repository_runs_everything(changes, tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
@@ -204,21 +179,19 @@ def test_outside_a_repository_runs_everything(changes, tmp_path, monkeypatch, ca
     assert capsys.readouterr().out.split() == [f"{area}=true" for area in AREAS]
 
 
-# [utest->req~ci-speed-change-detection~1]
 def test_rename_out_of_a_tested_area_still_runs_it(changes, repo, capsys):
     base = _commit(repo, {"examples/demo/a.json": "{}" * 50})
-    (repo / "docs/agent-work").mkdir(parents=True)
-    _git(repo, "mv", "examples/demo/a.json", "docs/agent-work/a.json")
+    (repo / "acceptance/ui").mkdir(parents=True)
+    _git(repo, "mv", "examples/demo/a.json", "acceptance/ui/a.json")
     _git(repo, "commit", "-m", "move")
     head = _git(repo, "rev-parse", "HEAD")
     assert changes.main(["--base", base, "--head", head, "--event", "pull_request"]) == 0
     assert capsys.readouterr().out.split() == ["e2e=false", "bim=true", "engines=false", "gateway=true"]
 
 
-# [utest->req~ci-speed-change-detection~1]
 def test_whole_repository_walks_see_ignored_paths(changes):
     # test_no_kubernetes walks the repository for kustomizations and manifests.
-    assert changes.changed_paths(["docs/agent-work/x/kustomization.yaml"])["gateway"] is True
+    assert changes.changed_paths(["docs/x/kustomization.yaml"])["gateway"] is True
     assert changes.changed_paths(["frontend/e2e/deploy.yaml"])["gateway"] is True
 
 
@@ -238,11 +211,9 @@ def _gateway_reads() -> set[str]:
     return reads
 
 
-# [utest->req~ci-speed-change-detection~1]
 def test_every_path_the_gateway_tests_read_is_in_the_gateway_area(changes):
     reads = _gateway_reads()
     assert len(reads) > 20, "the regex found too few REPO_ROOT / ... reads"
-    assert "openspec/changes/m09-compose-only/tasks.md" in reads
     # alias chains and os.path.join are read as well
     assert {"engines/minizinc-csp/src/index.ts", "space/prepare.sh", "schemas/general/schema.json"} <= reads
     for read in sorted(reads):
@@ -302,22 +273,19 @@ def _run(required, needs: str | None, monkeypatch, capsys):
     return code, captured.out + captured.err
 
 
-# [utest->req~ci-speed-required-aggregate~1]
 def test_required_passes_when_every_job_succeeded(required, monkeypatch, capsys):
     code, text = _run(required, _needs(test="success", lab="success"), monkeypatch, capsys)
     assert code == 0
     assert len(text.strip().splitlines()) == 1
 
 
-# [utest->req~ci-speed-required-aggregate~1]
 @pytest.mark.parametrize("result", ["failure", "cancelled"])
 def test_required_fails_on_failure_or_cancelled(required, monkeypatch, capsys, result):
-    code, text = _run(required, _needs(**{"gateway-unit": result, "openspec": "success"}), monkeypatch, capsys)
+    code, text = _run(required, _needs(**{"gateway-unit": result, "lab": "success"}), monkeypatch, capsys)
     assert code == 1
-    assert "gateway-unit" in text and "openspec" not in text
+    assert "gateway-unit" in text and "lab" not in text
 
 
-# [utest->req~ci-speed-required-aggregate~1]
 def test_required_fails_when_changes_did_not_succeed(required, monkeypatch, capsys):
     document = json.loads(_needs(test="skipped"))
     document["changes"]["result"] = "failure"
@@ -328,7 +296,6 @@ def test_required_fails_when_changes_did_not_succeed(required, monkeypatch, caps
     assert code == 1 and "changes" in text
 
 
-# [utest->req~ci-speed-required-aggregate~1]
 @pytest.mark.parametrize(
     ("job", "area"),
     [("bim-toolchain", "bim"), ("engines", "engines"), ("test", "gateway"), ("gateway-unit", "gateway"), ("frontend-e2e", "e2e")],
@@ -340,7 +307,6 @@ def test_required_fails_on_skipped_job_whose_area_is_true(required, monkeypatch,
     assert code == 1 and job in text
 
 
-# [utest->req~ci-speed-required-aggregate~1]
 @pytest.mark.parametrize("job", ["lab", "bim-corpus", "frontend", "a-new-job"])
 def test_required_fails_on_skipped_job_that_no_area_gates(required, monkeypatch, capsys, job):
     # An always-on or unmapped job is never skipped legitimately, whatever the area outputs say.
@@ -348,7 +314,6 @@ def test_required_fails_on_skipped_job_that_no_area_gates(required, monkeypatch,
     assert code == 1 and job in text
 
 
-# [utest->req~ci-speed-required-aggregate~1]
 def test_job_area_map_is_the_one_of_the_workflow_conditions(required):
     jobs = yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))["jobs"]
     gated = {}
@@ -359,7 +324,6 @@ def test_job_area_map_is_the_one_of_the_workflow_conditions(required):
     assert gated and required.JOB_AREA == gated, (required.JOB_AREA, gated)
 
 
-# [utest->req~ci-speed-required-aggregate~1]
 def test_required_fails_on_unknown_result_or_missing_area_output(required, monkeypatch, capsys):
     document = json.loads(_needs(test="skipped"))
     del document["changes"]["outputs"]["gateway"]
@@ -369,14 +333,12 @@ def test_required_fails_on_unknown_result_or_missing_area_output(required, monke
     assert code == 1 and "gateway-unit" in text
 
 
-# [utest->req~ci-speed-required-aggregate~1]
 def test_required_passes_on_skipped_job_whose_area_is_false(required, monkeypatch, capsys):
     jobs = dict.fromkeys(("bim-toolchain", "engines", "test", "gateway-unit", "frontend-e2e"), "skipped")
     code, _ = _run(required, _needs(**jobs, lab="success"), monkeypatch, capsys)
     assert code == 0
 
 
-# [utest->req~ci-speed-required-aggregate~1]
 @pytest.mark.parametrize("needs", [None, "", "not json", "[]", "null", '{"changes": 3}', '{"changes": {"outputs": {}}}'])
 def test_required_fails_on_missing_or_invalid_needs(required, monkeypatch, capsys, needs):
     code, text = _run(required, needs, monkeypatch, capsys)

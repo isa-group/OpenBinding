@@ -2,5 +2,4 @@
 
 See docs/ARCHITECTURE.md §4.2.
 
-[impl->req~gateway-architecture-skeleton~1]
 """

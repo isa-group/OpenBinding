@@ -38,7 +38,6 @@ def _collected():
     return {p for p in found if "__pycache__" not in p.parts}
 
 
-# [utest->req~ci-speed-gateway-unit-shards~1]
 def test_shards_partition_every_test_file_of_the_gateway():
     expected = sorted(p.relative_to(REPO).as_posix() for p in _collected())
     assert expected
@@ -50,13 +49,11 @@ def test_shards_partition_every_test_file_of_the_gateway():
         assert all(part == sorted(part) for part in parts)
 
 
-# [utest->req~ci-speed-gateway-unit-shards~1]
 def test_output_is_stable_between_runs():
     assert run("--shard", "1/3").stdout == run("--shard", "1/3").stdout
     assert run("--shard", "2/3").stdout == run("--shard", "2/3").stdout
 
 
-# [utest->req~ci-speed-gateway-unit-shards~1]
 def test_heavier_shard_exceeds_lighter_by_at_most_the_largest_file():
     files = {p: p.stat().st_size for p in _collected()}
     for n in (2, 3):
@@ -64,7 +61,6 @@ def test_heavier_shard_exceeds_lighter_by_at_most_the_largest_file():
         assert max(totals) - min(totals) <= max(files.values())
 
 
-# [utest->req~ci-speed-gateway-unit-shards~1]
 def test_invalid_arguments_exit_2():
     for bad in ("0/2", "3/2", "1/0", "-1/2", "x/2", "2"):
         result = run("--shard", bad)
@@ -72,7 +68,6 @@ def test_invalid_arguments_exit_2():
         assert result.stderr.strip()
 
 
-# [utest->req~ci-speed-gateway-unit-shards~1]
 def test_weights_change_the_assignment_on_a_small_tree(tmp_path):
     tree = tmp_path / "t"
     make_tree(tree, {"test_a.py": 100, "sub/test_b.py": 50, "test_c.py": 40, "test_d.py": 10,
@@ -90,14 +85,12 @@ def test_weights_change_the_assignment_on_a_small_tree(tmp_path):
     assert sorted(heavy[1]) == sorted(f"{root}/{r}" for r in ("test_a.py", "sub/test_b.py", "test_c.py"))
 
 
-# [utest->req~ci-speed-gateway-unit-shards~1]
 def test_both_pytest_file_patterns_are_collected(tmp_path):
     make_tree(tmp_path, {"test_a.py": 3, "x_test.py": 2, "sub/y_test.py": 1, "helper.py": 9, "__pycache__/z_test.py": 9})
     union = sorted(f for i in (1, 2) for f in shard(i, 2, "--root", str(tmp_path)))
     assert union == sorted(f"{tmp_path}/{r}" for r in ("test_a.py", "x_test.py", "sub/y_test.py"))
 
 
-# [utest->req~ci-speed-gateway-unit-shards~1]
 def test_the_list_does_not_depend_on_the_working_directory():
     # ci.yml runs the script with cwd openbinding-gateway and the root relative to the repository.
     for n in (2, 3):
@@ -107,7 +100,6 @@ def test_the_list_does_not_depend_on_the_working_directory():
             assert from_gateway.stdout.split() == shard(i, n, "--root", ROOT)
 
 
-# [utest->req~ci-speed-gateway-unit-shards~1]
 def test_pytest_collection_options_do_not_change_the_file_patterns():
     # The shard script globs test_*.py and *_test.py, pytest's defaults. An override of python_files,
     # norecursedirs or collect_ignore would make the two differ without any test noticing.
@@ -124,7 +116,6 @@ def test_pytest_collection_options_do_not_change_the_file_patterns():
         assert "collect_ignore" not in conftest.read_text(encoding="utf-8"), f"{conftest} sets collect_ignore"
 
 
-# [utest->req~ci-speed-gateway-unit-shards~1]
 def test_empty_shards_only_when_fewer_files_than_shards(tmp_path):
     make_tree(tmp_path, {"test_a.py": 1, "test_b.py": 1})
     parts = [shard(i, 3, "--root", str(tmp_path)) for i in (1, 2, 3)]

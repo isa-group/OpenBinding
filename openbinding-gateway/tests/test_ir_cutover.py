@@ -3,7 +3,7 @@
 Persisted snapshots keep the IR the toolchain returned and the package it was compiled from. After a
 release that changes the IR (a new ``compilerDigest``), the stored IR pins a Profile and Dialects that are
 not installed: every operation on it is refused. These tests age a snapshot the way that release would
-(``aged``), then pin what the gateway promises (``docs/qa/IR_CUTOVER.md``): the refusal is the same
+(``aged``), then pin what the gateway promises: the refusal is the same
 ``422 contract_not_installed`` that says to recompile, never a 500 and never a stored value; the package is
 compiled again and the IR of the snapshot that a sealed case revision pins is replaced in place (every id
 stays), and the seed of the lab does it idempotently without touching users, organizations, projects or cases.
@@ -344,7 +344,7 @@ async def test_a_package_that_cannot_be_compiled_again_is_reported_and_left_alon
     [(failed_id, code)] = report.failed
     assert failed_id == stale_snapshot_id and code
     # The package itself is what the installed toolchain cannot read, so recompiling would not help and the
-    # launch does not say to (docs/qa/SNAPSHOT_INVALID_INSTANCE.md); the snapshot is kept.
+    # launch does not say to; the snapshot is kept.
     assert await snapshot_ir_problem(db_session, uuid.UUID(stale_snapshot_id)) == "snapshot_not_recompilable"
     assert await count(db_session, InstanceSnapshot) == 1
 

@@ -41,7 +41,6 @@ function Citation({ digest, entity }: { digest: string; entity: VerifierEntity }
 }
 
 /** What the verifier answered: the verdict, the fingerprints, the matches, a citation and the canonical JSON behind a disclosure. */
-// [impl->req~frontend-nav-verify-no-raw-json~1]
 export function VerifierResult({ result }: { result: Result }) {
   const { verdict } = result;
   const entity = verdict.entities?.[0];

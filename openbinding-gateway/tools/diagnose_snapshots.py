@@ -7,7 +7,7 @@ tool says why, without changing anything: for each stale snapshot that is not re
 document with the ids, the organization and project that reach it through case revisions (slugs and ids, no
 credential), the revision, the digests of the stored package, and the exact refusal of the installed compiler
 (code, pointer, redacted message) together with whether the same source package compiles now and still reads
-as the same package (docs/qa/SNAPSHOT_INVALID_INSTANCE.md).
+as the same package.
 
 It never commits: a rollback ends the session, and on PostgreSQL the transaction is declared ``READ ONLY``.
 Nothing is deleted, hidden or repaired; a snapshot it lists stays as it is. It uses the gateway ``Settings``

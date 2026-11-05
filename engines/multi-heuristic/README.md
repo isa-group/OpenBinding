@@ -23,8 +23,7 @@ and `DELETE` cancels it (the job is reported `cancelled` only once the solver
 thread has returned), and `/openapi.json` becomes that same document plus the job
 endpoints and `extensions.cancellation = {supported: true, idScope: "attempt"}`.
 `ENGINE_AUTH_TOKENS=tenant=token,...` makes jobs private to the tenant that
-submitted them. See
-[`docs/qa/ENGINE_CANCELLATION_JAVA.md`](../../docs/qa/ENGINE_CANCELLATION_JAVA.md).
+submitted them.
 The pinned file is not edited: the extension is added when the document is served.
 
 Unlike the engines in `schemas/bim/v1/manifests`, this one is not installed by

@@ -4,7 +4,7 @@
 that one session is really waiting for another's lock, and the HTTP application wired to the same server, so
 they share this module (and the ``pg`` fixture of ``conftest.py``) instead of growing that directory's fixture.
 
-The rules are those of ``tests/concurrency/_two_sessions.py`` and ``docs/qa/PG_HARNESS.md``:
+The rules are those of ``tests/concurrency/_two_sessions.py``:
 
 * no ``TEST_DATABASE_URL``: the ``pg`` fixture skips, which is the *only* reason a ``*_pg.py`` test may skip;
 * the URL must name a PostgreSQL database called ``test*`` or the test fails (the fixture truncates every table);

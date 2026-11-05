@@ -6,8 +6,6 @@ import type { MovedRoute } from '../moved';
 import type { RouteDefinition } from '../types';
 
 // Area: public. The pages anybody can open without an account.
-// [impl->req~frontend-nav-status-retired~1]
-// [impl->req~frontend-nav-examples-in-explore~1]
 
 const ExplorePage = lazy(() => import('../../pages/Public/Explore').then((module) => ({ default: module.ExplorePage })));
 const About = lazy(() => import('../../pages/About/About').then((module) => ({ default: module.About })));

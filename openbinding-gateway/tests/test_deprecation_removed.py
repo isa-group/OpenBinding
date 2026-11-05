@@ -31,14 +31,12 @@ METHODS = {"get", "put", "post", "delete", "patch", "options", "head", "trace"}
     ],
 )
 async def test_no_response_carries_a_retirement_header(api_client, path):
-    # [utest->req~gateway-api-no-retirement-headers~1]
     response = await api_client.get(path)
 
     assert not RETIREMENT_HEADERS & {name.lower() for name in response.headers}, (path, dict(response.headers))
 
 
 async def test_a_cross_origin_call_is_offered_exactly_six_headers(api_client):
-    # [utest->req~gateway-api-cors-exposed-headers~1]
     origin = main.settings.cors_origin_list[0]
 
     response = await api_client.get("/health", headers={"Origin": origin})
@@ -49,13 +47,11 @@ async def test_a_cross_origin_call_is_offered_exactly_six_headers(api_client):
 
 
 def test_the_deprecation_module_is_gone():
-    # [utest->req~gateway-api-no-retirement-headers~1]
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module("openbinding_gateway.core.deprecation")
 
 
 def test_the_document_declares_no_retirement_header_and_no_retired_deprecation():
-    # [utest->req~gateway-api-no-retirement-headers~1]
     document = app.openapi()
 
     declared = {name.lower() for name in document.get("components", {}).get("headers", {})}

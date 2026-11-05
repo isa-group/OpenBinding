@@ -1,7 +1,7 @@
 """Two concurrent creations cannot both take the last slot of the plan's ``concurrentJobs``.
 
 The deployment's cap is eight here and the plan declares one (or two), so the slot they race
-for is the plan's. Needs PostgreSQL (``TEST_DATABASE_URL``, see docs/qa/PG_HARNESS.md): the
+for is the plan's. Needs PostgreSQL (``TEST_DATABASE_URL``): the
 ``FOR UPDATE`` on the account row that serialises the two is not exercised by SQLite, and the
 ``two_sessions`` fixture skips without it.
 """

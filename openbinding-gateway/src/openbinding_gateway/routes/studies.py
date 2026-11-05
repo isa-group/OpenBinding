@@ -548,9 +548,6 @@ async def create_study(
     return _study_view(value)
 
 
-# [impl->req~gateway-api-optimistic-concurrency-covered~1]
-# [impl->req~gateway-api-optimistic-concurrency-order-access~1]
-# [impl->req~gateway-api-optimistic-concurrency-order-state~1]
 @router.patch(
     "/studies/{study}", response_model=StudyView, operation_id="updateStudy",
     responses=revision.EDIT_RESPONSES,
@@ -1210,8 +1207,6 @@ async def list_reports(
 
 # The report editor (get one, create, freeze, new draft, edit, delete) and the publication of a report are not
 # routed since M9.6 (design.md §2.1 rows 9 to 15). Reports are sealed by the internal services (reports.py).
-# [impl->req~gateway-api-removed-operations-not-routed~1]
-# [impl->req~gateway-api-removed-operations-not-documented~1]
 
 
 # Not routed (row 15): the development seeder (tools/seed_dev.py) still publishes its demonstration report

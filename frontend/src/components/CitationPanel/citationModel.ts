@@ -36,7 +36,6 @@ function citeKey(source: CitationInput): string {
   return `${author}${source.year ?? ''}${word}`;
 }
 
-// [impl->req~citation-panel~1]
 export function buildPanelCitation(source: CitationInput): BuiltCitation {
   const author = source.author?.trim() || 'OpenBinding';
   const year = source.year == null ? null : source.year;

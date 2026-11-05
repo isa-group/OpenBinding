@@ -22,11 +22,9 @@ describe('what the verifier can match', () => {
     expect(entityHref(entity({ ...where, slug: 'checkout-flow' }))).toBe('/app/isa-demo/qos-benchmarks/problems/checkout-flow');
     expect(entityHref(entity({ ...where, entity_type: 'collection', slug: 'core' }))).toBe('/app/isa-demo/qos-benchmarks/collections/core');
     expect(entityHref(entity({ ...where, entity_type: 'study_run', slug: 'engines-vs-seeds', id: 'run-1' }))).toBe('/app/isa-demo/qos-benchmarks/studies/engines-vs-seeds/progress?run=run-1');
-    // [utest->req~frontend-nav-files-retired~1]
     expect(entityHref(entity({ ...where, entity_type: 'artifact' }))).toBe('/app/isa-demo/qos-benchmarks');
   });
 
-  // [utest->req~frontend-retire-reports-publications-stay~1]
   it('links a report edition to the published results of its project, the retired report page being gone', () => {
     const where = { organization_slug: 'isa-demo', project_slug: 'qos-benchmarks' };
     expect(entityHref(entity({ ...where, entity_type: 'report', slug: 'engines report' }))).toBe('/app/isa-demo/qos-benchmarks/published');

@@ -123,7 +123,6 @@ export function saveRefusalText(refusal: Refusal): string {
  * Where `Open snapshot` leads: the Source tab of `problem` at the sealed version made from the snapshot (the one whose `source_snapshot_id`
  * is the snapshot's id), and the problem list when no version of that problem came from it, or no problem is chosen.
  */
-// [impl->req~frontend-nav-vocabulary-text~1]
 export function snapshotHref(root: string, problem: string, versions: readonly Pick<CaseRevision, 'revision' | 'source_snapshot_id'>[], snapshotId: string): string {
   const made = problem ? versions.find((version) => version.source_snapshot_id === snapshotId) : undefined;
   return made ? problemPath(root, problem, 'source', { version: made.revision }) : problemsPath(root);

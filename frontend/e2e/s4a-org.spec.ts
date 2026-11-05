@@ -374,7 +374,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    // [utest->req~frontend-nav-create-dialogs~1]
     test('org-create dialog /app?create=organization', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);

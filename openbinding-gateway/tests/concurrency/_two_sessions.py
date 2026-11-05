@@ -43,7 +43,7 @@ def require_test_database_url() -> str:
     """The validated URL; skip if TEST_DATABASE_URL is unset, fail if it is set but unusable."""
     url = os.environ.get("TEST_DATABASE_URL")
     if url is None:
-        pytest.skip("requires PostgreSQL: set TEST_DATABASE_URL (see docs/qa/PG_HARNESS.md)")
+        pytest.skip("requires PostgreSQL: set TEST_DATABASE_URL")
     try:
         check_test_database_url(url)
     except ValueError as error:

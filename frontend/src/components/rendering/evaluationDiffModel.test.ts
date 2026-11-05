@@ -18,7 +18,6 @@ const deepFreeze = <T,>(o: T): T => {
 };
 
 describe('evaluationDiffOf', () => {
-  // [utest->req~frontend-rendering-evaluation-diff~1]
   it('reports no-claim without a claim', () => {
     for (const claimed of [undefined, null]) {
       const view = evaluationDiffOf(EVAL(), claimed);
@@ -30,7 +29,6 @@ describe('evaluationDiffOf', () => {
     }
   });
 
-  // [utest->req~frontend-rendering-evaluation-diff~1]
   it('agrees within the tolerance and differs beyond it', () => {
     expect(TOLERANCE).toBe(1e-9);
     const near = EVAL();
@@ -45,7 +43,6 @@ describe('evaluationDiffOf', () => {
     ]);
   });
 
-  // [utest->req~frontend-rendering-evaluation-diff~1]
   it('orders rows: termination, then features (evaluated keys first, then claim-only), then score', () => {
     const claim: RunValues = {
       termination: 'OPTIMAL',
@@ -68,7 +65,6 @@ describe('evaluationDiffOf', () => {
     expect(rows[3].evaluated).toEqual({ kind: 'absent' });
   });
 
-  // [utest->req~frontend-rendering-evaluation-diff~1]
   it('never agrees on invalid values, even two of them', () => {
     const ev = EVAL();
     ev.solutions[0].features!.latency = 'x';
@@ -77,7 +73,6 @@ describe('evaluationDiffOf', () => {
     expect(evaluationDiffOf(ev, claim).rows).toHaveLength(1);
   });
 
-  // [utest->req~frontend-rendering-evaluation-diff~1]
   it('gives only a Solutions row when the counts differ', () => {
     const claim = EVAL();
     claim.solutions.push({ features: { latency: 80 }, score: 0.5 });
@@ -89,7 +84,6 @@ describe('evaluationDiffOf', () => {
     ]);
   });
 
-  // [utest->req~frontend-rendering-evaluation-diff~1]
   it('compares score lists by component, or as one row when shapes differ', () => {
     const ev = EVAL();
     ev.solutions[0].score = [0.4, 0.6];
@@ -108,14 +102,12 @@ describe('evaluationDiffOf', () => {
     expect(evaluationDiffOf(ev, claim).rows[0].claimed).toEqual({ kind: 'invalid' });
   });
 
-  // [utest->req~frontend-rendering-evaluation-diff~1]
   it('reads metrics and objectives.score as fallbacks', () => {
     const ev: RunValues = { termination: 'FEASIBLE', solutions: [{ metrics: { latency: 120 }, objectives: { score: 0.42 } }] };
     const claim: RunValues = { termination: 'FEASIBLE', solutions: [{ features: { latency: 120 }, score: 0.42 }] };
     expect(evaluationDiffOf(ev, claim).status).toBe('agrees');
   });
 
-  // [utest->req~frontend-rendering-evaluation-diff~1]
   it('survives a malformed claim', () => {
     const claim = { termination: 7, solutions: 'many' } as unknown as RunValues;
     const view = evaluationDiffOf(EVAL(), claim);
@@ -127,7 +119,6 @@ describe('evaluationDiffOf', () => {
     expect(() => evaluationDiffOf(null as unknown as RunValues, 5 as unknown as RunValues)).not.toThrow();
   });
 
-  // [utest->req~frontend-rendering-evaluation-diff~1]
   it('treats constructor and __proto__ as ordinary feature names', () => {
     const claim = EVAL();
     claim.solutions[0].features = JSON.parse('{"latency":120,"cost":3.5,"constructor":1,"__proto__":2}');
@@ -146,7 +137,6 @@ describe('evaluationDiffOf', () => {
     expect(evaluationDiffOf(ev, none).rows[0].claimed).toEqual({ kind: 'absent' });
   });
 
-  // [utest->req~frontend-rendering-evaluation-diff~1]
   it('is pure on deeply frozen inputs', () => {
     const claim = EVAL();
     claim.solutions[0].features!.latency = 100;
@@ -159,14 +149,12 @@ describe('evaluationDiffOf', () => {
 });
 
 describe('shortText', () => {
-  // [utest->req~frontend-rendering-evaluation-diff~1]
   it('keeps 500 code points whole and cuts longer text with an ellipsis', () => {
     expect(MAX_TEXT).toBe(500);
     expect(shortText('x'.repeat(500))).toBe('x'.repeat(500));
     expect(shortText('x'.repeat(600))).toBe(`${'x'.repeat(500)}…`);
   });
 
-  // [utest->req~frontend-rendering-evaluation-diff~1]
   it('never splits a surrogate pair at the cut', () => {
     const emoji = '\u{1F600}';
     expect(shortText('x'.repeat(499) + emoji + emoji)).toBe(`${'x'.repeat(499)}${emoji}…`);

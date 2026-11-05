@@ -26,7 +26,6 @@ def refusal(call) -> HTTPException:
     return caught.value
 
 
-# [utest->req~gateway-api-optimistic-concurrency-etag-format~1]
 def test_etag_is_a_quoted_strong_tag() -> None:
     tag = revision.etag_for(row())
 
@@ -34,26 +33,22 @@ def test_etag_is_a_quoted_strong_tag() -> None:
     assert revision.parse_if_match(tag) == [tag]
 
 
-# [utest->req~gateway-api-optimistic-concurrency-etag-format~1]
 def test_etag_is_stable_and_follows_updated_at() -> None:
     assert revision.etag_for(row()) == revision.etag_for(row())
     assert revision.etag_for(row()) != revision.etag_for(row(STAMP + timedelta(microseconds=1)))
 
 
-# [utest->req~gateway-api-optimistic-concurrency-etag-format~1]
 def test_etag_differs_between_rows_and_tables() -> None:
     assert revision.etag_for(row()) != revision.etag_for(row(identity=uuid.UUID(int=2)))
     assert revision.etag_for(row()) != revision.etag_for(row(table="organizations"))
 
 
-# [utest->req~gateway-api-optimistic-concurrency-etag-format~1]
 def test_etag_does_not_show_the_timestamp_or_id() -> None:
     tag = revision.etag_for(row())
 
     assert re.fullmatch(r'"[0-9a-f]{32}"', tag)
 
 
-# [utest->req~gateway-api-optimistic-concurrency-etag-format~1]
 def test_naive_and_aware_datetimes_give_the_same_etag() -> None:
     naive = STAMP.replace(tzinfo=None)
     offset = STAMP.astimezone(timezone(timedelta(hours=5)))
@@ -62,14 +57,10 @@ def test_naive_and_aware_datetimes_give_the_same_etag() -> None:
     assert revision.normalise(naive) == STAMP
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-absent~1]
 def test_parse_absent_header_is_none() -> None:
     assert revision.parse_if_match(None) is None
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-any~1]
-# [utest->req~gateway-api-optimistic-concurrency-if-match-list~1]
-# [utest->req~gateway-api-optimistic-concurrency-if-match-weak~1]
 def test_parse_wildcard_and_lists() -> None:
     assert revision.parse_if_match("*") == ["*"]
     assert revision.parse_if_match(" * ") == ["*"]
@@ -78,13 +69,11 @@ def test_parse_wildcard_and_lists() -> None:
     assert revision.parse_if_match('W/"a", "b"') == ['W/"a"', '"b"']
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-list~1]
 def test_parse_accepts_empty_list_elements() -> None:
     assert revision.parse_if_match('"a",') == ['"a"']
     assert revision.parse_if_match(', "a",, "b"') == ['"a"', '"b"']
 
 
-# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 @pytest.mark.parametrize(
     "value", ["", "  ", ",", "abc", '"a', 'a"', '"a" "b"', '*, "a"', '"a", *', "W/a", "**", '"a"x', '"a b"']
 )
@@ -95,14 +84,11 @@ def test_parse_malformed_is_400(value: str) -> None:
     assert error.detail["code"] == "invalid_if_match"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-list~1]
-# [utest->req~gateway-api-optimistic-concurrency-if-match-any~1]
 def test_parse_accepts_tabs_as_optional_whitespace() -> None:
     assert revision.parse_if_match('\t"a" ,\t"b"\t') == ['"a"', '"b"']
     assert revision.parse_if_match("\t*\t") == ["*"]
 
 
-# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 @pytest.mark.parametrize(
     "value", ['"a" "b"', '　"a"', '"a"\x0c', '"a"\r', '"a"\x0b,"b"', '"a"\u0085,"b"']
 )
@@ -110,7 +96,6 @@ def test_parse_refuses_whitespace_that_is_not_space_or_tab(value: str) -> None:
     assert refusal(lambda: revision.parse_if_match(value)).status_code == 400
 
 
-# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 def test_parse_refuses_a_value_over_the_cap_before_the_grammar_runs(monkeypatch) -> None:
     at_cap = '"' + "a" * (revision.MAX_IF_MATCH_LENGTH - 2) + '"'
     over = '"' + "a" * (revision.MAX_IF_MATCH_LENGTH - 1) + '"'
@@ -128,7 +113,6 @@ def test_parse_refuses_a_value_over_the_cap_before_the_grammar_runs(monkeypatch)
     assert error.detail["code"] == "invalid_if_match"
 
 
-# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 @pytest.mark.parametrize("filler", [", " * 1000, " " * 2000, ",\t" * 1000 + "x", '"a"' + " ," * 700 + "x"])
 def test_parse_of_a_pathological_header_returns_quickly(filler: str) -> None:
     started = time.perf_counter()
@@ -140,9 +124,6 @@ def test_parse_of_a_pathological_header_returns_quickly(filler: str) -> None:
     assert time.perf_counter() - started < 0.5
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-absent~1]
-# [utest->req~gateway-api-optimistic-concurrency-if-match-any~1]
-# [utest->req~gateway-api-optimistic-concurrency-if-match-list~1]
 def test_precondition_passes_for_absent_wildcard_and_current_tag() -> None:
     current = row()
     tag = revision.etag_for(current)
@@ -153,8 +134,6 @@ def test_precondition_passes_for_absent_wildcard_and_current_tag() -> None:
     revision.precondition(current, f'"other", {tag}')
 
 
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed~1]
-# [utest->req~gateway-api-optimistic-concurrency-precondition-failed-etag~1]
 def test_precondition_refuses_a_stale_tag_with_the_current_one() -> None:
     current = row()
     stale = revision.etag_for(row(STAMP - timedelta(seconds=1)))
@@ -166,7 +145,6 @@ def test_precondition_refuses_a_stale_tag_with_the_current_one() -> None:
     assert error.headers["ETag"] == revision.etag_for(current)
 
 
-# [utest->req~gateway-api-optimistic-concurrency-if-match-weak~1]
 def test_precondition_never_matches_a_weak_tag() -> None:
     current = row()
 
@@ -175,6 +153,5 @@ def test_precondition_never_matches_a_weak_tag() -> None:
     assert error.status_code == 412
 
 
-# [utest->req~gateway-api-optimistic-concurrency-invalid-if-match~1]
 def test_precondition_malformed_is_400_not_412() -> None:
     assert refusal(lambda: revision.precondition(row(), "nonsense")).status_code == 400

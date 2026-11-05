@@ -40,7 +40,6 @@ describe('language hub', () => {
     api.getBimSchema.mockResolvedValue({ $id: 'bim/v1/application', type: 'object', properties: { name: { type: 'string' } }, required: ['name'] });
   });
 
-  // [utest->req~frontend-nav-language-hub~1]
   it('opens on Profiles & dialects and marks it in the section navigation', async () => {
     renderHub('/language');
     expect(await screen.findByRole('heading', { level: 1, name: 'The BIM language' })).toBeInTheDocument();
@@ -53,7 +52,6 @@ describe('language hub', () => {
     expect(api.getBimSchema).not.toHaveBeenCalled();
   });
 
-  // [utest->req~frontend-nav-language-hub~1]
   it('switches between the sections without leaving the screen', async () => {
     renderHub('/language');
     await screen.findByRole('heading', { level: 1, name: 'The BIM language' });
@@ -68,34 +66,29 @@ describe('language hub', () => {
     expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
   });
 
-  // [utest->req~frontend-nav-language-hub~1]
   it('deep link: /language/schemas/<Kind> opens that kind', async () => {
     renderHub('/language/schemas/Instance');
     expect(await screen.findByRole('heading', { level: 2, name: 'Instance' })).toBeInTheDocument();
     await waitFor(() => expect(api.getBimSchema).toHaveBeenCalledWith('Instance'));
   });
 
-  // [utest->req~frontend-nav-language-hub~1]
   it('Schemas without an item opens on application', async () => {
     renderHub('/language/schemas');
     expect(await screen.findByRole('heading', { level: 2, name: 'Application' })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-nav-language-hub~1]
   it('an unknown kind keeps the hub and says 404', async () => {
     renderHub('/language/schemas/Nope');
     expect(await screen.findByText(/Unknown kind “Nope” \(404\)/)).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Language sections' })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-nav-language-hub~1]
   it('deep link: /language/extensions lists the extensions of a signed-in user', async () => {
     renderHub('/language/extensions');
     expect(await screen.findByRole('heading', { level: 1, name: 'Language extensions' })).toBeInTheDocument();
     await waitFor(() => expect(api.getDialects).toHaveBeenCalled());
   });
 
-  // [utest->req~frontend-nav-language-hub~1]
   it('signed out, Extensions explains and offers the login, with no API call', () => {
     renderHub('/language/extensions', { user: null });
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Language extensions');
@@ -105,7 +98,6 @@ describe('language hub', () => {
     expect(api.getRegisteredResources).not.toHaveBeenCalled();
   });
 
-  // [utest->req~frontend-nav-language-hub~1]
   it('while the session loads, Extensions shows a skeleton and calls nothing', () => {
     renderHub('/language/extensions', { user: null, loading: true });
     expect(screen.queryByRole('link', { name: 'Log in to see and manage language extensions' })).not.toBeInTheDocument();
@@ -113,14 +105,12 @@ describe('language hub', () => {
     expect(api.getDialects).not.toHaveBeenCalled();
   });
 
-  // [utest->req~frontend-nav-language-hub~1]
   it('an unknown section shows the shared Page not found screen without the section navigation', () => {
     renderHub('/language/nowhere');
     expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Language sections' })).not.toBeInTheDocument();
   });
 
-  // [utest->req~frontend-nav-language-hub~1]
   it.each([
     '/language/profiles',
     '/language/extensions/anything',

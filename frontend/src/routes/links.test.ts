@@ -87,11 +87,6 @@ function patternsOf(path: string): RegExp[] {
   return patterns;
 }
 
-// [impl->req~frontend-retire-no-link-to-retired~1]
-// [impl->req~frontend-retire-reports-no-link~1]
-// [impl->req~frontend-retire-library-no-link~1]
-// [impl->req~frontend-retire-composer-no-link~1]
-// [impl->req~frontend-retire-sponsorship-no-link~1]
 /**
  * `<file>: <literal>` for every string or template literal of the sources that starts with a retired path followed by the end,
  * `/`, `?`, `#` or `${`. A `:param` of the path stands for any one segment or `${…}`; for such a path a literal that starts with
@@ -136,7 +131,6 @@ export function addressHits(
 type MovedTable = ReadonlyArray<Pick<MovedRoute, 'path' | 'permanent'>>;
 const declaresMoved = (name: string) => name === 'routes/moved.ts' || name === 'routes/retiredRoutes.tsx' || name.startsWith('routes/areas/');
 
-// [impl->req~frontend-nav-redirects~1]
 /**
  * Like `retiredAddresses`, for the old addresses of the moved routes (`moved.ts`): the code must link to the new address. An entry marked
  * `permanent: true` is left out, and so are the files that declare moved routes (the area files and `routes/moved.ts`) and the table of
@@ -214,21 +208,18 @@ describe('the scan for retired addresses', () => {
   const retired = ['/app/analysis', '/app/analysis/workspace'];
   const scan = (file: string, text: string) => retiredAddresses({ [file]: text }, retired);
 
-  // [utest->req~frontend-retire-no-link-to-retired~1]
   it('finds an address kept in a variable', () => {
     expect(scan('pages/X.tsx', 'const href = `/app/analysis/workspace?job=${id}`;')).toEqual(['pages/X.tsx: /app/analysis/workspace?job=${id}']);
     expect(scan('pages/X.tsx', "const a = '/app/analysis';")).toEqual(['pages/X.tsx: /app/analysis']);
     expect(scan('pages/X.tsx', 'const a = `/app/analysis/workspace?job=${id}\n&x=1`;')).toEqual(['pages/X.tsx: /app/analysis/workspace?job=${id}\n&x=1']);
   });
 
-  // [utest->req~frontend-retire-no-link-to-retired~1]
   it('finds a retired path followed by a hash, and one inside a template expression', () => {
     expect(scan('pages/X.tsx', 'go("/app/analysis#top");')).toEqual(['pages/X.tsx: /app/analysis#top']);
     expect(scan('pages/X.tsx', 'const a = `x${ok ? "/app/analysis" : ""}`;')).toEqual(['pages/X.tsx: /app/analysis']);
     expect(scan('pages/X.tsx', 'const a = `${base}/app/analysis`;')).toEqual([]);
   });
 
-  // [utest->req~frontend-retire-no-link-to-retired~1]
   it('does not report look-alikes, comments or apostrophes in text', () => {
     const source = [
       "const a = '/app/analysisx';",
@@ -241,12 +232,10 @@ describe('the scan for retired addresses', () => {
     expect(scan('pages/X.tsx', source)).toEqual([]);
   });
 
-  // [utest->req~frontend-retire-no-link-to-retired~1]
   it('known limit: an apostrophe or a // in JSX text hides a later literal on the same line', () => {
     expect(scan('pages/X.tsx', "const a = <p>Don't open {'/app/analysis'}</p>;")).toEqual([]);
   });
 
-  // [utest->req~frontend-retire-no-link-to-retired~1]
   it('exempts the table of retired addresses and no other file', () => {
     expect(scan('routes/retiredRoutes.tsx', "const a = '/app/analysis';")).toEqual([]);
     expect(scan('src/routes/retiredRoutes.tsx', "const a = '/app/analysis';")).toEqual([]);
@@ -259,7 +248,6 @@ describe('the scan for retired addresses', () => {
     const withParams = ['/app/:org/:project/reports', '/app/:org/:project/reports/:report'];
     const scanParams = (file: string, text: string) => retiredAddresses({ [file]: text }, withParams);
 
-    // [utest->req~frontend-retire-reports-no-link~1]
     it('finds the whole address, written with values or with ${…} for the parameters', () => {
       expect(scanParams('pages/X.tsx', 'const a = `/app/${org}/${project}/reports`;')).toEqual(['pages/X.tsx: /app/${org}/${project}/reports']);
       expect(scanParams('pages/X.tsx', "const a = '/app/acme/demo/reports/x';")).toEqual(['pages/X.tsx: /app/acme/demo/reports/x']);
@@ -267,14 +255,12 @@ describe('the scan for retired addresses', () => {
       expect(scanParams('pages/X.tsx', "const a = '/app/acme/demo/reports';")).toEqual(['pages/X.tsx: /app/acme/demo/reports']);
     });
 
-    // [utest->req~frontend-retire-reports-no-link~1]
     it('ends the retired path at the end, /, ?, # or ${', () => {
       for (const address of ['/app/acme/demo/reports', '/app/acme/demo/reports/', '/app/acme/demo/reports?x=1', '/app/acme/demo/reports#top', '/app/acme/demo/reports${suffix}']) {
         expect(scanParams('pages/X.tsx', `const a = \`${address}\`;`), address).toHaveLength(1);
       }
     });
 
-    // [utest->req~frontend-retire-reports-no-link~1]
     it('finds the tail written after an interpolation', () => {
       expect(scanParams('pages/X.tsx', 'const a = `${root}/reports`;')).toEqual(['pages/X.tsx: ${root}/reports']);
       expect(scanParams('pages/X.tsx', 'const a = `${root}/reports/${slug}`;')).toEqual(['pages/X.tsx: ${root}/reports/${slug}']);
@@ -283,7 +269,6 @@ describe('the scan for retired addresses', () => {
       expect(scanParams('pages/X.tsx', 'to={`${root(org, project)}/reports`}')).toEqual(['pages/X.tsx: ${root(org, project)}/reports']);
     });
 
-    // [utest->req~frontend-retire-reports-no-link~1]
     it('does not report look-alikes or the addresses that replace the retired ones', () => {
       const source = [
         "const a = '/app/acme/demo/reportsx';",
@@ -298,7 +283,6 @@ describe('the scan for retired addresses', () => {
       expect(scanParams('pages/X.tsx', source)).toEqual([]);
     });
 
-    // [utest->req~frontend-retire-reports-no-link~1]
     it('leaves the endpoints of the API client alone, and nothing else', () => {
       const endpoint = 'const a = `${root(org, project)}/reports`;';
       expect(scanParams('src/api/platform.ts', endpoint)).toEqual([]);
@@ -309,12 +293,10 @@ describe('the scan for retired addresses', () => {
       expect(scanParams('src/pages/Reports/ProjPublications.tsx', endpoint)).toHaveLength(1);
     });
 
-    // [utest->req~frontend-retire-reports-no-link~1]
     it('still reports a whole address inside the API client', () => {
       expect(scanParams('src/api/platform.ts', "const a = '/app/acme/demo/reports';")).toHaveLength(1);
     });
 
-    // [utest->req~frontend-retire-reports-no-link~1]
     it('exempts the table of retired addresses, and reports a path without params as before', () => {
       expect(scanParams('routes/retiredRoutes.tsx', "{ path: '/app/:org/:project/reports' }")).toEqual([]);
       expect(retiredAddresses({ 'pages/X.tsx': "const a = '/app/analysis'; const b = `${root}/analysis`;" }, ['/app/analysis'])).toEqual(['pages/X.tsx: /app/analysis']);
@@ -329,7 +311,6 @@ describe('the scan for retired addresses', () => {
     ];
     const scanLibrary = (file: string, text: string) => retiredAddresses({ [file]: text }, library);
 
-    // [utest->req~frontend-retire-library-no-link~1]
     it('finds the whole address and the tail written after an interpolation', () => {
       for (const literal of [
         '`/app/${org}/library`', '`/app/${slug}/library/${artifact}`', '`/app/${slug}/library/${a}/versions/${v}`', "'/app/acme/library/a1/drafts/d1'",
@@ -340,7 +321,6 @@ describe('the scan for retired addresses', () => {
       }
     });
 
-    // [utest->req~frontend-retire-library-no-link~1]
     it('does not report look-alikes, the addresses that replace the retired ones or the endpoints of the API client', () => {
       const source = [
         "const a = '/app/acme/libraryx';",
@@ -360,7 +340,6 @@ describe('the scan for retired addresses', () => {
   describe('for the composer', () => {
     const scanComposer = (file: string, text: string) => retiredAddresses({ [file]: text }, ['/app/:org/:project/cases/:case/compose']);
 
-    // [utest->req~frontend-retire-composer-no-link~1]
     it('finds the whole address and the tail written after an interpolation', () => {
       const source = [
         'const a = `/app/${org}/${project}/cases/${slug}/compose`;',
@@ -374,7 +353,6 @@ describe('the scan for retired addresses', () => {
       ]);
     });
 
-    // [utest->req~frontend-retire-composer-no-link~1]
     it('does not report look-alikes, the address that replaces the composer or the redirect target', () => {
       const source = [
         'const a = `/app/${org}/${project}/cases/${slug}/composex`;',
@@ -397,7 +375,6 @@ describe('the scan for retired addresses', () => {
   describe('for the sponsorship screen', () => {
     const scanSponsorship = (file: string, text: string) => retiredAddresses({ [file]: text }, ['/app/admin/organizations/:org/sponsor']);
 
-    // [utest->req~frontend-retire-sponsorship-no-link~1]
     it('finds the whole address and the tail written after an interpolation', () => {
       const source = [
         'const a = `/app/admin/organizations/${encodeURIComponent(value)}/sponsor`;',
@@ -411,7 +388,6 @@ describe('the scan for retired addresses', () => {
       ]);
     });
 
-    // [utest->req~frontend-retire-sponsorship-no-link~1]
     it('does not report look-alikes or the replacements', () => {
       const source = [
         "const a = '/app/admin/organizations/isa-demo/sponsors';",
@@ -430,32 +406,27 @@ describe('the scan for retired addresses', () => {
       .filter(([file]) => !file.startsWith('src/test/')),
   );
 
-  // [utest->req~frontend-retire-no-link-to-retired~1]
   it('finds none in the application sources, for the paths of the table', () => {
     expect(Object.keys(application).length).toBeGreaterThan(100);
     expect(retiredAddresses(application, RETIRED_ROUTES.map((route) => route.path))).toEqual([]);
   });
 
-  // [utest->req~frontend-retire-reports-no-link~1]
   it('finds none in the application sources, for the report list and the report editor', () => {
     expect(retiredAddresses(application, ['/app/:org/:project/reports', '/app/:org/:project/reports/:report'])).toEqual([]);
   });
 
-  // [utest->req~frontend-retire-library-no-link~1]
   it('finds none in the application sources, for the library catalogue and the project resources', () => {
     const library = RETIRED_ROUTES.filter((route) => route.slice === 3).map((route) => route.path);
     expect(library).toHaveLength(7);
     expect(retiredAddresses(application, library)).toEqual([]);
   });
 
-  // [utest->req~frontend-retire-composer-no-link~1]
   it('finds none in the application sources, for the composer', () => {
     const composer = RETIRED_ROUTES.filter((route) => route.slice === 4).map((route) => route.path);
     expect(composer).toHaveLength(1);
     expect(retiredAddresses(application, composer)).toEqual([]);
   });
 
-  // [utest->req~frontend-retire-sponsorship-no-link~1]
   it('finds none in the application sources, for the sponsorship screen', () => {
     const sponsorship = RETIRED_ROUTES.filter((route) => route.slice === 5).map((route) => route.path);
     expect(sponsorship).toEqual(['/app/admin/organizations/:org/sponsor']);
@@ -470,20 +441,17 @@ describe('the scan for retired addresses', () => {
     ];
     const scanMoved = (file: string, text: string) => movedAddresses({ [file]: text }, table);
 
-    // [utest->req~frontend-nav-redirects~1]
     it('finds a link to an old address, written with values or with ${…} for the parameters', () => {
       expect(scanMoved('pages/X.tsx', 'const a = `/app/${org}/${project}/files`;')).toEqual(['pages/X.tsx: /app/${org}/${project}/files']);
       expect(scanMoved('pages/X.tsx', "const a = '/app/acme/atlas/files?x=1';")).toEqual(['pages/X.tsx: /app/acme/atlas/files?x=1']);
       expect(scanMoved('pages/X.tsx', "const a = '/old/page';")).toEqual(['pages/X.tsx: /old/page']);
     });
 
-    // [utest->req~frontend-nav-redirects~1]
     it('lets an entry marked permanent be linked, and does not report look-alikes', () => {
       expect(scanMoved('pages/X.tsx', 'const a = `/app/${org}/${project}/package`;')).toEqual([]);
       expect(scanMoved('pages/X.tsx', "const a = '/app/acme/atlas/filesx'; const b = '/older';")).toEqual([]);
     });
 
-    // [utest->req~frontend-nav-redirects~1]
     it('exempts the files that declare moved routes and no other', () => {
       const declaration = "moved('m', '/app/:org/:project/files', '/app/:org/:project');";
       expect(scanMoved('routes/areas/project.tsx', declaration)).toEqual([]);
@@ -498,7 +466,6 @@ describe('the scan for retired addresses', () => {
   describe('the report for a moved address', () => {
     const table = [{ path: '/app/:org/:project/files' }, { path: '/app/:org/:project/package', permanent: true }];
 
-    // [utest->req~frontend-nav-redirects~1]
     it('names the file and the line of each link to an address that moved', () => {
       const source = ['const a = 1;', "const b = '/app/acme/atlas/files';", '', 'const c = `', '  ${root}', '`;', 'const d = `/app/${org}/${project}/files?x`;'].join('\n');
       expect(movedAddressHits({ 'pages/X.tsx': source, 'pages/Y.tsx': "x('/app/a/b/package');" }, table)).toEqual([
@@ -508,7 +475,6 @@ describe('the scan for retired addresses', () => {
     });
   });
 
-  // [utest->req~frontend-nav-redirects~1]
   it('finds none in the application sources, for the moved addresses that are not permanent', () => {
     // Failing here means a source links to an address that moved. Rewrite that line to the new address; only an entry that has to
     // stay valid for outside links (a published citation, an e-mail) is marked `permanent`.
@@ -516,7 +482,6 @@ describe('the scan for retired addresses', () => {
     expect(found, 'links to a moved address that is not permanent: point them at the new address').toEqual([]);
   });
 
-  // [utest->req~frontend-retire-reports-no-link~1]
   it('keeps the report endpoints of the API client, which no scan may flag', () => {
     expect(application['src/api/platform.ts']).toContain('${root(org, project)}/reports');
     expect(retiredAddresses({ 'src/api/platform.ts': application['src/api/platform.ts'] }, ['/app/:org/:project/reports', '/app/:org/:project/reports/:report'])).toEqual([]);

@@ -30,7 +30,6 @@ function renderAt(path: string) {
   );
 }
 
-// [utest->req~frontend-nav-reset-single-screen~1]
 describe('PasswordResetPage without a token', () => {
   // Braces matter: a function returned from beforeEach is run as the teardown.
   beforeEach(() => {
@@ -118,7 +117,6 @@ describe('PasswordResetPage without a token', () => {
   });
 });
 
-// [utest->req~frontend-nav-reset-single-screen~1]
 describe('PasswordResetPage with a token', () => {
   beforeEach(() => {
     strictRequest.mockReset();

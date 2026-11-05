@@ -30,7 +30,6 @@ function open(element: ReactElement, summary = 'View source'): HTMLDetailsElemen
 }
 
 describe('ViewSource', () => {
-  // [utest->req~frontend-engines-source-view~1]
   it('is a closed disclosure with the summary View source, and its source is not visible', () => {
     render(<ViewSource value={{ kind: 'Engine' }} />);
 
@@ -43,7 +42,6 @@ describe('ViewSource', () => {
     expect(source).not.toBeVisible();
   });
 
-  // [utest->req~frontend-engines-source-view~1]
   it('opens on its summary into the catalogue viewer: indented JSON, Copy, no Download without a filename', () => {
     const value = { kind: 'Engine', modes: [{ id: 'tabu' }] };
     const disclosure = open(<ViewSource value={value} />);
@@ -57,7 +55,6 @@ describe('ViewSource', () => {
     expect(within(source).queryByRole('button', { name: /^Download/ })).not.toBeInTheDocument();
   });
 
-  // [utest->req~frontend-engines-source-view~1]
   it('names the summary and the viewer after a custom label', () => {
     const disclosure = open(<ViewSource value={{ openapi: '3.1.0' }} label="Submitted OpenAPI" />, 'Submitted OpenAPI');
 
@@ -65,7 +62,6 @@ describe('ViewSource', () => {
     expect(within(disclosure).getByRole('button', { name: 'Copy Submitted OpenAPI' })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-engines-source-view~1]
   it('names the viewer after sourceLabel and keeps the summary', () => {
     const disclosure = open(<ViewSource value={{ a: 1 }} sourceLabel="Engine manifest source" />);
 
@@ -73,7 +69,6 @@ describe('ViewSource', () => {
     expect(within(disclosure).getByText('View source').tagName).toBe('SUMMARY');
   });
 
-  // [utest->req~frontend-engines-source-view~1]
   it.each([
     ['a string', 'kind: Engine', 'kind: Engine'],
     ['a number', 3, '3'],
@@ -85,7 +80,6 @@ describe('ViewSource', () => {
     expect(screen.getByRole('region', { name: 'Source document' }).querySelector('pre code')?.textContent).toBe(text);
   });
 
-  // [utest->req~frontend-engines-source-view~1]
   it('says Empty for an undefined value', () => {
     open(<ViewSource value={undefined} />);
 
@@ -94,7 +88,6 @@ describe('ViewSource', () => {
     expect(source.querySelector('pre code')).toBeNull();
   });
 
-  // [utest->req~frontend-engines-source-view~1]
   it('copies the text it shows', async () => {
     open(<ViewSource value={{ k: 'v' }} />);
 
@@ -104,14 +97,12 @@ describe('ViewSource', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Source document copied'));
   });
 
-  // [utest->req~frontend-engines-source-view~1]
   it('offers a Download under the given filename: an object as application/json, a string as text/plain', () => {
     open(<ViewSource value={{ kind: 'Engine' }} filename="engine.json" />);
     fireEvent.click(screen.getByRole('button', { name: 'Download Source document' }));
     expect(saveText).toHaveBeenLastCalledWith(JSON.stringify({ kind: 'Engine' }, null, 2), 'engine.json', 'application/json');
   });
 
-  // [utest->req~frontend-engines-source-view~1]
   it('downloads a string value as written, as text/plain', () => {
     open(<ViewSource value={'kind: Engine'} label="Dialect" filename="dialect.yaml" />, 'Dialect');
     fireEvent.click(screen.getByRole('button', { name: 'Download Dialect' }));

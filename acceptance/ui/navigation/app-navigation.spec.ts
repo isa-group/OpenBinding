@@ -16,7 +16,6 @@ async function signedIn(page: Page, path: string, role: Role = 'user', projects?
   await expect(banner(page)).toBeVisible();
 }
 
-// [utest->req~frontend-nav-public-navigation~1]
 test('public header lists the nine links in order with their addresses and marks the current one', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -27,7 +26,6 @@ test('public header lists the nine links in order with their addresses and marks
   await expect(links[4]).toHaveAttribute('aria-current', 'page');
 });
 
-// [utest->req~frontend-nav-public-navigation~1]
 test('phone menu lists the same nine links in the same order', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -36,7 +34,6 @@ test('phone menu lists the same nine links in the same order', async ({ page }) 
   await expectInOrder(PUBLIC_LINKS.map(([name]) => entry(menuScope(page), name)));
 });
 
-// [utest->req~frontend-nav-public-navigation~1]
 test('public header has no link or menu of the former header', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.goto('/');
@@ -47,7 +44,6 @@ test('public header has no link or menu of the former header', async ({ page }) 
   }
 });
 
-// [utest->req~frontend-nav-signed-in-navigation~1]
 test('application header lists its entries with a current project and a Lab menu', async ({ page }) => {
   await signedIn(page, PROBLEMS, 'admin');
   const header = banner(page);
@@ -63,7 +59,6 @@ test('application header lists its entries with a current project and a Lab menu
   await expect(entry(menuScope(page), 'Generator')).toHaveAttribute('href', '/app/generator');
 });
 
-// [utest->req~frontend-nav-signed-in-navigation~1]
 test('Problems and Studies are disabled with a hint without a current project', async ({ page }) => {
   await signedIn(page, '/app', 'user', []);
   const header = banner(page);
@@ -80,14 +75,12 @@ test('Problems and Studies are disabled with a hint without a current project', 
   await expect(entry(menuScope(page), 'Generator')).toHaveAttribute('href', '/app/generator');
 });
 
-// [utest->req~frontend-nav-signed-in-navigation~1]
 test('a person whose role is user sees no Admin entry', async ({ page }) => {
   await signedIn(page, PROBLEMS, 'user');
   await expect(entry(banner(page), 'Problems')).toBeVisible();
   await expect(banner(page).getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
 });
 
-// [utest->req~frontend-nav-signed-in-navigation~1]
 test('application header has none of the former entries', async ({ page }) => {
   await signedIn(page, '/app', 'admin');
   await expect(entry(banner(page), 'Home')).toBeVisible();
@@ -97,7 +90,6 @@ test('application header has none of the former entries', async ({ page }) => {
   }
 });
 
-// [utest->req~frontend-nav-new-menu~1]
 test('New menu offers Problem, Collection, Study and Run in the current project', async ({ page }) => {
   await signedIn(page, '/app/acme/demo');
   await banner(page).getByRole('button', { name: 'New', exact: true }).click();
@@ -109,7 +101,6 @@ test('New menu offers Problem, Collection, Study and Run in the current project'
   for (const [name, href] of items) await expect(entry(menuScope(page), name)).toHaveAttribute('href', href);
 });
 
-// [utest->req~frontend-nav-new-menu~1]
 test('New menu items are disabled with a hint without a current project', async ({ page }) => {
   await signedIn(page, '/app', 'user', []);
   await banner(page).getByRole('button', { name: 'New', exact: true }).click();
@@ -120,14 +111,12 @@ test('New menu items are disabled with a hint without a current project', async 
   }
 });
 
-// [utest->req~frontend-nav-new-menu~1]
 test('the problem dialog opens from the address over the Problems tab', async ({ page }) => {
   await signedIn(page, `${PROBLEMS}?create=problem`);
   await expect(page.getByRole('dialog', { name: 'New problem' })).toBeVisible();
   await expect(current(page, 'Problems')).toBeVisible();
 });
 
-// [utest->req~frontend-nav-new-menu~1]
 test('New menu has none of the former items', async ({ page }) => {
   await signedIn(page, '/app/acme/demo');
   await banner(page).getByRole('button', { name: 'New', exact: true }).click();
@@ -135,7 +124,6 @@ test('New menu has none of the former items', async ({ page }) => {
   for (const name of ['Organization', 'Project', 'Case', 'Job', 'API key', 'Engine']) await expect(entry(menuScope(page), name)).toHaveCount(0);
 });
 
-// [utest->req~frontend-nav-account-menu~1]
 test('account menu lists the five sections then Sign out', async ({ page }) => {
   await signedIn(page, '/app');
   await banner(page).getByRole('button', { name: /account|lucia/i }).first().click();
@@ -149,7 +137,6 @@ test('account menu lists the five sections then Sign out', async ({ page }) => {
   for (const [name, href] of items) await expect(entry(scope, name)).toHaveAttribute('href', href);
 });
 
-// [utest->req~frontend-nav-account-menu~1]
 test('account menu has no entry named Account or Plan & permissions', async ({ page }) => {
   await signedIn(page, '/app');
   await banner(page).getByRole('button', { name: /account|lucia/i }).first().click();

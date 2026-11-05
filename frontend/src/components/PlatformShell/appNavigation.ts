@@ -23,7 +23,6 @@ export const NEEDS_PROJECT = 'Needs a project';
 const under = (pathname: string, root: string) => pathname === root || pathname.startsWith(`${root}/`);
 const sameSegment = (segment: string | undefined, ...names: string[]) => segment !== undefined && names.includes(segment);
 
-// [impl->req~frontend-nav-signed-in-navigation~1]
 export type MainSection = 'home' | 'problems' | 'lab' | 'engines' | 'language' | 'admin' | null;
 export type LabEntryId = 'runs' | 'studies' | 'generator';
 
@@ -40,7 +39,6 @@ export const labLinks = {
   generator: { to: '/app/generator', label: 'Generator' },
 } as const satisfies Record<string, NavLinkItem>;
 
-// [impl->req~frontend-nav-account-menu~1]
 export const accountLinks: readonly NavLinkItem[] = [
   { to: '/app/account', label: 'Profile' },
   { to: '/app/account/usage', label: 'Plan' },
@@ -58,13 +56,11 @@ function inProject(label: string, root: string | undefined, suffix: string): Men
   return root ? { label, to: `${root}${suffix}` } : { label, hint: NEEDS_PROJECT };
 }
 
-// [impl->req~frontend-nav-signed-in-navigation~1]
 export function problemsEntry(organization?: Organization, project?: Project): MenuEntry {
   return inProject('Problems', projectRoot(organization, project), `/${PROBLEMS_SEGMENT}`);
 }
 
 /** The entries of the Lab menu, in order. */
-// [impl->req~frontend-nav-signed-in-navigation~1]
 export function labEntries(organization?: Organization, project?: Project): Array<MenuEntry & { id: LabEntryId }> {
   return [
     { id: 'runs', label: labLinks.runs.label, to: labLinks.runs.to },
@@ -74,7 +70,6 @@ export function labEntries(organization?: Organization, project?: Project): Arra
 }
 
 /** Entries of the "New" menu: always these four, in the current project. */
-// [impl->req~frontend-nav-new-menu~1]
 export function createItems(organization?: Organization, project?: Project): MenuEntry[] {
   const root = projectRoot(organization, project);
   return [
@@ -117,7 +112,6 @@ function isWorkspaceHome(pathname: string): boolean {
 }
 
 /** Which entry of the header the current address belongs to. */
-// [impl->req~frontend-nav-signed-in-navigation~1]
 export function currentSection(pathname: string): MainSection {
   if (under(pathname, mainLinks.admin.to)) return 'admin';
   if (labEntryOf(pathname)) return 'lab';

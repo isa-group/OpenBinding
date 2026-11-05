@@ -24,5 +24,4 @@ By default the service is synchronous and listens on `PORT` (default `8080`). Wi
 /internal/v1/jobs/{id}` reads the job and `DELETE` cancels it; the sampler stops at
 its next iteration and the job is reported `cancelled` only once the solver thread
 has returned. `ENGINE_AUTH_TOKENS=tenant=token,...` makes jobs private to the tenant
-that submitted them. See
-[`docs/qa/ENGINE_CANCELLATION_JAVA.md`](../../docs/qa/ENGINE_CANCELLATION_JAVA.md).
+that submitted them.

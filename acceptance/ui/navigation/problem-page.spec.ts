@@ -11,7 +11,6 @@ const TABS = ['Overview', 'Runs', 'Versions', 'Source', 'Settings'];
 // The old address keeps its literal `cases` segment: it is a redirect input.
 const OLD_PROBLEM = `/app/acme/demo/cases/${PROBLEM_SLUG}`;
 
-// [utest->req~frontend-nav-problem-page~1]
 test('a member sees the tabs Overview, Runs, Versions, Source, Settings with Overview selected and version 3', async ({ page }) => {
   await mockProblems(page);
   await page.goto(PROBLEM);
@@ -23,7 +22,6 @@ test('a member sees the tabs Overview, Runs, Versions, Source, Settings with Ove
   await expect.poll(() => shownBy(version)).toMatch(/\b3\b/);
 });
 
-// [utest->req~frontend-nav-problem-page~1]
 test('choosing version 2 in the header sets ?version=2 and the Source tab shows that version in a SourceView region', async ({ page }) => {
   await mockProblems(page);
   await page.goto(`${PROBLEM}/source`);
@@ -36,7 +34,6 @@ test('choosing version 2 in the header sets ?version=2 and the Source tab shows 
   await expect(page.getByText(versionMarker(3))).toHaveCount(0);
 });
 
-// [utest->req~frontend-nav-problem-page~1]
 test('the old version and compare addresses redirect into the problem page and Versions compares 1 with 3', async ({ page }) => {
   test.slow(); // several full page loads in one test
   await mockProblems(page);
@@ -50,14 +47,12 @@ test('the old version and compare addresses redirect into the problem page and V
   await expect(page.getByText(versionMarker(2))).toHaveCount(0);
 });
 
-// [utest->req~frontend-nav-problem-page~1]
 test('the old snapshot address redirects to the Problems tab of the project', async ({ page }) => {
   await mockProblems(page);
   await page.goto('/app/acme/demo/snapshots/0b6c2f');
   await expect.poll(() => pathAndSearch(page)).toBe(PROBLEMS);
 });
 
-// [utest->req~frontend-nav-problem-page~1]
 test('a public visitor sees only the tabs Overview, Versions and Source', async ({ page }) => {
   await mockProblems(page, { visitor: true });
   await page.goto(PROBLEM);
@@ -65,7 +60,6 @@ test('a public visitor sees only the tabs Overview, Versions and Source', async 
   await expect.poll(() => tabLabels(group)).toEqual(['Overview', 'Versions', 'Source']);
 });
 
-// [utest->req~frontend-nav-problem-page~1]
 test('an unknown problem tab shows Page not found', async ({ page }) => {
   await mockProblems(page);
   await page.goto(`${PROBLEM}/history`);

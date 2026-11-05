@@ -98,7 +98,6 @@ const NEW_KEY = '/app/account/keys?create=key';
  * API keys (section `keys` of `acct-profile`, `/app/account/keys`): the list, rotate and revoke. New keys are made in the dialog
  * `New API key`, open while the address holds `?create=key`; closing it leaves `/app/account/keys`.
  */
-// [impl->req~frontend-nav-account-sections~1]
 export function AccountKeys() {
   const { user } = useAuth();
   const navigate = useNavigate();

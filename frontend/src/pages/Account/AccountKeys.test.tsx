@@ -77,14 +77,12 @@ describe('API keys', () => {
       engine_access: { all: true, engines: [] }, secret: 'obk_demo0003_ONLY-SHOWN-ONCE',
     };
 
-    // [utest->req~frontend-nav-account-sections~1]
     it('is closed at /app/account/keys', async () => {
       renderKeys();
       await card('ci-lectura-resultados');
       expect(screen.queryByRole('dialog', { name: 'New API key' })).not.toBeInTheDocument();
     });
 
-    // [utest->req~frontend-nav-account-sections~1]
     it('is open over the list at ?create=key', async () => {
       renderKeys('/app/account/keys?create=key');
       expect(await screen.findByRole('dialog', { name: 'New API key' })).toBeInTheDocument();
@@ -92,14 +90,12 @@ describe('API keys', () => {
       expect(screen.getByRole('link', { name: 'API keys', current: 'page' })).toBeInTheDocument();
     });
 
-    // [utest->req~frontend-nav-account-sections~1]
     it('stays closed for any other value of create', async () => {
       renderKeys('/app/account/keys?create=organization');
       await card('ci-lectura-resultados');
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
-    // [utest->req~frontend-nav-account-sections~1]
     it('leaves /app/account/keys when it is cancelled', async () => {
       renderKeys('/app/account/keys?create=key');
       const dialog = within(await screen.findByRole('dialog', { name: 'New API key' }));
@@ -111,7 +107,6 @@ describe('API keys', () => {
       expect(address()).toBe('/app/account/keys');
     });
 
-    // [utest->req~frontend-nav-account-sections~1]
     it('leaves /app/account/keys when it is closed with ×, and with Escape', async () => {
       renderKeys('/app/account/keys?create=key');
       fireEvent.click(within(await screen.findByRole('dialog', { name: 'New API key' })).getByRole('button', { name: 'Close' }));
@@ -125,7 +120,6 @@ describe('API keys', () => {
       expect(address()).toBe('/app/account/keys');
     });
 
-    // [utest->req~frontend-nav-account-sections~1]
     it('opens from the New key link, and from Create your first key when there are no keys', async () => {
       api.listApiKeys.mockResolvedValue([]);
       renderKeys();
@@ -136,7 +130,6 @@ describe('API keys', () => {
       expect(address()).toBe('/app/account/keys?create=key');
     });
 
-    // [utest->req~frontend-nav-account-sections~1]
     it('shows the secret once after a key is created, then returns to the refreshed list at /app/account/keys', async () => {
       api.createApiKey.mockResolvedValue(created);
       api.listApiKeys.mockResolvedValueOnce([reader]).mockResolvedValueOnce([reader, { ...reader, id: 'k3', name: 'ci-nightly' }]);

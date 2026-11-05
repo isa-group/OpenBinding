@@ -112,7 +112,6 @@ describe('My jobs', () => {
     expect(screen.getByText('No runs match these filters')).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-retire-no-link-to-retired~1]
   it('offers cancel and retry only where they apply, and no link to analyze', async () => {
     renderHistory();
 

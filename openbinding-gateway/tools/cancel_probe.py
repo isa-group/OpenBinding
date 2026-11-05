@@ -40,7 +40,7 @@ Environment (the ``seed`` service passes it; nothing is specific to this tool):
     DATABASE_URL         the gateway's database, to read ``job_engine_attempts``.
     CANCEL_PROBE_ENGINE_TOKEN  optional bearer token for an engine that requires one (the lab's does not).
 
-Usage (inside the gateway image, as ``lab_compose seed`` runs it, see docs/qa/ENGINE_CANCELLATION_E2E.md):
+Usage (inside the gateway image, as ``lab_compose seed`` runs it):
     DEMO_SEED_TOOL=cancel_probe.py DEMO_SEED_ARGS= lab_compose seed
     python tools/cancel_probe.py [--time-budget-ms 600000] [--cancel-timeout 90] [--tasks 150 --candidates 30]
 """

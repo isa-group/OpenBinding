@@ -151,7 +151,6 @@ describe('Generator lab', () => {
       expect(within(preview()).getByText('Seed').nextSibling).toHaveTextContent(String(seed));
     });
 
-    // [utest->req~frontend-generator-files-source-view~1]
     it('shows the files behind View source and clears the preview when a setting changes', async () => {
       renderLab();
       generate();

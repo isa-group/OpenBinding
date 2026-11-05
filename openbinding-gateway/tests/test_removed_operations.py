@@ -165,7 +165,6 @@ def assert_answers_like_its_row(entry: Removed, response, unrouted) -> None:
 
 @pytest.mark.parametrize("entry", **by_row(REMOVED))
 async def test_a_removed_operation_answers_with_the_status_of_its_row(api_client, entry):
-    # [utest->req~gateway-api-removed-operations-not-routed~1]
     unrouted = await api_client.get(UNROUTED)
     assert unrouted.status_code == 404
 
@@ -176,7 +175,6 @@ async def test_a_removed_operation_answers_with_the_status_of_its_row(api_client
 
 @pytest.mark.parametrize("entry", **by_row(REMOVED))
 def test_no_route_serves_a_removed_operation(entry):
-    # [utest->req~gateway-api-removed-operations-not-routed~1]
     serving = methods_serving(concrete(entry.template))
 
     assert entry.method not in serving, (entry, serving)
@@ -189,8 +187,6 @@ def test_no_route_serves_a_removed_operation(entry):
 
 @pytest.mark.parametrize("entry", **by_row(KEPT))
 def test_a_kept_operation_of_a_retired_area_is_still_routed(entry):
-    # [utest->req~gateway-api-removed-operations-not-routed~1]
-    # [utest->req~gateway-api-kept-retired-area-operations~1]
     templates = {route.path_format for route in api_routes() if entry.method in route.methods}
 
     assert entry.template in templates
@@ -204,7 +200,6 @@ def openapi_operations() -> dict[str, dict]:
 
 @pytest.mark.parametrize("entry", **by_row(REMOVED))
 def test_the_generated_document_has_no_removed_operation(entry):
-    # [utest->req~gateway-api-removed-operations-not-documented~1]
     paths = openapi_operations()
 
     assert entry.method.lower() not in paths.get(entry.template, {}), entry
@@ -217,8 +212,6 @@ def test_the_generated_document_has_no_removed_operation(entry):
 
 @pytest.mark.parametrize("entry", **by_row(KEPT))
 def test_the_generated_document_keeps_the_kept_operations(entry):
-    # [utest->req~gateway-api-kept-retired-area-operations~1]
-    # [utest->req~gateway-api-removed-operations-not-documented~1]
     assert entry.method.lower() in openapi_operations().get(entry.template, {}), entry
 
 
@@ -228,7 +221,6 @@ def route_pairs(*prefixes: str) -> set[tuple[str, str]]:
 
 
 def test_project_resources_are_read_only_in_the_route_table():
-    # [utest->req~collaboration-artifacts-resources-read-only~1]
     assert route_pairs(f"{PROJECT}/resources") == {
         ("GET", f"{PROJECT}/resources"),
         ("GET", f"{PROJECT}/resources/{{resource}}/revisions"),
@@ -236,7 +228,6 @@ def test_project_resources_are_read_only_in_the_route_table():
 
 
 def test_the_library_is_read_only_in_the_route_table():
-    # [utest->req~collaboration-artifacts-library-read-only~1]
     assert route_pairs("/v1/artifacts", "/v1/organizations/{org}/library", f"{PROJECT}/library") == {
         ("GET", "/v1/organizations/{org}/library"),
         ("GET", "/v1/artifacts/{artifact_id}/versions"),
@@ -248,7 +239,6 @@ def test_the_library_is_read_only_in_the_route_table():
 async def test_a_session_gets_the_same_answer_and_writes_nothing(
     api_client, registration, db_session, gate  # noqa: F811
 ):
-    # [utest->req~gateway-api-removed-operations-not-routed~1]
     _, headers = await make_account(api_client, registration, db_session, gate)
     unrouted = await api_client.get(UNROUTED)
     entries = [entry for entry in REMOVED if entry.row in {"1", "37"}]
@@ -264,7 +254,6 @@ async def test_a_session_gets_the_same_answer_and_writes_nothing(
 async def test_an_api_key_gets_the_unrouted_answer_and_not_a_permission_refusal(
     api_client, registration, db_session, gate  # noqa: F811
 ):
-    # [utest->req~gateway-api-removed-operations-not-routed~1]
     _, session = await make_account(api_client, registration, db_session, gate)
     key = await make_key(api_client, session, ["jobs:read", "engines:execute"])
     unrouted = await api_client.get(UNROUTED)
@@ -320,9 +309,6 @@ async def area(api_client, registration, db_session, gate, monkeypatch, tmp_path
 
 
 async def test_an_owner_gets_the_same_answers_and_nothing_is_written(api_client, db_session, area):
-    # [utest->req~gateway-api-removed-operations-not-routed~1]
-    # [utest->req~collaboration-artifacts-resources-read-only~1]
-    # [utest->req~collaboration-artifacts-library-read-only~1]
     unrouted = await api_client.get(UNROUTED)
     before = await row_counts(db_session)
     bodies = {"16": {"name": "d1", "kind": "Dataset"}}
@@ -338,7 +324,6 @@ async def test_an_owner_gets_the_same_answers_and_nothing_is_written(api_client,
 async def test_an_api_key_that_could_write_gets_the_answers_of_unrouted_paths(
     api_client, db_session, area
 ):
-    # [utest->req~gateway-api-removed-operations-not-routed~1]
     key = await make_key(api_client, area.headers, WRITER)
     unrouted = await api_client.get(UNROUTED)
     before = await row_counts(db_session)
@@ -352,9 +337,6 @@ async def test_an_api_key_that_could_write_gets_the_answers_of_unrouted_paths(
 
 
 async def test_the_kept_operations_answer_a_member_as_before(api_client, area):
-    # [utest->req~gateway-api-kept-retired-area-operations~1]
-    # [utest->req~collaboration-artifacts-resources-read-only~1]
-    # [utest->req~collaboration-artifacts-library-read-only~1]
     from bim_core.canonical import canonical_json
 
     from openbinding_gateway.artifacts import reference
@@ -399,7 +381,6 @@ async def test_the_kept_operations_answer_a_member_as_before(api_client, area):
 
 
 async def test_a_version_sealed_by_package_import_is_listed(api_client, db_session, area):
-    # [utest->req~collaboration-artifacts-library-read-only~1]
     # Package import still seals versions through the internal artifact service; the kept version list shows them.
     from bim_core.canonical import digest
 
@@ -437,7 +418,6 @@ async def test_a_version_sealed_by_package_import_is_listed(api_client, db_sessi
 
 
 def test_the_removed_operations_page_lists_every_removed_row_and_no_kept_one():
-    # [utest->req~gateway-api-removed-operations-page~1]
     text = (REPO_ROOT / "docs" / "API_DEPRECATIONS.md").read_text(encoding="utf-8")
     removed_section = text.split("## Removed operations", 1)[1].split("\n## ", 1)[0]
     rows = set(re.findall(r"^\| (GET|POST|PUT|PATCH|DELETE) \| `([^`]+)` \|", removed_section, flags=re.MULTILINE))

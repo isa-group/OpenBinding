@@ -187,7 +187,6 @@ def add_kept_rows(database: Path, ids: dict) -> None:
 # --- the guard --------------------------------------------------------------------------------------------
 
 
-# [utest->req~data-retirement-guard~1]
 def test_without_a_manifest_the_migration_refuses_and_changes_nothing(exported):
     database, _out, _seeded = exported
     before, digest = dump(database), sha256_of(database)
@@ -267,7 +266,6 @@ ONE_SOURCE = {
 
 
 @pytest.mark.parametrize("source", SOURCES)
-# [utest->req~data-retirement-guard~1]
 def test_any_one_source_with_rows_needs_the_export(empty_template, tmp_path, source):
     assert set(ONE_SOURCE) == set(SOURCES)
     database = copy_database(empty_template, tmp_path / "db")
@@ -280,14 +278,12 @@ def test_any_one_source_with_rows_needs_the_export(empty_template, tmp_path, sou
     assert_refused(upgrade(database), database, before, digest)
 
 
-# [utest->req~data-retirement-guard~1]
 def test_a_variable_that_names_nothing_is_refused_when_rows_exist(exported, tmp_path):
     database, _out, _seeded = exported
     before, digest = dump(database), sha256_of(database)
     assert_refused(upgrade(database, tmp_path / "nowhere.json"), database, before, digest)
 
 
-# [utest->req~data-retirement-guard~1]
 def test_counts_that_changed_after_the_export_are_refused(exported):
     database, out, seeded = exported
     add_draft_report(database, seeded["ids"])
@@ -295,7 +291,6 @@ def test_counts_that_changed_after_the_export_are_refused(exported):
     assert_refused(upgrade(database, out / "manifest.json"), database, before, digest, "report_drafts")
 
 
-# [utest->req~data-retirement-guard~1]
 def test_a_forged_export_with_equal_counts_but_other_primary_keys_is_refused(exported):
     database, out, _seeded = exported
     rows = read_rows(out, "analysis_tasks")
@@ -306,7 +301,6 @@ def test_a_forged_export_with_equal_counts_but_other_primary_keys_is_refused(exp
     assert_refused(upgrade(database, manifest), database, before, digest, "analysis_tasks", "primary keys")
 
 
-# [utest->req~data-retirement-guard~1]
 def test_a_tampered_file_is_refused(exported):
     database, out, _seeded = exported
     path = out / "sponsor_proposals.jsonl"
@@ -364,7 +358,6 @@ def _line_without_key(out: Path):
     ],
     ids=lambda value: getattr(value, "__name__", None),
 )
-# [utest->req~data-retirement-guard~1]
 def test_a_manifest_that_is_damaged_in_any_other_way_is_refused(exported, damage, source):
     database, out, _seeded = exported
     damage(out)
@@ -372,7 +365,6 @@ def test_a_manifest_that_is_damaged_in_any_other_way_is_refused(exported, damage
     assert_refused(upgrade(database, out / "manifest.json"), database, before, digest, source)
 
 
-# [utest->req~data-retirement-guard-empty~1]
 def test_empty_selections_need_no_manifest(empty_template, tmp_path):
     database = copy_database(empty_template, tmp_path / "unset")
     result = upgrade(database)
@@ -387,8 +379,6 @@ def test_empty_selections_need_no_manifest(empty_template, tmp_path):
 # --- the drop ---------------------------------------------------------------------------------------------
 
 
-# [utest->req~data-retirement-removed-set~1]
-# [utest->req~data-retirement-kept-set~1]
 def test_the_upgrade_removes_exactly_the_exported_rows_and_keeps_everything_else(exported):
     database, out, seeded = exported
     # Rows in the kept tables the seed leaves empty; none of them is in a selection, so the export still matches.
@@ -427,7 +417,6 @@ def test_the_upgrade_removes_exactly_the_exported_rows_and_keeps_everything_else
     assert len(after["publications"]) == 2 and len(after["artifact_publications"]) == 2  # d3 and the frozen f1
 
 
-# [utest->req~data-retirement-removed-set~1]
 def test_the_migration_and_the_tool_select_with_the_same_sql():
     migration = load_module(MIGRATION_FILE, "m96_migration_under_test")
     assert migration.SELECTIONS == tool.SELECTIONS
@@ -463,7 +452,6 @@ def schema(database: Path, table: str) -> dict:
         engine.dispose()
 
 
-# [utest->req~data-retirement-downgrade~1]
 def test_the_downgrade_recreates_both_tables_empty_with_their_old_schema(exported, empty_template):
     database, out, seeded = exported
     assert upgrade(database, out / "manifest.json").returncode == 0
@@ -493,7 +481,6 @@ def test_the_downgrade_recreates_both_tables_empty_with_their_old_schema(exporte
 # tests/concurrency/test_m96_migration_pg.py.
 
 
-# [utest->req~data-retirement-removed-set~1]
 def test_a_delete_that_does_not_remove_the_selected_rows_raises():
     """``_delete`` sums the row counts of its chunks and raises when they differ from the selection."""
     migration = load_module(MIGRATION_FILE, "m96_migration_delete_under_test")

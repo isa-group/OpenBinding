@@ -42,7 +42,6 @@ const boundRow = (rule: string) => within(region('QoS against bounds')).getByTex
 
 describe('RunResult', () => {
   describe('composition order', () => {
-    // [utest->req~frontend-rendering-run-result-order~1]
     it('shows the full run in order', () => {
       show({ report: REPORT, notice: <p>Notice</p>, children: <p>Extras</p> });
       const scope = within(run());
@@ -68,7 +67,6 @@ describe('RunResult', () => {
       expect(log.open).toBe(false);
     });
 
-    // [utest->req~frontend-rendering-run-result-order~1]
     it('shows a run without solutions', () => {
       show({ result: resultWith({ solutions: [], logs: undefined }) });
       const scope = within(run());
@@ -87,7 +85,6 @@ describe('RunResult', () => {
       expect(scope.queryByText(/^Engine log/)).toBeNull();
     });
 
-    // [utest->req~frontend-rendering-run-result-order~1]
     it('shows a solution without figures or objectives', () => {
       const bare = { decision: S1.decision, violations: S1.violations };
       show({ result: resultWith({ solutions: [bare] }) });
@@ -100,7 +97,6 @@ describe('RunResult', () => {
   });
 
   describe('verdict', () => {
-    // [utest->req~frontend-rendering-run-result-verdict~1]
     it('shows each API termination as the first element', () => {
       for (const termination of ['OPTIMAL', 'FEASIBLE', 'INFEASIBLE', 'UNKNOWN']) {
         show({ result: resultWith({ termination }) });
@@ -112,7 +108,6 @@ describe('RunResult', () => {
       }
     });
 
-    // [utest->req~frontend-rendering-run-result-verdict~1]
     it('shows UNKNOWN without a termination', () => {
       const terminations: unknown[] = [undefined, null, '', 7];
       for (const termination of terminations) {
@@ -126,7 +121,6 @@ describe('RunResult', () => {
   });
 
   describe('solution choice', () => {
-    // [utest->req~frontend-rendering-run-result-solution-choice~1]
     it('shows the second solution once chosen', () => {
       show({ constraints: CONSTRAINTS });
       const select = screen.getByRole('combobox', { name: /Show solution/ });
@@ -148,7 +142,6 @@ describe('RunResult', () => {
       expect(table.getByText('Solution 2')).toBeInTheDocument();
     });
 
-    // [utest->req~frontend-rendering-run-result-solution-choice~1]
     it('offers no choice for one solution', () => {
       show({ result: resultWith({ solutions: [S1] }) });
 
@@ -158,7 +151,6 @@ describe('RunResult', () => {
   });
 
   describe('canonical shape', () => {
-    // [utest->req~frontend-rendering-run-result-canonical-shape~1]
     it('lets features win over metrics', () => {
       show({ result: resultWith({ solutions: [{ ...S1, metrics: { latency: 999, cost: 1 } }, S2] }) });
 
@@ -169,7 +161,6 @@ describe('RunResult', () => {
       expect(textOutsideSource()).not.toContain('999');
     });
 
-    // [utest->req~frontend-rendering-run-result-canonical-shape~1]
     it('falls back to metrics', () => {
       const rest: Record<string, unknown> = { ...S1, metrics: { latency: 300 } };
       delete rest.features;
@@ -179,7 +170,6 @@ describe('RunResult', () => {
       expect(within(boundRow('max-latency')).getByText('300 ms')).toBeInTheDocument();
     });
 
-    // [utest->req~frontend-rendering-run-result-canonical-shape~1]
     it('reads type and scalarization, not mode', () => {
       const withMode = (s: typeof S1) => ({ ...s, objectives: { ...s.objectives, mode: 'legacy-mode' } });
       show({ result: resultWith({ solutions: [withMode(S1), withMode(S2)] }) });
@@ -190,7 +180,6 @@ describe('RunResult', () => {
       expect(textOutsideSource()).not.toContain('legacy-mode');
     });
 
-    // [utest->req~frontend-rendering-run-result-canonical-shape~1]
     it('leaves out non-numeric figures', () => {
       const features = { latency: 'fast', cost: 9.5, region: { min: 1, max: 2 } };
       show({ result: resultWith({ solutions: [{ ...S1, features }] }), constraints: undefined });
@@ -202,7 +191,6 @@ describe('RunResult', () => {
   });
 
   describe('names', () => {
-    // [utest->req~frontend-rendering-run-result-names~1]
     it('identifies tasks and candidates by name', () => {
       show();
       const table = within(region('Chosen providers'));
@@ -214,7 +202,6 @@ describe('RunResult', () => {
       expect(table.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Task', 'Candidate', 'Provider', 'latency (ms)', 'cost (EUR)']);
     });
 
-    // [utest->req~frontend-rendering-run-result-names~1]
     it('shows no digest outside the source', () => {
       const digest = (c: string) => `sha256:${c.repeat(64)}`;
       const result = resultWith({ provenance: { irDigest: digest('a') } });
@@ -227,7 +214,6 @@ describe('RunResult', () => {
   });
 
   describe('without the compiled problem', () => {
-    // [utest->req~frontend-rendering-run-result-without-problem~1]
     it('says so and renders from the result alone', () => {
       render(<RunResult result={RESULT} problem={null} />);
       const scope = within(run());
@@ -243,7 +229,6 @@ describe('RunResult', () => {
       expect(within(qos.getByRole('list', { name: 'Other rules' })).getByText('prefer-eu')).toBeInTheDocument();
     });
 
-    // [utest->req~frontend-rendering-run-result-without-problem~1]
     it('shows no note while the problem is loading', () => {
       render(<RunResult result={RESULT} />);
 
@@ -255,7 +240,6 @@ describe('RunResult', () => {
   });
 
   describe('trade-off set', () => {
-    // [utest->req~frontend-rendering-run-result-trade-offs~1]
     it('shows the set for two objectives', () => {
       show();
 
@@ -263,7 +247,6 @@ describe('RunResult', () => {
       expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Solution', 'cost', 'latency']);
     });
 
-    // [utest->req~frontend-rendering-run-result-trade-offs~1]
     it('shows nothing for one objective', () => {
       const onlyCost = (s: typeof S1) => ({ ...s, objectives: { ...s.objectives, components: s.objectives.components.slice(0, 1) } });
       show({ result: resultWith({ solutions: [onlyCost(S1), onlyCost(S2)] }) });
@@ -271,7 +254,6 @@ describe('RunResult', () => {
       expect(maybeRegion('Trade-off set')).toBeNull();
     });
 
-    // [utest->req~frontend-rendering-run-result-trade-offs~1]
     it('shows nothing when the objectives are not shared by every solution', () => {
       const onlyCost = { ...S2, objectives: { ...S2.objectives, components: S2.objectives.components.slice(0, 1) } };
       show({ result: resultWith({ solutions: [S1, onlyCost] }) });
@@ -283,7 +265,6 @@ describe('RunResult', () => {
   describe('engine claims', () => {
     const SENTENCE = 'The values the engine claimed are not kept for this run. Gateway evaluation: FEASIBLE, 2 solutions.';
 
-    // [utest->req~frontend-rendering-run-result-claimed-values~1]
     it('keeps no claim', () => {
       show();
 
@@ -292,7 +273,6 @@ describe('RunResult', () => {
       expect(within(claims).queryByRole('region', { name: 'Differences' })).toBeNull();
     });
 
-    // [utest->req~frontend-rendering-run-result-claimed-values~1]
     it('does not take the engine provenance as its claim', () => {
       const remote = {
         termination: 'OPTIMAL',
@@ -308,7 +288,6 @@ describe('RunResult', () => {
       expect(within(notes).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Solved with presolve']);
     });
 
-    // [utest->req~frontend-rendering-run-result-claimed-values~1]
     it('shows no notes without a report', () => {
       for (const report of [undefined, null]) {
         show({ report });
@@ -319,7 +298,6 @@ describe('RunResult', () => {
   });
 
   describe('sources', () => {
-    // [utest->req~frontend-rendering-run-result-source~1]
     it('shows the solution and the engine report only through SourceView', () => {
       show({ report: REPORT });
       const source = detailsOf('View source');
@@ -335,7 +313,6 @@ describe('RunResult', () => {
       for (const pre of pres) expect(pre.closest('.rendering-source, .rendering-log')).not.toBeNull();
     });
 
-    // [utest->req~frontend-rendering-run-result-source~1]
     it('shows no engine report source for an empty remote or no report', () => {
       for (const report of [{ ...REPORT, remote: {} }, undefined]) {
         show({ report });
@@ -348,7 +325,6 @@ describe('RunResult', () => {
   });
 
   describe('engine log', () => {
-    // [utest->req~frontend-rendering-run-result-log~1]
     it('shows the log last, closed', () => {
       show();
 
@@ -359,7 +335,6 @@ describe('RunResult', () => {
       expect(within(last).getByRole('button', { name: 'Download Engine log', hidden: true })).toBeInTheDocument();
     });
 
-    // [utest->req~frontend-rendering-run-result-log~1]
     it('shows no log when logs is not a non-empty string', () => {
       const logs: unknown[] = [undefined, '', { text: 'x' }];
       for (const value of logs) {

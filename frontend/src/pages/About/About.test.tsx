@@ -211,7 +211,6 @@ describe('About', () => {
     });
   });
 
-  // [utest->req~frontend-nav-status-retired~1]
   describe('service status note', () => {
     it('says that every system is operational when the check reports every dependency up', async () => {
       renderAbout();

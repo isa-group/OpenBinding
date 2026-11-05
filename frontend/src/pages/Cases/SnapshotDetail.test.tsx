@@ -42,7 +42,6 @@ async function zipBuffer() {
   return zip.generateAsync({ type: 'arraybuffer' });
 }
 
-// [utest->req~frontend-nav-problem-page~1]
 describe('Source tab of the problem page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -230,7 +229,6 @@ describe('Source tab of the problem page', () => {
   });
 
   describe('source viewer', () => {
-    // [utest->req~frontend-snapshot-source-tab~1]
     it('shows the compiled form as a source view with a download, without requesting the archive', async () => {
       renderSnapshot();
 
@@ -243,7 +241,6 @@ describe('Source tab of the problem page', () => {
       expect(platform.snapshotArchive).not.toHaveBeenCalled();
     });
 
-    // [utest->req~frontend-snapshot-source-tab~1]
     it('browses the files of the package, loading the archive only when that view opens', async () => {
       platform.snapshotArchive.mockResolvedValue(await zipBuffer());
       renderSnapshot();

@@ -184,6 +184,6 @@ wheel is reported in the summary); a different backend version may write other b
 - `ruff` was not run on this change (it is not a registered check).
 - The `Dockerfile` was edited to copy `NOTICE.md`; no record of a build was found (sin verificar). It does create and
   use UID/GID 10001 (`USER 10001:10001`), and `compose.lab.json` limits the `bim-service` container to `cpus` 1.5 and
-  `pids_limit` 256; the effect of those limits has not been measured (`docs/qa/BIM_LOAD.md`). The gateway image
+  `pids_limit` 256; the effect of those limits has not been measured. The gateway image
   (`openbinding-gateway/Dockerfile`: stages `base`/`test`/`production`, uv 0.8.22, UID 10001) is outside this
   directory. See "Estado reconciliado" in `EXTRACTION_LOG.md`.

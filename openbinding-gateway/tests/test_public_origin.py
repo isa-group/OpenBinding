@@ -116,22 +116,18 @@ def assert_message(excinfo, name: str, value: str) -> str:
     return text
 
 
-# [utest->req~gateway-api-public-origin-format~1]
 @pytest.mark.parametrize("field,_name", URL_FIELDS)
 @pytest.mark.parametrize("value", VALID_ORIGINS)
 def test_a_well_formed_url_is_accepted(field, _name, value):
     assert getattr(settings(**{field: value}), field) == value
 
 
-# [utest->req~gateway-api-public-origin-format~1]
 @pytest.mark.parametrize("field,_name", URL_FIELDS)
 @pytest.mark.parametrize("value", ["https://example.org/", "http://localhost:5173/", "HTTPS://example.org"])
 def test_a_url_tolerates_one_trailing_slash_and_any_scheme_case(field, _name, value):
     assert getattr(settings(**{field: value}), field) == value
 
 
-# [utest->req~gateway-api-public-origin-format~1]
-# [utest->req~gateway-api-origin-error-masking~1]
 @pytest.mark.parametrize("field,name", URL_FIELDS)
 @pytest.mark.parametrize("value", INVALID_ORIGINS + ["", " ", "*", "/", "https://*"])
 def test_a_malformed_url_stops_the_process_and_names_the_variable(field, name, value):
@@ -140,20 +136,16 @@ def test_a_malformed_url_stops_the_process_and_names_the_variable(field, name, v
     assert_message(excinfo, name, value)
 
 
-# [utest->req~gateway-api-cors-origin-format~1]
 @pytest.mark.parametrize("value", VALID_ORIGINS)
 def test_a_well_formed_cors_entry_is_accepted(value):
     assert settings(cors_allow_origins=value).cors_origin_list == [value]
 
 
-# [utest->req~gateway-api-cors-origin-format~1]
 def test_cors_entries_are_stripped_and_empty_parts_ignored():
     configured = settings(cors_allow_origins=" https://a.example , ,http://localhost:5173,")
     assert configured.cors_origin_list == ["https://a.example", "http://localhost:5173"]
 
 
-# [utest->req~gateway-api-cors-origin-format~1]
-# [utest->req~gateway-api-origin-error-masking~1]
 @pytest.mark.parametrize(
     "value",
     [v for v in INVALID_ORIGINS if "," not in v] + ["https://example.org/", "http://localhost:5173/"],
@@ -164,8 +156,6 @@ def test_a_malformed_cors_entry_stops_the_process_and_names_the_variable(value):
     assert_message(excinfo, "CORS_ALLOW_ORIGINS", value)
 
 
-# [utest->req~gateway-api-cors-origin-format~1]
-# [utest->req~gateway-api-origin-error-masking~1]
 def test_a_cors_entry_with_a_trailing_slash_is_refused_and_shown_as_written():
     with pytest.raises(ValidationError) as excinfo:
         settings(cors_allow_origins="http://localhost:5173,https://openbinding.example.org/")
@@ -175,7 +165,6 @@ def test_a_cors_entry_with_a_trailing_slash_is_refused_and_shown_as_written():
     assert "no trailing '/'" in text
 
 
-# [utest->req~gateway-api-cors-origin-format~1]
 @pytest.mark.parametrize("app_env", ["dev", "test", "prod"])
 @pytest.mark.parametrize("value", ["https://*.example.org", "https://example.*", "*.example.org"])
 def test_a_wildcard_inside_a_cors_entry_is_refused_in_every_environment(app_env, value):
@@ -189,35 +178,29 @@ def test_a_wildcard_inside_a_cors_entry_is_refused_in_every_environment(app_env,
     assert repr(value) in text
 
 
-# [utest->req~gateway-api-cors-origin-format~1]
 @pytest.mark.parametrize("app_env", ["dev", "test"])
 def test_a_bare_wildcard_passes_the_format_check_outside_production(app_env):
     assert settings(app_env=app_env, cors_allow_origins="*").cors_origin_list == ["*"]
 
 
-# [utest->req~gateway-api-cors-origin-format~1]
 def test_a_bare_wildcard_in_production_keeps_its_own_message():
     with pytest.raises(ValidationError, match=r"CORS_ALLOW_ORIGINS contains '\*' while APP_ENV=prod"):
         prod(cors_allow_origins="*")
 
 
-# [utest->req~gateway-api-cors-origin-format~1]
 def test_a_wildcard_next_to_a_malformed_entry_is_refused():
     with pytest.raises(ValidationError, match="CORS_ALLOW_ORIGINS"):
         settings(app_env="dev", cors_allow_origins="*,https://example.org/app")
 
 
-# [utest->req~gateway-api-cors-origin-format~1]
 def test_an_empty_cors_list_is_accepted_outside_production():
     assert settings(cors_allow_origins="").cors_origin_list == []
 
 
-# [utest->req~gateway-api-public-origin-format~1]
 def test_a_production_configuration_accepts_a_url_with_one_trailing_slash():
     assert prod(public_base_url="https://openbinding.example.org/").public_base_url.endswith("/")
 
 
-# [utest->req~gateway-api-public-origin-format~1]
 def test_the_defaults_are_well_formed():
     configured = settings()
     assert configured.public_base_url == "http://localhost:8000"
@@ -226,14 +209,12 @@ def test_the_defaults_are_well_formed():
     assert len(configured.cors_origin_list) == 4
 
 
-# [utest->req~gateway-api-public-origin-format~1]
 def test_a_malformed_origin_in_the_environment_stops_get_settings(monkeypatch):
     monkeypatch.setenv("FRONTEND_URL", "openbinding.example.org")
     with pytest.raises(ValidationError, match="FRONTEND_URL"):
         get_settings()
 
 
-# [utest->req~gateway-api-origin-error-masking~1]
 @pytest.mark.parametrize("field", ["public_base_url", "frontend_url", "cors_allow_origins"])
 def test_userinfo_with_reserved_characters_is_masked_completely(field):
     value = "https://zed:pa/ss?w@example.org"
@@ -245,7 +226,6 @@ def test_userinfo_with_reserved_characters_is_masked_completely(field):
     assert "zed" not in text
 
 
-# [utest->req~gateway-api-origin-error-masking~1]
 def test_a_value_without_userinfo_is_shown_unchanged():
     with pytest.raises(ValidationError) as excinfo:
         settings(frontend_url="https://openbinding.example.org/app?x=1")

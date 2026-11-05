@@ -28,7 +28,6 @@ export interface TradeOffSolution {
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 /** Reads the canonical `objectives.components` of each solution; a solution without a counted component gives no point. */
-// [impl->req~frontend-rendering-trade-off-chart~1]
 export function tradeOffPointsOf(solutions: readonly TradeOffSolution[]): TradeOffPoint[] {
   const points: TradeOffPoint[] = [];
   solutions.forEach((solution, index) => {
@@ -50,7 +49,6 @@ export function tradeOffPointsOf(solutions: readonly TradeOffSolution[]): TradeO
 }
 
 /** The criteria every point carries, in the order of the first point. */
-// [impl->req~frontend-rendering-trade-off-chart~1]
 export function tradeOffObjectivesOf(points: readonly TradeOffPoint[]): string[] {
   if (points.length === 0) return [];
   return Object.keys(points[0].values).filter((o) =>
@@ -67,7 +65,6 @@ function dominates(a: TradeOffPoint, b: TradeOffPoint, objectives: readonly stri
 }
 
 /** The points no other point dominates by `loss` (lower is better), in input order. */
-// [impl->req~frontend-rendering-trade-off-chart~1]
 export function nonDominated(points: readonly TradeOffPoint[], objectives?: readonly string[]): TradeOffPoint[] {
   const keys = objectives ?? tradeOffObjectivesOf(points);
   return points.filter((p) => !points.some((q) => q !== p && dominates(q, p, keys)));

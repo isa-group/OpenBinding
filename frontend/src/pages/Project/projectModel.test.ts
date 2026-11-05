@@ -58,7 +58,6 @@ describe('access levels', () => {
     expect(levelOf(undefined, null)).toBeNull();
   });
 
-  // [utest->req~frontend-nav-project-tabs~1]
   it('keeps the runs and the settings from a visitor, and everything else open to them', () => {
     for (const section of ['jobs', 'settings']) {
       expect(canOpenSection('public_read', section)).toBe(false);

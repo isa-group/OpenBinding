@@ -33,7 +33,6 @@ export interface VerifyResultProps {
 const ICONS: Record<VerifierStatus, typeof Check> = { verified: Check, computed: Info, mismatch: TriangleAlert, not_found: CircleHelp };
 
 /** What a permanent link, a fingerprint or a file resolves to, and whether it matches. */
-// [impl->req~verify-result~1]
 export function VerifyResult({ verdict, computed, given, kindLabels, hrefOf, renderLink, citation }: VerifyResultProps) {
   const matchesId = useId();
   const words = VERDICTS[verdict.status];

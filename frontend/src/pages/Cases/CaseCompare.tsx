@@ -19,8 +19,6 @@ const numberOf = (value: string | null): number | null => {
 };
 
 /** The comparison of two problem versions, in the Versions tab: the pair is chosen by the query `from` and `to` (the previous version and the latest by default). */
-// [impl->req~frontend-nav-problem-page~1]
-// [impl->req~frontend-retire-composer-entry-points-repointed~1]
 export function VersionCompare({ root, content, canCreate }: { root: string; content: RouteCaseContent; canCreate: boolean }) {
   const { item, revisions } = content;
   const [params, setParams] = useSearchParams();

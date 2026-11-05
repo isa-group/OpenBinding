@@ -1,4 +1,4 @@
-"""The canonical order of the IR and the number model, on small inputs (``docs/qa/IR_NORMALIZATION.md``).
+"""The canonical order of the IR and the number model, on small inputs.
 
 * ``integral_numbers``: a parsed JSON document reads every integral number as an integer, as the canonical form does.
 * ``decimal_string``: the text of any integer, whatever ``sys.get_int_max_str_digits()`` says.

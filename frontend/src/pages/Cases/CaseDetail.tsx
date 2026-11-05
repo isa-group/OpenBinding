@@ -34,7 +34,6 @@ const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
 /** A visitor of a public project reads the problem; its runs and its settings are for the people of the organization. */
 const MEMBERS_ONLY: readonly TabId[] = ['runs', 'settings'];
 
-// [impl->req~frontend-retire-composer-entry-points-repointed~1]
 function ProblemBody({ organization, project, content, revision, tab, canCreate, canAdminister, role, reload }: {
   organization: Organization; project: Project; content: RouteCaseContent; revision: CaseRevision | undefined; tab: ProblemTabSegment | undefined;
   canCreate: boolean; canAdminister: boolean; role: Organization['effective_role']; reload: () => void;
@@ -194,7 +193,6 @@ function ProblemPage({ tab }: { tab: ProblemTabSegment | undefined }) {
  * A problem (`case-detail`, `/app/:org/:project/problems/:case/:tab?`): Overview, Runs, Versions, Source and Settings of the problem version named by
  * `?version=` (the latest when none). Any other tab is a page that does not exist.
  */
-// [impl->req~frontend-nav-problem-page~1]
 export function CaseDetail() {
   const { tab } = useParams();
   if (tab !== undefined && !isProblemTabSegment(tab)) return <NotFoundScreen />;

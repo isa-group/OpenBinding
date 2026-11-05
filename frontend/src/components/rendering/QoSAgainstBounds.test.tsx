@@ -29,7 +29,6 @@ const rowsOf = () => within(screen.getByRole('region', { name: 'Bounds' })).getA
 const cellsOf = (row: HTMLElement) => within(row).getAllByRole('cell').map((cell) => cell.textContent);
 
 describe('QoSAgainstBounds', () => {
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('renders the Bounds table of a solution cell by cell', () => {
     const { bounds, rules } = qosBoundsOf(QOS, FEATURES, VIOLATIONS, UNITS);
     const { container } = render(<QoSAgainstBounds bounds={bounds} rules={rules} />);
@@ -47,7 +46,6 @@ describe('QoSAgainstBounds', () => {
     expect(container.querySelector('pre')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('lists the other rules with their condition', () => {
     const { bounds, rules } = qosBoundsOf(QOS, FEATURES, VIOLATIONS, UNITS);
     render(<QoSAgainstBounds bounds={bounds} rules={rules} />);
@@ -63,7 +61,6 @@ describe('QoSAgainstBounds', () => {
     expect(items[1]).not.toHaveTextContent('applies when');
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('follows the gateway status, whatever the margin says', () => {
     const one = [QOS[0]];
     const { unmount } = render(<QoSAgainstBounds {...qosBoundsOf(one, { latency: 700 }, [], UNITS)} />);
@@ -77,7 +74,6 @@ describe('QoSAgainstBounds', () => {
     expect(within(row).getByText('violated')).toHaveClass('badge-error');
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it.each([undefined, null, {}])('says not checked when the violations are %j', (violations) => {
     const { bounds, rules } = qosBoundsOf(QOS, FEATURES, violations, UNITS);
     render(<QoSAgainstBounds bounds={bounds} rules={rules} />);
@@ -88,7 +84,6 @@ describe('QoSAgainstBounds', () => {
     badges.forEach((badge) => expect(badge).toHaveClass('badge-default'));
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('shows no not-checked paragraph when the list is there', () => {
     const { bounds, rules } = qosBoundsOf(QOS, FEATURES, [], UNITS);
     render(<QoSAgainstBounds bounds={bounds} rules={rules} />);
@@ -96,7 +91,6 @@ describe('QoSAgainstBounds', () => {
     expect(screen.queryByText(/Not checked/)).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it.each([{ latency: 'fast' }, {}, undefined])('shows a dash and no value text for a missing value (%j)', (features) => {
     render(<QoSAgainstBounds {...qosBoundsOf([QOS[0]], features, [], UNITS)} />);
 
@@ -108,7 +102,6 @@ describe('QoSAgainstBounds', () => {
     }
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('reads at the limit, and no trailing space without a unit', () => {
     render(<QoSAgainstBounds bounds={[bound({ value: 600 }), bound({ unit: null })]} rules={[]} />);
 
@@ -118,7 +111,6 @@ describe('QoSAgainstBounds', () => {
     expect(bare[5]).toBe('188 below');
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('names the status in words with the right badge variant', () => {
     render(
       <QoSAgainstBounds
@@ -147,7 +139,6 @@ describe('QoSAgainstBounds', () => {
     expect(item).toHaveTextContent('violated penalty 2');
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('renders only the part it was given', () => {
     const { unmount } = render(<QoSAgainstBounds bounds={[]} rules={[textRule()]} />);
     expect(screen.queryByRole('region', { name: 'Bounds' })).toBeNull();
@@ -158,7 +149,6 @@ describe('QoSAgainstBounds', () => {
     expect(screen.queryByRole('list', { name: 'Other rules' })).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('says there is nothing to check', () => {
     render(<QoSAgainstBounds bounds={[]} rules={[]} />);
 
@@ -168,7 +158,6 @@ describe('QoSAgainstBounds', () => {
     expect(screen.queryByRole('list')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('takes the region name from label', () => {
     render(<QoSAgainstBounds bounds={[]} rules={[]} label="Solution 2 against bounds" />);
 
@@ -176,7 +165,6 @@ describe('QoSAgainstBounds', () => {
     expect(screen.queryByRole('region', { name: 'QoS against bounds' })).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('formats numbers in en-US with at most three decimals', () => {
     render(
       <QoSAgainstBounds
@@ -188,7 +176,6 @@ describe('QoSAgainstBounds', () => {
     expect(cellsOf(rowsOf()[0]).slice(3)).toEqual(['≤ 1,000', '1,234.568', '234.568 above', 'violated penalty 0.123']);
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('renders gateway and problem text as text', () => {
     const { container } = render(
       <QoSAgainstBounds bounds={[]} rules={[textRule({ rule: '<i>r</i>', text: '<b>Pool</b> edge full', met: false })]} />,
@@ -200,7 +187,6 @@ describe('QoSAgainstBounds', () => {
     expect(container.querySelector('b, i, pre')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-qos-against-bounds~1]
   it('uses tokens only and imports nothing from pages', () => {
     const dir = join(process.cwd(), 'src/components/rendering');
     expect(readFileSync(join(dir, 'QoSAgainstBounds.css'), 'utf8')).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);

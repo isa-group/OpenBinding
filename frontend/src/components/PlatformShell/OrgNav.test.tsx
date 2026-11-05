@@ -5,7 +5,6 @@ import { OrgNav, type OrgSection } from './OrgNav';
 
 const currentOf = (nav: HTMLElement) => within(nav).queryAllByRole('link').filter((link) => link.getAttribute('aria-current') === 'page');
 
-// [utest->req~frontend-nav-org-settings-sections~1]
 describe('OrgNav', () => {
   it('links back to the organization and to its settings sections', () => {
     render(<MemoryRouter><OrgNav orgName="ISA Demo Group" orgSlug="isa-demo" /></MemoryRouter>);

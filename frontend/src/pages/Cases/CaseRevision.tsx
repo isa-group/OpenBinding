@@ -220,7 +220,6 @@ function ResourceCards({ uses, resolved }: {
 }
 
 /** The Overview tab of the problem page: the model of the problem version on show, in plain language. */
-// [impl->req~frontend-nav-problem-page~1]
 export function VersionOverview({ organization, project, content, revision }: {
   organization: Organization; project: Project; content: RouteCaseContent; revision: Revision;
 }) {

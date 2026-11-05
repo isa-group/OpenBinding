@@ -73,7 +73,7 @@ BUILTIN_CANCELLATION_DECLARATION: dict[str, Any] = {"supported": True, "idScope"
 
 #: The bundled engines whose ``DELETE`` is always there, by manifest ``metadata.name`` and nothing else: a
 #: registration declares the capability only for these. ``minizinc-csp`` is asynchronous and cancels
-#: for real (``engines/minizinc-csp``, ``docs/qa/ENGINE_CANCELLATION.md``).
+#: for real (``engines/minizinc-csp``).
 #:
 #: The Java engines are NOT listed: their ``DELETE`` exists only with ``ENGINE_JOB_MODE=async`` (they answer
 #: synchronously by default), and the registration generated here cannot know in which mode a deployment

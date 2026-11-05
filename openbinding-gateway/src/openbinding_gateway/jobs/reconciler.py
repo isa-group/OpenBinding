@@ -319,7 +319,6 @@ async def purge_expired_evidence(session: AsyncSession) -> int:
 
 async def _reconcile_cycle(factory) -> None:
     """One pass: sweep, resync cells, publish due jobs, then the other housekeeping."""
-    # [impl->req~job-execution-reconciler-without-retired-sweeps~1]
     global _last_purge
     async with factory() as session:
         failed = await sweep_abandoned(session)

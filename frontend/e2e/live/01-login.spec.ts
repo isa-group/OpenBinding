@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { LAB_USERS, capture, labPassword, signInThroughForm, watchPageErrors, type LabRole } from './support';
 
-// Runs against the lab: see playwright.live.config.ts (the `e2e` service) and docs/qa/E2E_PLAN.md. This is the only spec that uses the
+// Runs against the lab: see playwright.live.config.ts (the `e2e` service). This is the only spec that uses the
 // login form for the four users: the others hand a session to the page (support.ts), because the gateway throttles logins per user.
 
 test.describe('live · login', () => {

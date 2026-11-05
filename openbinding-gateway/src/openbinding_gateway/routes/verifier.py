@@ -116,9 +116,6 @@ async def _recorded_authors(
 
 # Only a match the caller may see is cited, so a hidden digest gets no citation, exactly like an unknown one, and
 # the citation's lookups run only for a visible match: a hidden digest still runs the same queries as an unknown one.
-# [impl->req~resolver-verifier-citation-no-invented-metadata~1]
-# [impl->req~resolver-verifier-citation-year~1]
-# [impl->req~resolver-verifier-citation-url~1]
 async def _citation(
     session: AsyncSession, settings: Settings, entities: list[VerifierEntityMatch], digest_val: str
 ) -> Optional[ReplicationCitation]:

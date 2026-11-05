@@ -14,7 +14,7 @@ image ``seed`` reuses, as in ``compose.pgtest.json``.
 
 Every service runs as a non-root user, writes only to a size-capped tmpfs, publishes no port, has a modest memory
 limit and must pass the rules of ``compose.lab.json`` that apply to it.  Nothing here starts a container: executing
-the profile is up to ``lab_compose`` (see ``docs/qa/ENGINE_CANCELLATION_JAVA.md``).
+the profile is up to ``lab_compose``.
 
 Run from ``openbinding-gateway`` with its environment::
 
@@ -38,7 +38,6 @@ rules = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(rules)
 
 PROFILE = ROOT / "compose.lab-engines-java.json"
-DOC = ROOT / "docs" / "qa" / "ENGINE_CANCELLATION_JAVA.md"
 ENGINES = ROOT / "engines"
 # service -> engine module whose suite it runs
 MODULES = {
@@ -254,7 +253,3 @@ def test_the_engine_images_still_boot_without_the_async_variables():
     assert "ENGINE_JOB_MODE" not in text and "ENGINE_AUTH_TOKENS" not in text
 
 
-def test_the_documentation_names_the_profile_and_that_it_was_not_executed_by_the_worker():
-    doc = DOC.read_text(encoding="utf-8")
-    assert "compose.lab-engines-java.json" in doc
-    assert "NO EJECUTADO" in doc

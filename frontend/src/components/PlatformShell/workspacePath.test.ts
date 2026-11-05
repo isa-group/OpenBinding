@@ -31,7 +31,6 @@ describe('workspaceSlugs', () => {
     expect(workspaceSlugs(`/app/${segment}`)).toEqual({});
   });
 
-  // [utest->req~frontend-nav-vocabulary-urls~1]
   it.each(['runs', 'jobs'])('keeps %s unusable as an organization slug: the run history and its moved address', (segment) => {
     expect(RESERVED_SLUGS.has(segment)).toBe(true);
     expect(workspaceSlugs(`/app/${segment}`)).toEqual({});

@@ -19,7 +19,6 @@ const pathOf = (address: string) => address.split(/[?#]/)[0];
 const addressesOf = (entries: readonly MenuEntry[]) => entries.flatMap((entry) => (entry.to ? [entry.to] : []));
 
 describe('mainLinks', () => {
-  // [utest->req~frontend-nav-signed-in-navigation~1]
   it('lists Home, Engines, Language and Admin, each leading to a routed address and none to a retired path', () => {
     expect(Object.keys(mainLinks)).toEqual(['home', 'engines', 'language', 'admin']);
     expect(Object.values(mainLinks).map((link) => [link.label, link.to])).toEqual([
@@ -31,8 +30,6 @@ describe('mainLinks', () => {
     }
   });
 
-  // [utest->req~frontend-retire-reports-navigation~1]
-  // [utest->req~frontend-retire-library-navigation~1]
   it('offers no entry of the header, Lab, New or account menus that leads to a report, library or resources address', () => {
     const addresses = [
       ...Object.values(mainLinks).map((link) => link.to),
@@ -47,7 +44,6 @@ describe('mainLinks', () => {
 });
 
 describe('problemsEntry and labEntries', () => {
-  // [utest->req~frontend-nav-signed-in-navigation~1]
   it('lead into the current project, and Runs and Generator do not need one', () => {
     expect(problemsEntry(organization, project)).toEqual({ label: 'Problems', to: '/app/isa-demo/qos/problems' });
     expect(labEntries(organization, project).map(({ id, label, to }) => [id, label, to])).toEqual([
@@ -58,7 +54,6 @@ describe('problemsEntry and labEntries', () => {
     }
   });
 
-  // [utest->req~frontend-nav-signed-in-navigation~1]
   it('disables Problems and Studies with the hint "Needs a project" without a current project', () => {
     expect(NEEDS_PROJECT).toBe('Needs a project');
     expect(problemsEntry(organization)).toEqual({ label: 'Problems', hint: 'Needs a project' });
@@ -70,7 +65,6 @@ describe('problemsEntry and labEntries', () => {
 });
 
 describe('createItems', () => {
-  // [utest->req~frontend-nav-new-menu~1]
   it('offers Problem, Collection, Study and Run in the current project, in this order', () => {
     expect(createItems(organization, project).map((item) => [item.label, item.to])).toEqual([
       ['Problem', '/app/isa-demo/qos/problems?create=problem'],
@@ -83,7 +77,6 @@ describe('createItems', () => {
     }
   });
 
-  // [utest->req~frontend-nav-new-menu~1]
   it('disables the four items with the hint "Needs a project" when no project is current', () => {
     for (const items of [createItems(), createItems(organization)]) {
       expect(items.map((item) => [item.label, item.to, item.hint])).toEqual([
@@ -93,7 +86,6 @@ describe('createItems', () => {
     }
   });
 
-  // [utest->req~frontend-nav-new-menu~1]
   it('has none of the former items', () => {
     const labels = createItems(organization, project).map((item) => item.label);
     for (const former of ['Organization', 'Project', 'Case', 'Job', 'API key', 'Engine']) expect(labels).not.toContain(former);
@@ -101,7 +93,6 @@ describe('createItems', () => {
 });
 
 describe('accountLinks', () => {
-  // [utest->req~frontend-nav-account-menu~1]
   it('lists Profile, Plan, API keys, Identities and Notifications with their addresses, all routed', () => {
     expect(accountLinks.map((link) => [link.label, link.to])).toEqual([
       ['Profile', '/app/account'], ['Plan', '/app/account/usage'], ['API keys', '/app/account/keys'],
@@ -112,7 +103,6 @@ describe('accountLinks', () => {
 });
 
 describe('currentSection', () => {
-  // [utest->req~frontend-nav-signed-in-navigation~1]
   it.each([
     ['/app', 'home'],
     ['/app/isa-demo', 'home'],

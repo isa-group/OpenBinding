@@ -173,7 +173,7 @@ def semantic_digest(spec: dict[str, Any]) -> str:
 @pytest.mark.parametrize("name", CORPUS)
 def test_a_package_and_its_directory_are_the_same_ir(inprocess_bim, name: str) -> None:
     """The ``.bim.zip`` stores JSON in canonical form (keys sorted) and the directory keeps the order its author wrote.
-    Until the IR was normalised (``docs/qa/IR_NORMALIZATION.md``) the eligible candidates of a task were listed in the
+    Until the IR was normalised the eligible candidates of a task were listed in the
     order of the catalog's keys, so ``05_multi_obj`` and ``05_single_obj_various`` had another IR from the package than
     from the directory.  Now the sets of the IR are in one canonical order and the two are the same IR, which is the one
     ``golden/bim_normalized`` records."""

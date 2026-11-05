@@ -4,7 +4,6 @@ import type { MovedRoute } from '../moved';
 import type { RouteDefinition } from '../types';
 
 // Area: system. Screens for the people who build the application. They exist in development builds only.
-// [impl->req~frontend-nav-system-states-dev-only~1]
 
 // The import sits behind the build flag so that a production bundle holds the page nowhere.
 const States = import.meta.env.DEV

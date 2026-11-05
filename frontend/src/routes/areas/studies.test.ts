@@ -15,15 +15,11 @@ const config = routeDefinitions.map((definition) => ({ id: definition.id, path: 
 const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id ?? null;
 
 describe('area studies', () => {
-  // [utest->req~frontend-nav-route-areas~1]
-  // [utest->req~frontend-retire-reports-screen-count~1]
-  // [utest->req~frontend-nav-study-page~1]
   it('has 3 screens: the study page replaces the run, cell and analytics screens, and nothing is about reports', () => {
     expect(routesByArea.studies).toHaveLength(3);
     expect(routesByArea.studies.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
   });
 
-  // [utest->req~frontend-nav-study-page~1]
   it('reads /studies/new as the builder and any other address below /studies as a study with an optional tab', () => {
     expect(resolve('/app/acme/atlas/studies/new')).toBe('study-builder');
     expect(resolve('/app/acme/atlas/studies/engines-vs-seeds')).toBe('study-detail');
@@ -32,7 +28,6 @@ describe('area studies', () => {
   });
 
   describe('address resolution', () => {
-    // [utest->req~frontend-nav-route-areas~1]
     it.each([
       ['/app/acme/atlas/studies', 'study-list'],
       ['/app/acme/atlas/studies/new', 'study-builder'],
@@ -53,7 +48,6 @@ describe('the moved addresses of the studies area', () => {
   const entry = (path: string) => moves.find((route) => route.path === path);
   const target = (path: string, search = '') => entry(path)?.target(new URLSearchParams(search), params);
 
-  // [utest->req~frontend-nav-study-page~1]
   it('declares the three study run addresses, with ids of their own, and none of them permanent', () => {
     expect(moves.map((route) => route.path)).toEqual([
       '/app/:org/:project/studies/:study/runs/:run',
@@ -69,7 +63,6 @@ describe('the moved addresses of the studies area', () => {
     }
   });
 
-  // [utest->req~frontend-nav-study-page~1]
   it('moves the run to Progress, the analytics and a cell to Results, each with the run it named', () => {
     const study = '/app/acme/atlas/studies/engines-vs-seeds';
     expect(target('/app/:org/:project/studies/:study/runs/:run')).toBe(`${study}/progress?run=r1`);
@@ -77,14 +70,12 @@ describe('the moved addresses of the studies area', () => {
     expect(target('/app/:org/:project/studies/:study/runs/:run/cells/:cell')).toBe(`${study}/results?run=r1&cell=c7`);
   });
 
-  // [utest->req~frontend-nav-study-page~1]
   it('encodes the segments and drops the query of the old address', () => {
     const odd = { org: 'a b', project: 'p/q', study: 's#t', run: 'r?x', cell: 'c&d' };
     const route = entry('/app/:org/:project/studies/:study/runs/:run/cells/:cell');
     expect(route?.target(new URLSearchParams('x=1'), odd)).toBe('/app/a%20b/p%2Fq/studies/s%23t/results?run=r%3Fx&cell=c%26d');
   });
 
-  // [utest->req~frontend-nav-study-page~1]
   it('ends on the study page: the addresses settle on the screen study-detail in one hop', () => {
     for (const [old, expected] of [
       ['/app/acme/atlas/studies/s1/runs/r1', '/app/acme/atlas/studies/s1/progress?run=r1'],

@@ -5,8 +5,6 @@ import type { MovedRoute } from '../moved';
 import type { RouteDefinition } from '../types';
 
 // Area: language. The problem language: the hub (profiles, schemas, extensions). The examples are a section of Explore.
-// [impl->req~frontend-nav-language-hub~1]
-// [impl->req~frontend-nav-examples-in-explore~1]
 
 export const routes: RouteDefinition[] = [
   live('lang-profiles', '/language/:section?/:item?', <LanguageHub />),

@@ -39,7 +39,6 @@ const EXPLORE_SECTIONS = [
 export type ExploreSection = (typeof EXPLORE_SECTIONS)[number]['id'];
 
 /** Pill navigation between the sections of Explore; every section is a link and the current one is marked. */
-// [impl->req~frontend-nav-examples-in-explore~1]
 export function ExploreNav({ current }: { current: ExploreSection }) {
   return <SectionNav label="Explore" items={EXPLORE_SECTIONS} current={current} linkCurrent />;
 }

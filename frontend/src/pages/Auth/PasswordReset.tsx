@@ -100,7 +100,6 @@ function RequestForm() {
   );
 }
 
-// [impl->req~frontend-nav-reset-single-screen~1]
 /**
  * The password-reset screen. A non-empty `token` in the query (the link of the reset e-mail) shows the new-password form;
  * without one the request form is shown.

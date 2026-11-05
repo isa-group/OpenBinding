@@ -4,7 +4,7 @@ import { CASE, PROJECT_PATH, capture, signInByApi, watchPageErrors } from './sup
 // This spec starts one real job (random-search, a few iterations) as the owner of lab-main and waits for its result: the engine runs in
 // the lab's worker. With DEMO_SPACE_ENABLED=false (the open gate of the lab) the plan needs no contract; with SPACE enabled and no
 // contract for the users the gateway answers 503 `pricing_unavailable`, the run is not accepted, and this spec fails at "Send run"
-// with that status in its message (see docs/qa/E2E_PLAN.md). Its job is also what visual-qa.spec.ts opens as "a result".
+// with that status in its message. Its job is also what visual-qa.spec.ts opens as "a result".
 
 // A finished run: the 'Run result' region holding the chosen providers, or the explanation of why no combination works.
 const finishedResult = (page: Page) =>

@@ -1,4 +1,4 @@
-"""Rotation, saturation and bounded memory: only what ``docs/qa/BIM_LOAD.md`` lists as not covered elsewhere.
+"""Rotation, saturation and bounded memory: what is not covered elsewhere.
 
 Everything runs in-process through the ASGI app (no sockets, no real load).  Time and memory assertions use wide
 margins on purpose: they are meant to catch a missing bound, not to measure performance.

@@ -265,7 +265,6 @@ def _rule_failure(services, supplied):
     return None
 
 
-# [utest->req~lab-deployment-single-loopback-port~2]
 @pytest.mark.parametrize("supplied", [None, "", "18101", "18199"])
 def test_single_published_port_on_loopback(services, supplied):
     assert _rule_failure(services, supplied) is None
@@ -273,7 +272,6 @@ def test_single_published_port_on_loopback(services, supplied):
     assert services["web"]["ports"] == [PUBLISHED_REFERENCE]
 
 
-# [utest->req~lab-deployment-single-loopback-port~2]
 @pytest.mark.parametrize(
     "supplied",
     ["18099", "18200", "abc", "0", "80", "18100,https://extra.example", "18100:80"],
@@ -283,21 +281,18 @@ def test_published_port_outside_the_range_is_refused(services, supplied):
     assert message is not None and "18100-18199" in message
 
 
-# [utest->req~lab-deployment-single-loopback-port~2]
 def test_port_rule_refuses_an_extra_published_port(services):
     extra = copy.deepcopy(services)
     extra["gateway"]["ports"] = ["8000:8000"]
     assert _rule_failure(extra, None) is not None
 
 
-# [utest->req~lab-deployment-single-loopback-port~2]
 def test_port_rule_refuses_a_port_published_on_all_interfaces(services):
     open_port = copy.deepcopy(services)
     open_port["web"]["ports"][0]["host_ip"] = "0.0.0.0"
     assert _rule_failure(open_port, None) is not None
 
 
-# [utest->req~lab-deployment-single-loopback-port~2]
 @pytest.mark.parametrize("port", [None, "", "18101", "18199"])
 def test_gateway_image_tag_and_local_cors_follow_the_port(services, port):
     supplied = {LAB_PORT: port, PUBLIC_ORIGIN: "https://demo.example.org"}
@@ -310,7 +305,6 @@ def test_gateway_image_tag_and_local_cors_follow_the_port(services, port):
             f"http://localhost:{number}", f"http://127.0.0.1:{number}", "https://demo.example.org"], name
 
 
-# [utest->req~lab-deployment-single-loopback-port~2]
 def test_demo_doc_has_the_demo_lab_port_row():
     doc = DEMO_DOC.read_text(encoding="utf-8")
     row = next((line for line in doc.splitlines() if line.startswith(f"| `{LAB_PORT}`")), None)
@@ -319,7 +313,6 @@ def test_demo_doc_has_the_demo_lab_port_row():
     assert re.search(r"18101\s*[-–]\s*18199", row), row
 
 
-# [utest->req~lab-deployment-single-loopback-port~2]
 def test_no_expose_of_published_ports_on_other_services(services):
     # Only `web` is reachable from the host; the rest talk over the compose network.
     for name, service in services.items():

@@ -231,9 +231,6 @@ async def get_organization(
     return await _org_view(session, organization, user)
 
 
-# [impl->req~gateway-api-optimistic-concurrency-covered~1]
-# [impl->req~gateway-api-optimistic-concurrency-order-access~1]
-# [impl->req~gateway-api-optimistic-concurrency-order-state~1]
 @router.patch(
     "/{org}",
     response_model=OrganizationView,
@@ -260,7 +257,6 @@ async def update_organization(
 ) -> OrganizationView:
     organization = await _required_org(session, org)
     await require_role(session, organization, user, OrganizationRole.ADMIN)
-    # [impl->req~auth-roles-entitlements-sponsor-caller-only~1]
     # Nobody can make another person pay: only the caller can become the
     # sponsor.  Checked before anything is applied, and before the named
     # account is looked up, so the answer says nothing about that account.
@@ -296,7 +292,6 @@ async def update_organization(
         organization.parent_id = new_parent_id
     sponsor_change: dict[str, str] = {}
     if sponsor_named:
-        # [impl->req~auth-roles-entitlements-sponsor-self-transfer~1]
         # Taking the sponsorship yourself needs nobody's consent but your own
         # contract's limits (402 ``sponsor_quota_exceeded``).
         previous = await sponsorship.transfer_sponsorship(session, organization, user)
@@ -837,9 +832,6 @@ async def get_project(
     return _project_view(found, await effective_role(session, organization.id, user))
 
 
-# [impl->req~gateway-api-optimistic-concurrency-covered~1]
-# [impl->req~gateway-api-optimistic-concurrency-order-access~1]
-# [impl->req~gateway-api-optimistic-concurrency-order-state~1]
 @router.patch(
     "/{org}/projects/{project}",
     response_model=ProjectView,
@@ -1081,9 +1073,6 @@ async def create_case_revision(
     return CaseRevisionView.model_validate(revision, from_attributes=True)
 
 
-# [impl->req~gateway-api-optimistic-concurrency-covered~1]
-# [impl->req~gateway-api-optimistic-concurrency-order-access~1]
-# [impl->req~gateway-api-optimistic-concurrency-order-state~1]
 @router.patch(
     "/{org}/projects/{project}/cases/{case}",
     response_model=BindingCaseView,
@@ -1202,9 +1191,6 @@ async def _legacy_artifact(session: AsyncSession, project_id: uuid.UUID, referen
 
 
 # Project resources are read-only since M9.6: only the two lists are routed (design.md §2.1 rows 29 to 34).
-# [impl->req~collaboration-artifacts-resources-read-only~1]
-# [impl->req~gateway-api-removed-operations-not-routed~1]
-# [impl->req~gateway-api-removed-operations-not-documented~1]
 async def _project_resource(
     session: AsyncSession, project_id: uuid.UUID | Project, reference: str
 ) -> Artifact:

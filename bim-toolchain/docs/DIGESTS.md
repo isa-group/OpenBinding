@@ -155,10 +155,10 @@ package was serialized (not by the ZIP writer): `eligibility[task]` by `(catalog
 of the IR"). The provenance `spec.sourceMap` indexes `constraints` and `placement`, so it is written after sorting. An
 array that the author writes as an array keeps its order: it is data. An integral number is read as an integer
 (`canonical.integral_numbers`), because the canonical form cannot tell `6.0` from `6`. This is a change of the digest
-contract, MAJOR by the rules below; see `docs/qa/IR_NORMALIZATION.md` of the OpenBinding repository (not part of this one)
+contract, MAJOR by the rules below of the OpenBinding repository (not part of this one)
 for the classification of each list and the evidence.
 
-**What 0.1.x did** (measured, `docs/qa/BIM_EQUIVALENCE.md`): the enumeration order of the file system and the order of
+**What 0.1.x did** (measured): the enumeration order of the file system and the order of
 the ZIP entries never mattered (`_read_directory` and `_validate_zip` fill a dictionary that the compiler only reads by
 key or in sorted order); the order of the members of a JSON object did, because `to_zip()` sorts them while the compiler
 iterated them in document order. 64 of the 82 corpus packages had another IR, `irDigest` and semantic digest from their

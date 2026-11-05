@@ -44,7 +44,6 @@ const OUTCOME_CHIPS: Record<RowOutcome, { label: string; tone: 'plain' | 'accent
 };
 
 /** The section `Export package` of the project settings: the file goes to the downloads, its content is never shown. */
-// [impl->req~frontend-nav-files-retired~1]
 export function ExportPackage({ organization, project }: { organization: Organization; project: Project }) {
   const [format, setFormat] = useState<PackageFormat>('zip');
   const [busy, setBusy] = useState(false);
@@ -89,7 +88,6 @@ export function ExportPackage({ organization, project }: { organization: Organiz
 }
 
 /** The section `Import package` of the project settings: the fingerprints are checked on this device before anything is sent. */
-// [impl->req~frontend-nav-files-retired~1]
 export function ImportPackage({ organization, project, canImport }: { organization: Organization; project: Project; canImport: boolean }) {
   const { user } = useAuth();
   const picker = useRef<HTMLInputElement>(null);

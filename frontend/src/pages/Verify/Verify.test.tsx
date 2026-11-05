@@ -97,7 +97,6 @@ describe('Verify', () => {
   afterEach(() => vi.restoreAllMocks());
 
   describe('the page', () => {
-    // [utest->req~frontend-nav-verify-page~1]
     it('is titled Verify and offers the three modes', () => {
       renderVerify();
 
@@ -111,8 +110,6 @@ describe('Verify', () => {
   });
 
   describe('a permanent link in the address', () => {
-    // [utest->req~frontend-nav-verify-page~1]
-    // [utest->req~frontend-nav-verify-signed-out~1]
     it('resolves it once through the public resolver and shows the element, never asking the verifier', async () => {
       renderVerify(`/verify/report/${DIGEST}`);
 
@@ -134,7 +131,6 @@ describe('Verify', () => {
       expect(screen.queryByText(/example\.invalid/)).not.toBeInTheDocument();
     });
 
-    // [utest->req~frontend-nav-verify-page~1]
     it('resolves it for a signed-in person too, through the same call', async () => {
       signIn();
       renderVerify(`/verify/report/${DIGEST}`);
@@ -144,7 +140,6 @@ describe('Verify', () => {
       expect(platform.verifierCheck).not.toHaveBeenCalled();
     });
 
-    // [utest->req~frontend-nav-verify-page~1]
     it.each([
       'case-revision', 'resource-revision', 'collection-revision', 'report', 'artifact',
       'engine', 'dialect', 'registered-resource', 'instance-snapshot', 'binding-ir',
@@ -166,7 +161,6 @@ describe('Verify', () => {
       expect(locations.queryByRole('link', { name: 'Open in platform' })).not.toBeInTheDocument();
     });
 
-    // [utest->req~frontend-retire-reports-no-link~1]
     it('links a member to the publications of the project of the report, on a route that exists', async () => {
       signIn();
       renderVerify(`/verify/report/${DIGEST}`);
@@ -175,7 +169,6 @@ describe('Verify', () => {
       expect(locations.getByRole('link', { name: 'Open in platform' })).toHaveAttribute('href', '/app/isa-demo/qos/published');
     });
 
-    // [utest->req~frontend-retire-library-no-link~1]
     it('links a member to the collections of the project for a resource revision, never to the retired resources', async () => {
       signIn();
       platform.resolveElement.mockResolvedValue({ ...element, kind: 'resource-revision' });
@@ -240,7 +233,6 @@ describe('Verify', () => {
   });
 
   describe('copying the permanent link', () => {
-    // [utest->req~frontend-nav-verify-permanent-links~1]
     it('puts the /resolve/<kind>/<digest> form on the clipboard', async () => {
       renderVerify(`/verify/report/${DIGEST}`);
       const cite = within(await screen.findByRole('region', { name: 'Cite and link' }));
@@ -267,7 +259,6 @@ describe('Verify', () => {
       expect(bibtex).toContain('title        = {Comparativa de engines en checkout}');
     });
 
-    // [utest->req~citation-panel~1]
     it('shows the digest exactly once, in the citation panel', async () => {
       renderVerify(`/verify/report/${DIGEST}`);
       const cite = within(await screen.findByRole('region', { name: 'Cite and link' }));
@@ -345,7 +336,6 @@ describe('Verify', () => {
       expect(document.querySelector('[aria-busy="true"]')).toBeInTheDocument();
     });
 
-    // [utest->req~frontend-nav-verify-signed-out~1]
     it('answers a missing or a private element with one neutral message, the form still available', async () => {
       platform.resolveElement.mockRejectedValue(new HttpError(404, 'Element not found.'));
       renderVerify(`/verify/report/${DIGEST}`);
@@ -404,7 +394,6 @@ describe('Verify', () => {
   });
 
   describe('the mode Link or digest, signed out', () => {
-    // [utest->req~frontend-nav-verify-signed-out~1]
     it('offers every kind the resolver accepts, by its label', () => {
       renderVerify();
       const select = screen.getByLabelText('Kind');
@@ -420,7 +409,6 @@ describe('Verify', () => {
       ]);
     });
 
-    // [utest->req~frontend-nav-verify-page~1]
     it('turns a pasted permanent link into the address of the Verify page', async () => {
       renderVerify();
 
@@ -439,7 +427,6 @@ describe('Verify', () => {
       await waitFor(() => expect(where()).toBe(`/verify/engine/${DIGEST}`));
     });
 
-    // [utest->req~frontend-nav-verify-signed-out~1]
     it('shows the kind selector for /verify?digest=D and sends nothing until a kind is chosen', async () => {
       renderVerify(`/verify?digest=${DIGEST}`);
 
@@ -468,7 +455,6 @@ describe('Verify', () => {
       expect(platform.resolveElement).not.toHaveBeenCalled();
     });
 
-    // [utest->req~frontend-nav-verify-signed-out~1]
     it('shows the kind selector only when neither the address nor the pasted link names a kind', async () => {
       const first = renderVerify();
       expect(screen.getByLabelText('Kind')).toBeInTheDocument();
@@ -540,7 +526,6 @@ describe('Verify', () => {
   });
 
   describe('the modes Document and File, signed out', () => {
-    // [utest->req~frontend-nav-verify-signed-out~1]
     it.each(['Document', 'File'])('say to log in in the mode %s, with a link to /login, and offer no field', (mode) => {
       renderVerify();
 
@@ -555,7 +540,6 @@ describe('Verify', () => {
       expect(platform.verifierCheckFile).not.toHaveBeenCalled();
     });
 
-    // [utest->req~frontend-nav-verify-signed-out~1]
     it('promises no return to the Verify page: the link is a plain /login', () => {
       renderVerify(`/verify/report/${DIGEST}`);
       openMode('Document');
@@ -569,7 +553,6 @@ describe('Verify', () => {
   describe('signed in', () => {
     beforeEach(signIn);
 
-    // [utest->req~frontend-nav-verify-page~1]
     it('runs the verifier on arrival at /verify?digest=D and lists what has the digest', async () => {
       renderVerify(`/verify?digest=${EDITION}`);
 
@@ -581,7 +564,6 @@ describe('Verify', () => {
       expect(screen.queryByLabelText('Kind')).not.toBeInTheDocument();
     });
 
-    // [utest->req~frontend-nav-verify-page~1]
     it('sends a bare digest to /verify?digest=D and runs the verifier there', async () => {
       renderVerify();
 
@@ -616,7 +598,6 @@ describe('Verify', () => {
       const matches = await screen.findByRole('region', { name: 'Matches' });
       expect(within(matches).getByText('Report edition')).toBeInTheDocument();
       expect(within(matches).getByText('Comparativa de engines en checkout')).toBeInTheDocument();
-      // [utest->req~frontend-retire-reports-publications-stay~1]
       expect(within(matches).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/published');
       expect(within(matches).getByRole('link', { name: 'Public record' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
 
@@ -629,7 +610,6 @@ describe('Verify', () => {
       expect(await screen.findByRole('button', { name: 'Citation copied' })).toBeInTheDocument();
     });
 
-    // [utest->req~verify-result~1]
     it('shows the digest of a verified lookup exactly once in the result', async () => {
       renderVerify(`/verify?digest=${EDITION}`);
       await screen.findByRole('status', { name: 'Verdict' });
@@ -638,7 +618,6 @@ describe('Verify', () => {
       expect(screen.getAllByRole('button', { name: /^Copy .*(fingerprint|digest)/ })).toHaveLength(1);
     });
 
-    // [utest->req~verify-result~1]
     it('shows two different digests, one each, when the recorded one differs from the one given', async () => {
       const recorded = `sha256-${'12'.repeat(32)}`;
       platform.verifierCheck.mockResolvedValue(verdict({ digest: recorded }));
@@ -679,7 +658,6 @@ describe('Verify', () => {
       expect(platform.verifierCheck).not.toHaveBeenCalled();
     });
 
-    // [utest->req~frontend-nav-verify-page~1]
     it('fingerprints a pasted document in the browser, whatever its spacing and key order', async () => {
       const fingerprint = await computeCanonicalDigest({ a: 2, b: 1 });
       platform.verifierCheck.mockResolvedValue(verdict({ status: 'computed', digest: fingerprint, entities: [], canonical_json: '{"a":2,"b":1}', detail: 'Calculated canonical RFC 8785 SHA-256 digest.' }));
@@ -695,7 +673,6 @@ describe('Verify', () => {
       expect(screen.getByText(fingerprint)).toBeInTheDocument();
     });
 
-    // [utest->req~frontend-nav-verify-no-raw-json~1]
     it('keeps the canonical JSON in a collapsed disclosure that opens a SourceView region', async () => {
       platform.verifierCheck.mockResolvedValue(verdict({ status: 'computed', digest: EDITION, entities: [], canonical_json: '{"a":2,"b":1}' }));
       renderVerify();
@@ -717,7 +694,6 @@ describe('Verify', () => {
       expect(region).toHaveTextContent('{"a":2,"b":1}');
     });
 
-    // [utest->req~frontend-nav-verify-no-raw-json~1]
     it('has no raw block: every pre element of the page is inside a SourceView region', async () => {
       platform.verifierCheck.mockResolvedValue(verdict({ status: 'computed', digest: EDITION, entities: [], canonical_json: '{"a":2,"b":1}' }));
       renderVerify();
@@ -768,7 +744,6 @@ describe('Verify', () => {
       expect(platform.verifierCheck).not.toHaveBeenCalled();
     });
 
-    // [utest->req~frontend-nav-verify-page~1]
     it('hashes a chosen file in the browser and posts it to the file verifier', async () => {
       const file = new File(['a,b\n1,2\n'], 'results.csv', { type: 'text/csv' });
       const fingerprint = await computeFileSha256(file);

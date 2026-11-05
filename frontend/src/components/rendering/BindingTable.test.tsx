@@ -32,7 +32,6 @@ const headers = () => screen.getAllByRole('columnheader').map((cell) => cell.tex
 const rowOf = (name: string) => screen.getByRole('rowheader', { name: new RegExp(`^${name}`) }).closest('tr') as HTMLElement;
 
 describe('BindingTable', () => {
-  // [utest->req~frontend-rendering-binding-table~1]
   it('renders a named focusable region with a table, scoped headers and rows in order', () => {
     render(full());
     const region = screen.getByRole('region', { name: 'Chosen providers' });
@@ -45,7 +44,6 @@ describe('BindingTable', () => {
     for (const header of rowHeaders) expect(header).toHaveAttribute('scope', 'row');
   });
 
-  // [utest->req~frontend-rendering-binding-table~1]
   it('shows names, ids, provider and values of a row, without totals', () => {
     render(full());
     const row = rowOf('Payment');
@@ -58,7 +56,6 @@ describe('BindingTable', () => {
     expect(screen.queryByText(/total/i)).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-binding-table~1]
   it('writes a range and a missing value', () => {
     render(full());
     const cells = within(rowOf('Shipping')).getAllByRole('cell');
@@ -68,7 +65,6 @@ describe('BindingTable', () => {
     expect(cells[3].querySelector('.sr-only')).toHaveTextContent('no value');
   });
 
-  // [utest->req~frontend-rendering-binding-table~1]
   it('formats open ranges and numbers without repeating the unit', () => {
     const cases: Array<[BindingRow['values'][string], string]> = [
       [{ min: null, max: 500 }, '≤ 500'],
@@ -86,7 +82,6 @@ describe('BindingTable', () => {
     }
   });
 
-  // [utest->req~frontend-rendering-binding-table~1]
   it('shows only Task and Candidate without the compiled problem', () => {
     render(<BindingTable rows={bindingRowsOf(BINDING, null)} />);
     expect(headers()).toEqual(['Task', 'Candidate']);
@@ -96,7 +91,6 @@ describe('BindingTable', () => {
     expect(within(first).getAllByRole('cell')[0].innerHTML).toBe('<code>dhl</code>');
   });
 
-  // [utest->req~frontend-rendering-binding-table~1]
   it('shows the Provider column only when a provider is known', () => {
     const features = bindingFeaturesOf(PROBLEM);
     const { unmount } = render(<BindingTable rows={bindingRowsOf(PAYPAL, PROBLEM)} features={features} />);
@@ -110,7 +104,6 @@ describe('BindingTable', () => {
     expect(within(rowOf('Shipping')).getAllByRole('cell')[1]).toHaveTextContent('DHL');
   });
 
-  // [utest->req~frontend-rendering-binding-table~1]
   it('reads no value for a feature the rows do not carry', () => {
     render(<BindingTable rows={bindingRowsOf(BINDING, PROBLEM)} features={[{ name: 'energy', unit: 'J' }]} />);
     expect(headers()).toContain('energy (J)');
@@ -119,14 +112,12 @@ describe('BindingTable', () => {
     }
   });
 
-  // [utest->req~frontend-rendering-binding-table~1]
   it('does not read inherited properties as values', () => {
     const row: BindingRow = { task: 't', taskName: 't', candidate: 'c', candidateName: 'c', provider: null, values: {} };
     render(<BindingTable rows={[row]} features={[{ name: 'toString', unit: null }]} />);
     expect(screen.getAllByRole('cell')[1]).toHaveTextContent('no value');
   });
 
-  // [utest->req~frontend-rendering-binding-table~1]
   it('says so when the solution has no binding assignment', () => {
     const { container } = render(<BindingTable rows={[]} />);
     expect(screen.getByText('This solution carries no binding assignment.')).toBeInTheDocument();
@@ -134,7 +125,6 @@ describe('BindingTable', () => {
     expect(screen.queryByRole('region', { name: 'Chosen providers' })).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-binding-table~1]
   it('names the region by a custom label', () => {
     render(<BindingTable rows={bindingRowsOf(BINDING, null)} label="Solution 2 providers" />);
     const region = screen.getByRole('region', { name: 'Solution 2 providers' });
@@ -142,7 +132,6 @@ describe('BindingTable', () => {
     expect(screen.queryByRole('region', { name: 'Chosen providers' })).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-binding-table~1]
   it('renders strings from the engine as text', () => {
     const row: BindingRow = {
       task: '<img src=x onerror=alert(1)>',
@@ -161,7 +150,6 @@ describe('BindingTable', () => {
     expect(table.querySelector('pre')).toBeNull();
   });
 
-  // [utest->req~frontend-rendering-binding-table~1]
   it('uses tokens only and imports nothing from pages', () => {
     const read = (name: string) => readFileSync(join(__dirname, name), 'utf8');
     expect(read('BindingTable.css')).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);

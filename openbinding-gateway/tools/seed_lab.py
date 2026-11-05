@@ -6,8 +6,7 @@ Safe to run on an empty or an already seeded database: every row is looked up by
 a stable key (UUIDv5 ids by username/slug) and created only when missing; there is
 no ``--reset`` and no user, organization, project, case or revision is ever deleted. It
 also compiles again, with the installed bim-toolchain, the package of every snapshot a
-case revision pins that another release compiled, and replaces the IR stored for it
-(docs/qa/IR_CUTOVER.md); every id is kept. It launches no jobs, no studies and no solvers.
+case revision pins that another release compiled, and replaces the IR stored for it; every id is kept. It launches no jobs, no studies and no solvers.
 Importing this module has no side effects.
 
 Environment:
@@ -321,7 +320,7 @@ async def ensure_current_toolchain(session: AsyncSession, created: list[str]) ->
 
     After a release of bim-toolchain that changes the IR, the snapshots a seeded lab holds were compiled
     by the previous one and the gateway refuses them (``422 contract_not_installed``). Their packages are
-    stored, so their IR is compiled again in place (``docs/qa/IR_CUTOVER.md``); case revisions are sealed
+    stored, so their IR is compiled again in place; case revisions are sealed
     and keep their ids, as do the snapshots. On a lab that is already current this changes nothing.
     """
     report = await recompile_stale_snapshots(session)

@@ -7,7 +7,6 @@ const SECTIONS: Array<[string, string]> = [
   ['/app/acme/settings', 'General'], ['/app/acme/settings/members', 'Members'], ['/app/acme/settings/audit', 'Audit'],
 ];
 
-// [utest->req~frontend-nav-org-settings-sections~1]
 for (const [path, name] of SECTIONS) {
   test(`organization settings section ${name} at ${path} is marked in the settings navigation`, async ({ page }) => {
     await mockApi(page);
@@ -21,7 +20,6 @@ for (const [path, name] of SECTIONS) {
   });
 }
 
-// [utest->req~frontend-nav-org-settings-sections~1]
 test('an unknown organization settings section shows Page not found', async ({ page }) => {
   await mockApi(page);
   await page.goto('/app/acme/settings/billing');

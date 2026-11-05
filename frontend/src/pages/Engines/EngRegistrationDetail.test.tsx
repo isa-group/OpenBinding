@@ -135,7 +135,6 @@ describe('eng-registration-detail', () => {
     expect(screen.queryByRole('region', { name: 'Engine manifest source' })).not.toBeInTheDocument();
   });
 
-  // [utest->req~frontend-engines-manifest-source-tab~1]
   it('offers the manifest document on a Source tab beside the readable Manifest tab', async () => {
     open(EDGE_SOLVER);
     await screen.findByRole('heading', { level: 1, name: 'edge-solver' });
@@ -158,7 +157,6 @@ describe('eng-registration-detail', () => {
     expect(screen.getByRole('region', { name: 'Mode tabu' })).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-engines-manifest-source-tab~1]
   it('keeps the document on the Source tab when the manifest cannot be read as an Engine', async () => {
     api.getEngineRegistrationReport.mockImplementation(async (ref: EngineRegistrationRevision) => (
       { ...reportOf(stateOf(ref)), engine: { unexpected: 'shape' } }

@@ -1,4 +1,4 @@
-// The only place that knows retired addresses (M2.4, ADR-0020). Data only: the redirect component lives in index.tsx.
+// The only place that knows retired addresses. Data only: the redirect component lives in index.tsx.
 
 /** What React Router hands to a matched route: decoded segments, absent when the path has none. */
 export type RetiredParams = Readonly<Partial<Record<string, string>>>;
@@ -16,7 +16,6 @@ function carried(query: URLSearchParams, key: string): string | undefined {
   return value ? value : undefined;
 }
 
-// [impl->req~frontend-retire-redirect-decision-space~1]
 /** The decision-space rule: the run, else the study, else the run history. Every other parameter is dropped. */
 function decisionSpaceTarget(query: URLSearchParams): string {
   const org = carried(query, 'org');
@@ -30,23 +29,19 @@ function decisionSpaceTarget(query: URLSearchParams): string {
   return '/app/runs';
 }
 
-// [impl->req~frontend-retire-reports-redirect~1]
 /** The report editor rule: the project's published results. The report, the query and the hash are dropped. */
-// [impl->req~frontend-nav-project-tabs~1]
 function publicationsTarget(_query: URLSearchParams, params: RetiredParams): string {
   const { org, project } = params;
   if (!org || !project) return '/app';
   return `/app/${encodeURIComponent(org)}/${encodeURIComponent(project)}/published`;
 }
 
-// [impl->req~frontend-retire-library-redirect~1]
 /** The library catalogue rule (organization level): the organization overview. The artifact, the draft, the version and the query are dropped. */
 function organizationTarget(_query: URLSearchParams, params: RetiredParams): string {
   const { org } = params;
   return org ? `/app/${encodeURIComponent(org)}` : '/app';
 }
 
-// [impl->req~frontend-retire-library-redirect~1]
 /** The project library and resources rule: the collections of the project. The resource, the query and the hash are dropped. */
 function collectionsTarget(_query: URLSearchParams, params: RetiredParams): string {
   const { org, project } = params;
@@ -54,7 +49,6 @@ function collectionsTarget(_query: URLSearchParams, params: RetiredParams): stri
   return `/app/${encodeURIComponent(org)}/${encodeURIComponent(project)}/collections`;
 }
 
-// [impl->req~frontend-retire-composer-redirect~1]
 /** The composer rule: the workbench of the project, with the case. The opened query and the hash are dropped. */
 function workbenchTarget(_query: URLSearchParams, params: RetiredParams): string {
   const { org, project, case: slug } = params;
@@ -62,17 +56,11 @@ function workbenchTarget(_query: URLSearchParams, params: RetiredParams): string
   return `/app/${encodeURIComponent(org)}/${encodeURIComponent(project)}/workbench?case=${encodeURIComponent(slug)}`;
 }
 
-// [impl->req~frontend-retire-sponsorship-redirect~1]
 /** The sponsorship rule: the administration overview. The organization, the query and the hash are dropped. */
 function administrationTarget(): string {
   return '/app/admin';
 }
 
-// [impl->req~frontend-retire-redirect-generic~1]
-// [impl->req~frontend-retire-reports-redirect~1]
-// [impl->req~frontend-retire-library-redirect~1]
-// [impl->req~frontend-retire-composer-redirect~1]
-// [impl->req~frontend-retire-sponsorship-redirect~1]
 /**
  * The library entries come first: on a tie of rank React Router takes the earlier route, and `/app/<org>/library/reports`,
  * `/app/<org>/library/library` and `/app/<org>/library/resources` match the library artifact as well as the project reports, the

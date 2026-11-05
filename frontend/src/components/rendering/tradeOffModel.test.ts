@@ -11,7 +11,6 @@ const POINTS: TradeOffPoint[] = [
 const point = (id: string, values: Record<string, number>, losses = values): TradeOffPoint => ({ id, label: id, values, losses });
 
 describe('tradeOffPointsOf', () => {
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('reads a canonical solution', () => {
     const solution = {
       objectives: {
@@ -26,7 +25,6 @@ describe('tradeOffPointsOf', () => {
     ]);
   });
 
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('skips solutions and components that give no value, and keeps input positions', () => {
     const solutions = [
       {},
@@ -51,7 +49,6 @@ describe('tradeOffPointsOf', () => {
 });
 
 describe('tradeOffObjectivesOf', () => {
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('lists the criteria every point carries, in first-point order', () => {
     const p1 = point('p1', { cost: 1, latency: 2, availability: 3 });
     const p2 = point('p2', { latency: 2, cost: 1 });
@@ -61,19 +58,16 @@ describe('tradeOffObjectivesOf', () => {
 });
 
 describe('nonDominated', () => {
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('drops the dominated point of the fixture', () => {
     expect(nonDominated(POINTS).map((p) => p.label)).toEqual(['Solution 1', 'Solution 2', 'Solution 4']);
   });
 
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('compares the loss, not the value', () => {
     const a = point('A', { cost: 10, availability: 0.99 }, { cost: 10, availability: -0.99 });
     const b = point('B', { cost: 10, availability: 0.9 }, { cost: 10, availability: -0.9 });
     expect(nonDominated([b, a])).toEqual([a]);
   });
 
-  // [utest->req~frontend-rendering-trade-off-chart~1]
   it('keeps equal points and honours the objectives argument', () => {
     const c = point('C', { cost: 5, latency: 100 });
     const d = point('D', { cost: 5, latency: 100 });

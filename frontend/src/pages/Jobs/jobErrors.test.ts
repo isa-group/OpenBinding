@@ -23,7 +23,6 @@ describe('refusals of a launch', () => {
     expect(refusal.title).toBe('Out of storage (402 · quota_exceeded)');
   });
 
-  // [utest->req~frontend-nav-vocabulary-text~1]
   it('402 words the name of an allowance in the vocabulary of the interface', () => {
     const refusal = refusalOf(new QuotaError('quota_exceeded', 'No iterations.', { limit_id: 'maxIterations', limit: 10, used: 10 }));
     expect(refusal.title).toBe('Out of runs (402 · quota_exceeded)');

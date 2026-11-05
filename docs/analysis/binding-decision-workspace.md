@@ -1,6 +1,6 @@
 # Binding decision workspace
 
-> Historical. The decision-space workspace was retired (ADR-0020) and **removed by M9.6** (2026-10-27): the
+> Historical. The decision-space workspace was retired and **removed by M9.6** (2026-10-27): the
 > `/v1/analysis` routes, the analysis queue and worker, `tools/verify_analysis.py`, `tools/seed_analysis.py` and the
 > tests named below no longer exist (see [`API_DEPRECATIONS.md`](../API_DEPRECATIONS.md)). Only the trade-off set of
 > multi-objective runs survives, in the run and study pages (`docs/ARCHITECTURE.md` §5.2). The text below records the

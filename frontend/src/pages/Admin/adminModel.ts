@@ -198,7 +198,6 @@ const textOf = (value: unknown): string => (typeof value === 'string' ? value : 
 const textsOf = (value: unknown): string[] => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []);
 
 /** `expiredApiKeys` and `STORAGE_PACK` as a sentence: “Expired api keys”, “Storage pack”. `terminalJobs` reads “Terminal runs”. */
-// [impl->req~frontend-nav-vocabulary-text~1]
 export function humanize(id: string): string {
   const words = inInterfaceWords(id.replace(/[_-]+/g, ' ').replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase());
   return words.charAt(0).toUpperCase() + words.slice(1);

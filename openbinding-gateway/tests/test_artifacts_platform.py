@@ -70,7 +70,6 @@ async def project(client, headers, *, visibility="public") -> tuple[str, str]:
 async def test_packages_round_trip_cases_resources_collections_and_artifacts(
     api_client, registration, platform_gate, monkeypatch, tmp_path, db_session
 ) -> None:
-    # [utest->req~collaboration-artifacts-import-publication-requires-published~1]
     # A negative control of M9.6: package import is the only creator of publications left, and only for a
     # version that is already public. The resource, report and publication are seeded through the internal
     # services, because their write routes are removed (design.md §2.1 rows 10, 11, 12, 15, 29 and 31).

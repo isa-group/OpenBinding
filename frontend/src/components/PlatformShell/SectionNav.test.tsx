@@ -86,14 +86,10 @@ describe('a side navigation that becomes a row that scrolls sideways', () => {
 });
 
 describe('ProjectTabs', () => {
-  // [utest->req~frontend-nav-project-tabs~1]
-  // [utest->req~frontend-retire-reports-navigation~1]
-  // [utest->req~frontend-retire-library-navigation~1]
   it('links the seven project tabs', () => {
     render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
     const nav = screen.getByRole('navigation', { name: 'Project sections' });
-    // [utest->req~frontend-nav-vocabulary-urls~1]
     expect(within(nav).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['Overview', '/app/isa-demo/qos'],
       ['Problems', '/app/isa-demo/qos/problems'],
@@ -105,8 +101,6 @@ describe('ProjectTabs', () => {
     ]);
   });
 
-  // [utest->req~frontend-nav-project-tabs~1]
-  // [utest->req~frontend-nav-files-retired~1]
   it('has no Cases, Jobs, Publications, Files, Package, Reports or Library tab', () => {
     render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
@@ -117,7 +111,6 @@ describe('ProjectTabs', () => {
     for (const link of within(nav).getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/(reports|library|resources|files|package|publications)([/?#]|$)/);
   });
 
-  // [utest->req~frontend-nav-project-tabs~1]
   it.each([
     ['overview', 'Overview'],
     ['cases', 'Problems'],
@@ -134,7 +127,6 @@ describe('ProjectTabs', () => {
   });
 
   describe('for someone who reads a public project without being a member', () => {
-    // [utest->req~frontend-nav-project-tabs~1]
     it('drops the tabs only members can open and says the project is read-only, and still shows Published', () => {
       render(<MemoryRouter><ProjectTabs orgSlug="open" projectSlug="qos" access="public_read" /></MemoryRouter>);
 
@@ -144,7 +136,6 @@ describe('ProjectTabs', () => {
       expect(screen.getByRole('note')).toHaveTextContent('You are viewing a public project (read-only).');
     });
 
-    // [utest->req~frontend-nav-project-tabs~1]
     it('shows every tab and no strip to a member, or when nothing says otherwise', () => {
       const { rerender } = render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" access="member" /></MemoryRouter>);
       expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(7);

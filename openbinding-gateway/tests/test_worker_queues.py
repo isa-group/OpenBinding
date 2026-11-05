@@ -40,7 +40,6 @@ def actor_queues(source: str) -> list[str]:
 
 
 def test_the_worker_declares_actors_only_on_the_default_queue():
-    # [utest->req~job-execution-default-queue-only~1]
     worker = importlib.import_module("openbinding_gateway.worker")
     broker = job_dispatch.run_persisted_job_message.broker
 
@@ -53,12 +52,10 @@ def test_the_worker_declares_actors_only_on_the_default_queue():
 
 
 def test_the_analysis_queue_module_is_gone():
-    # [utest->req~job-execution-default-queue-only~1]
     assert importlib.util.find_spec("openbinding_gateway.analysis_jobs") is None
 
 
 def test_no_actor_in_the_gateway_names_another_queue():
-    # [utest->req~job-execution-default-queue-only~1]
     found = {
         path.relative_to(SOURCE).as_posix(): actor_queues(path.read_text(encoding="utf-8"))
         for path in sorted(SOURCE.rglob("*.py"))

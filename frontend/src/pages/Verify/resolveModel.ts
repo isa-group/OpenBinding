@@ -76,13 +76,11 @@ export function locationHref(kind: string, location: ResolveLocation): { href: s
   }
   if (!organization || !project) return null;
   const base = `/app/${organization}/${project}`;
-  // [impl->req~frontend-retire-reports-no-link~1]
   // The report editor is gone: a report is shown in the publications of its project, whatever its slug.
   if (kind === 'report') return { href: `${base}/published`, requiresAccount: true };
   const detail: Partial<Record<string, string>> = { 'case-revision': PROBLEMS_SEGMENT, 'collection-revision': 'collections' };
   const section = detail[kind];
   if (section && slug) return { href: `${base}/${section}/${encodeURIComponent(slug)}`, requiresAccount: true };
-  // [impl->req~frontend-retire-library-no-link~1]
   // Resource revisions have no screen since the project resources were retired: the collections of the project are the closest place.
   return { href: kind === 'resource-revision' ? `${base}/collections` : base, requiresAccount: true };
 }

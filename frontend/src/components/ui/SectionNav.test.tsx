@@ -5,7 +5,6 @@ import { LanguageNav } from '../../pages/Profiles/languageSections';
 import { ExploreNav, SectionNav } from './SectionNav';
 
 describe('section navigation', () => {
-  // [utest->req~frontend-nav-examples-in-explore~1]
   it('marks BIM examples as the current Explore section', () => {
     render(<MemoryRouter><ExploreNav current="examples" /></MemoryRouter>);
     const nav = screen.getByRole('navigation', { name: 'Explore' });
@@ -16,14 +15,12 @@ describe('section navigation', () => {
     expect(within(nav).getByRole('link', { name: 'Public work' })).not.toHaveAttribute('aria-current');
   });
 
-  // [utest->req~frontend-nav-examples-in-explore~1]
   it('marks Public work on the Explore page itself', () => {
     render(<MemoryRouter><ExploreNav current="public" /></MemoryRouter>);
     expect(screen.getByRole('link', { name: 'Public work' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'BIM examples' })).not.toHaveAttribute('aria-current');
   });
 
-  // [utest->req~frontend-nav-examples-in-explore~1]
   it('links the language navigation to the examples in Explore', () => {
     render(<MemoryRouter><LanguageNav current="profiles" /></MemoryRouter>);
     expect(screen.getByRole('link', { name: 'Examples' })).toHaveAttribute('href', '/explore/examples');

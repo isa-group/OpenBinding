@@ -1,7 +1,7 @@
 """Semantic BIM baseline: what the extraction of BIM into its own repository must not change.
 
 The goldens in `tests/golden/bim_baseline` were written by the platform's own `tools/bim_baseline.py`
-before the language moved out (see docs/qa/BIM_BASELINE.md).  The toolchain computes the same documents
+before the language moved out.  The toolchain computes the same documents
 with `bim_core` alone (`bim-toolchain/tools/baseline_core.py`); this test runs that tool against the
 platform's corpus and Engine manifests and compares the result with the goldens, which are not
 regenerated.  `toolchain` fields (compilerDigest, irDigest) change with the bytes of the toolchain and
@@ -9,7 +9,7 @@ are never compared: only the semantic digest, the evaluations, the diagnostics, 
 compatibility, the re-evaluation vectors and the protocol and schema digests must stay.  The
 comparison of all 82 packages is slow and runs only with `BIM_BASELINE_FULL=1`.
 
-`corpus.json` is, since `bim-core` 0.2.0 (docs/qa/IR_NORMALIZATION.md), the corpus golden of the normalized
+`corpus.json` is, since `bim-core` 0.2.0, the corpus golden of the normalized
 toolchain (`bim-toolchain/golden/bim_normalized/corpus.json`): the IR lists the sets of a package in one order
 by identifier, which moved the semantic digest of 64 packages and the enumeration order of their evaluations.
 The evaluations themselves did not move: they are compared by identifier with the frozen baseline of the

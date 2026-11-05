@@ -55,7 +55,6 @@ describe('One run', () => {
     expect(within(header).getByText('Feasible: meets every must-hold rule')).toBeInTheDocument();
     expect(await within(header).findByText(/launched Sep 30, 2026, 09:00 UTC by you · problem Flujo de checkout/)).toBeInTheDocument();
     expect(within(header).getByText(/random-search 1\.0\.0 · mode sampling/)).toBeInTheDocument();
-    // [utest->req~frontend-retire-no-link-to-retired~1]
     expect(within(header).queryByRole('link', { name: 'Analyze' })).not.toBeInTheDocument();
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'Runs' })).toHaveAttribute('href', `${ROOT}/runs`);
@@ -84,7 +83,6 @@ describe('One run', () => {
     expect(within(iterations).queryByText('Reduced to the plan’s ceiling')).not.toBeInTheDocument();
   });
 
-  // [utest->req~frontend-rendering-job-run-result~1]
   it('shows a completed job through the run result, with names, bounds and raw JSON only behind View source', async () => {
     renderJob();
 
@@ -115,7 +113,6 @@ describe('One run', () => {
     expect(log.querySelector('summary')).toHaveTextContent(/^Engine log/);
   });
 
-  // [utest->req~frontend-rendering-job-run-result~1]
   it('loads the compiled problem and the engine report once for a completed job, and has no compare button', async () => {
     renderJob();
 
@@ -129,7 +126,6 @@ describe('One run', () => {
     expect(screen.queryByRole('button', { name: 'Compare with the engine' })).not.toBeInTheDocument();
   });
 
-  // [utest->req~frontend-rendering-job-run-result~1]
   it('says the compiled problem is not available (404, then 409) and shows ids, with no notice for a failed report', async () => {
     const note = 'The compiled problem of this run is not available, so tasks and candidates are shown by id, without feature values, bounds or units.';
     jobsApi.ir.mockRejectedValue(refusal(404, 'not_found'));
@@ -151,7 +147,6 @@ describe('One run', () => {
     expect(await within(again).findByText(note)).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-rendering-job-run-result~1]
   it.each([
     ['queued', 'No result yet. It appears here when the run finishes.'],
     ['running', 'No result yet. It appears here when the run finishes.'],
@@ -188,7 +183,6 @@ describe('One run', () => {
     expect(within(where).getAllByRole('button', { name: /^Copy .* digest$/ }).length).toBeGreaterThan(0);
   });
 
-  // [utest->req~frontend-retire-reports-entry-points-removed~1]
   it('offers no way to add the result to a report', async () => {
     renderJob();
 
@@ -240,7 +234,6 @@ describe('One run', () => {
     expect(await within(swaps).findByText(/isn’t available for analysis any more \(409/)).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-rendering-job-run-result~1]
   it('shows the claimed and evaluated values as a fixed part of the run, from the engine report loaded with it', async () => {
     renderJob();
 
@@ -249,7 +242,6 @@ describe('One run', () => {
     expect(await within(run).findByText('Solved with presolve')).toBeInTheDocument();
   });
 
-  // [utest->req~frontend-rendering-job-run-result~1]
   it('puts the swaps panel inside the run result, its source behind View source', async () => {
     renderJob();
 
@@ -351,7 +343,6 @@ describe('One run', () => {
     expect(notice).not.toHaveTextContent('Nothing was started.');
     expect(notice).toHaveTextContent('featureValues interval is not declared (/spec/candidates/providers/candidates/fastpay/features/latency)');
     expect(within(notice).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-    // [utest->req~frontend-retire-library-entry-points-removed~1]
     expect(within(notice).queryByRole('link', { name: 'Edit the candidate' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Open the library' })).toBeNull();
     expect(screen.queryByRole('link', { name: /library/i })).toBeNull();
@@ -389,8 +380,6 @@ describe('One run', () => {
     expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument();
   });
 
-  // [utest->req~frontend-retire-composer-entry-points-repointed~1]
-  // [utest->req~frontend-rendering-job-run-result~1]
   it('explains an infeasible result after the verdict and shows the best attempt’s parts below', async () => {
     const attempt = {
       ...S1,

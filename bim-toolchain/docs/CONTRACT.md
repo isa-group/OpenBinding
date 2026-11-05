@@ -155,7 +155,7 @@ the same semantic digest: the sets the IR lists are put in one canonical order (
 is read as an integer in every form. Up to 0.1.x the lists followed the order the package *declared* its objects, so 64 of
 the 82 corpus packages had another IR from their canonical ZIP than from their directory; a host that stored one
 compilation per `packageDigest` had to compile always the same form. That is no longer needed. See
-[`DIGESTS.md`](DIGESTS.md#directory-raw-zip-and-canonical-zip) and `docs/qa/IR_NORMALIZATION.md`.
+[`DIGESTS.md`](DIGESTS.md#directory-raw-zip-and-canonical-zip).
 
 ### Order of the sets of the IR
 
@@ -180,7 +180,7 @@ Position in these lists is not part of any contract with the engines: bindings, 
 name candidates and constraints by `{resource, id}` (`bim-engine/v1`), `reevaluate_result` and `analyze_neighborhood`
 work by identifier and sort their own output. What an engine does index is `eligibility[task]` — a seeded engine draws
 `eligible[random.nextInt(n)]` and MiniZinc indexes candidates by position — and that index space is now the same for
-every form of a package; the binding a given seed yields changes once, with this version (`docs/qa/IR_NORMALIZATION.md`).
+every form of a package; the binding a given seed yields changes once, with this version.
 Number formats: a number written `6.0` is `6` in the IR, as the canonical form writes it.
 
 ## What stays in OpenBinding
