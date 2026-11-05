@@ -43,10 +43,31 @@ Si se declara `constraint_optimality_percent`, cada umbral se calcula como `mín
 `dialects: ["bpmn-workflow/v1"]`, el propio endpoint devuelve `workflow.bpmn`
 y la referencia correspondiente en `application.json`. El BPMN generado
 incluye subprocesos estructurados anidados, XOR/AND y repeticiones
-secuenciales estáticas. Dos peticiones con el resto de los parámetros y la
-semilla idénticos producen paquetes distintos a nivel de bytes, pero el mismo
-`compilation_digest` y la misma evaluación de cada binding. La equivalencia
-está garantizada para las salidas emparejadas del generador.
+secuenciales estáticas.
+
+Two requests whose parameters and seed are otherwise identical produce packages
+that differ byte-wise but share the same `ir_digest` and the same evaluation of
+every binding; that equivalence is guaranteed for the generator's paired
+outputs. The pair does **not** share `compilation_digest`, because those are
+different bytes compiled under different dialects, and that is what the
+compilation digest covers.
+
+The response carries both digests, since the two claims are wanted for
+different purposes. `ir_digest` covers the lowered problem with `metadata`,
+`spec.instance`, `spec.dialects` and `spec.sourceMap` stripped, so it is the
+equivalence claim — the same lowered problem, whichever dialect the workflow was
+written in — and it is the key to cache a problem under. `compilation_digest`
+covers the portable package digest together with the profile, the dialects and
+the compiler bundle digest, so it is the reproducibility claim — this toolchain,
+compiling these bytes, produces this result — and it moves when the toolchain
+moves. It is the value the platform stores on a snapshot, where it forms the
+snapshot's identity together with `package_digest`, and publishes as
+`compilationDigest` in provenance.
+
+Until this was corrected, the `compilation_digest` field of the three generator
+endpoints carried the IR digest. The field kept its name and gained its real
+value, so a caller reading it for reproducibility now gets what the name says;
+a caller who relied on the pairing equality has to read `ir_digest` instead.
 
 Para guardar los bytes exactos recibidos por HTTP, envíe
 `include_file_bytes: true` y decodifique cada entrada de

@@ -1553,6 +1553,7 @@ export interface InstanceGeneratedResponse {
   name: string;
   package_digest: string;
   instance_digest: string;
+  ir_digest: string;
   compilation_digest: string;
   snapshot_id?: string | null;
   case_id?: string | null;
@@ -1579,6 +1580,7 @@ export interface CorpusGeneratedResponse {
   instances: Array<{
     name: string;
     package_digest: string;
+    ir_digest: string;
     compilation_digest: string;
     snapshot_id?: string | null;
     workload_features: Record<string, unknown>;

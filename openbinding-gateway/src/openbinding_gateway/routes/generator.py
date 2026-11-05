@@ -143,10 +143,40 @@ class GenerateInstanceRequest(StrictModel):
         return self
 
 
+# Why `compilation_digest` was re-valued instead of renamed to `ir_digest`.
+#
+# The field carried the IR digest while being named for the compilation digest,
+# and both readings were defensible: the value was right and the name wrong, or
+# the name right and the value wrong. The name won, because it is not free to
+# choose here - `compilation_digest` already means the compilation digest
+# everywhere else in the platform. It is the `InstanceSnapshot` column that,
+# together with `package_digest`, forms a snapshot's identity; it is what
+# `services/snapshots.py` looks a compilation up by; and it is what the artifact
+# routes publish as `compilationDigest` in provenance. Renaming it here would
+# have left one API name meaning the lowered problem on three endpoints and the
+# toolchain's output everywhere else, which is the harder mistake to notice.
+#
+# So the equivalence claim took the new field. The pairing guarantee in
+# `docs/BIM_GENERATOR.md` is about the lowered problem, and it now names
+# `ir_digest`; that document says which digest each claim is about.
 class InstanceGeneratedResponse(BaseModel):
+    """One generated package and both of the digests the platform computes over it.
+
+    The two are not interchangeable. `ir_digest` covers the lowered problem with
+    `metadata`, `spec.instance`, `spec.dialects` and `spec.sourceMap` stripped,
+    so it answers "is this the same lowered problem?" - a JSON workflow and its
+    paired BPMN workflow share it although their bytes differ - and it is the
+    key to cache a problem under. `compilation_digest` covers the portable
+    package digest together with the profile, the dialects and the compiler
+    bundle digest, so it answers "does this toolchain reproduce this
+    compilation?" and it moves when the toolchain moves. Those paired packages
+    do not share it.
+    """
+
     name: str
     package_digest: str
     instance_digest: str
+    ir_digest: str
     compilation_digest: str
     snapshot_id: Optional[str] = None
     case_id: Optional[str] = None
@@ -305,7 +335,8 @@ async def generate_instance(
         name=request.name,
         package_digest=compiled.package_digest,
         instance_digest=package.instance()["metadata"].get("name", request.name),
-        compilation_digest=compiled.ir_digest,
+        ir_digest=compiled.ir_digest,
+        compilation_digest=compiled.compilation_digest,
         snapshot_id=snapshot_id,
         case_id=case_id,
         target_engines=request.target_engines,
@@ -380,7 +411,8 @@ async def generate_corpus(
         instances.append({
             "name": inst_name,
             "package_digest": compiled.package_digest,
-            "compilation_digest": compiled.ir_digest,
+            "ir_digest": compiled.ir_digest,
+            "compilation_digest": compiled.compilation_digest,
             "snapshot_id": snap_id,
             "actual_constraint_count": len(pkg.json("constraints.json")["spec"]["constraints"]),
         })
@@ -516,7 +548,8 @@ async def convert_legacy(
         name=request.name,
         package_digest=compiled.package_digest,
         instance_digest=package.instance()["metadata"].get("name", request.name),
-        compilation_digest=compiled.ir_digest,
+        ir_digest=compiled.ir_digest,
+        compilation_digest=compiled.compilation_digest,
         snapshot_id=snapshot_id,
         case_id=case_id,
         target_engines=[],

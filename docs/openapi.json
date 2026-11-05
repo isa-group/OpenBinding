@@ -5986,6 +5986,7 @@
         "type": "object"
       },
       "InstanceGeneratedResponse": {
+        "description": "One generated package and both of the digests the platform computes over it.\n\nThe two are not interchangeable. `ir_digest` covers the lowered problem with\n`metadata`, `spec.instance`, `spec.dialects` and `spec.sourceMap` stripped,\nso it answers \"is this the same lowered problem?\" - a JSON workflow and its\npaired BPMN workflow share it although their bytes differ - and it is the\nkey to cache a problem under. `compilation_digest` covers the portable\npackage digest together with the profile, the dialects and the compiler\nbundle digest, so it answers \"does this toolchain reproduce this\ncompilation?\" and it moves when the toolchain moves. Those paired packages\ndo not share it.",
         "properties": {
           "actual_constraint_count": {
             "anyOf": [
@@ -6036,6 +6037,10 @@
             "title": "Instance Digest",
             "type": "string"
           },
+          "ir_digest": {
+            "title": "Ir Digest",
+            "type": "string"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -6067,6 +6072,7 @@
           "name",
           "package_digest",
           "instance_digest",
+          "ir_digest",
           "compilation_digest",
           "target_engines",
           "files"

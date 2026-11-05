@@ -49,7 +49,8 @@ const generated = (over: Partial<InstanceGeneratedResponse> = {}): InstanceGener
   name: 'generated_qaco',
   package_digest: digestOf('1'),
   instance_digest: digestOf('2'),
-  compilation_digest: digestOf('3'),
+  ir_digest: digestOf('3'),
+  compilation_digest: digestOf('6'),
   snapshot_id: null,
   case_id: null,
   target_engines: ['minizinc-csp'],
@@ -63,7 +64,7 @@ const corpus = (count: number): CorpusGeneratedResponse => ({
   name: 'generated_qaco',
   count,
   instances: Array.from({ length: count }, (_, index) => ({
-    name: `generated_qaco_${index + 1}`, package_digest: digestOf('4'), compilation_digest: digestOf('5'), workload_features: {}, actual_constraint_count: 1,
+    name: `generated_qaco_${index + 1}`, package_digest: digestOf('4'), ir_digest: digestOf('5'), compilation_digest: digestOf('7'), workload_features: {}, actual_constraint_count: 1,
   })),
 });
 
