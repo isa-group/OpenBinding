@@ -178,8 +178,20 @@ string. `latency` differs from every shorthand in its `parallel` operator, so it
 emitted as a block policy. Either form lowers to the same IR, so the choice is
 digest-neutral; the spec picks the shorter source form for readability.
 
-Any field declared alongside a `template` overrides it. A property with no `template`
-must declare `direction` and `aggregate` itself.
+Any field declared alongside a `template` overrides it, and an `aggregate` beside a
+template is merged operator by operator rather than replacing the block: `{template:
+availability, aggregate: {exclusive: weightedSum}}` keeps the template's other four
+operators. A property with no `template` must declare `direction` and `aggregate` itself.
+
+That merge is not a convenience, it is what lets the guiding case be written at all. FMS
+v1 aggregates **every** feature's exclusive with `weightedSum`, `availability` and
+`reliability` included, where `docs/FEATURES.md` gives the canonical operator for those two
+as the routing-weighted product -- which is what the templates follow. Version 1 written
+with bare templates therefore cannot reproduce its own package, and the two overrides are
+required. Worth knowing why the departure is invisible in the corpus: under `weightedSum`
+those properties acquire a floor at the weight of any branch contributing the neutral,
+which at the recorded values agrees with the product to six decimals and diverges only when
+a branch degrades.
 
 ### 3.2 Domain
 
@@ -252,6 +264,68 @@ Candidates are **never** attached to open tasks by id. The container is explicit
 catalog "never lists task ids": eligibility is built by capability matching between
 `task.requires` and `candidate.provides`, optionally narrowed by a predicate. This
 version emits no predicates (section 12).
+
+### 4.1 Which kind, and when a component gets no task at all
+
+The table above says what the container does with each kind. Which kind a component
+*deserves* is a separate question, and it is the one that bites: the guiding case models
+the same role two ways across its versions, so the version-to-version diff reports a
+change of architecture where there is only a change of notation.
+
+Decide by **whether the component occupies a step of the workflow, and whether it has QoS
+of its own**. Never by whether it is bought.
+
+| the component | kind | why |
+| --- | --- | --- |
+| is the control flow, and occupies no step | no task at all | the sequence, the parallel block and the exclusive choice *are* its work |
+| occupies a step you run, whose consumption you deliberately do not charge | `local` | a kind of its own; the container forbids it a requirement, so nothing is synthesized |
+| occupies a step you run that consumes what you pay for | `fixed` | the only construct in the container that can carry that cost |
+| occupies a step you buy, with competitors | `open` | eligibility is the market |
+
+An orchestrator is the first row whenever its own work is coordination. FMS v1's `S1` is
+the composition, and its choice between the in-house and the procured solver is the
+`exclusive` node, not a step. What the language refuses is the half-way state -- declaring
+the task and never placing it (`c2y_task_unreached`) -- and it refuses it because the
+container accepts it in silence: a declared service task that no node invokes reaches the
+IR, is forced on every engine by the binding validation, and multiplies the binding space
+while contributing to no property. Adding one to the guiding case takes its cardinality
+from 32 to 64 with no diagnostic at all.
+
+Ownership is not the discriminator, and this specification already proves it: `C` in the
+worked example is a solver the owner runs, with no competitor, and it is a `fixed` task
+with real values. The corpus agrees. `examples/literature/cremaschi` declares its own
+closing step as a `local` task, and 19 of the 82 corpus packages carry a task that is not
+a service task.
+
+**A local task is an assertion, not an abstention.** It is exactly a single-candidate
+service task pinned to the neutral vector: on the guiding case both forms produce the same
+five property values to nine decimals and the same cardinality, and differ only in the IR
+digest. What that vector says out loud is "free, instantaneous, perfectly available,
+perfectly reliable and *maximally secure*" -- for a `min` property over a bounded domain
+the neutral is the best attainable value, not the worst. And the neutral is an identity for
+the `sequence` operator only; it is contributed under every operator. In the guiding case
+the local step sits in an exclusive aggregated with `weightedSum` at probability 0.8:
+
+- `cost` reads `0.8 * 0 + 0.2 * 1200 = 240`, which is why the recorded minimum is exactly
+  `220 + 500 + 300 + 240 + 950 = 2210`. Four fifths of that branch's weight is pinned at
+  zero, and the choice between the two quantum providers moves 60 of a 1080 spread.
+- `security` reads `0.8 * 5.0 + 0.2 * 5.0 = 5.0`, which never binds the outer `min`, so the
+  recorded 4.0 is set by another task entirely. Had that branch contributed the bottom of
+  its domain, the node would read 1.8, its loss would go from 0.25 to 0.8, and the score
+  would move about four times the whole spread of the 32 bindings.
+
+So `local` is right exactly where that sentence is an acceptable approximation, and `fixed`
+is right as soon as anyone draws a conclusion from the branch -- comparing an in-house
+solver with a procured one on latency, for instance. Choosing `fixed` does not grow the
+search space: eligibility stays a singleton and the binding space is multiplied by one,
+which `examples/literature/cremaschi` proves with six singleton service tasks and a
+cardinality of 1. What `fixed` costs is the identity of an existing package, which is why
+the next rule exists.
+
+**An imported package keeps the kind its author wrote.** This rule is for an author writing
+a composition, never for the importer. The IR carries every task's id and name, and the
+phase F1 gate is digest equality, so re-deciding a kind on import would move the digest of
+each of those 19 packages.
 
 ## 5. Workflow
 
@@ -508,8 +582,8 @@ imputation, and a candidate missing a property that a rule or a goal reads is an
 
 ### 10.1 The one normative rule
 
-The neutral is **computed from the sequence operator and the domain**, and from nothing
-else:
+Unless the author declares one, the neutral is **computed from the sequence operator and
+the domain**, and from nothing else:
 
 | `aggregate.sequence` | neutral |
 | --- | --- |
@@ -521,6 +595,13 @@ else:
 The neutral must then lie inside the declared domain. Where the rule yields nothing — a
 `min` property with no upper bound — the Studio refuses the document at authoring time
 instead of emitting a package that cannot compile.
+
+A property may instead state its `neutral` outright, and then that value is used. The
+container works the same way: it reads a declared neutral before inferring anything, and
+range-checks the result against the domain either way. A declared neutral is the honest way
+to say what a `local` step contributes when the inferred value would make a claim the
+author does not want to make (section 4.1) -- and it is the only way to say it, since no
+task of either kind may carry property values of its own.
 
 Applied to the templates: `cost` 0.0, `latency` 0.0, `availability` 1.0, `reliability`
 1.0, and `throughput` its `domain.max`.
@@ -739,7 +820,6 @@ tasks:
   F: {open: true, requires: service/F, title: Fleet Assets}
   L: {open: true, requires: service/L, title: Driver and Labor Compliance}
   T: {open: true, requires: service/T, title: Distance and Travel Time}
-  R: {open: true, requires: service/R, title: Route Optimization Orchestrator}
   Q: {open: true, requires: service/Q, title: Quantum Routing Solver}
   M: {open: true, requires: service/M, title: Telemetry and Tracking}
   C:
@@ -786,25 +866,25 @@ studio:
   tags: [jisbd-2026, hybrid]
   layers:
     data: [D, O, F, L, T]
-    optimization: [R, C, Q]
+    optimization: [R, C, Q]       # R is the composition itself, not a task
     execution: [M]
 ```
 
-Note that `R` is declared as a task and appears in no workflow position in this excerpt:
-the orchestrator is the composition itself. Section 14's `c2y_task_unreached` is exactly
-the diagnostic that catches an unintended version of this, and the guiding case needs a
-decision on it — recorded as an open question in `docs/FMS_CASE.md`.
+`R` is deliberately not a task. What the orchestrator does -- gather, choose, validate --
+is the workflow, so by section 4.1 it is the composition itself. The `studio` layer still
+names it: that block is inert and is never checked against the task set, which is how the
+architecture view keeps a name for the component that *is* the composition. Declaring `R`
+as a task and leaving it out of the workflow is the one state the language refuses, with
+`c2y_task_unreached`.
 
 ## 16. Open questions for review
 
-Which golden set the F1 gate means was answered in review -- the live normalized one, for
-the reasons in section 11.1. These are the rest.
+Two were answered in review: which golden set the F1 gate means (the live normalized one,
+section 11.1) and how an orchestrator is modelled (section 4.1). These are the rest.
 
 1. **The virtual dialect** of section 13: accept it for this version, or pay for the
    faithful reading.
 2. **Which corpus packages must round trip.** Placement rules out two; dropping
    `scope: selectedCandidate` rules out a third.
-3. **The orchestrator task** (`R` above): is an orchestrator a task with candidates, or
-   is it the composition itself? The guiding case models it both ways across versions.
-4. **The relationship with the four existing high-level-to-package compilers** already in
+3. **The relationship with the four existing high-level-to-package compilers** already in
    the repository: absorb them, delegate to them, or coexist.

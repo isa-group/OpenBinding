@@ -210,3 +210,41 @@ def test_the_schema_rules_for_a_pricing_reference(pricing, valid: bool, schema: 
     document["pricing"] = pricing
     errors = _errors(document, schema)
     assert bool(errors) != valid, f"expected valid={valid}, got {errors}"
+
+
+@pytest.mark.parametrize(
+    "declared,valid",
+    [
+        # A bare template, the common case.
+        ({"template": "availability"}, True),
+        # One operator overridden beside a template: what version 1 of the guiding case
+        # needs, since it aggregates availability's exclusive with weightedSum.
+        ({"template": "availability", "aggregate": {"exclusive": "weightedSum"}}, True),
+        # A declared neutral, the only way to say what a local step contributes when the
+        # inferred value would make a claim the author does not want to make.
+        ({"template": "availability", "neutral": 0.95}, True),
+        # No template at all, so the direction and the whole policy are stated.
+        ({"direction": "maximize", "aggregate": {
+            "sequence": "min", "parallel": "min", "exclusive": "weightedSum",
+            "repeat": "identity", "selection": "min"}}, True),
+        # An override that overrides nothing is a typo, not a document.
+        ({"template": "availability", "aggregate": {}}, False),
+        # An operator the container does not have.
+        ({"template": "availability", "aggregate": {"exclusive": "average"}}, False),
+        # A block the container does not have.
+        ({"template": "availability", "aggregate": {"retry": "sum"}}, False),
+        # Neither a template nor the pair that replaces one.
+        ({"aggregate": {"sequence": "sum"}}, False),
+        ({"direction": "maximize"}, False),
+    ],
+    ids=[
+        "template", "one-operator-override", "declared-neutral", "no-template",
+        "empty-override", "unknown-operator", "unknown-block", "aggregate-alone",
+        "direction-alone",
+    ],
+)
+def test_the_schema_rules_for_a_property(declared, valid: bool, schema: dict) -> None:
+    document = _minimal({"id": "x", "branches": [{"flow": {"task": "A"}}, {"flow": {"task": "B"}}]})
+    document["properties"]["availability"] = declared
+    errors = _errors(document, schema)
+    assert bool(errors) != valid, f"expected valid={valid}, got {errors}"

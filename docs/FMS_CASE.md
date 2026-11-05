@@ -51,10 +51,20 @@ package describes. The workflow is a sequence `T1 → T2 → T3 → (choice) →
 choice is the exclusive between `node_classic_routing` (probability 0.8) and `T5`
 (probability 0.2) — S1 routing a small problem in-house four times out of five.
 
-Modelling S2 as a `local` task is the right call and worth preserving: an in-house
-component is deliberately outside the candidate market, so it never binds and contributes
-each property's neutral. This is why Composition2Yaml needs a `local` task kind and not
-only open and fixed ones.
+Modelling S2 as a `local` task is what the package does and must be preserved -- the
+phase F1 gate is digest equality -- and it is why Composition2Yaml needs a `local` kind and
+not only open and fixed ones. It is worth being exact about what it asserts, though,
+because "outside the candidate market" is not the same as "no information". A local task
+contributes each property's neutral under *every* operator, and this one sits in an
+exclusive aggregated with `weightedSum` at probability 0.8, so the package states that the
+in-house classical path is free, instantaneous, perfectly available, perfectly reliable
+and -- since the neutral of a `min` property over a bounded domain is its upper bound --
+*maximally secure*, four times out of five. The recorded numbers are the proof: the cost
+minimum is exactly `220 + 500 + 300 + (0.8 * 0 + 0.2 * 1200) + 950 = 2210`, and the
+recorded security 4.0 comes from T2 because the exclusive node reads `0.8 * 5.0 + 0.2 * 5.0
+= 5.0` and never binds the outer `min`. Any claim drawn from this package about classical
+versus quantum cost, latency or security rests on that optimism. Section 4.1 of
+`docs/COMPOSITION2YAML.md` says when to prefer a `fixed` task instead, and what it costs.
 
 The package declares five properties: `cost` (USD/month), `execution_time` (ms),
 `availability`, `reliability` and `security` (a 1 to 5 score). Their neutrals, all
@@ -62,6 +72,14 @@ inferred by the container from the sequence operator and the domain, are `0.0`, 
 `1.0`, `1.0` and **`5.0`** — the last one because `security` aggregates with `min` over a
 real domain bounded at 5, so the value that does not constrain a minimum is the upper
 bound. Getting that one wrong is the sharpest trap in the whole case.
+
+A second trap sits next to it. All five properties aggregate their exclusive with
+`weightedSum`, `availability` and `reliability` included, where `docs/FEATURES.md` gives
+the canonical operator for those two as the routing-weighted product. So version 1 cannot
+be written with the bare `availability` and `reliability` templates: both need an explicit
+`aggregate: {exclusive: weightedSum}` override, or the composition compiles to a different
+package. The two operators agree to six decimals at this package's own values, so the
+mismatch would not show up as a wrong number -- only as a digest that does not match.
 
 Its binding space has 32 bindings: five service tasks with two candidates each.
 
@@ -129,14 +147,24 @@ Two things in that sentence need a modelling decision rather than a transcriptio
 
 ### The orchestrator
 
-Version 1 models its orchestrator (S1) as the composition itself, with no task. Version 2
-names R as a service in the optimization layer. If R is the composition, it should not be
-a task; if R is a service that can be bound to competing providers, it should. The two
-versions currently model the same role differently, and the version-to-version diff will
-report that as a change when it may only be a change of notation.
+**Settled in review: R is the composition itself in both versions, and gets no task.**
+Version 1 already models S1 that way, and version 2 names R in the optimization layer
+without R occupying a step -- what R does, gathering and choosing and validating, *is* the
+workflow. The rule this follows from, and the two cases where a component the owner runs
+does get a task, are section 4.1 of `docs/COMPOSITION2YAML.md`.
 
-This is the first question to settle, because it decides what the diff of the guiding case
-actually says — and "the diff lists the added services" is a gate of phase F1.
+The decision matters because of the diff, not because of the binding. The diff the Studio
+already implements reports `N tasks (M get a provider)` and a row per task present in one
+revision and absent in the other, so modelling the same role two ways across versions would
+print `Task R | — | present`: a change of notation dressed as a service that did not exist
+before. With the rule applied to both versions, the version-to-version diff reports what
+actually changed -- nine services in three layers, the parallel gather, the compliance
+service consulted twice, monitoring alongside -- and nothing else. "The diff lists the added
+services" is a gate of phase F1, so this had to be settled before the fixtures were written.
+
+The `studio` block still names R in its optimization layer. That block is never emitted and
+is never checked against the task set, which is exactly how the architecture view keeps a
+name for the component that is the composition.
 
 ## What is already in the repository, and what is not
 
