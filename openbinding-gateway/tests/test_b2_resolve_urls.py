@@ -455,6 +455,8 @@ async def test_snapshots_link_to_their_project_screen_only_when_a_project_holds_
     strangers = await resolved_locations(api_client, "instance-snapshot", hers.json()["instanceDigest"], carol_headers)
 
     assert unlinked[0]["web_url"] is None
+    # A snapshot has no version, and its package digest is never passed off as one.
+    assert snapshot[0]["version_or_revision"] is None
     expected = f"/app/{org}/{proj}/snapshots/{mine.json()['id']}"
     assert snapshot[0]["web_url"] == expected
     assert ir[0]["web_url"] == expected

@@ -259,6 +259,22 @@ async def test_snapshots_are_visible_to_their_owner_or_through_a_visible_case(ap
     unregistered_like(await inspect(api_client, ctx, "outsider", owned), owned, reference, reference.json()["digest"])
 
 
+async def test_a_snapshot_without_a_name_is_titled_with_words_not_its_id(api_client, db_session, ctx):
+    digest = random_digest()
+    row = InstanceSnapshot(
+        owner_id=ctx.user_id, name="", instance_digest=random_digest(),
+        package_digest=digest, root_document={}, resource_digests={}, source_archive=b"x",
+    )
+    db_session.add(row)
+    await db_session.flush()
+
+    entities = (await inspect(api_client, ctx, "owner", digest)).json()["entities"]
+
+    assert [e["entity_type"] for e in entities] == ["snapshot"]
+    assert entities[0]["title_or_name"] == "Unnamed snapshot"
+    assert str(row.id)[:8] not in entities[0]["title_or_name"]
+
+
 async def test_library_collections_follow_membership_and_publication(api_client, db_session, ctx):
     digest = random_digest()
     _, version = await add_version(

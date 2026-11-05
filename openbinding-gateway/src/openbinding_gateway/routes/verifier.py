@@ -247,7 +247,7 @@ async def _search_matching_entities(
             VerifierEntityMatch(
                 entity_type="snapshot",
                 id=str(snap.id),
-                title_or_name=snap.name or f"Snapshot {str(snap.id)[:8]}",
+                title_or_name=snap.name or "Unnamed snapshot",
                 created_at=snap.created_at,
             )
         )
