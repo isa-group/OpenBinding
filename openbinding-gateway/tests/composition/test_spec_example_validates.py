@@ -248,3 +248,31 @@ def test_the_schema_rules_for_a_property(declared, valid: bool, schema: dict) ->
     document["properties"]["availability"] = declared
     errors = _errors(document, schema)
     assert bool(errors) != valid, f"expected valid={valid}, got {errors}"
+
+
+@pytest.mark.parametrize(
+    "goal,valid",
+    [
+        # The common case: the criterion normalizes over the property's domain.
+        ({"property": "cost"}, True),
+        # The override the corpus forces. 14 packages scale a property onto a range that
+        # is not its domain, and seven of those are inside the phase F1 gate, so a goal
+        # that could only ever use the domain would put the gate at 68 of 82, not 75.
+        ({"property": "cost", "normalize": {"min": 1, "max": 4}}, True),
+        # Half a range is not a range.
+        ({"property": "cost", "normalize": {"min": 1}}, False),
+        # clamp is not exposed: every criterion in the corpus clamps, and one that does
+        # not is a different decision from a different range.
+        ({"property": "cost", "normalize": {"min": 1, "max": 4, "clamp": True}}, False),
+        # No weight, no scalarization: those belong to an analysis run, not to the
+        # composition. The criterion id is not a field either -- it is the property name.
+        ({"property": "cost", "weight": 0.5}, False),
+        ({"property": "cost", "id": "cost_criterion"}, False),
+    ],
+    ids=["plain", "range-override", "partial-range", "clamp", "weight", "explicit-id"],
+)
+def test_the_schema_rules_for_a_goal(goal, valid: bool, schema: dict) -> None:
+    document = _minimal({"id": "x", "branches": [{"flow": {"task": "A"}}, {"flow": {"task": "B"}}]})
+    document["goals"] = [goal]
+    errors = _errors(document, schema)
+    assert bool(errors) != valid, f"expected valid={valid}, got {errors}"

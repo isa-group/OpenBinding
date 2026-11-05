@@ -621,6 +621,23 @@
       "properties": {
         "property": {
           "$ref": "#/$defs/symbol"
+        },
+        "normalize": {
+          "type": "object",
+          "description": "The range this criterion scales the property onto, when it is not the property's domain. A criterion's range is an independent number in the IR and 14 corpus packages use that independence; widening the domain to match is not a way out, because the domain is in the IR too. Omitted, the range is the property's domain.",
+          "required": [
+            "min",
+            "max"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            }
+          }
         }
       }
     },

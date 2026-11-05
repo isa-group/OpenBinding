@@ -236,15 +236,48 @@ class Rule:
 
 
 @dataclass(frozen=True, slots=True)
+class Normalize:
+    """The range a criterion scales its property onto, when it is not the domain.
+
+    A criterion's ``normalize`` is an independent number in the IR, not a projection of
+    the property's domain, and the corpus uses that independence: 14 of the 83 packages
+    carry a criterion range that is narrower or wider than the domain of the property it
+    reads, or a range where the property declares no bounds at all. Seven of those 14 are
+    inside the phase F1 gate -- the three analysis demos among them, the ones the Studio
+    exists to drive -- so a goal that could only ever normalize over the domain would put
+    the gate at 68 of 82 instead of 75 (section 11.2).
+
+    Widening the domain to match is not a way out: the domain is in the IR too, so moving
+    it to rescue the criterion moves the digest just the same.
+
+    ``clamp`` is not a field. Every criterion in the corpus clamps, and a criterion that
+    does not is a different decision from a different range -- one this version does not
+    make.
+    """
+
+    minimum: float
+    maximum: float
+
+
+@dataclass(frozen=True, slots=True)
 class Goal:
     """One optimization criterion, naming a property.
 
     No weight and no scalarization: those are parameters of an analysis run, not of the
     composition. A composition that fixed them would conflate the structure with one
     study of it.
+
+    The criterion's id is not a field either: it is the property name. The container
+    requires an id and reads it from the source, so it is digest-visible and cannot be
+    invented freely -- but no criterion in the corpus names anything other than the
+    feature it reads, so deriving it removes a field instead of losing a capability.
     """
 
     property: str
+    #: Left unset, the criterion normalizes over the property's domain, which is what
+    #: every goal written from scratch wants. Set, it overrides that range and nothing
+    #: else.
+    normalize: Normalize | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -281,8 +314,11 @@ class Composition:
     candidates: tuple[Candidate, ...] = ()
     rules: tuple[Rule, ...] = ()
     goals: tuple[Goal, ...] = ()
-    #: Free-form Studio data. The translation ignores it: it is emitted into the
-    #: instance's annotations, which the container declares open, and never under
-    #: ``spec.extensions``, where a payload without an installed dialect and a
-    #: deterministic lowering makes compilation fail.
+    #: Free-form Studio data. The translation ignores it and emits it **nowhere**: not
+    #: under ``spec.extensions``, where a payload with no installed dialect and no
+    #: deterministic lowering makes compilation fail, and not into the instance's
+    #: annotations either, open as that map is. Keeping it out of the package entirely is
+    #: what makes it inert by construction rather than inert by test, and annotations
+    #: change the package digest, so two compositions differing only in a Studio tag
+    #: would compile to different packages. Section 9 of the specification is the rule.
     studio: dict[str, object] = field(default_factory=dict)

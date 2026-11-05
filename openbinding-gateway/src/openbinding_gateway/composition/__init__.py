@@ -32,6 +32,7 @@ from .model import (
     Goal,
     LocalTask,
     Node,
+    Normalize,
     OpenTask,
     Parallel,
     PricingRef,
@@ -45,11 +46,16 @@ from .model import (
 )
 from .neutral import NeutralSource, Unbounded, expand_aggregation, infer_neutral, resolve_neutral
 
-#: The version of the language this package implements. It is also the id of the virtual
-#: dialect descriptor recorded in a compiled composition's provenance -- "virtual" because
-#: it is never installed into the container: a real dialect would need a discriminator in
-#: the application schema, and that moves every golden IR digest in the repository.
-#: ``docs/COMPOSITION2YAML.md`` section 13 prices that change.
+#: The version of the language this package implements. It is also the id of the Dialect
+#: the container installs for it: a real, installed, JSON-only dialect that declares no
+#: resource type and one inline extension point, which costs no existing digest at all --
+#: measured, an untouched package compiled with it installed keeps both its ``irDigest``
+#: and its ``compilationDigest``. What is *not* free is the notation marker that dialect
+#: makes room for: ``ir_digest`` keeps ``spec.extensions``, so a package carrying the
+#: marker has a different IR digest from the same package without it. A discriminator in
+#: the application schema, the faithful reading of "the mechanism BPMN uses", is a third
+#: thing again and is the one that moves every live golden.
+#: ``docs/COMPOSITION2YAML.md`` section 13 prices all three.
 LANGUAGE_ID = "composition2yaml/v1"
 
 __all__ = [
@@ -68,6 +74,7 @@ __all__ = [
     "LocalTask",
     "NeutralSource",
     "Node",
+    "Normalize",
     "OpenTask",
     "Parallel",
     "PricingRef",

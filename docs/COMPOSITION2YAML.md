@@ -10,8 +10,10 @@ prose — that fixes its meaning. Everything that is solved, validated, evaluate
 exported goes through a BIM v1 package and the compiler to IR. If a sentence here
 disagrees with the translation table, the translation table wins.
 
-Status: **proposal for review**. Section 12 lists what this version deliberately
-cannot say, and section 13 states the price of the one design shortcut it takes.
+Status: **proposal for review**. Section 12 lists what this version deliberately cannot
+say, section 13 prices the three ways it could have related to the container's dialect
+mechanism and says which one it takes, and section 16 is the register of what review has
+settled so far.
 
 ---
 
@@ -47,6 +49,68 @@ constraints.json                   # only when there are rules
 optimization.json
 provenance.json                    # Studio-side, NOT a declared resource
 ```
+
+### 1.1 The translators already in the repository
+
+Composition2Yaml is not the first thing here that writes a BIM package, and phase F1 has
+to say what it does about the others. Decided in review: **coexist with all of them**, and
+share rule tables rather than code. None of them is a Composition2Yaml front end, and the
+reason differs in each case.
+
+The inventory first, because "four existing compilers" was the wrong shape. There is **one
+package-writing back end in the gateway with three front ends**: a statistical synthesizer,
+a legacy text parser, and a Java command-line program whose output is read back into the
+same dataclasses. Outside it there is the ICSOC experiment generator, and beside those a
+handful of smaller writers -- a package-to-package transformer for the ICWS instances, five
+dataset scripts, and the frontend's own document builder.
+
+- **The shared back end: coexist, and share the rule table, not the code.** Its input is a
+  sampling model with no place for an author-chosen branch id, a repeat by expected count,
+  a declared neutral, a unit per property or a pricing reference. Worse, where it and this
+  language already agree on a rule they disagree on the failure mode: it widens a declared
+  domain so a neutral fits, where this language must refuse with `c2y_property_neutral`; it
+  mints counter-based branch ids, where this language mandates `<exclusive id>_branch_<n>`
+  as a digest-visible join key and forbids a counter by name; and it emits six resources
+  *always*, writing a uniform routing document even for a workflow with no exclusive at
+  all -- which section 5 forbids the Studio from doing, because an unstated distribution is
+  not the same as a uniform one. Calling into it would either move its own digests, which
+  sit in a committed manifest for thousands of generated packages, or make this language
+  inherit behaviour it has already ruled out. What must not drift is the part both share:
+  the five normative resource ids, the neutral table, the exclusive-to-routing split and
+  the branch-id derivation, each with a parity test. The neutral rule already has one.
+- **The legacy text parser: coexist, fenced.** Its grammar really does coincide with the
+  four blocks -- sequence, parallel, a branch list with inline probabilities, a loop with
+  an exact count -- and only the expected-count repeat is missing, which is what makes
+  absorbing it look cheap. It is not: the format also carries aggregation functions and
+  weights, which this language expresses as per-property overrides and goals, and the
+  parser reads both and discards them. Absorbing it would mean importing that silent
+  discard or rewriting the translation anyway, and it would tie this language to an
+  endpoint, a UI tab and a committed API snapshot that have nothing to do with it.
+- **The ICSOC experiment generator: coexist, frozen.** Here absorb is not expensive, it is
+  impossible: every instance it emits carries a Placement resource and a
+  `scope: selectedCandidate` rule, so this version expresses none of them (section 11.2
+  excludes exactly those packages). Its workflow algebra, on the other hand, *is*
+  expressible here, and it already derives branch ids by the same rule. The constraint that
+  matters is its published numbers, not the digests pinned beside them: those digests are a
+  change detector and have been legitimately refreshed for schema migrations, while no
+  published figure has ever moved. Saying that out loud matters, because a reader who
+  mistakes the digest for the result will refuse a migration the repository has already
+  performed.
+- **The Java generator: coexist.** It is not a package compiler at all -- it prints a
+  problem description that the gateway lowers, and that lowering already goes through the
+  container. Its historical command-line mode is not reproducible, which is a defect of its
+  own and not an argument about this language; its configuration mode is.
+
+One number this specification should print rather than imply. Canonicalization and
+digesting are single-sourced in the container -- a package digest is provably invariant
+under indentation, separators and key order -- so the feared "second determinism story" is
+not in the byte layout. It is in the samplers: three of them, in three languages, which
+give three different answers to the same seed and none of which can reproduce another.
+Two of the three could be collapsed; the third is pinned to a published campaign and
+should be left alone. There is also one probability normalizer in the shared back end that
+quantizes to four decimals and hands the remainder to the last branch -- precisely the
+computation section 5.2 refuses to do, where `distribution: uniform` leaves the division to
+the container.
 
 ## 2. Document structure
 
@@ -294,8 +358,8 @@ from 32 to 64 with no diagnostic at all.
 Ownership is not the discriminator, and this specification already proves it: `C` in the
 worked example is a solver the owner runs, with no competitor, and it is a `fixed` task
 with real values. The corpus agrees. `examples/literature/cremaschi` declares its own
-closing step as a `local` task, and 19 of the 82 corpus packages carry a task that is not
-a service task.
+closing step as a `local` task, and 20 of the 83 packages the walk finds carry a task that
+is not a service task.
 
 **A local task is an assertion, not an abstention.** It is exactly a single-candidate
 service task pinned to the neutral vector: on the guiding case both forms produce the same
@@ -527,15 +591,39 @@ goals:
   - property: cost
   - property: latency
   - property: availability
+  - property: security
+    normalize: {min: 1, max: 4}       # narrower than the property's domain, on purpose
 ```
 
 Each goal becomes one entry of `Optimization.spec.criteria`, as
 `{id, feature: {resource: "application", id}, normalize: {min, max, clamp: true}}`.
 
-`normalize` is **always** emitted, taken from the property's domain. The container
-refuses criteria that span more than one unit without explicit normalization
-(`normalization_required`), and every criterion in the corpus carries it. `direction` is
+**The criterion's id is the property name.** The container requires an id and reads it
+from the source, so it is visible in the IR and renaming it moves the digest. No
+criterion in the whole corpus names anything other than the feature it reads -- 0 of 268
+-- so deriving it drops a field rather than losing a capability. It is written down here
+because it is the one required, digest-visible field a reader would otherwise have to
+guess.
+
+`normalize` is **always** emitted, and by default it is the property's domain. The
+container refuses criteria that span more than one unit without explicit normalization
+(`normalization_required`), and every criterion in the corpus carries one. `direction` is
 not emitted on a criterion: it belongs to the property.
+
+A goal may **override** that range, as the fourth goal above does, and the corpus forces
+the option: a criterion's `normalize` is an independent number in the IR, and **14 of the
+83 packages** scale a property onto a range that is not its domain -- sometimes narrower
+(`cost` over `[0, 200]` where the domain is `[0, 100]`), sometimes a range where the
+property declares no bounds at all. Widening the domain to match is not a way out: the
+domain is in the IR too, so moving it to rescue the criterion moves the digest just the
+same.
+
+Seven of those 14 declare a Placement resource and are outside the gate for that reason
+anyway. The other **seven are inside it**: `examples/demo/01_simple_seq`,
+`03_xor_choice`, `14_shared_candidates`, the three `17`/`18`/`19` analysis demos -- the
+ones the Studio exists to drive -- and one ICWS instance. Without this field the gate of
+section 11.2 would be 68 of 82 rather than 75, and six of the seven are lifted by this
+field alone. `clamp` is not exposed: every criterion in the corpus clamps.
 
 Weights, scalarization and objective type are **not** part of a composition. They are
 execution-request parameters, chosen per analysis run, and a composition that fixed them
@@ -699,6 +787,71 @@ them evidence of what moved between toolchain versions. Normalization moved the 
 digest of 64 of the 82 packages -- a figure a test pins -- so implementing against a
 frozen baseline is the mistake that looks like a compiler bug and never goes green.
 
+### 11.2 Which packages the round trip must reproduce
+
+"The demo examples" is not a set, and the phase F1 gate cannot be phrased over it.
+Decided in review: the gate is **the live normalized golden's own package set, minus the
+packages that declare a Placement resource** -- 75 of its 82. For every key `d` of
+`packages` in `bim-toolchain/golden/bim_normalized/corpus.json` that declares no
+Placement resource,
+
+```
+ir_digest(compile(emit(import_bim(d)))) == ir_digest(compile(d))
+```
+
+The seven exclusions are named, and they share one reason -- a Placement resource, whose
+price section 13 already carries: `examples/demo/15_bpmn_complete` (which is also the only
+BPMN workflow anywhere near the gate), `examples/demo/16_json_complete`, the four packages
+under `examples/placement/`, and `engines/minizinc-csp/tests/fixtures/placement`. Nothing
+else in the tree declares one, and no package outside that seven needs anything this
+version cannot say.
+
+Four things make this the gate rather than a number:
+
+- **Membership is the golden file, not the walk.** The walk is a filesystem scan: its
+  membership is whatever is on disk. The golden's `packages` map is 82 checked-in keys
+  with a `packageCount` beside them, and the regeneration tool refuses to rewrite it
+  unless everything semantic is unchanged. Section 11.1 already named that file as F1's
+  target, so this adds no second one. The walk keeps its job -- finding packages -- and a
+  package added to the tree surfaces as a walk-versus-golden mismatch that somebody has
+  to resolve by putting it in the gate or in the exclusion list. The count is already
+  pinned in fourteen places across three jobs -- four at 83, which is the walk, and ten at
+  82, which is this golden; a gate phrased this way collides with none of them and
+  inherits every one of their tripwires.
+- **The arithmetic is auditable.** `len(gate) + len(exclusions) == packageCount == 82`,
+  with the seven names pinned beside it. A gate whose size nobody can recompute is a
+  claim, not a gate.
+- **The 83rd walk member is out of scope.** `bim-toolchain/packages/bim-core/tests/fixtures/example-package`
+  is the one package the walk finds and the golden does not hold, and it is also the only
+  package in the tree whose constraint uses a form outside comparison and `and`. It is the
+  compiler's own fixture; it is not a composition and it is not a target.
+- **The gate is `ir_digest` equality, so it says nothing about bytes.** Four container
+  defaults are therefore not blockers and must not be counted as such: a package's
+  `metadata.annotations` -- 78 of the 83 carry them, and the compiler never copies them
+  into the IR at all -- a feature with no declared `direction` (3 packages), a domain with
+  an open end (6), and a feature with no `unit`, which the container defaults to `1` (1
+  package, one ICWS instance). Each of those is a field the emitter may write explicitly
+  and a reader may mistake for a blocker; counting the unit one as a blocker is what turns
+  75 into 74 and puts an eighth package in a list whose whole argument is that its members
+  share a reason. A byte-for-byte gate would be a different and much larger promise, and
+  it would need the opaque annotation passthrough section 9 already asks for.
+
+**This gate is what made two fields necessary**, and that is the honest reason to record
+it rather than a round number. Measured against section 12 as it was first written the gate
+would have been **68** of 82, not 75. Seven packages inside it scale a criterion onto a
+range that is not the property's domain -- a limit no section mentioned -- and one of those
+seven also reads `scope`, which the model has typed all along. An explicit goal `normalize`
+(section 8) lifts six of them, and writing `scope` (section 3.1) lifts the seventh: one
+field each, 68 to 74 to 75. Discovering that from a gate is the point of writing the gate
+down before the phase that has to pass it.
+
+What this section does **not** claim: that any package has round-tripped. Neither
+`import_bim` nor `emit` exists yet -- phase F0 ships the model and this specification. Each
+verdict above is a feasibility verdict, measured per limit against the compiled IR: *this
+language can hold everything in this package that `ir_digest` looks at*. Phase F1 turns
+them into executed round trips, and a package that then fails is either a compiler bug or a
+limit this section missed.
+
 ## 12. What this version deliberately cannot say
 
 Each omission is a reviewable decision, not a gap. Three of them are forced by the only
@@ -710,9 +863,8 @@ literals, property and task paths, comparison and `and`.
 | --- | --- | --- |
 | Branch conditions (`when`) | the exact engine rejects conditional choice | none: a branch carries a human-readable `condition` instead, and the distribution carries the semantics |
 | Interval property values | every bundled engine mode accepts scalars only | authors must pick a value |
-| Rules beyond comparison and `and` | the exact engine's expression list | no arithmetic or disjunction in rules |
-| Placement | a separate dialect with its own resource and semantics | two corpus packages do not round-trip |
-| `scope: selectedCandidate` | needs the selection operator and per-candidate charging | packages that use it do not round-trip |
+| Rules beyond comparison and `and` | the exact engine's expression list | no arithmetic, no disjunction and no CEL macro in rules; one package in the tree, the compiler's own fixture, and it is outside the gate |
+| Placement | a separate dialect with its own resource and semantics | **seven** packages do not round trip, and they are the gate's entire exclusion list (section 11.2) |
 | Capability predicates | eligibility is capability matching only | no narrowing beyond the capability type |
 | `extensions` at any level | needs an installed dialect with lowering | no ad-hoc fields |
 | Non-identity feature bindings | a catalog slot may be named differently from the feature | property names are shared |
@@ -720,7 +872,16 @@ literals, property and task paths, comparison and `and`.
 | An empty goal list | compiles, but means "score is penalty only" | at least one goal required |
 | Comments and formatting | the writer re-emits from the model | a Visual-mode edit normalizes the text |
 
-The last one is worth stating plainly because it will be felt in phase F3: this version
+Two rows left this table in review, and both were listed by mistake rather than by
+decision. `scope: selectedCandidate` was never inexpressible: the model has typed it from
+the first commit and section 3.1 names `scope` among the three fields a template fills, so
+the row contradicted both the code and section 3. And a criterion range that is not the
+property's domain was missing from the table altogether while being the most expensive
+limit in the corpus -- section 8 now carries the field that lifts it. A table of
+deliberate omissions is only useful if everything in it is deliberate and everything
+deliberate is in it; section 11.2 is what caught both.
+
+The last row is worth stating plainly because it will be felt in phase F3: this version
 projects the model back to text, so comments, key order and blank lines are lost on a
 round trip through the Visual editor. Lossless editing needs a concrete syntax tree and
 belongs with the editor, not with the compiler.
@@ -731,34 +892,98 @@ The approved decision was that Composition2Yaml should use "the same adapter mec
 BPMN already uses". That cannot be taken literally, and the reason is in the compiler:
 
 - The generic dialect lowering writes its output **only** under
-  `spec.extensions/<dialect id>/resources/<resource id>`. It cannot populate the
-  application workflow.
+  `spec.extensions/<dialect id>/resources/<resource id>` or, for an inline extension,
+  under `.../inline/<resource>:<pointer>`. It cannot **emit** an application workflow.
+  It is not insulated from one either: an installed dialect's lowered payload is
+  addressable from inside the workflow, because a branch condition may read
+  `extensions/<dialect id>/...` as a declared path, and a lowerer that stops writing a key
+  such a condition reads turns the package into a compile error. This version emits no
+  branch conditions, so it never exercises that coupling -- but the coupling exists and
+  the earlier wording denied it.
 - The generic dialect installation function explicitly refuses the XML case that BPMN
-  occupies.
+  occupies, and the dialect schema makes the refusal total: any XML media type is required
+  to carry an `xmlRoot`, and an `xmlRoot` is exactly what that function rejects.
 - BPMN's real lowering is a hardwired `bpmn` discriminator in the application schema plus
-  a dedicated lowering function. Its named adapter is never resolved through any registry.
+  a dedicated lowering function, reached through a literal tuple of discriminator keys.
+  Its named adapter is never resolved through any registry: it is consumed by three string
+  comparisons and never by the lowerer table that installation writes to.
 
 So BPMN is not an instance of a reusable mechanism; it is a built-in with a manifest
-beside it. Composition2Yaml therefore ships as a **virtual dialect**: a
-`composition2yaml/v1` descriptor built with the same manifest shape as the BPMN one and
-validated against the dialect schema, recorded in provenance so a compiled composition
-states which translation produced it — but **never installed**. It never enters
-`spec.dialects` and never moves a digest.
+beside it. That diagnosis was right. The prescription that followed from it was wrong.
 
-What that gives up: a compiled package cannot be traced back to its source notation by
-anything that reads only the IR, and the dialect listing will not show Composition2Yaml
-beside the installed ones.
+**Settled in review: Composition2Yaml ships as a real, installed Dialect** --
+`composition2yaml/v1`, JSON only, declaring **no resource type** and one inline extension
+point on the Application. And **the notation marker it makes room for is written only when
+the composition has no existing package to reproduce.** Those are two decisions because
+they have two different prices, which the earlier text bundled into one.
 
-What the faithful reading would cost: a discriminator in the application schema, hence a
-new schema digest, hence new built-in manifest versions, hence a moved profile id, hence
-**every** golden IR digest in the repository rebaked — plus the package layer learning a
-YAML parse and a canonical byte form, the resource index learning a suffix, the instance
-schema's path pattern widened in two parity-tested trees, and the repository guard
-gaining a media type and a role entry.
+Installing the dialect is **free**. Measured: with `composition2yaml/v1` installed, an
+untouched corpus package recompiles to the identical `irDigest` *and* the identical
+`compilationDigest`, and `spec.dialects` does not even name it -- only the contracts a
+package actually uses appear there. Nothing on disk moves, no schema is touched, no module
+enters `bim_core`, and the dialect listing gains an entry.
 
-That is incompatible with passing the existing pipeline on the current goldens, so it is
-not done here. It is a major, golden-rebaking change, and this spec prices it rather than
-pretending it is unnecessary.
+Writing the marker is **not** free, and this is the constraint that decides when to write
+it. `ir_digest` strips `metadata`, `spec.instance`, `spec.dialects` and `spec.sourceMap` --
+and keeps `spec.extensions`. So a package carrying the marker has a different IR digest
+from the same package without it: measured on one corpus package, `sha256-60bcb31e…` became
+`sha256-bf35b407…`, with the `application` section digest unchanged. Since the phase F1
+gate is IR-digest equality with an existing package (section 11.2), a composition written
+to reproduce one is compiled **without** the marker, and a composition with no package
+behind it is compiled with it. That is a rule of the language, not a flag in an
+implementation.
+
+Three consequences to design around, each measured, none of them a reason to choose
+otherwise:
+
+- **The install belongs wherever `bim_core` runs, not in the gateway process.** Under the
+  supported deployment where the gateway delegates to a remote service, a gateway-side
+  install is invisible to the dialect listing and absent where packages are actually
+  compiled -- and the startup check compares only the compiler digest, which installing a
+  dialect does not move, so the mismatch would pass silently and surface later as a
+  compile failure on composition-sourced packages alone. At least two install sites, in two
+  deployable packages.
+- **One existing test fails under a process-wide install**, structurally rather than
+  incidentally: a host-installed dialect never passes through the built-in release
+  labelling, so its manifest version does not track the compiler bundle digest, and the
+  test that asserts every installed dialect's version moves with that digest no longer
+  holds for all of them. It is the test that needs the exception, and it should say why.
+- **Four `protocol.json` goldens record the installed dialect set** and go stale in their
+  informative `toolchain` members. Nothing fails -- the baseline comparison drops every
+  `toolchain` field before comparing -- but "costs no golden" means "fails no golden", and
+  the difference is worth writing down rather than discovering.
+
+**The virtual dialect was rejected because it buys nothing.** A descriptor that is never
+installed has nowhere to be recorded: the IR's `spec` is closed over twelve fixed members,
+its `metadata` admits only `name` and the compiler writes only `{"name": …}`, so a
+package's own annotations never reach the IR at all. And a never-installed id placed in
+`spec.dialects` anyway makes the stored IR unrehydratable -- verification requires every
+member of `spec.dialects` to be an installed contract, and rejects the document otherwise.
+So "recorded in provenance but never installed" could only ever mean "recorded outside the
+IR", which is the loss it was offered as a remedy for. It paid zero and bought zero, where
+zero also buys the installed dialect.
+
+**What the faithful reading would cost**, corrected in the same review, because two links
+of the old chain were wrong. A discriminator in the application schema gives a new schema
+digest, hence new built-in manifest versions -- but **not** a moved profile *id*: the id is
+`name/vMAJOR` and is invariant inside major version 1. What moves is the profile's version,
+its digest and its adapter version, and through them every **live** golden IR digest: 170
+of the 252 in the tree, the other 82 being the frozen baselines that are deliberately never
+recomputed. No semantic digest moves at all. Nor is the rebake "incompatible with passing
+the existing pipeline": the repository ships a guarded tool whose only purpose is that
+rebake, which refuses to write unless every semantic digest, section digest, evaluation and
+binding space is already identical, and the receipt of its last run is itself a golden --
+165 changed lines, none of them about anything but the toolchain.
+
+The real reasons to decline the discriminator are the rest of the chain, which the
+rebake does not touch: a schema edit duplicated byte-for-byte in two parity-tested trees,
+the instance path pattern widened in both, the package layer learning a YAML parse and a
+canonical byte form, the resource index learning a suffix, the repository guard gaining a
+media type and a role entry -- and a new module inside `bim_core`, which by itself breaks
+the test that pins that package's module set and moves the bundle digest, forcing the
+rebake whatever is decided about dialects. That is why the composition library lives in
+the gateway. It is still a major, golden-rebaking change, and this section prices it rather
+than pretending it is unnecessary.
 
 ## 14. Diagnostics
 
@@ -877,14 +1102,28 @@ architecture view keeps a name for the component that *is* the composition. Decl
 as a task and leaving it out of the workflow is the one state the language refuses, with
 `c2y_task_unreached`.
 
-## 16. Open questions for review
+## 16. What review settled
 
-Two were answered in review: which golden set the F1 gate means (the live normalized one,
-section 11.1) and how an orchestrator is modelled (section 4.1). These are the rest.
+Every question this document opened has been answered, and each answer lives in the
+section it governs rather than in a list at the end:
 
-1. **The virtual dialect** of section 13: accept it for this version, or pay for the
-   faithful reading.
-2. **Which corpus packages must round trip.** Placement rules out two; dropping
-   `scope: selectedCandidate` rules out a third.
-3. **The relationship with the four existing high-level-to-package compilers** already in
-   the repository: absorb them, delegate to them, or coexist.
+| question | answer | where |
+| --- | --- | --- |
+| Which golden set the phase F1 gate means | the live normalized one | 11.1 |
+| Which packages the round trip must reproduce | that golden's 82, minus the 7 with a Placement resource | 11.2 |
+| How an orchestrator is modelled | it is the composition itself, and gets no task | 4.1 |
+| Which kind a component earns | by whether it occupies a step and has QoS of its own | 4.1 |
+| Where the probabilities of an exclusive live | inline on the branch, with the routing overlay as the emitted form | 5.2, 5.3 |
+| The dialect: virtual, real, or the schema discriminator | a real, installed, JSON-only dialect; the notation marker only when no package has to be reproduced | 13 |
+| The four existing translators: absorb, delegate or coexist | coexist with all of them, sharing rule tables and not code | 1.1 |
+
+Four of the seven changed the language or the measurements rather than only the prose, and
+that is the argument for answering them before phase F1 rather than during it: the gate of
+section 11.2 is reachable only because answering it added an explicit criterion range and
+wrote down a `scope` the model had always had; section 4.1's rule removed a task from the
+worked example; and section 13's answer turned out to cost nothing where the shortcut it
+replaced bought nothing.
+
+What is **not** settled is anything this document says it cannot say. Section 12 is a list
+of deliberate omissions, each with its price, and the next version re-opens them one at a
+time -- Placement first, since it is the whole of the gate's exclusion list.

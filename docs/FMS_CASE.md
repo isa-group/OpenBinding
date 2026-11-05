@@ -177,6 +177,12 @@ name for the component that is the composition.
 
 Neither version is checked in as a *new* package. Composition sources live as
 `.c2y.yaml` fixtures and are compiled into a temporary directory by the tests. This is
-deliberate: the corpus package count is asserted in eight places across three CI jobs,
-and adding a package to the tree breaks four goldens and two jobs at once. Version 2 gets
-its own golden file instead, outside the corpus walk.
+deliberate: the corpus package count is asserted in fourteen places across three CI jobs,
+nine checked-in golden files enumerate every current package by path, and adding one to
+the tree breaks several of each at once. Version 2 gets its own golden file instead,
+outside the corpus walk.
+
+Which packages version 1 has to reproduce is settled, and it is not "the demo examples":
+section 11.2 of `docs/COMPOSITION2YAML.md` names the live golden's 82 packages minus the
+seven that declare a Placement resource. Eight of the 20 demo packages would have failed
+the phrase it replaces, five of them for a limit no section had stated.
