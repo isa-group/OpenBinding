@@ -227,6 +227,7 @@ _REPO_NAME = re.compile(r"\b(?:REPO_ROOT|ROOT|REPO)\b")
 # test_no_kubernetes is the only repository-wide one and has its own rule in tools/ci_changes.py; the others stay in
 # directories the area rules classify. A new entry needs its paths justified next to those rules.
 WALKING_TESTS = {
+    "composition/test_goldens_unchanged.py": "bim-toolchain/golden, the corpus walk over examples/, tools/check_bim_*.py",
     "integration/test_engine_representation_regression.py": "schemas/bim/v1/manifests, examples/federation",
     "test_b2_resolve_urls.py": "frontend/src/routes",
     "test_b5_corpus.py": "engine manifests",
