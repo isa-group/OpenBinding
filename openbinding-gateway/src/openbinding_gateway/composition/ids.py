@@ -22,10 +22,11 @@ from __future__ import annotations
 import re
 
 #: Resource ids are part of the IR: the compiled problem names the application and the
-#: optimization by resource, and keys candidates by their catalog's resource id. Every
-#: package in the corpus uses these five, so they are normative rather than conventional.
-#: Naming the catalog anything else yields a semantically identical package with a
-#: different digest and no hint why.
+#: optimization by resource, and keys candidates by their catalog's resource id. 82 of the
+#: 83 corpus packages use these five -- the exception is the toolchain's own example
+#: fixture -- so they are normative here rather than conventional. Naming the catalog
+#: anything else yields a semantically identical package with a different digest and no
+#: hint why. A placement resource, which this version cannot express, is a sixth id.
 APPLICATION = "application"
 CATALOG = "catalog"
 ROUTING = "routing"

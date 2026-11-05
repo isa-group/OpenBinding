@@ -301,9 +301,12 @@ Rules, each of which exists because the container enforces it:
 - **Probability and condition never coexist** on the same branch. This version emits no
   conditions at all (section 12).
 - An `exclusive` with no probabilities emits **no routing resource**, which leaves the
-  branch distribution unspecified rather than uniform. `{uniform: true}` is available in
-  the container but no package in the corpus uses it, and emitting it where a package
-  previously had nothing would move digests, so this version never emits it.
+  branch distribution unspecified rather than uniform. `{uniform: true}` is a different
+  statement -- it asserts that the branches are equally likely -- and one package in the
+  corpus does use it, so it is not dead syntax. This version never emits it anyway:
+  converting "nothing stated" into "stated to be uniform" would change both the meaning
+  and the digest of every package that had no routing resource. An author who wants
+  uniform routing writes the equal probabilities out.
 
 ## 6. Candidates
 
