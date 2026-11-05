@@ -929,6 +929,10 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             "solutions": {"type": "array", "items": {"type": "object"}},
             "provenance": {"type": "object"},
             "error": {"type": "string"},
+            # Why a failed job failed: a code of the job failure catalog (docs/ERRORS.md). No enum, so that a new
+            # code is not a breaking change for clients.
+            "code": {"type": "string"},
+            "correlationId": {"type": "string"},
         },
         "additionalProperties": False,
     }

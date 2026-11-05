@@ -5598,6 +5598,12 @@
       "GatewayBindingResult": {
         "additionalProperties": false,
         "properties": {
+          "code": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
           "error": {
             "type": "string"
           },

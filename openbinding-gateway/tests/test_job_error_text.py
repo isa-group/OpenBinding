@@ -128,7 +128,7 @@ def assert_a_catalog_failure(result: dict, code: str) -> None:
 
 
 def test_every_sentence_of_the_catalog_is_short_fixed_text():
-    assert {"engine_unreachable", "engine_rejected", "engine_timeout", "engine_error",
+    assert {"engine_unreachable", "engine_rejected", "engine_incompatible", "engine_timeout", "engine_error",
             "bim_evaluation_failed", "lease_lost", "job_abandoned", "internal_error"} <= set(JOB_FAILURES)
     for code, sentence in JOB_FAILURES.items():
         assert re.fullmatch(r"[a-z][a-z0-9_]*", code)
@@ -195,6 +195,7 @@ def _engine(monkeypatch, handler):
     ("handler", "code"),
     [
         (lambda request: httpx.Response(503, text="engine down"), "engine_rejected"),
+        (lambda request: httpx.Response(422, json={"detail": "mode does not support intervals"}), "engine_incompatible"),
         (lambda request: httpx.Response(200, content=b"<html>not json"), "engine_protocol_error"),
         (lambda request: httpx.Response(202, json={"unexpected": True}), "engine_protocol_error"),
     ],

@@ -104,8 +104,8 @@ def _resume_key(record: dict[str, Any]) -> tuple[str, str, str, int, int, str]:
 
 def _normalized_result(data: dict[str, Any], wall_ms: float) -> dict[str, Any]:
     result = data.get("result") or {}
-    # Classified by the job's failure code. Until the gateway emits `engine_incompatible`, capability refusals
-    # carry `engine_rejected` and are recorded ERROR (which stops the campaign like any unclassified error).
+    # Classified by the job's failure code: the gateway codes an engine's 422 (a capability refusal) as
+    # `engine_incompatible`; every other failure is ERROR (which stops the campaign like any unclassified error).
     failed = data.get("status") == "failed"
     incompatible = failed and result.get("code") == "engine_incompatible"
     if failed:

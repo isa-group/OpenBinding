@@ -88,6 +88,32 @@ the job is created:
 | `engine_mode_incompatible` | 422 | the problem uses a construct the selected mode does not declare; `diagnostics` lists every incompatibility |
 | `unsupported_capability_value` | one of those diagnostics | `category` (`featureValues`) names the capability dimension, `unsupported` the values the problem uses and the mode does not take (`["interval"]` for a range, also an open one), `allowed` the values the mode takes (`["scalar"]`). For `featureValues` it also carries `resource` (the catalog file), `pointer` (the first candidate feature value with the unsupported kind, e.g. `/spec/candidates/c1a/features/latency`) and `irPath` (the same value in the BindingProblem); without a known source it carries `irPath` only |
 
+## Why a job failed
+
+A job that fails has `status` `failed` and a `result` with `termination` `UNKNOWN`, no solutions, a fixed `error`
+sentence, a stable `code` and the `correlationId` of the log line that holds the detail. The codes:
+
+| `code` | Meaning |
+|---|---|
+| `engine_unreachable` | the engine could not be reached |
+| `engine_timeout` | the engine did not answer in time |
+| `engine_incompatible` | the engine answered 422: the problem uses a construct or option the requested mode does not support |
+| `engine_rejected` | the engine refused the request with another status |
+| `engine_protocol_error` | the engine answered in a form the gateway cannot accept |
+| `engine_failed` | the engine reported that it could not solve the problem |
+| `engine_endpoint_invalid` | the engine endpoint is not acceptable under the network policy of the gateway |
+| `engine_error` | the request to the engine failed |
+| `credential_unavailable` | the credential for the engine cannot be used |
+| `bim_evaluation_failed` | the answer of the engine could not be evaluated |
+| `job_input_invalid` | the stored request of the job is no longer valid |
+| `registration_changed` | the engine registration changed after the job was submitted |
+| `lease_lost` | the worker running the job was lost |
+| `job_abandoned` | the job was not finished in time and was abandoned |
+| `internal_error` | anything else; the details are in the service log |
+
+`engine_mode_incompatible` (above) is refused when the job is created, before any engine runs;
+`engine_incompatible` is the engine's own refusal while the job runs.
+
 ## Where it comes from
 
 One place decides the wire shape: `openbinding_gateway/models/problem.py` for the

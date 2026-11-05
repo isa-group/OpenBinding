@@ -439,7 +439,8 @@ async def solve_remote(
             # Keep the engine's own explanation (problem+json detail or plain text) so that
             # an incompatibility names the construct at fault. Like every RemoteEngineError
             # message it is internal: it reaches the log (masked, next to the correlation id),
-            # while the job shows the fixed catalog sentence of ``engine_rejected``.
+            # while the job shows the fixed catalog sentence of its code. A 422 is the engine saying the problem
+            # uses something the requested mode does not support (bim-engine/v1): ``engine_incompatible``.
             detail = ""
             try:
                 raw = await _bounded_bytes(response)
@@ -454,9 +455,8 @@ async def solve_remote(
                 await response.aclose()
             detail = " ".join(detail.split())[:400]
             suffix = f": {detail}" if detail else ""
-            raise RemoteEngineError(
-                f"engine rejected BindingProblem ({response.status_code}){suffix}", code="engine_rejected"
-            )
+            code = "engine_incompatible" if response.status_code == 422 else "engine_rejected"
+            raise RemoteEngineError(f"engine rejected BindingProblem ({response.status_code}){suffix}", code=code)
         try:
             receipt = await _bounded_json(response)
         finally:
