@@ -27,7 +27,7 @@
       "type": "string"
     },
     "pricing": {
-      "$ref": "#/$defs/pricingRef"
+      "$ref": "#/$defs/pricing"
     },
     "properties": {
       "type": "object",
@@ -81,29 +81,6 @@
     "symbol": {
       "type": "string",
       "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"
-    },
-    "pricingRef": {
-      "type": "object",
-      "required": [
-        "organization",
-        "slug",
-        "version"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "organization": {
-          "type": "string",
-          "minLength": 1
-        },
-        "slug": {
-          "type": "string",
-          "minLength": 1
-        },
-        "version": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
     },
     "domain": {
       "type": "object",
@@ -646,6 +623,35 @@
           "$ref": "#/$defs/symbol"
         }
       }
+    },
+    "pricing": {
+      "description": "The permanent link to one immutable SPHERE pricing version. A bare string is the shorthand for href; the version is read from the link and is never a separate field.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        {
+          "type": "object",
+          "required": [
+            "href"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "href": {
+              "$ref": "#/$defs/httpsUrl"
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^sha256-[0-9a-f]{64}$"
+            }
+          }
+        }
+      ]
+    },
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
     }
   }
 }

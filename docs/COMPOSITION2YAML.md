@@ -57,10 +57,9 @@ title: Fleet Management System      # optional, free text
 description: >                      # optional, free text
   Hybrid SaaS for fleet routing and dispatch.
 
-pricing:                            # optional, a reference into SPHERE
-  organization: faked
-  slug: fleet-management
-  version: "2026-01"
+pricing:                            # optional, a permanent link into SPHERE
+  href: https://sphere.score.us.es/faked/fleet-management/2026-01.yaml
+  digest: sha256-...                # optional, makes the reference tamper-evident
 
 properties: {...}                   # section 3
 tasks: {...}                        # section 4
@@ -75,10 +74,61 @@ studio: {...}                       # section 9, inert
 `metadata.name` of every emitted document, suffixed per resource. `version` is a free
 non-empty string and becomes `metadata.version`.
 
-`pricing` is a reference, never an embedded pricing. It is recorded in provenance and in
-the Studio annotations; it does not reach the IR and does not affect any digest. How the
-Studio resolves it against SPHERE, and how a pricing becomes candidate rows, is phase F4
-and out of scope here.
+### 2.1 The pricing reference
+
+`pricing` is a reference, never an embedded pricing, and it is **the permanent link SPHERE
+publishes for one pricing version** -- the stable, citable address of those exact bytes.
+A bare string is the shorthand for `href`:
+
+```yaml
+pricing: https://sphere.score.us.es/faked/fleet-management/2026-01.yaml
+```
+
+The link must be absolute, must be on the SPHERE origin the installation is configured
+with, and the organization, the slug and the version must be readable from it. This
+specification does not fix a single path template, because the one SPHERE serves is
+SPHERE's to change; the gateway today trusts two shapes, a static pricing path and
+`/<organization>/<slug>/<version>.yaml`.
+
+**There is no separate `version` field, and that is a deliberate decision.** The reasons,
+in the order they matter:
+
+*One fact in one place.* The permanent link already names the version. A `version` beside
+it would be a second source of truth for the same fact, and a document whose two halves
+disagree has no good reading -- the Studio would have to pick a winner and would be wrong
+half the time. The gateway already meets this problem on the fetching side and resolves it
+by *verifying*: it refuses a pricing whose document does not carry the version it asked
+for. That is the right shape for a fetch and the wrong shape for a source document a
+person edits by hand, where the second field is simply an opportunity to be inconsistent.
+
+*A reference that is not pinned says nothing later.* A concept-level link that always
+resolves to the newest version would make the provenance of a composition unfalsifiable:
+"the candidates came from the latest pricing" is not a statement anyone can check a year
+afterwards. This does not threaten the IR digest -- candidates are a snapshot, so the
+compiled problem is already pinned whatever the reference says -- but the reference is
+exactly what lets a reader re-derive or audit that snapshot, and it has to name the bytes
+it was taken from.
+
+*The repository already works this way.* SPHERE's published versions are immutable, and
+the gateway pins the digest of a version's bytes on first read and treats SPHERE changing
+a published version as an error rather than serving it. The honest companion to a
+permanent link is therefore not a restatement of the version but an optional `digest`,
+which is what actually makes the reference tamper-evident.
+
+*And the version history is still reachable.* Phase F4 has to notice that a newer pricing
+version exists and show what changed, which needs the pricing's concept identity and not
+only this version's. That identity is **derivable**: the organization and the slug are in
+the link, and asking SPHERE for that organization and slug lists every version. So
+nothing is lost by leaving the version implicit in the link.
+
+What this gives up, honestly: three named fields read better than a URL, and the document
+becomes coupled to SPHERE's address layout. The mitigation is that the compiler treats the
+link as opaque -- it never fetches during compilation, because the candidates are already a
+snapshot -- and the editor shows the organization, slug and version it parsed out of it.
+
+The reference is recorded in provenance. It is not emitted into the package (section 9),
+so it reaches neither the IR nor any digest. How the Studio resolves it against SPHERE, and
+how a pricing becomes candidate rows, is phase F4.
 
 ## 3. Properties
 
@@ -618,6 +668,7 @@ container's.
 | `c2y_repeat_count` | `count` and `expected` are both present, or neither |
 | `c2y_candidate_property` | a candidate value is an interval, or outside the domain |
 | `c2y_candidate_unmatched` | an open task has no eligible candidate |
+| `c2y_pricing_href` | the pricing link is relative, on another origin, or has no readable version |
 | `c2y_goal_unknown` | a goal references a property that is not declared |
 | `c2y_rule_expression` | a rule uses a form outside comparison and `and` |
 
@@ -634,10 +685,7 @@ composition: fleet-management
 version: "2.0.0"
 title: Fleet Management System
 
-pricing:
-  organization: faked
-  slug: fleet-management
-  version: "2026-01"
+pricing: https://sphere.score.us.es/faked/fleet-management/2026-01.yaml
 
 properties:
   cost:

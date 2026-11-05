@@ -179,3 +179,34 @@ def test_a_branch_may_not_carry_a_container_condition() -> None:
         {"flow": {"task": "B"}},
     ]})
     assert _errors(document, schema), "the schema accepted a container condition on a branch"
+
+
+@pytest.mark.parametrize(
+    "pricing,valid",
+    [
+        # The shorthand: a bare permanent link to one immutable version.
+        ("https://sphere.score.us.es/faked/fleet-management/2026-01.yaml", True),
+        # The long form, with the digest that makes the reference tamper-evident.
+        ({"href": "https://sphere.score.us.es/faked/fleet-management/2026-01.yaml",
+          "digest": "sha256-" + "0" * 64}, True),
+        # A separate version field is gone on purpose: the link already names it, and a
+        # second source of truth for the same fact can only disagree with the first.
+        ({"href": "https://sphere.score.us.es/faked/fleet-management/2026-01.yaml",
+          "version": "2026-01"}, False),
+        # Not a link at all, which is what the old three-field form reduced to.
+        ({"organization": "faked", "slug": "fleet-management", "version": "2026-01"}, False),
+        # A relative reference has no origin to trust.
+        ("/faked/fleet-management/2026-01.yaml", False),
+        # Plain http is not a permanent reference anyone should follow.
+        ("http://sphere.score.us.es/faked/fleet-management/2026-01.yaml", False),
+        # A malformed digest is worse than none: it looks checked and is not.
+        ({"href": "https://sphere.score.us.es/faked/fleet-management/2026-01.yaml",
+          "digest": "sha256-nothex"}, False),
+    ],
+    ids=["shorthand", "with-digest", "with-version", "three-fields", "relative", "http", "bad-digest"],
+)
+def test_the_schema_rules_for_a_pricing_reference(pricing, valid: bool, schema: dict) -> None:
+    document = _minimal({"id": "x", "branches": [{"flow": {"task": "A"}}, {"flow": {"task": "B"}}]})
+    document["pricing"] = pricing
+    errors = _errors(document, schema)
+    assert bool(errors) != valid, f"expected valid={valid}, got {errors}"

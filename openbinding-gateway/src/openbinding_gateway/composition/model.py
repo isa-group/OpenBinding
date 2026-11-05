@@ -249,11 +249,20 @@ class Goal:
 
 @dataclass(frozen=True, slots=True)
 class PricingRef:
-    """A reference into SPHERE, never an embedded pricing."""
+    """A permanent link to one immutable SPHERE pricing version.
 
-    organization: str
-    slug: str
-    version: str
+    The link names the version, so there is no separate version field: a second source of
+    truth for the same fact can only disagree with the first. The organization, the slug
+    and the version are parsed out of the link, and the pricing's version history is
+    reached by asking SPHERE for that organization and slug.
+
+    ``digest`` is optional and is what makes the reference tamper-evident. SPHERE's
+    published versions are immutable, so a changed digest is an error rather than a new
+    version -- which is how the gateway already treats them.
+    """
+
+    href: str
+    digest: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
