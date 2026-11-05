@@ -27,6 +27,84 @@ LEGACY_ENGINE = pytest.param(
     ),
 )
 
+# A legacy QACO document the parser's own grammar accepts: five `%#= SECTION =#`
+# markers, four abstract services, a BRANCH and a LOOP, five candidate services
+# and two constraints. Text without those markers parses to nothing, so a
+# conversion test fed on such text asserts only that the endpoint answers at all.
+LEGACY_QACO_SPEC = """%#============================= HEADER ======================================#
+% Problem Statistics:
+% Number of activities: 4
+% Number of Candidate Services: 6
+% Number of Constraints: 2
+%#======================= COMPOSITION STRUCTURE =============================#
+% Abstract Services:
+4
+t1
+t2
+t3
+t4
+% CompositionStructure:
+SEC[
+    t1,
+    BRANCH(0.6;0.4;)[
+        t2,
+        t3,
+    ],
+    LOOP(5)[
+        t4,
+    ],
+]
+%#======================= QOS MODEL =============================#
+QoSModel{
+    Properties{
+         ExecTime:NEGATIVE€Double[0.0,1.0]
+         Cost:NEGATIVE€Double[0.0,1.0]
+         Availability:POSITIVE€Double[0.0,1.0]
+    }
+    AggregationFunctions(
+         ExecTime{
+             Loop:SUM
+             Branch:SUM
+             Flow:MAX
+             Sequence:SUM
+         }
+         Cost{
+             Loop:SUM
+             Branch:SUM
+             Flow:SUM
+             Sequence:SUM
+         }
+    )
+    Weights(
+         ExecTime:0.5
+         Cost:0.5
+    )
+}
+%#======================= CANDIDATE SERVICES =============================#
+------------------------
+t1
+------------------------
+s11(ExecTime:0.1,Cost:0.2,Availability:0.9,)
+s12(ExecTime:0.3,Cost:0.4,Availability:0.8,)
+------------------------
+t2
+------------------------
+s21(ExecTime:0.2,Cost:0.1,Availability:0.95,)
+------------------------
+t3
+------------------------
+s31(ExecTime:0.4,Cost:0.3,Availability:0.85,)
+------------------------
+t4
+------------------------
+s41(ExecTime:0.05,Cost:0.05,Availability:0.99,)
+------------------------
+%#======================= CONSTRAINTS =============================#
+2
+LOWEREQUAL(ExecTime, 50.0)
+GREATEREQUAL(Availability, 0.8)
+"""
+
 LARGER_PLAN = largest_plan()
 FEATURES = [
     {"id": "cost", "unit": "EUR", "direction": "minimize", "scope": "selectedCandidate",
@@ -382,29 +460,9 @@ async def test_guaranteed_constraints_share_a_feasible_witness(api_client, use_l
 
 @pytest.mark.asyncio
 async def test_convert_legacy_endpoint(api_client):
-    raw_text = """SEC
-  T1
-  T2
-END
-
-CANDIDATES
-  T1:
-    c1: 10.0, 50.0
-  T2:
-    c2: 20.0, 30.0
-END
-
-QOS_MODEL
-  latency: ms, MIN, ADD
-  cost: eur, MIN, ADD
-END
-
-CONSTRAINTS
-  latency <= 50.0
-END
-"""
+    """The conversion carries the document's own tasks, features and candidates."""
     payload = {
-        "raw_text": raw_text,
+        "raw_text": LEGACY_QACO_SPEC,
         "name": "converted_from_api",
         "guarantee_feasibility": True,
         "tension": 0.6,
@@ -415,7 +473,75 @@ END
     assert data["name"] == "converted_from_api"
     assert "package_digest" in data
     assert "workload_features" not in data
-    assert "application.json" in data["files"]
+
+    application = data["files"]["application.json"]["spec"]
+    # The four abstract services of the document, and only those.
+    assert sorted(application["tasks"]) == ["t1", "t2", "t3", "t4"]
+    # Its three QoS properties, with the directions it declares.
+    assert sorted(application["features"]) == ["availability", "cost", "latency"]
+    assert application["features"]["availability"]["direction"] == "maximize"
+    assert application["features"]["cost"]["direction"] == "minimize"
+    assert application["features"]["latency"]["direction"] == "minimize"
+    # SEC[ t1, BRANCH[ t2, t3 ], LOOP[ t4 ] ]: a sequence of three steps.
+    workflow = application["workflow"]["sequence"]
+    assert len(workflow) == 3
+    assert workflow[0]["task"]["id"] == "t1"
+    assert [branch["flow"]["task"]["id"] for branch in workflow[1]["exclusive"]] == ["t2", "t3"]
+
+    # Every candidate the document defines, named after the task it provides for,
+    # carrying the metrics declared for it.
+    candidates = data["files"]["candidates.json"]["spec"]["candidates"]
+    assert sorted(candidates) == ["t1_s11", "t1_s12", "t2_s21", "t3_s31", "t4_s41"]
+    assert candidates["t1_s11"]["provides"] == "service/t1"
+    assert candidates["t1_s11"]["features"] == {"latency": 0.1, "cost": 0.2, "availability": 0.9}
+
+    # Both of the document's constraints, one per declared direction.
+    constraints = data["files"]["constraints.json"]["spec"]["constraints"]
+    assert len(constraints) == 2
+    assert [entry["assert"].split()[1] for entry in constraints.values()] == ["<=", ">="]
+
+
+@pytest.mark.asyncio
+async def test_convert_legacy_never_reads_files_from_the_server(api_client, tmp_path):
+    """raw_text is content. A path in it is parsed as text, never opened.
+
+    The parser used to call os.path.isfile on the string it was given, so a body on
+    this route - which needs no account - returned any file the service user could
+    read, and told existing paths from missing ones by the status code.
+    """
+    planted = tmp_path / "legacy.txt"
+    planted.write_text(LEGACY_QACO_SPEC.replace("s11", "leakedcanary"), encoding="utf-8")
+
+    existing = await api_client.post("/v1/generator/convert-legacy", json={
+        "raw_text": str(planted), "name": "reader",
+    })
+    # Nothing of the file: not its canary, not the tasks it would have produced.
+    assert "leakedcanary" not in existing.text
+    assert "t1_s12" not in existing.text
+    assert existing.status_code == 422, existing.text
+
+    # And a path that does not exist is answered exactly the same way, so the
+    # endpoint cannot be asked whether a file is there.
+    missing = await api_client.post("/v1/generator/convert-legacy", json={
+        "raw_text": str(tmp_path / "absent.txt"), "name": "reader",
+    })
+    assert missing.status_code == 422, missing.text
+    assert missing.json()["detail"] == existing.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_convert_legacy_rejects_text_the_grammar_does_not_accept(api_client):
+    """A document the parser cannot read is 422, not 500 and not a fabricated package.
+
+    Without the section markers the parser read nothing and the postprocessor filled
+    the gap with its own defaults, so a failed parse reached the caller as a 200 and
+    a two-task package it never asked for.
+    """
+    resp = await api_client.post("/v1/generator/convert-legacy", json={
+        "raw_text": "SEC\n  T1\n  T2\nEND\n", "name": "malformed",
+    })
+    assert resp.status_code == 422, resp.text
+    assert "files" not in resp.json()
 
 
 def test_generator_endpoints_stay_open_to_any_caller():
