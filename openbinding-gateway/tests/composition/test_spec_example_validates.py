@@ -256,14 +256,14 @@ def test_the_schema_rules_for_a_property(declared, valid: bool, schema: dict) ->
         # The common case: the criterion normalizes over the property's domain.
         ({"property": "cost"}, True),
         # The override the corpus forces. 14 packages scale a property onto a range that
-        # is not its domain, and seven of those are inside the phase F1 gate, so a goal
-        # that could only ever use the domain would put the gate at 68 of 82, not 75.
+        # is not its domain, and all 14 are inside the phase F1 gate now that it is the
+        # whole corpus, so a goal that could only ever use the domain would put it at 68.
         ({"property": "cost", "normalize": {"min": 1, "max": 4}}, True),
         # Half a range is not a range.
         ({"property": "cost", "normalize": {"min": 1}}, False),
-        # clamp IS exposed, and it has to be: the container defaults it to false, and five
-        # of the gate's 243 criteria omit the key and so do not clamp. A goal that could
-        # not say false would miss three of the 75 packages.
+        # clamp IS exposed, and it has to be: the container defaults it to false, and eight
+        # of the gate's 266 criteria omit the key and so do not clamp. A goal that could
+        # not say false would miss four of the 82 packages.
         ({"property": "cost", "normalize": {"min": 1, "max": 4, "clamp": True}}, True),
         ({"property": "cost", "normalize": {"min": 1, "max": 4, "clamp": False}}, True),
         # It is a boolean, not a mode.

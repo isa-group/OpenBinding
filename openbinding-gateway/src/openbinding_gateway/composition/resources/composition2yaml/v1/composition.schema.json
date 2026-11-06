@@ -55,6 +55,9 @@
     "candidates": {
       "$ref": "#/$defs/candidates"
     },
+    "placement": {
+      "$ref": "#/$defs/placement"
+    },
     "rules": {
       "type": "array",
       "items": {
@@ -528,6 +531,20 @@
             "properties": {
               "title": {
                 "type": "string"
+              },
+              "properties": {
+                "type": "object",
+                "description": "A free-form map of scalars, the container's own properties map rather than the numeric features this surface calls properties.",
+                "propertyNames": {
+                  "$ref": "#/$defs/symbol"
+                },
+                "additionalProperties": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean"
+                  ]
+                }
               }
             }
           }
@@ -585,6 +602,44 @@
             "classical",
             "quantum"
           ]
+        },
+        "attributes": {
+          "type": "object",
+          "description": "A free-form map of scalars, the container's own properties map rather than the numeric features this surface calls properties.",
+          "propertyNames": {
+            "$ref": "#/$defs/symbol"
+          },
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "placement": {
+          "type": "object",
+          "description": "Where this candidate runs. Written per candidate even when the document that produced it used a group or a defaults block: both are erased by the lowering, and expanding them here is what makes the demand a property of the candidate rather than of the way it was written.",
+          "required": [
+            "pool"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "pool": {
+              "$ref": "#/$defs/symbol"
+            },
+            "resources": {
+              "type": "object",
+              "minProperties": 1,
+              "propertyNames": {
+                "$ref": "#/$defs/symbol"
+              },
+              "additionalProperties": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          }
         }
       }
     },
@@ -673,7 +728,7 @@
             "clamp": {
               "type": "boolean",
               "default": true,
-              "description": "Whether a value outside the range is pulled to the nearer bound. The container's own default is false, so writing false here reproduces a criterion that omits the key; 5 of the gate's 243 criteria do."
+              "description": "Whether a value outside the range is pulled to the nearer bound. The container's own default is false, so writing false here reproduces a criterion that omits the key; 8 of the gate's 266 criteria do."
             }
           }
         }
@@ -707,6 +762,321 @@
       "type": "string",
       "format": "uri",
       "pattern": "^https://"
+    },
+    "pool": {
+      "type": "object",
+      "required": [
+        "id",
+        "capacity"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/symbol"
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "default": "generic"
+        },
+        "name": {
+          "type": "string"
+        },
+        "capacity": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "$ref": "#/$defs/symbol"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "properties": {
+          "type": "object",
+          "description": "A free-form map of scalars, the container's own properties map rather than the numeric features this surface calls properties.",
+          "propertyNames": {
+            "$ref": "#/$defs/symbol"
+          },
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        }
+      }
+    },
+    "networkEdge": {
+      "type": "object",
+      "required": [
+        "from",
+        "to",
+        "latency"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/symbol"
+        },
+        "to": {
+          "$ref": "#/$defs/symbol"
+        },
+        "latency": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "event": {
+      "type": "object",
+      "required": [
+        "id",
+        "pool"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/symbol"
+        },
+        "pool": {
+          "$ref": "#/$defs/symbol"
+        },
+        "latency": {
+          "type": "array",
+          "description": "Ordered: the list is visible in the IR in its order, so it is never sorted.",
+          "items": {
+            "type": "object",
+            "required": [
+              "pool",
+              "latency"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "pool": {
+                "$ref": "#/$defs/symbol"
+              },
+              "latency": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "required": [
+        "id",
+        "from",
+        "to",
+        "max"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/symbol"
+        },
+        "from": {
+          "description": "A task, named directly, or an event named as {event: id}.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/symbol"
+            },
+            {
+              "type": "object",
+              "required": [
+                "event"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "event": {
+                  "$ref": "#/$defs/symbol"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "task"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "task": {
+                  "$ref": "#/$defs/symbol"
+                }
+              }
+            }
+          ]
+        },
+        "to": {
+          "description": "A task, named directly, or an event named as {event: id}.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/symbol"
+            },
+            {
+              "type": "object",
+              "required": [
+                "event"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "event": {
+                  "$ref": "#/$defs/symbol"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "task"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "task": {
+                  "$ref": "#/$defs/symbol"
+                }
+              }
+            }
+          ]
+        },
+        "feature": {
+          "$ref": "#/$defs/symbol",
+          "default": "latency"
+        },
+        "max": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "capacityRule": {
+      "type": "object",
+      "description": "Which resources are counted against a pool's capacity. The position of the rule in the list is data in the container, so the list order is kept.",
+      "required": [
+        "resources"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "resources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/symbol"
+          }
+        },
+        "scope": {
+          "enum": [
+            "selectedCandidate",
+            "invocation"
+          ],
+          "default": "selectedCandidate"
+        }
+      }
+    },
+    "placement": {
+      "type": "object",
+      "description": "Where the candidates run, and what the network between the pools costs. A document may write a symmetric network and a defaults or groups block; both are conveniences the lowering erases, so this surface writes what they expand to.",
+      "required": [
+        "pools"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pools": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/pool"
+          }
+        },
+        "network": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/networkEdge"
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/event"
+          }
+        },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/transition"
+          }
+        },
+        "capacityRules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capacityRule"
+          }
+        },
+        "globalLatency": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "feature": {
+              "$ref": "#/$defs/symbol",
+              "default": "latency"
+            },
+            "includeExecution": {
+              "type": "boolean",
+              "default": true
+            },
+            "exclusive": {
+              "enum": [
+                "routing",
+                "condition"
+              ],
+              "default": "routing"
+            },
+            "parallel": {
+              "enum": [
+                "max",
+                "sum"
+              ],
+              "default": "max"
+            }
+          }
+        }
+      }
     }
-  }
+  },
+  "allOf": [
+    {
+      "$comment": "A candidate's placement names a pool, and the pools live in the top-level placement block. Without it the demand has no destination in any emitted document, so the composition would compile and mean something else. The text layer refuses the same shape with a message that names the candidate; this is here so an editor validating against the schema alone refuses it too.",
+      "if": {
+        "required": [
+          "candidates"
+        ],
+        "properties": {
+          "candidates": {
+            "required": [
+              "rows"
+            ],
+            "properties": {
+              "rows": {
+                "contains": {
+                  "required": [
+                    "placement"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "placement"
+        ]
+      }
+    }
+  ]
 }

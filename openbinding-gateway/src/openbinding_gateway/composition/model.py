@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Literal, Union
+from typing import Any, Literal, Union
 
 Direction = Literal["minimize", "maximize"]
 Scope = Literal["invocation", "selectedCandidate"]
@@ -210,7 +210,22 @@ Node = Union[TaskNode, EmptyNode, Sequence, Parallel, Exclusive, Repeat]
 
 @dataclass(frozen=True, slots=True)
 class Provider:
+    """One organization that offers candidates.
+
+    Both fields are digest-visible, and leaving them unwritten is what moved the digest of
+    ``examples/demo/16_json_complete``. So are a task's, a feature's and a candidate's name
+    -- each of the four moves the IR digest, measured, and the container has a slot for
+    every one. The reason this model writes a provider's and a task's and not the other two
+    is the corpus, not the container: of its 82 packages, 2 carry a provider name and 18
+    carry a task name, while none carries a feature name or a candidate name, so there is
+    no value to write and writing one would move a digest that has none.
+    """
+
+    #: Becomes the catalog entry's ``name``.
     title: str | None = None
+    #: The container's own free-form map on a provider, scalars rather than feature values:
+    #: ``{"tier": "edge", "region": "eu-south"}``.
+    properties: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -227,16 +242,28 @@ class Candidate:
     #: visible in the IR **in its order and its multiplicity** -- reversing it or
     #: duplicating an entry moves the digest -- so this is a tuple and never a set, and the
     #: emitter never sorts it. Section 11's enumeration of digest-visible lists omits this
-    #: one. Exactly one candidate in the whole tree uses the plural form,
-    #: ``examples/demo/14_shared_candidates``'s ``shared``, which is also the only gate
-    #: package that reads ``scope: selectedCandidate``: one task's candidate serving three
-    #: tasks is what "shared candidates" means.
+    #: one. Twelve candidates in five packages use the plural form. An earlier version of
+    #: this comment said one, because it was measured over the gate of 75 while it was
+    #: written about the tree of 82: four of those five packages declare a Placement
+    #: resource and were outside the gate at the time. ``14_shared_candidates``'s
+    #: ``shared`` is the one that is not a placement package. It reads
+    #: ``scope: selectedCandidate`` too, as do all five of these and seven of the 82 in
+    #: all: one candidate serving three tasks is what "shared candidates" means.
     provides: str | tuple[str, ...]
     properties: dict[str, float]
     provider: str | None = None
     #: Studio-side. A candidate's name has no home in the emitted catalog: writing
     #: ``spec.candidates.<id>.name`` moves the IR digest and no gate package carries one.
     title: str | None = None
+    #: The container's own free-form ``properties`` map, which is **not** the numeric map
+    #: this model calls ``properties``: that one is the container's ``features``, the
+    #: values a criterion or a constraint reads. This is the descriptive one, and dropping
+    #: it lost ``examples/placement/02_stock_market_sample`` forty-four recorded values.
+    attributes: dict[str, Any] = field(default_factory=dict)
+    #: Where this candidate runs, when the composition places its candidates at all. One
+    #: pool, never a list: the IR keys a demand by candidate reference, so a second demand
+    #: for one candidate last-wins silently.
+    placement: PoolDemand | None = None
     #: Which kind of solver this candidate is, which is what a property's ``applies_to``
     #: is matched against. It is a Studio concept with no counterpart in the container: it
     #: decides where section 10.2's neutral is substituted, and the substitution is
@@ -269,12 +296,14 @@ class Normalize:
     """The range a criterion scales its property onto, when it is not the domain.
 
     A criterion's ``normalize`` is an independent number in the IR, not a projection of
-    the property's domain, and the corpus uses that independence: 14 of the 83 packages
+    the property's domain, and the corpus uses that independence: 14 of the 82 packages
     carry a criterion range that is narrower or wider than the domain of the property it
-    reads, or a range where the property declares no bounds at all. Seven of those 14 are
-    inside the phase F1 gate -- the three analysis demos among them, the ones the Studio
-    exists to drive -- so a goal that could only ever normalize over the domain would put
-    the gate at 68 of 82 instead of 75 (section 11.2).
+    reads, or a range where the property declares no bounds at all. **All 14 are inside the
+    phase F1 gate**, which is now the whole corpus -- the three analysis demos among them,
+    the ones the Studio exists to drive -- so a goal that could only ever normalize over the
+    domain would put the gate at 68 of 82 (section 11.2). Seven of the 14 declare a
+    Placement resource and were outside the gate while it had exclusions, which is why an
+    earlier version of this paragraph said seven were inside it.
 
     Widening the domain to match is not a way out: the domain is in the IR too, so moving
     it to rescue the criterion moves the digest just the same.
@@ -289,9 +318,10 @@ class Normalize:
     #: Whether a value outside the range is pulled to the nearer bound. The container's
     #: default is **false**, not true: the schema declares ``default: false`` and the
     #: compiler reads ``normalize.get("clamp", False)``, so a criterion that omits the key
-    #: does not clamp. 238 criteria of the gate's 243 clamp and 5 do not -- in
-    #: ``examples/demo/01_simple_seq``, ``03_xor_choice`` and one ICWS instance -- so a
-    #: goal that could not say ``False`` would miss three of the 75 packages. There is no
+    #: does not clamp. 258 criteria of the gate's 266 clamp and 8 do not -- in
+    #: ``examples/demo/01_simple_seq``, ``03_xor_choice``,
+    #: ``examples/placement/01_small_placement`` and one ICWS instance -- so a
+    #: goal that could not say ``False`` would miss four of the gate's packages. There is no
     #: need to express the key's *absence*: the IR always carries an explicit boolean, and
     #: an omitted key and an explicit ``false`` compile to the same IR digest (measured).
     clamp: bool = True
@@ -337,6 +367,152 @@ class PricingRef:
 
 
 @dataclass(frozen=True, slots=True)
+class Pool:
+    """One capacity pool a candidate can be placed in.
+
+    A pool that receives no demand still has to be expressible: ``examples/placement/
+    03_cloud_only``'s ``external_user_device`` takes no demand and no network edge and
+    exists only as an event anchor, and dropping it is a compile error.
+    """
+
+    id: str
+    capacity: dict[str, float]
+    #: Free-form and **case-preserving**. The corpus spans ``generic`` -- which is the
+    #: lowering's own fill-in, so an absent kind round trips as this default -- as well as
+    #: ``edge``/``fog``/``cloud`` and ``EDGE``/``FOG``/``CLOUD``/``CLOUD_FAAS``/
+    #: ``EXTERNAL``. Normalising the case moves the digest and is invisible in the source.
+    kind: str = "generic"
+    #: Digest-visible, unlike a feature's, a task's or a candidate's name, which this model
+    #: drops on purpose. Only two packages carry pool names.
+    name: str | None = None
+    properties: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class PoolDemand:
+    """What one candidate consumes in one pool.
+
+    It lives on the candidate rather than as a list on the placement because the IR keys a
+    demand by candidate reference alone: a second demand for one candidate last-wins with
+    no diagnostic at all. A field makes that trap unstateable rather than merely unused.
+    """
+
+    pool: str
+    resources: dict[str, float] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class NetworkEdge:
+    """One directed link between two pools."""
+
+    source: str
+    target: str
+    latency: float
+
+
+@dataclass(frozen=True, slots=True)
+class EventLatency:
+    """What one pool costs from one event's anchor."""
+
+    pool: str
+    latency: float
+
+
+@dataclass(frozen=True, slots=True)
+class Event:
+    """A point outside the pools that the plan's latency is measured from."""
+
+    id: str
+    #: The anchor, which may be a pool nothing is assigned to.
+    pool: str
+    #: Ordered and digest-visible, and **not** regenerable from the pool list: one package
+    #: writes its latencies in an order that is not its pools' declaration order, and
+    #: another covers two of its three pools. Carried verbatim, never sorted.
+    latency: tuple[EventLatency, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class Endpoint:
+    """One end of a transition: a task of the application, or an event of the placement."""
+
+    id: str
+    #: Both ends are validated identically by the container, but no transition in the
+    #: corpus *targets* an event, so this form is schema-faithful and uncorroborated on a
+    #: target.
+    event: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class Transition:
+    """A ceiling on what moving between two points may cost.
+
+    There is no ``enforcement`` and no ``penalty``. Every transition in the corpus lowers
+    to ``hard``, which is digest-equal to writing nothing, and ``soft`` is not expressible
+    here: it needs a penalty row in the Optimization keyed by a placement reference, a
+    cross-document coupling no package exercises and this version does not model. The
+    container refuses it by name -- "soft constraint {'resource': 'placement', ...} is not
+    in Optimization" -- which is a diagnostic a reader can act on.
+    """
+
+    id: str
+    source: Endpoint
+    target: Endpoint
+    maximum: float
+    feature: str = "latency"
+
+
+@dataclass(frozen=True, slots=True)
+class CapacityRule:
+    """Which resources are charged once per selected candidate rather than per invocation.
+
+    Set-like on purpose: the lowering sorts and dedupes the list, so the declared order is
+    invisible and storing a sequence would invent a difference the IR cannot see.
+    """
+
+    resources: frozenset[str]
+    scope: Scope = "selectedCandidate"
+
+
+@dataclass(frozen=True, slots=True)
+class GlobalLatency:
+    """How the plan's end-to-end latency is composed.
+
+    All four members are required by the schema, so the container's own defaults are
+    unreachable through a valid document -- but every package in the corpus carries
+    byte-identical values, so the corpus's unanimous answer is the default here.
+    """
+
+    feature: str = "latency"
+    include_execution: bool = True
+    exclusive: Literal["routing", "condition"] = "routing"
+    parallel: Literal["max", "sum"] = "max"
+
+
+@dataclass(frozen=True, slots=True)
+class Placement:
+    """Where the selected candidates run, and what that costs in time and capacity.
+
+    The container already installs ``qos-binding-placement/v1`` as a built-in dialect with
+    its own resource, so nothing here is invented: this is the surface that lets a
+    composition say what that dialect already understands.
+    """
+
+    pools: tuple[Pool, ...]
+    #: **Post-completion and ordered**, emitted as ``networkMode: "directed"``. Measured:
+    #: the completed list compiles to the same digest under either mode, because symmetric
+    #: completion skips pairs already present, and directed-everywhere reproduces every
+    #: placement package in the corpus. Never a set, never sorted, never a pool-pair map --
+    #: both sorting it and prepending the mirrors move the digest.
+    network: tuple[NetworkEdge, ...] = ()
+    events: tuple[Event, ...] = ()
+    #: Order is free: the lowering sorts them by reference.
+    transitions: tuple[Transition, ...] = ()
+    #: Ordered, because a rule's reference in the IR embeds its index.
+    capacity_rules: tuple[CapacityRule, ...] = ()
+    global_latency: GlobalLatency | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class Composition:
     """One version of one composition: the central entity of the Studio."""
 
@@ -352,6 +528,9 @@ class Composition:
     candidates: tuple[Candidate, ...] = ()
     rules: tuple[Rule, ...] = ()
     goals: tuple[Goal, ...] = ()
+    #: Where the selected candidates run. Optional, so every composition that places
+    #: nothing keeps the package it had.
+    placement: Placement | None = None
     #: Free-form Studio data. The translation ignores it and emits it **nowhere**: not
     #: under ``spec.extensions``, where a payload with no installed dialect and no
     #: deterministic lowering makes compilation fail, and not into the instance's

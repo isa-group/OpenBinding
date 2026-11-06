@@ -6,8 +6,12 @@ For each package of section 11.2's gate,
 This runs the same tool CI runs, ``tools/check_composition_roundtrip.py``, rather than
 restating its logic: a gate asserted twice in two places is a gate that can disagree with
 itself. The tool defines the gate by the rule that makes it -- the live normalized golden's
-packages, minus those declaring a Placement resource -- so adding a package to the tree
-shows up here as a membership change rather than as a number nobody can recompute.
+packages, all of them -- so adding a package to the tree shows up here as a membership
+change rather than as a number nobody can recompute.
+
+The gate held 75 of 82 while Placement had no home in the model and a BPMN workflow was
+refused. It is now the whole corpus: every package the normalized golden records is a
+package this language can read and write back.
 
 It compares IR digests, so it says nothing about bytes: a package's own annotations do not
 survive the trip and are not meant to. ``test_emit_reproduces_a_package.py`` stays at one
@@ -24,9 +28,9 @@ import pytest
 
 from _repo import REPO_ROOT
 
-#: Section 11.2's gate size. The tool fails on its own if the gate stops holding this many,
-#: which is the tripwire for a package added to or removed from the tree.
-GATE = 75
+#: Section 11.2's gate size: the whole corpus. The tool fails on its own if the gate stops
+#: holding this many, which is the tripwire for a package added to or removed from the tree.
+GATE = 82
 #: The one package the walk finds and the golden does not hold: the compiler's own fixture.
 NOT_A_TARGET = "bim-toolchain/packages/bim-core/tests/fixtures/example-package"
 
@@ -50,16 +54,24 @@ def tool():
     return module
 
 
-def test_the_gate_is_the_golden_minus_placement(tool) -> None:
-    members, excluded, unrecorded = tool.gate(REPO_ROOT)
+def test_the_gate_is_the_whole_golden(tool) -> None:
+    members, unrecorded = tool.gate(REPO_ROOT)
     assert len(members) == GATE
-    assert len(excluded) == 7
     assert unrecorded == [NOT_A_TARGET]
-    assert not set(members) & set(excluded)
+    # The seven that Placement used to keep out are members now, named rather than counted.
+    assert {
+        "engines/minizinc-csp/tests/fixtures/placement",
+        "examples/demo/15_bpmn_complete",
+        "examples/demo/16_json_complete",
+        "examples/placement/01_small_placement",
+        "examples/placement/02_stock_market_sample",
+        "examples/placement/03_cloud_only",
+        "examples/placement/04_edge_heavy",
+    } <= set(members)
 
 
 def test_every_gate_package_reproduces_its_ir_digest(tool) -> None:
-    members, _excluded, _unrecorded = tool.gate(REPO_ROOT)
+    members, _unrecorded = tool.gate(REPO_ROOT)
     failed = []
     for package in members:
         result = tool.roundtrip(REPO_ROOT, package)

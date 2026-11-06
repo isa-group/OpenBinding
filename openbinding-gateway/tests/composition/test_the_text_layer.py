@@ -24,7 +24,7 @@ import pytest
 
 from _repo import REPO_ROOT
 
-GATE = 75
+GATE = 82
 
 
 @pytest.fixture(scope="module")
@@ -43,7 +43,7 @@ def gate() -> list[str]:
         spec.loader.exec_module(module)
     finally:
         sys.modules.pop("_gate_for_text", None)
-    members, _excluded, _unrecorded = module.gate(REPO_ROOT)
+    members, _unrecorded = module.gate(REPO_ROOT)
     assert len(members) == GATE
     return members
 
@@ -53,6 +53,14 @@ def _files(package: str) -> dict[str, bytes]:
     return {entry.name: entry.read_bytes() for entry in directory.iterdir() if entry.is_file()}
 
 
+def _compile(files: dict[str, bytes]) -> dict:
+    """The compiler, injected rather than imported: the BPMN package is read through it."""
+    from bim_core import compile_instance  # noqa: PLC0415
+    from bim_core.package import InstancePackage  # noqa: PLC0415
+
+    return compile_instance(InstancePackage(files)).document
+
+
 def test_the_text_round_trips_every_gate_model(gate: list[str]) -> None:
     """``parse(serialise(m)) == m``, model for model."""
     from openbinding_gateway.composition.read import import_bim
@@ -60,7 +68,7 @@ def test_the_text_round_trips_every_gate_model(gate: list[str]) -> None:
 
     failed = []
     for package in gate:
-        model = import_bim(_files(package))
+        model = import_bim(_files(package), compile=_compile)
         back = parse(serialise(model))
         if back != model:
             differing = sorted(
@@ -88,7 +96,7 @@ def test_a_composition_written_as_text_reproduces_its_package(gate: list[str]) -
         original = _files(package)
         try:
             before = ir_digest(compile_instance(InstancePackage(original)).document)
-            through_text = parse(serialise(import_bim(original)))
+            through_text = parse(serialise(import_bim(original, compile=_compile)))
             after = ir_digest(compile_instance(InstancePackage(emit(through_text))).document)
         except FileNotFoundError as exc:  # the vendored OMG BPMN XSDs
             pytest.skip(f"the vendored OMG BPMN XSDs are not in place: {exc}")

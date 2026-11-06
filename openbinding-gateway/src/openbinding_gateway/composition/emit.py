@@ -7,8 +7,8 @@ property, proved separately, and inverting it must not be entangled with proving
 translation right.
 
 The gate this exists to pass is **IR-digest equality with an existing package**
-(specification section 11.2: the live normalized golden's 82 packages minus the seven that
-declare a Placement resource, so 75). That is what makes every rule below load-bearing
+(specification section 11.2: the live normalized golden's 82 packages, all of them). That is
+what makes every rule below load-bearing
 rather than cosmetic. Three of them cost a package each if written the obvious way, and
 each was measured rather than read off the prose:
 
@@ -16,20 +16,28 @@ each was measured rather than read off the prose:
   and ``examples/demo/14_shared_candidates`` declares ``selectedCandidate`` on its ``cost``
   feature. The compiler branches on it, so defaulting to ``"invocation"`` loses that
   package with no diagnostic anywhere.
-* **A candidate's ``provides`` keeps its order and its multiplicity.** The same package has
-  the tree's only plural ``provides``, and reversing or deduplicating that list moves the
-  digest. It is the one digest-visible list section 11 does not enumerate.
+* **A candidate's ``provides`` keeps its order and its multiplicity.** Twelve candidates in
+  five packages write a list, and reversing or deduplicating one moves the digest. It is
+  the one digest-visible list section 11 does not enumerate.
 * **A criterion's ``clamp`` is written as it is.** The container defaults it to *false*,
-  and five of the gate's 243 criteria omit the key, so a hardcoded ``true`` loses three
-  packages while a hardcoded ``false`` loses the other 72.
+  and eight of the gate's 266 criteria omit the key, so a hardcoded ``true`` loses four
+  packages while a hardcoded ``false`` loses the other 78.
 
 What this module deliberately does not emit, because each one either moves the digest or is
 refused outright: a node ``id`` at any level, ``spec.extensions`` anywhere, a feature's
-``name`` or a provider's or candidate's ``name``, ``metadata.version`` or
-``metadata.description`` on a resource document, ``metadata.annotations`` anywhere at all,
-and a ``when`` on a branch. The Studio block, a pricing reference, a property's domain of
-applicability and a candidate's title have no destination in a package by design; they are
-Studio-side and belong to provenance, which is not a declared resource.
+``name`` or a candidate's ``name``, ``metadata.version`` or ``metadata.description`` on a
+resource document, ``metadata.annotations`` anywhere at all, and a ``when`` on a branch.
+
+A provider's ``name`` **is** emitted, and so is a task's: 2 of the corpus's 82 packages
+carry a provider name and 18 carry a task name, so leaving either out moves those packages'
+digests -- which is exactly what kept ``examples/demo/16_json_complete`` out of the gate.
+A feature's and a candidate's stay unwritten for the opposite reason and not a different
+one: the container keeps all four (measured -- each moves the IR digest), and no package in
+the corpus carries a feature name or a candidate name, so there is nothing to write.
+
+The Studio block, a pricing reference and a property's domain of applicability have no
+destination in a package by design; they are Studio-side and belong to provenance, which is
+not a declared resource.
 
 The file set is exactly ``instance.json`` plus the documents the manifest declares. Any
 other entry -- a ``provenance.json``, a ``README``, the composition source itself -- is
@@ -63,18 +71,26 @@ from .neutral import resolve_neutral
 
 #: The profile every emitted package declares.
 PROFILE = "qos-binding/v1"
-#: The api version of the five resource documents.
+#: The api version of the five ``qos-binding/v1`` resource documents. The Placement
+#: document is the sixth this module writes and belongs to a dialect, so it carries
+#: ``PLACEMENT_API_VERSION`` instead.
 RESOURCE_API_VERSION = "qos-binding/v1"
 
 #: File name per resource id. The ids are normative because they reach the IR; the file
-#: names are not -- renaming all five at once leaves the digest byte-identical (measured) --
+#: names are not -- renaming them all at once leaves the digest byte-identical (measured) --
 #: but they are fixed here so that two emissions of one composition are the same bytes.
+PLACEMENT = "placement"
+#: The api version of the Placement document. It belongs to a dialect the container
+#: installs as a built-in, so declaring one needs nothing installed and nothing invented.
+PLACEMENT_API_VERSION = "qos-binding-placement/v1"
+
 FILES: dict[str, str] = {
     ids.APPLICATION: "application.json",
     ids.CATALOG: "candidates.json",
     ids.ROUTING: "routing.json",
     ids.CONSTRAINTS: "constraints.json",
     ids.OPTIMIZATION: "optimization.json",
+    PLACEMENT: "placement.json",
 }
 
 
@@ -308,6 +324,8 @@ def _candidate(composition: Composition, candidate: Candidate) -> dict[str, Any]
         "provides": _provides(candidate),
         "features": _features(composition, candidate),
     }
+    if candidate.attributes:
+        body["properties"] = dict(sorted(candidate.attributes.items()))
     if candidate.provider is not None:
         body["provider"] = {"resource": ids.CATALOG, "id": candidate.provider}
     return body
@@ -344,7 +362,17 @@ def _catalog(composition: Composition) -> dict[str, Any]:
         ids.CATALOG,
         "CandidateCatalog",
         {
-            "providers": {name: {} for name in providers},
+            "providers": {
+                name: _drop_empty({
+                    "name": composition.providers[name].title
+                    if name in composition.providers
+                    else None,
+                    "properties": dict(sorted(composition.providers[name].properties.items()))
+                    if name in composition.providers and composition.providers[name].properties
+                    else None,
+                })
+                for name in providers
+            },
             "featureBindings": {
                 name: {"resource": ids.APPLICATION, "id": name}
                 for name in sorted(composition.properties)
@@ -487,6 +515,118 @@ def _optimization(composition: Composition) -> dict[str, Any]:
     return _document(composition, ids.OPTIMIZATION, "Optimization", spec)
 
 
+def _reference(resource: str, name: str) -> dict[str, str]:
+    return {"resource": resource, "id": name}
+
+
+def _placement(composition: Composition) -> dict[str, Any] | None:
+    """The Placement document, emitted only when the composition places its candidates.
+
+    Three shapes the lowering erases are deliberately not written: ``defaults``, which it
+    inlines into every demand; ``groups``, which it expands to one demand per candidate;
+    and ``networkMode: symmetric``, whose completion this emitter has already applied, so
+    the list goes out directed. Writing any of them changes the source and not the IR, and
+    a source form the model cannot recover is how an import and an emit stop agreeing.
+
+    Which of this document's lists are ordered was measured rather than assumed, because
+    the corpus answers only half of it -- every package has exactly one capacity rule and
+    one event, so nothing in the gate would notice either way:
+
+    * the **demand** list is **not** digest-visible, so this sorts it by candidate id.
+      That is a canonicalization and not luck: reversing the 44 demands of
+      ``examples/placement/02_stock_market_sample`` leaves its IR digest where it was.
+    * the **network** list **is**, so it goes out exactly as the model holds it.
+    * a **capacity rule**'s position **is**, measured by adding a second rule to
+      ``examples/placement/01_small_placement`` and swapping the two.
+    * the rows of an **event**'s latency list **are**, measured on that package's three.
+    """
+    placement = composition.placement
+    if placement is None:
+        return None
+    spec: dict[str, Any] = {
+        "pools": {
+            pool.id: _drop_empty({
+                "capacity": dict(sorted(pool.capacity.items())),
+                "kind": pool.kind if pool.kind != "generic" else None,
+                "name": pool.name,
+                "properties": dict(sorted(pool.properties.items())) if pool.properties else None,
+            })
+            for pool in placement.pools
+        },
+    }
+    demands = [
+        {
+            "candidate": _reference(ids.CATALOG, candidate.id),
+            "pool": _reference(PLACEMENT, candidate.placement.pool),
+            "resources": dict(sorted(candidate.placement.resources.items())),
+        }
+        for candidate in sorted(composition.candidates, key=lambda item: item.id)
+        if candidate.placement is not None
+    ]
+    if demands:
+        spec["demands"] = demands
+    if placement.network:
+        # Written directed, because the list is already complete. The order is data: both
+        # sorting it and prepending the mirrors move the digest.
+        spec["network"] = [
+            {
+                "from": _reference(PLACEMENT, edge.source),
+                "to": _reference(PLACEMENT, edge.target),
+                "latency": edge.latency,
+            }
+            for edge in placement.network
+        ]
+        spec["networkMode"] = "directed"
+    if placement.events:
+        spec["events"] = {
+            event.id: {
+                "pool": _reference(PLACEMENT, event.pool),
+                "latency": [
+                    {"pool": _reference(PLACEMENT, entry.pool), "latency": entry.latency}
+                    for entry in event.latency
+                ],
+            }
+            for event in placement.events
+        }
+    if placement.transitions:
+        spec["transitions"] = {
+            transition.id: {
+                "from": _endpoint(transition.source),
+                "to": _endpoint(transition.target),
+                "feature": _reference(ids.APPLICATION, transition.feature),
+                "maximum": transition.maximum,
+            }
+            for transition in placement.transitions
+        }
+    if placement.capacity_rules:
+        spec["capacityRules"] = [
+            {"resources": sorted(rule.resources), "scope": rule.scope}
+            for rule in placement.capacity_rules
+        ]
+    if placement.global_latency is not None:
+        latency = placement.global_latency
+        spec["globalLatency"] = {
+            "feature": _reference(ids.APPLICATION, latency.feature),
+            "includeExecution": latency.include_execution,
+            "exclusive": latency.exclusive,
+            "parallel": latency.parallel,
+        }
+    return {
+        "apiVersion": PLACEMENT_API_VERSION,
+        "kind": "Placement",
+        "metadata": {"name": ids.document_name(composition.composition, PLACEMENT)},
+        "spec": spec,
+    }
+
+
+def _endpoint(endpoint: Any) -> dict[str, str]:
+    return _reference(PLACEMENT if endpoint.event else ids.APPLICATION, endpoint.id)
+
+
+def _drop_empty(mapping: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in mapping.items() if value is not None}
+
+
 def _instance(composition: Composition, resources: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """The manifest, declaring exactly the documents that were emitted.
 
@@ -500,6 +640,7 @@ def _instance(composition: Composition, resources: dict[str, dict[str, Any]]) ->
         (ids.APPLICATION, "application"),
         (ids.CATALOG, "candidateCatalog"),
         (ids.ROUTING, "candidateCatalog"),
+        (PLACEMENT, "candidateCatalog"),
         (ids.CONSTRAINTS, "constraintSet"),
         (ids.OPTIMIZATION, "optimization"),
     ):
@@ -532,6 +673,9 @@ def documents(composition: Composition) -> dict[str, dict[str, Any]]:
     constraints = _constraints(composition)
     if constraints is not None:
         emitted[ids.CONSTRAINTS] = constraints
+    placement = _placement(composition)
+    if placement is not None:
+        emitted[PLACEMENT] = placement
     return emitted
 
 

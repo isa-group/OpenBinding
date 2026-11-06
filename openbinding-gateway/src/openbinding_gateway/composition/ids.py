@@ -26,7 +26,9 @@ import re
 #: 83 corpus packages use these five -- the exception is the toolchain's own example
 #: fixture -- so they are normative here rather than conventional. Naming the catalog
 #: anything else yields a semantically identical package with a different digest and no
-#: hint why. A placement resource, which this version cannot express, is a sixth id.
+#: hint why. A placement resource is a sixth id, and this version does express it: its own
+#: name lives in ``emit.PLACEMENT`` because the document belongs to a dialect rather than
+#: to ``qos-binding/v1``, not because the language has no home for it.
 APPLICATION = "application"
 CATALOG = "catalog"
 ROUTING = "routing"

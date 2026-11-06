@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+from dataclasses import fields, replace
 from decimal import Decimal
 from pathlib import Path
 
@@ -32,9 +33,14 @@ from openbinding_gateway.composition.model import (
     Exclusive,
     FixedTask,
     Goal,
+    NetworkEdge,
     Normalize,
     OpenTask,
     Parallel,
+    Placement,
+    Pool,
+    PoolDemand,
+    PricingRef,
     Property,
     Provider,
     Rule,
@@ -90,20 +96,30 @@ def gate() -> list[str]:
         spec.loader.exec_module(module)
     finally:
         sys.modules.pop("_gate_for_diff", None)
-    members, _excluded, _unrecorded = module.gate(REPO_ROOT)
+    members, _unrecorded = module.gate(REPO_ROOT)
     return members
 
 
 def test_a_package_against_itself_has_no_changes(gate: list[str]) -> None:
-    """What makes an empty diff evidence rather than a shrug."""
-    from openbinding_gateway.composition.read import import_bim
+    """What makes an empty diff evidence rather than a shrug.
+
+    The gate is the whole corpus now, so this runs over the placement packages too -- and
+    over the one whose workflow is BPMN, which is why the compiler is passed in: that
+    package is read by delegation (specification section 5.4).
+    """
+    from bim_core import compile_instance  # noqa: PLC0415
+    from bim_core.package import InstancePackage  # noqa: PLC0415
+
+    from openbinding_gateway.composition.read import import_bim  # noqa: PLC0415
+
+    def compile(files: dict[str, bytes]) -> dict:
+        return compile_instance(InstancePackage(files)).document
 
     noisy = []
     for package in gate:
         directory = Path(REPO_ROOT / package)
-        model = import_bim(
-            {entry.name: entry.read_bytes() for entry in directory.iterdir() if entry.is_file()},
-        )
+        files = {entry.name: entry.read_bytes() for entry in directory.iterdir() if entry.is_file()}
+        model = import_bim(files, compile=compile)
         changes = diff(model, model)
         if changes:
             noisy.append(f"{package}: {[c.subject for c in changes][:5]}")
@@ -120,7 +136,7 @@ def test_a_moved_normalization_range_is_reported() -> None:
 
 
 def test_clamp_alone_is_a_change() -> None:
-    """Five of the gate's 243 criteria do not clamp, and clamping is not a rendering."""
+    """Eight of the gate's 266 criteria do not clamp, and clamping is not a rendering."""
     after = _base(goals=(Goal("cost", normalize=Normalize(0.0, 10000.0, clamp=False)),))
     changes = diff(_base(), after)
     assert _subjects(changes) == [("goals", "cost.normalize", "changed")]
@@ -335,3 +351,148 @@ def test_a_choice_that_gained_a_branch_says_so() -> None:
     subjects = _subjects(diff(two, three))
     assert ("workflow", "choice.branches", "changed") in subjects
     assert ("workflow", "choice.branch[1].probability", "changed") in subjects
+
+
+# ------------------------------------------------- every field reaches the change list
+
+
+#: One mutation per field of ``Composition``, keyed by field name. The table is asserted
+#: complete against the dataclass, so a field added to the model fails this test until
+#: somebody decides how the diff reports it.
+#:
+#: That guard is here because its absence already cost something: ``placement`` was added
+#: to the model and the diff kept its eight sections, so two compositions differing only in
+#: where their candidates run compared **equal** -- and the endpoint's ``identical`` said
+#: so. An empty change list is only evidence that nothing moved if every field can move it.
+COMPOSITION_MUTATIONS: dict[str, dict] = {
+    "composition": {"composition": "fleet-two"},
+    "version": {"version": "2.0.0"},
+    "properties": {"properties": {"latency": COST}},
+    "tasks": {
+        "tasks": {
+            "pick": OpenTask(requires="service/pick"),
+            "pay": OpenTask(requires="service/pay"),
+            "ship": OpenTask(requires="service/ship"),
+        },
+    },
+    "workflow": {"workflow": Sequence((TaskNode("pay"), TaskNode("pick")))},
+    "title": {"title": "Fleet"},
+    "description": {"description": "a description"},
+    "pricing": {"pricing": PricingRef(href="https://sphere.score.us.es/faked/x.yaml")},
+    "providers": {"providers": {"telco": Provider(title="Telco")}},
+    "candidates": {
+        "candidates": (
+            Candidate(id="c_pick", provides="service/pick", properties={"cost": 11.0}),
+            Candidate(id="c_pay", provides="service/pay", properties={"cost": 20.0}),
+        ),
+    },
+    "rules": {"rules": (Rule(id="r1", assertion="cost <= 100"),)},
+    "goals": {"goals": (Goal("cost", normalize=Normalize(0.0, 9999.0)),)},
+    "placement": {
+        "placement": Placement(
+            pools=(Pool(id="edge", capacity={"cpu": 4.0}),),
+            network=(NetworkEdge(source="edge", target="edge", latency=0.0),),
+        ),
+    },
+    "studio": {"studio": {"tags": ["one"]}},
+}
+
+#: The same for the two nested records a candidate carries, which is where two of the
+#: gate's packages were losing values: a provider's name and a candidate's own map.
+CANDIDATE_MUTATIONS: dict[str, dict] = {
+    "id": {"id": "c_other"},
+    "provides": {"provides": ("service/pick", "service/pay")},
+    "properties": {"properties": {"cost": 99.0}},
+    "provider": {"provider": "telco"},
+    "title": {"title": "A candidate"},
+    "attributes": {"attributes": {"description": "an original fog node"}},
+    "placement": {"placement": PoolDemand(pool="edge", resources={"cpu": 0.5})},
+    "domain": {"domain": "quantum"},
+}
+
+
+def test_the_mutation_tables_cover_the_model() -> None:
+    """The table is the test: an uncovered field is a field the diff may be blind to."""
+    assert {f.name for f in fields(Composition)} == set(COMPOSITION_MUTATIONS)
+    assert {f.name for f in fields(Candidate)} == set(CANDIDATE_MUTATIONS)
+
+
+@pytest.mark.parametrize("field_name", sorted(COMPOSITION_MUTATIONS))
+def test_every_composition_field_reaches_the_change_list(field_name: str) -> None:
+    before = _base()
+    after = _base(**COMPOSITION_MUTATIONS[field_name])
+    assert after != before, f"the mutation for {field_name} changes nothing"
+    from openbinding_gateway.composition.diff import SECTIONS  # noqa: PLC0415
+
+    changes = diff(before, after)
+    assert changes, f"a change in {field_name} is reported nowhere"
+    assert all(change.section in SECTIONS for change in changes)
+
+
+@pytest.mark.parametrize("field_name", sorted(CANDIDATE_MUTATIONS))
+def test_every_candidate_field_reaches_the_change_list(field_name: str) -> None:
+    first = _base().candidates[0]
+    before = _base()
+    after = _base(
+        candidates=(replace(first, **CANDIDATE_MUTATIONS[field_name]), _base().candidates[1]),
+    )
+    assert after != before, f"the mutation for {field_name} changes nothing"
+    assert diff(before, after), f"a change in a candidate's {field_name} is reported nowhere"
+
+
+def test_a_provider_s_own_map_is_not_reported_as_a_title() -> None:
+    """It reaches the IR, so it is a change in the problem and needs its own subject."""
+    before = _base(providers={"telco": Provider(title="Telco")})
+    after = _base(providers={"telco": Provider(title="Telco", properties={"tier": "edge"})})
+    subjects = _subjects(diff(before, after))
+    assert ("candidates", "provider telco.properties.tier", "changed") in subjects
+    assert not [s for s in subjects if s[1] == "provider telco.title"], (
+        "reporting it under the title would have printed None -> None"
+    )
+
+
+def test_a_moved_demand_is_reported_in_the_placement_section() -> None:
+    """The candidate is where it is written; where it runs is a placement change."""
+    pools = (Pool(id="edge", capacity={"cpu": 4.0}), Pool(id="cloud", capacity={"cpu": 64.0}))
+    here = _base(
+        placement=Placement(pools=pools),
+        candidates=(
+            replace(_base().candidates[0], placement=PoolDemand(pool="edge")),
+            _base().candidates[1],
+        ),
+    )
+    there = _base(
+        placement=Placement(pools=pools),
+        candidates=(
+            replace(_base().candidates[0], placement=PoolDemand(pool="cloud")),
+            _base().candidates[1],
+        ),
+    )
+    subjects = _subjects(diff(here, there))
+    assert ("placement", "c_pick.demand", "changed") in subjects
+
+
+def test_a_reordered_network_is_one_row_and_not_the_whole_network() -> None:
+    """Two things at once, and the first version of this test got the first one wrong.
+
+    The network's order **is** in the IR digest -- measured: reversing the network of any
+    placement package moves it -- so two models whose edges differ only in order are two
+    different problems and the diff has to say so. This test first asserted the opposite,
+    that such a pair compares equal, which would have made ``identical`` lie on the
+    endpoint. The empty change list is the one verdict that must never be reachable from
+    two unequal models.
+
+    The second half is still the original point: the report is **one** row about the order,
+    not one row per edge. The per-edge rows stay keyed by their endpoints, so a mirror
+    appended by the symmetric completion moves nothing after it.
+    """
+    pools = (Pool(id="edge", capacity={"cpu": 4.0}), Pool(id="cloud", capacity={"cpu": 64.0}))
+    forward = NetworkEdge(source="edge", target="cloud", latency=25.0)
+    back = NetworkEdge(source="cloud", target="edge", latency=25.0)
+    one = Placement(pools=pools, network=(forward, back))
+    other = Placement(pools=pools, network=(back, forward))
+    assert one != other, "the tuples differ, which is the point"
+
+    changes = _subjects(diff(_base(placement=one), _base(placement=other)))
+    assert ("placement", "network order", "moved") in changes
+    assert len(changes) == 1, f"one row about the order, not one per edge: {changes}"

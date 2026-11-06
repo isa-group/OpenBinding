@@ -1,9 +1,15 @@
 """The phase F1 gate is a named set of packages, and this test is where it is named.
 
 Specification section 11.2 settles what "the demo examples" could not: the gate is the live
-normalized golden's own package set, minus the packages that declare a Placement resource.
-Everything here recomputes that set from the repository rather than restating a number, so
-the test fails when the tree moves rather than when somebody edits a constant.
+normalized golden's own package set -- all of it, with no exclusions. Everything here
+recomputes that set from the repository rather than restating a number, so the test fails
+when the tree moves rather than when somebody edits a constant.
+
+The gate carried seven exclusions while Placement had no home in the model, and the seven
+were said to share that one reason. They did not: two were held out by a single missing
+field each and one by its BPMN workflow, which is why this file still recomputes which
+packages declare a Placement resource. That set is a fact about the tree and section 11.2's
+table names it; it is simply no longer a gate boundary.
 
 Two further things it pins, both of which the gate forced into the language:
 
@@ -12,8 +18,9 @@ Two further things it pins, both of which the gate forced into the language:
 * a property may declare ``scope``, which the model has typed from the first commit while
   section 12 claimed it was inexpressible.
 
-A failure here is a decision, not a regression. A new package in the tree means somebody
-has to put it in the gate or in the exclusion list, and say which in the specification.
+A failure here is a decision, not a regression. A new package in the tree is a new member
+of the gate, and if it cannot round trip then either the language grows or the
+specification says why -- there is no exclusion list left to put it on.
 """
 
 from __future__ import annotations
@@ -28,10 +35,12 @@ import pytest
 from _repo import REPO_ROOT
 from openbinding_gateway import composition
 
-#: Section 11.2's gate, as arithmetic rather than as a number: these two must add up to the
-#: golden's own ``packageCount``, so no row of this file can drift on its own.
-GATE_SIZE = 75
-EXCLUDED = (
+#: Section 11.2's gate: the golden's own ``packageCount``, with nothing subtracted.
+GATE_SIZE = 82
+#: The packages that declare a Placement resource. They were the gate's exclusion list and
+#: are now ordinary members; the tuple stays because section 11.2's table names them and a
+#: change in the set is a change the specification has to record.
+PLACEMENT_PACKAGES = (
     "engines/minizinc-csp/tests/fixtures/placement",
     "examples/demo/15_bpmn_complete",
     "examples/demo/16_json_complete",
@@ -48,12 +57,17 @@ NOT_A_TARGET = "bim-toolchain/packages/bim-core/tests/fixtures/example-package"
 NORMALIZED_CORPUS = REPO_ROOT / "bim-toolchain" / "golden" / "bim_normalized" / "corpus.json"
 
 #: Packages whose criterion range is not the domain of the property it reads, measured over
-#: the whole walk. Seven declare a Placement resource and leave by that door; the other
-#: seven are why ``Goal.normalize`` exists.
+#: the whole walk. All 14 are inside the gate now: seven were the Placement ones, which is
+#: why the old count of this said seven. They are why ``Goal.normalize`` exists.
 RANGE_OVERRIDE_PACKAGES = 14
-RANGE_OVERRIDE_INSIDE_THE_GATE = 7
-#: The gate if a goal could only ever normalize over the domain, and if ``scope`` stayed
-#: unwritten: section 11.2 records the 68 -> 74 -> 75 chain.
+#: Packages that read ``scope: selectedCandidate``. Six of the seven declare a Placement
+#: resource, which is why the measurement taken inside the gate of 75 found one.
+SCOPE_PACKAGES = 7
+#: The gate if ``scope`` stayed unwritten but a goal could override the range.
+GATE_SIZE_WITHOUT_SCOPE = 75
+#: The gate if a goal could only ever normalize over the domain: 82 - 14. The number is
+#: unchanged from when the gate was 75 - 7, because the seven offenders then outside it
+#: were exactly the Placement ones. Section 11.2 records the chain.
 GATE_WITHOUT_RANGE_OVERRIDE = 68
 
 
@@ -103,6 +117,15 @@ def _criteria_and_features(package: str) -> tuple[list, dict]:
     return list(opt["spec"].get("criteria") or []), features
 
 
+def _reads_scope(package: str) -> bool:
+    """Whether any feature of the package declares ``scope: selectedCandidate``."""
+    _criteria, features = _criteria_and_features(package)
+    return any(
+        isinstance(body, dict) and body.get("scope") == "selectedCandidate"
+        for body in features.values()
+    )
+
+
 def _range_is_the_domain(criterion: dict, features: dict) -> bool:
     feature = criterion.get("feature")
     name = feature if isinstance(feature, str) else (feature or {}).get("id")
@@ -115,18 +138,18 @@ def _range_is_the_domain(criterion: dict, features: dict) -> bool:
     return normalize["min"] == domain.get("minimum") and normalize["max"] == domain.get("maximum")
 
 
-def test_the_gate_is_the_golden_minus_placement(corpus: dict) -> None:
-    """The exclusion list is recomputed, so it cannot quietly stop matching the tree."""
+def test_the_gate_is_the_whole_golden(corpus: dict) -> None:
+    """Nothing is subtracted, and the placement set is recomputed rather than restated."""
     packages = sorted(corpus["packages"])
-    excluded = sorted(name for name in packages if _declares_placement(name))
-    assert excluded == sorted(EXCLUDED), (
+    assert len(packages) == GATE_SIZE == corpus["packageCount"]
+
+    declaring = sorted(name for name in packages if _declares_placement(name))
+    assert declaring == sorted(PLACEMENT_PACKAGES), (
         "the packages declaring a Placement resource are no longer the ones section 11.2 "
-        "names; the gate's exclusion list has to be re-decided, not re-sorted"
+        "names; the table there has to be re-measured, not re-sorted"
     )
-    assert len(packages) - len(excluded) == GATE_SIZE
-    assert GATE_SIZE + len(EXCLUDED) == corpus["packageCount"], (
-        "the gate and its exclusions no longer add up to the golden's own count"
-    )
+    # The point of the change: they are members.
+    assert set(PLACEMENT_PACKAGES) <= set(packages)
 
 
 def test_the_walk_and_the_golden_agree_on_one_name(corpus: dict) -> None:
@@ -145,16 +168,24 @@ def test_the_walk_and_the_golden_agree_on_one_name(corpus: dict) -> None:
 
 
 def test_a_goal_can_override_the_criterion_range(corpus: dict) -> None:
-    """Seven packages inside the gate need this field, and these are they."""
+    """Fourteen packages need this field, all of them inside the gate."""
     offenders = []
     for package in sorted(corpus["packages"]):
         criteria, features = _criteria_and_features(package)
         if any(not _range_is_the_domain(item, features) for item in criteria if isinstance(item, dict)):
             offenders.append(package)
     assert len(offenders) == RANGE_OVERRIDE_PACKAGES
-    inside = [name for name in offenders if name not in EXCLUDED]
-    assert len(inside) == RANGE_OVERRIDE_INSIDE_THE_GATE, f"inside the gate: {inside}"
-    assert GATE_SIZE - len(inside) == GATE_WITHOUT_RANGE_OVERRIDE
+    assert set(offenders) <= set(corpus["packages"]), "every offender is a gate member now"
+    assert GATE_SIZE - len(offenders) == GATE_WITHOUT_RANGE_OVERRIDE
+
+    # The two fields the gate forced in do not cover disjoint packages: every package that
+    # reads ``scope`` is already one that overrides the range, so writing ``scope`` alone
+    # would lift nothing. That nesting is what makes section 11.2's arithmetic a chain
+    # (82 - 14 = 68, then 82 - 7 = 75, then 82) rather than two independent subtractions.
+    scoped = {name for name in sorted(corpus["packages"]) if _reads_scope(name)}
+    assert len(scoped) == SCOPE_PACKAGES, f"reading scope: {sorted(scoped)}"
+    assert scoped <= set(offenders), f"a scope reader that is not a range offender: {scoped - set(offenders)}"
+    assert GATE_SIZE - len(scoped) == GATE_SIZE_WITHOUT_SCOPE
 
     goal = composition.Goal("security", normalize=composition.Normalize(1.0, 4.0))
     assert (goal.normalize.minimum, goal.normalize.maximum) == (1.0, 4.0)

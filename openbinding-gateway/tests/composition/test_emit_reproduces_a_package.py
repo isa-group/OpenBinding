@@ -14,7 +14,7 @@ digest is what proves the Studio's values are the container's. It also omits ``c
 its criterion, which the container reads as **false** -- the single rule that, written the
 obvious way, loses this very package.
 
-Step 2 generalizes this to the whole 75-package gate through an importer. This file stays
+Step 2 generalizes this to the whole 82-package gate through an importer. This file stays
 at one package on purpose: when the gate run fails, this test says whether the emitter or
 the importer is at fault.
 """
