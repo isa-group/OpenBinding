@@ -3466,6 +3466,97 @@
         "title": "CollectionView",
         "type": "object"
       },
+      "CompositionChange": {
+        "additionalProperties": false,
+        "description": "One difference, in the terms the author wrote rather than the ones the package has.",
+        "properties": {
+          "kind": {
+            "description": "added, removed, changed, renamed or moved. The last two exist so the first three mean something: without them every rename is a removal plus an addition.",
+            "title": "Kind",
+            "type": "string"
+          },
+          "now": {
+            "title": "Now"
+          },
+          "section": {
+            "description": "One of: identity, properties, tasks, workflow, candidates, rules, goals, studio.",
+            "title": "Section",
+            "type": "string"
+          },
+          "subject": {
+            "description": "What the change is about: an id, or an id and a field.",
+            "title": "Subject",
+            "type": "string"
+          },
+          "was": {
+            "title": "Was"
+          }
+        },
+        "required": [
+          "section",
+          "subject",
+          "kind"
+        ],
+        "title": "CompositionChange",
+        "type": "object"
+      },
+      "CompositionDiffRequest": {
+        "additionalProperties": false,
+        "description": "Two Composition2Yaml documents, as the author writes them.",
+        "properties": {
+          "after": {
+            "description": "The later composition, as YAML source.",
+            "minLength": 1,
+            "title": "After",
+            "type": "string"
+          },
+          "before": {
+            "description": "The earlier composition, as YAML source.",
+            "minLength": 1,
+            "title": "Before",
+            "type": "string"
+          }
+        },
+        "required": [
+          "before",
+          "after"
+        ],
+        "title": "CompositionDiffRequest",
+        "type": "object"
+      },
+      "CompositionDiffResponse": {
+        "additionalProperties": false,
+        "description": "What changed, and nothing about how it is rendered.",
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionChange"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "How many changes each section holds, including the sections with none.",
+            "title": "Counts",
+            "type": "object"
+          },
+          "identical": {
+            "description": "True when the two compositions are the same model. An empty change list means this and not that the comparison was shallow: the diff of any package in the phase F1 gate against itself is empty.",
+            "title": "Identical",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "identical",
+          "changes",
+          "counts"
+        ],
+        "title": "CompositionDiffResponse",
+        "type": "object"
+      },
       "ContractRef": {
         "additionalProperties": false,
         "properties": {
@@ -12402,6 +12493,48 @@
         "x-api-key-engine-access": "exact-revision-allow-list-or-all",
         "x-required-api-key-permissions": [
           "engines:read"
+        ]
+      }
+    },
+    "/v1/compositions/diff": {
+      "post": {
+        "description": "Compare two Composition2Yaml documents and return the typed change list.\n\nNothing is read from or written to storage, so no account is required: the request\ncarries both operands and the response is a pure function of them.",
+        "operationId": "diffCompositions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionDiffRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionDiffResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "One of the two documents is not a composition."
+          }
+        },
+        "summary": "Compare two compositions",
+        "tags": [
+          "Compositions"
         ]
       }
     },

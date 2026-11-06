@@ -285,6 +285,12 @@ properties:
 explicit neutral values of section 10 and is recorded in provenance. It does not reach
 the IR.
 
+It is matched against the **candidate's own** `domain`, which takes the same three values
+and defaults to `all` as well -- a candidate, or a fixed task, declares which kind of
+solver it is, and a property declares which kind it is meaningful for. The two meet in
+exactly one place, section 10.2, and nowhere else. Every candidate in the corpus is `all`,
+which is why the pair costs no digest.
+
 ## 4. Tasks
 
 A task is a step of the composition that the workflow invokes. There are exactly three
@@ -403,15 +409,21 @@ workflow:
         - {task: O}
         - {task: F}
         - {task: D}
-    - {task: L_filter}
+    - {task: L}
     - {task: T}
     - exclusive:
         id: solver_choice
         branches:
           - {probability: 0.8, flow: {task: C}}
           - {probability: 0.2, flow: {task: Q}}
-    - {task: L_validate}
+    - {task: L}
 ```
+
+`L` appears twice on purpose, and it is one task placed twice rather than two tasks. That
+is what the container calls shared candidates: both positions bind to the *same* selected
+candidate, which is the right reading when one compliance service is consulted twice.
+Declaring `L_filter` and `L_validate` instead would let the solver pick two different
+providers for what the architecture has as one service.
 
 | Composition2Yaml | container node |
 | --- | --- |
@@ -534,6 +546,47 @@ branch labels retroactively -- and branch ids live in the application's workflow
 the IR digest does not strip, so every existing composition's digest would move -- or
 addressing branches by position, which breaks the moment one is reordered.
 
+### 5.4 A BPMN workflow is read by delegation
+
+The Studio parses no BPMN. The reduction of BPMN 2.0.2 to the four blocks already exists,
+is validated against the five vendored OMG schemas and is exercised by the corpus, so the
+Studio builds a package whose workflow is a `bpmn` reference, hands it to the compiler, and
+lifts the **already reduced** workflow out of the IR. Two reducers that must agree forever
+would not.
+
+The lift is a conversion rather than a copy, because the IR's workflow is not shaped like a
+source document's: it writes `{kind: sequence, steps: [...]}` where a source writes
+`{sequence: [...]}`. That is the one place the Studio reads the IR's node shapes, and an
+unknown node kind is refused rather than dropped -- a workflow that quietly lost a block
+would compile to a different problem with no diagnostic.
+
+**The compile is injected, not imported.** The composition library may not reach into the
+toolchain: the gateway has exactly one door to BIM and a boundary test enforces that
+nothing else imports the language. So the lift takes a callable that turns a package's
+files into an IR document, and the caller supplies it -- a test the in-process compiler, a
+route the port. That is not only hygiene: under the deployment where the gateway delegates
+to a remote service, the compiler is not in this process at all, so a lift that imported it
+would work on one deployment and fail on the other. It is also what keeps this layer
+liftable into a distribution of its own, which the architecture test already pins.
+
+Two things worth knowing before trusting a lifted workflow:
+
+- **It is the flattened tree, not the author's.** The container flattens a nested sequence
+  while canonicalizing, so a lifted workflow can differ structurally from the source
+  document it came from while compiling to the same problem. This is the same rule that
+  stops the Studio pre-flattening anything of its own (section 11).
+- **A branch id survives; the rest of the diagram does not.** A reduced exclusive carries
+  the BPMN sequence flow's id -- `Flow_Cache`, not `{stem}_branch_1` -- which is precisely
+  why an imported composition keeps branch ids verbatim instead of deriving them.
+
+One asymmetry to expect when comparing a BPMN package with a hand-written twin: the
+routing overlay targets **the resource where the branch ids are declared**, which is the
+diagram for a BPMN workflow and the application for a JSON one. The IR does not distinguish
+them. `examples/demo/15_bpmn_complete` and `examples/demo/16_json_complete` differ in
+exactly that way and compile to the same IR digest, which is what makes them this version's
+oracle for the lift -- and they are both outside the gate of section 11.2, since they
+declare a Placement resource, so the lift needs that oracle rather than the gate.
+
 ## 6. Candidates
 
 ```yaml
@@ -551,6 +604,19 @@ candidates:
 Each row becomes one entry of `CandidateCatalog.spec.candidates`, with `provides` copied
 verbatim and `properties` becoming `features`. `featureBindings` is emitted as the
 identity mapping from each property id to the Application feature of the same name.
+
+`provides` takes **one capability or a list of them**, and the list is ordered: it is
+visible in the IR in both its order and its multiplicity, so the Studio neither sorts it
+nor removes a repeat (section 11). Exactly one candidate in the whole tree uses the plural
+form -- the `shared` candidate of `examples/demo/14_shared_candidates`, which offers three
+capabilities at once and is also the only gate package reading
+`scope: selectedCandidate`. One candidate serving three tasks is what the package's name
+means, and the two features go together: the scope is what charges it once rather than
+three times.
+
+A candidate's `title` and a provider's are Studio-side. The catalog has no slot for either
+-- writing a `name` under a candidate or a provider moves the IR digest and no package in
+the gate carries one -- so they stay in provenance with the rest of the Studio's own data.
 
 Open tasks draw their rows from a pricing, from a SPHERE collection or from hand-written
 rows; which source is used is phase F4 and does not change this translation.
@@ -596,7 +662,7 @@ goals:
 ```
 
 Each goal becomes one entry of `Optimization.spec.criteria`, as
-`{id, feature: {resource: "application", id}, normalize: {min, max, clamp: true}}`.
+`{id, feature: {resource: "application", id}, normalize: {min, max, clamp}}`.
 
 **The criterion's id is the property name.** The container requires an id and reads it
 from the source, so it is visible in the IR and renaming it moves the digest. No
@@ -623,7 +689,17 @@ anyway. The other **seven are inside it**: `examples/demo/01_simple_seq`,
 `03_xor_choice`, `14_shared_candidates`, the three `17`/`18`/`19` analysis demos -- the
 ones the Studio exists to drive -- and one ICWS instance. Without this field the gate of
 section 11.2 would be 68 of 82 rather than 75, and six of the seven are lifted by this
-field alone. `clamp` is not exposed: every criterion in the corpus clamps.
+field alone.
+
+`clamp` **is** exposed, and the reason is a container default that runs the other way from
+the obvious reading: the schema declares `clamp` with `default: false` and the compiler
+reads `normalize.get("clamp", False)`, so a criterion that omits the key does **not** clamp.
+238 of the gate's 243 criteria clamp and five do not -- in `examples/demo/01_simple_seq`,
+`03_xor_choice` and one ICWS instance -- so a goal that could not say `false` would miss
+three of the 75 packages, while one that always said `false` would miss the other 72. It
+defaults to `true` here, because that is what a goal written from scratch wants. There is no
+need to express the key's *absence*: the IR always carries an explicit boolean, and an
+omitted key and an explicit `false` compile to the same IR digest.
 
 Weights, scalarization and objective type are **not** part of a composition. They are
 execution-request parameters, chosen per analysis run, and a composition that fixed them
@@ -720,7 +796,9 @@ and for a `min` property the domain maximum does not constrain the minimum.
 ### 10.3 Provenance
 
 Provenance is written to `provenance.json` **beside** the package and is never declared
-as a resource:
+as a resource. The file holds `{"substitutions": [...]}` -- a list, because one package can
+substitute many values and a file holding a single record cannot grow -- and each record
+is shaped like this:
 
 ```json
 {"task": "C", "candidate": "cand_c_inhouse", "property": "qubit_count",
@@ -747,8 +825,13 @@ any of this machinery — it reuses the container's:
   emitted document surfaces as a compile error rather than as a flaky test.
 - **Maps are emitted in sorted key order**: providers, feature bindings, candidates,
   tasks, properties, constraints, resources.
-- **Lists keep author order verbatim**: criteria, penalties, routing entries, and every
-  `sequence`, `parallel` and `exclusive` list.
+- **Lists keep author order verbatim**: criteria, penalties, routing entries, a
+  candidate's `provides`, and every `sequence`, `parallel` and `exclusive` list. Two of
+  those are easy to think of as sets and are not. A candidate's `provides` is visible in
+  the IR in its order *and* its multiplicity, so it is never sorted and never deduplicated.
+  And a `parallel` block's children are ordered in the digest even though the block's
+  meaning is not: 27 of the 29 gate packages that contain one hold children that are not in
+  id order.
 - **Nested sequences are not pre-flattened.** The container canonicalizes them; doing it
   twice, differently, is how an import and an emit stop agreeing.
 - **Resource ids are normative**, because they appear in the IR: `application`,
@@ -1046,7 +1129,6 @@ tasks:
   L: {open: true, requires: service/L, title: Driver and Labor Compliance}
   T: {open: true, requires: service/T, title: Distance and Travel Time}
   Q: {open: true, requires: service/Q, title: Quantum Routing Solver}
-  M: {open: true, requires: service/M, title: Telemetry and Tracking}
   C:
     fixed:
       title: Classical Routing Solver
@@ -1066,7 +1148,7 @@ workflow:
         branches:
           - {probability: 0.8, flow: {task: C}}
           - {probability: 0.2, flow: {task: Q}}
-    - {task: M}
+    - {task: L}                       # the same task again, not a second one
 
 candidates:
   providers:

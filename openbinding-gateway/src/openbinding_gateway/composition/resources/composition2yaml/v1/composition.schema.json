@@ -317,6 +317,14 @@
         },
         "properties": {
           "$ref": "#/$defs/propertyValues"
+        },
+        "domain": {
+          "description": "Which kind of solver this is, matched against a property's applies_to. A Studio concept with no counterpart in the container: it decides where section 10.2's neutral is substituted.",
+          "enum": [
+            "all",
+            "classical",
+            "quantum"
+          ]
         }
       }
     },
@@ -545,8 +553,21 @@
           "$ref": "#/$defs/symbol"
         },
         "provides": {
-          "type": "string",
-          "minLength": 1
+          "description": "One capability type, or several. The list is visible in the IR in its order and its multiplicity, so it is never sorted and never deduplicated.",
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          ]
         },
         "provider": {
           "$ref": "#/$defs/symbol"
@@ -556,6 +577,14 @@
         },
         "properties": {
           "$ref": "#/$defs/propertyValues"
+        },
+        "domain": {
+          "description": "Which kind of solver this is, matched against a property's applies_to. A Studio concept with no counterpart in the container: it decides where section 10.2's neutral is substituted.",
+          "enum": [
+            "all",
+            "classical",
+            "quantum"
+          ]
         }
       }
     },
@@ -583,6 +612,10 @@
         "penalty": {
           "type": "number",
           "minimum": 0
+        },
+        "weight": {
+          "description": "How the optimization weighs this rule's penalty, which is a second number independent of the penalty itself: the gate's soft constraints all charge 1 while two are weighed 0.3 and three carry no weight at all. Omit it to write none.",
+          "type": "number"
         }
       },
       "allOf": [
@@ -636,6 +669,11 @@
             },
             "max": {
               "type": "number"
+            },
+            "clamp": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether a value outside the range is pulled to the nearer bound. The container's own default is false, so writing false here reproduces a criterion that omits the key; 5 of the gate's 243 criteria do."
             }
           }
         }

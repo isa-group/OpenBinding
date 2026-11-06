@@ -152,6 +152,10 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/generator/instances", "post"),
         ("/v1/generator/corpus", "post"),
         ("/v1/generator/convert-legacy", "post"),
+        # Like /v1/instances/validate: the response is a pure function of the request, so
+        # there is nothing an account would protect. An API key still needs
+        # instances:read.
+        ("/v1/compositions/diff", "post"),
     }
     for path, method, operation in operations(document):
         if (path, method) in public:

@@ -1,0 +1,139 @@
+# Fleet Management System, version 2 -- the guiding case, authored from scratch.
+#
+# There is no package to reproduce here: version 2 exists in no form in the corpus, which
+# is deliberate. Adding one would move the package counts asserted in fourteen places
+# across three CI jobs, so this version is proved by compiling and by its diff against
+# version 1 rather than against a golden of its own.
+#
+# The architecture is Figure 1 and section 2.2 of Parejo and Ruiz-Cortes, "Operationalizing
+# Quantum Optimization for Multi-Depot Logistics: A Hybrid service-oriented Approach",
+# JISBD 2026 (hdl.handle.net/11705/JISBD/2026/124): nine services in three layers.
+#
+# Two of those nine are deliberately not tasks here, and both follow from the paper:
+#
+#   R, the Route Optimization Orchestrator, IS this composition. What it does -- gathering
+#   the world state, mapping travel times, choosing a solver, validating the result -- is
+#   the workflow below. Section 4.1 of docs/COMPOSITION2YAML.md is the rule.
+#
+#   M, Telemetry & Tracking, is the loop around the plan and not a step in it. The paper
+#   puts it in its own Execution Layer sending real-time updates to R, monitoring *during*
+#   execution so that R can trigger re-optimization. Placing it in a parallel block inside
+#   the plan would make its latency aggregate into the planning latency, which is a claim
+#   the architecture does not make.
+
+composition: fleet-management
+version: "2.0.0"
+title: Fleet Management System
+description: >-
+  The 24-hour planning job of the hybrid fleet management system: gather the logistics
+  world state, map travel times, choose between the classical and the quantum solver, and
+  validate the result against compliance.
+
+pricing: https://sphere.score.us.es/faked/fleet-management/2026-01.yaml
+
+properties:
+  cost:
+    template: cost
+    unit: USD/month
+    domain: {min: 0, max: 10000}
+  latency:
+    template: latency
+    unit: ms
+    domain: {min: 0, max: 20000}
+  availability:
+    template: availability
+  reliability:
+    template: reliability
+
+tasks:
+  # The data layer. Each is bought on the market, so each is an open task.
+  D: {open: true, requires: service/D}      # Depot
+  O: {open: true, requires: service/O}      # Order and Demand
+  F: {open: true, requires: service/F}      # Fleet Assets
+  L: {open: true, requires: service/L}      # Driver and Labor Compliance
+  T: {open: true, requires: service/T}      # Distance and Travel Time
+  Q: {open: true, requires: service/Q}      # Quantum Routing Solver
+  # The classical solver is run by the owner and its consumption is charged, so it is a
+  # fixed task with real values rather than a local one: version 1 modelled the same
+  # component as local, which asserts it is free, instantaneous and perfectly available.
+  C:
+    fixed:
+      provider: inhouse
+      properties: {cost: 0, latency: 800, availability: 0.999, reliability: 0.999}
+
+workflow:
+  sequence:
+    # Phase 1, context aggregation: the world state, gathered at once and filtered by
+    # compliance. The parallel block's child order is visible in the digest even though
+    # the block's meaning is not, so it is written in the paper's own order.
+    - parallel:
+        - {task: O}
+        - {task: F}
+        - {task: D}
+    - {task: L}
+    # Phase 2, spatial-temporal mapping.
+    - {task: T}
+    # Phase 3, hybrid governance and solving. The distribution is this composition's
+    # default and a binding scenario may override it over the same branch labels.
+    - exclusive:
+        id: solver_choice
+        branches:
+          - probability: 0.8
+            condition: the instance is small enough for the classical solver
+            flow: {task: C}
+          - probability: 0.2
+            condition: the instance is large enough to be worth a quantum run
+            flow: {task: Q}
+    # Phase 4, validation and dispatch. L again -- the SAME task placed a second time, not
+    # a second task: both positions bind to the same selected candidate, which is what the
+    # architecture means by one compliance service consulted twice. Two tasks would let the
+    # solver pick two different providers for one service.
+    - {task: L}
+
+candidates:
+  providers:
+    inhouse: {title: In house}
+    depotly: {title: Depotly}
+    orderflow: {title: OrderFlow}
+    fleetiq: {title: FleetIQ}
+    complyr: {title: Complyr}
+    here: {title: HERE}
+    ibm: {title: IBM Quantum}
+  rows:
+    - id: cand_d_depotly
+      provides: service/D
+      provider: depotly
+      properties: {cost: 80, latency: 120, availability: 0.999, reliability: 0.998}
+    - id: cand_o_orderflow
+      provides: service/O
+      provider: orderflow
+      properties: {cost: 150, latency: 200, availability: 0.998, reliability: 0.997}
+    - id: cand_f_fleetiq
+      provides: service/F
+      provider: fleetiq
+      properties: {cost: 110, latency: 180, availability: 0.999, reliability: 0.998}
+    - id: cand_l_complyr
+      provides: service/L
+      provider: complyr
+      properties: {cost: 220, latency: 260, availability: 0.997, reliability: 0.999}
+    - id: cand_t_here
+      provides: service/T
+      provider: here
+      properties: {cost: 120, latency: 300, availability: 0.999, reliability: 0.998}
+    - id: cand_q_ibm
+      provides: service/Q
+      provider: ibm
+      domain: quantum
+      properties: {cost: 1500, latency: 12000, availability: 0.997, reliability: 0.997}
+
+goals:
+  - property: cost
+  - property: latency
+  - property: availability
+
+studio:
+  tags: [jisbd-2026, hybrid]
+  layers:
+    data: [D, O, F, L, T]
+    optimization: [R, C, Q]       # R is the composition itself, not a task
+    execution: [M]                # M is the loop around the plan, not a step in it

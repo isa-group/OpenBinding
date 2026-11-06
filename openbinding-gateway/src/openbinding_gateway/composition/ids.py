@@ -85,3 +85,20 @@ def document_name(composition: str, resource: str) -> str:
     of one package distinguishable, which is what the corpus does too.
     """
     return f"{composition}_{resource}"
+
+
+def exclusive_stem(first_branch_id: str | None, position: int) -> str:
+    """The id an imported exclusive choice takes, recovered from its branches.
+
+    An exclusive's own id is never emitted -- the branches carry theirs, and an imported
+    composition keeps those verbatim -- but the model requires one, so it has to be derived
+    the same way wherever a package is read: from a source document, or lifted out of a
+    reduced BPMN workflow. Two rules for one derivation give two models for one package,
+    which is a difference no digest would ever show.
+
+    When the branch ids follow the ``{stem}_branch_{n}`` scheme the stem is recovered;
+    otherwise the one-based position in source order stands in for it.
+    """
+    if first_branch_id and first_branch_id.endswith("_branch_1"):
+        return first_branch_id[: -len("_branch_1")]
+    return f"exclusive_{position}"
