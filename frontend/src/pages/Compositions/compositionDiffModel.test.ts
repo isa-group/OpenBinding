@@ -14,7 +14,11 @@ const change = (over: Partial<CompositionChange>): CompositionChange => ({
 
 describe('the categories', () => {
   it('are the composition’s own sections, not the binding case’s five', () => {
-    expect([...COMPOSITION_DIFF_CATEGORIES]).toEqual(['identity', 'properties', 'tasks', 'workflow', 'candidates', 'rules', 'goals', 'studio']);
+    expect([...COMPOSITION_DIFF_CATEGORIES]).toEqual(['identity', 'properties', 'tasks', 'workflow', 'candidates', 'placement', 'rules', 'goals', 'studio']);
+    // Placement arrived with the language's ninth section: a composition that places its
+    // candidates has pools and distances between them, and two versions differing only
+    // there would otherwise be reported as identical.
+    expect(COMPOSITION_DIFF_CATEGORIES).toContain('placement');
     // Resources is the case screen's, and it is empty for a composition: its rows come
     // from library ArtifactRefs and a composition's manifest names files.
     expect(COMPOSITION_DIFF_CATEGORIES).not.toContain('Resources');

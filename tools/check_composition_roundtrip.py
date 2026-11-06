@@ -5,12 +5,16 @@ For each package ``d`` of the gate,
 
     ir_digest(compile(emit(import_bim(d)))) == ir_digest(compile(d))
 
-The gate is defined in ``docs/COMPOSITION2YAML.md`` section 11.2: the package set of the
-live normalized golden, ``bim-toolchain/golden/bim_normalized/corpus.json``, minus the
-packages that declare a Placement resource. Membership comes from the golden file rather
-than from the walk, because the walk's membership is whatever is on disk; the walk's job is
-finding the packages, and a package it finds that the golden does not hold is reported
-rather than silently gated or silently skipped.
+The gate is defined in ``docs/COMPOSITION2YAML.md`` section 11.2: the whole package set of
+the live normalized golden, ``bim-toolchain/golden/bim_normalized/corpus.json``, with no
+exclusions -- the language expresses every package in the corpus. Membership comes from the
+golden file rather than from the walk, because the walk's membership is whatever is on disk;
+the walk's job is finding the packages, and a package it finds that the golden does not hold
+is reported rather than silently gated or silently skipped.
+
+A BPMN workflow is read by delegation, so this passes the compiler to the importer. That is
+the only reason the gate can hold the BPMN package at all, and the reduction it delegates is
+exact: the BPMN package and its JSON twin compile to one IR digest.
 
 This compares the **IR digest**, which strips a document's metadata, so it says nothing
 about bytes. A package's own annotations do not survive a round trip and are not meant to:
@@ -28,10 +32,6 @@ import json
 import sys
 from pathlib import Path
 from typing import Any
-
-#: Section 11.2's exclusion list, by the rule that defines it rather than by name.
-PLACEMENT_RESOURCE = "placement"
-
 
 def _load(path: Path, name: str):
     spec = importlib.util.spec_from_file_location(name, path)
@@ -53,26 +53,15 @@ def _walk(root: Path) -> set[str]:
     }
 
 
-def _declares_placement(root: Path, package: str) -> bool:
-    manifest = json.loads((root / package / "instance.json").read_text(encoding="utf-8"))
-    return any(
-        PLACEMENT_RESOURCE in members
-        for members in manifest["spec"]["resources"].values()
-    )
-
-
-def gate(root: Path) -> tuple[list[str], list[str], list[str]]:
-    """The gate, its exclusions, and the packages the walk finds that the golden lacks."""
+def gate(root: Path) -> tuple[list[str], list[str]]:
+    """The gate, and the packages the walk finds that the golden does not hold."""
     corpus = json.loads(
         (root / "bim-toolchain" / "golden" / "bim_normalized" / "corpus.json").read_text(
             encoding="utf-8",
         ),
     )
     recorded = sorted(corpus["packages"])
-    excluded = [name for name in recorded if _declares_placement(root, name)]
-    members = [name for name in recorded if name not in set(excluded)]
-    unrecorded = sorted(_walk(root) - set(recorded))
-    return members, excluded, unrecorded
+    return recorded, sorted(_walk(root) - set(recorded))
 
 
 def _files(directory: Path) -> dict[str, bytes]:
@@ -89,9 +78,13 @@ def roundtrip(root: Path, package: str) -> dict[str, Any]:
     result: dict[str, Any] = {"package": package, "ok": False}
     try:
         original = _files(root / package)
-        before = ir_digest(compile_instance(InstancePackage(original)).document)
-        composition = import_bim(original)
-        after = ir_digest(compile_instance(InstancePackage(emit(composition))).document)
+
+        def compile(files: dict[str, bytes]) -> dict[str, Any]:
+            return compile_instance(InstancePackage(files)).document
+
+        before = ir_digest(compile(original))
+        composition = import_bim(original, compile=compile)
+        after = ir_digest(compile(emit(composition)))
     except Exception as error:  # noqa: BLE001 - every failure mode is a result, not a crash
         result["error"] = f"{type(error).__name__}: {error}"
         return result
@@ -105,16 +98,15 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--json", action="store_true", help="print the result as a document")
-    parser.add_argument("--expected", type=int, default=75, help="the gate's size")
+    parser.add_argument("--expected", type=int, default=82, help="the gate's size")
     args = parser.parse_args(argv)
 
     root = args.root.resolve()
-    members, excluded, unrecorded = gate(root)
+    members, unrecorded = gate(root)
     results = [roundtrip(root, package) for package in members]
     failed = [item for item in results if not item["ok"]]
     document = {
         "gate": len(members),
-        "excluded": excluded,
         "unrecorded": unrecorded,
         "passed": len(results) - len(failed),
         "failed": failed,
@@ -122,7 +114,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         print(json.dumps(document, indent=2))
     else:
-        print(f"gate: {len(members)} packages, {len(excluded)} excluded for a Placement resource")
+        print(f"gate: {len(members)} packages, the whole corpus")
         if unrecorded:
             print(f"  the walk finds {len(unrecorded)} the golden does not hold: {unrecorded}")
         print(f"round trip: {document['passed']} of {len(members)} reproduce their IR digest")

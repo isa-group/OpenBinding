@@ -3479,7 +3479,7 @@
             "title": "Now"
           },
           "section": {
-            "description": "One of: identity, properties, tasks, workflow, candidates, rules, goals, studio.",
+            "description": "One of: identity, properties, tasks, workflow, candidates, placement, rules, goals, studio.",
             "title": "Section",
             "type": "string"
           },

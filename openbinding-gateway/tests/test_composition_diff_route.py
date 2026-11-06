@@ -64,7 +64,8 @@ async def test_two_identical_compositions_report_no_changes(api_client) -> None:
     assert body["identical"] is True
     assert body["changes"] == []
     assert set(body["counts"]) == {
-        "identity", "properties", "tasks", "workflow", "candidates", "rules", "goals", "studio",
+        "identity", "properties", "tasks", "workflow", "candidates", "placement", "rules",
+        "goals", "studio",
     }
     assert sum(body["counts"].values()) == 0
 

@@ -86,12 +86,16 @@ dataset scripts, and the frontend's own document builder.
   parser reads both and discards them. Absorbing it would mean importing that silent
   discard or rewriting the translation anyway, and it would tie this language to an
   endpoint, a UI tab and a committed API snapshot that have nothing to do with it.
-- **The ICSOC experiment generator: coexist, frozen.** Here absorb is not expensive, it is
-  impossible: every instance it emits carries a Placement resource and a
-  `scope: selectedCandidate` rule, so this version expresses none of them (section 11.2
-  excludes exactly those packages). Its workflow algebra, on the other hand, *is*
-  expressible here, and it already derives branch ids by the same rule. The constraint that
-  matters is its published numbers, not the digests pinned beside them: those digests are a
+- **The ICSOC experiment generator: coexist, frozen.** This bullet first said absorb was
+  not expensive but *impossible*, because every instance it emits carries a Placement
+  resource and a `scope: selectedCandidate` rule. Both of those reasons are gone: `scope`
+  was never inexpressible (section 12 records that correction) and Placement is expressible
+  now (section 6.1), so an instance of this generator is a composition this language can
+  write. The verdict does not change, but the reason has to: absorbing it is possible and
+  still not worth doing, because what matters is its published numbers rather than its
+  expressiveness. Its workflow algebra was always expressible here and it already derives
+  branch ids by the same rule. The numbers are not the digests pinned beside them: those
+  digests are a
   change detector and have been legitimately refreshed for schema migrations, while no
   published figure has ever moved. Saying that out loud matters, because a reader who
   mistakes the digest for the result will refuse a migration the repository has already
@@ -129,6 +133,7 @@ properties: {...}                   # section 3
 tasks: {...}                        # section 4
 workflow: {...}                     # section 5
 candidates: {...}                   # section 6
+placement: {...}                    # section 6.1, optional
 rules: [...]                        # section 7
 goals: [...]                        # section 8
 studio: {...}                       # section 9, inert
@@ -583,9 +588,20 @@ One asymmetry to expect when comparing a BPMN package with a hand-written twin: 
 routing overlay targets **the resource where the branch ids are declared**, which is the
 diagram for a BPMN workflow and the application for a JSON one. The IR does not distinguish
 them. `examples/demo/15_bpmn_complete` and `examples/demo/16_json_complete` differ in
-exactly that way and compile to the same IR digest, which is what makes them this version's
-oracle for the lift -- and they are both outside the gate of section 11.2, since they
-declare a Placement resource, so the lift needs that oracle rather than the gate.
+exactly that way and compile to the same IR digest.
+
+That twin pair is what licenses **importing** a BPMN package, not only probing one. The
+importer delegates the reduction and then emits a JSON workflow, so the package it writes
+back is not the package it read -- the diagram is gone and the workflow is a tree. The two
+compile to one IR digest, measured rather than argued, so the trip is exact at the level
+the gate measures and the BPMN package is a full member of it. What is lost is what
+`ir_digest` already discards: the diagram's own bytes, and with them the layout a modeller
+would want back. Reproducing those needs the opaque passthrough section 9 asks for, and
+until it exists a round trip through the Studio turns a BPMN package into its JSON twin.
+
+The reduction needs a compiler, so `import_bim` takes one: without it a BPMN workflow is
+refused, naming what the caller must pass. The alternative -- a composition whose workflow
+is silently empty -- is the failure this whole section is arranged to prevent.
 
 ## 6. Candidates
 
@@ -607,16 +623,33 @@ identity mapping from each property id to the Application feature of the same na
 
 `provides` takes **one capability or a list of them**, and the list is ordered: it is
 visible in the IR in both its order and its multiplicity, so the Studio neither sorts it
-nor removes a repeat (section 11). Exactly one candidate in the whole tree uses the plural
-form -- the `shared` candidate of `examples/demo/14_shared_candidates`, which offers three
-capabilities at once and is also the only gate package reading
-`scope: selectedCandidate`. One candidate serving three tasks is what the package's name
-means, and the two features go together: the scope is what charges it once rather than
-three times.
+nor removes a repeat (section 11). **Twelve candidates in five packages** use the plural
+form: the three pool candidates of each of `examples/placement/01_small_placement`,
+`examples/placement/04_edge_heavy` and `engines/minizinc-csp/tests/fixtures/placement`, two
+of `examples/placement/03_cloud_only`, and the `shared` candidate of
+`examples/demo/14_shared_candidates`.
 
-A candidate's `title` and a provider's are Studio-side. The catalog has no slot for either
--- writing a `name` under a candidate or a provider moves the IR digest and no package in
-the gate carries one -- so they stay in provenance with the rest of the Studio's own data.
+An earlier version of this paragraph said exactly one, and the error is worth keeping on
+the page because of where it came from: the count was taken over the gate of 75 and written
+about the tree of 82, and four of those five packages were the Placement ones the gate
+excluded. A gate with exclusions makes every measurement taken through it quietly
+conditional. That is a second reason the gate is now the whole corpus, beside the first.
+
+`14_shared_candidates`'s `shared` is the one that is not a placement package. One candidate
+serving three tasks is what the package's name means, and it also reads
+`scope: selectedCandidate`, the two going together: the scope is what charges it once rather
+than three times.
+
+It is not the only package that reads the scope, and saying it was is the same conditional
+measurement again. **Seven of the 82 read it**, and the other six are placement packages --
+so every package in the list above reads it. The old sentence said "the only *gate* package",
+which was true of a gate that excluded them.
+
+A candidate's `title` is Studio-side. The catalog **has** a slot for it -- writing a `name`
+under a candidate moves the IR digest, measured -- but no package in the corpus carries one,
+so writing one would be inventing a value, and it stays in provenance with the rest of the
+Studio's own data. A provider's `title` is a different case and section 6.1 has it: two
+packages carry a provider name, so the emitter writes it.
 
 Open tasks draw their rows from a pricing, from a SPHERE collection or from hand-written
 rows; which source is used is phase F4 and does not change this translation.
@@ -629,6 +662,111 @@ formatting is ever applied to an emitted value.
 Interval values (`{min, max}`) are **refused** by this version: they validate, compile
 and digest, and then fail at dispatch, because every bundled engine mode declares support
 for scalar feature values only.
+
+### 6.1 Where the candidates run
+
+A composition that places its candidates carries a `placement` block and a `placement`
+member on each candidate row. Both are optional and most compositions have neither; the
+seven packages in the corpus that do are what this block was measured against.
+
+```yaml
+candidates:
+  providers:
+    telco: {title: Telco Edge, properties: {region: eu-south}}
+  rows:
+    - id: c_edge
+      provides: [service/ingest, service/score]
+      provider: telco
+      properties: {cost: 12, latency: 4}
+      attributes: {description: Original fog node}     # the container's own map
+      placement: {pool: edge, resources: {cpu: 0.75, memory: 1.5}}
+
+placement:
+  pools:
+    - id: edge
+      kind: edge
+      name: Edge tier
+      capacity: {cpu: 4, memory: 8}
+    - id: cloud
+      capacity: {cpu: 64, memory: 256}
+  network:
+    - {from: edge, to: edge, latency: 0}
+    - {from: edge, to: cloud, latency: 25}
+    - {from: cloud, to: edge, latency: 25}
+  events:
+    - id: client-request
+      pool: edge
+      latency:
+        - {pool: edge, latency: 5}
+        - {pool: cloud, latency: 30}
+  transitions:
+    - {id: client-to-ingest, from: {event: client-request}, to: ingest, max: 30}
+  capacityRules:
+    - {resources: [cpu, memory]}
+  globalLatency: {parallel: max}
+```
+
+**Three fields are new to this section and none of them is a Placement concept.** A
+provider's `title` becomes the catalog entry's `name`, a provider's `properties` is its own
+free-form map, and a candidate's `attributes` is the container's `properties` map. All
+three reach the IR.
+
+An earlier draft of this paragraph said they reach it *unlike* a task's, a feature's or a
+candidate's title, "which the container drops". That is false, and measured four ways: a
+`name` written under a task, a feature, a candidate or a provider each moves the IR digest,
+and the container's own application schema has the slot in every case. What is true is
+narrower and is about this translation rather than the container. Of the corpus's 82
+packages, **18 carry a task name and 2 carry a provider name; none carries a feature name
+or a candidate name.** So the emitter writes a task's title and a provider's title, and
+writes neither a feature's nor a candidate's -- not because they would be dropped, but
+because there is no value in the corpus to write and inventing one would move every digest
+that has none.
+
+Two of these three fields were the only thing keeping `examples/demo/16_json_complete` out
+of the gate, and the gate could not see them while that package was excluded for its
+placement (section 11.2).
+
+`attributes` is not called `properties` on this surface for one reason: `properties` has
+meant the numeric map since section 3, and the container calls that one `features`. Writing
+both as `properties` would make the same word mean a criterion's input in one place and a
+description in the other.
+
+**Three conveniences are read and not written back.** A placement document may declare a
+`defaults` block merged into every demand, a `groups` block placing a named set of
+candidates together, and `networkMode: symmetric` to write each edge once. The lowering
+erases all three, so the model holds what they expand to -- one demand per candidate with
+the defaults merged in, and both directions of every off-diagonal edge -- and re-emitting
+writes the expansion. A document that used them comes back longer and compiles to the same
+problem, which is what the gate measures. Re-deriving a mode or a group from an expanded
+list would be a guess about the author's intent, and the guess would be wrong exactly when
+an author placed two pools asymmetrically on purpose.
+
+A transition endpoint is **a task or an event**, and the two are distinguished on the
+surface: a bare id names a task, `{event: id}` names an event. A diagram's event and a
+task can share a name, so a bare id for both would be ambiguous in the one case where it
+matters.
+
+**Which of these lists are ordered was measured, not assumed**, and the corpus answers only
+half of it: every one of the seven packages has exactly one capacity rule and one event, so
+nothing in the gate would notice either way. Section 11 enumerates the digest-visible lists
+of the other resources; these are this one's.
+
+| list | ordered | how it was measured |
+| --- | --- | --- |
+| `network` | **yes** | reversing it moves the IR digest of `02_stock_market_sample` |
+| a `capacityRule`'s position | **yes** | a second rule added to `01_small_placement`, then the two swapped |
+| the rows of an event's `latency` | **yes** | that package's three rows reversed |
+| the demands | **no** | all 44 of `02_stock_market_sample` reversed, digest unmoved |
+
+So the surface writes the network, the rules and the latency rows exactly as it read them,
+and sorts the demands by candidate id. The sort is a canonicalization rather than a
+liberty: it is the one of the four that the container does not look at.
+
+Two placement forms are refused rather than approximated, and section 12 carries them: a
+**soft** transition, which would need a penalty row in the Optimization keyed by a
+placement reference, and a group that names a **capability** instead of its candidates,
+which would mean deciding at import time what the catalog holds. No package in the corpus
+writes either.
 
 ## 7. Rules
 
@@ -684,19 +822,23 @@ property declares no bounds at all. Widening the domain to match is not a way ou
 domain is in the IR too, so moving it to rescue the criterion moves the digest just the
 same.
 
-Seven of those 14 declare a Placement resource and are outside the gate for that reason
-anyway. The other **seven are inside it**: `examples/demo/01_simple_seq`,
-`03_xor_choice`, `14_shared_candidates`, the three `17`/`18`/`19` analysis demos -- the
-ones the Studio exists to drive -- and one ICWS instance. Without this field the gate of
-section 11.2 would be 68 of 82 rather than 75, and six of the seven are lifted by this
-field alone.
+All 14 are inside the gate. Seven were once outside it for declaring a Placement resource,
+which is why an earlier version of this paragraph counted seven: `examples/demo/01_simple_seq`,
+`03_xor_choice`, `14_shared_candidates`, the three `17`/`18`/`19` analysis demos -- the ones
+the Studio exists to drive -- and one ICWS instance. Without this field the gate of
+section 11.2 would be 68 of 82. Seven of the 14 are lifted by this field alone; the other
+seven also read `scope` and need both, and section 11.2 prints that arithmetic.
 
 `clamp` **is** exposed, and the reason is a container default that runs the other way from
 the obvious reading: the schema declares `clamp` with `default: false` and the compiler
 reads `normalize.get("clamp", False)`, so a criterion that omits the key does **not** clamp.
-238 of the gate's 243 criteria clamp and five do not -- in `examples/demo/01_simple_seq`,
-`03_xor_choice` and one ICWS instance -- so a goal that could not say `false` would miss
-three of the 75 packages, while one that always said `false` would miss the other 72. It
+258 of the gate's 266 criteria clamp and eight do not -- in `examples/demo/01_simple_seq`,
+`03_xor_choice`, `examples/placement/01_small_placement` and one ICWS instance, and in each
+of those four every criterion omits the key -- so a goal that could not say `false` would
+miss four of the gate's packages, while one that always said `false` would miss the other
+78. (An earlier draft said 238 of 243, five and three: that was the measurement over the
+gate of 75, renumbered rather than re-taken when the gate became the corpus. The extra
+package is a placement one.) It
 defaults to `true` here, because that is what a goal written from scratch wants. There is no
 need to express the key's *absence*: the IR always carries an explicit boolean, and an
 omitted key and an explicit `false` compile to the same IR digest.
@@ -873,21 +1015,37 @@ frozen baseline is the mistake that looks like a compiler bug and never goes gre
 ### 11.2 Which packages the round trip must reproduce
 
 "The demo examples" is not a set, and the phase F1 gate cannot be phrased over it.
-Decided in review: the gate is **the live normalized golden's own package set, minus the
-packages that declare a Placement resource** -- 75 of its 82. For every key `d` of
-`packages` in `bim-toolchain/golden/bim_normalized/corpus.json` that declares no
-Placement resource,
+Decided in review: the gate is **the live normalized golden's own package set** -- all 82.
+For every key `d` of `packages` in `bim-toolchain/golden/bim_normalized/corpus.json`,
 
 ```
 ir_digest(compile(emit(import_bim(d)))) == ir_digest(compile(d))
 ```
 
-The seven exclusions are named, and they share one reason -- a Placement resource, whose
-price section 13 already carries: `examples/demo/15_bpmn_complete` (which is also the only
-BPMN workflow anywhere near the gate), `examples/demo/16_json_complete`, the four packages
-under `examples/placement/`, and `engines/minizinc-csp/tests/fixtures/placement`. Nothing
-else in the tree declares one, and no package outside that seven needs anything this
-version cannot say.
+There are no exclusions. The gate was first written with seven, said to share one reason:
+a Placement resource. Closing that turned out to require four changes rather than one, and
+the record of which is what makes the number worth keeping:
+
+| What was missing | What it cost | What it lifted |
+| --- | --- | --- |
+| Placement itself: pools, demands, network, events, transitions, capacity rules | the model's placement types, the emitter's sixth resource document and the importer's expansion of `defaults` and `groups` | four of the seven |
+| A provider's `name` and its own `properties` map | two fields | `examples/demo/16_json_complete` |
+| A candidate's own `properties` map, which is **not** the numeric map this surface calls properties -- that one is the container's `features` | one field, named `attributes` on the surface so the two do not collide | `examples/placement/02_stock_market_sample` |
+| Reading a BPMN workflow by delegation (section 5.4), which had been written for export only | an injected compiler on `import_bim` | `examples/demo/15_bpmn_complete` |
+
+So the claim that the seven shared one reason was **wrong by three packages**. One of them,
+`02_stock_market_sample`, was held out by a single field; `16_json_complete` needed two,
+since a provider's `name` and a provider's `properties` each move its digest on their own.
+All three fields are digest-visible, and none is a Placement concept: a provider's name is
+an ordinary catalog value and a candidate's descriptive map is a sibling of its feature map
+rather than a metadata annotation. They sat behind the Placement exclusion because an
+excluded package is a package nobody measures.
+
+That is also the second argument for a gate without exclusions, beside the first: a
+measurement taken through a gate with exclusions is quietly conditional on them. Section 6
+carries an instance of exactly that error, left on the page deliberately -- a count of the
+tree's plural `provides` taken over the gate of 75 and written about the tree of 82, wrong
+by eleven candidates and four packages, every one of them a Placement package.
 
 Four things make this the gate rather than a number:
 
@@ -901,9 +1059,9 @@ Four things make this the gate rather than a number:
   pinned in fourteen places across three jobs -- four at 83, which is the walk, and ten at
   82, which is this golden; a gate phrased this way collides with none of them and
   inherits every one of their tripwires.
-- **The arithmetic is auditable.** `len(gate) + len(exclusions) == packageCount == 82`,
-  with the seven names pinned beside it. A gate whose size nobody can recompute is a
-  claim, not a gate.
+- **The arithmetic is auditable.** `len(gate) == packageCount == 82`, and with the
+  exclusion list gone there is nothing left to reconcile: the gate is the golden's own
+  count. A gate whose size nobody can recompute is a claim, not a gate.
 - **The 83rd walk member is out of scope.** `bim-toolchain/packages/bim-core/tests/fixtures/example-package`
   is the one package the walk finds and the golden does not hold, and it is also the only
   package in the tree whose constraint uses a form outside comparison and `and`. It is the
@@ -928,12 +1086,31 @@ seven also reads `scope`, which the model has typed all along. An explicit goal 
 field each, 68 to 74 to 75. Discovering that from a gate is the point of writing the gate
 down before the phase that has to pass it.
 
-What this section does **not** claim: that any package has round-tripped. Neither
-`import_bim` nor `emit` exists yet -- phase F0 ships the model and this specification. Each
-verdict above is a feasibility verdict, measured per limit against the compiled IR: *this
-language can hold everything in this package that `ir_digest` looks at*. Phase F1 turns
-them into executed round trips, and a package that then fails is either a compiler bug or a
-limit this section missed.
+This section was first written before `import_bim` and `emit` existed, and said plainly
+that none of its verdicts was an executed round trip. They all are now:
+`tools/check_composition_roundtrip.py` runs the gate, `openbinding-gateway/tests/composition/test_the_roundtrip_gate.py`
+runs the same tool rather than restating it, and both derive membership from the golden so
+that a package added to the tree shows up as a membership change rather than as a number
+nobody can recompute.
+
+One feasibility verdict did not survive contact: the first draft of section 12 would have
+made the gate **68**. Fourteen packages scale a criterion onto a range that is not the
+property's domain, and **seven of those fourteen** also read `scope: selectedCandidate`.
+The two sets nest -- every scope reader is already a range offender, measured -- so the
+arithmetic is 82 - 14 = 68 with neither field, 82 - 7 = 75 with an explicit goal
+`normalize` (section 8) alone, and 82 with `scope` written too (section 3.1).
+
+Both counts grew when the exclusions closed, and the reason is the one this section keeps
+returning to. From inside the gate of 75 there were seven range offenders and **one** scope
+reader, which is what earlier drafts of this section and of section 8 say. The range
+offenders went from 7 to 14 and the scope readers from 1 to 7, and **every one of the extras
+in both sets is a Placement package** -- seven extra range offenders and six extra scope
+readers, which is all seven and six of the seven placement packages respectively. The 68 is
+unchanged only because 75 - 7 and 82 - 14 happen to meet.
+
+Four fields and one delegation lifted the seven exclusions, as the table above records.
+Nothing in the corpus is outside the gate now, so a package that fails it is a compiler bug
+or a regression here -- there is no third answer left.
 
 ## 12. What this version deliberately cannot say
 
@@ -947,7 +1124,7 @@ literals, property and task paths, comparison and `and`.
 | Branch conditions (`when`) | the exact engine rejects conditional choice | none: a branch carries a human-readable `condition` instead, and the distribution carries the semantics |
 | Interval property values | every bundled engine mode accepts scalars only | authors must pick a value |
 | Rules beyond comparison and `and` | the exact engine's expression list | no arithmetic, no disjunction and no CEL macro in rules; one package in the tree, the compiler's own fixture, and it is outside the gate |
-| Placement | a separate dialect with its own resource and semantics | **seven** packages do not round trip, and they are the gate's entire exclusion list (section 11.2) |
+| A soft transition, and a placement group that names a capability instead of its candidates | a soft transition needs a penalty row in the Optimization keyed by a placement reference, and a group over a capability would mean deciding at import time what the catalog holds | both are refused by name rather than silently hardened or expanded; no package in the corpus uses either |
 | Capability predicates | eligibility is capability matching only | no narrowing beyond the capability type |
 | `extensions` at any level | needs an installed dialect with lowering | no ad-hoc fields |
 | Non-identity feature bindings | a catalog slot may be named differently from the feature | property names are shared |
@@ -955,7 +1132,18 @@ literals, property and task paths, comparison and `and`.
 | An empty goal list | compiles, but means "score is penalty only" | at least one goal required |
 | Comments and formatting | the writer re-emits from the model | a Visual-mode edit normalizes the text |
 
-Two rows left this table in review, and both were listed by mistake rather than by
+**Placement left this table.** It was the costliest row in it -- seven packages, said to be
+the gate's entire exclusion list -- and section 11.2 records what closing it actually took
+and what else was hiding behind it. What remains inexpressible is narrower and has its own
+row in the table: a soft transition and a group over a capability, neither of which any
+package in the corpus writes. A placement document's `defaults`, `groups` and
+`networkMode: symmetric` are expressible but are **not** preserved as written: the lowering
+erases all three, so the surface writes what they expand to -- one demand per candidate,
+with both directions of every edge. A document that used them comes back longer and means
+the same thing, which the gate measures and this sentence records so that nobody reads the
+longer form as a change.
+
+Two further rows left this table in review, and both were listed by mistake rather than by
 decision. `scope: selectedCandidate` was never inexpressible: the model has typed it from
 the first commit and section 3.1 names `scope` among the three fields a template fills, so
 the row contradicted both the code and section 3. And a criterion range that is not the
@@ -1192,7 +1380,7 @@ section it governs rather than in a list at the end:
 | question | answer | where |
 | --- | --- | --- |
 | Which golden set the phase F1 gate means | the live normalized one | 11.1 |
-| Which packages the round trip must reproduce | that golden's 82, minus the 7 with a Placement resource | 11.2 |
+| Which packages the round trip must reproduce | all 82 of that golden; the 7 exclusions are closed | 11.2, 6.1 |
 | How an orchestrator is modelled | it is the composition itself, and gets no task | 4.1 |
 | Which kind a component earns | by whether it occupies a step and has QoS of its own | 4.1 |
 | Where the probabilities of an exclusive live | inline on the branch, with the routing overlay as the emitted form | 5.2, 5.3 |
@@ -1208,4 +1396,23 @@ replaced bought nothing.
 
 What is **not** settled is anything this document says it cannot say. Section 12 is a list
 of deliberate omissions, each with its price, and the next version re-opens them one at a
-time -- Placement first, since it is the whole of the gate's exclusion list.
+time.
+
+**Placement was the first re-opened, and it is closed.** The entry above changed with it:
+the gate is the whole corpus. Three things about how that went are worth keeping, because
+each would otherwise have to be learnt again.
+
+It took four changes, not one. The exclusion list had been justified on the grounds that
+its seven members shared a single reason, and they did not: two were held out by one
+missing field each -- a provider's `name`, a candidate's own `properties` map -- and one by
+its BPMN workflow. Section 11.2 carries the table.
+
+An exclusion hides what is behind it. Those two fields are not Placement concepts and were
+not hard; they were simply inside packages nobody measured. Section 6 keeps a second
+instance of the same effect: a count of the tree's plural `provides` that was taken over
+the gate and written about the tree, wrong by eleven candidates.
+
+Closing it needed no new oracle. The BPMN half was licensed by a pair the corpus already
+contained -- `examples/demo/15_bpmn_complete` and `16_json_complete`, the same composition
+in two notations, compiling to one IR digest (section 5.4) -- and the placement half by the
+gate itself. What a measurement licenses is the only reason any of this is written down.

@@ -37,17 +37,26 @@ from .model import (
     Aggregation,
     Branch,
     Candidate,
+    CapacityRule,
     Composition,
     Domain,
     EmptyNode,
+    Endpoint,
+    Event,
+    EventLatency,
     Exclusive,
     FixedTask,
+    GlobalLatency,
     Goal,
     LocalTask,
+    NetworkEdge,
     Node,
     Normalize,
     OpenTask,
     Parallel,
+    Placement,
+    Pool,
+    PoolDemand,
     PricingRef,
     Property,
     Provider,
@@ -55,6 +64,7 @@ from .model import (
     Rule,
     Sequence,
     TaskNode,
+    Transition,
     RATIO_TEMPLATES,
     TEMPLATES,
 )
@@ -156,6 +166,86 @@ def _probability_text(value: Decimal | None) -> Any:
     return int(value) if value == value.to_integral_value() else float(text)
 
 
+def _endpoint_text(endpoint: Endpoint) -> Any:
+    """A transition endpoint: the bare id when it names a task, a mapping when an event."""
+    return {"event": endpoint.id} if endpoint.event else endpoint.id
+
+
+def _placement_text(placement: Placement) -> dict[str, Any]:
+    """The placement block.
+
+    The network is written as the model holds it, which is the completed directed list: a
+    document that declared ``networkMode: symmetric`` comes back with both directions
+    written out. The lowering erases the mode, so this is the same placement and not an
+    approximation of it -- what the mode saves is typing, and re-deriving it from a list
+    of edges would be a guess about the author's intent.
+    """
+    return _drop({
+        "pools": [
+            _drop({
+                "id": pool.id,
+                "kind": pool.kind if pool.kind != "generic" else None,
+                "name": pool.name,
+                "capacity": pool.capacity,
+                "properties": pool.properties or None,
+            })
+            for pool in placement.pools
+        ],
+        "network": [
+            {"from": edge.source, "to": edge.target, "latency": edge.latency}
+            for edge in placement.network
+        ]
+        or None,
+        "events": [
+            _drop({
+                "id": event.id,
+                "pool": event.pool,
+                "latency": [
+                    {"pool": row.pool, "latency": row.latency} for row in event.latency
+                ]
+                or None,
+            })
+            for event in placement.events
+        ]
+        or None,
+        "transitions": [
+            _drop({
+                "id": transition.id,
+                "from": _endpoint_text(transition.source),
+                "to": _endpoint_text(transition.target),
+                "feature": transition.feature if transition.feature != "latency" else None,
+                "max": transition.maximum,
+            })
+            for transition in placement.transitions
+        ]
+        or None,
+        "capacityRules": [
+            _drop({
+                "resources": sorted(rule.resources),
+                "scope": rule.scope if rule.scope != "selectedCandidate" else None,
+            })
+            for rule in placement.capacity_rules
+        ]
+        or None,
+        "globalLatency": _drop({
+            "feature": placement.global_latency.feature
+            if placement.global_latency.feature != "latency"
+            else None,
+            "includeExecution": placement.global_latency.include_execution
+            if placement.global_latency.include_execution is not True
+            else None,
+            "exclusive": placement.global_latency.exclusive
+            if placement.global_latency.exclusive != "routing"
+            else None,
+            "parallel": placement.global_latency.parallel
+            if placement.global_latency.parallel != "max"
+            else None,
+        })
+        if placement.global_latency is not None
+        else None,
+    })
+
+
 def serialise(composition: Composition) -> str:
     """One composition as YAML text."""
     document = _drop({
@@ -176,7 +266,10 @@ def serialise(composition: Composition) -> str:
         "workflow": _node_text(composition.workflow),
         "candidates": _drop({
             "providers": {
-                name: _drop({"title": provider.title})
+                name: _drop({
+                    "title": provider.title,
+                    "properties": provider.properties or None,
+                })
                 for name, provider in composition.providers.items()
             }
             or None,
@@ -190,12 +283,25 @@ def serialise(composition: Composition) -> str:
                     "title": candidate.title,
                     "domain": candidate.domain if candidate.domain != "all" else None,
                     "properties": candidate.properties,
+                    # ``attributes`` rather than a second ``properties``: the container
+                    # calls this map properties and the numeric one features, and the
+                    # surface has had properties mean the numeric one since section 3.
+                    "attributes": candidate.attributes or None,
+                    "placement": _drop({
+                        "pool": candidate.placement.pool,
+                        "resources": candidate.placement.resources or None,
+                    })
+                    if candidate.placement is not None
+                    else None,
                 })
                 for candidate in composition.candidates
             ]
             or None,
         })
         or None,
+        "placement": _placement_text(composition.placement)
+        if composition.placement is not None
+        else None,
         "rules": [
             _drop({
                 "id": rule.id,
@@ -340,12 +446,105 @@ def _node_model(source: Any) -> Node:
     raise TextError(f"unknown workflow node: {sorted(source)}")
 
 
+def _endpoint_model(source: Any) -> Endpoint:
+    if isinstance(source, dict):
+        if "event" in source:
+            return Endpoint(id=source["event"], event=True)
+        if "task" in source:
+            return Endpoint(id=source["task"])
+        raise TextError(f"a transition endpoint names a task or an event: {sorted(source)}")
+    return Endpoint(id=source)
+
+
+def _placement_model(source: Any) -> Placement:
+    if not isinstance(source, dict):
+        raise TextError("placement is a mapping")
+    pools = source.get("pools")
+    if not pools:
+        raise TextError("a placement declares at least one pool")
+    # A pool, an event and a transition are each keyed by id in the emitted document, so a
+    # repeated id is not a list with two entries: it is one entry, silently the last. The
+    # schema cannot say this -- JSON Schema has no uniqueness-by-key -- so it is said here,
+    # where the message can name the id the author repeated.
+    for label, rows in (
+        ("pools", pools),
+        ("events", source.get("events") or []),
+        ("transitions", source.get("transitions") or []),
+    ):
+        seen = [row["id"] for row in rows if isinstance(row, dict) and "id" in row]
+        repeated = sorted({name for name in seen if seen.count(name) > 1})
+        if repeated:
+            raise TextError(f"two entries of {label} share an id: {repeated}")
+    latency = source.get("globalLatency")
+    return Placement(
+        pools=tuple(
+            Pool(
+                id=pool["id"],
+                capacity=dict(pool.get("capacity") or {}),
+                kind=pool.get("kind", "generic"),
+                name=pool.get("name"),
+                properties=dict(pool.get("properties") or {}),
+            )
+            for pool in pools
+        ),
+        network=tuple(
+            NetworkEdge(source=edge["from"], target=edge["to"], latency=edge["latency"])
+            for edge in (source.get("network") or [])
+        ),
+        events=tuple(
+            Event(
+                id=event["id"],
+                pool=event["pool"],
+                latency=tuple(
+                    EventLatency(pool=row["pool"], latency=row["latency"])
+                    for row in (event.get("latency") or [])
+                ),
+            )
+            for event in (source.get("events") or [])
+        ),
+        transitions=tuple(
+            Transition(
+                id=transition["id"],
+                source=_endpoint_model(transition["from"]),
+                target=_endpoint_model(transition["to"]),
+                maximum=transition["max"],
+                feature=transition.get("feature", "latency"),
+            )
+            for transition in (source.get("transitions") or [])
+        ),
+        capacity_rules=tuple(
+            CapacityRule(
+                resources=frozenset(rule["resources"]),
+                scope=rule.get("scope", "selectedCandidate"),
+            )
+            for rule in (source.get("capacityRules") or [])
+        ),
+        global_latency=GlobalLatency(
+            feature=latency.get("feature", "latency"),
+            include_execution=latency.get("includeExecution", True),
+            exclusive=latency.get("exclusive", "routing"),
+            parallel=latency.get("parallel", "max"),
+        )
+        if latency is not None
+        else None,
+    )
+
+
 def parse(text: str) -> Composition:
     """One YAML document as a composition."""
     document = yaml.safe_load(text)
     if not isinstance(document, dict):
         raise TextError("a composition is a mapping")
     candidates = document.get("candidates") or {}
+    # A candidate placed with nowhere to put it. The emitter writes the demands inside the
+    # Placement document, so with no placement block the demand reaches no file at all --
+    # the composition compiles and means something else. Refused here rather than dropped.
+    if document.get("placement") is None and any(
+        isinstance(row, dict) and row.get("placement") for row in (candidates.get("rows") or [])
+    ):
+        raise TextError(
+            "a candidate names a pool but the composition declares no placement block",
+        )
     pricing = document.get("pricing")
     if isinstance(pricing, str):
         pricing = {"href": pricing}
@@ -367,7 +566,10 @@ def parse(text: str) -> Composition:
         },
         workflow=_node_model(document["workflow"]),
         providers={
-            name: Provider(title=(body or {}).get("title"))
+            name: Provider(
+                title=(body or {}).get("title"),
+                properties=dict((body or {}).get("properties") or {}),
+            )
             for name, body in (candidates.get("providers") or {}).items()
         },
         candidates=tuple(
@@ -380,6 +582,13 @@ def parse(text: str) -> Composition:
                 provider=row.get("provider"),
                 title=row.get("title"),
                 domain=row.get("domain", "all"),
+                attributes=dict(row.get("attributes") or {}),
+                placement=PoolDemand(
+                    pool=row["placement"]["pool"],
+                    resources=dict(row["placement"].get("resources") or {}),
+                )
+                if row.get("placement") is not None
+                else None,
             )
             for row in (candidates.get("rows") or [])
         ),
@@ -406,5 +615,8 @@ def parse(text: str) -> Composition:
             )
             for goal in (document.get("goals") or [])
         ),
+        placement=_placement_model(document["placement"])
+        if document.get("placement") is not None
+        else None,
         studio=dict(document.get("studio") or {}),
     )

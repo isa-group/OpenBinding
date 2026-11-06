@@ -5,9 +5,10 @@ are the same problem written two ways -- one as a BPMN diagram, one as a JSON wo
 and they compile to the identical IR digest. So a faithful lift of the first's diagram is
 the second's hand-written workflow, node for node, and that is what these tests assert.
 
-Both packages declare a Placement resource and so sit outside section 11.2's gate, which
-is why this step needs its own oracle rather than the gate: the two packages that exercise
-BPMN are exactly the two the gate excludes.
+Both packages were once outside section 11.2's gate -- they declare a Placement resource --
+which is why this step was built against them as an oracle rather than against the gate.
+The gate holds them now, and the oracle is what licensed that: it is because the two
+compile to one IR digest that the importer may read a BPMN workflow and write JSON back.
 
 Nothing here parses BPMN. The container reduces it and this reads the result, and the one
 test that would notice a second reducer appearing is the one that checks the lifted

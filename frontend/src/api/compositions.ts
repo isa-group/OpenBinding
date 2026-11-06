@@ -7,6 +7,7 @@ export const COMPOSITION_SECTIONS = [
   'tasks',
   'workflow',
   'candidates',
+  'placement',
   'rules',
   'goals',
   'studio',

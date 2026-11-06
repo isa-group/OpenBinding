@@ -41,14 +41,19 @@ from typing import Any, Iterable
 
 from .model import (
     Candidate,
+    CapacityRule,
     Composition,
     EmptyNode,
+    Endpoint,
     Exclusive,
     FixedTask,
+    GlobalLatency,
     LocalTask,
     Node,
     OpenTask,
     Parallel,
+    Placement,
+    PoolDemand,
     Property,
     Repeat,
     Sequence,
@@ -62,6 +67,7 @@ SECTIONS = (
     "tasks",
     "workflow",
     "candidates",
+    "placement",
     "rules",
     "goals",
     "studio",
@@ -304,7 +310,12 @@ def _shape(node: Node) -> str:
     if isinstance(node, Exclusive):
         return "exclusive(" + ",".join(_shape(b.flow) for b in node.branches) + ")"
     if isinstance(node, Repeat):
-        return f"repeat({_shape(node.body)})"
+        # The count is in the shape rather than in a subject of its own, because it is the
+        # one node field that changes the plan rather than naming a part of it -- and
+        # measured on ``examples/demo/06_loops``, moving it moves the IR digest, so leaving
+        # it out of the shape made it a change this module reported nowhere.
+        times = f"count={node.count}" if node.count is not None else f"expected={node.expected}"
+        return f"repeat[{times}]({_shape(node.body)})"
     return type(node).__name__
 
 
@@ -345,7 +356,16 @@ def _distributions(before: Composition, after: Composition) -> list[Change]:
     found: list[Change] = []
     was = {node.id: node for node in _exclusives(before.workflow)}
     now = {node.id: node for node in _exclusives(after.workflow)}
-    for name in sorted(set(was) & set(now)):
+    # The union, not the intersection: a renamed exclusive used to fall out of both sides
+    # and be reported nowhere, while its id is the join key the routing overlay is written
+    # against -- so renaming it moves the digest of every package that derives branch ids.
+    for name in sorted(set(was) | set(now)):
+        if name not in now:
+            found.append(Change("workflow", f"{name}.distribution", "removed", name, None))
+            continue
+        if name not in was:
+            found.append(Change("workflow", f"{name}.distribution", "added", None, name))
+            continue
         here, there = was[name], now[name]
         if here.distribution != there.distribution:
             found.append(
@@ -378,6 +398,16 @@ def _distributions(before: Composition, after: Composition) -> list[Change]:
                     Change(
                         "workflow", f"{name}.branch[{position}].condition", "changed",
                         one.condition, other.condition,
+                    ),
+                )
+            if one.id != other.id:
+                # A branch id is the routing overlay's join key and lives in the
+                # Application, which ``ir_digest`` keeps: renaming one is a different
+                # package. Section 5.2 keeps the explicit id for exactly that reason.
+                found.append(
+                    Change(
+                        "workflow", f"{name}.branch[{position}].id", "changed",
+                        one.id, other.id,
                     ),
                 )
     return found
@@ -437,19 +467,246 @@ def _candidates(before: Composition, after: Composition) -> list[Change]:
                 found.append(
                     Change("candidates", f"{fresh}.{name}", "changed", one, other),
                 )
+        # The container's own map, which is not the numeric one above. The ``attributes``
+        # segment keeps a description off the subject a feature of the same name would
+        # take. It is a convention and not a guarantee: a symbol may contain a dot, so a
+        # feature literally named ``attributes.cost`` would still land on one subject --
+        # which is true of every dotted subject in this module, not of this one.
+        for name in sorted(set(here.attributes) | set(there.attributes)):
+            one, other = here.attributes.get(name), there.attributes.get(name)
+            if one != other:
+                found.append(
+                    Change("candidates", f"{fresh}.attributes.{name}", "changed", one, other),
+                )
+        if here.placement != there.placement:
+            found.append(
+                Change(
+                    "placement", f"{fresh}.demand", "changed",
+                    _demand(here.placement), _demand(there.placement),
+                ),
+            )
 
     for name in sorted(set(before.providers) | set(after.providers)):
         if name not in before.providers:
             found.append(Change("candidates", f"provider {name}", "added", None, name))
         elif name not in after.providers:
             found.append(Change("candidates", f"provider {name}", "removed", name, None))
-        elif before.providers[name] != after.providers[name]:
+        else:
+            here, there = before.providers[name], after.providers[name]
+            if here.title != there.title:
+                found.append(
+                    Change(
+                        "candidates", f"provider {name}.title", "changed",
+                        here.title, there.title,
+                    ),
+                )
+            # A provider's own map reaches the IR, so a change in it is a change in the
+            # problem. Reporting it under ``.title`` would have printed None -> None.
+            for key in sorted(set(here.properties) | set(there.properties)):
+                one, other = here.properties.get(key), there.properties.get(key)
+                if one != other:
+                    found.append(
+                        Change(
+                            "candidates", f"provider {name}.properties.{key}", "changed",
+                            one, other,
+                        ),
+                    )
+    return found
+
+
+# ------------------------------------------------------------------------------- placement
+
+
+def _demand(demand: PoolDemand | None) -> Any:
+    if demand is None:
+        return None
+    return {"pool": demand.pool, "resources": dict(sorted(demand.resources.items()))}
+
+
+def _endpoint(endpoint: Endpoint) -> Any:
+    """A transition endpoint as plain data: a bare id for a task, ``{event: id}`` for an event."""
+    return {"event": endpoint.id} if endpoint.event else endpoint.id
+
+
+def _latency(latency: GlobalLatency | None) -> Any:
+    """The global latency as plain data, spelled the way the surface spells it.
+
+    ``_scalar`` converts a Decimal and returns everything else untouched, so handing it a
+    dataclass put one in ``was``/``now`` and made ``as_documents`` refuse to encode -- and
+    ``model_dump`` would have shipped ``include_execution`` where the schema and the text
+    layer both say ``includeExecution``.
+    """
+    if latency is None:
+        return None
+    return {
+        "feature": latency.feature,
+        "includeExecution": latency.include_execution,
+        "exclusive": latency.exclusive,
+        "parallel": latency.parallel,
+    }
+
+
+def _rule(rule: CapacityRule) -> dict[str, Any]:
+    """A capacity rule as plain data, scope included: the scope is what the container reads."""
+    return {"resources": sorted(rule.resources), "scope": rule.scope}
+
+
+def _edges(placement: Placement | None) -> dict[tuple[str, str], float]:
+    return {} if placement is None else {(e.source, e.target): e.latency for e in placement.network}
+
+
+def _placement(before: Composition, after: Composition) -> list[Change]:
+    """What moved in the placement, by name rather than by position.
+
+    A demand is reported per candidate by ``_candidates``, which is where the candidate
+    already is; everything here is about the pools and the distances between them. The
+    network is keyed by its endpoints rather than by index, because the model holds the
+    completed directed list and a mirror appended at import time would otherwise shift
+    every edge after it and report the whole network as changed.
+    """
+    found: list[Change] = []
+    here, there = before.placement, after.placement
+    if here is None and there is None:
+        return found
+    if here is None:
+        return [Change("placement", "placement", "added", None, len(there.pools))]
+    if there is None:
+        return [Change("placement", "placement", "removed", len(here.pools), None)]
+
+    was = {pool.id: pool for pool in here.pools}
+    now = {pool.id: pool for pool in there.pools}
+    for name in sorted(set(was) | set(now)):
+        if name not in was:
+            found.append(Change("placement", f"pool {name}", "added", None, now[name].kind))
+        elif name not in now:
+            found.append(Change("placement", f"pool {name}", "removed", was[name].kind, None))
+        else:
+            found += _field_changes(
+                "placement", f"pool {name}", was[name], now[name], ("kind", "name"),
+            )
+            for key in sorted(set(was[name].capacity) | set(now[name].capacity)):
+                one, other = was[name].capacity.get(key), now[name].capacity.get(key)
+                if one != other:
+                    found.append(
+                        Change("placement", f"pool {name}.capacity.{key}", "changed", one, other),
+                    )
+            for key in sorted(set(was[name].properties) | set(now[name].properties)):
+                one, other = was[name].properties.get(key), now[name].properties.get(key)
+                if one != other:
+                    found.append(
+                        Change(
+                            "placement", f"pool {name}.properties.{key}", "changed", one, other,
+                        ),
+                    )
+
+    old_edges, new_edges = _edges(here), _edges(there)
+    for pair in sorted(set(old_edges) | set(new_edges)):
+        one, other = old_edges.get(pair), new_edges.get(pair)
+        if one != other:
+            subject = f"network {pair[0]}->{pair[1]}"
+            kind = "added" if one is None else "removed" if other is None else "changed"
+            found.append(Change("placement", subject, kind, one, other))
+    # Keying by the endpoints says which edge moved; it says nothing about where it sits in
+    # the list, and the list's order **is** in the IR digest (measured: reversing the
+    # network of any placement package moves it). Without this row two different problems
+    # compared equal, which is the one thing an empty change list must never mean. One row
+    # for the whole order, guarded on set equality so it never piles onto an added or
+    # removed row above.
+    old_order = [(edge.source, edge.target) for edge in here.network]
+    new_order = [(edge.source, edge.target) for edge in there.network]
+    if set(old_edges) == set(new_edges) and old_order != new_order:
+        found.append(
+            Change(
+                "placement", "network order", "moved",
+                [f"{source}->{target}" for source, target in old_order],
+                [f"{source}->{target}" for source, target in new_order],
+            ),
+        )
+
+    old_events = {event.id: event for event in here.events}
+    new_events = {event.id: event for event in there.events}
+    for name in sorted(set(old_events) | set(new_events)):
+        one, other = old_events.get(name), new_events.get(name)
+        if one == other:
+            continue
+        if one is None or other is None:
+            kind = "added" if one is None else "removed"
             found.append(
                 Change(
-                    "candidates", f"provider {name}.title", "changed",
-                    before.providers[name].title, after.providers[name].title,
+                    "placement", f"event {name}", kind,
+                    None if one is None else one.pool,
+                    None if other is None else other.pool,
                 ),
             )
+            continue
+        # Name the field. Printing the pool for every change reported ``was p_edge, now
+        # p_edge`` whenever a latency row moved, which is a row that says nothing.
+        found += _field_changes("placement", f"event {name}", one, other, ("pool",))
+        for position, (a, b) in enumerate(
+            zip(one.latency, other.latency, strict=False), start=1,
+        ):
+            if a != b:
+                found.append(
+                    Change(
+                        "placement", f"event {name}.latency[{position}]", "changed",
+                        {"pool": a.pool, "latency": a.latency},
+                        {"pool": b.pool, "latency": b.latency},
+                    ),
+                )
+        if len(one.latency) != len(other.latency):
+            found.append(
+                Change(
+                    "placement", f"event {name}.latency", "changed",
+                    len(one.latency), len(other.latency),
+                ),
+            )
+
+    old_transitions = {t.id: t for t in here.transitions}
+    new_transitions = {t.id: t for t in there.transitions}
+    for name in sorted(set(old_transitions) | set(new_transitions)):
+        one, other = old_transitions.get(name), new_transitions.get(name)
+        if one == other:
+            continue
+        if one is None or other is None:
+            kind = "added" if one is None else "removed"
+            found.append(
+                Change(
+                    "placement", f"transition {name}", kind,
+                    None if one is None else one.maximum,
+                    None if other is None else other.maximum,
+                ),
+            )
+            continue
+        found += _field_changes(
+            "placement", f"transition {name}", one, other, ("maximum", "feature"),
+        )
+        for end in ("source", "target"):
+            a, b = getattr(one, end), getattr(other, end)
+            if a != b:
+                found.append(
+                    Change(
+                        "placement", f"transition {name}.{end}", "changed",
+                        _endpoint(a), _endpoint(b),
+                    ),
+                )
+
+    if here.capacity_rules != there.capacity_rules:
+        # The whole rule, scope included. Rendering only the resources printed
+        # ``was [['memory']], now [['memory']]`` for a scope flip the container does read.
+        found.append(
+            Change(
+                "placement", "capacityRules", "changed",
+                [_rule(rule) for rule in here.capacity_rules],
+                [_rule(rule) for rule in there.capacity_rules],
+            ),
+        )
+    if here.global_latency != there.global_latency:
+        found.append(
+            Change(
+                "placement", "globalLatency", "changed",
+                _latency(here.global_latency), _latency(there.global_latency),
+            ),
+        )
     return found
 
 
@@ -540,6 +797,7 @@ def diff(before: Composition, after: Composition) -> tuple[Change, ...]:
         *_tasks(before, after, renamed),
         *_workflow(before, after, renamed),
         *_candidates(before, after),
+        *_placement(before, after),
         *_rules(before, after),
         *_goals(before, after),
         *_studio(before, after),
