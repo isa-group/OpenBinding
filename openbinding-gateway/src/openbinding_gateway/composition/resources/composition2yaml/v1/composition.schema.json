@@ -596,6 +596,10 @@
         "penalty": {
           "type": "number",
           "minimum": 0
+        },
+        "weight": {
+          "description": "How the optimization weighs this rule's penalty, which is a second number independent of the penalty itself: the gate's soft constraints all charge 1 while two are weighed 0.3 and three carry no weight at all. Omit it to write none.",
+          "type": "number"
         }
       },
       "allOf": [
