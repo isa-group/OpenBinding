@@ -548,6 +548,15 @@ source document's: it writes `{kind: sequence, steps: [...]}` where a source wri
 unknown node kind is refused rather than dropped -- a workflow that quietly lost a block
 would compile to a different problem with no diagnostic.
 
+**The compile is injected, not imported.** The composition library may not reach into the
+toolchain: the gateway has exactly one door to BIM and a boundary test enforces that
+nothing else imports the language. So the lift takes a callable that turns a package's
+files into an IR document, and the caller supplies it -- a test the in-process compiler, a
+route the port. That is not only hygiene: under the deployment where the gateway delegates
+to a remote service, the compiler is not in this process at all, so a lift that imported it
+would work on one deployment and fail on the other. It is also what keeps this layer
+liftable into a distribution of its own, which the architecture test already pins.
+
 Two things worth knowing before trusting a lifted workflow:
 
 - **It is the flattened tree, not the author's.** The container flattens a nested sequence

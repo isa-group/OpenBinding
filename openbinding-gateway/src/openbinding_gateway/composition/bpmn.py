@@ -26,7 +26,7 @@ rather than deriving them -- and the rest of the diagram, its layout included, d
 from __future__ import annotations
 
 import json
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from . import ids
 from .model import EmptyNode, Exclusive, Branch, Node, Parallel, Repeat, Sequence, TaskNode
@@ -41,6 +41,16 @@ WORKFLOW_FILE = "workflow.bpmn"
 #: The feature a synthesized package needs in order to compile at all: the deterministic
 #: profile wants at least one criterion, and a criterion wants a feature.
 PROBE_FEATURE = "probe"
+
+
+#: What the lift needs from the container, and the whole of it: something that takes a
+#: package's files and returns the compiled IR document. It is injected rather than
+#: imported because this layer may not reach into the toolchain -- the gateway has exactly
+#: one door to BIM, ``integrations/bim.py``, and a test enforces that nothing else imports
+#: the language. Injecting it is also what keeps this package liftable into a distribution
+#: of its own, and what lets the reduction happen wherever the compiler actually runs,
+#: which under ``BIM_MODE=http`` is not this process.
+Compile = Callable[[Mapping[str, bytes]], Mapping[str, Any]]
 
 
 class BpmnError(Exception):
@@ -86,17 +96,13 @@ def node_from_ir(source: Mapping[str, Any], counter: list[int] | None = None) ->
     raise BpmnError(f"the reduced workflow holds a node kind this version cannot read: {kind!r}")
 
 
-def reduce_package(files: Mapping[str, bytes]) -> Node:
+def reduce_package(files: Mapping[str, bytes], compile: Compile) -> Node:
     """The reduced workflow of a package that already declares one, BPMN or not.
 
-    The package is compiled as it stands, so it has to be complete and valid: the compiler
+    The package is compiled as it stands, so it has to be complete and valid: compilation
     is all-or-nothing and there is no half-reduction to read.
     """
-    from bim_core import compile_instance
-    from bim_core.package import InstancePackage
-
-    compiled = compile_instance(InstancePackage(dict(files)))
-    document = getattr(compiled, "document", compiled)
+    document = compile(files)
     return node_from_ir(document["spec"]["application"]["workflow"])
 
 
@@ -105,6 +111,7 @@ def reduce_process(
     *,
     process: str,
     tasks: Mapping[str, str],
+    compile: Compile,
     name: str = "bpmn_probe",
 ) -> Node:
     """A BPMN process as a model workflow, through a package built only to be compiled.
@@ -211,7 +218,9 @@ def reduce_process(
         WORKFLOW_FILE: bpmn,
     }
     try:
-        return reduce_package(files)
+        return reduce_package(files, compile)
+    except BpmnError:
+        raise
     except Exception as error:  # noqa: BLE001 - the compiler's diagnostics are the message
         raise BpmnError(f"the container refused the BPMN workflow: {error}") from error
 

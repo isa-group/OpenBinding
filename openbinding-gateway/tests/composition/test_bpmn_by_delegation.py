@@ -35,15 +35,29 @@ def _files(directory: Path) -> dict[str, bytes]:
     return {entry.name: entry.read_bytes() for entry in directory.iterdir() if entry.is_file()}
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _needs_the_compiler():
+@pytest.fixture(scope="module")
+def compile_package():
+    """The container's compiler, handed to the lift rather than imported by it.
+
+    ``composition/`` may not reach into the toolchain -- the gateway has one door to BIM and
+    ``test_bim_boundary.py`` enforces it -- so the reduction takes a callable. A test is a
+    legitimate place to supply the in-process one; a route would ask the port, which is
+    also what makes the lift work under ``BIM_MODE=http``, where the compiler is elsewhere.
+    """
     try:
-        import bim_core  # noqa: F401, PLC0415
+        from bim_core import compile_instance  # noqa: PLC0415
+        from bim_core.package import InstancePackage  # noqa: PLC0415
     except ImportError:
         pytest.skip("bim_core is not importable in this environment")
 
+    def compile(files):
+        compiled = compile_instance(InstancePackage(dict(files)))
+        return getattr(compiled, "document", compiled)
 
-def test_the_two_packages_really_are_one_problem() -> None:
+    return compile
+
+
+def test_the_two_packages_really_are_one_problem(compile_package) -> None:
     """The oracle itself, asserted before anything leans on it."""
     from bim_core import compile_instance, ir_digest
     from bim_core.package import InstancePackage
@@ -59,7 +73,7 @@ def test_the_two_packages_really_are_one_problem() -> None:
     )
 
 
-def test_the_diagram_and_the_hand_written_workflow_reduce_to_one_tree() -> None:
+def test_the_diagram_and_the_hand_written_workflow_reduce_to_one_tree(compile_package) -> None:
     """The diagram's reduction equals the twin package's, node for node.
 
     Both sides are lifted from the IR, which is the only level at which they can be
@@ -72,8 +86,8 @@ def test_the_diagram_and_the_hand_written_workflow_reduce_to_one_tree() -> None:
     from openbinding_gateway.composition.read import _node
 
     try:
-        from_diagram = lift.reduce_package(_files(BPMN_PACKAGE))
-        from_json = lift.reduce_package(_files(JSON_PACKAGE))
+        from_diagram = lift.reduce_package(_files(BPMN_PACKAGE), compile_package)
+        from_json = lift.reduce_package(_files(JSON_PACKAGE), compile_package)
     except FileNotFoundError as exc:
         pytest.skip(f"the vendored OMG BPMN XSDs are not in place: {exc}")
     assert from_diagram == from_json
@@ -86,7 +100,7 @@ def test_the_diagram_and_the_hand_written_workflow_reduce_to_one_tree() -> None:
     )
 
 
-def test_a_lifted_workflow_re_emits_to_the_same_problem() -> None:
+def test_a_lifted_workflow_re_emits_to_the_same_problem(compile_package) -> None:
     """The check that would notice a second reducer: lift, write it as JSON, compile.
 
     The BPMN package's own workflow reference is replaced with the emitted JSON of the
@@ -102,7 +116,7 @@ def test_a_lifted_workflow_re_emits_to_the_same_problem() -> None:
     files = _files(BPMN_PACKAGE)
     try:
         before = ir_digest(compile_instance(InstancePackage(files)).document)
-        lifted = lift.reduce_package(files)
+        lifted = lift.reduce_package(files, compile_package)
     except FileNotFoundError as exc:
         pytest.skip(f"the vendored OMG BPMN XSDs are not in place: {exc}")
 
@@ -131,7 +145,7 @@ def test_a_lifted_workflow_re_emits_to_the_same_problem() -> None:
     assert after == before
 
 
-def test_a_process_is_reduced_without_a_package_of_its_own() -> None:
+def test_a_process_is_reduced_without_a_package_of_its_own(compile_package) -> None:
     """The Studio's import path: a diagram plus a task-to-capability map, nothing else."""
     from openbinding_gateway.composition import bpmn as lift
 
@@ -142,8 +156,8 @@ def test_a_process_is_reduced_without_a_package_of_its_own() -> None:
         for task_id, body in application["spec"]["tasks"].items()
     }
     try:
-        lifted = lift.reduce_process(files["workflow.bpmn"], process=PROCESS, tasks=tasks)
-        from_package = lift.reduce_package(files)
+        lifted = lift.reduce_process(files["workflow.bpmn"], process=PROCESS, tasks=tasks, compile=compile_package)
+        from_package = lift.reduce_package(files, compile_package)
     except FileNotFoundError as exc:
         pytest.skip(f"the vendored OMG BPMN XSDs are not in place: {exc}")
     assert lifted == from_package
@@ -157,8 +171,8 @@ def test_an_unknown_node_kind_is_refused_rather_than_dropped() -> None:
         lift.node_from_ir({"kind": "compensation", "steps": []})
 
 
-def test_a_process_needs_its_capabilities_named() -> None:
+def test_a_process_needs_its_capabilities_named(compile_package) -> None:
     from openbinding_gateway.composition import bpmn as lift
 
     with pytest.raises(lift.BpmnError, match="capability"):
-        lift.reduce_process(b"<definitions/>", process=PROCESS, tasks={})
+        lift.reduce_process(b"<definitions/>", process=PROCESS, tasks={}, compile=compile_package)
