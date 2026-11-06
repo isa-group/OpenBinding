@@ -35,16 +35,33 @@ COPY bim-toolchain/packages/bim-client/src/ /bim-toolchain/packages/bim-client/s
 COPY bim-toolchain/packages/bim-core/hatch_build.py /bim-toolchain/packages/bim-core/
 RUN python /bim-toolchain/packages/bim-core/hatch_build.py --ensure
 
-COPY openbinding-gateway/pyproject.toml .
+COPY openbinding-gateway/pyproject.toml openbinding-gateway/uv.lock ./
+COPY openbinding-gateway/tools/lock_constraints.py tools/
 COPY openbinding-gateway/src/ src/
+
+# The image installs the versions the lock records, which is what CI installs with
+# `uv sync --locked`. Without this the image resolved every range in pyproject.toml afresh
+# against the index, so two builds a month apart got different dependency sets and the
+# lockfile meant nothing inside the container -- measured drift at the time this was added:
+# space-python-client 1.1.0 against a locked 1.0.0, FastAPI 0.162.0 against 0.141.1,
+# SQLAlchemy 2.1.8 against 2.0.51.
+#
+# It is a constraints file rather than `uv export` or `uv sync` because the lock declares
+# bim-core and bim-client as editable paths relative to the gateway, and this image carries
+# only those two package directories, not the bim-toolchain workspace root they belong to.
+# uv cannot build their metadata without it and refuses to export anything at all; reading
+# the lock as data needs neither the root nor the network. tools/lock_constraints.py says
+# what it does not pin and why.
+RUN python tools/lock_constraints.py uv.lock -o /tmp/constraints.txt
 
 # One single install command. uv 0.8.22 does not take an already installed bim-core as a
 # candidate for the gateway's bim-core>=0.2,<0.3 requirement (with --no-sources it looks
 # for it in the package registry and reports it unsatisfiable), so installing bim-core and
 # bim-client in a separate earlier step does not work. Given as direct requirements next to
 # ".[test]" the local packages satisfy that dependency by name. Their sources are copied
-# above, before the gateway's, so the layer order still caches.
-RUN uv pip install --system --no-sources /bim-toolchain/packages/bim-core /bim-toolchain/packages/bim-client ".[test]"
+# above, before the gateway's, so the layer order still caches. The constraints bind the
+# registry packages only; the two local ones carry no registry version to pin.
+RUN uv pip install --system --no-sources --constraint /tmp/constraints.txt /bim-toolchain/packages/bim-core /bim-toolchain/packages/bim-client ".[test]"
 
 # Migrations. Copied rather than relied on from the bind mount, so that an
 # image built for a deployment that does not mount the source still knows how
