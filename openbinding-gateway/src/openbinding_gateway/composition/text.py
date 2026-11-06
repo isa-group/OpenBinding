@@ -105,6 +105,7 @@ def _task_text(task: OpenTask | FixedTask | LocalTask) -> dict[str, Any]:
         "fixed": _drop({
             "title": task.title,
             "provider": task.provider,
+            "domain": task.domain if task.domain != "all" else None,
             "properties": task.properties,
         }),
     }
@@ -186,6 +187,7 @@ def serialise(composition: Composition) -> str:
                     else candidate.provides,
                     "provider": candidate.provider,
                     "title": candidate.title,
+                    "domain": candidate.domain if candidate.domain != "all" else None,
                     "properties": candidate.properties,
                 })
                 for candidate in composition.candidates
@@ -288,6 +290,7 @@ def _task_model(name: str, source: Any) -> OpenTask | FixedTask | LocalTask:
             properties=dict(fixed.get("properties") or {}),
             title=fixed.get("title"),
             provider=fixed.get("provider"),
+            domain=fixed.get("domain", "all"),
         )
     if source.get("open"):
         return OpenTask(requires=source["requires"], title=source.get("title"))
@@ -370,6 +373,7 @@ def parse(text: str) -> Composition:
                 properties=dict(row.get("properties") or {}),
                 provider=row.get("provider"),
                 title=row.get("title"),
+                domain=row.get("domain", "all"),
             )
             for row in (candidates.get("rows") or [])
         ),

@@ -285,6 +285,12 @@ properties:
 explicit neutral values of section 10 and is recorded in provenance. It does not reach
 the IR.
 
+It is matched against the **candidate's own** `domain`, which takes the same three values
+and defaults to `all` as well -- a candidate, or a fixed task, declares which kind of
+solver it is, and a property declares which kind it is meaningful for. The two meet in
+exactly one place, section 10.2, and nowhere else. Every candidate in the corpus is `all`,
+which is why the pair costs no digest.
+
 ## 4. Tasks
 
 A task is a step of the composition that the workflow invokes. There are exactly three
@@ -784,7 +790,9 @@ and for a `min` property the domain maximum does not constrain the minimum.
 ### 10.3 Provenance
 
 Provenance is written to `provenance.json` **beside** the package and is never declared
-as a resource:
+as a resource. The file holds `{"substitutions": [...]}` -- a list, because one package can
+substitute many values and a file holding a single record cannot grow -- and each record
+is shaped like this:
 
 ```json
 {"task": "C", "candidate": "cand_c_inhouse", "property": "qubit_count",

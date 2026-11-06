@@ -317,6 +317,14 @@
         },
         "properties": {
           "$ref": "#/$defs/propertyValues"
+        },
+        "domain": {
+          "description": "Which kind of solver this is, matched against a property's applies_to. A Studio concept with no counterpart in the container: it decides where section 10.2's neutral is substituted.",
+          "enum": [
+            "all",
+            "classical",
+            "quantum"
+          ]
         }
       }
     },
@@ -569,6 +577,14 @@
         },
         "properties": {
           "$ref": "#/$defs/propertyValues"
+        },
+        "domain": {
+          "description": "Which kind of solver this is, matched against a property's applies_to. A Studio concept with no counterpart in the container: it decides where section 10.2's neutral is substituted.",
+          "enum": [
+            "all",
+            "classical",
+            "quantum"
+          ]
         }
       }
     },

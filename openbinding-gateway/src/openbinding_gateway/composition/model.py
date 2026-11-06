@@ -109,6 +109,10 @@ class FixedTask:
     properties: dict[str, float]
     title: str | None = None
     provider: str | None = None
+    #: Which kind of solver the owner runs here, matched against a property's
+    #: ``applies_to`` exactly as a candidate's own domain is: the one candidate this task
+    #: mints carries it, so section 10.2's substitution reaches a fixed task too.
+    domain: Applicability = "all"
 
 
 @dataclass(frozen=True, slots=True)
@@ -233,6 +237,12 @@ class Candidate:
     #: Studio-side. A candidate's name has no home in the emitted catalog: writing
     #: ``spec.candidates.<id>.name`` moves the IR digest and no gate package carries one.
     title: str | None = None
+    #: Which kind of solver this candidate is, which is what a property's ``applies_to``
+    #: is matched against. It is a Studio concept with no counterpart in the container: it
+    #: decides where section 10.2's neutral is substituted, and the substitution is
+    #: recorded in provenance beside the package. Every candidate in the corpus is ``all``,
+    #: which is why adding this field moves no digest.
+    domain: Applicability = "all"
 
 
 @dataclass(frozen=True, slots=True)

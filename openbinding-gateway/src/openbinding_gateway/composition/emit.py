@@ -256,12 +256,57 @@ def _provides(candidate: Candidate) -> Any:
     return list(candidate.provides)
 
 
+def _applies(prop: Property, candidate: Candidate) -> bool:
+    """Whether a property is meaningful for this candidate.
+
+    ``applies_to`` and a candidate's ``domain`` are both Studio concepts with no
+    counterpart in the container, and this is the only place they meet.
+    """
+    return prop.applies_to == "all" or candidate.domain == "all" or prop.applies_to == candidate.domain
+
+
+def _features(composition: Composition, candidate: Candidate) -> dict[str, Any]:
+    """A candidate's feature values, with a neutral where a property does not apply.
+
+    The deterministic profile imputes nothing: a candidate that an eligible task could bind
+    must carry every feature a criterion, a constraint or a global latency reads, or the
+    compile fails. So when a property does not apply to a candidate -- a quantum property on
+    a classical solver -- the Studio writes **that property's own neutral**, which is the
+    semantically right value rather than a placeholder: under ``sum`` the candidate
+    contributes nothing, under ``product`` it does not degrade the result, and under ``min``
+    the domain's upper bound does not constrain the minimum.
+
+    An *applicable* property the author simply left out is not filled in here. Inventing a
+    value for a property that does mean something for this candidate would make a number up
+    and hide the omission; the container refuses it by name instead.
+    """
+    values = dict(candidate.properties)
+    for name, prop in composition.properties.items():
+        if name not in values and not _applies(prop, candidate):
+            values[name] = _neutral(prop)[0]
+    return {name: values[name] for name in sorted(values)}
+
+
+def _neutral(prop: Property) -> tuple[float, str]:
+    """A property's neutral and where it came from, for the value and for the record."""
+    value, source = resolve_neutral(
+        aggregation={
+            "sequence": prop.aggregation.sequence,
+            "parallel": prop.aggregation.parallel,
+            "exclusive": prop.aggregation.exclusive,
+            "repeat": prop.aggregation.repeat,
+            "selection": prop.aggregation.selection,
+        },
+        domain=_domain(prop),
+        declared=prop.neutral,
+    )
+    return float(value), getattr(source, "value", str(source))
+
+
 def _candidate(composition: Composition, candidate: Candidate) -> dict[str, Any]:
     body: dict[str, Any] = {
         "provides": _provides(candidate),
-        "features": {
-            name: candidate.properties[name] for name in sorted(candidate.properties)
-        },
+        "features": _features(composition, candidate),
     }
     if candidate.provider is not None:
         body["provider"] = {"resource": ids.CATALOG, "id": candidate.provider}
@@ -276,6 +321,7 @@ def _fixed_candidates(composition: Composition) -> list[Candidate]:
             provides=ids.fixed_capability(task_id),
             properties=dict(task.properties),
             provider=task.provider,
+            domain=task.domain,
         )
         for task_id, task in sorted(composition.tasks.items())
         if isinstance(task, FixedTask)
@@ -486,3 +532,64 @@ def _serialize(document: dict[str, Any]) -> bytes:
     0.9984999999999999 and it survives only that way.
     """
     return (json.dumps(document, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+
+
+def provenance(composition: Composition) -> list[dict[str, Any]]:
+    """What the Studio decided that the package cannot say, one record per substitution.
+
+    Today that is section 10.2's neutral: every value written into a candidate because a
+    property does not apply to it, with the two domains that did not match, the value, and
+    whether the neutral was declared by the author or inferred from the sequence operator
+    and the domain.
+
+    It is deliberately **not** part of :func:`emit`. A package holds exactly its manifest
+    and the documents the manifest declares -- the compiler refuses any other entry -- and
+    this cannot live inside the IR either: the container's source map entries carry a
+    resource, a path and an optional pointer, element or span, with no slot for
+    "synthesized because the property does not apply", and anything written under
+    ``spec.extensions`` would move the IR digest and break the round trip the gate rests
+    on. So it is written beside the package, in ``provenance.json``, by whoever writes the
+    package out.
+    """
+    records: list[dict[str, Any]] = []
+    candidates = [
+        (None, candidate) for candidate in composition.candidates
+    ] + [
+        (task_id, candidate)
+        for task_id, candidate in zip(
+            [t for t, task in sorted(composition.tasks.items()) if isinstance(task, FixedTask)],
+            _fixed_candidates(composition),
+            strict=True,
+        )
+    ]
+    for task_id, candidate in candidates:
+        for name in sorted(composition.properties):
+            prop = composition.properties[name]
+            if name in candidate.properties or _applies(prop, candidate):
+                continue
+            value, source = _neutral(prop)
+            record: dict[str, Any] = {
+                "candidate": candidate.id,
+                "property": name,
+                "value": value,
+                "reason": "domain_mismatch",
+                "candidateDomain": candidate.domain,
+                "propertyDomain": prop.applies_to,
+                "neutralSource": source,
+            }
+            if task_id is not None:
+                record = {"task": task_id, **record}
+            if source == "inferred":
+                record["inferredFrom"] = {
+                    "sequence": prop.aggregation.sequence,
+                    "domain": _domain(prop),
+                }
+            records.append(record)
+    return records
+
+
+def provenance_bytes(composition: Composition) -> bytes:
+    """``provenance.json``'s bytes, for a caller writing the package out to a directory."""
+    return (
+        json.dumps({"substitutions": provenance(composition)}, indent=2, ensure_ascii=False) + "\n"
+    ).encode("utf-8")
