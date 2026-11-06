@@ -1,9 +1,26 @@
 # The guiding case: a hybrid fleet management SaaS
 
 OpenBinding Studio is developed against one guiding case, in two architectural versions:
-the hybrid SaaS fleet management system (FMS) presented at JISBD 2025 and revised at
-JISBD 2026. This document records what each version is, how version 1 maps onto the
-package already in the corpus, and what is still undecided.
+the hybrid SaaS fleet management system (FMS). Both papers were read while writing this
+document, and the figures settle several things that were guessed at here before:
+
+- **Version 1** is Ruiz-Cortes and Parejo, *An Initial Exploration of Pricing-driven
+  Governance for Hybrid Quantum-Classical SaaS*, JISBD 2025 (Cordoba), track on Quantum
+  Computing and Quantum Software Engineering, `hdl.handle.net/11705/JISBD/2025/91`. Its
+  Figure 1 is the architecture this version models.
+- **Version 2** is Parejo and Ruiz-Cortes, *Operationalizing Quantum Optimization for
+  Multi-Depot Logistics: A Hybrid service-oriented Approach*, JISBD 2026 (Alicante),
+  `hdl.handle.net/11705/JISBD/2026/124`. Its Figure 1 and section 2.2 are the architecture
+  and the workflow this version models.
+
+Not to be confused with the tool paper: *OpenBinding: A QoS-Aware Service Composition API
+Gateway with Pluggable Engines*, JCIS 2026, `hdl.handle.net/11705/JCIS/2026/41`. It uses
+the same FMS scenario but states that it "intentionally set[s] aside additional
+scenario-driven complexities -- such as the pricing configuration space, hybridity, and
+continuous change", so it carries no task breakdown and settles nothing here.
+
+This document records what each version is, how version 1 maps onto the package already in
+the corpus, and what is still undecided.
 
 Why it matters beyond illustration: version 1 is already modelled as a BIM v1 package, so
 it is the reference against which the Composition2Yaml translation is proved. The
@@ -12,16 +29,19 @@ IR digest equals the existing one.
 
 ## Version 1 (JISBD 2025)
 
-Six services, two of them in-house:
+Six services, two of them in-house. The names are the paper's own, read off Figure 1 and
+section 2 of the JISBD 2025 paper: "a composition of two internal services (S1-S2),
+provided by the HSaaS owner, and four external services (E1-E4), provided by third
+parties."
 
 | id | service | nature |
 | --- | --- | --- |
-| S1 | routing | in-house, the orchestrator |
-| S2 | classical solver | in-house |
-| E1 | vehicle monitoring | external |
-| E2 | quantum solver | external (IBM Quantum or Amazon Braket) |
-| E3 | billing and payments | external |
-| E4 | platform and infrastructure | external (PaaS/IaaS) |
+| S1 | Routing | in-house, the orchestrator |
+| S2 | Classic Routing | in-house |
+| E1 | Vehicle Position Monitoring | external |
+| E2 | Quantum Routing | external (deployable on IBM Quantum, Amazon Braket, ...) |
+| E3 | Billing and Payment | external |
+| E4 | Cloud Deployment | external (the PaaS/IaaS FMS runs on) |
 
 The decision that makes the case interesting: **S1 calls either S2 or E2 depending on the
 size of the problem**. A small routing problem goes to the in-house classical solver; a
@@ -83,18 +103,63 @@ mismatch would not show up as a wrong number -- only as a digest that does not m
 
 Its binding space has 32 bindings: five service tasks with two candidates each.
 
-### Open question: the missing T4
+### The missing T4, recovered
 
-The package has `T1`, `T2`, `T3`, `T5`, `T6` and no `T4`, with no comment explaining the
-gap. Either a sixth task was dropped during authoring, or the numbering was kept aligned
-with a figure in the paper. This needs a decision before the version 1 composition is
-written by hand, because the Composition2Yaml source will reproduce the task ids exactly
-and an unexplained gap in a hand-written document invites someone to "fix" it — which
-would change the digest.
+**There is no T4 because the fourth step of the workflow was never a task.** This was an
+open question in this document and the answer was in the repository's own history the whole
+time, in the ancestor of the package at commit `2eb0d7bbd8` ("feat: new demo instance"):
 
-Equally open: `T3` is distance and travel time, which is not one of S1, S2 or E1 to E4.
-Either the published architecture has a service the list above omits, or `T3` is part of
-E1. The derived mapping is sound for every other task.
+```
+git show 2eb0d7bbd8:examples/demo/13_fms.json
+```
+
+That file declares exactly five tasks -- `T1` Cloud Deployment, `T2` Telemetry and
+Tracking, `T3` Distance and Travel Time, `T5` Quantum Routing, `T6` Billing and Payment --
+and its workflow's fourth position is an `XOR` whose 0.8 branch is `node_classic_routing`,
+carrying `"kind": "ELEMENT"` where every other node carries `"kind": "TASK"` with a
+`task_id`, and this description:
+
+> Classic routing path executed outside the selectable candidate set.
+
+So nothing was dropped. The numbers belong to the `task_id` namespace, the in-house
+classical solver was deliberately placed outside it, and the gap is the visible trace of
+that modelling choice rather than a lost service. Section 4.1 of
+`docs/COMPOSITION2YAML.md` is now the rule that choice follows, and the gap is a signpost
+to it: today the same component would be weighed as `local` against `fixed`, and version 2
+of this case models it as `fixed` with real values.
+
+**What the paper settles, and what it does not.** This document used to offer a second
+explanation -- "the numbering was kept aligned with a figure in the paper" -- and the paper
+refutes it: Figure 1 of the JISBD 2025 paper labels its services `S1`, `S2` and `E1` to
+`E4` and carries no task numbering at all, so there is no `T4` in any figure to align with.
+The T-numbers are the package's own. The paper therefore cannot confirm the reading above
+either; the commit is the whole of the evidence, and it is an inference about intent rather
+than a sentence from the author.
+
+Two things follow for phase F1. The task ids are reproduced verbatim and **renumbering is
+refused**, not merely expensive: the frozen-baseline equivalence checks pin this package's
+digests. And the reason belongs where the reader who would "fix" the gap is actually
+looking -- the hand-written `.c2y.yaml` fixture of step 7, as a comment above its `tasks:`
+block and as the composition's own `description`, both of which are free of every digest.
+
+*To confirm against the published figure.* The commit gives the positions and the names, not
+a sentence from the author saying "position 4 is the classical solver", and the JISBD 2025
+paper is not in this repository. The reasoning above is written out so it can be checked
+against the figure in one reading.
+
+### T3 is a seventh service, and version 2 is where it becomes official
+
+The other half is settled by the two papers together. The JISBD 2025 figure names exactly
+six services -- `S1` Routing, `S2` Classic Routing, `E1` Vehicle Position Monitoring, `E2`
+Quantum Routing, `E3` Billing and Payment, `E4` Cloud Deployment -- and **none of them is a
+distance or travel-time service**. The ancestor commit names `T2` "Telemetry and Tracking"
+and `T3` "Distance and Travel Time", and the two tasks admit disjoint candidate markets
+(Radius IoT and Samsara against HERE and Distance Matrix), so `T3` is not part of `E1`.
+
+So `T3` is not a service the 2025 paper omitted: it is one the package **added**. Version 2
+is where it becomes part of the published architecture, as `Distance & Travel Time (T)` in
+the Data & Assets layer of the JISBD 2026 figure. The six-service table above is the 2025
+paper's list and is correct as published; the package has seven.
 
 ## Version 2 (JISBD 2026)
 
@@ -126,24 +191,32 @@ Nine services in three layers.
 
 ### The 24-hour planning workflow
 
-R gathers O, F and D, and filters the result with L. It then calls T. It then chooses
-between C and Q. It finally validates with L. M monitors during execution.
+The paper's section 2.2 gives it as four sequential phases, and reading it settles both
+questions this section used to leave open:
 
-Two things in that sentence need a modelling decision rather than a transcription:
+1. **Context aggregation.** R fetches pending demands from O, vehicle capacities from F and
+   depot windows from D, "while filtering driver availability via (L)".
+2. **Spatial-temporal mapping.** R invokes T for the travel-time matrix.
+3. **Hybrid governance and solving.** R formalizes the instance, assesses its structural
+   complexity and invokes C or Q.
+4. **Validation and dispatch.** R validates the solution "against compliance rules (L)" and
+   persists the routes. "During execution, (M) monitors real-time GPS data, allowing (R) to
+   detect deviations and trigger re-optimization if necessary."
 
-- **L appears twice**, once as a filter before T and once as a validation at the end. A
-  task is invoked once per position in a workflow, so either the composition declares two
-  tasks drawing on the same capability (`L_filter` and `L_validate`), or it declares one
-  task and places it twice. Placing one task twice is legal and is what the container
-  calls shared candidates; it means both positions bind to the *same* selected candidate,
-  which is the semantically right reading here — the same compliance service is consulted
-  twice. Declaring two tasks would let the solver pick two different providers for what
-  is one service.
-- **M monitors during execution**, which is not a step in the planning sequence. It runs
-  alongside, for the duration. The planning workflow and the execution monitoring are
-  arguably two compositions, or one composition with M in a parallel block whose latency
-  does not aggregate into the plan. This is the sharper of the two questions and it
-  changes the shape of the workflow.
+So:
+
+- **L is consulted twice and it is one service, not two.** Phases 1 and 4 both name `(L)`,
+  the same Driver & Labor Compliance Service of Figure 1. The composition therefore declares
+  one task and places it twice -- what the container calls shared candidates, where both
+  positions bind to the *same* selected candidate. Declaring two tasks would let the solver
+  pick two different compliance providers for what the architecture has as one service.
+- **M is a feedback loop, not a step.** It is not in the planning sequence at all: Figure 1
+  puts it in its own Execution Layer above the optimization tier, sending "Real-time
+  updates" to R, and the text has it monitoring *during* execution so that R can trigger
+  re-optimization. It is the sharper of the two questions and the paper answers it: the
+  planning workflow is what a composition models, and monitoring is the loop around it.
+  Putting M in a parallel block inside the plan would make its latency aggregate into the
+  planning latency, which is a claim the architecture does not make.
 
 ### The orchestrator
 
