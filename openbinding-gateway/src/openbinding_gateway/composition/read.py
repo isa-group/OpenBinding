@@ -162,7 +162,10 @@ def _node(source: Any, counter: list[int]) -> Node:
             Branch(flow=_node(entry["flow"], counter), id=entry.get("id"))
             for entry in source["exclusive"]
         )
-        return Exclusive(id=_stem(branches, counter[0]), branches=branches)
+        return Exclusive(
+            id=ids.exclusive_stem(branches[0].id if branches else None, counter[0]),
+            branches=branches,
+        )
     if "repeat" in source:
         body = source["repeat"]
         return Repeat(
@@ -173,14 +176,6 @@ def _node(source: Any, counter: list[int]) -> Node:
     if "bpmn" in source:
         raise ImportError_("a BPMN workflow is lowered by the container, not read here")
     raise ImportError_(f"unknown workflow node: {sorted(source)}")
-
-
-def _stem(branches: tuple[Branch, ...], position: int) -> str:
-    """A stem for an exclusive, recovered from its branch ids when they follow the scheme."""
-    first = branches[0].id if branches else None
-    if first and first.endswith("_branch_1"):
-        return first[: -len("_branch_1")]
-    return f"exclusive_{position}"
 
 
 def _exclusives(node: Node) -> list[Exclusive]:

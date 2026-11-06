@@ -18,7 +18,7 @@ enforces that by listing ``composition`` among the protected layers.
 
 from __future__ import annotations
 
-from . import emit, ids, read, text
+from . import bpmn, emit, ids, read, text
 from .diagnostics import CompositionError, Diagnostic, Span
 from .model import (
     Aggregation,
@@ -60,6 +60,7 @@ LANGUAGE_ID = "composition2yaml/v1"
 
 __all__ = [
     "Aggregation",
+    "bpmn",
     "Branch",
     "Candidate",
     "Composition",

@@ -534,6 +534,38 @@ branch labels retroactively -- and branch ids live in the application's workflow
 the IR digest does not strip, so every existing composition's digest would move -- or
 addressing branches by position, which breaks the moment one is reordered.
 
+### 5.4 A BPMN workflow is read by delegation
+
+The Studio parses no BPMN. The reduction of BPMN 2.0.2 to the four blocks already exists,
+is validated against the five vendored OMG schemas and is exercised by the corpus, so the
+Studio builds a package whose workflow is a `bpmn` reference, hands it to the compiler, and
+lifts the **already reduced** workflow out of the IR. Two reducers that must agree forever
+would not.
+
+The lift is a conversion rather than a copy, because the IR's workflow is not shaped like a
+source document's: it writes `{kind: sequence, steps: [...]}` where a source writes
+`{sequence: [...]}`. That is the one place the Studio reads the IR's node shapes, and an
+unknown node kind is refused rather than dropped -- a workflow that quietly lost a block
+would compile to a different problem with no diagnostic.
+
+Two things worth knowing before trusting a lifted workflow:
+
+- **It is the flattened tree, not the author's.** The container flattens a nested sequence
+  while canonicalizing, so a lifted workflow can differ structurally from the source
+  document it came from while compiling to the same problem. This is the same rule that
+  stops the Studio pre-flattening anything of its own (section 11).
+- **A branch id survives; the rest of the diagram does not.** A reduced exclusive carries
+  the BPMN sequence flow's id -- `Flow_Cache`, not `{stem}_branch_1` -- which is precisely
+  why an imported composition keeps branch ids verbatim instead of deriving them.
+
+One asymmetry to expect when comparing a BPMN package with a hand-written twin: the
+routing overlay targets **the resource where the branch ids are declared**, which is the
+diagram for a BPMN workflow and the application for a JSON one. The IR does not distinguish
+them. `examples/demo/15_bpmn_complete` and `examples/demo/16_json_complete` differ in
+exactly that way and compile to the same IR digest, which is what makes them this version's
+oracle for the lift -- and they are both outside the gate of section 11.2, since they
+declare a Placement resource, so the lift needs that oracle rather than the gate.
+
 ## 6. Candidates
 
 ```yaml
