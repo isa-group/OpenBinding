@@ -1,0 +1,674 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openbinding.dev/schema/composition2yaml/v1/composition.schema.json",
+  "title": "Composition2Yaml v1",
+  "description": "A composition: the central entity of OpenBinding Studio. Defined by its translation into qos-binding/v1 documents, specified in docs/COMPOSITION2YAML.md.",
+  "type": "object",
+  "required": [
+    "composition",
+    "version",
+    "properties",
+    "tasks",
+    "workflow"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "composition": {
+      "$ref": "#/$defs/name"
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "pricing": {
+      "$ref": "#/$defs/pricing"
+    },
+    "properties": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "#/$defs/symbol"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/property"
+      }
+    },
+    "tasks": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "#/$defs/symbol"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/task"
+      }
+    },
+    "workflow": {
+      "$ref": "#/$defs/node"
+    },
+    "candidates": {
+      "$ref": "#/$defs/candidates"
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rule"
+      }
+    },
+    "goals": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/goal"
+      }
+    },
+    "studio": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "name": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "symbol": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"
+    },
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "real",
+            "integer",
+            "ratio"
+          ]
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        }
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "enum": [
+            "sum",
+            "product",
+            "min",
+            "max"
+          ]
+        },
+        "parallel": {
+          "enum": [
+            "sum",
+            "product",
+            "min",
+            "max"
+          ]
+        },
+        "exclusive": {
+          "enum": [
+            "weightedSum",
+            "weightedProduct",
+            "min",
+            "max"
+          ]
+        },
+        "repeat": {
+          "enum": [
+            "scale",
+            "power",
+            "identity"
+          ]
+        },
+        "selection": {
+          "enum": [
+            "sum",
+            "product",
+            "min",
+            "max"
+          ]
+        }
+      }
+    },
+    "property": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "template": {
+          "enum": [
+            "cost",
+            "latency",
+            "availability",
+            "reliability",
+            "throughput"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "direction": {
+          "enum": [
+            "minimize",
+            "maximize"
+          ]
+        },
+        "scope": {
+          "enum": [
+            "invocation",
+            "selectedCandidate"
+          ]
+        },
+        "domain": {
+          "$ref": "#/$defs/domain"
+        },
+        "aggregate": {
+          "$ref": "#/$defs/aggregate"
+        },
+        "neutral": {
+          "type": "number"
+        },
+        "applies_to": {
+          "enum": [
+            "all",
+            "classical",
+            "quantum"
+          ]
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "template"
+          ]
+        },
+        {
+          "required": [
+            "direction",
+            "aggregate"
+          ]
+        }
+      ]
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "open": {
+          "const": true
+        },
+        "requires": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixed": {
+          "$ref": "#/$defs/fixedTask"
+        },
+        "local": {
+          "const": true
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "open",
+            "requires"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "fixed"
+                ]
+              },
+              {
+                "required": [
+                  "local"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "required": [
+            "fixed"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "open"
+                ]
+              },
+              {
+                "required": [
+                  "local"
+                ]
+              },
+              {
+                "required": [
+                  "requires"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "required": [
+            "local"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "open"
+                ]
+              },
+              {
+                "required": [
+                  "fixed"
+                ]
+              },
+              {
+                "required": [
+                  "requires"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "fixedTask": {
+      "type": "object",
+      "required": [
+        "properties"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "provider": {
+          "$ref": "#/$defs/symbol"
+        },
+        "properties": {
+          "$ref": "#/$defs/propertyValues"
+        }
+      }
+    },
+    "propertyValues": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "#/$defs/symbol"
+      },
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "task": {
+          "$ref": "#/$defs/symbol"
+        },
+        "empty": {
+          "const": true
+        },
+        "sequence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "parallel": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "exclusive": {
+          "$ref": "#/$defs/exclusive"
+        },
+        "repeat": {
+          "$ref": "#/$defs/repeat"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "task"
+          ]
+        },
+        {
+          "required": [
+            "empty"
+          ]
+        },
+        {
+          "required": [
+            "sequence"
+          ]
+        },
+        {
+          "required": [
+            "parallel"
+          ]
+        },
+        {
+          "required": [
+            "exclusive"
+          ]
+        },
+        {
+          "required": [
+            "repeat"
+          ]
+        }
+      ]
+    },
+    "exclusive": {
+      "type": "object",
+      "required": [
+        "id",
+        "branches"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/symbol"
+        },
+        "branches": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/branch"
+          }
+        },
+        "distribution": {
+          "const": "uniform"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "distribution"
+            ]
+          },
+          "then": {
+            "properties": {
+              "branches": {
+                "items": {
+                  "not": {
+                    "required": [
+                      "probability"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "branch": {
+      "type": "object",
+      "required": [
+        "flow"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/symbol"
+        },
+        "probability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "flow": {
+          "$ref": "#/$defs/node"
+        },
+        "condition": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "repeat": {
+      "type": "object",
+      "required": [
+        "body"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "$ref": "#/$defs/node"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expected": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "count"
+          ],
+          "not": {
+            "required": [
+              "expected"
+            ]
+          }
+        },
+        {
+          "required": [
+            "expected"
+          ],
+          "not": {
+            "required": [
+              "count"
+            ]
+          }
+        }
+      ]
+    },
+    "candidates": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "providers": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/symbol"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/candidate"
+          }
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "required": [
+        "id",
+        "provides",
+        "properties"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/symbol"
+        },
+        "provides": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider": {
+          "$ref": "#/$defs/symbol"
+        },
+        "title": {
+          "type": "string"
+        },
+        "properties": {
+          "$ref": "#/$defs/propertyValues"
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "required": [
+        "id",
+        "assert"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/symbol"
+        },
+        "assert": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enforcement": {
+          "enum": [
+            "hard",
+            "soft"
+          ]
+        },
+        "penalty": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enforcement": {
+                "const": "soft"
+              }
+            },
+            "required": [
+              "enforcement"
+            ]
+          },
+          "then": {
+            "required": [
+              "penalty"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "penalty"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "goal": {
+      "type": "object",
+      "required": [
+        "property"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "property": {
+          "$ref": "#/$defs/symbol"
+        },
+        "normalize": {
+          "type": "object",
+          "description": "The range this criterion scales the property onto, when it is not the property's domain. A criterion's range is an independent number in the IR and 14 corpus packages use that independence; widening the domain to match is not a way out, because the domain is in the IR too. Omitted, the range is the property's domain.",
+          "required": [
+            "min",
+            "max"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "pricing": {
+      "description": "The permanent link to one immutable SPHERE pricing version. A bare string is the shorthand for href; the version is read from the link and is never a separate field.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        {
+          "type": "object",
+          "required": [
+            "href"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "href": {
+              "$ref": "#/$defs/httpsUrl"
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^sha256-[0-9a-f]{64}$"
+            }
+          }
+        }
+      ]
+    },
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    }
+  }
+}

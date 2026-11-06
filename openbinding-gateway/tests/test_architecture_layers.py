@@ -11,8 +11,10 @@ PACKAGE = "openbinding_gateway"
 SOURCE = GATEWAY_ROOT / "src" / PACKAGE
 ROUTES = f"{PACKAGE}.routes"
 
-#: Layers that must stay independent of ``routes``.
-PROTECTED_LAYERS = ("services", "domain", "jobs")
+#: Layers that must stay independent of ``routes``.  ``composition`` is here so the
+#: Composition2Yaml language stays liftable into a distribution of its own: it may use the
+#: container and its own modules, and nothing above them.
+PROTECTED_LAYERS = ("services", "domain", "jobs", "composition")
 
 #: Modules outside ``routes/`` that import ``routes`` at the time of writing,
 #: relative to the package (``artifacts`` is ``openbinding_gateway/artifacts.py``).
@@ -106,7 +108,9 @@ def test_services_domain_and_jobs_do_not_import_routes() -> None:
             for line, name in routes_imports(path.read_text(encoding="utf-8"), _package_of(path)):
                 offenders.append(f"{path.relative_to(SOURCE.parent)}:{line} imports {name}")
 
-    assert not offenders, "services/domain/jobs must not import routes:\n" + "\n".join(offenders)
+    assert not offenders, (
+        f"{', '.join(PROTECTED_LAYERS)} must not import routes:\n" + "\n".join(offenders)
+    )
 
 
 #: ``integrations/`` is infrastructure boundary code: it may use ``core`` (settings), ``models`` (the problem
