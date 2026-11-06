@@ -55,6 +55,7 @@ from .model import (
     Rule,
     Sequence,
     TaskNode,
+    RATIO_TEMPLATES,
     TEMPLATES,
 )
 from .neutral import expand_aggregation
@@ -262,13 +263,18 @@ def _property_model(name: str, source: Any) -> Property:
         expanded = expand_aggregation({k: v for k, v in merged.items() if v is not None})
         merged = expanded
     domain = source.get("domain") or {}
+    # ``availability`` and ``reliability`` are ratios, and a ratio is bounded to [0, 1] by
+    # the container, which is why those two templates need no explicit bounds (section
+    # 3.2). Reading them as the ``real`` default would leave a goal over one of them with
+    # no range to normalize over.
+    kind = domain.get("kind") or ("ratio" if template in RATIO_TEMPLATES else "real")
     return Property(
         unit=source.get("unit", "1"),
         direction=source.get("direction", direction or "minimize"),
         aggregation=Aggregation(**{key: merged[key] for key in
                                    ("sequence", "parallel", "exclusive", "repeat", "selection")}),
         domain=Domain(
-            kind=domain.get("kind", "real"),
+            kind=kind,
             minimum=domain.get("min"),
             maximum=domain.get("max"),
         ),

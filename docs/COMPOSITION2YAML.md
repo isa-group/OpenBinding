@@ -409,15 +409,21 @@ workflow:
         - {task: O}
         - {task: F}
         - {task: D}
-    - {task: L_filter}
+    - {task: L}
     - {task: T}
     - exclusive:
         id: solver_choice
         branches:
           - {probability: 0.8, flow: {task: C}}
           - {probability: 0.2, flow: {task: Q}}
-    - {task: L_validate}
+    - {task: L}
 ```
+
+`L` appears twice on purpose, and it is one task placed twice rather than two tasks. That
+is what the container calls shared candidates: both positions bind to the *same* selected
+candidate, which is the right reading when one compliance service is consulted twice.
+Declaring `L_filter` and `L_validate` instead would let the solver pick two different
+providers for what the architecture has as one service.
 
 | Composition2Yaml | container node |
 | --- | --- |
@@ -1123,7 +1129,6 @@ tasks:
   L: {open: true, requires: service/L, title: Driver and Labor Compliance}
   T: {open: true, requires: service/T, title: Distance and Travel Time}
   Q: {open: true, requires: service/Q, title: Quantum Routing Solver}
-  M: {open: true, requires: service/M, title: Telemetry and Tracking}
   C:
     fixed:
       title: Classical Routing Solver
@@ -1143,7 +1148,7 @@ workflow:
         branches:
           - {probability: 0.8, flow: {task: C}}
           - {probability: 0.2, flow: {task: Q}}
-    - {task: M}
+    - {task: L}                       # the same task again, not a second one
 
 candidates:
   providers:

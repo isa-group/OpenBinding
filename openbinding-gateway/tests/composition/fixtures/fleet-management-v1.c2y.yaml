@@ -1,0 +1,254 @@
+# Fleet Management System, version 1 -- the guiding case, as Composition2Yaml.
+#
+# This is the phase F1 gate made concrete: compiled, this document reproduces the IR digest
+# of examples/demo/13_fms, the package already in the corpus. It is a fixture and not a
+# package: a .c2y.yaml inside a package directory is refused as undeclared_resource on
+# every compile, and adding a package to the tree would move the counts asserted in
+# fourteen places across three CI jobs.
+#
+# The architecture is Figure 1 of Ruiz-Cortes and Parejo, "An Initial Exploration of
+# Pricing-driven Governance for Hybrid Quantum-Classical SaaS", JISBD 2025
+# (hdl.handle.net/11705/JISBD/2025/91): two internal services S1-S2 and four external ones
+# E1-E4. S1, the routing service, is the composition itself and gets no task -- what it
+# does, choosing between the classical and the quantum solver by problem size, IS this
+# workflow. See section 4.1 of docs/COMPOSITION2YAML.md for the rule.
+#
+# The service names below are the author's own, recovered from the ancestor of the package
+# at commit 2eb0d7bbd8.
+
+composition: fleet_routing_qaco_001
+version: 1.0.0
+description: 'QoS-aware service composition instance for a fleet management system (FMS).
+  There is no T4: the fourth step of the workflow is the in-house classical routing path,
+  which was modelled outside the selectable candidate set and so was never in the task-id
+  namespace. Nothing was dropped.' 
+properties:
+  cost:
+    unit: USD/month
+    direction: minimize
+    domain:
+      min: 0
+      max: 10000
+    aggregate:
+      sequence: sum
+      parallel: sum
+      exclusive: weightedSum
+      repeat: scale
+      selection: sum
+  execution_time:
+    unit: ms
+    direction: minimize
+    domain:
+      min: 0
+      max: 20000
+    aggregate:
+      sequence: sum
+      parallel: max
+      exclusive: weightedSum
+      repeat: scale
+      selection: sum
+  availability:
+    unit: '1'
+    direction: maximize
+    domain:
+      kind: ratio
+      min: 0.0
+      max: 1.0
+    aggregate:
+      sequence: product
+      parallel: product
+      exclusive: weightedSum
+      repeat: power
+      selection: product
+  reliability:
+    unit: '1'
+    direction: maximize
+    domain:
+      kind: ratio
+      min: 0.0
+      max: 1.0
+    aggregate:
+      sequence: product
+      parallel: product
+      exclusive: weightedSum
+      repeat: power
+      selection: product
+  security:
+    unit: score
+    direction: maximize
+    domain:
+      min: 1
+      max: 5
+    aggregate:
+      sequence: min
+      parallel: min
+      exclusive: weightedSum
+      repeat: identity
+      selection: min
+# There is no T4, and nothing was dropped: the fourth step of the workflow is the in-house
+# classical routing path below, which the author modelled outside the selectable candidate
+# set, so it was never in the task-id namespace that the numbers belong to. Reproduce these
+# ids verbatim -- renumbering is refused by the frozen-baseline equivalence checks, and this
+# package is the reference the whole translation is proved against.
+tasks:
+  # The names are comments and not `title:` fields on purpose: a task's name reaches the
+  # IR and moves the digest (measured), so writing them here would lose the very package
+  # this fixture exists to reproduce.
+  T1:                                  # Cloud Deployment -- E4, the PaaS/IaaS FMS runs on
+    open: true
+    requires: service/T1
+  T2:                                  # Telemetry and Tracking -- E1, vehicle monitoring
+    open: true
+    requires: service/T2
+  T3:                                  # Distance and Travel Time -- a seventh service;
+    open: true                         #   version 2 names it T
+    requires: service/T3
+  T5:                                  # Quantum Routing -- E2, on a quantum IaaS provider
+    open: true
+    requires: service/T5
+  T6:                                  # Billing and Payment -- E3
+    open: true
+    requires: service/T6
+  node_classic_routing:
+    local: true
+    title: Classic routing path executed outside the selectable candidate set.
+workflow:
+  sequence:
+  - task: T1
+  - task: T2
+  - task: T3
+  - exclusive:
+      id: node_routing_choice
+      branches:
+      - id: node_routing_choice_branch_1
+        probability: 0.8
+        flow:
+          task: node_classic_routing
+      - id: node_routing_choice_branch_2
+        probability: 0.2
+        flow:
+          task: T5
+  - task: T6
+candidates:
+  providers:
+    google: {}
+    amazon: {}
+    radius: {}
+    samsara: {}
+    here: {}
+    ibm: {}
+    paypal: {}
+    stripe: {}
+  rows:
+  - id: cand_t1_google_cloud
+    provides: service/T1
+    provider: google
+    properties:
+      cost: 240
+      execution_time: 220
+      availability: 0.9998
+      reliability: 0.998
+      security: 5
+  - id: cand_t1_aws
+    provides: service/T1
+    provider: amazon
+    properties:
+      cost: 220
+      execution_time: 210
+      availability: 0.9995
+      reliability: 0.9975
+      security: 5
+  - id: cand_t2_radius_iot_network
+    provides: service/T2
+    provider: radius
+    properties:
+      cost: 500
+      execution_time: 420
+      availability: 0.998
+      reliability: 0.993
+      security: 4
+  - id: cand_t2_samsara_fleet_api
+    provides: service/T2
+    provider: samsara
+    properties:
+      cost: 650
+      execution_time: 520
+      availability: 0.9984999999999999
+      reliability: 0.9940000000000001
+      security: 4
+  - id: cand_t3_here_routing_api
+    provides: service/T3
+    provider: here
+    properties:
+      cost: 300
+      execution_time: 380
+      availability: 0.9990000000000001
+      reliability: 0.995
+      security: 4
+  - id: cand_t3_distance_matrix_api
+    provides: service/T3
+    provider: google
+    properties:
+      cost: 900
+      execution_time: 300
+      availability: 0.9995
+      reliability: 0.996
+      security: 5
+  - id: cand_t5_amazon_braket
+    provides: service/T5
+    provider: amazon
+    properties:
+      cost: 1200
+      execution_time: 9000
+      availability: 0.9990000000000001
+      reliability: 0.99
+      security: 5
+  - id: cand_t5_ibm_quantum
+    provides: service/T5
+    provider: ibm
+    properties:
+      cost: 1500
+      execution_time: 12000
+      availability: 0.997
+      reliability: 0.997
+      security: 5
+  - id: cand_t6_paypal
+    provides: service/T6
+    provider: paypal
+    properties:
+      cost: 1200
+      execution_time: 450
+      availability: 0.9995
+      reliability: 0.992
+      security: 4
+  - id: cand_t6_stripe
+    provides: service/T6
+    provider: stripe
+    properties:
+      cost: 950
+      execution_time: 520
+      availability: 0.9998999999999999
+      reliability: 0.995
+      security: 5
+goals:
+- property: cost
+  normalize:
+    min: 0
+    max: 10000
+- property: execution_time
+  normalize:
+    min: 0
+    max: 20000
+- property: availability
+  normalize:
+    min: 0
+    max: 1
+- property: reliability
+  normalize:
+    min: 0
+    max: 1
+- property: security
+  normalize:
+    min: 1
+    max: 5
+

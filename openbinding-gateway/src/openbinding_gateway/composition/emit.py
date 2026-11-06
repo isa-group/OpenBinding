@@ -418,6 +418,32 @@ def _constraints(composition: Composition) -> dict[str, Any] | None:
     )
 
 
+class EmitError(Exception):
+    """The composition cannot be written as a package, and says which part."""
+
+
+def _bounds(name: str, prop: Property) -> tuple[float, float]:
+    """The range a criterion normalizes over when the goal states none.
+
+    A ``ratio`` domain is bounded to [0, 1] by the container and needs no explicit bounds
+    (section 3.2), so a goal over one has a range even though the property declares none.
+    Any other domain with an open end has nothing to normalize over, and that is refused
+    here rather than emitted as a null the schema rejects three layers down.
+    """
+    minimum = prop.domain.minimum
+    maximum = prop.domain.maximum
+    if prop.domain.kind == "ratio":
+        minimum = 0.0 if minimum is None else minimum
+        maximum = 1.0 if maximum is None else maximum
+    if minimum is None or maximum is None:
+        raise EmitError(
+            f"goal {name!r} normalizes over the domain of a property that has no "
+            f"{'lower' if minimum is None else 'upper'} bound: give the property a domain "
+            "or the goal an explicit normalize range",
+        )
+    return minimum, maximum
+
+
 def _optimization(composition: Composition) -> dict[str, Any]:
     """The criteria, in author order, each normalizing over a range it states.
 
@@ -448,7 +474,7 @@ def _optimization(composition: Composition) -> dict[str, Any]:
         if goal.normalize is not None:
             minimum, maximum, clamp = goal.normalize.minimum, goal.normalize.maximum, goal.normalize.clamp
         else:
-            minimum, maximum, clamp = prop.domain.minimum, prop.domain.maximum, True
+            minimum, maximum, clamp = *_bounds(goal.property, prop), True
         criteria.append({
             "id": goal.property,
             "feature": {"resource": ids.APPLICATION, "id": goal.property},
