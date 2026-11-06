@@ -552,6 +552,19 @@ Each row becomes one entry of `CandidateCatalog.spec.candidates`, with `provides
 verbatim and `properties` becoming `features`. `featureBindings` is emitted as the
 identity mapping from each property id to the Application feature of the same name.
 
+`provides` takes **one capability or a list of them**, and the list is ordered: it is
+visible in the IR in both its order and its multiplicity, so the Studio neither sorts it
+nor removes a repeat (section 11). Exactly one candidate in the whole tree uses the plural
+form -- the `shared` candidate of `examples/demo/14_shared_candidates`, which offers three
+capabilities at once and is also the only gate package reading
+`scope: selectedCandidate`. One candidate serving three tasks is what the package's name
+means, and the two features go together: the scope is what charges it once rather than
+three times.
+
+A candidate's `title` and a provider's are Studio-side. The catalog has no slot for either
+-- writing a `name` under a candidate or a provider moves the IR digest and no package in
+the gate carries one -- so they stay in provenance with the rest of the Studio's own data.
+
 Open tasks draw their rows from a pricing, from a SPHERE collection or from hand-written
 rows; which source is used is phase F4 and does not change this translation.
 
@@ -596,7 +609,7 @@ goals:
 ```
 
 Each goal becomes one entry of `Optimization.spec.criteria`, as
-`{id, feature: {resource: "application", id}, normalize: {min, max, clamp: true}}`.
+`{id, feature: {resource: "application", id}, normalize: {min, max, clamp}}`.
 
 **The criterion's id is the property name.** The container requires an id and reads it
 from the source, so it is visible in the IR and renaming it moves the digest. No
@@ -623,7 +636,17 @@ anyway. The other **seven are inside it**: `examples/demo/01_simple_seq`,
 `03_xor_choice`, `14_shared_candidates`, the three `17`/`18`/`19` analysis demos -- the
 ones the Studio exists to drive -- and one ICWS instance. Without this field the gate of
 section 11.2 would be 68 of 82 rather than 75, and six of the seven are lifted by this
-field alone. `clamp` is not exposed: every criterion in the corpus clamps.
+field alone.
+
+`clamp` **is** exposed, and the reason is a container default that runs the other way from
+the obvious reading: the schema declares `clamp` with `default: false` and the compiler
+reads `normalize.get("clamp", False)`, so a criterion that omits the key does **not** clamp.
+238 of the gate's 243 criteria clamp and five do not -- in `examples/demo/01_simple_seq`,
+`03_xor_choice` and one ICWS instance -- so a goal that could not say `false` would miss
+three of the 75 packages, while one that always said `false` would miss the other 72. It
+defaults to `true` here, because that is what a goal written from scratch wants. There is no
+need to express the key's *absence*: the IR always carries an explicit boolean, and an
+omitted key and an explicit `false` compile to the same IR digest.
 
 Weights, scalarization and objective type are **not** part of a composition. They are
 execution-request parameters, chosen per analysis run, and a composition that fixed them
@@ -747,8 +770,13 @@ any of this machinery — it reuses the container's:
   emitted document surfaces as a compile error rather than as a flaky test.
 - **Maps are emitted in sorted key order**: providers, feature bindings, candidates,
   tasks, properties, constraints, resources.
-- **Lists keep author order verbatim**: criteria, penalties, routing entries, and every
-  `sequence`, `parallel` and `exclusive` list.
+- **Lists keep author order verbatim**: criteria, penalties, routing entries, a
+  candidate's `provides`, and every `sequence`, `parallel` and `exclusive` list. Two of
+  those are easy to think of as sets and are not. A candidate's `provides` is visible in
+  the IR in its order *and* its multiplicity, so it is never sorted and never deduplicated.
+  And a `parallel` block's children are ordered in the digest even though the block's
+  meaning is not: 27 of the 29 gate packages that contain one hold children that are not in
+  id order.
 - **Nested sequences are not pre-flattened.** The container canonicalizes them; doing it
   twice, differently, is how an import and an emit stop agreeing.
 - **Resource ids are normative**, because they appear in the IR: `application`,

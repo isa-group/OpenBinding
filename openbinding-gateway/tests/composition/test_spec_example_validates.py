@@ -261,15 +261,22 @@ def test_the_schema_rules_for_a_property(declared, valid: bool, schema: dict) ->
         ({"property": "cost", "normalize": {"min": 1, "max": 4}}, True),
         # Half a range is not a range.
         ({"property": "cost", "normalize": {"min": 1}}, False),
-        # clamp is not exposed: every criterion in the corpus clamps, and one that does
-        # not is a different decision from a different range.
-        ({"property": "cost", "normalize": {"min": 1, "max": 4, "clamp": True}}, False),
+        # clamp IS exposed, and it has to be: the container defaults it to false, and five
+        # of the gate's 243 criteria omit the key and so do not clamp. A goal that could
+        # not say false would miss three of the 75 packages.
+        ({"property": "cost", "normalize": {"min": 1, "max": 4, "clamp": True}}, True),
+        ({"property": "cost", "normalize": {"min": 1, "max": 4, "clamp": False}}, True),
+        # It is a boolean, not a mode.
+        ({"property": "cost", "normalize": {"min": 1, "max": 4, "clamp": "always"}}, False),
         # No weight, no scalarization: those belong to an analysis run, not to the
         # composition. The criterion id is not a field either -- it is the property name.
         ({"property": "cost", "weight": 0.5}, False),
         ({"property": "cost", "id": "cost_criterion"}, False),
     ],
-    ids=["plain", "range-override", "partial-range", "clamp", "weight", "explicit-id"],
+    ids=[
+        "plain", "range-override", "partial-range", "clamp-true", "clamp-false",
+        "clamp-not-a-boolean", "weight", "explicit-id",
+    ],
 )
 def test_the_schema_rules_for_a_goal(goal, valid: bool, schema: dict) -> None:
     document = _minimal({"id": "x", "branches": [{"flow": {"task": "A"}}, {"flow": {"task": "B"}}]})

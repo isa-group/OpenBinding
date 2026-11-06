@@ -18,7 +18,7 @@ enforces that by listing ``composition`` among the protected layers.
 
 from __future__ import annotations
 
-from . import ids
+from . import emit, ids
 from .diagnostics import CompositionError, Diagnostic, Span
 from .model import (
     Aggregation,
@@ -88,6 +88,7 @@ __all__ = [
     "TaskNode",
     "Unbounded",
     "expand_aggregation",
+    "emit",
     "ids",
     "infer_neutral",
     "resolve_neutral",

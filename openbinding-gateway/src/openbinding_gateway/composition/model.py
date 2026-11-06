@@ -219,9 +219,19 @@ class Candidate:
     """
 
     id: str
-    provides: str
+    #: One capability type, or several. The container accepts a list, and the list is
+    #: visible in the IR **in its order and its multiplicity** -- reversing it or
+    #: duplicating an entry moves the digest -- so this is a tuple and never a set, and the
+    #: emitter never sorts it. Section 11's enumeration of digest-visible lists omits this
+    #: one. Exactly one candidate in the whole tree uses the plural form,
+    #: ``examples/demo/14_shared_candidates``'s ``shared``, which is also the only gate
+    #: package that reads ``scope: selectedCandidate``: one task's candidate serving three
+    #: tasks is what "shared candidates" means.
+    provides: str | tuple[str, ...]
     properties: dict[str, float]
     provider: str | None = None
+    #: Studio-side. A candidate's name has no home in the emitted catalog: writing
+    #: ``spec.candidates.<id>.name`` moves the IR digest and no gate package carries one.
     title: str | None = None
 
 
@@ -257,6 +267,15 @@ class Normalize:
 
     minimum: float
     maximum: float
+    #: Whether a value outside the range is pulled to the nearer bound. The container's
+    #: default is **false**, not true: the schema declares ``default: false`` and the
+    #: compiler reads ``normalize.get("clamp", False)``, so a criterion that omits the key
+    #: does not clamp. 238 criteria of the gate's 243 clamp and 5 do not -- in
+    #: ``examples/demo/01_simple_seq``, ``03_xor_choice`` and one ICWS instance -- so a
+    #: goal that could not say ``False`` would miss three of the 75 packages. There is no
+    #: need to express the key's *absence*: the IR always carries an explicit boolean, and
+    #: an omitted key and an explicit ``false`` compile to the same IR digest (measured).
+    clamp: bool = True
 
 
 @dataclass(frozen=True, slots=True)
