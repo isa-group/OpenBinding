@@ -79,6 +79,7 @@ async def test_generate_instance_endpoint_success(api_client):
 
     assert data["name"] == "api_test_inst"
     assert "package_digest" in data
+    assert "ir_digest" in data
     assert "compilation_digest" in data
     assert "workload_features" not in data
 
@@ -109,7 +110,15 @@ async def test_generated_bpmn_matches_native_workflow(api_client, structure):
     native = await api_client.post("/v1/generator/instances", json={**base, "dialects": ["qos-binding/v1"]})
     bpmn = await api_client.post("/v1/generator/instances", json={**base, "dialects": ["bpmn-workflow/v1"]})
     assert native.status_code == bpmn.status_code == 200, (native.text, bpmn.text)
-    assert native.json()["compilation_digest"] == bpmn.json()["compilation_digest"]
+    # The pairing guarantee is about the lowered problem, so it is ir_digest that
+    # the two share. compilation_digest covers the package bytes, the profile, the
+    # dialects and the compiler bundle, so the pair must differ in it. Asserting
+    # both, and that the two fields differ within one response, is what keeps a
+    # future swap of the two from passing.
+    assert native.json()["ir_digest"] == bpmn.json()["ir_digest"]
+    assert native.json()["compilation_digest"] != bpmn.json()["compilation_digest"]
+    assert native.json()["ir_digest"] != native.json()["compilation_digest"]
+    assert bpmn.json()["ir_digest"] != bpmn.json()["compilation_digest"]
     native_compiled = compile_instance(InstancePackage({
         name: base64.b64decode(content) for name, content in native.json()["file_bytes_base64"].items()
     }))

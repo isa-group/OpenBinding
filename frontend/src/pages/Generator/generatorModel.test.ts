@@ -9,7 +9,7 @@ import {
 const settings = (over: Partial<LabSettings> = {}): LabSettings => ({ ...DEFAULT_SETTINGS, ...over });
 const digest = (char: string) => `sha256-${char.repeat(64)}`;
 const generated = (over: Partial<InstanceGeneratedResponse> = {}): InstanceGeneratedResponse => ({
-  name: 'generated_qaco', package_digest: digest('1'), instance_digest: digest('2'), compilation_digest: digest('3'), target_engines: [], workload_features: {}, files: {}, ...over,
+  name: 'generated_qaco', package_digest: digest('1'), instance_digest: digest('2'), ir_digest: digest('3'), compilation_digest: digest('6'), target_engines: [], workload_features: {}, files: {}, ...over,
 });
 
 describe('checking the settings before they are sent', () => {
