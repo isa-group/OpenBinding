@@ -229,6 +229,7 @@ _REPO_NAME = re.compile(r"\b(?:REPO_ROOT|ROOT|REPO)\b")
 WALKING_TESTS = {
     "composition/test_goldens_unchanged.py": "bim-toolchain/golden, the corpus walk over examples/, tools/check_bim_*.py",
     "composition/test_the_gate_is_a_set.py": "bim-toolchain/golden, the corpus walk over examples/ and engines/*/tests/fixtures, tools/check_bim_corpus.py",
+    "composition/test_the_roundtrip_gate.py": "bim-toolchain/golden and every gate package, through tools/check_composition_roundtrip.py",
     "integration/test_engine_representation_regression.py": "schemas/bim/v1/manifests, examples/federation",
     "test_b2_resolve_urls.py": "frontend/src/routes",
     "test_b5_corpus.py": "engine manifests",

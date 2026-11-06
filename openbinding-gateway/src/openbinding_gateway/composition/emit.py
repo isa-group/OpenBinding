@@ -358,21 +358,18 @@ def _constraints(composition: Composition) -> dict[str, Any] | None:
     """The constraint set, emitted only when the composition states a rule."""
     if not composition.rules:
         return None
-    spec: dict[str, Any] = {
-        "constraints": {
-            rule.id: {
-                "assert": rule.assertion,
-                **({"enforcement": "soft"} if rule.enforcement == "soft" else {}),
-            }
-            for rule in composition.rules
-        },
-    }
-    penalties = [rule for rule in composition.rules if rule.penalty is not None]
-    if penalties:
-        spec["penalties"] = [
-            {"constraint": rule.id, "penalty": rule.penalty} for rule in penalties
-        ]
-    return _document(composition, ids.CONSTRAINTS, "ConstraintSet", spec)
+    constraints: dict[str, Any] = {}
+    for rule in composition.rules:
+        # ``enforcement`` is required by the schema, for a hard constraint too: omitting it
+        # is a compile error, not a default. The penalty lives inside the constraint it
+        # belongs to -- there is no separate penalties list.
+        body: dict[str, Any] = {"assert": rule.assertion, "enforcement": rule.enforcement}
+        if rule.penalty is not None:
+            body["penalty"] = rule.penalty
+        constraints[rule.id] = body
+    return _document(
+        composition, ids.CONSTRAINTS, "ConstraintSet", {"constraints": constraints},
+    )
 
 
 def _optimization(composition: Composition) -> dict[str, Any]:
@@ -383,6 +380,22 @@ def _optimization(composition: Composition) -> dict[str, Any]:
     reads. ``normalize`` defaults to the property's domain and the goal may override it,
     because the range is an independent number in the IR and 14 packages use that.
     """
+    # A soft constraint has to be referenced from here, not merely marked soft where it is
+    # declared: the compiler refuses a package whose soft constraint is "not in
+    # Optimization". The list is ordered in the digest and takes the order of
+    # ``Composition.rules``; the weight is a second number, independent of the penalty the
+    # constraint itself charges, and ``None`` writes no key at all.
+    penalties = []
+    for rule in composition.rules:
+        if rule.enforcement != "soft":
+            continue
+        entry: dict[str, Any] = {
+            "constraint": {"resource": ids.CONSTRAINTS, "id": rule.id},
+        }
+        if rule.weight is not None:
+            entry["weight"] = rule.weight
+        penalties.append(entry)
+
     criteria = []
     for goal in composition.goals:
         prop = composition.properties[goal.property]
@@ -395,7 +408,11 @@ def _optimization(composition: Composition) -> dict[str, Any]:
             "feature": {"resource": ids.APPLICATION, "id": goal.property},
             "normalize": {"min": minimum, "max": maximum, "clamp": clamp},
         })
-    return _document(composition, ids.OPTIMIZATION, "Optimization", {"criteria": criteria})
+    spec: dict[str, Any] = {}
+    if penalties:
+        spec["penalties"] = penalties
+    spec["criteria"] = criteria
+    return _document(composition, ids.OPTIMIZATION, "Optimization", spec)
 
 
 def _instance(composition: Composition, resources: dict[str, dict[str, Any]]) -> dict[str, Any]:

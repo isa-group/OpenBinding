@@ -242,7 +242,14 @@ class Rule:
     id: str
     assertion: str
     enforcement: Literal["hard", "soft"] = "hard"
+    #: What the constraint charges when it is violated, written on the constraint itself.
     penalty: float | None = None
+    #: How the optimization weighs that penalty. It is a second, independent number: every
+    #: soft constraint in the gate charges 1, while two packages weigh it 0.3 and three omit
+    #: the key altogether -- so ``None`` means "write no weight" and is not the same as 1.
+    #: The penalties list is ordered in the digest, and that order is the order of
+    #: ``Composition.rules``.
+    weight: float | None = 1.0
 
 
 @dataclass(frozen=True, slots=True)
