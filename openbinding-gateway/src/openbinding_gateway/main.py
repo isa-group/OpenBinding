@@ -67,6 +67,7 @@ from .routes.users import router as users_router
 from .routes.v1 import router as v1_router
 from .routes.verifier import router as verifier_router
 from .routes.generator import router as generator_router
+from .routes.compositions import router as compositions_router
 from .security.apikeys import (
     ALL_PERMISSIONS,
     ENGINE_LIMITED_PERMISSIONS,
@@ -378,6 +379,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(notifications_router)
     app.include_router(verifier_router)
     app.include_router(generator_router)
+    app.include_router(compositions_router)
 
     generated_openapi = app.openapi
     app.openapi = lambda: openapi_with_security_contract(app, settings, generated_openapi)
