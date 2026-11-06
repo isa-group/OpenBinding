@@ -8,10 +8,12 @@ from .compatibility import (
 from .legacy_parser import (
     CandidateService,
     LegacyConstraint,
+    LegacyParseError,
     LegacyProblem,
     QoSPropertySpec,
     StructureNode,
     parse_legacy_file,
+    parse_legacy_path,
     parse_legacy_structure,
 )
 from .postprocessor import BIMPostprocessor, normalize_probabilities
@@ -27,10 +29,12 @@ __all__ = [
     "resolve_engine_capabilities",
     "CandidateService",
     "LegacyConstraint",
+    "LegacyParseError",
     "LegacyProblem",
     "QoSPropertySpec",
     "StructureNode",
     "parse_legacy_file",
+    "parse_legacy_path",
     "parse_legacy_structure",
     "BIMPostprocessor",
     "normalize_probabilities",

@@ -42,7 +42,7 @@ from ..generator.compatibility import (
     IncompatibleTargetEnginesError,
 )
 from ..generator.config import FeatureDefinition, GenerationDistributions, StrictModel, expand_features
-from ..generator.legacy_parser import parse_legacy_file
+from ..generator.legacy_parser import LegacyParseError, parse_legacy_file
 from ..generator.postprocessor import BIMPostprocessor
 from ..generator.synthesizer import generate_instance_package
 from ..generator.package import GeneratedPackage
@@ -494,7 +494,14 @@ async def convert_legacy(
     caller: Optional[User] = Depends(get_optional_user),
 ) -> Any:
     """Parse and convert raw legacy text into a strict BIM v1 package."""
-    problem = parse_legacy_file(request.raw_text)
+    # raw_text is content, never a path: parse_legacy_file does not touch the
+    # filesystem, so an unauthenticated body cannot name a file on the host.
+    # A document the grammar does not accept is the caller's mistake, which is a
+    # 422 and not the 500 an uncaught parse failure used to produce.
+    try:
+        problem = parse_legacy_file(request.raw_text)
+    except LegacyParseError as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid legacy QACO text: {exc}") from exc
     postprocessor = BIMPostprocessor(
         name=request.name,
         profile=request.profile,

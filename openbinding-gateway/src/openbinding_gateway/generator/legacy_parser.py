@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass, field
 from typing import Any, Union
+
+
+class LegacyParseError(ValueError):
+    """The text handed to the parser is not a legacy QACO specification."""
 
 
 @dataclass
@@ -192,27 +197,34 @@ def parse_legacy_structure(text: str) -> StructureNode:
     return parser.parse()
 
 
-def parse_legacy_file(content_or_path: Union[str, bytes]) -> LegacyProblem:
-    """Parse a legacy QACO text specification into a structured LegacyProblem."""
-    raw_text: str
-    if isinstance(content_or_path, (str, bytes)):
-        # Check if content_or_path is an existing filepath
-        if isinstance(content_or_path, str) and "\n" not in content_or_path:
-            import os
-            if os.path.isfile(content_or_path):
-                with open(content_or_path, "rb") as f:
-                    raw_text = _decode_content(f.read())
-            else:
-                raw_text = _decode_content(content_or_path)
-        else:
-            raw_text = _decode_content(content_or_path)
-    else:
-        raise ValueError(f"Unsupported content type: {type(content_or_path)}")
+def parse_legacy_file(content: Union[str, bytes]) -> LegacyProblem:
+    """Parse a legacy QACO text specification into a structured LegacyProblem.
+
+    The argument is always the specification itself, never a path to it. Reading a
+    file is the separate, explicitly named :func:`parse_legacy_path`, so that a
+    string arriving from an untrusted caller - an HTTP request body, say - cannot
+    make this function open whatever the string happens to name on the host.
+
+    Raises:
+        LegacyParseError: the text is not a legacy QACO specification.
+    """
+    if not isinstance(content, (str, bytes)):
+        raise LegacyParseError(f"Unsupported content type: {type(content)}")
+    raw_text = _decode_content(content)
 
     sections_split = re.split(r"%#=+\s*([A-Z ]+)\s*=+#", raw_text)
     sections: dict[str, str] = {}
     for i in range(1, len(sections_split), 2):
         sections[sections_split[i].strip()] = sections_split[i + 1]
+
+    # Without a single section marker there is nothing of the grammar to read. The
+    # parser would otherwise carry on over an empty structure and return a problem
+    # that says more about its own defaults than about the input, which is how a
+    # failed parse used to reach the caller looking like a successful one.
+    if not sections:
+        raise LegacyParseError(
+            "no '%#= SECTION =#' marker found: the text is not a legacy QACO specification"
+        )
 
     # 1. Header & Statistics
     header_sec = sections.get("HEADER", "")
@@ -372,4 +384,15 @@ def parse_legacy_file(content_or_path: Union[str, bytes]) -> LegacyProblem:
 def parse_legacy_text(text: str) -> LegacyProblem:
     """Parse legacy QACO problem text."""
     return parse_legacy_file(text)
+
+
+def parse_legacy_path(path: Union[str, os.PathLike[str]]) -> LegacyProblem:
+    """Parse a legacy QACO specification held in a local file.
+
+    This is for callers that already hold a trusted path of their own choosing - a
+    command line, a test fixture - and it is deliberately not what the HTTP routes
+    call: a request body is content, and only content.
+    """
+    with open(path, "rb") as handle:
+        return parse_legacy_file(handle.read())
 

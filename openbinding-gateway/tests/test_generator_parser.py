@@ -6,9 +6,11 @@ from pathlib import Path
 import pytest
 
 from openbinding_gateway.generator.legacy_parser import (
+    LegacyParseError,
     LegacyProblem,
     StructureNode,
     parse_legacy_file,
+    parse_legacy_path,
     parse_legacy_text,
 )
 
@@ -146,7 +148,7 @@ def test_parse_pruebatonta_fixture():
     if not fixture_path.exists():
         pytest.skip(f"Fixture not found at {fixture_path}")
 
-    parsed = parse_legacy_file(str(fixture_path))
+    parsed = parse_legacy_path(fixture_path)
     assert isinstance(parsed, LegacyProblem)
     assert len(parsed.candidates) > 0
     assert len(parsed.qos_properties) > 0
@@ -167,3 +169,21 @@ def test_parse_legacy_text_empty_structure():
     assert isinstance(parsed, LegacyProblem)
     assert len(parsed.candidates) == 0
     assert len(parsed.constraints) == 0
+
+
+def test_parse_legacy_file_never_reads_a_path(tmp_path: Path):
+    """A path is content, not an instruction to open it.
+
+    The parser used to call os.path.isfile on whatever string it was handed, which
+    turned every caller that forwards untrusted text into a file reader.
+    """
+    secret = tmp_path / "secret.txt"
+    secret.write_text("TOP SECRET", encoding="utf-8")
+
+    with pytest.raises(LegacyParseError):
+        parse_legacy_file(str(secret))
+
+
+def test_parse_legacy_file_rejects_text_without_sections():
+    with pytest.raises(LegacyParseError):
+        parse_legacy_file("SEC\n  T1\n  T2\nEND\n")
