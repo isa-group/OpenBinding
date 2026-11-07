@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LIMIT_ORDER } from '../../utils/limits';
 import { catalogFixture } from './pricingFixture';
-import { readCatalog, withInfiniteLimits } from './pricingModel';
+import { currentSelectionOf, readCatalog, withInfiniteLimits } from './pricingModel';
 
 const view = readCatalog(catalogFixture)!;
 const row = (id: string) => view.groups.flatMap((group) => group.rows).find((item) => item.id === id)!;
@@ -124,5 +124,33 @@ describe('helpers', () => {
     };
     expect(pricing.plans.PRO.usageLimits.apiKeys.value).toBe(Number.POSITIVE_INFINITY);
     expect(pricing.custom).toBeNull();
+  });
+});
+
+describe('currentSelectionOf', () => {
+  const claim = (plan: string, addOns: Record<string, number>, service = 'openbinding') => ({
+    contractedServices: { [service]: '0.1.0' },
+    subscriptionPlans: { [service]: plan },
+    subscriptionAddOns: { [service]: addOns },
+  });
+
+  it('marks nothing for a visitor who is not signed in', () => {
+    expect(currentSelectionOf(null, claim('PRO', { STORAGE_PACK: 2 }), 'openbinding')).toBeUndefined();
+  });
+
+  it('marks the plan of the profile when the token carries no subscription', () => {
+    expect(currentSelectionOf('BASIC', null, 'openbinding')).toEqual({ planId: 'BASIC' });
+  });
+
+  it('adds the contracted add-ons of the token when it names the same plan', () => {
+    expect(currentSelectionOf('PRO', claim('PRO', { STORAGE_PACK: 2, COLLABORATION_PACK: 0 }), 'openbinding')).toEqual({
+      planId: 'PRO',
+      addOns: { STORAGE_PACK: { selected: true, quantity: 2 } },
+    });
+  });
+
+  it('keeps to the plan of the profile when the token names another plan or another service', () => {
+    expect(currentSelectionOf('ADVANCED', claim('PRO', { STORAGE_PACK: 2 }), 'openbinding')).toEqual({ planId: 'ADVANCED' });
+    expect(currentSelectionOf('PRO', claim('PRO', { STORAGE_PACK: 2 }, 'another'), 'openbinding')).toEqual({ planId: 'PRO' });
   });
 });

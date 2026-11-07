@@ -36,8 +36,8 @@ importers:
         specifier: ^0.468.0
         version: 0.468.0(react@19.2.3)
       pricing-renderer:
-        specifier: 0.1.0
-        version: 0.1.0(@types/react@19.2.8)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        specifier: 0.2.0
+        version: 0.2.0(@types/react@19.2.8)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       pricing4ts:
         specifier: 0.11.1
         version: 0.11.1(@openfeature/core@1.12.0)(minizinc@4.5.2)
@@ -54,8 +54,8 @@ importers:
         specifier: ^2.15.4
         version: 2.15.4(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       space-react-client:
-        specifier: ^0.3.3
-        version: 0.3.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        specifier: ^0.4.0
+        version: 0.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
     devDependencies:
       '@eslint/js':
         specifier: ^9.39.1
@@ -1559,6 +1559,9 @@ packages:
   isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
 
+  jose@6.2.15:
+    resolution: {integrity: sha512-qdF6ewcZARtef63fJ9AKKZPgxw+t7USH6HLXYcD4CrdmSvDp79rpJSPFEKc90QBeGS63u1KQtN2MZQHC0yDIzA==}
+
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
@@ -1831,8 +1834,8 @@ packages:
     resolution: {integrity: sha512-Qb1gy5OrP5+zDf2Bvnzdl3jsTf1qXVMazbvCoKhtKqVs4/YK4ozX4gKQJJVyNe+cajNPn0KoC0MC3FUmaHWEmQ==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
 
-  pricing-renderer@0.1.0:
-    resolution: {integrity: sha512-LTuz76rrE43Zi4XsXyqAvarrSrSNBAfT07Zs6r+CpHgSzRYnypqZUGaphPDxA4e2gkxbvEh1klP3+MGWUg8FIA==}
+  pricing-renderer@0.2.0:
+    resolution: {integrity: sha512-+y9zPJekn6TkUiEJbXjrIwJBh/w7/i+P69uCxgJ9pG8SsInIyrtiSunWRIjzpA89xYF26cWugumGs3nfWMMs5w==}
     engines: {node: '>=22'}
     peerDependencies:
       react: ^18.2.0 || ^19.0.0
@@ -2013,8 +2016,8 @@ packages:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
     engines: {node: '>=0.10.0'}
 
-  space-react-client@0.3.3:
-    resolution: {integrity: sha512-XsafMQZsAs4jkGw+8oRWn3V0Sv3elA7VPlxeFwi7RqHPTIUqMIxvfkvX1k5K+O2VxzjMCj+MiLcza8ZDlEHpzg==}
+  space-react-client@0.4.0:
+    resolution: {integrity: sha512-7fkGd3rUfPuKBMElwuLfRsNkqW4cfXVoEDyZGBjPoZcZ3xjArfiMyq4uJMMkqNcOKiqJY4lCHrDuOXIxHDTiJw==}
     peerDependencies:
       react: ^18.3.1
       react-dom: ^18.3.1
@@ -3793,6 +3796,8 @@ snapshots:
 
   isexe@2.0.0: {}
 
+  jose@6.2.15: {}
+
   js-tokens@4.0.0: {}
 
   js-yaml@4.1.1:
@@ -4047,7 +4052,7 @@ snapshots:
       ansi-styles: 5.2.0
       react-is: 17.0.2
 
-  pricing-renderer@0.1.0(@types/react@19.2.8)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+  pricing-renderer@0.2.0(@types/react@19.2.8)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
       '@lit/react': 1.0.8(@types/react@19.2.8)
       lit: 3.3.3
@@ -4268,9 +4273,10 @@ snapshots:
 
   source-map@0.6.1: {}
 
-  space-react-client@0.3.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+  space-react-client@0.4.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
       axios: 1.20.0
+      jose: 6.2.15
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
       socket.io-client: 4.8.3

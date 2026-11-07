@@ -504,7 +504,7 @@ class FakeSpace:
 
 
 def space_api_error(status_code: int, payload=None):
-    """A SpaceApiError as space-python-client 1.0.0 raises it: (status_code, method, path, payload)."""
+    """A SpaceApiError as space-python-client 1.x raises it: (status_code, method, path, payload)."""
     from space_client import SpaceApiError
 
     return SpaceApiError(status_code=status_code, method="GET", path="/contracts/sample", payload=payload)

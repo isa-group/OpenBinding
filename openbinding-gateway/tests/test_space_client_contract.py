@@ -44,7 +44,7 @@ DISTRIBUTION = "space-python-client"
 # The range declared in pyproject.toml; kept literal so a drift is a visible diff.
 DECLARED_RANGE = ">=1.0,<2.0"
 # The version in uv.lock; bump it with the lock in the same change.
-LOCKED_VERSION = "1.0.0"
+LOCKED_VERSION = "1.1.0"
 
 TESTS = Path(__file__).resolve().parent
 DOCS_YAML = REPO_ROOT / "docs" / "pricing" / "openbinding-0.2.0.yml"
@@ -62,9 +62,9 @@ M4_2_EVENTS = (
 )
 
 # Names the M4.2 plan needs beyond today's gateway code and the installed client
-# provides (verified below). Absent from 1.0.0: a dedicated usage-level read
-# (usage levels come back inside ``Contract.usage_levels``) and any batch
-# usage-level read.
+# provides (verified below). Absent from 1.0.0 and still absent from 1.1.0: a
+# dedicated usage-level read (usage levels come back inside
+# ``Contract.usage_levels``) and any batch usage-level read.
 AVAILABLE_FOR_M4_2 = {
     "AsyncSpaceClient.on",
     "AsyncSpaceClient.remove_listener",
