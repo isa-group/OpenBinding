@@ -224,6 +224,54 @@ class CollectionView(CollectionCreate):
     created_at: datetime
 
 
+class CompositionCreate(BaseModel):
+    """A composition's identity, which is what a reader cites and a fork takes a copy of."""
+
+    model_config = ConfigDict(extra="forbid")
+    slug: str = Field(..., pattern=SLUG)
+    name: str = Field(..., min_length=1, max_length=160)
+    description: str = Field(default="", max_length=2000)
+
+
+class CompositionView(CompositionCreate):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    #: The newest sealed version's ordinal, or ``None`` while the identity holds no version.
+    #: Ordered by ordinal and never by a date: a version's own ``createdAt`` is display
+    #: metadata, and two saved in the same second would tie.
+    latest_version: Optional[int] = None
+    created_by_id: uuid.UUID
+    created_at: datetime
+
+
+class CompositionVersionCreate(BaseModel):
+    """One sealed version, from the source the author wrote.
+
+    ``version`` is the label a reader cites. Left out, the ordinal is used, which is what
+    the collection library does; given, it has to be free, because a label that already
+    names different content would make two different compositions answer to one name.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    source: str = Field(..., min_length=1, description="The Composition2Yaml document.")
+    version: Optional[str] = Field(default=None, min_length=1, max_length=64)
+    #: The version this one was written from, in this composition or in another. A fork is
+    #: this field pointing across artifacts; the column carries no same-artifact restriction.
+    based_on: Optional[uuid.UUID] = None
+
+
+class CompositionVersionView(BaseModel):
+    id: uuid.UUID
+    composition_id: uuid.UUID
+    ordinal: int
+    version: str
+    #: Over the exact source bytes, so re-saving an unchanged document seals nothing new.
+    content_digest: str
+    version_digest: str
+    based_on_id: Optional[uuid.UUID] = None
+    created_at: datetime
+
+
 class CollectionItemInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     target_kind: Literal["case", "resource", "result", "report"]
