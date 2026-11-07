@@ -30,7 +30,6 @@ EXCLUSIVE_ID = "c2y_exclusive_id"
 EXCLUSIVE_PROBABILITIES = "c2y_exclusive_probabilities"
 #: ``distribution`` and inline probabilities say the same thing two ways.
 EXCLUSIVE_DISTRIBUTION = "c2y_exclusive_distribution"
-EXCLUSIVE_CONDITION = "c2y_exclusive_condition"
 REPEAT_COUNT = "c2y_repeat_count"
 CANDIDATE_PROPERTY = "c2y_candidate_property"
 CANDIDATE_UNMATCHED = "c2y_candidate_unmatched"

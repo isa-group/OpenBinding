@@ -187,14 +187,23 @@ def validate_content(kind: str, payload: DraftContent) -> tuple[bytes, list[dict
             if payload.media_type not in {'application/yaml', 'text/yaml'}:
                 raise api_error(422, 'invalid_content',
                                 'Composition content is sent as application/yaml.')
+            from .composition.checks import completeness
             from .composition.text import TextError, parse
             try:
-                parse(content.decode())
+                composition = parse(content.decode())
             except TextError as exc:
                 raise api_error(422, 'invalid_composition', str(exc)) from exc
             except Exception as exc:  # a malformed YAML document is the caller's mistake too
                 raise api_error(422, 'invalid_composition',
                                 f'not a readable composition: {exc}') from exc
+            # Sealing is where a composition has to be finished, because a sealed version is
+            # citable and has to compile. ``parse`` lets a draft be incomplete -- an open
+            # task whose market is not written yet is a normal state while authoring -- and
+            # this is the one gate library content passes through, so it is where that ends.
+            missing = completeness(composition)
+            if missing:
+                raise api_error(422, 'incomplete_composition',
+                                '; '.join(str(item) for item in missing))
         elif kind != 'Dataset':
             package = XmlResource(content)
             try:

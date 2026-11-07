@@ -120,3 +120,26 @@ def test_the_same_composition_authored_on_windows_stores_the_same_bytes() -> Non
     old_mac, _ = _validate(SOURCE.replace("\n", "\r"))
     assert unix == windows == old_mac
     assert b"\r" not in unix
+
+
+def test_an_unfinished_composition_cannot_be_sealed() -> None:
+    """Where completeness is enforced, because a sealed version is citable and has to compile.
+
+    ``parse`` lets a draft be unfinished -- the diff compares drafts and the editor loads one
+    at every keystroke -- so this, the one gate library content passes through, is where an
+    open task with no market stops being acceptable.
+    """
+    draft = SOURCE.replace("provides: service/pick", "provides: service/other")
+    status, code = _refusal(draft)
+    assert (status, code) == (422, "incomplete_composition")
+
+
+def test_the_refusal_names_what_is_missing() -> None:
+    """With the code and the path, so the caller knows what to finish."""
+    draft = SOURCE.replace("provides: service/pick", "provides: service/other")
+    with pytest.raises(HTTPException) as raised:
+        _validate(draft)
+    detail = raised.value.detail
+    message = detail.get("error", "") if isinstance(detail, dict) else str(detail)
+    assert "c2y_candidate_unmatched" in message
+    assert "pick" in message

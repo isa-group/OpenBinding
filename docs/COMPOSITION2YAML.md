@@ -1297,7 +1297,6 @@ stops at the element it cannot read.
 | `c2y_exclusive_id` | an exclusive carries probabilities and has no id |
 | `c2y_exclusive_probabilities` | probabilities are partial, or do not sum to exactly one |
 | `c2y_exclusive_distribution` | `distribution` and inline probabilities are both present |
-| `c2y_exclusive_condition` | a branch carries both a probability and a condition |
 | `c2y_repeat_count` | `count` and `expected` are both present, or neither |
 | `c2y_candidate_property` | a candidate value is an interval, or outside the domain |
 | `c2y_candidate_unmatched` | an open task has no eligible candidate |
@@ -1308,13 +1307,38 @@ stops at the element it cannot read.
 Compilation is all-or-nothing, as it is in the container: a document with any error
 produces no package.
 
-What is raised today, and what is still only declared: `c2y_schema`,
-`c2y_property_template` and `c2y_task_kind` fire from `parse`, and the schema's own rules
-reach the author's text through the first of them. The rest of this table names checks the
-language does not yet make -- a workflow naming a task that is not declared, a goal naming
-a property that is not, probabilities that do not sum to one -- and each of those is
-reported by the container today, against a resource and a JSON pointer rather than against
-a line the author is looking at. Moving them here is what the rest of phase F3 is for.
+**Two kinds of check, and the split was measured.** Enforcing every semantic check in
+`parse` refused two documents in the suite that are *drafts* -- an open task whose market is
+not written yet -- and the diff compares drafts while the editor loads one at every
+keystroke. So the table divides:
+
+- *Coherence*, refused by `parse`: one element that contradicts itself, which no document
+  can say whether finished or not. `c2y_exclusive_id`, `c2y_exclusive_probabilities`,
+  `c2y_exclusive_distribution` and `c2y_repeat_count`.
+- *Completeness*, refused when a version is sealed: references across sections and an
+  empty market, which a draft is allowed to have. `c2y_task_unknown`,
+  `c2y_task_unreached`, `c2y_goal_unknown` and `c2y_candidate_unmatched`. A sealed version
+  is citable and has to compile, so that is where an unfinished composition stops.
+
+Every one of the eight was measured against the 82 packages of section 11.2 before being
+enforced, and none refuses a package of the corpus; the measurement is a test.
+
+**The order a reader sees them in is specific before general**, and that was measured twice.
+Readers run first, then the coherence checks, then the schema as a backstop: asked earlier,
+the schema's generic `c2y_schema` shadowed `c2y_property_template` for three property
+refusals, and then -- the same mistake one level down -- shadowed
+`c2y_exclusive_distribution`, because the schema refuses a distribution stated beside inline
+probabilities too.
+
+**`c2y_exclusive_condition` was removed rather than implemented.** This table named it for
+"a branch carries both a probability and a condition", and section 5.2 says the opposite:
+a condition is prose, Studio-side and never compiled, so it conflicts with nothing -- and
+the guiding case carries both. Implementing the row would have refused
+`fleet-management-v2`, whose `solver_choice` has 0.8/0.2 and a reason on each branch.
+
+Still declared and not raised: `c2y_property_neutral`, `c2y_candidate_property`,
+`c2y_pricing_href` and `c2y_rule_expression`. The container reports each of them today,
+against a JSON pointer rather than a line.
 
 ## 15. Worked example
 
