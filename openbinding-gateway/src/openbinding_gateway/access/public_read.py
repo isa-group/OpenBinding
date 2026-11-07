@@ -55,6 +55,12 @@ PUBLIC_READ_ALLOWED: dict[str, str] = {
     f"{PROJECT}/collections/{{collection}}": "A collection.",
     f"{PROJECT}/collections/{{collection}}/revisions": "Collection revisions.",
     f"{PROJECT}/collections/{{collection}}/revisions/{{revision}}": "One collection revision.",
+    f"{PROJECT}/compositions": "Compositions.",
+    f"{PROJECT}/compositions/{{composition}}": "A composition.",
+    f"{PROJECT}/compositions/{{composition}}/versions": "Sealed composition versions.",
+    f"{PROJECT}/compositions/{{composition}}/versions/{{version}}/content":
+        "One sealed version's Composition2Yaml source.",
+    f"{PROJECT}/compositions/{{composition}}/diff": "The change list between two sealed versions.",
     f"{PROJECT}/resources": "Project resources.",
     f"{PROJECT}/resources/{{resource}}/revisions": "Resource revisions.",
     f"{PROJECT}/studies": "Studies.",

@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, DDL, ForeignKey, Integer, String, UniqueConstraint, Uuid, event, func
+from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, DDL, ForeignKey, Index, Integer, String, UniqueConstraint, Uuid, column, event, false, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -17,7 +17,21 @@ if TYPE_CHECKING:
 
 class Artifact(Base):
     __tablename__ = "artifacts"
-    __table_args__ = (UniqueConstraint("namespace", "name", name="uq_artifact_identity"),)
+    __table_args__ = (
+        # Partial on ``archived``, so retiring an artifact frees its identity for a new one.
+        # SPHERE reaches the same end with ``partialFilterExpression: {deleted: false}`` on
+        # its pricing identities, and the reason is the same: an identity is the name people
+        # cite, and a name that can never be reused makes a withdrawal permanent in a way
+        # nobody asked for. A plain ``UniqueConstraint`` kept the name taken forever.
+        Index(
+            "uq_artifact_identity",
+            "namespace",
+            "name",
+            unique=True,
+            sqlite_where=column("archived") == false(),
+            postgresql_where=column("archived") == false(),
+        ),
+    )
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id", ondelete="RESTRICT"), index=True)
     namespace: Mapped[str] = mapped_column(String(128))
@@ -37,6 +51,12 @@ class ArtifactVersion(Base):
         UniqueConstraint("artifact_id", "version", name="uq_artifact_version"),
         UniqueConstraint("artifact_id", "ordinal", name="uq_artifact_ordinal"),
         CheckConstraint("ordinal > 0", name="artifact_ordinal_positive"),
+        # The re-fork query reads this edge backwards: given an origin version and a target
+        # organization, find the fork that already exists rather than creating a second
+        # artifact every time the origin publishes. SPHERE denormalises a whole
+        # ``forkedFrom`` record for the same question because its origin can disappear;
+        # here the FK is ``RESTRICT``, so the lineage cannot break and the index is enough.
+        Index("ix_artifact_versions_based_on_id", "based_on_id"),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     artifact_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("artifacts.id", ondelete="RESTRICT"), index=True)
