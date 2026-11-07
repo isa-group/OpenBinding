@@ -28,11 +28,16 @@ container compares a distribution against ``Decimal(1)`` with no epsilon.
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import yaml
 
+from . import diagnostics as codes
+from .diagnostics import CompositionError, Diagnostic, TextError
+from .spans import locate
 from .model import (
     Aggregation,
     Branch,
@@ -69,10 +74,6 @@ from .model import (
     TEMPLATES,
 )
 from .neutral import expand_aggregation
-
-
-class TextError(Exception):
-    """The document is not a composition this version can read."""
 
 
 # --------------------------------------------------------------------------- writing
@@ -344,14 +345,23 @@ def _decimal(value: Any) -> Decimal | None:
 
 def _property_model(name: str, source: Any) -> Property:
     if not isinstance(source, dict):
-        raise TextError(f"property {name!r} is not a mapping")
+        raise codes.refuse(codes.SCHEMA, f"property {name!r} is not a mapping",
+                           f"properties.{name}")
     template = source.get("template")
     if template is not None and template not in TEMPLATES:
-        raise TextError(f"property {name!r} names an unknown template {template!r}")
+        raise codes.refuse(
+            codes.PROPERTY_TEMPLATE,
+            f"property {name!r} names an unknown template {template!r}",
+            f"properties.{name}.template",
+        )
     direction, aggregation = TEMPLATES[template] if template else (None, None)
     declared = source.get("aggregate")
     if aggregation is None and declared is None:
-        raise TextError(f"property {name!r} declares neither a template nor an aggregate")
+        raise codes.refuse(
+            codes.PROPERTY_TEMPLATE,
+            f"property {name!r} declares neither a template nor an aggregate",
+            f"properties.{name}",
+        )
     # An aggregate beside a template is merged operator by operator, which is what lets the
     # guiding case be written at all: section 3.1.
     merged = {
@@ -363,7 +373,10 @@ def _property_model(name: str, source: Any) -> Property:
     }
     if declared is not None:
         if not declared:
-            raise TextError(f"property {name!r} declares an empty aggregate")
+            raise codes.refuse(
+                codes.PROPERTY_TEMPLATE, f"property {name!r} declares an empty aggregate",
+                f"properties.{name}.aggregate",
+            )
         merged.update({key: value for key, value in declared.items() if value is not None})
     if any(value is None for value in merged.values()):
         expanded = expand_aggregation({k: v for k, v in merged.items() if v is not None})
@@ -393,7 +406,7 @@ def _property_model(name: str, source: Any) -> Property:
 
 def _task_model(name: str, source: Any) -> OpenTask | FixedTask | LocalTask:
     if not isinstance(source, dict):
-        raise TextError(f"task {name!r} is not a mapping")
+        raise codes.refuse(codes.SCHEMA, f"task {name!r} is not a mapping", f"tasks.{name}")
     if source.get("local"):
         return LocalTask(title=source.get("title"))
     if "fixed" in source:
@@ -406,7 +419,10 @@ def _task_model(name: str, source: Any) -> OpenTask | FixedTask | LocalTask:
         )
     if source.get("open"):
         return OpenTask(requires=source["requires"], title=source.get("title"))
-    raise TextError(f"task {name!r} is not exactly one of open, fixed or local")
+    raise codes.refuse(
+        codes.TASK_KIND, f"task {name!r} is not exactly one of open, fixed or local",
+        f"tasks.{name}",
+    )
 
 
 def _node_model(source: Any) -> Node:
@@ -458,10 +474,12 @@ def _endpoint_model(source: Any) -> Endpoint:
 
 def _placement_model(source: Any) -> Placement:
     if not isinstance(source, dict):
-        raise TextError("placement is a mapping")
+        raise codes.refuse(codes.SCHEMA, "placement is a mapping", "placement")
     pools = source.get("pools")
     if not pools:
-        raise TextError("a placement declares at least one pool")
+        raise codes.refuse(
+            codes.SCHEMA, "a placement declares at least one pool", "placement.pools",
+        )
     # A pool, an event and a transition are each keyed by id in the emitted document, so a
     # repeated id is not a list with two entries: it is one entry, silently the last. The
     # schema cannot say this -- JSON Schema has no uniqueness-by-key -- so it is said here,
@@ -474,7 +492,10 @@ def _placement_model(source: Any) -> Placement:
         seen = [row["id"] for row in rows if isinstance(row, dict) and "id" in row]
         repeated = sorted({name for name in seen if seen.count(name) > 1})
         if repeated:
-            raise TextError(f"two entries of {label} share an id: {repeated}")
+            raise codes.refuse(
+                codes.SCHEMA, f"two entries of {label} share an id: {repeated}",
+                f"placement.{label}",
+            )
     latency = source.get("globalLatency")
     return Placement(
         pools=tuple(
@@ -530,11 +551,92 @@ def _placement_model(source: Any) -> Placement:
     )
 
 
+def _path_of(error) -> str:
+    """A jsonschema error's location as the dotted path ``spans.locate`` speaks.
+
+    ``absolute_path`` is a deque of mapping keys and sequence indices, which is the same
+    walk, written differently: ``["candidates", "rows", 0, "id"]`` is
+    ``candidates.rows[0].id``.
+    """
+    parts: list[str] = []
+    for step in error.absolute_path:
+        if isinstance(step, int):
+            parts.append(f"[{step}]")
+        else:
+            parts.append(f".{step}" if parts else str(step))
+    return "".join(parts)
+
+
+def _schema_diagnostics(document: object) -> tuple[Diagnostic, ...]:
+    """Every way the document breaks its own schema, addressed in the author's terms.
+
+    The schema was already the authority on a composition's shape -- it is what
+    ``test_spec_example_validates.py`` exercises rule by rule -- and ``parse`` did not
+    consult it. So a document the schema refuses could still be read: a task declared both
+    ``open`` and ``local`` is the example that found this, since the reader takes the first
+    kind it recognises while the schema's ``oneOf`` refuses the pair.
+
+    Reported rather than raised one at a time, because a schema tells you everything that
+    is wrong at once and an editor wants every marker, not the first.
+    """
+    try:
+        from jsonschema import Draft202012Validator  # noqa: PLC0415
+    except ImportError:  # pragma: no cover - jsonschema ships with the gateway
+        return ()
+    path = (
+        Path(__file__).resolve().parent
+        / "resources" / "composition2yaml" / "v1" / "composition.schema.json"
+    )
+    if not path.is_file():  # pragma: no cover - the schema travels with the package
+        return ()
+    validator = Draft202012Validator(json.loads(path.read_text(encoding="utf-8")))
+    return tuple(
+        Diagnostic(code=codes.SCHEMA, message=error.message, path=_path_of(error))
+        for error in sorted(validator.iter_errors(document), key=lambda item: list(item.path))
+    )
+
+
 def parse(text: str) -> Composition:
-    """One YAML document as a composition."""
+    """One YAML document as a composition, refusing with located diagnostics.
+
+    The readers below hold a value and not the source, so their refusals name a path and
+    carry no position. This is the one place that holds the text, so it is the one place
+    that attaches spans: a refusal is caught here and re-raised through
+    ``CompositionError.located``, which fills in what ``spans.locate`` found. A valid
+    document pays nothing for it -- ``locate`` is called only on the way to a refusal.
+    """
     document = yaml.safe_load(text)
+    try:
+        composition = _compose(document)
+    except CompositionError as error:
+        # The readers first and the schema second, which was worth measuring rather than
+        # assuming. The schema catches every shape error the readers do, so asking it first
+        # made the specific codes unreachable: an unknown template came back as
+        # ``c2y_schema`` where ``c2y_property_template`` names the property and says what is
+        # wrong with it. Three of the property refusals were shadowed that way.
+        raise error.located(locate(text)) from None
+    except Exception as error:
+        # A reader that hits a sharp edge -- a missing key, a value of the wrong type -- on a
+        # document the schema can explain. The schema's message is the better one here, and
+        # the raw error is kept as the cause.
+        broken = _schema_diagnostics(document)
+        if broken:
+            raise CompositionError(broken).located(locate(text)) from error
+        raise
+    # And the schema as the backstop, because the readers accept things it refuses: a task
+    # declared both ``open`` and ``local`` is read as whichever kind comes first, so the
+    # document meant something the author did not write. Measured -- it is the one case of
+    # the five where the readers say nothing at all.
+    broken = _schema_diagnostics(document)
+    if broken:
+        raise CompositionError(broken).located(locate(text))
+    return composition
+
+
+def _compose(document: object) -> Composition:
+    """The document as a composition. Refusals name a path; ``parse`` gives them a span."""
     if not isinstance(document, dict):
-        raise TextError("a composition is a mapping")
+        raise codes.refuse(codes.SCHEMA, "a composition is a mapping", "")
     candidates = document.get("candidates") or {}
     # A candidate placed with nowhere to put it. The emitter writes the demands inside the
     # Placement document, so with no placement block the demand reaches no file at all --
@@ -542,8 +644,10 @@ def parse(text: str) -> Composition:
     if document.get("placement") is None and any(
         isinstance(row, dict) and row.get("placement") for row in (candidates.get("rows") or [])
     ):
-        raise TextError(
+        raise codes.refuse(
+            codes.SCHEMA,
             "a candidate names a pool but the composition declares no placement block",
+            "placement",
         )
     pricing = document.get("pricing")
     if isinstance(pricing, str):
