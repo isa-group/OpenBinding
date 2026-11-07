@@ -260,6 +260,24 @@ class CompositionVersionCreate(BaseModel):
     based_on: Optional[uuid.UUID] = None
 
 
+class CompositionForkRequest(BaseModel):
+    """Where a fork lands, and which version of the origin it takes.
+
+    The target is named rather than assumed, because forking into the project you are
+    reading from is the rare case: the useful one is taking somebody else's public
+    composition into your own project.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    target_organization: str = Field(..., min_length=1, max_length=128)
+    target_project: str = Field(..., min_length=1, max_length=128)
+    #: The fork's own slug. Defaults to the origin's, which is free unless the target
+    #: project already holds a composition of that name.
+    slug: Optional[str] = Field(default=None, pattern=SLUG)
+    #: Which version of the origin to take. Defaults to its newest.
+    version: Optional[str] = Field(default=None, min_length=1, max_length=64)
+
+
 class CompositionVersionView(BaseModel):
     id: uuid.UUID
     composition_id: uuid.UUID

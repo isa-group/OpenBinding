@@ -3586,6 +3586,55 @@
         "title": "CompositionDiffResponse",
         "type": "object"
       },
+      "CompositionForkRequest": {
+        "additionalProperties": false,
+        "description": "Where a fork lands, and which version of the origin it takes.\n\nThe target is named rather than assumed, because forking into the project you are\nreading from is the rare case: the useful one is taking somebody else's public\ncomposition into your own project.",
+        "properties": {
+          "slug": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "target_organization": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Target Organization",
+            "type": "string"
+          },
+          "target_project": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Target Project",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "target_organization",
+          "target_project"
+        ],
+        "title": "CompositionForkRequest",
+        "type": "object"
+      },
       "CompositionVersionCreate": {
         "additionalProperties": false,
         "description": "One sealed version, from the source the author wrote.\n\n``version`` is the label a reader cites. Left out, the ordinal is used, which is what\nthe collection library does; given, it has to be free, because a label that already\nnames different content would make two different compositions answer to one name.",
@@ -21585,6 +21634,121 @@
         "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/compositions/{composition}/fork": {
+      "post": {
+        "description": "Take a version of this composition into another project, or update the fork already there.\n\nTwo accesses, deliberately different: the origin is read under **VIEWER** and the target\nneeds **MEMBER**, because the fork is a write there.\n\n**An outsider cannot fork a public composition in one call, and that is the public-read\nmechanism rather than a gap here.** ``access/public_read.py`` binds eligibility to the\n*request*: a request is eligible only when its method is GET and its template is listed.\nThis is a POST, so the origin read inside it is never eligible however public the origin\nproject is. The path that does work keeps the lineage intact and needs nothing new --\nread the sealed source (a listed GET), then seal it in your own project naming the origin\nversion in ``based_on``. Two calls, and the same edge. Measured, with a test for it.\n\n**Re-forking does not duplicate.** If the target project already holds a fork of this\norigin, the new version is sealed on it rather than creating a second artifact. That is\nSPHERE's rule and its stated reason: *\"to match a re-fork of the same origin to the fork\nalready living in the target organization, instead of creating a duplicate pricing every\ntime the origin gets a new version\"*. Re-forking an **unchanged** origin version seals\nnothing at all, because the content digest already identifies it.\n\nThe lineage is the `based_on_id` edge itself, not a copy of the origin's identity. The\ncolumn needed no widening: it is a foreign key to `artifact_versions.id` with no\nsame-artifact restriction, so it already crosses artifacts, and it is `RESTRICT`, so the\norigin cannot be deleted out from under a fork. SPHERE denormalises the record because\nthere an origin *can* disappear; here the database refuses.",
+        "operationId": "forkComposition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionForkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionVersionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "409": {
+            "description": "The target project already holds that slug."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Fork Composition",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "projects:write"
         ]
       }
     },
