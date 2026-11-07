@@ -3529,6 +3529,48 @@
         "title": "CompositionCreate",
         "type": "object"
       },
+      "CompositionDiagnosticView": {
+        "description": "One problem, addressed to the author rather than to the compiler.",
+        "properties": {
+          "code": {
+            "description": "A ``c2y_`` code, never a container one.",
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "path": {
+            "description": "The element at fault, e.g. ``properties.cost.domain``.",
+            "title": "Path",
+            "type": "string"
+          },
+          "severity": {
+            "description": "``error`` when the document cannot be read as a composition, ``incomplete`` when it can and still lacks something it needs before a version is sealed.",
+            "title": "Severity",
+            "type": "string"
+          },
+          "span": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompositionSpanView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "path",
+          "severity"
+        ],
+        "title": "CompositionDiagnosticView",
+        "type": "object"
+      },
       "CompositionDiffRequest": {
         "additionalProperties": false,
         "description": "Two Composition2Yaml documents, as the author writes them.",
@@ -3633,6 +3675,81 @@
           "target_project"
         ],
         "title": "CompositionForkRequest",
+        "type": "object"
+      },
+      "CompositionSpanView": {
+        "description": "Where in the source a diagnostic is about, one-based, as a person counts lines.",
+        "properties": {
+          "column": {
+            "title": "Column",
+            "type": "integer"
+          },
+          "end_column": {
+            "title": "End Column",
+            "type": "integer"
+          },
+          "end_line": {
+            "title": "End Line",
+            "type": "integer"
+          },
+          "line": {
+            "title": "Line",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "line",
+          "column",
+          "end_line",
+          "end_column"
+        ],
+        "title": "CompositionSpanView",
+        "type": "object"
+      },
+      "CompositionValidateRequest": {
+        "additionalProperties": false,
+        "description": "One Composition2Yaml document, as the author is writing it.",
+        "properties": {
+          "source": {
+            "description": "The composition, as YAML source.",
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "CompositionValidateRequest",
+        "type": "object"
+      },
+      "CompositionValidateResponse": {
+        "description": "What an editor needs after every keystroke.",
+        "properties": {
+          "complete": {
+            "description": "It also has everything a sealed version needs; implies ``valid``.",
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "valid": {
+            "description": "The document reads as a composition.",
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valid",
+          "complete",
+          "diagnostics"
+        ],
+        "title": "CompositionValidateResponse",
         "type": "object"
       },
       "CompositionVersionCreate": {
@@ -12774,6 +12891,48 @@
           }
         },
         "summary": "Compare two compositions",
+        "tags": [
+          "Compositions"
+        ]
+      }
+    },
+    "/v1/compositions/validate": {
+      "post": {
+        "description": "Every problem in the document, each with a code, a path and the region of source.\n\n**It answers 200 whatever the document says**, which is a deliberate departure from\n``POST /v1/validate``, where an invalid BIM package is a 422. The request -- validate this\ntext -- always succeeds; the answer may be that the text has problems. And one of the two\nkinds of answer is not an error at all: an *incomplete* composition is a draft, readable\nand editable, that only lacks something before it can be sealed. Splitting the status by\nseverity would hand an editor two response shapes for one question it asks after every\nkeystroke. A malformed *request* -- no ``source``, an unknown field -- is still a 422.\n\nThe two severities are the split ``checks`` measured. ``error`` is everything that makes\nthe document unreadable: a YAML syntax error, a reader refusal, a coherence check, the\nschema. ``incomplete`` is ``checks.completeness`` -- a task nobody declared, a goal over\na property that does not exist, an empty market -- which ``parse`` lets a draft have and\nsealing does not.\n\nNothing is read from or written to storage, so no account is required, for the same\nreason the two-body diff needs none.",
+        "operationId": "validateComposition",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionValidateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionValidateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          }
+        },
+        "summary": "Validate a composition and locate every problem in its source",
         "tags": [
           "Compositions"
         ]

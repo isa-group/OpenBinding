@@ -140,3 +140,98 @@ async def test_the_operation_is_documented(api_client) -> None:
     assert operation["operationId"] == "diffCompositions"
     assert operation["summary"]
     assert "422" in operation["responses"]
+
+
+# ------------------------------------------------------------------------- validation
+
+#: ``BEFORE`` is a draft: task ``pay`` has no candidate. It is the very fixture that split the
+#: semantic checks in two, so it stays one, and this is the same composition finished.
+COMPLETE = BEFORE.replace(
+    "      properties: {cost: 10}",
+    "      properties: {cost: 10}\n"
+    "    - id: c_pay\n"
+    "      provides: service/pay\n"
+    "      properties: {cost: 20}",
+)
+
+
+async def test_a_complete_composition_is_valid_and_complete(api_client) -> None:
+    """The answer an editor hopes for, and the one with no diagnostics at all."""
+    response = await api_client.post("/v1/compositions/validate", json={"source": COMPLETE})
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["valid"], body["complete"], body["diagnostics"]) == (True, True, [])
+
+
+async def test_a_draft_is_valid_and_incomplete_at_once(api_client) -> None:
+    """The case the whole split exists for, over the wire.
+
+    An open task whose market is not written yet is a normal state while authoring: the
+    document reads, the editor keeps working, and the marker says what is missing before a
+    version can be sealed. ``incomplete`` and not ``error``, and 200 and not 422.
+    """
+    response = await api_client.post("/v1/compositions/validate", json={"source": BEFORE})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["valid"] is True
+    assert body["complete"] is False
+    codes = {(item["code"], item["severity"]) for item in body["diagnostics"]}
+    assert ("c2y_candidate_unmatched", "incomplete") in codes
+    pay = next(item for item in body["diagnostics"] if item["path"] == "tasks.pay")
+    assert pay["span"] is not None, "located, so an editor can underline the task"
+
+
+async def test_an_incoherent_document_is_an_error_with_its_position(api_client) -> None:
+    """Probabilities that do not sum to one cannot be a step on the way to a valid document."""
+    broken = BEFORE.replace(
+        "  sequence:\n    - {task: pick}\n    - {task: pay}",
+        "  sequence:\n    - exclusive:\n        id: choice\n        branches:\n"
+        "          - {probability: 0.7, flow: {task: pick}}\n"
+        "          - {probability: 0.2, flow: {task: pay}}",
+    )
+    response = await api_client.post("/v1/compositions/validate", json={"source": broken})
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["valid"], body["complete"]) == (False, False)
+    first = body["diagnostics"][0]
+    assert (first["code"], first["severity"]) == ("c2y_exclusive_probabilities", "error")
+
+
+async def test_text_that_is_not_yaml_is_located_where_the_parser_gave_up(api_client) -> None:
+    """The commonest state of a document being typed, so it is placed like everything else."""
+    response = await api_client.post(
+        "/v1/compositions/validate", json={"source": "composition: fleet\n  version: [broken"},
+    )
+    assert response.status_code == 200
+    first = response.json()["diagnostics"][0]
+    assert first["code"] == "c2y_syntax"
+    assert first["span"] is not None and first["span"]["line"] == 2
+
+
+async def test_validation_answers_200_whatever_the_document_says(api_client) -> None:
+    """A deliberate departure from ``POST /v1/validate``, which answers 422 for a bad package.
+
+    The request always succeeds; the answer may be that the text has problems. Splitting the
+    status by severity would give an editor two response shapes for one question it asks
+    after every keystroke -- and one of the two severities is not an error at all.
+    """
+    for source in (COMPLETE, BEFORE, "composition: fleet\n", "{not: [valid"):
+        response = await api_client.post("/v1/compositions/validate", json={"source": source})
+        assert response.status_code == 200, (source, response.text)
+
+
+async def test_a_malformed_request_is_still_the_caller_s_mistake(api_client) -> None:
+    """The document may be anything; the request around it is not."""
+    missing = await api_client.post("/v1/compositions/validate", json={})
+    assert missing.status_code == 422
+    unknown = await api_client.post(
+        "/v1/compositions/validate", json={"source": COMPLETE, "strict": True},
+    )
+    assert unknown.status_code == 422
+
+
+async def test_validation_is_documented(api_client) -> None:
+    response = await api_client.get("/openapi.json")
+    operation = response.json()["paths"]["/v1/compositions/validate"]["post"]
+    assert operation["operationId"] == "validateComposition"
+    assert operation["summary"]

@@ -18,6 +18,9 @@ from dataclasses import dataclass, replace
 
 #: A ``min``/``max`` property with no bound on the relevant side has no neutral. The
 #: container would emit ``feature_neutral``; refusing here names the property instead.
+#: The text is not YAML at all. The most common error while typing, and PyYAML reports where
+#: it found the problem, so it is located like every other diagnostic.
+SYNTAX = "c2y_syntax"
 PROPERTY_NEUTRAL = "c2y_property_neutral"
 PROPERTY_TEMPLATE = "c2y_property_template"
 SCHEMA = "c2y_schema"

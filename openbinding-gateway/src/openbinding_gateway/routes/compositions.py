@@ -29,13 +29,18 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import yaml
 from bim_core.canonical import digest, digest_bytes
 
 from ..access import public_read
 from ..access.dependencies import get_current_user, get_optional_user, session_dependency
 from ..artifacts import can_read, store_blob, validate_content, version_content
 from ..collaboration import organization_by_ref, require_project
+from ..composition import diagnostics as codes
+from ..composition.checks import completeness
+from ..composition.diagnostics import CompositionError
 from ..composition.diff import SECTIONS, diff
+from ..composition.spans import locate
 from ..composition.text import TextError, parse
 from ..db.models import (
     Artifact,
@@ -66,6 +71,48 @@ def _audit_event(session, user: User, action: str, target, organization_id, **de
         target_type=target.__class__.__name__, target_id=getattr(target, "id", None),
         detail=detail,
     ))
+
+
+class CompositionValidateRequest(BaseModel):
+    """One Composition2Yaml document, as the author is writing it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source: str = Field(min_length=1, description="The composition, as YAML source.")
+
+
+class CompositionSpanView(BaseModel):
+    """Where in the source a diagnostic is about, one-based, as a person counts lines."""
+
+    line: int
+    column: int
+    end_line: int
+    end_column: int
+
+
+class CompositionDiagnosticView(BaseModel):
+    """One problem, addressed to the author rather than to the compiler."""
+
+    code: str = Field(description="A ``c2y_`` code, never a container one.")
+    message: str
+    path: str = Field(description="The element at fault, e.g. ``properties.cost.domain``.")
+    severity: str = Field(
+        description=(
+            "``error`` when the document cannot be read as a composition, ``incomplete`` "
+            "when it can and still lacks something it needs before a version is sealed."
+        ),
+    )
+    span: Optional[CompositionSpanView] = None
+
+
+class CompositionValidateResponse(BaseModel):
+    """What an editor needs after every keystroke."""
+
+    valid: bool = Field(description="The document reads as a composition.")
+    complete: bool = Field(
+        description="It also has everything a sealed version needs; implies ``valid``.",
+    )
+    diagnostics: list[CompositionDiagnosticView]
 
 
 class CompositionDiffRequest(BaseModel):
@@ -131,6 +178,88 @@ async def diff_compositions(
     before = _parse(request.before, "before")
     after = _parse(request.after, "after")
     return _diff_response(before, after)
+
+
+def _diagnostic(item, severity: str) -> CompositionDiagnosticView:
+    span = item.span
+    return CompositionDiagnosticView(
+        code=item.code, message=item.message, path=item.path, severity=severity,
+        span=CompositionSpanView(
+            line=span.line, column=span.column, end_line=span.end_line, end_column=span.end_column,
+        ) if span is not None else None,
+    )
+
+
+@router.post(
+    "/validate",
+    response_model=CompositionValidateResponse,
+    operation_id="validateComposition",
+    summary="Validate a composition and locate every problem in its source",
+)
+async def validate_composition(
+    request: CompositionValidateRequest,
+    caller: Optional[User] = Depends(get_optional_user),
+) -> CompositionValidateResponse:
+    """Every problem in the document, each with a code, a path and the region of source.
+
+    **It answers 200 whatever the document says**, which is a deliberate departure from
+    ``POST /v1/validate``, where an invalid BIM package is a 422. The request -- validate this
+    text -- always succeeds; the answer may be that the text has problems. And one of the two
+    kinds of answer is not an error at all: an *incomplete* composition is a draft, readable
+    and editable, that only lacks something before it can be sealed. Splitting the status by
+    severity would hand an editor two response shapes for one question it asks after every
+    keystroke. A malformed *request* -- no ``source``, an unknown field -- is still a 422.
+
+    The two severities are the split ``checks`` measured. ``error`` is everything that makes
+    the document unreadable: a YAML syntax error, a reader refusal, a coherence check, the
+    schema. ``incomplete`` is ``checks.completeness`` -- a task nobody declared, a goal over
+    a property that does not exist, an empty market -- which ``parse`` lets a draft have and
+    sealing does not.
+
+    Nothing is read from or written to storage, so no account is required, for the same
+    reason the two-body diff needs none.
+    """
+    try:
+        composition = parse(request.source)
+    except CompositionError as error:
+        return CompositionValidateResponse(
+            valid=False, complete=False,
+            diagnostics=[_diagnostic(item, "error") for item in error.diagnostics],
+        )
+    except yaml.MarkedYAMLError as error:
+        # Not YAML at all, which is the commonest state of a document being typed -- and
+        # PyYAML says where it gave up, so this is located like everything else.
+        mark = error.problem_mark or error.context_mark
+        span = (
+            CompositionSpanView(
+                line=mark.line + 1, column=mark.column + 1,
+                end_line=mark.line + 1, end_column=mark.column + 2,
+            ) if mark is not None else None
+        )
+        return CompositionValidateResponse(
+            valid=False, complete=False,
+            diagnostics=[CompositionDiagnosticView(
+                code=codes.SYNTAX, message=str(error.problem or error), path="",
+                severity="error", span=span,
+            )],
+        )
+    except Exception as error:  # noqa: BLE001 - a typed document must never become a 500
+        return CompositionValidateResponse(
+            valid=False, complete=False,
+            diagnostics=[CompositionDiagnosticView(
+                code=codes.SCHEMA, message=f"not a readable composition: {error}", path="",
+                severity="error",
+            )],
+        )
+    missing = completeness(composition)
+    if missing:
+        # The same path every refusal takes to its position, rather than a second one: a
+        # completeness diagnostic is built with a path and no span, exactly like a reader's.
+        missing = CompositionError(missing).located(locate(request.source)).diagnostics
+    return CompositionValidateResponse(
+        valid=True, complete=not missing,
+        diagnostics=[_diagnostic(item, "incomplete") for item in missing],
+    )
 
 
 def _diff_response(before, after) -> CompositionDiffResponse:
