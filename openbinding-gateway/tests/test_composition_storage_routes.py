@@ -228,3 +228,62 @@ async def test_a_version_the_composition_does_not_have_is_a_404(api_client, proj
         params={"from": "1", "to": "9"},
     )
     assert missing.status_code == 404
+
+
+async def test_the_diff_defaults_to_the_last_two_versions(api_client, project) -> None:
+    """The question a reader arrives with -- "what changed?" -- needs no parameters.
+
+    It is the pair the compare screen already defaults to for a binding case: the previous
+    version against the latest.
+    """
+    await _composition(api_client, project)
+    await _seal(api_client, project, "fleet", SOURCE)
+    await _seal(api_client, project, "fleet", LATER)
+
+    bare = await api_client.get(
+        f"{project['url']}/compositions/fleet/diff", headers=project["headers"],
+    )
+    assert bare.status_code == 200, bare.text
+    named = await api_client.get(
+        f"{project['url']}/compositions/fleet/diff", headers=project["headers"],
+        params={"from": "1", "to": "2"},
+    )
+    assert bare.json() == named.json()
+
+
+async def test_a_composition_with_one_version_has_no_pair_to_compare(api_client, project) -> None:
+    """404 and not an empty diff: there is no change list, not a list with no changes."""
+    await _composition(api_client, project)
+    await _seal(api_client, project, "fleet", SOURCE)
+    bare = await api_client.get(
+        f"{project['url']}/compositions/fleet/diff", headers=project["headers"],
+    )
+    assert bare.status_code == 404
+    assert "no_pair_to_compare" in bare.text
+
+
+async def test_a_private_project_answers_about_access_before_parameters(
+    api_client, registration, db_session, gate,  # noqa: F811
+) -> None:
+    """Authorization precedes validation, which is why the operands are optional.
+
+    Declared required, FastAPI validates them before any dependency runs, so an outsider
+    got a 422 naming the missing parameter -- an answer about the route -- where the
+    project's privacy owes them a refusal. Measured here with no parameters at all, which
+    is the case that used to leak.
+    """
+    _owner, owner_headers = await make_account(api_client, registration, db_session, gate)
+    organization = await make_org(api_client, owner_headers)
+    created = await api_client.post(
+        f"/v1/organizations/{organization['slug']}/projects", headers=owner_headers,
+        json={"slug": "shut", "name": "shut", "visibility": "private"},
+    )
+    assert created.status_code == 201, created.text
+
+    _outsider, outsider_headers = await make_account(api_client, registration, db_session, gate)
+    refused = await api_client.get(
+        f"/v1/organizations/{organization['slug']}/projects/shut/compositions/anything/diff",
+        headers=outsider_headers,
+    )
+    assert refused.status_code in (403, 404), refused.text
+    assert refused.status_code != 422, "a 422 here would answer about the project's routes"

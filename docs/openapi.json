@@ -21238,6 +21238,7 @@
         "tags": [
           "Compositions"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -21440,6 +21441,7 @@
         "tags": [
           "Compositions"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -21447,7 +21449,7 @@
     },
     "/v1/organizations/{org}/projects/{project}/compositions/{composition}/diff": {
       "get": {
-        "description": "The stored-version form the module docstring promised.\n\nThe response body is the one ``POST /v1/compositions/diff`` returns, which was the\npromise: the same typed change list, sectioned the same way. Only the operands differ --\ntwo sealed versions of one stored composition rather than two documents in a request.",
+        "description": "The stored-version form the module docstring promised.\n\nThe response body is the one ``POST /v1/compositions/diff`` returns, which was the\npromise: the same typed change list, sectioned the same way. Only the operands differ --\ntwo sealed versions of one stored composition rather than two documents in a request.\n\n**Both operands are optional, and omitting them compares the last two versions.** The\ndefault is the one the compare screen already uses for a binding case -- the previous\nversion against the latest -- so the question a reader arrives with, \"what changed?\",\nneeds no parameters. A composition with fewer than two versions has no pair to compare\nand answers 404.\n\nDeclaring them required would have been the obvious way to write it and was wrong for a\nsecond reason: FastAPI validates query parameters **before** any dependency runs, so a\ncaller with no access to the project got a 422 about a missing parameter instead of the\n403 the project's privacy owes them -- the route answered about a private project's\nexistence to someone who could not read it. Authorization comes first here.",
         "operationId": "diffCompositionVersions",
         "parameters": [
           {
@@ -21481,24 +21483,38 @@
             "description": "The earlier version.",
             "in": "query",
             "name": "from",
-            "required": true,
+            "required": false,
             "schema": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "The earlier version.",
-              "minLength": 1,
-              "title": "From",
-              "type": "string"
+              "title": "From"
             }
           },
           {
             "description": "The later version.",
             "in": "query",
             "name": "to",
-            "required": true,
+            "required": false,
             "schema": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "The later version.",
-              "minLength": 1,
-              "title": "To",
-              "type": "string"
+              "title": "To"
             }
           }
         ],
@@ -21566,6 +21582,7 @@
         "tags": [
           "Compositions"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -21672,6 +21689,7 @@
         "tags": [
           "Compositions"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -21893,6 +21911,7 @@
         "tags": [
           "Compositions"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]

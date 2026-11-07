@@ -31,8 +31,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bim_core.canonical import digest, digest_bytes
 
+from ..access import public_read
 from ..access.dependencies import get_current_user, get_optional_user, session_dependency
-from ..artifacts import store_blob, validate_content, version_content
+from ..artifacts import can_read, store_blob, validate_content, version_content
 from ..collaboration import organization_by_ref, require_project
 from ..composition.diff import SECTIONS, diff
 from ..composition.text import TextError, parse
@@ -205,6 +206,27 @@ async def _composition(session: AsyncSession, project_id: uuid.UUID, reference: 
     return found
 
 
+async def _visitor_may_see(session: AsyncSession, project: Project, artifact: Artifact) -> bool:
+    """A read-only visitor sees the project's own compositions, and others' only while published.
+
+    The same narrowing the collection routes apply, and for the same reason: a public
+    project may link an artifact that belongs to another organization -- a fork's origin,
+    for instance -- and a public project is not a way to read one that is not published.
+    """
+    if not public_read.is_public_read(session):
+        return True
+    return artifact.organization_id == project.organization_id or await can_read(
+        session, artifact, None,
+    )
+
+
+async def _readable(session: AsyncSession, project: Project, reference: str) -> Artifact:
+    found = await _composition(session, project.id, reference)
+    if not await _visitor_may_see(session, project, found):
+        raise api_error(404, "not_found", "Composition not found.")
+    return found
+
+
 async def _latest_ordinal(session: AsyncSession, artifact_id: uuid.UUID) -> int | None:
     return await session.scalar(
         select(func.max(ArtifactVersion.ordinal)).where(ArtifactVersion.artifact_id == artifact_id),
@@ -272,7 +294,8 @@ async def list_compositions(
         ProjectArtifact.project_id == found_project.id, Artifact.kind == "Composition",
         Artifact.archived == False,  # noqa: E712 - a SQL predicate, not a Python truth test
     ).order_by(Artifact.name))).scalars().all()
-    return [await _composition_view(session, row, found_project.id) for row in rows]
+    return [await _composition_view(session, row, found_project.id) for row in rows
+            if await _visitor_may_see(session, found_project, row)]
 
 
 @project_router.post(
@@ -320,7 +343,7 @@ async def get_composition(
     _organization, found_project = await _project_context(
         session, org, project, user, OrganizationRole.VIEWER,
     )
-    found = await _composition(session, found_project.id, composition)
+    found = await _readable(session, found_project, composition)
     return await _composition_view(session, found, found_project.id)
 
 
@@ -337,7 +360,7 @@ async def list_composition_versions(
     _organization, found_project = await _project_context(
         session, org, project, user, OrganizationRole.VIEWER,
     )
-    found = await _composition(session, found_project.id, composition)
+    found = await _readable(session, found_project, composition)
     rows = (await session.execute(
         select(ArtifactVersion).where(ArtifactVersion.artifact_id == found.id)
         .order_by(ArtifactVersion.ordinal.desc()),
@@ -435,7 +458,7 @@ async def get_composition_version_content(
     _organization, found_project = await _project_context(
         session, org, project, user, OrganizationRole.VIEWER,
     )
-    found = await _composition(session, found_project.id, composition)
+    found = await _readable(session, found_project, composition)
     sealed = await _sealed(session, found, version)
     content, media_type = await version_content(session, sealed)
     return Response(
@@ -451,8 +474,8 @@ async def get_composition_version_content(
 )
 async def diff_composition_versions(
     org: str, project: str, composition: str,
-    from_: str = Query(..., alias="from", min_length=1, description="The earlier version."),
-    to: str = Query(..., min_length=1, description="The later version."),
+    from_: Optional[str] = Query(None, alias="from", min_length=1, description="The earlier version."),
+    to: Optional[str] = Query(None, min_length=1, description="The later version."),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> CompositionDiffResponse:
@@ -461,11 +484,36 @@ async def diff_composition_versions(
     The response body is the one ``POST /v1/compositions/diff`` returns, which was the
     promise: the same typed change list, sectioned the same way. Only the operands differ --
     two sealed versions of one stored composition rather than two documents in a request.
+
+    **Both operands are optional, and omitting them compares the last two versions.** The
+    default is the one the compare screen already uses for a binding case -- the previous
+    version against the latest -- so the question a reader arrives with, "what changed?",
+    needs no parameters. A composition with fewer than two versions has no pair to compare
+    and answers 404.
+
+    Declaring them required would have been the obvious way to write it and was wrong for a
+    second reason: FastAPI validates query parameters **before** any dependency runs, so a
+    caller with no access to the project got a 422 about a missing parameter instead of the
+    403 the project's privacy owes them -- the route answered about a private project's
+    existence to someone who could not read it. Authorization comes first here.
     """
     _organization, found_project = await _project_context(
         session, org, project, user, OrganizationRole.VIEWER,
     )
-    found = await _composition(session, found_project.id, composition)
+    found = await _readable(session, found_project, composition)
+    if from_ is None or to is None:
+        recent = (await session.execute(
+            select(ArtifactVersion).where(ArtifactVersion.artifact_id == found.id)
+            .order_by(ArtifactVersion.ordinal.desc()).limit(2),
+        )).scalars().all()
+        if len(recent) < 2:
+            raise api_error(
+                404, "no_pair_to_compare",
+                "A composition needs two sealed versions before there is a change to report.",
+            )
+        later_default, earlier_default = recent[0], recent[1]
+        from_ = from_ if from_ is not None else str(earlier_default.ordinal)
+        to = to if to is not None else str(later_default.ordinal)
     earlier, later = await _sealed(session, found, from_), await _sealed(session, found, to)
     before_bytes, _ = await version_content(session, earlier)
     after_bytes, _ = await version_content(session, later)
