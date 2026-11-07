@@ -1262,9 +1262,33 @@ Every diagnostic carries a code, a message and the YAML span of the element at f
 the editor can underline it. Codes are prefixed `c2y_` to keep them distinct from the
 container's.
 
+**This section described something nothing produced until phase F3.** `Diagnostic`, `Span`,
+`CompositionError` and the codes below shipped with F0 and no code constructed one: `parse`
+raised a sentence with no position, so an editor had nothing to put a marker on. The span
+now comes from composing the document a second time -- `yaml.compose` keeps the marks
+`yaml.safe_load` discards -- and a span runs **from an element's key to the end of its
+value**, because the name is the part the author recognises.
+
+Two orderings decide which code a reader sees, and both were measured rather than assumed.
+
+*The readers run before the schema.* The schema catches every shape error the readers do,
+so consulting it first made the specific codes unreachable: an unknown template came back
+as `c2y_schema` where `c2y_property_template` names the property and says what is wrong
+with it. Three property refusals were shadowed that way.
+
+*And the schema is the backstop, because the readers accept what it refuses.* A task
+declared both `open` and `local` was read as whichever kind the reader recognised first --
+the document meant something the author had not written -- and of the five shape errors
+measured, it is the one the readers say nothing at all about. The schema was already the
+authority on a composition's shape; it is now asked.
+
+A schema failure reports **every** violation at once, because that is what an editor wants:
+one marker per problem, not the first one. A reader refusal reports one, because a reader
+stops at the element it cannot read.
+
 | code | meaning |
 | --- | --- |
-| `c2y_schema` | the document violates the Composition2Yaml schema |
+| `c2y_schema` | the document violates the Composition2Yaml schema, or a reader refuses its shape |
 | `c2y_property_neutral` | a `min`/`max` property has no bound and no explicit neutral |
 | `c2y_property_template` | unknown template name |
 | `c2y_task_kind` | a task is not exactly one of open, fixed or local |
@@ -1283,6 +1307,14 @@ container's.
 
 Compilation is all-or-nothing, as it is in the container: a document with any error
 produces no package.
+
+What is raised today, and what is still only declared: `c2y_schema`,
+`c2y_property_template` and `c2y_task_kind` fire from `parse`, and the schema's own rules
+reach the author's text through the first of them. The rest of this table names checks the
+language does not yet make -- a workflow naming a task that is not declared, a goal naming
+a property that is not, probabilities that do not sum to one -- and each of those is
+reported by the container today, against a resource and a JSON pointer rather than against
+a line the author is looking at. Moving them here is what the rest of phase F3 is for.
 
 ## 15. Worked example
 

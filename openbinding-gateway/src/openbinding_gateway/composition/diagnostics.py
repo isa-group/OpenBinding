@@ -14,7 +14,7 @@ fails later and further away.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 #: A ``min``/``max`` property with no bound on the relevant side has no neutral. The
 #: container would emit ``feature_neutral``; refusing here names the property instead.
@@ -63,9 +63,36 @@ class Diagnostic:
         return f"{where}: {self.code}: {self.message}"
 
 
-class CompositionError(Exception):
+class TextError(Exception):
+    """A document that cannot be read as a composition at all.
+
+    Kept as the base of :class:`CompositionError` rather than replaced by it, so that
+    ``except TextError`` keeps catching every refusal: two callers outside this package
+    rely on it -- the library's content validator and the diff route -- and neither should
+    have had to change to gain diagnostics it does not read.
+    """
+
+
+class CompositionError(TextError):
     """Raised when a composition cannot be translated; carries every diagnostic."""
 
     def __init__(self, diagnostics: tuple[Diagnostic, ...]) -> None:
         self.diagnostics = diagnostics
         super().__init__("; ".join(str(d) for d in diagnostics))
+
+    def located(self, spans: dict[str, Span]) -> "CompositionError":
+        """The same diagnostics with their spans filled in from the source.
+
+        The refusals are raised deep in the readers, which hold a value and not the text.
+        ``parse`` holds the text, so it catches and re-raises through this: one place
+        attaches positions, and the readers stay functions of their input.
+        """
+        return CompositionError(tuple(
+            item if item.span is not None else replace(item, span=spans.get(item.path))
+            for item in self.diagnostics
+        ))
+
+
+def refuse(code: str, message: str, path: str) -> CompositionError:
+    """One diagnostic, ready to raise. The span is attached later, by ``parse``."""
+    return CompositionError((Diagnostic(code=code, message=message, path=path),))
