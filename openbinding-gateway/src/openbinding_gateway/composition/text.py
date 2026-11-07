@@ -36,6 +36,7 @@ from typing import Any
 import yaml
 
 from . import diagnostics as codes
+from .checks import coherence
 from .diagnostics import CompositionError, Diagnostic, TextError
 from .spans import locate
 from .model import (
@@ -623,6 +624,17 @@ def parse(text: str) -> Composition:
         if broken:
             raise CompositionError(broken).located(locate(text)) from error
         raise
+    # Then what no document can say, finished or not: one element contradicting itself.
+    # Before the schema, for the reason the readers come before it: the schema refuses a
+    # distribution stated beside inline probabilities too, and asked first its generic
+    # ``c2y_schema`` shadowed ``c2y_exclusive_distribution``, which names the exclusive and
+    # says what is wrong with it. The same ordering mistake, one level down, measured again.
+    # Only coherence here -- what a composition still lacks is ``checks.completeness``,
+    # refused when a version is sealed, because a draft may be unfinished and both the diff
+    # and the editor read drafts.
+    unsound = coherence(composition)
+    if unsound:
+        raise CompositionError(unsound).located(locate(text))
     # And the schema as the backstop, because the readers accept things it refuses: a task
     # declared both ``open`` and ``local`` is read as whichever kind comes first, so the
     # document meant something the author did not write. Measured -- it is the one case of
