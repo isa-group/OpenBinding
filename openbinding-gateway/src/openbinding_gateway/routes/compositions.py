@@ -51,6 +51,7 @@ from ..models.artifacts import DraftContent
 from ..models.errors import api_error
 from ..models.platform import (
     CompositionCreate,
+    CompositionForkRequest,
     CompositionVersionCreate,
     CompositionVersionView,
     CompositionView,
@@ -278,6 +279,96 @@ async def _sealed(
     return found
 
 
+async def _seal_version(
+    session: AsyncSession, user: User, artifact: Artifact, organization_id: uuid.UUID,
+    source: str, *, label: str | None, based_on: ArtifactVersion | None,
+) -> CompositionVersionView:
+    """Seal the source as the artifact's next version, or return the one that already holds it.
+
+    Shared by the version route and the fork, so "sealing a version" means one thing. The
+    dedup is what makes re-forking an unchanged origin a no-op rather than a second copy.
+    """
+    content, _contracts = validate_content(
+        "Composition", DraftContent(content=source, media_type=SOURCE_MEDIA_TYPE),
+    )
+    content_digest = digest_bytes(content)
+    existing = await session.scalar(select(ArtifactVersion).where(
+        ArtifactVersion.artifact_id == artifact.id,
+        ArtifactVersion.content_digest == content_digest,
+    ))
+    if existing is not None:
+        return _version_view(artifact, existing)
+
+    # Lock the identity before taking an ordinal or a label, as the collection library does:
+    # two writers sealing at once would otherwise agree on the same next ordinal.
+    await session.execute(select(Artifact.id).where(Artifact.id == artifact.id).with_for_update())
+    ordinal = int(await _latest_ordinal(session, artifact.id) or 0) + 1
+    chosen = label or str(ordinal)
+    clash = await session.scalar(select(ArtifactVersion).where(
+        ArtifactVersion.artifact_id == artifact.id, ArtifactVersion.version == chosen))
+    if clash is not None:
+        raise api_error(409, "immutable_version", "Version label already identifies different content.")
+
+    blob = await store_blob(session, artifact, user, content, SOURCE_MEDIA_TYPE)
+    manifest = {
+        "apiVersion": "openbinding/artifact/v1", "kind": "Composition",
+        "identity": {"namespace": artifact.namespace, "name": artifact.name, "version": chosen},
+        "contentDigest": content_digest, "mediaType": SOURCE_MEDIA_TYPE,
+        "contracts": [], "dependencies": [],
+    }
+    created = ArtifactVersion(
+        artifact_id=artifact.id, ordinal=ordinal, version=chosen, blob_id=blob.id,
+        content_digest=content_digest, version_digest=digest(manifest), manifest=manifest,
+        based_on_id=based_on.id if based_on else None, created_by_id=user.id,
+    )
+    session.add(created)
+    await session.flush()
+    _audit_event(session, user, "composition.version.created", created, organization_id,
+                 digest=content_digest)
+    return _version_view(artifact, created)
+
+
+async def _existing_fork(
+    session: AsyncSession, origin: Artifact, target_project_id: uuid.UUID,
+) -> Artifact | None:
+    """The fork of this origin that already lives in the target project, if there is one.
+
+    This is the question SPHERE answers with a denormalised ``forkedFrom`` record, and its
+    reason is written there: *"to match a re-fork of the same origin to the fork already
+    living in the target organization, instead of creating a duplicate pricing every time
+    the origin gets a new version"*. Here the edge itself answers it -- any version of the
+    candidate whose ``based_on_id`` belongs to the origin -- which is the query
+    ``ix_artifact_versions_based_on_id`` exists for. No copy to keep in step, and the
+    foreign key is ``RESTRICT``, so the lineage cannot go stale underneath it.
+    """
+    origin_versions = select(ArtifactVersion.id).where(ArtifactVersion.artifact_id == origin.id)
+    return (await session.execute(
+        select(Artifact)
+        .join(ProjectArtifact, ProjectArtifact.artifact_id == Artifact.id)
+        .join(ArtifactVersion, ArtifactVersion.artifact_id == Artifact.id)
+        .where(
+            ProjectArtifact.project_id == target_project_id,
+            Artifact.kind == "Composition",
+            Artifact.id != origin.id,
+            Artifact.archived == False,  # noqa: E712 - an archived fork is not the live one
+            ArtifactVersion.based_on_id.in_(origin_versions),
+        )
+        .order_by(Artifact.created_at)
+        .limit(1),
+    )).scalars().first()
+
+
+async def _latest_sealed(session: AsyncSession, artifact: Artifact) -> ArtifactVersion:
+    """The newest version by ordinal, which is the one a fork takes when none is named."""
+    found = (await session.execute(
+        select(ArtifactVersion).where(ArtifactVersion.artifact_id == artifact.id)
+        .order_by(ArtifactVersion.ordinal.desc()).limit(1),
+    )).scalars().first()
+    if found is None:
+        raise api_error(404, "no_version", "A composition with no sealed version cannot be forked.")
+    return found
+
+
 @project_router.get(
     "/compositions", response_model=list[CompositionView], operation_id="listCompositions",
 )
@@ -390,50 +481,15 @@ async def create_composition_version(
     )
     found = await _composition(session, found_project.id, composition)
 
-    content, _contracts = validate_content(
-        "Composition", DraftContent(content=payload.source, media_type=SOURCE_MEDIA_TYPE),
-    )
-    content_digest = digest_bytes(content)
-    existing = await session.scalar(select(ArtifactVersion).where(
-        ArtifactVersion.artifact_id == found.id,
-        ArtifactVersion.content_digest == content_digest,
-    ))
-    if existing is not None:
-        return _version_view(found, existing)
-
     based_on: ArtifactVersion | None = None
     if payload.based_on is not None:
         based_on = await session.get(ArtifactVersion, payload.based_on)
         if based_on is None:
             raise api_error(422, "unknown_origin", "The version this one is based on does not exist.")
-
-    # Lock the identity before taking an ordinal or a label, as the collection library does:
-    # two writers sealing at once would otherwise agree on the same next ordinal.
-    await session.execute(select(Artifact.id).where(Artifact.id == found.id).with_for_update())
-    ordinal = int(await _latest_ordinal(session, found.id) or 0) + 1
-    label = payload.version or str(ordinal)
-    clash = await session.scalar(select(ArtifactVersion).where(
-        ArtifactVersion.artifact_id == found.id, ArtifactVersion.version == label))
-    if clash is not None:
-        raise api_error(409, "immutable_version", "Version label already identifies different content.")
-
-    blob = await store_blob(session, found, user, content, SOURCE_MEDIA_TYPE)
-    manifest = {
-        "apiVersion": "openbinding/artifact/v1", "kind": "Composition",
-        "identity": {"namespace": found.namespace, "name": found.name, "version": label},
-        "contentDigest": content_digest, "mediaType": SOURCE_MEDIA_TYPE,
-        "contracts": [], "dependencies": [],
-    }
-    created = ArtifactVersion(
-        artifact_id=found.id, ordinal=ordinal, version=label, blob_id=blob.id,
-        content_digest=content_digest, version_digest=digest(manifest), manifest=manifest,
-        based_on_id=based_on.id if based_on else None, created_by_id=user.id,
+    return await _seal_version(
+        session, user, found, organization.id, payload.source,
+        label=payload.version, based_on=based_on,
     )
-    session.add(created)
-    await session.flush()
-    _audit_event(session, user, "composition.version.created", created, organization.id,
-                 digest=content_digest)
-    return _version_view(found, created)
 
 
 @project_router.get(
@@ -519,4 +575,94 @@ async def diff_composition_versions(
     after_bytes, _ = await version_content(session, later)
     return _diff_response(
         _parse(before_bytes.decode(), "from"), _parse(after_bytes.decode(), "to"),
+    )
+
+
+@project_router.post(
+    "/compositions/{composition}/fork", response_model=CompositionVersionView,
+    status_code=201, operation_id="forkComposition",
+    responses={409: {"description": "The target project already holds that slug."}},
+)
+async def fork_composition(
+    org: str, project: str, composition: str, payload: CompositionForkRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> CompositionVersionView:
+    """Take a version of this composition into another project, or update the fork already there.
+
+    Two accesses, deliberately different: the origin is read under **VIEWER** and the target
+    needs **MEMBER**, because the fork is a write there.
+
+    **An outsider cannot fork a public composition in one call, and that is the public-read
+    mechanism rather than a gap here.** ``access/public_read.py`` binds eligibility to the
+    *request*: a request is eligible only when its method is GET and its template is listed.
+    This is a POST, so the origin read inside it is never eligible however public the origin
+    project is. The path that does work keeps the lineage intact and needs nothing new --
+    read the sealed source (a listed GET), then seal it in your own project naming the origin
+    version in ``based_on``. Two calls, and the same edge. Measured, with a test for it.
+
+    **Re-forking does not duplicate.** If the target project already holds a fork of this
+    origin, the new version is sealed on it rather than creating a second artifact. That is
+    SPHERE's rule and its stated reason: *"to match a re-fork of the same origin to the fork
+    already living in the target organization, instead of creating a duplicate pricing every
+    time the origin gets a new version"*. Re-forking an **unchanged** origin version seals
+    nothing at all, because the content digest already identifies it.
+
+    The lineage is the `based_on_id` edge itself, not a copy of the origin's identity. The
+    column needed no widening: it is a foreign key to `artifact_versions.id` with no
+    same-artifact restriction, so it already crosses artifacts, and it is `RESTRICT`, so the
+    origin cannot be deleted out from under a fork. SPHERE denormalises the record because
+    there an origin *can* disappear; here the database refuses.
+    """
+    _origin_organization, origin_project = await _project_context(
+        session, org, project, user, OrganizationRole.VIEWER,
+    )
+    origin = await _readable(session, origin_project, composition)
+    taken = (
+        await _sealed(session, origin, payload.version)
+        if payload.version is not None
+        else await _latest_sealed(session, origin)
+    )
+
+    target_organization, target_project = await _project_context(
+        session, payload.target_organization, payload.target_project, user,
+        OrganizationRole.MEMBER,
+    )
+    if target_project.id == origin_project.id and (payload.slug or origin.name) == origin.name:
+        raise api_error(
+            409, "slug_conflict",
+            "A fork in the origin's own project needs a slug of its own.",
+        )
+
+    source, _media_type = await version_content(session, taken)
+    existing = await _existing_fork(session, origin, target_project.id)
+    if existing is not None:
+        return await _seal_version(
+            session, user, existing, target_organization.id, source.decode(),
+            label=None, based_on=taken,
+        )
+
+    slug = payload.slug or origin.name
+    duplicate = (await session.execute(select(Artifact).join(ProjectArtifact).where(
+        ProjectArtifact.project_id == target_project.id, Artifact.kind == "Composition",
+        Artifact.name == slug,
+        Artifact.archived == False,  # noqa: E712 - archiving frees the slug, by design
+    ))).scalars().first()
+    if duplicate is not None:
+        raise api_error(409, "slug_conflict", "That composition slug is in use in the target project.")
+
+    fork = Artifact(
+        organization_id=target_organization.id, namespace=str(target_organization.id),
+        name=slug, display_name=origin.display_name, description=origin.description,
+        kind="Composition", created_by_id=user.id,
+    )
+    session.add(fork)
+    await session.flush()
+    session.add(ProjectArtifact(project_id=target_project.id, artifact_id=fork.id))
+    await session.flush()
+    _audit_event(session, user, "composition.forked", fork, target_organization.id,
+                 origin=str(origin.id), origin_version=str(taken.id))
+    return await _seal_version(
+        session, user, fork, target_organization.id, source.decode(),
+        label=None, based_on=taken,
     )
