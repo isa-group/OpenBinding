@@ -156,6 +156,9 @@ def test_authentication_and_role_requirements_are_explicit(document):
         # there is nothing an account would protect. An API key still needs
         # instances:read.
         ("/v1/compositions/diff", "post"),
+        # The same shape: a validation derives its answer from the document in the request
+        # and stores nothing, so an account would protect nothing either.
+        ("/v1/compositions/validate", "post"),
     }
     for path, method, operation in operations(document):
         if (path, method) in public:
