@@ -230,6 +230,64 @@ value: the account has a linked `us-cas` identity. A page of accounts costs one
 identity query, not one per row. (There is no `GET /v1/admin/users/{id}`; the
 detail screen reads the list with `search`.)
 
+### A change decided on an outdated contract is refused
+
+Two administrators can look at the same account, and SPACE renews contracts on
+its own, so a change can be decided on a contract that has moved by the time it
+is applied. Applied anyway, it would silently undo whatever happened in between.
+The gateway uses SPACE's optimistic concurrency against that
+(`space-python-client` 1.1.0, `SpacePricingGate._novate` in `space_client/space.py`):
+
+- The subscription is a conditional write like the others of
+  [ERRORS.md](ERRORS.md#conditional-writes-if-match).
+  `GET /v1/admin/users/{id}/subscription` carries an `ETag`, the revision of the
+  contract (a digest of SPACE's contract version). `POST /v1/admin/users/{id}/plan`
+  and `/subscription` take it as `If-Match`, and their `200` carries the new one.
+  A tag that no longer names the contract is `412 precondition_failed`, with the
+  current `ETag`, before anything that depends on stored state; a malformed one
+  is `400 invalid_if_match`. The tag travels in headers only, never in a body.
+- The novation first runs as a dry run (`preview_novation`, which writes
+  nothing). A selection SPACE refuses there is the usual
+  `422 invalid_subscription`, with SPACE's error codes in the log. Then it is
+  written with `If-Match` set to the contract version the gateway read for this
+  request (`/plan` carries the add-ons over from that read).
+- A contract that moves while the request is being applied, seen by the dry run
+  or refused by SPACE with `412`, is refused as well: `412 precondition_failed`
+  (with the `ETag` as it is now) when the request's `If-Match` named a revision,
+  `409 contract_changed` with a fixed sentence otherwise, `*` included. Nothing
+  was written, so there is no audit event and no notification. Read the
+  subscription again and decide again. (`409` on these two endpoints can also be
+  `research_requires_us_cas`.)
+- Without `If-Match` the change is computed on the contract as the gateway reads
+  it, so only a change landing during the request itself is caught: a screen
+  that wants its own reading protected sends the `ETag` it was given.
+
+Every novation keeps the current billing period (`keep_billing_period`).
+OpenBinding charges nothing, so a plan change, or a novation that only moves the
+contract to `SPACE_PRICING_VERSION`, no longer moves the renewal date. No
+novation asks SPACE to refuse private plans (`reject_private`): an administrator
+is exactly who may assign one, and the CAS upgrade must keep working should
+RESEARCH be private.
+
+The automatic plan changes follow a rule, so they decide again instead of
+failing. When the contract moved between the read and the novation, linking a
+`us-cas` identity (default plan to RESEARCH) and unlinking it with
+`DOWNGRADE RESEARCH` (RESEARCH to the default plan) read the contract again and
+apply the rule once more: an account an administrator moved meanwhile keeps its
+plan. A second change in a row is the usual `pricing_unavailable`.
+
+All of this depends on what SPACE advertises in `X-Space-Capabilities`, which
+the client reads from any response or from SPACE's unauthenticated healthcheck.
+The dry run and `If-Match` need `novation-preview` and `contract-version`;
+keeping the billing period needs `keep-billing-period`. The remote SPACE
+advertised all three on 2026-11-07. A SPACE without them gets the unconditional
+novation it always got, and the gateway logs a warning for each one. A SPACE
+that keeps no contract versions gives the subscription no `ETag`, and then only
+`If-Match: *` matches. If SPACE
+applies a novation but its answer shows a guarantee was dropped (no `ETag`, a
+restarted billing period), the change is in place: the gateway records it as
+made and logs which guarantee was missing.
+
 ### Administrator actions are audited
 
 Every action an administrator takes on somebody else's account leaves exactly
@@ -348,7 +406,10 @@ So that the person is told, the change is reported where the frontend can show i
 Creating a new account through CAS starts it on `RESEARCH`, which is not a
 change, so it reports nothing. Unlinking is unchanged: removing the identity of
 a `RESEARCH` account needs `?confirmation=DOWNGRADE RESEARCH` and returns it to
-the default plan.
+the default plan. Both changes apply to the contract version they were decided
+on; if the contract moved meanwhile, the rule is applied once more to the
+contract as it is now (see "A change decided on an outdated contract is
+refused").
 
 ## How a limit behaves
 

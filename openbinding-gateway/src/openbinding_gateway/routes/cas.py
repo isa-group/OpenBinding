@@ -5,7 +5,8 @@ from __future__ import annotations
 import logging
 import secrets
 import uuid
-from typing import Literal
+from collections.abc import Awaitable, Callable
+from typing import Literal, TypeVar
 from urllib.parse import urlencode
 
 import httpx
@@ -28,6 +29,8 @@ from .auth import _issue_session
 from ..access.contracts import live_pricing_version
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
 
 router = APIRouter(prefix="/v1/auth/cas", tags=["Authentication"])
 identity_router = APIRouter(prefix="/v1/users/me/identities", tags=["Users"])
@@ -150,6 +153,8 @@ async def _upgrade_to_research(user: User, session: AsyncSession) -> PlanChange 
     identity is what entitles an account to RESEARCH, so the upgrade is
     automatic and costs nothing. An account on any other plan is left alone.
     The caller reports the returned change to the person (``plan_changed``).
+    The rule is applied to the contract version it was decided on
+    (``_apply_plan_rule``), so it never overwrites a change made meanwhile.
     """
     settings = get_settings()
     default_plan = settings.space_default_plan
@@ -157,17 +162,45 @@ async def _upgrade_to_research(user: User, session: AsyncSession) -> PlanChange 
         # Without a configured default plan there is no "default-plan account"
         # to upgrade; plans are SPACE's to assign.
         return None
-    try:
-        gate = space_client.get_gate()
-        current = await gate.subscription(user.id)
+    version = live_pricing_version(settings)
+
+    async def upgrade(current: space_client.SubscriptionSnapshot) -> PlanChange | None:
         if current.plan != default_plan:
             return None
         # SPACE rejects the novation if the pricing version has no RESEARCH plan.
-        await gate.change_plan(user.id, "RESEARCH", live_pricing_version(settings))
+        await space_client.get_gate().change_plan(
+            user.id, "RESEARCH", version, current.contract_version
+        )
+        return PlanChange(from_plan=current.plan, to="RESEARCH", extra_cost=False)
+
+    try:
+        change = await _apply_plan_rule(user.id, upgrade)
     except space_client.PricingUnavailable as exc:
         raise pricing_unavailable_error(exc, where="CAS research upgrade") from exc
-    user.plan_cache = "RESEARCH"
-    return PlanChange(from_plan=current.plan, to="RESEARCH", extra_cost=False)
+    if change is not None:
+        user.plan_cache = "RESEARCH"
+    return change
+
+
+async def _apply_plan_rule(
+    user_id: uuid.UUID,
+    rule: Callable[[space_client.SubscriptionSnapshot], Awaitable[T]],
+    current: space_client.SubscriptionSnapshot | None = None,
+) -> T:
+    """Apply a plan change that follows a rule to the contract it was decided on.
+
+    ``rule`` looks at a subscription and, when the rule applies, novates with
+    that subscription's ``contract_version``. If the contract changed in between
+    (a renewal, an administrator), the novation is refused with
+    ``ContractChanged`` and the rule is applied again, once, to the contract as
+    it is now: a rule, unlike a person, can decide again on its own. A second
+    change in a row propagates as the ``PricingUnavailable`` it also is.
+    """
+    gate = space_client.get_gate()
+    try:
+        return await rule(current if current is not None else await gate.subscription(user_id))
+    except space_client.ContractChanged:
+        return await rule(await gate.subscription(user_id))
 
 
 def _frontend_redirect(settings: Settings, params: dict[str, str]) -> RedirectResponse:
@@ -415,11 +448,20 @@ async def unlink_identity(
                 "pricing_unavailable",
                 "SPACE_DEFAULT_PLAN is not configured, so there is no plan to return this account to.",
             )
-        try:
+        version = live_pricing_version(settings)
+
+        async def downgrade(now: space_client.SubscriptionSnapshot) -> bool:
+            # An account that left RESEARCH meanwhile keeps the plan it was given.
+            if now.plan != "RESEARCH":
+                return False
             await space_client.get_gate().change_plan(
-                user.id, default_plan, live_pricing_version(settings)
+                user.id, default_plan, version, now.contract_version
             )
+            return True
+
+        try:
+            if await _apply_plan_rule(user.id, downgrade, current):
+                user.plan_cache = default_plan
         except space_client.PricingUnavailable as exc:
             raise pricing_unavailable_error(exc, where="CAS research downgrade") from exc
-        user.plan_cache = default_plan
     await session.delete(identity)

@@ -3,8 +3,9 @@
 SPACE and SPHERE report failures in text that quotes the host, the address or the
 body of the other side. The routes that depend on them answer ``503
 pricing_unavailable`` with a fixed sentence (to an anonymous caller too), the
-refusal of a novation stays ``422 invalid_subscription`` with a fixed sentence,
-and the reason is in the log, masked, under the id the 5xx carries. The
+refusal of a novation stays ``422 invalid_subscription`` with a fixed sentence, a
+contract that changed under a novation is ``409 contract_changed`` with a fixed
+sentence, and the reason is in the log, masked, under the id the 5xx carries. The
 administrator reads no more than anybody else: the reason is found by id.
 
 Nothing here talks to SPACE or SPHERE: the gates are local doubles and SPHERE is
@@ -29,6 +30,7 @@ from openbinding_gateway import pricing_catalog as catalog_module
 from openbinding_gateway import space_client
 from openbinding_gateway.core import public_errors
 from openbinding_gateway.core.public_errors import (
+    CONTRACT_CHANGED,
     INVALID_SUBSCRIPTION,
     PRICING_UNAVAILABLE,
     PUBLISHED_PRICING_UNAVAILABLE,
@@ -65,8 +67,19 @@ class DownGate(FakePricingGate):
 class RefusingGate(FakePricingGate):
     """A SPACE that does not accept the novation and says why in its own words."""
 
-    async def change_subscription(self, user_id, plan, add_ons, pricing_version=None):
+    async def change_subscription(
+        self, user_id, plan, add_ons, pricing_version=None, expected_contract_version=None
+    ):
         raise SubscriptionRejected(f"{SPACE_HOST} refused plan {plan!r}: add-on 'x' is not in pricing 9.9.9")
+
+
+class ChangedGate(FakePricingGate):
+    """A SPACE whose contract moved under the novation, saying so with what it knows."""
+
+    async def change_subscription(
+        self, user_id, plan, add_ons, pricing_version=None, expected_contract_version=None
+    ):
+        raise space_client.ContractChanged(f"{SPACE_HOST} answered 412: expected v1, current v7")
 
 
 @pytest.fixture
@@ -212,7 +225,7 @@ async def test_a_novation_in_an_outage_is_a_fixed_503(api_client, registration, 
     healthy = FakePricingGate(pricing_catalog())
     space_client.set_gate(healthy)
 
-    async def unavailable(user_id, plan, add_ons, pricing_version=None):
+    async def unavailable(user_id, plan, add_ons, pricing_version=None, expected_contract_version=None):
         raise PricingUnavailable(REASON)
 
     healthy.change_subscription = unavailable
@@ -243,6 +256,28 @@ async def test_a_refused_novation_keeps_its_code_and_says_a_fixed_sentence(
         assert leak not in response.text, leak
     log = logged(logs)
     assert "SubscriptionRejected" in log and "refused plan" in log, "the reason of SPACE is in the log"
+    assert SPACE_HOST not in log
+
+
+async def test_a_contract_changed_under_the_novation_is_a_fixed_409(
+    api_client, registration, db_session, logs
+):
+    target, _ = await account(api_client, registration)
+    _, admin = await account(api_client, registration, db_session, admin=True)
+    space_client.set_gate(ChangedGate(pricing_catalog()))
+
+    response = await api_client.post(
+        f"/v1/admin/users/{target['id']}/plan", headers=admin, json={"plan": largest_plan()}
+    )
+
+    assert response.status_code == 409, response.text
+    body = response.json()
+    assert body["detail"]["code"] == "contract_changed" and body["code"] == "contract_changed"
+    assert body["detail"]["error"] == CONTRACT_CHANGED.detail
+    for leak in (SPACE_HOST, "412", "v7"):
+        assert leak not in response.text, leak
+    log = logged(logs)
+    assert "ContractChanged" in log and "current v7" in log, "the versions are in the log"
     assert SPACE_HOST not in log
 
 

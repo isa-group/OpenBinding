@@ -71,12 +71,19 @@ class PlanCaps:
 
 @dataclass(frozen=True)
 class SubscriptionSnapshot:
-    """The immutable pricing selection currently pinned to one contract."""
+    """The immutable pricing selection currently pinned to one contract.
+
+    ``contract_version`` is the opaque version of the contract this was read
+    from (SPACE's ``contractVersion``, also its ``ETag``), or ``None`` when the
+    pricing service keeps no versions. A change decided on this snapshot hands
+    it back as ``expected_contract_version``.
+    """
 
     plan: str
     pricing_version: str
     add_ons: Dict[str, int] = field(default_factory=dict)
     renews_at: Optional[str] = None
+    contract_version: Optional[str] = None
 
 
 class PricingUnavailable(RuntimeError):
@@ -96,6 +103,17 @@ class SubscriptionRejected(PricingUnavailable):
     this is that refusal, so a caller can answer "that selection is invalid"
     instead of "the pricing service is down". It is still a ``PricingUnavailable``
     for callers that do not tell the two apart.
+    """
+
+
+class ContractChanged(PricingUnavailable):
+    """The contract changed after the read a novation was computed on; nothing was written.
+
+    Another administrator, a renewal or the account's own CAS link moved it in
+    between. Read the subscription again and decide again: applying the change
+    anyway would silently undo whatever happened in between. It is still a
+    ``PricingUnavailable`` for callers that do not tell the two apart, since the
+    change was not made.
     """
 
 
@@ -119,9 +137,17 @@ class PricingGate(Protocol):
         """
 
     async def change_plan(
-        self, user_id: uuid.UUID, plan: str, pricing_version: Optional[str] = None
+        self,
+        user_id: uuid.UUID,
+        plan: str,
+        pricing_version: Optional[str] = None,
+        expected_contract_version: Optional[str] = None,
     ) -> None:
-        """Move an account to another plan. SPACE calls this a novation."""
+        """Move an account to another plan, keeping its add-ons. SPACE calls this a novation.
+
+        ``expected_contract_version`` is the version of the snapshot the caller
+        decided on; ``ContractChanged`` if the contract is no longer at it.
+        """
 
     async def subscription(self, user_id: uuid.UUID) -> SubscriptionSnapshot:
         """Read the plan, add-ons and pricing version pinned to a contract."""
@@ -132,8 +158,13 @@ class PricingGate(Protocol):
         plan: str,
         add_ons: Dict[str, int],
         pricing_version: Optional[str] = None,
+        expected_contract_version: Optional[str] = None,
     ) -> SubscriptionSnapshot:
-        """Novate a plan/add-on selection against an explicit pricing release."""
+        """Novate a plan/add-on selection against an explicit pricing release.
+
+        ``expected_contract_version`` is the version of the snapshot the caller
+        decided on; ``ContractChanged`` if the contract is no longer at it.
+        """
 
     async def pricing_token(self, user_id: uuid.UUID) -> str:
         """A signed token the browser evaluates features against locally."""

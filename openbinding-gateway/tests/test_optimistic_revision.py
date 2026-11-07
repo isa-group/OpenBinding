@@ -155,3 +155,50 @@ def test_precondition_never_matches_a_weak_tag() -> None:
 
 def test_precondition_malformed_is_400_not_412() -> None:
     assert refusal(lambda: revision.precondition(row(), "nonsense")).status_code == 400
+
+
+# -- A revision that is not a row's: ``opaque_etag`` and ``check`` ------------------------------
+
+
+def test_opaque_etag_is_the_row_digest_for_the_same_parts() -> None:
+    current = row()
+    stamp = STAMP.isoformat(timespec="microseconds")
+
+    assert revision.opaque_etag(current.__tablename__, current.id, stamp) == revision.etag_for(current)
+    assert re.fullmatch(r'"[0-9a-f]{32}"', revision.opaque_etag("contract", uuid.UUID(int=1), "v7"))
+    assert revision.opaque_etag("contract", uuid.UUID(int=1), "v7") != revision.opaque_etag(
+        "contract", uuid.UUID(int=2), "v7"
+    )
+
+
+def test_check_passes_for_absent_wildcard_and_a_list_naming_the_current_tag() -> None:
+    tag = revision.opaque_etag("contract", "u", "v1")
+
+    revision.check(None, tag)
+    revision.check(["*"], tag)
+    revision.check(['"other"', tag], tag)
+    # The resource exists but keeps no revision: only the absent header and ``*`` pass.
+    revision.check(None, None)
+    revision.check(["*"], None)
+
+
+def test_check_refuses_a_stale_or_weak_tag_with_the_current_one() -> None:
+    tag = revision.opaque_etag("contract", "u", "v2")
+
+    for tags in (['"stale"'], ["W/" + tag]):
+        error = refusal(lambda tags=tags: revision.check(tags, tag))
+        assert error.status_code == 412
+        assert error.detail["code"] == "precondition_failed"
+        assert error.headers["ETag"] == tag
+
+
+def test_check_refuses_any_tag_for_a_resource_without_revision_and_carries_no_etag() -> None:
+    error = refusal(lambda: revision.check(['"abc"'], None))
+
+    assert error.status_code == 412
+    assert not (error.headers or {}).get("ETag")
+
+
+def test_names_is_a_tag_list_without_the_wildcard() -> None:
+    assert revision.names(['"a"']) and revision.names(['"a"', '"b"'])
+    assert not revision.names(None) and not revision.names(["*"])

@@ -12,6 +12,15 @@ kept.
 Plan *ceilings* are recovered from the pricing token: the allowance lives in the
 pricing, resolved against the subscribed plan, and the token carries both the
 feature flags and the per-request limits.
+
+A novation is guarded against concurrent edits when SPACE can guard it (it
+advertises ``novation-preview`` and ``contract-version`` in
+``X-Space-Capabilities``): a dry run validates it first and reports the contract
+version, and the write is applied only to the version the change was computed on
+(``If-Match``). A contract that moved in between - another administrator, a
+renewal - is ``ContractChanged`` and nothing is written. Every novation keeps the
+current billing period when SPACE advertises ``keep-billing-period``; none asks
+SPACE to reject private plans, since administrators may assign them.
 """
 
 from __future__ import annotations
@@ -20,6 +29,7 @@ import base64
 import binascii
 import inspect
 import json
+import logging
 import uuid
 from collections.abc import Callable
 from typing import Any, Dict, Optional, TypeVar
@@ -27,6 +37,7 @@ from typing import Any, Dict, Optional, TypeVar
 from ..core.public_errors import log_internal_failure
 from ..core.settings import Settings
 from .gate import (
+    ContractChanged,
     PlanCaps,
     PricingUnavailable,
     SubscriptionRejected,
@@ -35,9 +46,19 @@ from .gate import (
 
 T = TypeVar("T")
 
+logger = logging.getLogger(__name__)
+
 # HTTP statuses with which SPACE refuses a request. Anything else that goes wrong
 # (401/403 credentials, 429, 5xx, no connection) says nothing about the request.
+# A 412 is not here: it only answers If-Match, and the client raises it as
+# ``ContractChangedError``, which ``_call`` maps by type.
 _REJECTION_STATUSES = frozenset({400, 404, 409, 422})
+
+# ``X-Space-Capabilities`` tokens. A guarded novation needs the dry run, which
+# validates the change and reports the contract version, and If-Match on the write.
+_GUARDED_NOVATION = ("novation-preview", "contract-version")
+# A novation that keeps the current billing period instead of restarting it.
+_KEEP_BILLING_PERIOD = "keep-billing-period"
 
 
 class SpacePricingGate:
@@ -71,11 +92,17 @@ class SpacePricingGate:
         Accepting a plain value keeps injected test doubles tiny; the
         production factory always returns native awaitables.
         """
-        from space_client import SpaceError
+        from space_client import ContractChangedError, SpaceError
 
         try:
-            result = operation()
-            return await result if inspect.isawaitable(result) else result
+            return await _awaited(operation())
+        except ContractChangedError as error:
+            # SPACE answered 412 to If-Match (or the client saw the new version
+            # before writing): the contract moved after the read this change was
+            # computed on. Nothing was written; it is a conflict, not an outage.
+            raise self._contract_changed(
+                error.expected_contract_version, error.contract_version
+            ) from error
         except (SpaceError, OSError, RuntimeError) as error:
             # The text of these errors names the host or address that failed. It
             # goes to the log, masked; the exception that travels says only what kind.
@@ -88,6 +115,31 @@ class SpacePricingGate:
                     f"SPACE rejected the request for service '{self._service}' (HTTP {status})"
                 ) from error
             raise PricingUnavailable(f"SPACE is not reachable ({type(error).__name__})") from error
+
+    def _contract_changed(self, expected: Optional[str], current: Optional[str]) -> ContractChanged:
+        """The refusal of a novation computed on a contract version that is no longer current."""
+        changed = ContractChanged(
+            f"The contract for service '{self._service}' changed after the change was computed "
+            f"(expected version {expected or 'unknown'}, current {current or 'unknown'})"
+        )
+        log_internal_failure("SPACE novation", changed, level=logging.INFO)
+        return changed
+
+    async def _supports(self, *capabilities: str) -> bool:
+        """Whether SPACE advertises every one of ``capabilities`` (``X-Space-Capabilities``).
+
+        The client answers from the header of SPACE's latest response (trusted
+        for 60 s) or reads its unauthenticated healthcheck; a SPACE it cannot
+        read advertises nothing. A client without ``has_capability`` (an
+        injected double) advertises nothing either.
+        """
+        has_capability = getattr(self._client, "has_capability", None)
+        if has_capability is None:
+            return False
+        for capability in capabilities:
+            if await _awaited(has_capability(capability)) is not True:
+                return False
+        return True
 
     # -- Reading the contract --------------------------------------------
 
@@ -184,12 +236,24 @@ class SpacePricingGate:
         )
 
     async def change_plan(
-        self, user_id: uuid.UUID, plan: str, pricing_version: Optional[str] = None
+        self,
+        user_id: uuid.UUID,
+        plan: str,
+        pricing_version: Optional[str] = None,
+        expected_contract_version: Optional[str] = None,
     ) -> None:
         """Move an account to another plan. SPACE calls this a novation."""
         existing = await self._contract(user_id)
         add_ons = _service_add_ons(existing, self._service)
-        await self.change_subscription(user_id, plan, add_ons, pricing_version)
+        # The add-ons carried over come from this read, so the change is computed
+        # on it, unless the caller decided on an earlier one.
+        await self.change_subscription(
+            user_id,
+            plan,
+            add_ons,
+            pricing_version,
+            expected_contract_version or _contract_version(existing),
+        )
 
     async def subscription(self, user_id: uuid.UUID) -> SubscriptionSnapshot:
         existing = await self._contract(user_id)
@@ -202,6 +266,7 @@ class SpacePricingGate:
             pricing_version=str(services.get(self._service) or ""),
             add_ons=_service_add_ons(existing, self._service),
             renews_at=_attribute(period, "end_date", "endDate"),
+            contract_version=_contract_version(existing),
         )
 
     async def change_subscription(
@@ -210,6 +275,7 @@ class SpacePricingGate:
         plan: str,
         add_ons: Dict[str, int],
         pricing_version: Optional[str] = None,
+        expected_contract_version: Optional[str] = None,
     ) -> SubscriptionSnapshot:
         from space_client.types.models import Subscription
 
@@ -221,20 +287,18 @@ class SpacePricingGate:
                 raise PricingUnavailable("SPACE has no contract for this account.")
             services = _attribute(existing, "contracted_services", "contractedServices") or {}
             target_version = str(services.get(self._service) or "")
+            expected_contract_version = expected_contract_version or _contract_version(existing)
         if not target_version:
             raise PricingUnavailable(
                 "No pricing version for the novation: set SPACE_PRICING_VERSION."
             )
-        # SPACE validates the novation against the version it has deployed.
-        updated = await self._call(
-            lambda: self._client.contracts.update_contract_subscription(
-                str(user_id), Subscription(
-                contracted_services={self._service: target_version},
-                subscription_plans={self._service: plan},
-                subscription_add_ons={self._service: dict(add_ons)} if add_ons else {},
-                )
-            )
+        requested = Subscription(
+            contracted_services={self._service: target_version},
+            subscription_plans={self._service: plan},
+            subscription_add_ons={self._service: dict(add_ons)} if add_ons else {},
         )
+        # SPACE validates the novation against the version it has deployed.
+        updated = await self._novate(user_id, requested, expected_contract_version)
         if updated is None:
             updated = await self._contract(user_id)
             services = _attribute(updated, "contracted_services", "contractedServices") or {}
@@ -253,7 +317,81 @@ class SpacePricingGate:
             pricing_version=target_version,
             add_ons=dict(add_ons),
             renews_at=_attribute(period, "end_date", "endDate"),
+            contract_version=_contract_version(updated),
         )
+
+    async def _novate(
+        self, user_id: uuid.UUID, requested: Any, expected_contract_version: Optional[str]
+    ) -> Any:
+        """Apply a novation, guarded against concurrent edits when SPACE can guard it.
+
+        Guarded, SPACE first runs the novation as a dry run that writes nothing
+        (``preview_novation``): an invalid selection is refused there, and its
+        ``contract_version`` is the version the change applies to. The write then
+        carries the version the caller decided on (``If-Match``); a contract that
+        moved since is ``ContractChanged``. Unguarded, it is the unconditional
+        PUT it always was. Either way the billing period is kept when SPACE
+        advertises ``keep-billing-period``; private plans are never refused here.
+        """
+        options: Dict[str, Any] = {}
+        if await self._supports(_KEEP_BILLING_PERIOD):
+            options["keep_billing_period"] = True
+        if not await self._supports(*_GUARDED_NOVATION):
+            logger.warning(
+                "SPACE does not advertise %s: sending the novation without a concurrency guard",
+                " and ".join(_GUARDED_NOVATION),
+            )
+            return await self._put(user_id, requested, **options)
+
+        preview = await self._call(
+            lambda: self._client.contracts.preview_novation(str(user_id), requested, **options)
+        )
+        if not preview.valid:
+            reasons = "; ".join(
+                f"{error.code}: {error.message}" if error.message else str(error.code)
+                for error in preview.errors
+            )
+            raise SubscriptionRejected(
+                f"SPACE refused the novation for service '{self._service}' in its dry run: "
+                f"{reasons or 'no reason given'}"
+            )
+        current = preview.contract_version
+        if expected_contract_version and current and current != expected_contract_version:
+            # Early, and not atomic: If-Match on the write stays the real check.
+            raise self._contract_changed(expected_contract_version, current)
+        version = expected_contract_version or current
+        if not version:
+            # Sending no If-Match would turn the guarded write into an unguarded one.
+            raise PricingUnavailable("SPACE did not say which contract version the novation applies to.")
+        return await self._put(user_id, requested, expected_contract_version=version, **options)
+
+    async def _put(self, user_id: uuid.UUID, requested: Any, **options: Any) -> Any:
+        """The novation write. A guarantee SPACE dropped *after* writing is not a failure.
+
+        ``SpaceFeatureUnsupportedError`` with ``written`` means SPACE applied the
+        novation but ignored an option (If-Match without an ``ETag``, a restarted
+        billing period). The change is in place, so it is reported as made, and
+        what SPACE stored is what the gateway records; the log says which
+        guarantee was missing. Before writing (``written`` false) it is an outage.
+        """
+        from space_client import SpaceFeatureUnsupportedError
+
+        async def put() -> Any:
+            try:
+                return await _awaited(
+                    self._client.contracts.update_contract_subscription(
+                        str(user_id), requested, **options
+                    )
+                )
+            except SpaceFeatureUnsupportedError as error:
+                if not error.written:
+                    raise
+                log_internal_failure(
+                    "SPACE novation guarantee", error, capability=error.capability
+                )
+                return error.contract
+
+        return await self._call(put)
 
     async def pricing_token(self, user_id: uuid.UUID) -> str:
         token = await self._call(
@@ -295,6 +433,17 @@ def _decode_claims(token: str) -> Optional[dict]:
         return claims if isinstance(claims, dict) else None
     except (IndexError, UnicodeDecodeError, ValueError, binascii.Error):
         return None
+
+
+async def _awaited(value: Any) -> Any:
+    """The value, awaited if the client handed back an awaitable (the 1.x client always does)."""
+    return await value if inspect.isawaitable(value) else value
+
+
+def _contract_version(contract: Any) -> Optional[str]:
+    """The opaque version of a contract SPACE returned; None from a SPACE that keeps none."""
+    version = _attribute(contract, "contract_version", "contractVersion")
+    return str(version) if version else None
 
 
 def _plan_name(contract: Any, service: str) -> str:

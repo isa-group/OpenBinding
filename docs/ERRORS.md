@@ -164,11 +164,20 @@ These operations take an optional `If-Match` header:
 - `PATCH /v1/users/me`
 - `PUT /v1/notifications/preferences`
 - `PUT /v1/engine-registrations/{name}/credential`
+- `POST /v1/admin/users/{user_id}/plan`
+- `POST /v1/admin/users/{user_id}/subscription`
 
-The list is the covered-operations table of change `optimistic-concurrency`. Their `200`, and the single-resource
-`GET` of the same resource, carry an `ETag`. The tag is a strong, opaque entity tag, so send it back unchanged and
-never parse it. Without `If-Match` nothing is checked and the request behaves as it always did, with the last writer
-winning.
+The first seven are the covered-operations table of change `optimistic-concurrency`. Their `200`, and the
+single-resource `GET` of the same resource, carry an `ETag`. The tag is a strong, opaque entity tag, so send it back
+unchanged and never parse it. Without `If-Match` nothing is checked and the request behaves as it always did, with
+the last writer winning.
+
+The last two change an account's SPACE contract: their tag is the subscription's, as
+`GET /v1/admin/users/{user_id}/subscription` returns it (none when SPACE keeps no contract versions; then only `*`
+matches). The gateway also applies their novation only to the contract version it has just read, so a contract that
+moves while the request is being applied is refused too: `412 precondition_failed` when `If-Match` named a
+revision, `409 contract_changed` otherwise. Nothing was written either way
+([ACCOUNTS_AND_PLANS.md](ACCOUNTS_AND_PLANS.md)).
 
 | `code` | Status | Meaning |
 |---|---|---|

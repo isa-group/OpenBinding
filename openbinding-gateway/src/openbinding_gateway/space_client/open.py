@@ -111,7 +111,11 @@ class OpenGate:
         return None
 
     async def change_plan(
-        self, user_id: uuid.UUID, plan: str, pricing_version: Optional[str] = None
+        self,
+        user_id: uuid.UUID,
+        plan: str,
+        pricing_version: Optional[str] = None,
+        expected_contract_version: Optional[str] = None,
     ) -> None:
         return None
 
@@ -124,6 +128,7 @@ class OpenGate:
         plan: str,
         add_ons: Dict[str, int],
         pricing_version: Optional[str] = None,
+        expected_contract_version: Optional[str] = None,
     ) -> SubscriptionSnapshot:
         return SubscriptionSnapshot(
             plan="", pricing_version=pricing_version or "", add_ons=dict(add_ons)

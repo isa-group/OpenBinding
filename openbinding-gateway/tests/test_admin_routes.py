@@ -8,6 +8,7 @@ no payment gateway, so an upgrade *is* an administrator performing a novation.
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -428,6 +429,209 @@ async def test_an_administrator_change_pins_the_configured_pricing_version(
     assert response.status_code == 200, response.text
     assert response.json()["subscription"]["pricing_version"] == "0.1.0"
     assert gate.versions[user_id] == "0.1.0"
+
+
+# -- Concurrent changes -----------------------------------------------------
+#
+# The subscription is a conditional write like the others of docs/ERRORS.md: its
+# ETag is the contract's revision, If-Match takes it, and a stale one is 412. The
+# fake gate keeps contract versions the way SPACE does: every change moves the
+# version, and a change that names another version is refused. ``touch`` is a
+# change made by somebody else - a renewal, another administrator.
+
+
+def subscription_change(plan: str) -> dict:
+    return {"plan": plan, "add_ons": {}, "reason": "administrative_decision"}
+
+
+def conditional(headers: dict, tag: str) -> dict:
+    return {**headers, "If-Match": tag}
+
+
+async def contract_changes_recorded(db_session, user_id: uuid.UUID) -> tuple[int, int]:
+    from sqlalchemy import func, select
+
+    from openbinding_gateway.db.models import AuditEvent
+
+    audited = await db_session.scalar(
+        select(func.count(AuditEvent.id)).where(
+            AuditEvent.action == "contract.subscription.changed", AuditEvent.target_id == user_id
+        )
+    )
+    notified = await db_session.scalar(
+        select(func.count(Notification.id)).where(Notification.user_id == user_id)
+    )
+    return audited, notified
+
+
+async def test_the_subscription_carries_its_revision_as_an_etag_and_each_change_moves_it(
+    api_client, registration, gate, db_session
+):
+    profile, _ = await account(api_client, registration)
+    _, admin = await account(api_client, registration, db_session, admin=True)
+    endpoint = f"/v1/admin/users/{profile['id']}/subscription"
+
+    seen = await api_client.get(endpoint, headers=admin)
+    changed = await api_client.post(
+        endpoint, headers=conditional(admin, seen.headers["ETag"]), json=subscription_change(LARGER_PLAN)
+    )
+    read_again = await api_client.get(endpoint, headers=admin)
+    moved_back = await api_client.post(
+        f"/v1/admin/users/{profile['id']}/plan",
+        headers=conditional(admin, changed.headers["ETag"]),
+        json={"plan": DEFAULT_PLAN},
+    )
+
+    assert re.fullmatch(r'"[0-9a-f]{32}"', seen.headers["ETag"])
+    assert changed.status_code == 200, changed.text
+    assert moved_back.status_code == 200, moved_back.text
+    assert seen.headers["ETag"] != changed.headers["ETag"] != moved_back.headers["ETag"]
+    assert read_again.headers["ETag"] == changed.headers["ETag"]
+    # The revision travels in the header only.
+    assert set(changed.json()["subscription"]) == {"plan", "add_ons", "pricing_version", "renews_at"}
+    assert seen.headers["ETag"].strip('"') not in seen.text
+
+
+async def test_a_change_decided_on_a_view_another_administrator_outdated_is_412(
+    api_client, registration, gate, db_session
+):
+    profile, _ = await account(api_client, registration)
+    _, first = await account(api_client, registration, db_session, admin=True)
+    _, second = await account(api_client, registration, db_session, admin=True)
+    user_id = uuid.UUID(profile["id"])
+    endpoint = f"/v1/admin/users/{profile['id']}/subscription"
+    stale = (await api_client.get(endpoint, headers=first)).headers["ETag"]
+
+    moved = await api_client.post(endpoint, headers=second, json=subscription_change(LARGER_PLAN))
+    current = (await api_client.get(endpoint, headers=second)).headers["ETag"]
+    by_subscription = await api_client.post(
+        endpoint, headers=conditional(first, stale), json=subscription_change(DEFAULT_PLAN)
+    )
+    by_plan = await api_client.post(
+        f"/v1/admin/users/{profile['id']}/plan", headers=conditional(first, stale), json={"plan": DEFAULT_PLAN}
+    )
+
+    assert moved.status_code == 200, moved.text
+    for response in (by_subscription, by_plan):
+        assert response.status_code == 412, response.text
+        assert response.json()["code"] == "precondition_failed"
+        assert response.headers["ETag"] == current
+    # The second administrator's change stands, and only it was recorded.
+    assert gate.plan_of(user_id) == LARGER_PLAN
+    assert await contract_changes_recorded(db_session, user_id) == (1, 1)
+
+
+async def test_a_change_landing_while_the_gateway_applies_one_is_not_overwritten(
+    api_client, registration, gate, db_session, monkeypatch
+):
+    """``409 contract_changed`` without a tag; the ``412`` of a stale tag when one named the revision."""
+    profile, _ = await account(api_client, registration)
+    _, admin = await account(api_client, registration, db_session, admin=True)
+    user_id = uuid.UUID(profile["id"])
+    endpoint = f"/v1/admin/users/{profile['id']}/subscription"
+    applying = gate.change_subscription
+
+    async def renewed_meanwhile(*args, **kwargs):
+        gate.touch(user_id)  # between the gateway's read and its write
+        return await applying(*args, **kwargs)
+
+    monkeypatch.setattr(gate, "change_subscription", renewed_meanwhile)
+    by_plan = await api_client.post(
+        f"/v1/admin/users/{profile['id']}/plan", headers=admin, json={"plan": LARGER_PLAN}
+    )
+    by_subscription = await api_client.post(endpoint, headers=admin, json=subscription_change(LARGER_PLAN))
+    wildcard = await api_client.post(
+        endpoint, headers=conditional(admin, "*"), json=subscription_change(LARGER_PLAN)
+    )
+    tag = (await api_client.get(endpoint, headers=admin)).headers["ETag"]
+    named = await api_client.post(endpoint, headers=conditional(admin, tag), json=subscription_change(LARGER_PLAN))
+    now = (await api_client.get(endpoint, headers=admin)).headers["ETag"]
+
+    for response in (by_plan, by_subscription, wildcard):
+        assert response.status_code == 409, response.text
+        assert response.json()["detail"]["code"] == "contract_changed"
+    assert named.status_code == 412, named.text
+    assert named.json()["code"] == "precondition_failed"
+    assert named.headers["ETag"] == now != tag
+    assert gate.plan_of(user_id) == DEFAULT_PLAN
+    assert await contract_changes_recorded(db_session, user_id) == (0, 0)
+
+
+async def test_a_stale_tag_is_refused_even_when_nothing_would_change(
+    api_client, registration, gate, db_session
+):
+    profile, _ = await account(api_client, registration)
+    _, admin = await account(api_client, registration, db_session, admin=True)
+    endpoint = f"/v1/admin/users/{profile['id']}/subscription"
+    stale = (await api_client.get(endpoint, headers=admin)).headers["ETag"]
+    gate.touch(uuid.UUID(profile["id"]))
+
+    refused = await api_client.post(
+        endpoint, headers=conditional(admin, stale), json=subscription_change(DEFAULT_PLAN)
+    )
+    unconditional = await api_client.post(endpoint, headers=admin, json=subscription_change(DEFAULT_PLAN))
+
+    assert refused.status_code == 412, refused.text
+    assert unconditional.status_code == 200, unconditional.text
+    assert unconditional.json()["changed"] is False
+
+
+async def test_if_match_on_a_plan_change_follows_the_conditional_write_rules(
+    api_client, registration, gate, db_session
+):
+    profile, _ = await account(api_client, registration)
+    _, admin = await account(api_client, registration, db_session, admin=True)
+    plan = f"/v1/admin/users/{profile['id']}/plan"
+    tag = (await api_client.get(f"/v1/admin/users/{profile['id']}/subscription", headers=admin)).headers["ETag"]
+
+    malformed = await api_client.post(plan, headers=conditional(admin, tag.strip('"')), json={"plan": LARGER_PLAN})
+    weak = await api_client.post(plan, headers=conditional(admin, f"W/{tag}"), json={"plan": LARGER_PLAN})
+    listed = await api_client.post(plan, headers=conditional(admin, f'"0000", {tag}'), json={"plan": LARGER_PLAN})
+    wildcard = await api_client.post(plan, headers=conditional(admin, "*"), json={"plan": DEFAULT_PLAN})
+
+    assert malformed.status_code == 400, malformed.text
+    assert malformed.json()["code"] == "invalid_if_match"
+    assert weak.status_code == 412, weak.text
+    assert listed.status_code == 200, listed.text
+    assert wildcard.status_code == 200, wildcard.text
+    assert gate.plan_of(uuid.UUID(profile["id"])) == DEFAULT_PLAN
+
+
+async def test_a_contract_without_revisions_has_no_etag_and_matches_only_the_wildcard(
+    api_client, registration, gate, db_session, monkeypatch
+):
+    """A SPACE that keeps no contract versions: nothing to send back, and no tag can name one."""
+    profile, _ = await account(api_client, registration)
+    _, admin = await account(api_client, registration, db_session, admin=True)
+    monkeypatch.setattr(gate, "contract_version_of", lambda _user_id: None)
+    endpoint = f"/v1/admin/users/{profile['id']}/subscription"
+
+    seen = await api_client.get(endpoint, headers=admin)
+    named = await api_client.post(endpoint, headers=conditional(admin, '"abc"'), json=subscription_change(LARGER_PLAN))
+    wildcard = await api_client.post(endpoint, headers=conditional(admin, "*"), json=subscription_change(LARGER_PLAN))
+
+    assert seen.status_code == 200 and "ETag" not in seen.headers
+    assert named.status_code == 412 and "ETag" not in named.headers
+    assert wildcard.status_code == 200 and "ETag" not in wildcard.headers
+
+
+def test_openapi_documents_the_subscription_as_a_conditional_write():
+    from openbinding_gateway.main import app
+
+    paths = app.openapi()["paths"]
+    for path, operation in (
+        ("/v1/admin/users/{user_id}/plan", "adminChangePlan"),
+        ("/v1/admin/users/{user_id}/subscription", "adminChangeSubscription"),
+    ):
+        edit = paths[path]["post"]
+        assert edit["operationId"] == operation
+        header = [p for p in edit["parameters"] if p["name"] == "If-Match"]
+        assert len(header) == 1 and header[0]["in"] == "header" and header[0]["required"] is False
+        assert {"400", "404", "409", "412", "503"} <= set(edit["responses"])
+        assert "ETag" in edit["responses"]["200"]["headers"]
+        assert "ETag" in edit["responses"]["412"]["headers"]
+    read = paths["/v1/admin/users/{user_id}/subscription"]["get"]["responses"]["200"]
+    assert "ETag" in read["headers"] and "content" in read
 
 
 # -- Usage ------------------------------------------------------------------

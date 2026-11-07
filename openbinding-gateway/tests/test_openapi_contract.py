@@ -349,6 +349,9 @@ def test_a_quota_refusal_says_which_limit_and_where_it_stands(document):
         ("/v1/auth/register", "post", {"409", "503"}),
         ("/v1/users/me", "get", {"401", "503"}),
         ("/v1/admin/users", "get", {"401", "403"}),
+        # Conditional writes of the subscription: 400/412 for If-Match, 409 also `contract_changed`.
+        ("/v1/admin/users/{user_id}/plan", "post", {"400", "404", "409", "412", "503"}),
+        ("/v1/admin/users/{user_id}/subscription", "post", {"400", "404", "409", "412", "503"}),
     ],
 )
 def test_the_failures_an_endpoint_can_produce_are_declared(document, path, method, statuses):
