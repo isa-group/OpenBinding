@@ -1,22 +1,25 @@
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Check, Minus, Plus } from 'lucide-react';
-import type { AdminSubscriptionView, ContractChangeReason, PricingCurrentView } from '../../api/auth';
+import type { IPricingLike } from 'pricing-renderer';
+import type { AdminSubscriptionView, ContractChangeReason, PricingCatalog, PricingCurrentView } from '../../api/auth';
 import { apiClient } from '../../api/client';
 import { Action } from '../../components/ui/Action';
 import { DataTable } from '../../components/ui/DataTable';
+import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
 import { describeLimit, limitInfo } from '../../utils/limits';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { ConfirmDialog } from '../Engines/EngineDialogs';
-import { featureName } from '../Pricing/pricingModel';
+import { featureName, withInfiniteLimits } from '../Pricing/pricingModel';
 import { FailureNotice, Tag } from './AdminChrome';
 import {
-  agreementIssues, compareLimits, describeAdminFailure, isCeiling, limitsOf,
+  agreementIssues, compareLimits, contractSelection, describeAdminFailure, humanize, isCeiling, limitsOf,
   type ContractCatalog, type Failure,
 } from './adminModel';
+
+const AgreementReview = lazy(() => import('./AgreementReview'));
 
 const REASONS: ReadonlyArray<{ id: ContractChangeReason; label: string }> = [
   { id: 'institutional_agreement', label: 'Institutional agreement' },
@@ -27,10 +30,38 @@ const REASONS: ReadonlyArray<{ id: ContractChangeReason; label: string }> = [
 
 const reasonLabel = (id: ContractChangeReason) => REASONS.find((reason) => reason.id === id)?.label.toLowerCase() ?? id;
 
-function addOnsText(catalog: ContractCatalog | null, addOns: Record<string, number>): string {
-  const entries = Object.entries(addOns).filter(([, quantity]) => quantity > 0);
-  if (entries.length === 0) return 'no add-ons';
-  return entries.map(([id, quantity]) => `${(catalog?.addOns.find((item) => item.id === id)?.name ?? id).toLowerCase()} ×${quantity}`).join(', ');
+type Dict = Record<string, unknown>;
+
+const isDict = (value: unknown): value is Dict => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** Each entry of one section of the document under a name: the one the document gives, or ours where it gives none. */
+function named(section: unknown, nameOf: (id: string, entry: Dict) => string, unitOf?: (unit: string) => string): unknown {
+  if (!isDict(section)) return section;
+  return Object.fromEntries(Object.entries(section).map(([id, entry]) => {
+    if (!isDict(entry)) return [id, entry];
+    // The renderer reads a name that is missing, blank or the id again as no name at all.
+    const given = typeof entry.name === 'string' && entry.name.trim() !== '' && entry.name !== id;
+    return [id, {
+      ...entry,
+      ...(given ? {} : { name: nameOf(id, entry) }),
+      ...(unitOf && typeof entry.unit === 'string' ? { unit: unitOf(entry.unit) } : {}),
+    }];
+  }));
+}
+
+/**
+ * The pricing document as the change review reads it. The gateway serves `.inf` as `null`, which the review would show as a dash,
+ * so it becomes the number it stands for. What the document doesn't name is shown under the name this screen gives it, so the review
+ * and the form above it speak of the same limits and add-ons, and units are in the words of the interface (a run, never a job).
+ * No value changes.
+ */
+function reviewPricingOf(source: PricingCatalog): IPricingLike {
+  return withInfiniteLimits({
+    ...source,
+    features: named(source.features, (id, feature) => featureName(id, feature)),
+    usageLimits: named(source.usageLimits, (id, limit) => inInterfaceWords(limitInfo(id, limit).label), inInterfaceWords),
+    addOns: named(source.addOns, (id) => humanize(id)),
+  }) as IPricingLike;
 }
 
 const sameAddOns = (a: Record<string, number>, b: Record<string, number>) => {
@@ -48,14 +79,22 @@ export interface AgreementResult {
 interface AgreementProps {
   view: AdminSubscriptionView;
   catalog: ContractCatalog | null;
+  /** The pricing document the catalog was read from, as the gateway serves it: the change review is drawn from it. */
+  pricing: PricingCatalog | null;
   catalogFailure: Failure | null;
   catalogLoading: boolean;
   current: PricingCurrentView | null;
   onApplied: (result: AgreementResult) => void;
 }
 
-/** The plan and add-ons of one account, what changing them does to its limits, and the audited way to apply the change. */
-export function AgreementCard({ view, catalog, catalogFailure, catalogLoading, current, onApplied }: AgreementProps) {
+/** The two requests of this card: the whole agreement, or the plan alone with the add-ons the account already has. */
+type Change = 'apply' | 'plan';
+
+/**
+ * The plan and add-ons of one account, what changing them does to its limits, and the audited way to apply the change. Nothing is
+ * sent from the form: either button opens the review of the change, side by side, and the request leaves from there.
+ */
+export function AgreementCard({ view, catalog, pricing, catalogFailure, catalogLoading, current, onApplied }: AgreementProps) {
   const { user: self } = useAuth();
   const { user, subscription } = view;
   const [plan, setPlan] = useState(subscription.plan);
@@ -63,20 +102,53 @@ export function AgreementCard({ view, catalog, catalogFailure, catalogLoading, c
   const [reason, setReason] = useState<ContractChangeReason>('institutional_agreement');
   const [detail, setDetail] = useState('');
   const [showAll, setShowAll] = useState(false);
-  const [confirm, setConfirm] = useState<'apply' | 'plan' | null>(null);
+  const [review, setReview] = useState<Change | null>(null);
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<Failure | null>(null);
+  const applyId = useId();
+  const planOnlyId = useId();
+  /** The button the review was opened from, which takes the focus back when the review closes with Back. */
+  const returnTo = useRef<string | null>(null);
 
   const available = useMemo(() => catalog?.addOns.filter((addOn) => addOn.plans.includes(plan)) ?? [], [catalog, plan]);
   const selected = useMemo(() => Object.fromEntries(
     Object.entries(addOns).filter(([id, quantity]) => quantity > 0 && available.some((addOn) => addOn.id === id)),
   ), [addOns, available]);
   const issues = useMemo(() => (catalog ? agreementIssues(catalog, plan, selected) : []), [catalog, plan, selected]);
+  // “Plan only” keeps the add-ons the account has, so the new plan has to offer them: SPACE refuses the change otherwise.
+  const keptIssues = useMemo(() => (catalog ? agreementIssues(catalog, plan, subscription.add_ons) : []), [catalog, plan, subscription.add_ons]);
   const changed = plan !== subscription.plan || !sameAddOns(selected, subscription.add_ons);
   const comparison = useMemo(() => (catalog
     ? compareLimits(catalog, limitsOf(catalog, subscription.plan, subscription.add_ons), limitsOf(catalog, plan, selected))
     : []), [catalog, subscription.plan, subscription.add_ons, plan, selected]);
   const shown = showAll ? comparison : comparison.filter((row) => row.direction !== 'same');
+
+  // The review's sides, as `pricing-renderer` selections. They keep their identity while the change does not change.
+  const reviewPricing = useMemo(() => (pricing ? reviewPricingOf(pricing) : null), [pricing]);
+  const before = useMemo(() => contractSelection(subscription.plan, subscription.add_ons), [subscription.plan, subscription.add_ons]);
+  const after = useMemo(
+    () => contractSelection(plan, review === 'plan' ? subscription.add_ons : selected),
+    [plan, review, subscription.add_ons, selected],
+  );
+  const notices = useMemo(() => {
+    if (!review) return [];
+    const sentences = [
+      review === 'apply'
+        ? `Reason: ${reasonLabel(reason)}.${detail.trim() ? ` Detail: “${detail.trim()}”.` : ''}`
+        : 'Reason: administrative decision. The add-ons stay as they are.',
+      `${user.username} is notified, and the change is recorded in the audit log with your name. Nothing is charged: this records an agreement made elsewhere.`,
+    ];
+    if (catalog?.version && catalog.version !== subscription.pricing_version) {
+      sentences.push(`Both sides are read from pricing ${catalog.version}, the active pricing. The contract is pinned to ${subscription.pricing_version}, so what it allows today can differ.`);
+    }
+    return sentences;
+  }, [review, reason, detail, user.username, catalog, subscription.pricing_version]);
+
+  useEffect(() => {
+    if (review !== null || returnTo.current === null) return;
+    document.getElementById(returnTo.current)?.focus();
+    returnTo.current = null;
+  }, [review]);
 
   const choosePlan = (id: string) => {
     setPlan(id);
@@ -94,9 +166,20 @@ export function AgreementCard({ view, catalog, catalogFailure, catalogLoading, c
     setRefusal(null);
   };
 
+  const open = (kind: Change) => {
+    // A new review starts without the refusal of the last attempt, which the form has already shown.
+    setRefusal(null);
+    setReview(kind);
+  };
+
+  const back = () => {
+    returnTo.current = review === 'plan' ? planOnlyId : applyId;
+    setReview(null);
+  };
+
   const run = async () => {
-    const kind = confirm;
-    if (!kind) return;
+    const kind = review;
+    if (!kind || busy) return;
     setBusy(true);
     setRefusal(null);
     try {
@@ -112,14 +195,21 @@ export function AgreementCard({ view, catalog, catalogFailure, catalogLoading, c
       }
       // An administrator who changes their own contract needs the new entitlements in their browser too.
       if (user.id === self?.id) await apiClient.getPricingToken().catch(() => undefined);
+      setReview(null);
       onApplied({ changed: didChange, plan, reason: kind === 'apply' ? reasonLabel(reason) : 'administrative decision' });
     } catch (error: unknown) {
+      // The review stays open with the refusal, so the change can be sent again or taken back to the form.
       setRefusal(describeAdminFailure(error, 'The agreement couldn’t be applied'));
     } finally {
       setBusy(false);
-      setConfirm(null);
     }
   };
+
+  const shownRefusal: Failure | null = refusal?.code === 'research_requires_us_cas'
+    ? { ...refusal, title: 'RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)', text: `${user.username} hasn’t linked a Universidad de Sevilla CAS identity. RESEARCH can only be assigned to accounts that have.` }
+    : refusal?.code === 'invalid_subscription'
+      ? { ...refusal, title: 'That agreement isn’t valid (422 · invalid_subscription)', text: `${refusal.text} Nothing changed.` }
+      : refusal;
 
   const renews = subscription.renews_at ? formatDateTime(subscription.renews_at) : null;
 
@@ -149,7 +239,24 @@ export function AgreementCard({ view, catalog, catalogFailure, catalogLoading, c
         <Notice tone="warning" title="The active pricing has no plans">There is nothing to choose from until a pricing with plans is live.</Notice>
       )}
 
-      {catalog && (
+      {catalog && review && (
+        <Suspense fallback={<div aria-busy="true"><span className="sr-only">Preparing the review of the change</span><Skeleton variant="panel" /></div>}>
+          <AgreementReview
+            pricing={reviewPricing}
+            before={before}
+            after={after}
+            title={`Review the change for ${user.username}`}
+            confirmLabel={review === 'apply' ? 'Apply agreement' : 'Change plan'}
+            notices={notices}
+            pending={busy}
+            error={shownRefusal ? `${shownRefusal.title}. ${shownRefusal.text}` : undefined}
+            onConfirm={() => void run()}
+            onBack={back}
+          />
+        </Suspense>
+      )}
+
+      {catalog && !review && (
         <>
           <div className="adm-field">
             <span className="adm-label" id="adm-plan-label">New plan</span>
@@ -251,34 +358,18 @@ export function AgreementCard({ view, catalog, catalogFailure, catalogLoading, c
               {issues.join(' ')}
             </Notice>
           )}
-          {refusal && <FailureNotice failure={refusal.code === 'research_requires_us_cas'
-            ? { ...refusal, title: 'RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)', text: `${user.username} hasn’t linked a Universidad de Sevilla CAS identity. RESEARCH can only be assigned to accounts that have.` }
-            : refusal.code === 'invalid_subscription'
-              ? { ...refusal, title: 'That agreement isn’t valid (422 · invalid_subscription)', text: `${refusal.text} Nothing changed.` }
-              : refusal} />}
+          {shownRefusal && <FailureNotice failure={shownRefusal} />}
 
           <div className="adm-buttons">
-            <Action variant="primary" disabled={!changed || issues.length > 0 || busy} onClick={() => setConfirm('apply')}>Apply agreement</Action>
-            <Action variant="secondary" disabled={plan === subscription.plan || busy} onClick={() => setConfirm('plan')}>Change plan only, keep add-ons</Action>
-            <span className="adm-muted">“Plan only” records the reason as administrative decision.</span>
+            <Action id={applyId} variant="primary" disabled={!changed || issues.length > 0 || busy} onClick={() => open('apply')}>Apply agreement</Action>
+            <Action id={planOnlyId} variant="secondary" disabled={plan === subscription.plan || keptIssues.length > 0 || busy} onClick={() => open('plan')}>Change plan only, keep add-ons</Action>
+            <span className="adm-muted">
+              {plan !== subscription.plan && keptIssues.length > 0
+                ? `“Plan only” keeps the current add-ons: ${keptIssues.join(' ')}`
+                : '“Plan only” records the reason as administrative decision.'}
+            </span>
           </div>
         </>
-      )}
-
-      {confirm && (
-        <ConfirmDialog
-          title={`${confirm === 'apply' ? 'Apply agreement to' : 'Change plan of'} ${user.username}?`}
-          confirmLabel={confirm === 'apply' ? 'Apply agreement' : 'Change plan'}
-          busy={busy}
-          onConfirm={() => void run()}
-          onClose={() => setConfirm(null)}
-        >
-          <p>
-            From <strong>{subscription.plan}</strong> ({addOnsText(catalog, subscription.add_ons)}) to <strong>{plan}</strong> ({confirm === 'apply' ? addOnsText(catalog, selected) : 'keeping the current add-ons'}).
-            Reason: {confirm === 'apply' ? reasonLabel(reason) : 'administrative decision'}.
-          </p>
-          <p className="adm-muted">The account is notified and the change is recorded in the audit log with your name.</p>
-        </ConfirmDialog>
       )}
     </section>
   );

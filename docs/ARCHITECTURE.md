@@ -540,6 +540,10 @@ flowchart LR
 - The Pricing page and the account Plan page render the pricing with `pricing-renderer` (React adapter, themed with
   the OpenBinding tokens); signed-in users see their plan selected; FREE, and RESEARCH for accounts with a
   Universidad de Sevilla CAS identity, change self-service; LAB shows "Contact us".
+- An administrator confirms a change of somebody's contract (admin-user-detail) from the change review of
+  `pricing-renderer` (`compareSelections` and `PricingChangeReview`, loaded on demand): plan, price, add-ons, features
+  and limits before and after, both read from the catalog, without the Upgrade/Downgrade badge, since the plans are
+  not a ladder. It sends the request the form always sent (`POST /v1/admin/users/{id}/subscription`, or `/plan`).
 - `space-react-client` 0.4.0, like 0.3.3 before it, declares React ^18.3.1; OpenBinding runs React 19. A spike
   validates it in token-only mode; if it fails, the fix is proposed upstream to `Alex-GF/space-react-client` rather
   than forked.

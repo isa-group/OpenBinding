@@ -256,6 +256,36 @@
 .adm-stepper svg { width: 14px; height: 14px; }
 .adm-stepper output { min-width: 24px; text-align: center; font-weight: 600; }
 
+/*
+ * The review of a change, drawn by pricing-renderer, in the colours, radii and type of this interface, and sized to sit inside a
+ * card. Keep transforms off its ancestors, as on the Pricing page: what pricing-renderer positions as fixed would be placed against
+ * the transformed ancestor instead of the viewport.
+ */
+.adm-review { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); min-width: 0; }
+.adm-review pricing-change-review {
+  --pr-color-text: var(--color-text-primary);
+  --pr-color-muted: var(--color-text-secondary);
+  --pr-color-surface: var(--color-bg-primary);
+  --pr-color-surface-raised: var(--color-bg-elevated);
+  --pr-color-surface-subtle: var(--color-bg-secondary);
+  --pr-color-border: var(--color-border);
+  --pr-color-border-strong: var(--color-border-hover);
+  --pr-color-accent: var(--color-accent);
+  --pr-color-link: var(--color-accent);
+  --pr-color-focus: var(--color-accent);
+  --pr-color-success: var(--color-success);
+  --pr-color-warning: var(--color-warning);
+  --pr-color-warning-surface: var(--tp-severity-warning-bg);
+  --pr-radius-sm: var(--tp-radius-sm);
+  --pr-radius-md: var(--tp-radius-md);
+  --pr-radius-lg: var(--tp-radius-lg);
+  --pr-shadow-sm: none;
+}
+/* The interface's heading sizes are unlayered, so they beat the review's own: inside a card, the review keeps the card's scale. */
+.adm-review [data-pr-part='review-title'] { font-size: 1.125rem; font-weight: 600; letter-spacing: 0; }
+.adm-review [data-pr-part='change-review'] > section > h3 { font-size: 0.9375rem; font-weight: 600; letter-spacing: 0; }
+.adm-review-notes { display: flex; flex-direction: column; gap: 4px; margin: 0; padding-left: 18px; color: var(--tp-slate); font-size: 0.8125rem; }
+
 .adm-compare { display: flex; flex-direction: column; gap: var(--tp-spacing-xs); }
 .adm-compare-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tp-spacing-xs); }
 .adm-compare tr.is-up .adm-after { color: var(--color-success); font-weight: 600; }

@@ -3,7 +3,7 @@ import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { catalogFixture } from '../Pricing/pricingFixture';
 import {
-  ageLabel, agreementIssues, auditFamily, compareLimits, describeAdminFailure, describeAuditEvent, errorMeaning, groupErrors, humanize, limitsOf,
+  ageLabel, agreementIssues, auditFamily, compareLimits, contractSelection, describeAdminFailure, describeAuditEvent, errorMeaning, groupErrors, humanize, limitsOf,
   planTone, readContractCatalog, readErrorEvent, shortId, statusTone, type ContractCatalog,
 } from './adminModel';
 import { AUDIT, ERROR_EVENTS, SAM } from '../../test/fixtures/admin';
@@ -100,6 +100,15 @@ describe('the pricing catalog, read for contracts', () => {
     const down = compareLimits(read, limitsOf(read, 'ADVANCED', {}), limitsOf(read, 'BASIC', {}));
     expect(down.find((row) => row.id === 'apiKeys')?.direction).toBe('down');
     expect(compareLimits(read, limitsOf(read, 'BASIC', {}), limitsOf(read, 'BASIC', {})).every((row) => row.direction === 'same')).toBe(true);
+  });
+
+  it('turns a contract into the selection the change review compares, leaving out add-ons at zero', () => {
+    expect(contractSelection('ADVANCED', { COLLABORATION_PACK: 2, STORAGE_PACK: 0 })).toEqual({
+      planId: 'ADVANCED',
+      variables: {},
+      addOns: { COLLABORATION_PACK: { selected: true, quantity: 2 } },
+    });
+    expect(contractSelection('BASIC', {})).toEqual({ planId: 'BASIC', variables: {}, addOns: {} });
   });
 });
 
