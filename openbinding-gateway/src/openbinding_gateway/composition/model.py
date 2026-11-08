@@ -57,9 +57,10 @@ class Aggregation:
 
 #: The five authoring templates of ``docs/FEATURES.md``. A template fixes direction, scope
 #: and aggregation; anything declared beside it overrides it. ``cost``, ``availability``,
-#: ``reliability`` and ``throughput`` coincide with the container's own shorthands, so
-#: they are emitted as a shorthand string; ``latency`` differs in its parallel operator
-#: and is emitted as a block policy. Both lower to the same IR.
+#: ``reliability`` and ``throughput`` coincide with the container's own shorthands and
+#: ``latency`` differs in its parallel operator, but every one is emitted as the full
+#: five-key block, never as a shorthand string: both lower to the same IR, and the block is
+#: the form that cannot be misread.
 TEMPLATES: dict[str, tuple[Direction, Aggregation]] = {
     "cost": ("minimize", Aggregation("sum", "sum", "weightedSum", "scale", "sum")),
     "latency": ("minimize", Aggregation("sum", "max", "weightedSum", "scale", "sum")),

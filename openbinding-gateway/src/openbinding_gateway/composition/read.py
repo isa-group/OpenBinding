@@ -277,7 +277,8 @@ def _rules(constraints: dict[str, Any], optimization: dict[str, Any]) -> tuple[R
 
     declared = constraints["spec"].get("constraints") or {}
     ordered = [rule_id for rule_id in order if rule_id in declared]
-    ordered += [rule_id for rule_id in declared if rule_id not in set(ordered)]
+    placed = set(ordered)
+    ordered += [rule_id for rule_id in declared if rule_id not in placed]
 
     found = []
     for rule_id in ordered:

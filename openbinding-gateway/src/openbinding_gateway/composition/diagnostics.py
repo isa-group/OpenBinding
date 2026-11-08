@@ -16,11 +16,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-#: A ``min``/``max`` property with no bound on the relevant side has no neutral. The
-#: container would emit ``feature_neutral``; refusing here names the property instead.
-#: The text is not YAML at all. The most common error while typing, and PyYAML reports where
-#: it found the problem, so it is located like every other diagnostic.
+#: The text is not YAML at all, or is YAML that JSON cannot hold (an alias, a duplicate key,
+#: a key that is not a string, a number that is not finite -- see ``syntax``). The most
+#: common error while typing, and PyYAML reports where it found the problem, so it is located
+#: like every other diagnostic.
 SYNTAX = "c2y_syntax"
+#: A property whose neutral cannot be resolved: a ``min``/``max`` aggregation with no domain
+#: bound on the side it needs and no declared neutral (incomplete), or a neutral, declared or
+#: inferred, outside the domain -- a ratio's being [0, 1] (an error). The container emits
+#: ``feature_neutral`` and ``feature_neutral_domain`` for the two; this names the property.
 PROPERTY_NEUTRAL = "c2y_property_neutral"
 PROPERTY_TEMPLATE = "c2y_property_template"
 SCHEMA = "c2y_schema"
@@ -36,8 +40,52 @@ EXCLUSIVE_DISTRIBUTION = "c2y_exclusive_distribution"
 REPEAT_COUNT = "c2y_repeat_count"
 CANDIDATE_PROPERTY = "c2y_candidate_property"
 CANDIDATE_UNMATCHED = "c2y_candidate_unmatched"
+#: More problems were found than a refusal lists; the first ones are listed.
+MORE = "c2y_more"
 GOAL_UNKNOWN = "c2y_goal_unknown"
+#: A goal with no ``normalize`` range over a property whose domain has an open end: the
+#: criterion would have nothing to normalize over.
+GOAL_RANGE = "c2y_goal_range"
 RULE_EXPRESSION = "c2y_rule_expression"
+
+
+#: How many diagnostics one refusal lists. A document can be wrong in as many places as it
+#: has elements, and an editor needs the first ones, not a response as long as the document.
+MAX_LISTED = 100
+
+#: How long a message may be. The schema's messages quote the value at fault, and a value
+#: can be as long as the document.
+MAX_MESSAGE_CHARS = 300
+
+
+def clipped(message: str) -> str:
+    """A message no longer than :data:`MAX_MESSAGE_CHARS`."""
+    return message if len(message) <= MAX_MESSAGE_CHARS else message[: MAX_MESSAGE_CHARS - 1] + "…"
+
+
+def listed(
+    found: list["Diagnostic"] | tuple["Diagnostic", ...],
+    total: int | None = None,
+    *,
+    counted: bool = True,
+) -> tuple["Diagnostic", ...]:
+    """At most :data:`MAX_LISTED` diagnostics, and one saying there were more.
+
+    ``counted`` is false when the search stopped at the first one past the list -- the
+    schema's does, so as not to validate a document to the end only to list a hundred -- and
+    then the note says there were more without pretending to know how many.
+    """
+    if found and found[-1].code == MORE and len(found) <= MAX_LISTED + 1:
+        return tuple(found)  # already listed
+    total = len(found) if total is None else total
+    if total <= MAX_LISTED:
+        return tuple(found)
+    message = (
+        f"{total - MAX_LISTED} more problems were found and are not listed"
+        if counted
+        else "more problems were found and are not listed: fix these first"
+    )
+    return tuple(found[:MAX_LISTED]) + (Diagnostic(code=MORE, message=message, path=""),)
 
 
 @dataclass(frozen=True, slots=True)

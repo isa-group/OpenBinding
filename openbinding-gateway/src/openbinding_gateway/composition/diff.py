@@ -35,6 +35,7 @@ the class of change whose only other symptom is a digest that does not match.
 
 from __future__ import annotations
 
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Iterable
@@ -216,23 +217,24 @@ def _match_tasks(
     gone = set(before.tasks) - set(after.tasks)
     new = set(after.tasks) - set(before.tasks)
     renamed: dict[str, str] = {}
+    # Indexed once rather than rescanned per task, which was quadratic -- and the diff is a
+    # route anyone may call. The same rule: a capability held by exactly one task before,
+    # and by exactly one new task of the same kind still unpaired.
+    rivals = Counter(_capability(task) for task in before.tasks.values())
+    waiting: dict[tuple[str, str | None], set[str]] = defaultdict(set)
+    for fresh in new:
+        waiting[(_task_kind(after.tasks[fresh]), _capability(after.tasks[fresh]))].add(fresh)
     for old in sorted(gone):
         was = before.tasks[old]
         capability = _capability(was)
-        if capability is None:
+        if capability is None or rivals[capability] != 1:
             continue
-        matches = [
-            fresh
-            for fresh in sorted(new)
-            if _task_kind(after.tasks[fresh]) == _task_kind(was)
-            and _capability(after.tasks[fresh]) == capability
-        ]
-        rivals = [
-            name for name in before.tasks if _capability(before.tasks[name]) == capability
-        ]
-        if len(matches) == 1 and len(rivals) == 1:
-            renamed[old] = matches[0]
-            new.discard(matches[0])
+        matches = waiting[(_task_kind(was), capability)]
+        if len(matches) == 1:
+            fresh = next(iter(matches))
+            renamed[old] = fresh
+            matches.discard(fresh)
+            new.discard(fresh)
     return renamed, gone - set(renamed), new
 
 
@@ -420,6 +422,15 @@ def _provides(candidate: Candidate) -> tuple[str, ...]:
     return (candidate.provides,) if isinstance(candidate.provides, str) else candidate.provides
 
 
+def _evidence(candidate: Candidate) -> tuple[Any, ...]:
+    """What pairs a removed candidate with an added one: its capabilities, in order, and its
+    values -- as a key, so equal values (``1`` and ``1.0`` included) meet in one bucket."""
+    return (
+        tuple(_provides(candidate)),
+        tuple(sorted((name, value) for name, value in candidate.properties.items())),
+    )
+
+
 def _candidates(before: Composition, after: Composition) -> list[Change]:
     found: list[Change] = []
     was = {candidate.id: candidate for candidate in before.candidates}
@@ -428,18 +439,20 @@ def _candidates(before: Composition, after: Composition) -> list[Change]:
     gone = set(was) - set(now)
     new = set(now) - set(was)
     renamed: dict[str, str] = {}
+    # Indexed by what a pairing compares, once, instead of a scan of every new candidate per
+    # removed one, which was quadratic on a route anyone may call.
+    waiting: dict[tuple[Any, ...], set[str]] = defaultdict(set)
+    for fresh in new:
+        waiting[_evidence(now[fresh])].add(fresh)
     for old in sorted(gone):
         # Strong evidence again: the same capabilities in the same order and the same
         # values. Anything looser pairs two candidates of one provider by accident.
-        matches = [
-            fresh
-            for fresh in sorted(new)
-            if _provides(now[fresh]) == _provides(was[old])
-            and now[fresh].properties == was[old].properties
-        ]
+        matches = waiting[_evidence(was[old])]
         if len(matches) == 1:
-            renamed[old] = matches[0]
-            new.discard(matches[0])
+            fresh = next(iter(matches))
+            renamed[old] = fresh
+            matches.discard(fresh)
+            new.discard(fresh)
     for old, fresh in sorted(renamed.items()):
         found.append(Change("candidates", old, "renamed", old, fresh))
     for name in sorted(gone - set(renamed)):

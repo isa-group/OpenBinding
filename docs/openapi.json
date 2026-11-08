@@ -3466,6 +3466,28 @@
         "title": "CollectionView",
         "type": "object"
       },
+      "CompositionBlockView": {
+        "description": "One aggregation block: its operator when none is stated, and the ones it accepts.",
+        "properties": {
+          "default": {
+            "title": "Default",
+            "type": "string"
+          },
+          "operators": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Operators",
+            "type": "array"
+          }
+        },
+        "required": [
+          "default",
+          "operators"
+        ],
+        "title": "CompositionBlockView",
+        "type": "object"
+      },
       "CompositionChange": {
         "additionalProperties": false,
         "description": "One difference, in the terms the author wrote rather than the ones the package has.",
@@ -3498,6 +3520,116 @@
           "kind"
         ],
         "title": "CompositionChange",
+        "type": "object"
+      },
+      "CompositionCompileResponse": {
+        "description": "Whether a composition compiles, and to what.",
+        "properties": {
+          "compiled": {
+            "description": "The composition is complete and the container's compiler accepted the package it emits. When false, ``diagnostics`` or ``container_diagnostics`` say why.",
+            "title": "Compiled",
+            "type": "boolean"
+          },
+          "complete": {
+            "description": "It also has everything a sealed version needs; implies ``valid``.",
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "container_diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionContainerDiagnosticView"
+            },
+            "title": "Container Diagnostics",
+            "type": "array"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "package": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompositionPackageView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the Studio decided that the package cannot say -- today, every neutral written onto a candidate a property does not apply to (``substitutions``). It is not inside the package because the compiler refuses an entry the manifest does not declare; it travels beside it. Present whenever the package was emitted.",
+            "title": "Provenance"
+          },
+          "valid": {
+            "description": "The document reads as a composition.",
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valid",
+          "complete",
+          "diagnostics",
+          "compiled"
+        ],
+        "title": "CompositionCompileResponse",
+        "type": "object"
+      },
+      "CompositionContainerDiagnosticView": {
+        "additionalProperties": true,
+        "description": "One refusal of the container's compiler, addressed to the package it was given.\n\nIts address is a generated document and a JSON pointer into it, not the author's\nsource: the container never saw the YAML. The Studio's own checks catch what they can\nbefore compiling, so this list is what is left to the container. Its fields are the\ncontainer's own, spelled as the container spells them.",
+        "properties": {
+          "code": {
+            "description": "The container's code, e.g. ``missing_feature``.",
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "pointer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A JSON pointer into that resource.",
+            "title": "Pointer"
+          },
+          "resource": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The generated resource at fault.",
+            "title": "Resource"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "CompositionContainerDiagnosticView",
         "type": "object"
       },
       "CompositionCreate": {
@@ -3559,7 +3691,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Where in the source; absent when there is no source to point into."
           }
         },
         "required": [
@@ -3577,12 +3710,14 @@
         "properties": {
           "after": {
             "description": "The later composition, as YAML source.",
+            "maxLength": 262144,
             "minLength": 1,
             "title": "After",
             "type": "string"
           },
           "before": {
             "description": "The earlier composition, as YAML source.",
+            "maxLength": 262144,
             "minLength": 1,
             "title": "Before",
             "type": "string"
@@ -3677,6 +3812,480 @@
         "title": "CompositionForkRequest",
         "type": "object"
       },
+      "CompositionImportResponse": {
+        "description": "A BIM package, read back as a composition.",
+        "properties": {
+          "complete": {
+            "description": "It also has everything a sealed version needs; implies ``valid``.",
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "document": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The same composition as its document. Absent when not valid.",
+            "title": "Document"
+          },
+          "ir_digest": {
+            "description": "The IR digest of the package as uploaded.",
+            "title": "Ir Digest",
+            "type": "string"
+          },
+          "neutrals": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/CompositionNeutralView"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Neutrals"
+          },
+          "round_trip": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompositionRoundTripView"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The imported composition compiled again and compared. Absent when it is not valid, or when what it lacks is something the emitter cannot write -- a goal with nothing to normalize over, a neutral with no bound."
+          },
+          "source": {
+            "description": "The composition, as canonical YAML source.",
+            "title": "Source",
+            "type": "string"
+          },
+          "valid": {
+            "description": "The document reads as a composition.",
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valid",
+          "complete",
+          "diagnostics",
+          "source",
+          "ir_digest"
+        ],
+        "title": "CompositionImportResponse",
+        "type": "object"
+      },
+      "CompositionLanguageView": {
+        "description": "The tables of the language a form needs, from the code that applies them.",
+        "properties": {
+          "blocks": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CompositionBlockView"
+            },
+            "description": "Each block of an ``aggregate``: the operator it takes when the author names only some of the five, and the operators it accepts.",
+            "title": "Blocks",
+            "type": "object"
+          },
+          "language": {
+            "description": "The language and version these tables describe.",
+            "title": "Language",
+            "type": "string"
+          },
+          "neutral_rules": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionNeutralRuleView"
+            },
+            "title": "Neutral Rules",
+            "type": "array"
+          },
+          "property_defaults": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "What a property is when it says nothing more. There is no default direction: without a template the schema requires one.",
+            "title": "Property Defaults",
+            "type": "object"
+          },
+          "templates": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CompositionTemplateView"
+            },
+            "title": "Templates",
+            "type": "object"
+          }
+        },
+        "required": [
+          "language",
+          "templates",
+          "blocks",
+          "neutral_rules",
+          "property_defaults"
+        ],
+        "title": "CompositionLanguageView",
+        "type": "object"
+      },
+      "CompositionNeutralRuleView": {
+        "description": "The neutral one sequence operator implies.",
+        "properties": {
+          "bound": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Otherwise the domain bound it is read from: ``min`` or ``max``.",
+            "title": "Bound"
+          },
+          "ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What a ratio domain gives instead, whatever bounds it states.",
+            "title": "Ratio"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A constant neutral, for sum and product.",
+            "title": "Value"
+          }
+        },
+        "required": [
+          "sequence"
+        ],
+        "title": "CompositionNeutralRuleView",
+        "type": "object"
+      },
+      "CompositionNeutralView": {
+        "description": "The neutral a property contributes where it does not participate, and its origin.",
+        "properties": {
+          "source": {
+            "description": "``declared`` when the author wrote it, ``inferred`` when the rule gave it, ``unbounded`` while there is nothing yet to infer it from.",
+            "title": "Source",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Absent while the property's domain lacks the bound it is read from.",
+            "title": "Value"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "CompositionNeutralView",
+        "type": "object"
+      },
+      "CompositionPackageView": {
+        "description": "The package a composition compiles to, and the digests that identify it.",
+        "properties": {
+          "compilation_digest": {
+            "description": "This package, compiled by this toolchain.",
+            "title": "Compilation Digest",
+            "type": "string"
+          },
+          "files": {
+            "additionalProperties": true,
+            "description": "Every entry of the package, by name, as the JSON document it holds.",
+            "title": "Files",
+            "type": "object"
+          },
+          "instance_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instance Digest"
+          },
+          "ir_digest": {
+            "description": "The digest of the lowered problem: what solvers see.",
+            "title": "Ir Digest",
+            "type": "string"
+          },
+          "package_digest": {
+            "description": "The digest of the package's canonical archive -- the bytes, and the ``ETag``, ``POST /v1/compositions/package`` returns for the same source.",
+            "title": "Package Digest",
+            "type": "string"
+          }
+        },
+        "required": [
+          "files",
+          "ir_digest",
+          "compilation_digest",
+          "package_digest"
+        ],
+        "title": "CompositionPackageView",
+        "type": "object"
+      },
+      "CompositionParseResponse": {
+        "description": "The validation, and the document in both of its forms when there is one.",
+        "properties": {
+          "complete": {
+            "description": "It also has everything a sealed version needs; implies ``valid``.",
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "document": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The composition as its canonical document: templates expanded into the policy they stand for, defaults but the unit omitted. Where a form reads what a field effectively is. Absent when the document is not valid.",
+            "title": "Document"
+          },
+          "neutrals": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/CompositionNeutralView"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Each property's neutral as the emitter will write it -- what a form shows where the author left the neutral blank. Absent when the document is not valid.",
+            "title": "Neutrals"
+          },
+          "valid": {
+            "description": "The document reads as a composition.",
+            "title": "Valid",
+            "type": "boolean"
+          },
+          "written": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The document as the author wrote it -- templates, explicit defaults and key order kept, comments not -- when the text is YAML a composition may be written in, valid or not. What a form edits and sends back to ``/serialise`` to change nothing but what was edited.",
+            "title": "Written"
+          }
+        },
+        "required": [
+          "valid",
+          "complete",
+          "diagnostics"
+        ],
+        "title": "CompositionParseResponse",
+        "type": "object"
+      },
+      "CompositionRoundTripView": {
+        "description": "Whether the imported composition compiles back to the problem the package was.",
+        "properties": {
+          "container_diagnostics": {
+            "description": "Why the compile back failed, when it did: ``exact`` is then false.",
+            "items": {
+              "$ref": "#/components/schemas/CompositionContainerDiagnosticView"
+            },
+            "title": "Container Diagnostics",
+            "type": "array"
+          },
+          "exact": {
+            "description": "The two IR digests are equal: the composition is the package, as far as anything a solver sees. Section 11.2's gate proves this for the 82 packages of the corpus; this is the same test, for the one package uploaded.",
+            "title": "Exact",
+            "type": "boolean"
+          },
+          "ir_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The IR digest of the imported composition, compiled again.",
+            "title": "Ir Digest"
+          }
+        },
+        "required": [
+          "exact"
+        ],
+        "title": "CompositionRoundTripView",
+        "type": "object"
+      },
+      "CompositionSerialiseRequest": {
+        "additionalProperties": false,
+        "description": "One composition as the JSON-shaped document a form edits.",
+        "properties": {
+          "document": {
+            "additionalProperties": true,
+            "description": "The composition as a document of the shape ``GET /v1/compositions/schema`` describes -- the ``written`` or the canonical ``document`` of ``POST /v1/compositions/parse``, edited.",
+            "title": "Document",
+            "type": "object"
+          },
+          "form": {
+            "default": "written",
+            "description": "``written`` writes the document out as it was sent -- templates, explicit defaults and key order kept, only comments and formatting lost. ``canonical`` writes the composition it means: templates expanded, defaults but the unit omitted.",
+            "enum": [
+              "written",
+              "canonical"
+            ],
+            "title": "Form",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document"
+        ],
+        "title": "CompositionSerialiseRequest",
+        "type": "object"
+      },
+      "CompositionSerialiseResponse": {
+        "description": "The text, and the validation of it.",
+        "properties": {
+          "canonical": {
+            "default": false,
+            "description": "``source`` is the canonical form rather than the form sent.",
+            "title": "Canonical",
+            "type": "boolean"
+          },
+          "complete": {
+            "description": "It also has everything a sealed version needs; implies ``valid``.",
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "document": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The canonical document, as in the parse response. Absent when not valid.",
+            "title": "Document"
+          },
+          "neutrals": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/CompositionNeutralView"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Each property's neutral, as in the parse response.",
+            "title": "Neutrals"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The composition as YAML source, in the form asked for -- or, when it is not valid, written out as it was sent, so an editor can always switch to its text. Absent only when the document holds a value YAML text cannot carry.",
+            "title": "Source"
+          },
+          "valid": {
+            "description": "The document reads as a composition.",
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valid",
+          "complete",
+          "diagnostics"
+        ],
+        "title": "CompositionSerialiseResponse",
+        "type": "object"
+      },
+      "CompositionSourceRequest": {
+        "additionalProperties": false,
+        "description": "One Composition2Yaml document, as YAML source.",
+        "properties": {
+          "source": {
+            "description": "The composition, as YAML source.",
+            "maxLength": 262144,
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "CompositionSourceRequest",
+        "type": "object"
+      },
       "CompositionSpanView": {
         "description": "Where in the source a diagnostic is about, one-based, as a person counts lines.",
         "properties": {
@@ -3706,13 +4315,66 @@
         "title": "CompositionSpanView",
         "type": "object"
       },
+      "CompositionTemplateView": {
+        "description": "What a ``template`` fills in, and the neutral it implies.",
+        "properties": {
+          "aggregate": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The operator of each of the five blocks.",
+            "title": "Aggregate",
+            "type": "object"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "domain": {
+            "description": "The domain kind it gives a property that declares none.",
+            "title": "Domain",
+            "type": "string"
+          },
+          "neutral": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The neutral, when the template alone decides it.",
+            "title": "Neutral"
+          },
+          "neutral_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When it does not: the domain bound the neutral is read from (``min`` or ``max``), which the property must then declare.",
+            "title": "Neutral From"
+          }
+        },
+        "required": [
+          "direction",
+          "aggregate",
+          "domain"
+        ],
+        "title": "CompositionTemplateView",
+        "type": "object"
+      },
       "CompositionValidateRequest": {
         "additionalProperties": false,
         "description": "One Composition2Yaml document, as the author is writing it.",
         "properties": {
           "source": {
-            "description": "The composition, as YAML source.",
-            "minLength": 1,
+            "description": "The composition, as YAML source. An empty buffer is a document like any other: the answer says it is not a composition.",
+            "maxLength": 262144,
             "title": "Source",
             "type": "string"
           }
@@ -13012,6 +13674,51 @@
         ]
       }
     },
+    "/v1/compositions/compile": {
+      "post": {
+        "description": "Whether the composition compiles, the package it compiles to, and its digests.\n\nThe composition is read, checked complete, emitted as an ordinary BIM package and handed\nto the container's compiler through the platform's BIM port -- the same compiler every\nuploaded package meets. ``ir_digest`` identifies the problem a solver sees, and is what\nmakes a composition citable; ``package`` holds every generated document, so an editor can\nshow what the composition became without unpacking anything.\n\nAnswers 200 whatever the document says, like ``/validate``: ``compiled`` is false when the\ndocument is not valid, not complete, or refused by the container, and the diagnostics say\nwhich. The container's refusals are addressed to a generated document and a JSON pointer,\nnot to the source, because the container never saw the source: the Studio's own checks\ncatch what they can before compiling, and ``container_diagnostics`` is what is left.\nBeing complete is necessary for compiling and not sufficient: an exclusive with no stated\ndistribution, for one, waits for a channel that does not exist yet, and the container\nrefuses it.\n\nCompiling runs the container's compiler, so an editor compiles on request, not at every\nkeystroke: ``/validate`` is the keystroke operation. A composition whose package would hold\nmore feature values or neutral substitutions than the authoring surface emits is refused\nas ``composition_too_large`` (422) before anything is emitted.",
+        "operationId": "compileComposition",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionCompileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "description": "The readers or the compiler are busy; ``Retry-After`` says when to retry."
+          }
+        },
+        "summary": "Compile a composition and report its package and digests",
+        "tags": [
+          "Compositions"
+        ]
+      }
+    },
     "/v1/compositions/diff": {
       "post": {
         "description": "Compare two Composition2Yaml documents and return the typed change list.\n\nNothing is read from or written to storage, so no account is required: the request\ncarries both operands and the response is a pure function of them.",
@@ -13046,6 +13753,9 @@
               }
             },
             "description": "One of the two documents is not a composition."
+          },
+          "503": {
+            "description": "The readers or the compiler are busy; ``Retry-After`` says when to retry."
           }
         },
         "summary": "Compare two compositions",
@@ -13054,9 +13764,294 @@
         ]
       }
     },
+    "/v1/compositions/import": {
+      "post": {
+        "description": "An existing BIM v1 package, read back as a composition the editor can open.\n\nThe body is the ``.bim.zip`` itself, as ``POST /v1/instances/validate`` takes it, within\nthe smaller of the toolchain's package limit and the gateway's JSON body ceiling: the\nimport is not an upload route, whose ceiling is 512 MiB buffered whole.\nThe archive is compiled first, through the BIM port, so the container's own limits and\nchecks judge it before anything here opens it; a package it refuses is a 422 with its\ndiagnostics. Only then is it read back -- a BPMN workflow by delegation, from that same\ncompilation -- written as canonical source, and read again by the language's own rules.\n\n**The import is exact up to what a solver sees, and says whether it was.** The\ncomposition is compiled once more and its IR digest compared with the upload's:\n``round_trip.exact``. What the IR does not carry, the import cannot recover, and the\nlanguage's importer is honest about it (``composition/read.py``): document titles and\nannotations, branch conditions, a fixed task (it comes back an open task with one\ncandidate), a property's ``applies_to``. None of these moves the digest; all of them are\ngone. A value the importer makes explicit -- an inferred neutral, a goal's range -- comes\nback as if the author had written it.\n\n**It answers 422 when there is nothing to open**: an archive the container refuses\n(``invalid_instance``, ``invalid_package``), one this version of the language cannot\nexpress (``inexpressible_package``), or one that imports as a composition too long for an\neditor (``composition_too_large``). An import that reads as source and is then not valid,\nor not complete, is a 200 with the source and its located diagnostics, because the author\ncan open the text and finish it; the round trip is compiled whenever the emitter can\nwrite what came back.",
+        "operationId": "importComposition",
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "application/vnd.bim+zip": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "application/x-bim+zip": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "application/zip": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "description": "Portable BIM source package to read back as a composition.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The BIM source package exceeds the request size limit."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request media type is not a supported BIM package type."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The compiler refused the package, or this version of the language cannot express it."
+          },
+          "503": {
+            "description": "The readers or the compiler are busy; ``Retry-After`` says when to retry."
+          }
+        },
+        "summary": "Import a composition from a BIM package",
+        "tags": [
+          "Compositions"
+        ]
+      }
+    },
+    "/v1/compositions/language": {
+      "get": {
+        "description": "What a property form needs to show before the author has written anything.\n\nThe five templates with the direction, the five-block aggregation and the domain each\nfills in, and the neutral it implies -- or, for ``throughput``, the bound the property\nhas to declare for there to be one. Each block's default operator and the operators it\naccepts. The neutral rule per sequence operator, for explaining a value; the value itself\ncomes from ``/parse``, never from applying the rule in the browser. The defaults of a\nproperty that says nothing more.\n\nEvery value is read from the code that applies it -- ``model.TEMPLATES``, the tables of\n``neutral.py``, ``text.PROPERTY_DEFAULTS`` -- not restated, so this cannot drift from what\nthe reader does. Open to every caller and every API key, like ``/v1/schemas``: it\ndescribes the language, not anyone's data.",
+        "operationId": "describeCompositionLanguage",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionLanguageView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Describe the templates, operators and defaults of the composition language",
+        "tags": [
+          "Compositions"
+        ]
+      }
+    },
+    "/v1/compositions/package": {
+      "post": {
+        "description": "The composition as the ``.bim.zip`` it compiles to: an ordinary BIM v1 package.\n\nThe archive is canonical -- every document in RFC 8785 form, entries sorted, timestamps\nfixed -- so its digest is the ``package_digest`` ``/compile`` reports for the same source,\nsent as the ``ETag``, and downloading the same composition twice gives the same bytes.\nNothing in it says it was generated: it uploads, validates and solves like any\nhand-written package. ``provenance.json`` is not in it, because the compiler refuses an\nentry the manifest does not declare; ``/compile`` returns it beside the package.\n\n**This one answers 422 when there is no package to give**, unlike the rest of the\nauthoring surface: a download either has bytes or it has nothing, and a 200 carrying no\narchive would be a response a browser saves as a broken file. An editor asks\n``/compile`` first; this is the button, not the keystroke.",
+        "operationId": "packageComposition",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.bim+zip": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The package, as a canonical .bim.zip archive.",
+            "headers": {
+              "Content-Disposition": {
+                "description": "Suggested filename: the composition's id, then .bim.zip.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Digest": {
+                "description": "SHA-256 of the returned archive, as /v1/examples writes it.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "ETag": {
+                "description": "The package digest, as ``/compile`` reports it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The composition is not valid (``invalid_composition``), not complete (``incomplete_composition``), refused by the container (``invalid_instance``), or would emit past the authoring surface's bounds (``composition_too_large``); the diagnostics say where."
+          },
+          "503": {
+            "description": "The readers or the compiler are busy; ``Retry-After`` says when to retry."
+          }
+        },
+        "summary": "Download a composition as a BIM package",
+        "tags": [
+          "Compositions"
+        ]
+      }
+    },
+    "/v1/compositions/parse": {
+      "post": {
+        "description": "The validation ``/validate`` gives, and the document in the two forms a form needs.\n\n``written`` is the document as the author wrote it: templates, explicit defaults and key\norder kept, comments and formatting not, because they are not part of a document. It is\nwhat a form edits, and it is there even when the composition is not valid, so a form\ncan open a broken document to fix it. ``document`` is the composition it means, in\ncanonical form -- templates expanded into the direction and aggregation they stand for,\ndefaults but the unit omitted -- and it is where a form reads what a field effectively is.\n\nSending ``written`` back to ``/serialise`` after an edit changes nothing but the edit and\nthe formatting; sending the canonical ``document`` back normalizes the text. Section 12\nrecords which is lost where.\n\n``neutrals`` gives each property's neutral as the package will carry it, because a form\nshows it where the author left the field blank and computing it in the browser would be a\nsecond statement of the rule.\n\nAnswers 200 whatever the document says, like ``/validate``.",
+        "operationId": "parseComposition",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionParseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "description": "The readers or the compiler are busy; ``Retry-After`` says when to retry."
+          }
+        },
+        "summary": "Read a composition into the documents a form edits",
+        "tags": [
+          "Compositions"
+        ]
+      }
+    },
+    "/v1/compositions/schema": {
+      "get": {
+        "description": "The JSON Schema every composition document is judged against.\n\nThe shape ``/parse`` returns and ``/serialise`` takes, with the enumerations and patterns\na form validates a field against before sending it. It is the schema ``parse`` itself\nconsults -- the same file, not a copy. Open to every caller and every API key, like\n``/v1/schemas``.",
+        "operationId": "getCompositionSchema",
+        "responses": {
+          "200": {
+            "content": {
+              "application/schema+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The JSON Schema (Draft 2020-12) of a Composition2Yaml document."
+          }
+        },
+        "summary": "Get the JSON Schema of a composition document",
+        "tags": [
+          "Compositions"
+        ]
+      }
+    },
+    "/v1/compositions/serialise": {
+      "post": {
+        "description": "A document a form edited, written as YAML source and judged as text would be.\n\nThe inverse of ``/parse``. ``form`` chooses the text: ``written`` (the default) writes the\ndocument out as it was sent, so a template stays a template and an explicit default stays\nexplicit -- only comments and formatting are lost, because a document has none.\n``canonical`` writes the composition it means instead, normalized. Either way the text is\nread back by exactly the rules any source is, so a form cannot build a composition the\ntext editor would refuse, and every diagnostic is located in the returned ``source``.\n\n**The text comes back even when the document is not valid**, written out as it was sent:\nan editor can always switch from its form to its text, where located diagnostics help\nmost. Only a value YAML cannot carry leaves ``source`` empty, answered by path.\n\nThe body is read as strict JSON, as the platform reads every document it is sent: a\nduplicated member or a ``NaN`` is a ``c2y_syntax`` refusal here, not a value silently\nkept or kept last.\n\nAnswers 200 whatever the document says, like ``/validate``. A body past twice the source\nlimit is refused as a malformed request (``document_too_large``), and so is a document that\nwould write as more source than the authoring surface reads (``composition_too_large``).",
+        "operationId": "serialiseComposition",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionSerialiseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionSerialiseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request is malformed, or its body is past the size limit."
+          },
+          "503": {
+            "description": "The readers or the compiler are busy; ``Retry-After`` says when to retry."
+          }
+        },
+        "summary": "Write a composition document as YAML source",
+        "tags": [
+          "Compositions"
+        ]
+      }
+    },
     "/v1/compositions/validate": {
       "post": {
-        "description": "Every problem in the document, each with a code, a path and the region of source.\n\n**It answers 200 whatever the document says**, which is a deliberate departure from\n``POST /v1/validate``, where an invalid BIM package is a 422. The request -- validate this\ntext -- always succeeds; the answer may be that the text has problems. And one of the two\nkinds of answer is not an error at all: an *incomplete* composition is a draft, readable\nand editable, that only lacks something before it can be sealed. Splitting the status by\nseverity would hand an editor two response shapes for one question it asks after every\nkeystroke. A malformed *request* -- no ``source``, an unknown field -- is still a 422.\n\nThe two severities are the split ``checks`` measured. ``error`` is everything that makes\nthe document unreadable: a YAML syntax error, a reader refusal, a coherence check, the\nschema. ``incomplete`` is ``checks.completeness`` -- a task nobody declared, a goal over\na property that does not exist, an empty market -- which ``parse`` lets a draft have and\nsealing does not.\n\nNothing is read from or written to storage, so no account is required, for the same\nreason the two-body diff needs none.",
+        "description": "Every problem in the document, each with a code, a path and the region of source.\n\n**It answers 200 whatever the document says**, which is a deliberate departure from\n``POST /v1/validate``, where an invalid BIM package is a 422. The request -- validate this\ntext -- always succeeds; the answer may be that the text has problems. And one of the two\nkinds of answer is not an error at all: an *incomplete* composition is a draft, readable\nand editable, that only lacks something before it can be sealed. Splitting the status by\nseverity would hand an editor two response shapes for one question it asks after every\nkeystroke. A malformed *request* -- no ``source``, an unknown field -- is still a 422.\n\nThe two severities are the split ``checks`` measured. ``error`` is everything that makes\nthe document unreadable: a YAML syntax error -- which includes the YAML a composition may\nnot use, such as an alias or a duplicate key -- a reader refusal, a coherence check, the\nschema. ``incomplete`` is ``checks.completeness`` -- a task nobody declared, a goal over a\nproperty that does not exist, an empty market, a property whose neutral has no bound to\ncome from yet -- which ``parse`` lets a draft have and sealing does not.\n\nNothing is read from or written to storage, so no account is required, for the same\nreason the two-body diff needs none.",
         "operationId": "validateComposition",
         "requestBody": {
           "content": {
@@ -13088,6 +14083,9 @@
               }
             },
             "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "description": "The readers or the compiler are busy; ``Retry-After`` says when to retry."
           }
         },
         "summary": "Validate a composition and locate every problem in its source",

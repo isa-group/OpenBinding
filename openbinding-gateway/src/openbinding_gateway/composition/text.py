@@ -28,17 +28,24 @@ container compares a distribution against ``Decimal(1)`` with no epsilon.
 
 from __future__ import annotations
 
+import copy
 import json
+import math
+from collections import Counter
+from collections.abc import Mapping
 from decimal import Decimal
+from functools import lru_cache
+from itertools import islice
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
-
-import yaml
 
 from . import diagnostics as codes
 from .checks import coherence
 from .diagnostics import CompositionError, Diagnostic, TextError
-from .spans import locate
+from .diagnostics import MAX_LISTED, clipped, listed
+from .spans import placed
+from .syntax import MAX_DEPTH, MAX_SAFE_INTEGER, dump, load
 from .model import (
     Aggregation,
     Branch,
@@ -77,6 +84,21 @@ from .model import (
 from .neutral import expand_aggregation
 
 
+#: What a property is when it says nothing more: the reader fills these in, and the writer
+#: leaves them out -- all but ``unit``, which it always writes, because a number without its
+#: unit is the one omission a reader of the text would misread. ``availability`` and
+#: ``reliability`` give a ratio domain instead.
+#: Public so an editor can show them as a form's defaults from the one place the reader
+#: takes them. There is no default direction to show: without a template the schema
+#: requires one.
+PROPERTY_DEFAULTS: Mapping[str, str] = MappingProxyType({
+    "unit": "1",
+    "scope": "invocation",
+    "applies_to": "all",
+    "domain": "real",
+})
+
+
 # --------------------------------------------------------------------------- writing
 
 
@@ -87,7 +109,7 @@ def _drop(mapping: dict[str, Any]) -> dict[str, Any]:
 
 def _property_text(prop: Property) -> dict[str, Any]:
     domain = _drop({
-        "kind": prop.domain.kind if prop.domain.kind != "real" else None,
+        "kind": prop.domain.kind if prop.domain.kind != PROPERTY_DEFAULTS["domain"] else None,
         "min": prop.domain.minimum,
         "max": prop.domain.maximum,
     })
@@ -95,8 +117,8 @@ def _property_text(prop: Property) -> dict[str, Any]:
         "title": prop.title,
         "unit": prop.unit,
         "direction": prop.direction,
-        "scope": prop.scope if prop.scope != "invocation" else None,
-        "applies_to": prop.applies_to if prop.applies_to != "all" else None,
+        "scope": prop.scope if prop.scope != PROPERTY_DEFAULTS["scope"] else None,
+        "applies_to": prop.applies_to if prop.applies_to != PROPERTY_DEFAULTS["applies_to"] else None,
         "domain": domain or None,
         "aggregate": {
             "sequence": prop.aggregation.sequence,
@@ -249,8 +271,23 @@ def _placement_text(placement: Placement) -> dict[str, Any]:
 
 
 def serialise(composition: Composition) -> str:
-    """One composition as YAML text."""
-    document = _drop({
+    """One composition as YAML text: :func:`document`, written out."""
+    return dump(document(composition))
+
+
+def document(composition: Composition) -> dict[str, Any]:
+    """One composition as the JSON-shaped document its text is.
+
+    This is what :func:`serialise` writes and what the schema judges, before it becomes
+    text: the canonical form, with defaults omitted -- the unit excepted, which is always
+    written -- and templates already expanded into the policy they stand for. It is also the shape an editor's forms edit, which is why it is
+    public -- a second projection of the model for the wire would be a second surface of the
+    language to keep in step with this one.
+
+    The values are copies. A caller that edits the document edits the document, never the
+    composition it came from.
+    """
+    return copy.deepcopy(_drop({
         "composition": composition.composition,
         "version": composition.version,
         "title": composition.title,
@@ -330,8 +367,7 @@ def serialise(composition: Composition) -> str:
         ]
         or None,
         "studio": composition.studio or None,
-    })
-    return yaml.safe_dump(document, sort_keys=False, allow_unicode=True, default_flow_style=False)
+    }))
 
 
 # --------------------------------------------------------------------------- reading
@@ -387,9 +423,13 @@ def _property_model(name: str, source: Any) -> Property:
     # the container, which is why those two templates need no explicit bounds (section
     # 3.2). Reading them as the ``real`` default would leave a goal over one of them with
     # no range to normalize over.
-    kind = domain.get("kind") or ("ratio" if template in RATIO_TEMPLATES else "real")
+    kind = domain.get("kind") or (
+        "ratio" if template in RATIO_TEMPLATES else PROPERTY_DEFAULTS["domain"]
+    )
     return Property(
-        unit=source.get("unit", "1"),
+        unit=source.get("unit", PROPERTY_DEFAULTS["unit"]),
+        # The fallback only lets the reader finish a document the schema then refuses: with no
+        # template the schema requires ``direction``.
         direction=source.get("direction", direction or "minimize"),
         aggregation=Aggregation(**{key: merged[key] for key in
                                    ("sequence", "parallel", "exclusive", "repeat", "selection")}),
@@ -398,9 +438,9 @@ def _property_model(name: str, source: Any) -> Property:
             minimum=domain.get("min"),
             maximum=domain.get("max"),
         ),
-        scope=source.get("scope", "invocation"),
+        scope=source.get("scope", PROPERTY_DEFAULTS["scope"]),
         title=source.get("title"),
-        applies_to=source.get("applies_to", "all"),
+        applies_to=source.get("applies_to", PROPERTY_DEFAULTS["applies_to"]),
         neutral=source.get("neutral"),
     )
 
@@ -490,8 +530,10 @@ def _placement_model(source: Any) -> Placement:
         ("events", source.get("events") or []),
         ("transitions", source.get("transitions") or []),
     ):
-        seen = [row["id"] for row in rows if isinstance(row, dict) and "id" in row]
-        repeated = sorted({name for name in seen if seen.count(name) > 1})
+        # Counted once rather than with ``list.count`` per id, which was quadratic: measured,
+        # 20,000 pools in 243 KB took 32 seconds on a route anyone may call.
+        counts = Counter(row["id"] for row in rows if isinstance(row, dict) and "id" in row)
+        repeated = sorted(name for name, count in counts.items() if count > 1)
         if repeated:
             raise codes.refuse(
                 codes.SCHEMA, f"two entries of {label} share an id: {repeated}",
@@ -580,49 +622,106 @@ def _schema_diagnostics(document: object) -> tuple[Diagnostic, ...]:
     Reported rather than raised one at a time, because a schema tells you everything that
     is wrong at once and an editor wants every marker, not the first.
     """
+    validator = _validator()
+    if validator is None:  # pragma: no cover - jsonschema and the schema ship with the gateway
+        return ()
+    # The errors are taken as the validator finds them, at most one more than are listed, so
+    # a document wrong in every one of twenty thousand rules is not validated to the end only
+    # to list a hundred; the message is clipped because it quotes the value at fault.
+    errors = list(islice(validator.iter_errors(document), MAX_LISTED + 1))
+    shown = sorted(
+        errors[:MAX_LISTED],
+        key=lambda item: [(0, step) if isinstance(step, int) else (1, step) for step in item.path],
+    )
+    found = [
+        Diagnostic(code=codes.SCHEMA, message=clipped(error.message), path=_path_of(error))
+        for error in shown
+    ]
+    return listed(found, len(errors), counted=False)
+
+
+_SCHEMA_PATH = (
+    Path(__file__).resolve().parent
+    / "resources" / "composition2yaml" / "v1" / "composition.schema.json"
+)
+
+
+@lru_cache(maxsize=1)
+def _schema_text() -> str:
+    return _SCHEMA_PATH.read_text(encoding="utf-8")
+
+
+def schema() -> dict[str, Any]:
+    """The language's JSON Schema, as it ships: the shape :func:`document` returns.
+
+    A fresh copy each call, so a caller that annotates it cannot change what the next one
+    reads.
+    """
+    return json.loads(_schema_text())
+
+
+@lru_cache(maxsize=1)
+def _validator() -> Any:
+    """The schema's validator, built once: the schema does not change while a process runs."""
     try:
         from jsonschema import Draft202012Validator  # noqa: PLC0415
     except ImportError:  # pragma: no cover - jsonschema ships with the gateway
-        return ()
-    path = (
-        Path(__file__).resolve().parent
-        / "resources" / "composition2yaml" / "v1" / "composition.schema.json"
-    )
-    if not path.is_file():  # pragma: no cover - the schema travels with the package
-        return ()
-    validator = Draft202012Validator(json.loads(path.read_text(encoding="utf-8")))
-    return tuple(
-        Diagnostic(code=codes.SCHEMA, message=error.message, path=_path_of(error))
-        for error in sorted(validator.iter_errors(document), key=lambda item: list(item.path))
-    )
+        return None
+    if not _SCHEMA_PATH.is_file():  # pragma: no cover - the schema travels with the package
+        return None
+    return Draft202012Validator(json.loads(_schema_text()))
 
 
 def parse(text: str) -> Composition:
     """One YAML document as a composition, refusing with located diagnostics.
 
-    The readers below hold a value and not the source, so their refusals name a path and
-    carry no position. This is the one place that holds the text, so it is the one place
-    that attaches spans: a refusal is caught here and re-raised through
+    Two steps, and each refuses with a ``CompositionError``. :func:`syntax.load` reads the
+    text by the rules of :mod:`.syntax` -- JSON's data model in YAML's syntax -- and refuses
+    anything else as ``c2y_syntax`` at the position PyYAML reached. :func:`compose` then
+    reads the document, and its refusals name a path and carry no position, because the
+    readers hold a value and not the source. This is the one place that holds the text, so
+    it is the one place that attaches spans: a refusal is caught here and re-raised through
     ``CompositionError.located``, which fills in what ``spans.locate`` found. A valid
     document pays nothing for it -- ``locate`` is called only on the way to a refusal.
     """
-    document = yaml.safe_load(text)
+    loaded = load(text)
+    try:
+        return compose(loaded)
+    except CompositionError as error:
+        raise placed(error, text) from None
+
+
+def compose(document: object) -> Composition:
+    """An already-loaded document as a composition, refusing with diagnostics by path.
+
+    The whole of :func:`parse` after the text is read, so a document that arrives as JSON --
+    from an editor's forms, say -- is judged by exactly the rules a YAML one is, in the same
+    order, rather than by a second reading kept in step by hand. What it cannot give is a
+    span: there is no text to point into, so each diagnostic names the path of the element at
+    fault, which is what a form attaches a message to anyway.
+    """
+    # What JSON holds, before anything reads a value. The YAML loader already refuses all
+    # of it; a document that never was YAML -- a request body parsed by the web framework,
+    # whose JSON reader accepts ``NaN`` -- reaches this function without that guard.
+    problems = unrepresentable(document)
+    if problems:
+        raise CompositionError(problems)
     try:
         composition = _compose(document)
-    except CompositionError as error:
+    except CompositionError:
         # The readers first and the schema second, which was worth measuring rather than
         # assuming. The schema catches every shape error the readers do, so asking it first
         # made the specific codes unreachable: an unknown template came back as
         # ``c2y_schema`` where ``c2y_property_template`` names the property and says what is
         # wrong with it. Three of the property refusals were shadowed that way.
-        raise error.located(locate(text)) from None
+        raise
     except Exception as error:
         # A reader that hits a sharp edge -- a missing key, a value of the wrong type -- on a
         # document the schema can explain. The schema's message is the better one here, and
         # the raw error is kept as the cause.
         broken = _schema_diagnostics(document)
         if broken:
-            raise CompositionError(broken).located(locate(text)) from error
+            raise CompositionError(broken) from error
         raise
     # Then what no document can say, finished or not: one element contradicting itself.
     # Before the schema, for the reason the readers come before it: the schema refuses a
@@ -634,15 +733,111 @@ def parse(text: str) -> Composition:
     # and the editor read drafts.
     unsound = coherence(composition)
     if unsound:
-        raise CompositionError(unsound).located(locate(text))
+        raise CompositionError(unsound)
     # And the schema as the backstop, because the readers accept things it refuses: a task
     # declared both ``open`` and ``local`` is read as whichever kind comes first, so the
     # document meant something the author did not write. Measured -- it is the one case of
     # the five where the readers say nothing at all.
     broken = _schema_diagnostics(document)
     if broken:
-        raise CompositionError(broken).located(locate(text))
+        raise CompositionError(broken)
     return composition
+
+
+def unrepresentable(document: object) -> tuple[Diagnostic, ...]:
+    """Every value in the document that JSON cannot hold, by path.
+
+    Public because a caller about to write a document out -- as JSON in a response, or as
+    YAML for ``parse`` to read back -- has to know first that it can be written at all.
+
+    A type JSON has no value for, a key that is not a string, a number that is not finite, an
+    integer past +-(2^53 - 1), a string that is not text (a lone surrogate, which ``json.loads``
+    accepts and no UTF-8 encoder will write), and nesting past the bound :mod:`.syntax`
+    applies to text.
+
+    Walked with a stack rather than by recursion, because one of the things it refuses is a
+    document nested deeply enough to exhaust the stack of anything that recurses. And each
+    node keeps only a link to its parent, a path being written out only for a node that is
+    reported: a path is a string as long as every key above it, so building one per node
+    cost a long key's length times the size of the list under it -- measured, a 60 KB
+    document took 400 MB that way.
+    """
+    found: list[Diagnostic] = []
+    steps: list[tuple[int, str | int | None]] = [(-1, None)]
+    stack: list[tuple[object, int, int]] = [(document, 0, 1)]
+    total = 0
+
+    def report(index: int, message: str) -> None:
+        nonlocal total
+        total += 1
+        if len(found) < MAX_LISTED:
+            found.append(Diagnostic(code=codes.SCHEMA, message=message, path=_path(steps, index)))
+
+    while stack:
+        value, index, depth = stack.pop()
+        if depth > MAX_DEPTH:
+            report(index, f"the document nests deeper than {MAX_DEPTH} levels")
+            continue
+        if isinstance(value, dict):
+            for key, item in reversed(list(value.items())):
+                if not isinstance(key, str):
+                    report(index, f"a key of type {type(key).__name__} is not a string")
+                    continue
+                if not _text(key):
+                    report(index, "a key is not valid Unicode text")
+                    continue
+                steps.append((index, key))
+                stack.append((item, len(steps) - 1, depth + 1))
+        elif isinstance(value, list):
+            for position in reversed(range(len(value))):
+                steps.append((index, position))
+                stack.append((value[position], len(steps) - 1, depth + 1))
+        elif isinstance(value, bool) or value is None:
+            continue
+        elif isinstance(value, int):
+            if abs(value) > MAX_SAFE_INTEGER:
+                report(
+                    index,
+                    "an integer past +-(2^53 - 1): JSON readers lose its digits and the "
+                    "container refuses it",
+                )
+        elif isinstance(value, float):
+            if not math.isfinite(value):
+                report(
+                    index,
+                    f"{value} is not a finite number: JSON cannot hold it and the container "
+                    "refuses it",
+                )
+        elif isinstance(value, str):
+            if not _text(value):
+                report(index, "the string is not valid Unicode text")
+        else:
+            report(index, f"a {type(value).__name__} is not a value JSON can hold")
+    return listed(found, total)
+
+
+def _path(steps: list[tuple[int, str | int | None]], index: int) -> str:
+    """The dotted path of one node, from its chain of parent links."""
+    parts: list[str | int] = []
+    while index > 0:
+        index, step = steps[index]
+        parts.append(step)
+    written = ""
+    for step in reversed(parts):
+        if isinstance(step, int):
+            written += f"[{step}]"
+        else:
+            written += f".{step}" if written else step
+    return written
+
+
+def _text(value: str) -> bool:
+    """Whether a string is text a UTF-8 encoder can write: no lone surrogates."""
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
 
 
 def _compose(document: object) -> Composition:

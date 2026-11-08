@@ -105,7 +105,14 @@ OPEN_V1_PREFIXES = (
     "/v1/schemas",
     "/v1/examples",
 )
-OPEN_V1_GET_PATHS = frozenset({"/v1/dialects", "/v1/resources"})
+OPEN_V1_GET_PATHS = frozenset({
+    "/v1/dialects",
+    "/v1/resources",
+    # The composition language's own description and schema: what the language is, not
+    # anyone's data, so open like /v1/schemas.
+    "/v1/compositions/language",
+    "/v1/compositions/schema",
+})
 
 
 @dataclass(frozen=True)
@@ -467,6 +474,8 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             else {ApiKeyPermission.ENGINES_EXECUTE.value}
         )
     if path.startswith("/v1/compositions"):
+        if method == "GET" and path in OPEN_V1_GET_PATHS:
+            return frozenset()
         # Comparing two compositions derives a view from documents the caller supplies and
         # persists nothing, which is the verifier's shape rather than the generator's: the
         # read permission, not the write one. A key still needs it, because deny-by-default
