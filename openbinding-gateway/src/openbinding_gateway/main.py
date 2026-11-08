@@ -28,6 +28,7 @@ from . import space_client
 from .access import public_read
 from .jobs import reconciler as job_reconciler
 from .access.dependencies import session_dependency
+from .access.work_limits import WORK_ROUTES
 from .core import revision
 from .core.settings import Settings, get_settings
 from .core.logging import configure_logging
@@ -1453,6 +1454,25 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     add_problem(jobs["post"], 402, "The instance exceeds the complexity ceiling of the caller's plan.")
     add_problem(jobs["post"], 429, "The caller already has the maximum number of queued and running jobs.")
     add_problem(jobs["post"], 403, "The requested feature or engine is not entitled in the caller's plan.")
+
+    # The per-client budgets of the routes open to anybody (docs/ACCESS_POLICY.md). The table
+    # that decides which routes are counted is the one that declares them.
+    for path, work_class in WORK_ROUTES.items():
+        refused = refusal(
+            f"Too many `{work_class}` requests from this client: past the budget of its address, "
+            "or of its account when signed in. `Retry-After` says when the window ends."
+        )
+        refused["headers"] = {
+            "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {"type": "integer", "minimum": 1},
+            }
+        }
+        if not any(path.startswith(prefix) for prefix in _BIM_PATH_PREFIXES):
+            refused["content"] = {
+                JSON_MEDIA_TYPE: {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}
+            }
+        paths[path]["post"].setdefault("responses", {})["429"] = refused
 
     # One 422 for the whole API: FastAPI's default `HTTPValidationError` is
     # replaced by `Problem`, which is what the handlers in this module answer

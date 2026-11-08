@@ -118,11 +118,55 @@ package the request carries and keeps nothing. So none needs an account.
 
 A stored composition is a project artifact and follows the matrix above.
 
+## How often: the budgets of the routes open to anybody
+
+The routes above, like `POST /v1/instances/validate` and `POST /v1/generator/*`, need
+no account and do real CPU work: they read YAML, run the container's compiler in the
+gateway process, or synthesize instances. The cost of one request is bounded where the
+work happens, and the composition pools answer `503` when full. So that one client
+cannot keep them full, every client also has a budget, in
+`openbinding_gateway/access/work_limits.py`:
+
+| Class | Routes | Anonymous, per client address | Signed in, per account |
+|---|---|---|---|
+| `read` | `POST /v1/compositions/validate`, `/parse`, `/serialise`, `/diff` | `WORK_RATE_LIMIT_READ_REQUESTS` (default 60) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` (default 5) |
+| `compile` | `POST /v1/compositions/compile`, `/package`, `/import`, `POST /v1/instances/validate`, `POST /v1/generator/instances`, `/corpus`, `/convert-legacy` | `WORK_RATE_LIMIT_COMPILE_REQUESTS` (default 10) | that, times the same multiplier |
+
+- **Per window.** A fixed window of `WORK_RATE_LIMIT_WINDOW_S` seconds (default 60)
+  that starts at a client's first request of the class. `0` switches a class off.
+- **Who is a client.** The address the proxy resolved (`X-Forwarded-For` counts only
+  from `FORWARDED_ALLOW_IPS`), and for IPv6 the `/64`, which is what one subscriber
+  holds. Signed in, the account, wherever it calls from; a key and its account are
+  one caller, and a credential that names nobody is an anonymous caller.
+- **Beyond it:** `429 rate_limit_exceeded` with `Retry-After`, as the problem document
+  the route answers with (`application/problem+json` on `/import` and
+  `/v1/instances/validate`), naming `work_class`, `limit` and `window_seconds`.
+- **What counts.** A request when it arrives, whatever becomes of it, so a malformed
+  one is not free. `GET /v1/compositions/language` and `/schema` answer from a cache
+  and are not counted. A corpus is charged one per instance once its body has been
+  validated; one larger than the whole budget is charged as the whole budget, so it
+  can still run alone in an untouched window instead of being refused forever.
+- **Where it is counted.** In Redis, shared by every replica. While Redis does not
+  answer, in counters per process, so with N replicas a client gets up to N times the
+  budget until it is back; it is logged and never turns into no limit.
+- **`/v1/instances/validate` still authorizes nothing.** It reads a credential only
+  to know whose budget to charge: a key without the permission that route's prefix
+  would ask for is counted against its account, not refused.
+
+What an anonymous caller's failures leave behind is limited too. At most
+`ANONYMOUS_ERROR_EVENTS_PER_MINUTE` of them (default 30) are recorded per client and
+minute, whatever the status, and a recorded one keeps only its code, status, endpoint
+and counts: how many diagnostics it listed and how many failures went unrecorded
+before it, plus a 5xx's correlation id. Never a message, because a refusal quotes what
+it refuses and an anonymous caller chooses that. A signed-in caller's failures are
+kept whole, as before.
+
 ## Frontend notes
 
 - `GET .../projects/{project}` is now the way to open a public project: render it
   read-only when `access === "public_read"` (there is no role to read).
 - Expect `429` with `Retry-After` while browsing other people's public projects
-  quickly; show the countdown the way other `429`s are shown.
+  quickly, and from the routes above when one client asks too often; show the
+  countdown the way other `429`s are shown.
 - The report/publication/file/library lists a visitor gets are already narrowed by
   the server; do not try to infer drafts or private files from them.

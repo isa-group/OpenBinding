@@ -4,6 +4,9 @@ Who may call what: ``POST /instances``, ``/corpus`` and ``/convert-legacy`` are
 pure functions of their request and touch no shared state, so any caller, even
 anonymous, may use them. Persisting (``persist=true``) needs an account, and
 attaching the result to a project needs MEMBER access to that project.
+
+Each compiles what it generates, so all three are counted against the caller's
+``compile`` budget (``access/work_limits.py``), and a corpus is charged per instance.
 """
 
 from __future__ import annotations
@@ -17,7 +20,7 @@ from typing import Any, Optional
 
 from bim_core.canonical import digest
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +28,7 @@ from ..access.dependencies import (
     get_optional_user,
     session_dependency,
 )
+from ..access.work_limits import enforce_work_rate_limit, limit_work
 from ..collaboration import require_role
 from ..db.models import (
     BindingCase,
@@ -250,7 +254,7 @@ async def _verify_project_member(session: AsyncSession, project_id: uuid.UUID, c
     return project
 
 
-@router.post("/instances", response_model=InstanceGeneratedResponse)
+@router.post("/instances", response_model=InstanceGeneratedResponse, dependencies=[Depends(limit_work)])
 async def generate_instance(
     request: GenerateInstanceRequest,
     session: AsyncSession = Depends(session_dependency),
@@ -349,10 +353,14 @@ async def generate_instance(
 @router.post("/corpus", response_model=CorpusGeneratedResponse)
 async def generate_corpus(
     request: GenerateCorpusRequest,
+    raw: Request,
     session: AsyncSession = Depends(session_dependency),
     caller: Optional[User] = Depends(get_optional_user),
 ) -> Any:
     """Generate a corpus of problem instances with optional Collection & Study initialization."""
+    # A corpus is ``count`` generations, which only the validated body can say; counted as
+    # one it would be a hundred times cheaper than the same instances asked for singly.
+    await enforce_work_rate_limit(raw, "compile", caller, units=request.count)
     base = request.base_config
     instances: list[dict[str, Any]] = []
     archives: list[bytes] = []
@@ -487,7 +495,7 @@ async def generate_corpus(
     )
 
 
-@router.post("/convert-legacy", response_model=InstanceGeneratedResponse)
+@router.post("/convert-legacy", response_model=InstanceGeneratedResponse, dependencies=[Depends(limit_work)])
 async def convert_legacy(
     request: ConvertLegacyRequest,
     session: AsyncSession = Depends(session_dependency),

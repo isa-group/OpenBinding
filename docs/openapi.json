@@ -13709,6 +13709,25 @@
             },
             "description": "The request does not satisfy the contract; `diagnostics` says where."
           },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
           "503": {
             "description": "The readers or the compiler are busy; ``Retry-After`` says when to retry."
           }
@@ -13753,6 +13772,25 @@
               }
             },
             "description": "One of the two documents is not a composition."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
           },
           "503": {
             "description": "The readers or the compiler are busy; ``Retry-After`` says when to retry."
@@ -13838,6 +13876,25 @@
               }
             },
             "description": "The compiler refused the package, or this version of the language cannot express it."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
           },
           "503": {
             "description": "The readers or the compiler are busy; ``Retry-After`` says when to retry."
@@ -13927,6 +13984,25 @@
             },
             "description": "The composition is not valid (``invalid_composition``), not complete (``incomplete_composition``), refused by the container (``invalid_instance``), or would emit past the authoring surface's bounds (``composition_too_large``); the diagnostics say where."
           },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
           "503": {
             "description": "The readers or the compiler are busy; ``Retry-After`` says when to retry."
           }
@@ -13971,6 +14047,25 @@
               }
             },
             "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
           },
           "503": {
             "description": "The readers or the compiler are busy; ``Retry-After`` says when to retry."
@@ -14039,6 +14134,25 @@
             },
             "description": "The request is malformed, or its body is past the size limit."
           },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
           "503": {
             "description": "The readers or the compiler are busy; ``Retry-After`` says when to retry."
           }
@@ -14083,6 +14197,25 @@
               }
             },
             "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
           },
           "503": {
             "description": "The readers or the compiler are busy; ``Retry-After`` says when to retry."
@@ -16413,6 +16546,25 @@
               }
             },
             "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "summary": "Convert Legacy",
@@ -16455,6 +16607,25 @@
               }
             },
             "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "summary": "Generate Corpus",
@@ -16497,6 +16668,25 @@
               }
             },
             "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "summary": "Generate Instance",
@@ -16700,6 +16890,25 @@
               }
             },
             "description": "The BIM source package or snapshot reference is invalid."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "summary": "Validate Legacy Instance",

@@ -191,6 +191,27 @@ def isolated_auth_rate_limiter():
 
 
 @pytest.fixture(autouse=True)
+def isolated_work_rate_limiter(monkeypatch):
+    """The per-client work budgets switched off, and counted in this test's own memory.
+
+    The defaults are sized for one person at a keyboard and the suite is not one: a test
+    that walks a corpus through ``/v1/compositions/import`` would be refused at the
+    eleventh package. ``tests/test_work_limits.py`` switches them on again.
+    """
+    if not GATEWAY_INSTALLED:
+        yield
+        return
+    from openbinding_gateway.access.work_limits import WorkRateLimiter, set_work_limiter
+    from openbinding_gateway.core.settings import get_settings
+
+    monkeypatch.setattr(get_settings(), "work_rate_limit_read_requests", 0)
+    monkeypatch.setattr(get_settings(), "work_rate_limit_compile_requests", 0)
+    set_work_limiter(WorkRateLimiter(primary=None))
+    yield
+    set_work_limiter(None)
+
+
+@pytest.fixture(autouse=True)
 def fresh_bim_port():
     """Each test builds the BIM port its settings ask for (in process by default) and leaves none behind."""
     if not GATEWAY_INSTALLED:

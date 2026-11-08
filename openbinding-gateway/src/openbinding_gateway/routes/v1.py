@@ -19,6 +19,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import optional_session, require_v1_admin, solve_caller
+from ..access.work_limits import limit_work_of_counted_caller
 from ..core import revision
 from ..core.settings import get_settings
 from ..db import base as db_base
@@ -1016,7 +1017,7 @@ async def set_engine_registration_credential(
     return JSONResponse(summary, headers={"ETag": etag})
 
 
-@router.post("/instances/validate")
+@router.post("/instances/validate", dependencies=[Depends(limit_work_of_counted_caller)])
 async def validate_legacy_instance(
     request: Request,
     session: AsyncSession | None = Depends(optional_session, scope="function"),

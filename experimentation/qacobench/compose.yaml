@@ -24,6 +24,9 @@ x-worker-environment: &worker-environment
 x-gateway-environment: &gateway-environment
   <<: *worker-environment
   GATEWAY_JWT_SECRET: ${QACOBENCH_JWT_SECRET:-isolated-qacobench-reproduction-key}
+  # The stack is private to the runner, which generates 5,200 instances one request at a time.
+  WORK_RATE_LIMIT_READ_REQUESTS: "0"
+  WORK_RATE_LIMIT_COMPILE_REQUESTS: "0"
 
 x-runner-environment: &runner-environment
   OPENBINDING_GATEWAY_URL: http://gateway:8000
