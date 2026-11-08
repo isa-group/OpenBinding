@@ -18,8 +18,10 @@ same id, and an operator joins the two.  The pattern is the one of
 * :func:`log_internal_failure` / :func:`scrub_text` - where the raw reason goes
   instead: the log, with URLs, addresses and host names masked, bounded, next to
   the correlation id.
-* :func:`pricing_unavailable_error` / :func:`invalid_subscription_error` - the
-  fixed answers for a pricing service (SPACE, SPHERE) that cannot be read.
+* :func:`pricing_unavailable_error` / :func:`invalid_subscription_error` /
+  :func:`contract_changed_error` - the fixed answers for a pricing service
+  (SPACE, SPHERE) that cannot be read, refuses a selection, or holds a contract
+  that changed under a novation.
 """
 
 from __future__ import annotations
@@ -302,6 +304,12 @@ PUBLISHED_PRICING_UNAVAILABLE = PublicProblem(
 INVALID_SUBSCRIPTION = PublicProblem(
     422, "invalid_subscription", "The requested plan or add-ons are not valid for the current pricing."
 )
+CONTRACT_CHANGED = PublicProblem(
+    409,
+    "contract_changed",
+    "The subscription changed while this change was being applied, so nothing was changed. "
+    "Read the subscription again and decide again.",
+)
 
 
 def pricing_unavailable_error(
@@ -325,6 +333,17 @@ def invalid_subscription_error(error: BaseException, *, where: str) -> HTTPExcep
     """The 422 for a plan or add-on selection that SPACE refuses; its reason stays in the log."""
     log_internal_failure(where, error)
     return api_error(INVALID_SUBSCRIPTION.status, INVALID_SUBSCRIPTION.code, INVALID_SUBSCRIPTION.detail)
+
+
+def contract_changed_error(error: BaseException, *, where: str) -> HTTPException:
+    """The 409 for a novation whose contract moved between the gateway's read and its write.
+
+    Somebody else changed the contract in between (another administrator, a
+    renewal); nothing was written. The versions involved stay in the log. A
+    request whose ``If-Match`` named the version read gets ``412`` instead.
+    """
+    log_internal_failure(where, error, level=logging.INFO)
+    return api_error(CONTRACT_CHANGED.status, CONTRACT_CHANGED.code, CONTRACT_CHANGED.detail)
 
 
 def _is_json(message: Message) -> bool:

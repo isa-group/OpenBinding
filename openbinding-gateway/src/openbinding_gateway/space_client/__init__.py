@@ -5,6 +5,7 @@ from typing import Optional
 
 from ..core.settings import Settings
 from .gate import (
+    ContractChanged,
     PlanCaps,
     PricingGate,
     PricingUnavailable,
@@ -59,6 +60,7 @@ def get_gate() -> PricingGate:
 
 
 __all__ = [
+    "ContractChanged",
     "OpenCaps",
     "OpenGate",
     "PlanCaps",

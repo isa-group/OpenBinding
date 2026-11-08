@@ -21,7 +21,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import Header, Response, status
+from fastapi import Header, HTTPException, Response, status
 from sqlalchemy import event, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -91,7 +91,17 @@ def etag_for(row: Any) -> str:
 
 def _etag(row: Any, updated_at: datetime) -> str:
     stamp = normalise(updated_at).isoformat(timespec="microseconds")
-    digest = hashlib.sha256(f"{row.__tablename__}:{row.id}:{stamp}".encode()).hexdigest()
+    return opaque_etag(row.__tablename__, row.id, stamp)
+
+
+def opaque_etag(*parts: object) -> str:
+    """A strong ETag that is a digest of ``parts``: nothing about them is readable from it.
+
+    For a resource whose revision is not a row's ``updated_at`` (a SPACE contract's
+    version, say), ``parts`` name the kind, the resource and that revision.
+    """
+
+    digest = hashlib.sha256(":".join(str(part) for part in parts).encode()).hexdigest()
     return f'"{digest[:32]}"'
 
 
@@ -128,6 +138,36 @@ def precondition(row: Any, if_match: str | None) -> None:
             "The resource changed since it was read; fetch it again and retry.",
             headers={"ETag": current},
         )
+
+
+def names(tags: list[str] | None) -> bool:
+    """Whether parsed ``If-Match`` tags name a revision: present, and not the wildcard."""
+
+    return tags is not None and "*" not in tags
+
+
+def precondition_failed(current: str | None) -> HTTPException:
+    """The 412 of an ``If-Match`` that does not name ``current``, which it carries as ``ETag`` (if any)."""
+
+    return api_error(
+        status.HTTP_412_PRECONDITION_FAILED,
+        "precondition_failed",
+        "The resource changed since it was read; fetch it again and retry.",
+        headers={"ETag": current} if current else None,
+    )
+
+
+def check(tags: list[str] | None, current: str | None) -> None:
+    """Refuse parsed ``If-Match`` tags that do not name ``current``, an ETag the caller computed.
+
+    For a resource whose revision is not a row (see ``opaque_etag``). Absent and
+    ``*`` pass: the caller has read the resource, so it exists. ``current`` is
+    ``None`` when the resource keeps no revision; no tag names that, and the 412
+    then carries no ``ETag``.
+    """
+
+    if names(tags) and (current is None or current not in tags):
+        raise precondition_failed(current)
 
 
 async def guard(session: AsyncSession, row: Any, if_match: str | None) -> None:

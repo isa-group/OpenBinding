@@ -8,6 +8,11 @@ on it below is closed before it is awaited. A client upgrade that renames or
 reshapes a name the gateway relies on fails here first. The pricing fixture
 (``fixtures/pricing``) is checked against the docs pricing it was derived from.
 
+The guarded novation (``SpacePricingGate._novate``) adds the capability check, the
+dry run, the conditional write and their errors; the capability tokens themselves
+are wire protocol, exercised through the real client in
+``test_space_guarded_novation.py``.
+
 Limit: event registration cannot be observed through the public API (``on`` ignores
 an unknown event name silently and the callbacks are private state), so the event
 names are checked against ``SpaceEvent`` and ``on`` is only shown to accept them.
@@ -26,7 +31,14 @@ import pytest
 import yaml
 from _repo import REPO_ROOT
 
-from space_client import AsyncSpaceClient, SpaceClientFactory, SpaceConnectionOptions, SpaceError
+from space_client import (
+    AsyncSpaceClient,
+    ContractChangedError,
+    SpaceClientFactory,
+    SpaceConnectionOptions,
+    SpaceError,
+    SpaceFeatureUnsupportedError,
+)
 from space_client.modules import contract_module, feature_module
 from space_client.types.models import (
     BillingPeriod,
@@ -34,6 +46,8 @@ from space_client.types.models import (
     Contract,
     ContractToCreate,
     FeatureEvaluationResult,
+    NovationError,
+    NovationPreview,
     Subscription,
     UsageLevel,
     UserContact,
@@ -200,8 +214,66 @@ def test_contract_fields_the_gateway_reads():
         "subscription_plans",
         "subscription_add_ons",
         "billing_period",
+        "contract_version",
     }
     assert "end_date" in _field_names(BillingPeriod)
+
+
+# -- The guarded novation (1.1.0) ----------------------------------------------
+
+
+def test_guarded_novation_signatures():
+    contracts = contract_module.AsyncContractModule
+    _bind(AsyncSpaceClient.has_capability, None, "contract-version")
+    assert inspect.iscoroutinefunction(AsyncSpaceClient.has_capability)
+    _bind(contracts.preview_novation, None, "u", _subscription(), keep_billing_period=True)
+    _bind(
+        contracts.update_contract_subscription,
+        None,
+        "u",
+        _subscription(),
+        expected_contract_version="v1",
+        keep_billing_period=True,
+    )
+    # The gateway never asks SPACE to refuse private plans: the option stays at its default.
+    for method in (contracts.preview_novation, contracts.update_contract_subscription):
+        assert inspect.signature(method).parameters["reject_private"].default is False
+
+
+def test_guarded_novation_calls_hand_back_awaitables(client):
+    calls = (
+        client.has_capability("contract-version"),
+        client.contracts.preview_novation("user", _subscription(), keep_billing_period=True),
+        client.contracts.update_contract_subscription(
+            "user", _subscription(), expected_contract_version="v1", keep_billing_period=True
+        ),
+    )
+    try:
+        assert all(inspect.isawaitable(call) for call in calls)
+    finally:
+        for call in calls:
+            if inspect.iscoroutine(call):
+                call.close()  # never awaited, so nothing is sent
+
+
+def test_guarded_novation_results_and_errors_the_gateway_reads():
+    # The dry run: ``valid``, the refusals' ``code``/``message``, and the version to send.
+    assert _field_names(NovationPreview) >= {"valid", "errors", "contract_version"}
+    assert _field_names(NovationError) >= {"code", "message"}
+    # ``_call`` maps ContractChangedError by type, ahead of the SpaceError it also is.
+    assert issubclass(ContractChangedError, SpaceError)
+    changed = ContractChangedError(
+        412, "PUT", "/contracts/u", user_id="u", expected_contract_version="v1", contract_version="v2"
+    )
+    assert (changed.expected_contract_version, changed.contract_version) == ("v1", "v2")
+    # ``_put`` reports a guarantee dropped after writing (``written``) as the change it is.
+    assert issubclass(SpaceFeatureUnsupportedError, SpaceError)
+    unsupported = SpaceFeatureUnsupportedError("contract-version", written=True, contract=None)
+    assert (unsupported.capability, unsupported.written, unsupported.contract) == (
+        "contract-version",
+        True,
+        None,
+    )
 
 
 def test_m4_2_names_are_available():

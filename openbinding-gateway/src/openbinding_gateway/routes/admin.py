@@ -20,13 +20,14 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.contracts import live_pricing_version
 from ..access.dependencies import require_admin, session_dependency
+from ..core import revision
 from ..core.like import LIKE_ESCAPE, like_contains
 from ..core.settings import Settings, get_settings
 from ..db.models import (
@@ -70,12 +71,23 @@ from ..models.accounts import (
 from ..models.errors import (
     FORBIDDEN_RESPONSE,
     NOT_FOUND_RESPONSE,
+    SUBSCRIPTION_CONFLICT_RESPONSE,
     UNAUTHORIZED_RESPONSE,
     UNAVAILABLE_RESPONSE,
     api_error,
 )
-from ..core.public_errors import invalid_subscription_error, pricing_unavailable_error
-from ..space_client import PricingUnavailable, SubscriptionRejected, get_gate
+from ..core.public_errors import (
+    contract_changed_error,
+    invalid_subscription_error,
+    pricing_unavailable_error,
+)
+from ..space_client import (
+    ContractChanged,
+    PricingUnavailable,
+    SubscriptionRejected,
+    SubscriptionSnapshot,
+    get_gate,
+)
 from ..mailer import send_mail
 from .users import cas_verified_ids, usage_view_for
 
@@ -312,21 +324,31 @@ async def update_user(
     response_model=AdminUserView,
     operation_id="adminChangePlan",
     summary="Move an account onto another plan",
-    responses={404: NOT_FOUND_RESPONSE, 503: UNAVAILABLE_RESPONSE},
+    responses={
+        404: NOT_FOUND_RESPONSE,
+        409: SUBSCRIPTION_CONFLICT_RESPONSE,
+        503: UNAVAILABLE_RESPONSE,
+        **revision.EDIT_RESPONSES,
+    },
 )
 async def change_plan(
     user_id: uuid.UUID,
     request: ChangePlanRequest,
+    response: Response,
     administrator: User = Depends(require_admin),
     session: AsyncSession = Depends(session_dependency, scope="function"),
+    if_match: str | None = revision.IF_MATCH_HEADER,
 ) -> AdminUserView:
     """Perform the novation, then update what the interface displays.
 
     In that order, and it matters: the contract is what decides what a request
     may do, and the column here only decides what a list looks like. If the
-    novation fails, nothing should claim it succeeded.
+    novation fails, nothing should claim it succeeded. The add-ons are kept.
+    ``If-Match`` and the ``ETag`` are the subscription's, as in
+    ``adminGetSubscription``.
     """
     user = await _user_or_404(session, user_id)
+    tags = revision.parse_if_match(if_match)
     try:
         current = await get_gate().subscription(user.id)
     except PricingUnavailable as error:
@@ -334,12 +356,16 @@ async def change_plan(
     result = await _apply_subscription(
         user,
         request.plan,
+        # The add-ons carried over come from this read, so the change is computed on it.
         current.add_ons,
         "administrative_decision",
         None,
         administrator,
         session,
         get_settings(),
+        response,
+        before=current,
+        if_match=tags,
     )
     return result.user
 
@@ -375,21 +401,48 @@ async def _apply_subscription(
     administrator: User,
     session: AsyncSession,
     settings: Settings,
+    response: Response,
+    *,
+    before: SubscriptionSnapshot | None = None,
+    if_match: list[str] | None = None,
 ) -> AdminSubscriptionView:
-    await _assert_research_identity(session, user, plan)
+    """Novate the contract to ``plan`` and ``add_ons``, decided on ``before`` (read here if not given).
+
+    ``if_match`` are the parsed ``If-Match`` tags. A tag that does not name the
+    subscription read is ``412 precondition_failed`` before anything that depends
+    on stored state, as on every conditional write (docs/ERRORS.md). The novation
+    is applied only to the contract version that read saw: a contract that moved
+    while the change was being applied is that same ``412`` when a tag named the
+    version, and ``409 contract_changed`` otherwise. Either way nothing was written.
+    """
     gate = get_gate()
     try:
-        before = await gate.subscription(user.id)
+        if before is None:
+            before = await gate.subscription(user.id)
+        revision.check(if_match, _subscription_etag(user, before))
+        await _assert_research_identity(session, user, plan)
         # The version is SPACE_PRICING_VERSION when configured; otherwise the
         # contract keeps the one it is pinned to. SPACE validates the novation.
         target_version = live_pricing_version(settings) or before.pricing_version
         configuration_changed = before.plan != plan or before.add_ons != add_ons
         version_changed = before.pricing_version != target_version
+        # The change, and the "previous" this records, are computed on ``before``:
+        # a contract that has moved since is refused rather than overwritten.
         after = (
-            await gate.change_subscription(user.id, plan, add_ons, target_version)
+            await gate.change_subscription(
+                user.id,
+                plan,
+                add_ons,
+                target_version,
+                expected_contract_version=before.contract_version,
+            )
             if configuration_changed or version_changed
             else before
         )
+    except ContractChanged as error:
+        if revision.names(if_match):
+            raise await _precondition_failed_now(user) from error
+        raise contract_changed_error(error, where="admin novation") from error
     except SubscriptionRejected as error:
         raise invalid_subscription_error(error, where="admin novation") from error
     except PricingUnavailable as error:
@@ -427,40 +480,78 @@ async def _apply_subscription(
         if (user.preferences or {}).get("email_contract_changes", True):
             await send_mail(settings, user.email, subject, body)
     await session.flush()
+    _set_subscription_etag(response, user, after)
     return AdminSubscriptionView(
         user=_admin_user_view(user, after.plan, user.id in await cas_verified_ids(session, [user.id])),
-        subscription=ContractSubscriptionView(
-            plan=after.plan,
-            add_ons=after.add_ons,
-            pricing_version=after.pricing_version,
-            renews_at=after.renews_at,
-        ),
+        subscription=_subscription_view(after),
         changed=configuration_changed,
     )
+
+
+def _subscription_view(snapshot: SubscriptionSnapshot) -> ContractSubscriptionView:
+    return ContractSubscriptionView(
+        plan=snapshot.plan,
+        add_ons=snapshot.add_ons,
+        pricing_version=snapshot.pricing_version,
+        renews_at=snapshot.renews_at,
+    )
+
+
+def _subscription_etag(user: User, snapshot: SubscriptionSnapshot) -> str | None:
+    """The ``ETag`` of an account's subscription: a digest of SPACE's contract version.
+
+    ``None`` when SPACE keeps no contract versions: there is then no revision to
+    send back, and an ``If-Match`` naming one is a 412.
+    """
+    if not snapshot.contract_version:
+        return None
+    return revision.opaque_etag("contract", user.id, snapshot.contract_version)
+
+
+def _set_subscription_etag(response: Response, user: User, snapshot: SubscriptionSnapshot) -> None:
+    etag = _subscription_etag(user, snapshot)
+    if etag:
+        response.headers["ETag"] = etag
+
+
+async def _precondition_failed_now(user: User) -> HTTPException:
+    """The 412 of a tag that held when the subscription was read but not when it was written.
+
+    It carries the ``ETag`` of the subscription as it is now, read again; none
+    if that read fails, since the refusal itself does not depend on it.
+    """
+    try:
+        current = _subscription_etag(user, await get_gate().subscription(user.id))
+    except PricingUnavailable:
+        current = None
+    return revision.precondition_failed(current)
 
 
 @router.get(
     "/users/{user_id}/subscription",
     response_model=AdminSubscriptionView,
     operation_id="adminGetSubscription",
+    responses={404: NOT_FOUND_RESPONSE, 503: UNAVAILABLE_RESPONSE, **revision.ETAG_RESPONSE},
 )
 async def get_subscription(
     user_id: uuid.UUID,
+    response: Response,
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> AdminSubscriptionView:
+    """The plan, add-ons and pricing version of an account's contract.
+
+    The ``ETag`` is the contract's revision (absent when SPACE keeps none): send it
+    back as ``If-Match`` with a change decided on this view.
+    """
     user = await _user_or_404(session, user_id)
     try:
         current = await get_gate().subscription(user.id)
     except PricingUnavailable as error:
         raise pricing_unavailable_error(error, where="admin subscription read") from error
+    _set_subscription_etag(response, user, current)
     return AdminSubscriptionView(
         user=_admin_user_view(user, current.plan, user.id in await cas_verified_ids(session, [user.id])),
-        subscription=ContractSubscriptionView(
-            plan=current.plan,
-            add_ons=current.add_ons,
-            pricing_version=current.pricing_version,
-            renews_at=current.renews_at,
-        ),
+        subscription=_subscription_view(current),
         changed=False,
     )
 
@@ -469,15 +560,29 @@ async def get_subscription(
     "/users/{user_id}/subscription",
     response_model=AdminSubscriptionView,
     operation_id="adminChangeSubscription",
+    responses={
+        404: NOT_FOUND_RESPONSE,
+        409: SUBSCRIPTION_CONFLICT_RESPONSE,
+        503: UNAVAILABLE_RESPONSE,
+        **revision.EDIT_RESPONSES,
+    },
 )
 async def change_subscription(
     user_id: uuid.UUID,
     request: ChangeSubscriptionRequest,
+    response: Response,
     administrator: User = Depends(require_admin),
     session: AsyncSession = Depends(session_dependency, scope="function"),
     settings: Settings = Depends(get_settings),
+    if_match: str | None = revision.IF_MATCH_HEADER,
 ) -> AdminSubscriptionView:
+    """An audited agreement: the plan and add-ons the contract is novated to.
+
+    ``If-Match`` takes the ``ETag`` of ``adminGetSubscription``; the answer carries
+    the new one.
+    """
     user = await _user_or_404(session, user_id)
+    tags = revision.parse_if_match(if_match)
     return await _apply_subscription(
         user,
         request.plan,
@@ -487,6 +592,8 @@ async def change_subscription(
         administrator,
         session,
         settings,
+        response,
+        if_match=tags,
     )
 
 

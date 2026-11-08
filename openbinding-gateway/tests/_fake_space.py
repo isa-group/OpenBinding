@@ -21,6 +21,7 @@ from typing import Any, Dict, Optional
 import yaml
 
 from openbinding_gateway.space_client import (
+    ContractChanged,
     PlanCaps,
     PricingUnavailable,
     SubscriptionRejected,
@@ -206,7 +207,12 @@ class PricingCatalog:
 class FakePricingGate:
     """Exercise plan entitlements without a SPACE instance.
 
-    Keeps contracts only: no consumption state of any kind.
+    Keeps contracts only: no consumption state of any kind. Like a SPACE with
+    ``contract-version``, every contract has a version that each novation moves,
+    and a novation that names an ``expected_contract_version`` other than the
+    current one is refused with ``ContractChanged``; ``touch`` stands for a
+    change made by somebody else (a renewal, another administrator). Like the
+    gateway's own novations, a change keeps the current billing period.
     """
 
     def __init__(self, catalog: PricingCatalog | None = None):
@@ -217,6 +223,7 @@ class FakePricingGate:
         self.versions: Dict[uuid.UUID, str] = {}
         self.add_ons: Dict[uuid.UUID, Dict[str, int]] = {}
         self.renews_at: Dict[uuid.UUID, datetime] = {}
+        self.contract_versions: Dict[uuid.UUID, int] = {}
         self.unavailable = False
 
     def _check_available(self) -> PricingCatalog:
@@ -229,6 +236,13 @@ class FakePricingGate:
     def plan_of(self, user_id: uuid.UUID) -> str:
         self._check_available()
         return self.plans.get(user_id, self.default_plan)
+
+    def contract_version_of(self, user_id: uuid.UUID) -> str:
+        return f"v{self.contract_versions.get(user_id, 1)}"
+
+    def touch(self, user_id: uuid.UUID) -> None:
+        """The contract changed, so its version moves on; tests call it for somebody else's change."""
+        self.contract_versions[user_id] = self.contract_versions.get(user_id, 1) + 1
 
     def _entitlements(self, user_id: uuid.UUID) -> tuple[dict[str, bool], dict[str, float]]:
         catalog = self._check_available()
@@ -262,11 +276,22 @@ class FakePricingGate:
         self.versions[user_id] = catalog.version
         self.add_ons[user_id] = {}
         self.renews_at[user_id] = datetime.now(timezone.utc) + timedelta(days=30)
+        self.contract_versions[user_id] = 1
 
     async def change_plan(
-        self, user_id: uuid.UUID, plan: str, pricing_version: Optional[str] = None
+        self,
+        user_id: uuid.UUID,
+        plan: str,
+        pricing_version: Optional[str] = None,
+        expected_contract_version: Optional[str] = None,
     ) -> None:
-        await self.change_subscription(user_id, plan, self.add_ons.get(user_id, {}), pricing_version)
+        await self.change_subscription(
+            user_id,
+            plan,
+            self.add_ons.get(user_id, {}),
+            pricing_version,
+            expected_contract_version or self.contract_version_of(user_id),
+        )
 
     async def subscription(self, user_id: uuid.UUID) -> SubscriptionSnapshot:
         catalog = self._check_available()
@@ -275,6 +300,7 @@ class FakePricingGate:
             pricing_version=self.versions.get(user_id, catalog.version),
             add_ons=dict(self.add_ons.get(user_id, {})),
             renews_at=self.renews_at.get(user_id, datetime.now(timezone.utc)).isoformat(),
+            contract_version=self.contract_version_of(user_id),
         )
 
     async def change_subscription(
@@ -283,6 +309,7 @@ class FakePricingGate:
         plan: str,
         add_ons: Dict[str, int],
         pricing_version: Optional[str] = None,
+        expected_contract_version: Optional[str] = None,
     ) -> SubscriptionSnapshot:
         catalog = self._check_available()
         if pricing_version is not None and pricing_version != catalog.version:
@@ -291,10 +318,16 @@ class FakePricingGate:
             selected = catalog.validate_selection(plan, add_ons)
         except PricingCatalogError as exc:
             raise SubscriptionRejected(str(exc)) from exc
+        current = self.contract_version_of(user_id)
+        if expected_contract_version is not None and expected_contract_version != current:
+            raise ContractChanged(
+                f"expected contract version {expected_contract_version}, current {current}"
+            )
         self.plans[user_id] = plan
         self.add_ons[user_id] = selected
         self.versions[user_id] = catalog.version
-        self.renews_at[user_id] = datetime.now(timezone.utc) + timedelta(days=30)
+        self.renews_at.setdefault(user_id, datetime.now(timezone.utc) + timedelta(days=30))
+        self.touch(user_id)
         return await self.subscription(user_id)
 
     async def pricing_token(self, user_id: uuid.UUID) -> str:

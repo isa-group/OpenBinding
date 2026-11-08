@@ -569,6 +569,89 @@ async def test_unlinking_keeps_its_logic_and_a_later_relink_reports_the_change_a
     assert relinked["plan_changed"] == {"from": DEFAULT_PLAN, "to": "RESEARCH", "extra_cost": False}
 
 
+# -- A contract that moves under the automatic plan change -------------------------
+#
+# The upgrade and the downgrade follow a rule, so when the contract changed between
+# the read the rule looked at and the novation (the fake gate refuses it, as SPACE
+# does), the rule looks again, once, at the contract as it is now.
+
+
+def changed_meanwhile(monkeypatch, gate, user_id, *, times: int = 1, to_plan: str | None = None):
+    """The next ``times`` novations of ``user_id`` find the contract changed by somebody else."""
+    applying = gate.change_subscription
+    remaining = [times]
+
+    async def change_subscription(target, *args, **kwargs):
+        if target == user_id and remaining[0] > 0:
+            remaining[0] -= 1
+            if to_plan is not None:
+                gate.plans[user_id] = to_plan
+            gate.touch(user_id)
+        return await applying(target, *args, **kwargs)
+
+    monkeypatch.setattr(gate, "change_subscription", change_subscription)
+
+
+async def test_a_renewal_during_the_upgrade_is_looked_at_again_and_the_upgrade_made(
+    api_client, registration, cas_environment, monkeypatch
+):
+    profile, headers = await account(api_client, registration)
+    changed_meanwhile(monkeypatch, cas_environment, uuid.UUID(profile["id"]))
+
+    response = await link(api_client, headers, monkeypatch, "uvus-renewed")
+    session = await exchange(api_client, response)
+
+    assert query_of(response)["plan_changed"] == "RESEARCH"
+    assert session["plan_changed"] == {"from": DEFAULT_PLAN, "to": "RESEARCH", "extra_cost": False}
+    assert cas_environment.plans[uuid.UUID(profile["id"])] == "RESEARCH"
+
+
+async def test_a_plan_an_administrator_gave_during_the_upgrade_is_kept(
+    api_client, registration, cas_environment, monkeypatch
+):
+    profile, headers = await account(api_client, registration)
+    changed_meanwhile(monkeypatch, cas_environment, uuid.UUID(profile["id"]), to_plan=largest_plan())
+
+    response = await link(api_client, headers, monkeypatch, "uvus-moved")
+    session = await exchange(api_client, response)
+
+    assert "plan_changed" not in query_of(response)
+    assert session["plan_changed"] is None
+    assert cas_environment.plans[uuid.UUID(profile["id"])] == largest_plan()
+
+
+async def test_a_contract_that_keeps_changing_redirects_with_pricing_unavailable(
+    api_client, registration, cas_environment, monkeypatch
+):
+    profile, headers = await account(api_client, registration)
+    changed_meanwhile(monkeypatch, cas_environment, uuid.UUID(profile["id"]), times=2)
+
+    response = await link(api_client, headers, monkeypatch, "uvus-busy")
+
+    assert query_of(response) == {"error": "pricing_unavailable"}
+    assert cas_environment.plans.get(uuid.UUID(profile["id"]), DEFAULT_PLAN) == DEFAULT_PLAN
+
+
+async def test_unlinking_leaves_a_plan_given_meanwhile_and_downgrades_only_research(
+    api_client, registration, cas_environment, monkeypatch
+):
+    profile, headers = await account(api_client, registration)
+    user_id = uuid.UUID(profile["id"])
+    session = await exchange(api_client, await link(api_client, headers, monkeypatch, "uvus-leaving"))
+    session_headers = {"Authorization": f"Bearer {session['access_token']}"}
+    identity_id = (await api_client.get("/v1/users/me/identities", headers=session_headers)).json()[0]["id"]
+    changed_meanwhile(monkeypatch, cas_environment, user_id, to_plan=largest_plan())
+
+    removed = await api_client.delete(
+        f"/v1/users/me/identities/{identity_id}",
+        headers=session_headers,
+        params={"confirmation": "DOWNGRADE RESEARCH"},
+    )
+
+    assert removed.status_code == 204, removed.text
+    assert cas_environment.plans[user_id] == largest_plan()
+
+
 def test_the_openapi_document_describes_plan_changed():
     schemas = app.openapi()["components"]["schemas"]
 

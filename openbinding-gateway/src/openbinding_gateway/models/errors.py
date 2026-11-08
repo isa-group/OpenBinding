@@ -128,6 +128,15 @@ UNAVAILABLE_RESPONSE = {
     "model": ErrorResponse,
     "description": "A service the gateway depends on is not reachable.",
 }
+SUBSCRIPTION_CONFLICT_RESPONSE = {
+    "model": ErrorResponse,
+    "description": (
+        "`contract_changed`: the contract changed while the gateway was applying this change "
+        "(another administrator, a renewal), and nothing changed. Read the subscription again and "
+        "decide again; a request whose `If-Match` named a revision gets `412 precondition_failed` instead. "
+        "`research_requires_us_cas`: RESEARCH needs a verified Universidad de Sevilla CAS identity."
+    ),
+}
 QUOTA_RESPONSE = {
     "model": QuotaErrorResponse,
     "description": (
