@@ -75,6 +75,13 @@ export function describeAdminFailure(error: unknown, what: string): Failure {
       return { status, code, tone: 'error', quota, title: withCode('Over a limit'), text: reason || 'A limit would be passed.' };
     case 409:
       return { status, code, tone: 'error', quota, title: withCode('The gateway refused the change'), text: reason || 'The change conflicts with the current state.' };
+    case 412:
+      // The gateway's sentence says to fetch and retry; here a person decides again on what is read, so it says that instead.
+      return {
+        status, code, tone: 'error', quota,
+        title: withCode('Changed since it was read'),
+        text: 'It changed after this screen read it, so nothing was changed. Read it again before you decide.',
+      };
     case 422: {
       // The problem's `detail` is one summary sentence; its diagnostics say which fields (pointers into the document) are wrong.
       const findings = diagnosticsOf(error).map((diagnostic) => (diagnostic.pointer ? `${diagnostic.pointer}: ${diagnostic.message}` : diagnostic.message));
@@ -90,6 +97,16 @@ export function describeAdminFailure(error: unknown, what: string): Failure {
     default:
       return { status, code, tone: 'error', quota, title: what, text: reason || 'Try again; if it keeps failing, check the gateway.' };
   }
+}
+
+/**
+ * Whether a change of a subscription was refused because the subscription had moved since it was read: 412 when the change named
+ * the revision it was decided on, `409 contract_changed` when it named none and the contract moved while the change was applied.
+ * Nothing was written either way. What is left is to read the subscription again and decide again
+ * (docs/ACCOUNTS_AND_PLANS.md, “A change decided on an outdated contract is refused”).
+ */
+export function isOutdatedChange(failure: Pick<Failure, 'status' | 'code'>): boolean {
+  return failure.status === 412 || (failure.status === 409 && failure.code === 'contract_changed');
 }
 
 /**

@@ -260,7 +260,10 @@ The gateway uses SPACE's optimistic concurrency against that
   `research_requires_us_cas`.)
 - Without `If-Match` the change is computed on the contract as the gateway reads
   it, so only a change landing during the request itself is caught: a screen
-  that wants its own reading protected sends the `ETag` it was given.
+  that wants its own reading protected sends the `ETag` it was given. The
+  administrator's agreement screen does. When such a change is refused it says
+  so in the review, reads the subscription again and draws the review again from
+  it, and nothing is sent again until the administrator confirms.
 
 Every novation keeps the current billing period (`keep_billing_period`).
 OpenBinding charges nothing, so a plan change, or a novation that only moves the

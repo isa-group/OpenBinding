@@ -3,8 +3,8 @@ import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { catalogFixture } from '../Pricing/pricingFixture';
 import {
-  ageLabel, agreementIssues, auditFamily, compareLimits, contractSelection, describeAdminFailure, describeAuditEvent, errorMeaning, groupErrors, humanize, limitsOf,
-  planTone, readContractCatalog, readErrorEvent, shortId, statusTone, type ContractCatalog,
+  ageLabel, agreementIssues, auditFamily, compareLimits, contractSelection, describeAdminFailure, describeAuditEvent, errorMeaning, groupErrors, humanize,
+  isOutdatedChange, limitsOf, planTone, readContractCatalog, readErrorEvent, shortId, statusTone, type ContractCatalog,
 } from './adminModel';
 import { AUDIT, ERROR_EVENTS, SAM } from '../../test/fixtures/admin';
 
@@ -51,6 +51,37 @@ describe('describeAdminFailure', () => {
     expect(failure.status).toBeNull();
     expect(failure.title).toBe('The accounts couldn’t be loaded');
     expect(failure.text).toBe('boom');
+  });
+
+  it('says that a write on an outdated reading (412) changed nothing, and asks for a new reading rather than a retry', () => {
+    const error = new HttpError(412, 'The resource changed since it was read; fetch it again and retry.');
+    error.code = 'precondition_failed';
+    const failure = describeAdminFailure(error, 'ignored');
+    expect(failure).toMatchObject({ status: 412, code: 'precondition_failed', tone: 'error', title: 'Changed since it was read (412 · precondition_failed)' });
+    expect(failure.text).toBe('It changed after this screen read it, so nothing was changed. Read it again before you decide.');
+    expect(failure.text).not.toMatch(/retry/i);
+  });
+});
+
+describe('a change decided on an outdated subscription', () => {
+  const failureOf = (status: number, code?: string) => {
+    const error = new HttpError(status, 'refused');
+    if (code) error.code = code;
+    return describeAdminFailure(error, 'ignored');
+  };
+
+  it('is the 412 of a stale revision, or the 409 of a contract that moved while the change was applied', () => {
+    expect(isOutdatedChange(failureOf(412, 'precondition_failed'))).toBe(true);
+    expect(isOutdatedChange(failureOf(412))).toBe(true);
+    expect(isOutdatedChange(failureOf(409, 'contract_changed'))).toBe(true);
+  });
+
+  it('is no other refusal, not even another 409', () => {
+    expect(isOutdatedChange(failureOf(409, 'research_requires_us_cas'))).toBe(false);
+    expect(isOutdatedChange(failureOf(409))).toBe(false);
+    expect(isOutdatedChange(failureOf(422, 'invalid_subscription'))).toBe(false);
+    expect(isOutdatedChange(describeAdminFailure(new PricingUnavailableError('down'), 'ignored'))).toBe(false);
+    expect(isOutdatedChange(describeAdminFailure(new Error('offline'), 'ignored'))).toBe(false);
   });
 });
 

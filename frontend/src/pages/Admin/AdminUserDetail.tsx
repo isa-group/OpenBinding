@@ -20,7 +20,10 @@ interface Message {
   text: string;
 }
 
-/** An address names the account by its id, or by its username or email: the gateway’s own identifier is the id. */
+/**
+ * An address names the account by its id, or by its username or email: the gateway’s own identifier is the id. The account comes
+ * with the revision of its subscription, which a change decided on this reading sends back.
+ */
 async function loadAccount(param: string) {
   let id = param;
   if (!UUID.test(param)) {
@@ -105,7 +108,9 @@ function DetailScreen({ param }: { param: string }) {
   const [message, setMessage] = useState<Message | null>(null);
   const account = useResource(`admin-account:${param}`, () => loadAccount(param));
   const pricing = useResource('admin-pricing-catalog', loadCatalog);
-  const view = account.data ?? account.stale;
+  // The view and its revision come from the same answer, so a change is never sent with the revision of another reading.
+  const read = account.data ?? account.stale;
+  const view = read?.value;
   const failure: Failure | null = account.status === 'error' ? describeAdminFailure(account.error, 'The account couldn’t be read') : null;
   const catalogFailure = pricing.status === 'error' ? describeAdminFailure(pricing.error, 'The pricing couldn’t be read') : null;
   const catalog = (pricing.data ?? pricing.stale)?.catalog ?? null;
@@ -120,6 +125,13 @@ function DetailScreen({ param }: { param: string }) {
         ? `Agreement updated for ${name} (${result.reason}). ${name} now uses ${result.plan}; the account was notified and the change is in the audit log.`
         : 'No contract values changed, so no notification was sent.',
     });
+    account.reload();
+  };
+
+  // A change decided on a subscription that has moved since: the card says so. What an earlier change left is no longer what the
+  // account has, so its message goes, and the subscription is read again for the review to be drawn from.
+  const outdated = () => {
+    setMessage(null);
     account.reload();
   };
 
@@ -170,15 +182,18 @@ function DetailScreen({ param }: { param: string }) {
         <Fact label="Account id"><CopyButton value={user.id} label="account id" /></Fact>
       </dl>
 
+      {/* Not remounted when the subscription is read again: a review that was open is drawn again from the new reading. */}
       <AgreementCard
-        key={`${subscription.plan}:${JSON.stringify(subscription.add_ons)}:${subscription.pricing_version}`}
         view={view}
+        revision={read?.etag ?? null}
+        reading={account.status === 'loading'}
         catalog={catalog}
         pricing={pricingDocument}
         catalogFailure={catalogFailure}
         catalogLoading={pricing.status === 'loading' && !pricing.stale}
         current={current}
         onApplied={applied}
+        onOutdated={outdated}
       />
 
       <div className="adm-grid">
