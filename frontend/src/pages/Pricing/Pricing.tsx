@@ -1,7 +1,7 @@
 import { lazy, Suspense, useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, ChevronDown, ChevronUp, FileText, Minus, MoveRight } from 'lucide-react';
-import { Default, ErrorFallback, Feature, Loading, On } from 'space-react-client';
+import { Default, ErrorFallback, Feature, Loading, On, useSubscription } from 'space-react-client';
 import { apiClient } from '../../api/client';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
@@ -16,7 +16,7 @@ import { usePricingTokenStatus } from '../../utils/pricingToken';
 import { safeExternalHref } from '../../utils/url';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError } from '../Auth/authErrors';
-import { readCatalog, type Cell, type PlanColumn, type PricingView, type RowGroup } from './pricingModel';
+import { currentSelectionOf, readCatalog, type Cell, type PlanColumn, type PricingView, type RowGroup } from './pricingModel';
 import './Pricing.css';
 
 const PricingDocument = lazy(() => import('./PricingDocument'));
@@ -88,9 +88,8 @@ function planCta(plan: PlanColumn, signedIn: boolean, current: boolean, onContac
   return null;
 }
 
-function Matrix({ view, highlight, plan }: { view: PricingView; highlight: string; plan: string | null }) {
+function Matrix({ view, highlight, plan, onContact }: { view: PricingView; highlight: string; plan: string | null; onContact: (plan: string) => void }) {
   const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
-  const [contactPlan, setContactPlan] = useState<string | null>(null);
   const columns = view.plans.length;
 
   const isOpen = (group: RowGroup, index: number) => openByDefault(group.id, index) !== toggled.has(group.id);
@@ -102,79 +101,76 @@ function Matrix({ view, highlight, plan }: { view: PricingView; highlight: strin
   const highlightIndex = highlight === 'all' ? -1 : view.plans.findIndex((item) => item.id === highlight);
 
   return (
-    <>
-      <div className="pricing-scroller">
-        <div className="pricing-matrix" style={{ '--pricing-columns': columns } as CSSProperties}>
-          <div className="pricing-plans" role="list" aria-label="Plans">
-            <span aria-hidden="true" />
-            {view.plans.map((item, index) => {
-              const current = plan === item.id;
-              return (
-                <div key={item.id} role="listitem" className="pricing-plan">
-                  <div className={`pricing-plan-tile is-tone-${index % 4}${highlightIndex === index ? ' is-picked' : ''}`}>
-                    <span className="pricing-plan-name">{item.id}</span>
-                    <span className="pricing-plan-price">{item.priceLabel}</span>
-                    <span className="pricing-plan-unit">{item.unitLabel}</span>
-                  </div>
-                  <span className="pricing-plan-desc">{item.description}</span>
-                  {current && <Chip tone="accent">Your current plan</Chip>}
-                  {planCta(item, plan !== null, current, setContactPlan)}
-                </div>
-              );
-            })}
-          </div>
-
-          {view.groups.map((group, groupIndex) => {
-            const open = isOpen(group, groupIndex);
-            const panelId = `pricing-group-${group.id}`;
+    <div className="pricing-scroller">
+      <div className="pricing-matrix" style={{ '--pricing-columns': columns } as CSSProperties}>
+        <div className="pricing-plans" role="list" aria-label="Plans">
+          <span aria-hidden="true" />
+          {view.plans.map((item, index) => {
+            const current = plan === item.id;
             return (
-              <section key={group.id} className="pricing-group">
-                <h3>
-                  <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => toggle(group.id)}>
-                    <span>{group.title} <span className="pricing-group-note">· {group.note}</span></span>
-                    {open ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
-                  </button>
-                </h3>
-                {open && (
-                  <table id={panelId} className="pricing-table">
-                    <caption className="sr-only">{group.title}: {group.note}</caption>
-                    <thead className="sr-only">
-                      <tr>
-                        <th scope="col">{group.title}</th>
-                        {view.plans.map((item) => <th key={item.id} scope="col">{item.id}</th>)}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {group.rows.map((row) => (
-                        <tr key={row.id}>
-                          <th scope="row">
-                            <span className="pricing-row-name">
-                              {row.name}
-                            </span>
-                            <span className="pricing-row-desc">{row.description}</span>
-                            {row.appliesTo.length > 0 && (
-                              <span className="pricing-affects">
-                                Applies to{row.appliesTo.map((name) => <span key={name} className="pricing-affects-chip">{name}</span>)}
-                              </span>
-                            )}
-                          </th>
-                          {row.cells.map((cell, index) => (
-                            <td key={view.plans[index].id} data-plan={view.plans[index].id} className={highlightIndex === index ? 'is-picked' : undefined} title={cell.kind === 'value' ? cell.exact : undefined}>
-                              <CellView cell={cell} />
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </section>
+              <div key={item.id} role="listitem" className="pricing-plan">
+                <div className={`pricing-plan-tile is-tone-${index % 4}${highlightIndex === index ? ' is-picked' : ''}`}>
+                  <span className="pricing-plan-name">{item.id}</span>
+                  <span className="pricing-plan-price">{item.priceLabel}</span>
+                  <span className="pricing-plan-unit">{item.unitLabel}</span>
+                </div>
+                <span className="pricing-plan-desc">{item.description}</span>
+                {current && <Chip tone="accent">Your current plan</Chip>}
+                {planCta(item, plan !== null, current, onContact)}
+              </div>
             );
           })}
         </div>
+
+        {view.groups.map((group, groupIndex) => {
+          const open = isOpen(group, groupIndex);
+          const panelId = `pricing-group-${group.id}`;
+          return (
+            <section key={group.id} className="pricing-group">
+              <h3>
+                <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => toggle(group.id)}>
+                  <span>{group.title} <span className="pricing-group-note">· {group.note}</span></span>
+                  {open ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
+                </button>
+              </h3>
+              {open && (
+                <table id={panelId} className="pricing-table">
+                  <caption className="sr-only">{group.title}: {group.note}</caption>
+                  <thead className="sr-only">
+                    <tr>
+                      <th scope="col">{group.title}</th>
+                      {view.plans.map((item) => <th key={item.id} scope="col">{item.id}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.rows.map((row) => (
+                      <tr key={row.id}>
+                        <th scope="row">
+                          <span className="pricing-row-name">
+                            {row.name}
+                          </span>
+                          <span className="pricing-row-desc">{row.description}</span>
+                          {row.appliesTo.length > 0 && (
+                            <span className="pricing-affects">
+                              Applies to{row.appliesTo.map((name) => <span key={name} className="pricing-affects-chip">{name}</span>)}
+                            </span>
+                          )}
+                        </th>
+                        {row.cells.map((cell, index) => (
+                          <td key={view.plans[index].id} data-plan={view.plans[index].id} className={highlightIndex === index ? 'is-picked' : undefined} title={cell.kind === 'value' ? cell.exact : undefined}>
+                            <CellView cell={cell} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </section>
+          );
+        })}
       </div>
-      {contactPlan && <ContactDialog plan={contactPlan} onClose={() => setContactPlan(null)} />}
-    </>
+    </div>
   );
 }
 
@@ -236,6 +232,8 @@ export function Pricing() {
   const current = useResource('pricing-current', () => apiClient.getCurrentPricing());
   const [highlight, setHighlight] = useState('all');
   const [showDocument, setShowDocument] = useState(false);
+  const [contactPlan, setContactPlan] = useState<string | null>(null);
+  const subscription = useSubscription();
 
   const view = useMemo(() => (catalog.data ? readCatalog(catalog.data) : null), [catalog.data]);
   const noRelease = current.status === 'error' && classifyAuthError(current.error).status === 404;
@@ -252,6 +250,14 @@ export function Pricing() {
   ], [view]);
 
   const withoutAddOns = (view?.plans ?? []).filter((item) => !(view?.addOns ?? []).some((addOn) => addOn.plans.includes(item.id))).map((item) => item.id);
+
+  // The full document marks what the account has and offers, on each plan, the action the comparison offers.
+  const service = view?.saasName.toLowerCase() ?? '';
+  const mine = useMemo(() => currentSelectionOf(plan, subscription, service), [plan, subscription, service]);
+  const planAction = (planId: string) => {
+    const column = view?.plans.find((item) => item.id === planId);
+    return column ? planCta(column, plan !== null, plan === planId, setContactPlan) : null;
+  };
 
   const retry = () => { catalog.reload(); current.reload(); };
 
@@ -302,7 +308,7 @@ export function Pricing() {
           <>
             <h2 className="sr-only">Compare plans</h2>
             <FilterPills options={pills} value={highlight} onChange={setHighlight} ariaLabel="Highlight a plan" />
-            <Matrix view={view} highlight={highlight} plan={plan} />
+            <Matrix view={view} highlight={highlight} plan={plan} onContact={setContactPlan} />
             <p className="pricing-legend">
               Rounded figures show the exact value underneath. Monthly limits renew each month; capacity limits are freed when
               work finishes; per-request ceilings apply to each run. Sponsored limits count across every organization a sponsor backs.
@@ -403,7 +409,7 @@ export function Pricing() {
               <div id="pricing-document-body">
                 {showDocument && (
                   <Suspense fallback={<Skeleton variant="panel" />}>
-                    <PricingDocument catalog={catalog.data} />
+                    <PricingDocument catalog={catalog.data} current={mine} planAction={planAction} />
                   </Suspense>
                 )}
               </div>
@@ -411,6 +417,7 @@ export function Pricing() {
           </>
         )}
       </div>
+      {contactPlan && <ContactDialog plan={contactPlan} onClose={() => setContactPlan(null)} />}
     </div>
   );
 }

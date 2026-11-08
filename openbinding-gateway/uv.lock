@@ -2053,15 +2053,15 @@ wheels = [
 
 [[package]]
 name = "space-python-client"
-version = "1.0.0"
+version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
     { name = "python-socketio" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/66/d9/0e35110da068b447fa9178b6aeb5fa984cc6322358ff072d7d5236d28e1c/space_python_client-1.0.0.tar.gz", hash = "sha256:14ecfd496c55a74e0b2af370da70e4fcf42478b8f71af3b8cc4565ccffce6dee", size = 48542, upload-time = "2026-07-31T11:26:47.17Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e0/ae/7b61e22693e47ec7804470d4889d2b4122f0cf47c9a71f52bb7a7b538fde/space_python_client-1.1.0.tar.gz", hash = "sha256:04b8edb4799a29b20c59fdbab1f8d6c39b354c28d55b8cfc0b8d547729223a91", size = 134963, upload-time = "2026-11-04T20:11:34.34Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/94/c3/60b2ddcdcb5983f56f42fcd874a505aaeab9a752f3b72faed52ad895efc5/space_python_client-1.0.0-py3-none-any.whl", hash = "sha256:9f07559050965c16382cf14050beef29d249fde49634c999b8fed00435876aae", size = 32067, upload-time = "2026-07-31T11:26:45.886Z" },
+    { url = "https://files.pythonhosted.org/packages/e8/e5/67e2361a4e31297e0eac21788ffe5f2c5c7e38f5d452d53616ddeddabeb0/space_python_client-1.1.0-py3-none-any.whl", hash = "sha256:5406f16ed01821de0142923d7c67830634b6d3d6f95697f69e49c3edf27ef8dc", size = 74213, upload-time = "2026-11-04T20:11:32.863Z" },
 ]
 
 [[package]]

@@ -27,10 +27,44 @@ const person = (plan: string): UserProfile => ({
   id: 'alice-id', username: 'alice', email: 'alice@example.test', role: 'user', plan, is_active: true, created_at: '2026-01-01T00:00:00Z',
 });
 
-function makeToken(features: Record<string, { eval: boolean }>): string {
+function makeToken(features: Record<string, { eval: boolean }>, claims: Record<string, unknown> = {}): string {
   const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({ sub: 'alice-id', exp: Math.floor(Date.now() / 1000) + 3600 * 24, features }));
+  const payload = btoa(JSON.stringify({ sub: 'alice-id', exp: Math.floor(Date.now() / 1000) + 3600 * 24, features, ...claims }));
   return `${header}.${payload}.mock-signature`;
+}
+
+type RendererProps = Record<string, unknown> & {
+  pricing: { plans?: Record<string, unknown> };
+  renderPlanCta: (context: { planId: string }) => ReactNode;
+  renderSummaryActions: () => ReactNode;
+};
+
+const renderer = vi.hoisted(() => ({ props: null as RendererProps | null }));
+
+// In jsdom the element never takes its properties (it stays on PR_SOURCE_MISSING), so its drawing is the e2e
+// specs' to check. This stand-in records what the page passes and draws the page's parts where the element
+// would: one call to action per plan card, then the summary actions.
+vi.mock('pricing-renderer/react', async () => {
+  const { createElement } = await import('react');
+  return {
+    PricingRenderer: (props: RendererProps) => {
+      renderer.props = props;
+      return createElement(
+        'div',
+        { 'data-testid': 'pricing-renderer' },
+        Object.keys(props.pricing.plans ?? {}).map((planId) =>
+          createElement('div', { key: planId, 'data-plan': planId }, props.renderPlanCta({ planId }))),
+        createElement('div', { 'data-testid': 'summary-actions' }, props.renderSummaryActions()),
+      );
+    },
+  };
+});
+
+/** Opens the full document and returns the actions it offers, by plan. */
+async function documentActions(): Promise<Record<string, HTMLElement>> {
+  fireEvent.click(await screen.findByRole('button', { name: 'Show the full pricing document' }));
+  const drawn = await screen.findByTestId('pricing-renderer');
+  return Object.fromEntries([...drawn.querySelectorAll<HTMLElement>('[data-plan]')].map((slot) => [slot.dataset.plan!, slot]));
 }
 
 function TokenUpdater({ token }: { token?: string }) {
@@ -61,6 +95,7 @@ describe('Pricing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     stored.token = null;
+    renderer.props = null;
     api.getPricingCatalog.mockResolvedValue(catalogFixture);
     api.getCurrentPricing.mockResolvedValue(CURRENT_FIXTURE);
   });
@@ -329,6 +364,46 @@ describe('Pricing', () => {
     expect(await screen.findByRole('button', { name: 'Hide the full pricing document' })).toHaveAttribute('aria-expanded', 'true');
     await waitFor(() => expect(document.querySelector('.pricing-renderer-shell')).not.toBeNull());
     expect(screen.getByRole('link', { name: 'SPHERE' })).toHaveAttribute('href', CURRENT_FIXTURE.url);
+  });
+
+  it('offers in the full document the actions of the comparison, under the page’s own title', async () => {
+    renderPricing();
+    await heading();
+    const actions = await documentActions();
+
+    expect(Object.fromEntries(Object.entries(actions).map(([plan, slot]) => [plan, slot.textContent]))).toEqual({
+      BASIC: 'Sign up', ADVANCED: 'Contact us', RESEARCH: 'Log in with CAS', PRO: 'Contact us',
+    });
+    expect(within(actions.BASIC).getByRole('link', { name: 'Sign up' })).toHaveAttribute('href', '/register');
+    expect(screen.getByTestId('summary-actions')).toBeEmptyDOMElement();
+    expect(renderer.props).toMatchObject({ hideSections: ['hero'], theme: 'light', currentSelection: undefined });
+    expect(renderer.props).not.toHaveProperty('pricingPath');
+
+    fireEvent.click(within(actions.PRO).getByRole('button', { name: 'Contact us' }));
+    expect(await screen.findByRole('dialog', { name: 'Ask about PRO' })).toBeInTheDocument();
+  });
+
+  it('marks in the full document the plan and add-ons of the account, and offers nothing on its own plan', async () => {
+    const token = makeToken({}, {
+      subscription: {
+        contractedServices: { openbinding: '0.1.0' },
+        subscriptionPlans: { openbinding: 'PRO' },
+        subscriptionAddOns: { openbinding: { STORAGE_PACK: 2 } },
+        contractVersion: '4',
+      },
+    });
+    stored.token = token;
+    renderPricing(person('PRO'), token);
+    await heading();
+    const actions = await documentActions();
+
+    const mine = { planId: 'PRO', addOns: { STORAGE_PACK: { selected: true, quantity: 2 } } };
+    await waitFor(() => expect(renderer.props?.currentSelection).toEqual(mine));
+    expect(renderer.props?.defaultSelection).toEqual(mine);
+    expect(actions.PRO).toBeEmptyDOMElement();
+    expect(within(actions.ADVANCED).getByRole('button', { name: 'Contact us' })).toBeInTheDocument();
+    expect(within(actions.RESEARCH).getByRole('link', { name: 'Link CAS identity' })).toHaveAttribute('href', '/app/account/identities');
+    expect(actions.BASIC).toBeEmptyDOMElement();
   });
 
   it('draws no link to SPHERE when the address from the gateway is not a web address', async () => {

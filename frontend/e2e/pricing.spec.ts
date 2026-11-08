@@ -13,13 +13,14 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 const json = (body: unknown, status = 200) => (route: Route) => route.fulfill({ status, json: body });
 const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}) => json(failureBody(status, code, error, extra), status);
 
-/** A pricing token shaped like the gateway's, with two features evaluated. */
-const token = (expiresInSeconds: number) => [
+/** A pricing token shaped like the gateway's, with two features evaluated and any further claims. */
+const token = (expiresInSeconds: number, claims: Record<string, unknown> = {}) => [
   Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64'),
   Buffer.from(JSON.stringify({
     sub: 'user-1',
     exp: Math.floor(Date.now() / 1000) + expiresInSeconds,
     features: { 'openbinding-authoring': { eval: true }, 'openbinding-solve': { eval: false } },
+    ...claims,
   })).toString('base64'),
   'signature',
 ].join('.');
@@ -244,10 +245,51 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await page.getByRole('button', { name: 'Show the full pricing document' }).click();
       const shell = page.locator('.pricing-renderer-shell');
-      await expect(shell.locator('pricing-renderer[data-pr-root]')).toBeVisible();
+      const renderer = shell.locator('pricing-renderer[data-pr-root]');
+      await expect(renderer).toBeVisible();
       await expect(shell).toContainText('BASIC');
       await expect(shell).toContainText('PRO');
       await expect(page.getByRole('link', { name: 'SPHERE' })).toHaveAttribute('href', CURRENT_FIXTURE.url);
+
+      // The page's title stands for the document's, and every plan offers what the comparison offers for it.
+      await expect(renderer.locator('[data-pr-part="hero"]')).toHaveCount(0);
+      await expect(renderer.locator('[data-pr-slot="plan-cta"]')).toHaveText(['Sign up', 'Contact us', 'Log in with CAS', 'Contact us']);
+      await expect(renderer.locator('[data-pr-part="cta"]')).toHaveCount(0);
+      await renderer.locator('[data-pr-slot="plan-cta"]').nth(3).getByRole('button', { name: 'Contact us' }).click();
+      await expect(page.getByRole('dialog', { name: 'Ask about PRO' })).toBeVisible();
+      await page.getByRole('button', { name: 'Got it' }).click();
+
+      // A change of plan that drops an add-on asks first, in a dialog centred on the viewport, not on the section.
+      const cards = renderer.locator('[data-pr-part="plan-card"]');
+      await cards.nth(3).locator('[data-pr-part="selection-control"]').click();
+      await renderer.locator('[data-pr-part="add-on-card"]').filter({ hasText: /federation/i }).locator('[data-pr-part="selection-control"]').click();
+      await cards.nth(1).locator('[data-pr-part="selection-control"]').click();
+      const confirm = page.getByRole('dialog', { name: 'Review configuration changes' });
+      await expect(confirm).toBeVisible();
+      const box = (await confirm.boundingBox())!;
+      expect(Math.abs(box.y + box.height / 2 - viewport.height / 2)).toBeLessThan(4);
+      await confirm.getByRole('button', { name: 'Cancel' }).click();
+    });
+
+    test('marks the plan and add-ons of the account in the long form of the document', async ({ page }) => {
+      test.skip(isMobile, 'A behaviour of the page, not of its layout: the desktop run covers it.');
+      const subscription = {
+        contractedServices: { openbinding: CURRENT_FIXTURE.version },
+        subscriptionPlans: { openbinding: 'PRO' },
+        subscriptionAddOns: { openbinding: { STORAGE_PACK: 2 } },
+        contractVersion: '4',
+      };
+      await mockApi(page, { plan: 'PRO', pricingToken: token(3600, { subscription }) });
+      await page.goto('/pricing');
+
+      await page.getByRole('button', { name: 'Show the full pricing document' }).click();
+      const renderer = page.locator('.pricing-renderer-shell pricing-renderer[data-pr-root]');
+      const cards = renderer.locator('[data-pr-part="plan-card"]');
+      await expect(cards.nth(3)).toHaveAttribute('data-current', 'true');
+      await expect(renderer.locator('[data-pr-part="add-on-card"][data-current="true"]')).toHaveCount(1);
+      await expect(renderer.locator('[data-pr-part="add-on-card"][data-current="true"]')).toContainText(/storage/i);
+      await expect(renderer.locator('[data-pr-slot="plan-cta"]')).toHaveText(['', 'Contact us', 'Link CAS identity', '']);
+      await expect(renderer).not.toContainText(/Upgrade|Downgrade|Review change/);
     });
   });
 }

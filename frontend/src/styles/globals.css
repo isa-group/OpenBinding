@@ -448,14 +448,17 @@ html:active-view-transition :where(
   from { opacity: 0; transform: translateX(18px) scale(0.992); }
 }
 
-/* Narrative sections reveal as they enter the reading viewport. */
+/*
+ * Narrative sections reveal as they enter the reading viewport. Never around pricing-renderer: the transform
+ * would make the section the containing block of the renderer's fixed confirmation dialog, which would then
+ * cover and centre on the section instead of the viewport.
+ */
 @supports (animation-timeline: view()) {
   :where(
     .profiles-page > section,
     .examples-page > section:not(.lesson-catalog),
     .engines-page > section,
     .schemas-page > section,
-    .pricing-renderer-shell,
     .pricing-behaviour
   ) {
     animation: section-reveal linear both;
@@ -530,7 +533,6 @@ html:active-view-transition :where(
     .examples-page > section:not(.lesson-catalog),
     .engines-page > section,
     .schemas-page > section,
-    .pricing-renderer-shell,
     .pricing-behaviour
   ) { animation: none !important; }
   .skip-link, .link-arrow svg { transition-duration: 1ms; }

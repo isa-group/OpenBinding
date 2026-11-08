@@ -1,5 +1,5 @@
 # Pins copied from openbinding-gateway/uv.lock: space-python-client, httpx and their transitive closure.
-space-python-client==1.0.0
+space-python-client==1.1.0
 httpx==0.28.1
 anyio==4.14.2
 bidict==0.23.1

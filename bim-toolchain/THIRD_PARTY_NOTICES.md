@@ -17,10 +17,10 @@ patterns from the following MIT-licensed projects:
 | [SPHERE](https://github.com/SCORELabUS/SPHERE) | `356ad1129acaee4beb3c4574e389f158cb0a2eaa` | Navigation, resource lifecycle, administration and pricing-management patterns |
 | [SPHERE docs](https://github.com/isa-group/sphere-docs) | `107c5451e464e77a87a1f8b72dd71fa9d9e93231` | Documentation structure, API explorer and deployment patterns |
 | [SPACE](https://github.com/isa-group/SPACE) | `79aea10c9acff1d85e4931d09aa21d3a253d1ce1` (`v1.5.0`) | Contract and pricing deployment integration |
-| [space-python-client](https://github.com/isa-group/space-python-client) | `1ec3bce6c57fb3f7192e3d721048fa738e921ade` | Official SPACE Python client integration |
+| [space-python-client](https://github.com/Alex-GF/space-python-client) | `1a61898adca73ca500eca4758c24d32f673dd790` (`v1.1.0`) | Official SPACE Python client integration |
 | [Pricing4TS](https://github.com/Alex-GF/Pricing4TS) | `0.11.1` | Pricing2Yaml 3.1 parsing and validation for TypeScript |
-| [space-react-client](https://github.com/Alex-GF/space-react-client) | `0.3.3` | Browser presentation of SPACE-evaluated feature state for React |
-| [pricing-renderer](https://github.com/javiercavlop/pricing-renderer) | `0.1.0` | Public rendering of the active iPricing for the web |
+| [space-react-client](https://github.com/Alex-GF/space-react-client) | `0.4.0` | Browser presentation of SPACE-evaluated feature state for React |
+| [pricing-renderer](https://github.com/javiercavlop/pricing-renderer) | `0.2.0` | Public rendering of the active iPricing for the web |
 
 The MIT notice applying to those projects follows:
 

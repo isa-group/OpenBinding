@@ -1,3 +1,5 @@
+import type { PricingSelection } from 'pricing-renderer';
+import { selectionFromContract, type SpaceContractLike } from 'pricing-renderer/space';
 import type { PricingCatalog } from '../../api/auth';
 import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import { describeLimit, limitInfo, LIMIT_GROUPS, type LimitGroup } from '../../utils/limits';
@@ -290,4 +292,20 @@ export function withInfiniteLimits(value: unknown, key?: string): unknown {
     return Object.fromEntries(Object.entries(value).map(([name, child]) => [name, withInfiniteLimits(child, name)]));
   }
   return value;
+}
+
+/**
+ * What the account has today, for the full pricing document to mark: the plan of the profile, which is the one the
+ * rest of the page shows, and the add-ons of the pricing token's `subscription` claim. The claim is read only while
+ * it names that same plan for `service`, so the document never marks the add-ons of another contract state; SPACE
+ * versions that do not put the subscription in the token leave the add-ons unmarked. Signed out, nothing is current.
+ */
+export function currentSelectionOf(
+  plan: string | null,
+  subscription: SpaceContractLike | null,
+  service: string,
+): Partial<PricingSelection> | undefined {
+  if (!plan) return undefined;
+  const claimed = subscription ? selectionFromContract(subscription, service) : {};
+  return claimed.planId === plan && claimed.addOns ? { planId: plan, addOns: claimed.addOns } : { planId: plan };
 }

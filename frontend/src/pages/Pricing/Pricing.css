@@ -344,12 +344,9 @@
   --pr-radius-lg: var(--tp-radius-md);
   --pr-shadow-sm: none;
   --pr-shadow-lg: none;
+  /* What the document pins while scrolling stops below the sticky site header, as headings do (scroll-margin-top). */
+  --pr-sticky-top: 6rem;
 }
-
-.pricing-page [data-pr-part='diagnostics'],
-.pricing-renderer-shell [data-pr-part='hero'] { display: none; }
-
-.pricing-renderer-shell .pr-plan-grid { grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: var(--tp-spacing-md); }
 
 /* Contact dialog */
 .pricing-contact-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding-left: 18px; color: var(--tp-charcoal); }
