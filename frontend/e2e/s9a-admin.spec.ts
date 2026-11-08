@@ -394,7 +394,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('button', { name: 'Apply agreement', exact: true })).toBeDisabled();
       await capture(page, testInfo, `detail-${name}-top`, { height: tall(2600) });
 
-      // Choosing another plan shows what changes before anything is sent.
+      // Choosing another plan shows what changes before anything is sent, and the review of the change is where it is sent from
+      // (e2e/admin-change-review.spec.ts checks what the review draws).
       await plans.getByRole('radio', { name: /^ADVANCED/ }).click();
       await main.getByRole('button', { name: 'More collaboration pack' }).click();
       await expect(main.getByLabel('Collaboration pack quantity')).toHaveText('1');
@@ -402,9 +403,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByLabel(/^Detail/).fill('Agreement 2026-14');
       await capture(page, testInfo, `detail-${name}-editing`, { height: tall(3000) });
       await main.getByRole('button', { name: 'Apply agreement', exact: true }).click();
-      const apply = page.getByRole('dialog', { name: 'Apply agreement to sam.okafor?' });
-      await capture(page, testInfo, `detail-${name}-confirm`);
-      await apply.getByRole('button', { name: 'Apply agreement' }).click();
+      const review = main.getByRole('region', { name: 'Review the change for sam.okafor' });
+      await expect(review.getByText('BASIC → ADVANCED')).toBeVisible();
+      expect(state.sent.subscription).toEqual([]);
+      await capture(page, testInfo, `detail-${name}-review`, { height: tall(1800) });
+      await review.getByRole('button', { name: 'Apply agreement' }).click();
       await expect(main.getByText(/Agreement updated for sam\.okafor \(institutional agreement\)/)).toBeVisible();
       expect(state.sent.subscription).toEqual([{
         id: SAM.id,
@@ -414,15 +417,17 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('radio', { name: /^ADVANCED · current/ })).toBeChecked();
       await capture(page, testInfo, `detail-${name}-applied`, { height: tall(1400) });
 
-      // RESEARCH needs a CAS identity, and the gateway says so.
+      // RESEARCH needs a CAS identity: the gateway says so in the review, and the form still says it after going back.
       await plans.getByRole('radio', { name: /^RESEARCH/ }).click();
       await main.getByRole('button', { name: 'Apply agreement', exact: true }).click();
-      await page.getByRole('dialog', { name: 'Apply agreement to sam.okafor?' }).getByRole('button', { name: 'Apply agreement' }).click();
+      await review.getByRole('button', { name: 'Apply agreement' }).click();
+      await expect(review.getByRole('alert')).toContainText('RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)');
+      await review.getByRole('button', { name: 'Back' }).click();
       await expect(main.getByText('RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)')).toBeVisible();
       await capture(page, testInfo, `detail-${name}-409`, { height: tall(3300) });
       await plans.getByRole('radio', { name: /^PRO/ }).click();
       await main.getByRole('button', { name: 'Change plan only, keep add-ons' }).click();
-      await page.getByRole('dialog', { name: 'Change plan of sam.okafor?' }).getByRole('button', { name: 'Change plan' }).click();
+      await review.getByRole('button', { name: 'Change plan' }).click();
       await expect(main.getByText(/Agreement updated for sam\.okafor \(administrative decision\)/)).toBeVisible();
       expect(state.sent.plan).toEqual([{ id: SAM.id, plan: 'PRO' }]);
 

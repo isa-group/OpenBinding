@@ -1,8 +1,9 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import type { SelectionComparison } from 'pricing-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CURRENT_FIXTURE, catalogFixture } from '../Pricing/pricingFixture';
 import { AdminUserDetail } from './AdminUserDetail';
-import { MARIA, SAM, USERS, subscriptionOf, userPage, usageOf } from '../../test/fixtures/admin';
+import { MARIA, PRIYA, SAM, USERS, subscriptionOf, userPage, usageOf } from '../../test/fixtures/admin';
 import { refusal, renderAdmin } from './adminTestUtils';
 
 const api = vi.hoisted(() => ({
@@ -22,6 +23,40 @@ vi.mock('../../api/client', async () => ({
   apiClient: api,
 }));
 
+interface ReviewProps {
+  comparison?: SelectionComparison;
+  hideSections?: readonly string[];
+  messages?: Record<string, string>;
+  notices?: string[];
+  pending?: boolean;
+  error?: string;
+  confirmLabel?: string;
+  onConfirm?: () => void;
+  onBack?: () => void;
+}
+
+const review = vi.hoisted(() => ({ props: null as ReviewProps | null }));
+
+// In jsdom the element never takes its properties, so its drawing is the e2e spec's to check (e2e/admin-change-review.spec.ts). The
+// comparison is the real one, from pricing-renderer's core; this stand-in records what the card passes, shows the notices and the
+// refusal, and offers the element's two buttons, which send its two events.
+vi.mock('pricing-renderer/react', async () => {
+  const { createElement } = await import('react');
+  return {
+    PricingChangeReview: (props: ReviewProps) => {
+      review.props = props;
+      return createElement(
+        'section',
+        { 'aria-label': props.messages?.['pricing.reviewTitle'] },
+        ...(props.notices ?? []).map((notice) => createElement('p', { key: notice }, notice)),
+        props.error ? createElement('p', { role: 'alert' }, props.error) : null,
+        createElement('button', { type: 'button', onClick: () => props.onBack?.() }, props.messages?.['pricing.reviewBack']),
+        createElement('button', { type: 'button', onClick: () => { if (!props.pending) props.onConfirm?.(); } }, props.confirmLabel),
+      );
+    },
+  };
+});
+
 configure({ asyncUtilTimeout: 5000 });
 
 const KEY_ID = '00000000-0000-4000-8000-0000000003a1';
@@ -30,14 +65,28 @@ function open(param: string = SAM.id, options: Parameters<typeof renderAdmin>[1]
   return renderAdmin(<AdminUserDetail />, { entry: `/app/admin/users/${param}`, path: '/app/admin/users/:user', ...options });
 }
 
-async function ready() {
-  await screen.findByRole('heading', { level: 1, name: 'sam.okafor' });
+async function ready(username = 'sam.okafor') {
+  await screen.findByRole('heading', { level: 1, name: username });
   await screen.findByRole('radiogroup', { name: 'New plan' });
 }
+
+const choose = (plan: RegExp) => fireEvent.click(within(screen.getByRole('radiogroup', { name: 'New plan' })).getByRole('radio', { name: plan }));
+
+/** Opens the review of the change from one of the two buttons of the form, and returns it once it is drawn. */
+async function reviewOf(button: 'Apply agreement' | 'Change plan only, keep add-ons', username = 'sam.okafor') {
+  fireEvent.click(screen.getByRole('button', { name: button }));
+  return screen.findByRole('region', { name: `Review the change for ${username}` });
+}
+
+const comparison = (): SelectionComparison => {
+  if (!review.props?.comparison) throw new Error('the review has no comparison');
+  return review.props.comparison;
+};
 
 describe('admin-user-detail · one account', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    review.props = null;
     api.adminGetSubscription.mockImplementation(async (id: string) => subscriptionOf(USERS.find((account) => account.id === id) ?? SAM));
     api.adminListUsers.mockResolvedValue(userPage());
     api.adminGetUserUsage.mockResolvedValue(usageOf('BASIC'));
@@ -131,76 +180,193 @@ describe('admin-user-detail · one account', () => {
     expect(screen.getByRole('button', { name: 'Fewer collaboration pack' })).toBeDisabled();
   });
 
-  it('applies an agreement only after a confirmation, with the reason and detail, and says the account was notified', async () => {
+  it('shows what the agreement does, side by side, before anything is sent', async () => {
+    open();
+    await ready();
+    choose(/^ADVANCED/);
+    fireEvent.click(screen.getByRole('button', { name: 'More collaboration pack' }));
+    fireEvent.change(screen.getByLabelText(/^Reason/), { target: { value: 'new_feature' } });
+    fireEvent.change(screen.getByLabelText(/^Detail/), { target: { value: 'Ticket 41' } });
+    const drawn = await reviewOf('Apply agreement');
+
+    expect(api.adminUpdateSubscription).not.toHaveBeenCalled();
+    // The review replaces the form, and its sides are the contract today and the one the request asks for.
+    expect(screen.queryByRole('radiogroup', { name: 'New plan' })).not.toBeInTheDocument();
+    expect(comparison().plan).toMatchObject({ before: { id: 'BASIC' }, after: { id: 'ADVANCED' }, changed: true });
+    expect(comparison().addOns.added).toEqual([expect.objectContaining({ id: 'COLLABORATION_PACK', name: 'Collaboration pack', quantity: 1 })]);
+    expect(comparison().features.gained.map((feature) => feature.name)).toEqual(['Advanced analytics']);
+    expect(comparison().features.lost).toEqual([]);
+    // Limits under the names the form gives them, in the words of the interface, with the add-on counted in.
+    const limits = Object.fromEntries(comparison().usageLimits.changed.map((limit) => [limit.id, limit]));
+    expect(limits.concurrentJobs).toMatchObject({ name: 'Concurrent runs', unit: 'run', before: { kind: 'number', value: 1 }, after: { kind: 'number', value: 2 }, delta: 1 });
+    expect(limits.jobHistoryDays).toMatchObject({ name: 'Run history', before: { value: 7 }, after: { value: 90 } });
+    expect(limits.apiKeys).toMatchObject({ name: 'API keys', after: { kind: 'number', value: 15 } });
+    expect(limits.projects).toMatchObject({ name: 'Projects', after: { kind: 'number', value: 35 } });
+    const shownWords = comparison().usageLimits.changed.flatMap((limit) => [limit.name, limit.unit ?? '']);
+    expect(shownWords.filter((word) => /\bjobs?\b/i.test(word))).toEqual([]);
+    // OpenBinding's plans are not a ladder, so the Upgrade/Downgrade badge is hidden.
+    expect(review.props?.hideSections).toEqual(['relation']);
+    expect(review.props?.confirmLabel).toBe('Apply agreement');
+    expect(review.props?.messages?.['pricing.reviewBack']).toBe('Back');
+    expect(within(drawn).getByText('Reason: new feature. Detail: “Ticket 41”.')).toBeInTheDocument();
+    expect(within(drawn).getByText(/^sam\.okafor is notified, and the change is recorded in the audit log with your name/)).toBeInTheDocument();
+    expect(within(drawn).queryByText(/Both sides are read from pricing/)).not.toBeInTheDocument();
+  });
+
+  it('reads a limit the pricing leaves open as unlimited, not as a missing value', async () => {
+    open();
+    await ready();
+    choose(/^PRO/);
+    await reviewOf('Apply agreement');
+    const limits = Object.fromEntries(comparison().usageLimits.changed.map((limit) => [limit.id, limit]));
+    expect(limits.apiKeys).toMatchObject({ before: { kind: 'number', value: 1 }, after: { kind: 'unlimited' } });
+    expect(limits.maxInstanceComplexityLog10).toMatchObject({ after: { kind: 'unlimited' } });
+    expect(comparison().usageLimits.changed.filter((limit) => limit.after.kind === 'none')).toEqual([]);
+  });
+
+  it('goes back to the form with every choice kept, and sends nothing', async () => {
+    open();
+    await ready();
+    choose(/^ADVANCED/);
+    fireEvent.click(screen.getByRole('button', { name: 'More collaboration pack' }));
+    fireEvent.change(screen.getByLabelText(/^Detail/), { target: { value: 'Ticket 41' } });
+    const drawn = await reviewOf('Apply agreement');
+    fireEvent.click(within(drawn).getByRole('button', { name: 'Back' }));
+
+    expect(await screen.findByRole('radiogroup', { name: 'New plan' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Review the change for sam.okafor' })).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /^ADVANCED/ })).toBeChecked();
+    expect(screen.getByLabelText('Collaboration pack quantity')).toHaveTextContent('1');
+    expect(screen.getByLabelText(/^Detail/)).toHaveValue('Ticket 41');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply agreement' })).toHaveFocus());
+    expect(api.adminUpdateSubscription).not.toHaveBeenCalled();
+    expect(api.adminChangePlan).not.toHaveBeenCalled();
+  });
+
+  it('applies an agreement only from its review, with the reason and detail, and says the account was notified', async () => {
     open();
     await ready();
     expect(screen.getByRole('button', { name: 'Apply agreement' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Change plan only, keep add-ons' })).toBeDisabled();
 
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'New plan' })).getByRole('radio', { name: /^ADVANCED/ }));
+    choose(/^ADVANCED/);
     fireEvent.click(screen.getByRole('button', { name: 'More collaboration pack' }));
     fireEvent.change(screen.getByLabelText(/^Reason/), { target: { value: 'new_feature' } });
     fireEvent.change(screen.getByLabelText(/^Detail/), { target: { value: 'Ticket 41' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Apply agreement' }));
-
-    const dialog = screen.getByRole('dialog', { name: 'Apply agreement to sam.okafor?' });
+    const drawn = await reviewOf('Apply agreement');
     expect(api.adminUpdateSubscription).not.toHaveBeenCalled();
-    expect(within(dialog).getByText(/The account is notified and the change is recorded in the audit log/)).toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Apply agreement' }));
+    fireEvent.click(within(drawn).getByRole('button', { name: 'Apply agreement' }));
 
     expect(await screen.findByText(/Agreement updated for sam\.okafor \(new feature\)/)).toBeInTheDocument();
+    expect(api.adminUpdateSubscription).toHaveBeenCalledTimes(1);
     expect(api.adminUpdateSubscription).toHaveBeenCalledWith(SAM.id, {
       plan: 'ADVANCED', add_ons: { COLLABORATION_PACK: 1 }, reason: 'new_feature', detail: 'Ticket 41',
     });
+    expect(screen.queryByRole('region', { name: 'Review the change for sam.okafor' })).not.toBeInTheDocument();
     await waitFor(() => expect(api.adminGetSubscription).toHaveBeenCalledTimes(2));
   });
 
   it('changes only the plan, keeping the add-ons, when asked to', async () => {
     open();
     await ready();
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'New plan' })).getByRole('radio', { name: /^ADVANCED/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Change plan only, keep add-ons' }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Change plan of sam.okafor?' })).getByRole('button', { name: 'Change plan' }));
+    choose(/^ADVANCED/);
+    const drawn = await reviewOf('Change plan only, keep add-ons');
+    expect(comparison().plan).toMatchObject({ before: { id: 'BASIC' }, after: { id: 'ADVANCED' } });
+    expect(within(drawn).getByText('Reason: administrative decision. The add-ons stay as they are.')).toBeInTheDocument();
+    fireEvent.click(within(drawn).getByRole('button', { name: 'Change plan' }));
     expect(await screen.findByText(/Agreement updated for sam\.okafor \(administrative decision\)/)).toBeInTheDocument();
     expect(api.adminChangePlan).toHaveBeenCalledWith(SAM.id, 'ADVANCED');
     expect(api.adminUpdateSubscription).not.toHaveBeenCalled();
+  });
+
+  it('reviews a plan change with the add-ons the account keeps, and offers none the new plan cannot take', async () => {
+    api.adminGetSubscription.mockImplementation(async () => subscriptionOf(PRIYA, { COLLABORATION_PACK: 2 }));
+    open(PRIYA.id);
+    await ready('priya.nair');
+    choose(/^PRO/);
+    const drawn = await reviewOf('Change plan only, keep add-ons', 'priya.nair');
+    expect(comparison().plan).toMatchObject({ before: { id: 'ADVANCED' }, after: { id: 'PRO' } });
+    expect(comparison().selections.after.addOns.COLLABORATION_PACK).toEqual({ selected: true, quantity: 2 });
+    expect(comparison().addOns).toMatchObject({ added: [], removedByUser: [], removedByReconciliation: [], unchanged: ['COLLABORATION_PACK'] });
+    fireEvent.click(within(drawn).getByRole('button', { name: 'Back' }));
+
+    // BASIC offers no add-ons, so keeping them is refused before anything is asked of the gateway.
+    choose(/^BASIC/);
+    expect(screen.getByRole('button', { name: 'Change plan only, keep add-ons' })).toBeDisabled();
+    expect(screen.getByText('“Plan only” keeps the current add-ons: Collaboration pack isn’t available for BASIC.')).toBeInTheDocument();
+    expect(api.adminChangePlan).not.toHaveBeenCalled();
+  });
+
+  it('says when the contract is pinned to another pricing than the one both sides are read from', async () => {
+    api.adminGetSubscription.mockImplementation(async () => subscriptionOf(SAM, {}, '0.0.9'));
+    open();
+    await ready();
+    choose(/^ADVANCED/);
+    const drawn = await reviewOf('Apply agreement');
+    expect(within(drawn).getByText('Both sides are read from pricing 0.1.0, the active pricing. The contract is pinned to 0.0.9, so what it allows today can differ.')).toBeInTheDocument();
   });
 
   it('says when nothing changed, so nobody was notified', async () => {
     api.adminUpdateSubscription.mockResolvedValue({ ...subscriptionOf(SAM), changed: false });
     open();
     await ready();
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'New plan' })).getByRole('radio', { name: /^ADVANCED/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Apply agreement' }));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Apply agreement' }));
+    choose(/^ADVANCED/);
+    fireEvent.click(within(await reviewOf('Apply agreement')).getByRole('button', { name: 'Apply agreement' }));
     expect(await screen.findByText('No contract values changed, so no notification was sent.')).toBeInTheDocument();
   });
 
-  it('explains a RESEARCH agreement refused for want of a CAS identity (409) and an invalid one (422)', async () => {
+  it('explains a RESEARCH agreement refused for want of a CAS identity (409) and an invalid one (422), in the review and back in the form', async () => {
     open();
     await ready();
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'New plan' })).getByRole('radio', { name: /^RESEARCH/ }));
+    choose(/^RESEARCH/);
     api.adminUpdateSubscription.mockRejectedValueOnce(refusal(409, 'research_requires_us_cas'));
-    fireEvent.click(screen.getByRole('button', { name: 'Apply agreement' }));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Apply agreement' }));
+    let drawn = await reviewOf('Apply agreement');
+    fireEvent.click(within(drawn).getByRole('button', { name: 'Apply agreement' }));
+    expect(await within(drawn).findByRole('alert')).toHaveTextContent(
+      'RESEARCH needs a verified CAS identity (409 · research_requires_us_cas). sam.okafor hasn’t linked a Universidad de Sevilla CAS identity.',
+    );
+    // The review stays open with the refusal; going back shows it in the form, where the agreement can be changed.
+    expect(screen.getByRole('region', { name: 'Review the change for sam.okafor' })).toBeInTheDocument();
+    fireEvent.click(within(drawn).getByRole('button', { name: 'Back' }));
     expect(await screen.findByText('RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)')).toBeInTheDocument();
     expect(screen.getByText(/hasn’t linked a Universidad de Sevilla CAS identity/)).toBeInTheDocument();
 
     api.adminUpdateSubscription.mockRejectedValueOnce(refusal(422, 'invalid_subscription', 'COLLABORATION_PACK is not available for BASIC'));
-    fireEvent.click(screen.getByRole('button', { name: 'Apply agreement' }));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Apply agreement' }));
-    expect(await screen.findByText('That agreement isn’t valid (422 · invalid_subscription)')).toBeInTheDocument();
+    drawn = await reviewOf('Apply agreement');
+    // A new review starts without the refusal of the last attempt.
+    expect(within(drawn).queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.click(within(drawn).getByRole('button', { name: 'Apply agreement' }));
+    expect(await within(drawn).findByRole('alert')).toHaveTextContent('That agreement isn’t valid (422 · invalid_subscription). COLLABORATION_PACK is not available for BASIC Nothing changed.');
   });
 
-  it('says pricing is unavailable (503) without claiming anything changed', async () => {
-    api.adminUpdateSubscription.mockRejectedValue(refusal(503, 'pricing_unavailable', 'SPACE is down'));
+  it('says pricing is unavailable (503) without claiming anything changed, and can send the change again', async () => {
+    api.adminUpdateSubscription.mockRejectedValueOnce(refusal(503, 'pricing_unavailable', 'SPACE is down'));
     open();
     await ready();
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'New plan' })).getByRole('radio', { name: /^ADVANCED/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Apply agreement' }));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Apply agreement' }));
-    expect(await screen.findByText('A service isn’t available right now (503 · pricing_unavailable)')).toBeInTheDocument();
+    choose(/^ADVANCED/);
+    const drawn = await reviewOf('Apply agreement');
+    fireEvent.click(within(drawn).getByRole('button', { name: 'Apply agreement' }));
+    expect(await within(drawn).findByRole('alert')).toHaveTextContent('A service isn’t available right now (503 · pricing_unavailable). SPACE is down Nothing was changed.');
     expect(screen.queryByText(/Agreement updated/)).not.toBeInTheDocument();
+    fireEvent.click(within(drawn).getByRole('button', { name: 'Apply agreement' }));
+    expect(await screen.findByText(/Agreement updated for sam\.okafor/)).toBeInTheDocument();
+    expect(api.adminUpdateSubscription).toHaveBeenCalledTimes(2);
+  });
+
+  it('still lets a change be reviewed in words and applied when the renderer cannot read the pricing document', async () => {
+    api.getPricingCatalog.mockResolvedValue({ ...catalogFixture, syntaxVersion: '9.0' });
+    open();
+    await ready();
+    choose(/^ADVANCED/);
+    fireEvent.click(screen.getByRole('button', { name: 'Apply agreement' }));
+    const fallback = await screen.findByRole('group', { name: 'Review the change for sam.okafor' });
+    expect(within(fallback).getByText('The change can’t be drawn side by side')).toBeInTheDocument();
+    expect(within(fallback).getByText(/PR_VERSION_UNSUPPORTED_MAJOR/)).toBeInTheDocument();
+    expect(within(fallback).getByText('Reason: institutional agreement.')).toBeInTheDocument();
+    expect(review.props).toBeNull();
+    fireEvent.click(within(fallback).getByRole('button', { name: 'Apply agreement' }));
+    expect(await screen.findByText(/Agreement updated for sam\.okafor \(institutional agreement\)/)).toBeInTheDocument();
+    expect(api.adminUpdateSubscription).toHaveBeenCalledWith(SAM.id, { plan: 'ADVANCED', add_ons: {}, reason: 'institutional_agreement' });
   });
 
   it('keeps the page useful when the active pricing cannot be read', async () => {
@@ -264,11 +430,9 @@ describe('admin-user-detail · one account', () => {
   it('refreshes the pricing token when an administrator changes their own agreement', async () => {
     api.adminGetSubscription.mockImplementation(async () => subscriptionOf({ ...MARIA, id: MARIA.id }));
     open(MARIA.id, { user: { ...MARIA, role: 'admin' } });
-    await screen.findByRole('heading', { level: 1, name: 'maria.santos' });
-    await screen.findByRole('radiogroup', { name: 'New plan' });
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'New plan' })).getByRole('radio', { name: /^ADVANCED/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Apply agreement' }));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Apply agreement' }));
+    await ready('maria.santos');
+    choose(/^ADVANCED/);
+    fireEvent.click(within(await reviewOf('Apply agreement', 'maria.santos')).getByRole('button', { name: 'Apply agreement' }));
     await screen.findByText(/Agreement updated for maria\.santos/);
     expect(api.getPricingToken).toHaveBeenCalled();
   });

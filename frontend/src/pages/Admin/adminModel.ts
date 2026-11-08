@@ -1,3 +1,4 @@
+import type { PricingSelection } from 'pricing-renderer';
 import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import type { AdminAuditPage, PricingCatalog } from '../../api/auth';
 import { HttpError } from '../../api/client';
@@ -293,6 +294,20 @@ export function agreementIssues(catalog: ContractCatalog, planId: string, addOns
     }
   }
   return [...new Set(issues)];
+}
+
+/**
+ * A contract’s plan and add-ons as a selection of `pricing-renderer`, the shape its change review compares: every add-on with a
+ * quantity is selected with that quantity, and an add-on at zero is not part of the contract.
+ */
+export function contractSelection(planId: string, addOns: Record<string, number>): PricingSelection {
+  return {
+    planId,
+    variables: {},
+    addOns: Object.fromEntries(Object.entries(addOns)
+      .filter(([, quantity]) => quantity > 0)
+      .map(([id, quantity]) => [id, { selected: true, quantity }])),
+  };
 }
 
 export interface LimitComparison {

@@ -33,9 +33,10 @@ async function loadAccount(param: string) {
   return apiClient.adminGetSubscription(id);
 }
 
+/** The active pricing, read for contracts, and the document itself, which the review of a change draws. */
 async function loadCatalog() {
-  const [catalog, current] = await Promise.all([apiClient.getPricingCatalog(), apiClient.getCurrentPricing().catch(() => null)]);
-  return { catalog: readContractCatalog(catalog), current };
+  const [pricingDocument, current] = await Promise.all([apiClient.getPricingCatalog(), apiClient.getCurrentPricing().catch(() => null)]);
+  return { catalog: readContractCatalog(pricingDocument), document: pricingDocument, current };
 }
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
@@ -108,6 +109,7 @@ function DetailScreen({ param }: { param: string }) {
   const failure: Failure | null = account.status === 'error' ? describeAdminFailure(account.error, 'The account couldn’t be read') : null;
   const catalogFailure = pricing.status === 'error' ? describeAdminFailure(pricing.error, 'The pricing couldn’t be read') : null;
   const catalog = (pricing.data ?? pricing.stale)?.catalog ?? null;
+  const pricingDocument = (pricing.data ?? pricing.stale)?.document ?? null;
   const current = (pricing.data ?? pricing.stale)?.current ?? null;
 
   const applied = (result: AgreementResult) => {
@@ -172,6 +174,7 @@ function DetailScreen({ param }: { param: string }) {
         key={`${subscription.plan}:${JSON.stringify(subscription.add_ons)}:${subscription.pricing_version}`}
         view={view}
         catalog={catalog}
+        pricing={pricingDocument}
         catalogFailure={catalogFailure}
         catalogLoading={pricing.status === 'loading' && !pricing.stale}
         current={current}
