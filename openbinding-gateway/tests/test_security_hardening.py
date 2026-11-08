@@ -16,6 +16,7 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from _b1_helpers import gate, make_account, make_key, make_org, put_member  # noqa: F401
+from _ratelimit_fakes import DownBackend, FakeRedis
 from openbinding_gateway.core.ratelimit import (
     AuthRateLimiter,
     MemoryBackend,
@@ -235,48 +236,6 @@ async def test_an_upload_route_is_not_held_to_the_json_limit(api_client, monkeyp
 
 
 # ------------------------------------------------------------ 2. authentication throttling
-
-
-class FakePipeline:
-    def __init__(self, redis):
-        self.redis, self.operations = redis, []
-
-    def incr(self, key):
-        self.operations.append(("incr", key))
-
-    def ttl(self, key):
-        self.operations.append(("ttl", key))
-
-    async def execute(self):
-        results = []
-        for operation, key in self.operations:
-            if operation == "incr":
-                self.redis.counts[key] = self.redis.counts.get(key, 0) + 1
-                results.append(self.redis.counts[key])
-            else:
-                results.append(self.redis.ttls.get(key, -1))
-        return results
-
-
-class FakeRedis:
-    """Just enough of redis.asyncio for INCR + TTL + EXPIRE."""
-
-    def __init__(self):
-        self.counts: dict[str, int] = {}
-        self.ttls: dict[str, int] = {}
-        self.expirations: list[tuple[str, int]] = []
-
-    def pipeline(self, transaction=True):
-        return FakePipeline(self)
-
-    async def expire(self, key, seconds):
-        self.ttls[key] = seconds
-        self.expirations.append((key, seconds))
-
-
-class DownBackend:
-    async def hit(self, key, window_s):
-        raise ConnectionError("redis is down")
 
 
 def tight_limits(monkeypatch, attempts=3, multiplier=100):

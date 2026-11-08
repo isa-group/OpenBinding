@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import timedelta
 
@@ -18,6 +19,7 @@ from _b1_helpers import gate, make_account  # noqa: F401
 from openbinding_gateway import telemetry
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import ApiErrorEvent, utcnow
+from openbinding_gateway.routes import compositions
 
 
 @pytest.fixture(autouse=True)
@@ -141,3 +143,151 @@ async def test_purge_removes_only_events_older_than_the_retention(db_session):
     )
     assert remaining == 1
     assert await db_session.get(ApiErrorEvent, recent.id) is not None
+
+
+# ------------------------------------------------------------- every failure of an anonymous caller
+
+
+async def test_anonymous_422_events_are_limited_per_client(api_client, db_session, monkeypatch):
+    monkeypatch.setattr(get_settings(), "anonymous_error_events_per_minute", 3)
+
+    for _ in range(5):
+        assert (await api_client.post("/v1/compositions/validate", json={})).status_code == 422
+
+    assert len(await _events(db_session, "/v1/compositions/validate")) == 3
+
+
+async def test_anonymous_429_events_are_limited_per_client(api_client, db_session, monkeypatch):
+    settings = get_settings()
+    monkeypatch.setattr(settings, "anonymous_error_events_per_minute", 2)
+    monkeypatch.setattr(settings, "work_rate_limit_read_requests", 1)
+
+    statuses = [(await api_client.post("/v1/compositions/parse", json={})).status_code for _ in range(6)]
+
+    assert statuses == [422] + [429] * 5
+    rows = await _events(db_session, "/v1/compositions/parse")
+    assert len(rows) == 2
+    assert {row.status_code for row in rows} == {422, 429}
+
+
+async def test_anonymous_503_events_are_limited_per_client(api_client, db_session, monkeypatch):
+    monkeypatch.setattr(get_settings(), "anonymous_error_events_per_minute", 2)
+
+    async def busy(*_: object, **__: object):
+        raise compositions._readers_busy()
+
+    monkeypatch.setattr(compositions, "_on", busy)
+
+    answers = []
+    for _ in range(4):
+        response = await api_client.post("/v1/compositions/validate", json={"source": "a: 1\n"})
+        assert response.status_code == 503
+        answers.append(response.json()["correlationId"])
+
+    rows = await _events(db_session, "/v1/compositions/validate")
+    assert len(rows) == 2
+    assert {row.error_code for row in rows} == {"composition_busy"}
+    # A 5xx keeps the one thing that leads from the row to its cause in the log.
+    assert {row.detail["correlationId"] for row in rows} == set(answers[:2])
+
+
+async def test_an_anonymous_event_holds_counts_and_no_message(api_client, db_session):
+    secret = "A VALUE THE CALLER CHOSE"
+
+    response = await api_client.post(
+        "/v1/compositions/package", json={"source": f"composition: {secret}\n"}
+    )
+
+    assert response.status_code == 422
+    assert secret in response.text  # the caller is told; the table is not
+    [event] = await _events(db_session, "/v1/compositions/package")
+    assert event.user_id is None
+    assert event.detail == {
+        "code": "invalid_composition",
+        "status": 422,
+        "endpoint": "/v1/compositions/package",
+        "counts": {"diagnostics": len(response.json()["diagnostics"]), "suppressed": 0},
+    }
+    assert secret not in json.dumps(event.detail)
+
+
+async def test_an_anonymous_event_on_an_authentication_route_keeps_its_counts(api_client, db_session):
+    response = await api_client.post(
+        "/v1/auth/login", json={"username_or_email": "nobody", "password": "wrong-password-here"}
+    )
+
+    assert response.status_code == 401
+    [event] = await _events(db_session, "/v1/auth/login")
+    assert event.detail["counts"] == {"diagnostics": 0, "suppressed": 0}
+    assert event.detail["endpoint"] == "/v1/auth/login"
+    assert "error" not in event.detail and "detail" not in event.detail
+
+
+async def test_the_next_event_says_how_many_went_unrecorded(api_client, db_session, monkeypatch):
+    monkeypatch.setattr(get_settings(), "anonymous_error_events_per_minute", 1)
+
+    for _ in range(4):
+        await api_client.post("/v1/compositions/validate", json={})
+    assert len(await _events(db_session, "/v1/compositions/validate")) == 1
+
+    telemetry._anonymous_hits["127.0.0.1"].clear()  # the minute has passed
+    await api_client.post("/v1/compositions/validate", json={})
+
+    rows = await _events(db_session, "/v1/compositions/validate")
+    assert sorted(row.detail["counts"]["suppressed"] for row in rows) == [0, 3]
+    assert telemetry._anonymous_suppressed == {}
+
+
+async def test_the_addresses_of_one_ipv6_network_share_their_events(api_client, db_session, monkeypatch):
+    from openbinding_gateway.main import app
+
+    monkeypatch.setattr(get_settings(), "anonymous_error_events_per_minute", 1)
+
+    for host in ("2001:db8:1:2::1", "2001:db8:1:2::2"):
+        transport = ASGITransport(app=app, client=(host, 51000))
+        async with AsyncClient(transport=transport, base_url="http://gateway") as client:
+            await client.post("/v1/compositions/validate", json={})
+
+    assert len(await _events(db_session, "/v1/compositions/validate")) == 1
+
+
+async def test_a_signed_in_failure_is_kept_whole_and_not_limited(
+    api_client, registration, db_session, gate, monkeypatch  # noqa: F811
+):
+    monkeypatch.setattr(get_settings(), "anonymous_error_events_per_minute", 1)
+    user, headers = await make_account(api_client, registration, db_session, gate)
+
+    for _ in range(3):
+        response = await api_client.post(
+            "/v1/compositions/package", json={"source": "composition: [\n"}, headers=headers
+        )
+        assert response.status_code == 422
+
+    rows = await _events(db_session, "/v1/compositions/package")
+    assert len(rows) == 3
+    assert all(row.user_id == uuid.UUID(user["id"]) for row in rows)
+    assert all(row.detail["diagnostics"] and "counts" not in row.detail for row in rows)
+
+
+async def test_a_signed_in_failure_of_a_package_validation_is_attributed(
+    api_client, registration, db_session, gate  # noqa: F811
+):
+    user, headers = await make_account(api_client, registration, db_session, gate)
+
+    response = await api_client.post(
+        "/v1/instances/validate", content=b"not a zip", headers={**headers, "content-type": "application/zip"}
+    )
+
+    assert response.status_code >= 400
+    [event] = await _events(db_session, "/v1/instances/validate")
+    assert event.user_id == uuid.UUID(user["id"])
+
+
+def test_the_suppressed_table_stays_bounded(monkeypatch):
+    monkeypatch.setattr(get_settings(), "anonymous_error_events_per_minute", 1)
+
+    for index in range(10_050):
+        telemetry._admit_anonymous_error(f"10.{index}")
+        telemetry._admit_anonymous_error(f"10.{index}")
+
+    assert len(telemetry._anonymous_suppressed) <= 10_000

@@ -103,6 +103,32 @@ def test_anonymous_error_events_are_limited_by_default_and_not_negative():
         settings(anonymous_error_events_per_minute=-1)
 
 
+def test_the_work_budgets_are_on_by_default_and_compiling_is_the_stricter_class():
+    configured = settings()
+    assert configured.work_rate_limit_window_s == 60
+    assert configured.work_rate_limit_compile_requests * 5 <= configured.work_rate_limit_read_requests
+    assert configured.work_rate_limit_compile_requests > 0
+    assert configured.work_rate_limit_signed_in_multiplier > 1
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["work_rate_limit_read_requests", "work_rate_limit_compile_requests"],
+)
+def test_a_work_budget_may_be_switched_off_but_not_be_negative(field):
+    assert getattr(settings(**{field: 0}), field) == 0
+    with pytest.raises(ValueError):
+        settings(**{field: -1})
+
+
+@pytest.mark.parametrize(
+    "field", ["work_rate_limit_window_s", "work_rate_limit_signed_in_multiplier"]
+)
+def test_the_work_window_and_multiplier_must_be_positive(field):
+    with pytest.raises(ValueError):
+        settings(**{field: 0})
+
+
 def test_no_failure_mode_switch_remains():
     # An unreachable SPACE always fails closed (503 pricing_unavailable): there
     # is no fail-open switch to configure. (The retired destructive key is

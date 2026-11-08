@@ -41,6 +41,11 @@ before it is written; and a composition is bounded in the feature values and the
 substitutions its package would hold before it is emitted, because those grow with
 candidates times properties while the source grows with their sum.
 
+**And each client has a budget.** The pools bound the work in flight, not who is asking for
+it, so every route that reads or compiles a document also counts its caller
+(``access/work_limits.py``) and answers ``429`` with ``Retry-After`` past the budget. The two
+descriptions of the language answer from a cache and are not counted.
+
 **The stored composition**, under a project, is phase F2: a composition kept as a sealed,
 versioned artifact, its diff between two sealed versions, and its fork.
 """
@@ -68,6 +73,7 @@ from bim_core.canonical import canonical_json, digest, digest_bytes
 
 from ..access import public_read
 from ..access.dependencies import get_current_user, get_optional_user, session_dependency
+from ..access.work_limits import limit_work
 from ..artifacts import can_read, store_blob, validate_content, version_content
 from ..collaboration import organization_by_ref, require_project
 from ..composition import LANGUAGE_ID
@@ -690,6 +696,7 @@ async def _compile(composition: Composition, with_provenance: bool = False) -> _
     "/validate",
     response_model=CompositionValidateResponse,
     operation_id="validateComposition",
+    dependencies=[Depends(limit_work)],
     summary="Validate a composition and locate every problem in its source",
     responses=_BUSY,
 )
@@ -727,6 +734,7 @@ async def validate_composition(
     "/parse",
     response_model=CompositionParseResponse,
     operation_id="parseComposition",
+    dependencies=[Depends(limit_work)],
     summary="Read a composition into the documents a form edits",
     responses=_BUSY,
 )
@@ -822,6 +830,7 @@ def _serialised(body: bytes, form: str) -> CompositionSerialiseResponse:
     "/serialise",
     response_model=CompositionSerialiseResponse,
     operation_id="serialiseComposition",
+    dependencies=[Depends(limit_work)],
     summary="Write a composition document as YAML source",
     responses={
         422: {"description": "The request is malformed, or its body is past the size limit."},
@@ -866,6 +875,7 @@ async def serialise_composition(
     "/compile",
     response_model=CompositionCompileResponse,
     operation_id="compileComposition",
+    dependencies=[Depends(limit_work)],
     summary="Compile a composition and report its package and digests",
     responses=_BUSY,
 )
@@ -930,6 +940,7 @@ def _filename(composition: Composition) -> str:
 @router.post(
     "/package",
     operation_id="packageComposition",
+    dependencies=[Depends(limit_work)],
     summary="Download a composition as a BIM package",
     response_class=Response,
     responses={
@@ -1067,6 +1078,7 @@ def _imported(archive: bytes, ir: dict[str, Any]) -> tuple[Composition, str]:
     "/import",
     response_model=CompositionImportResponse,
     operation_id="importComposition",
+    dependencies=[Depends(limit_work)],
     summary="Import a composition from a BIM package",
     responses=_BUSY,
 )
@@ -1305,6 +1317,7 @@ class CompositionDiffResponse(BaseModel):
     "/diff",
     response_model=CompositionDiffResponse,
     operation_id="diffCompositions",
+    dependencies=[Depends(limit_work)],
     summary="Compare two compositions",
     responses={422: {"description": "One of the two documents is not a composition."}, **_BUSY},
 )

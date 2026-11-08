@@ -8,7 +8,8 @@ permissions and exact Engine boundary.
 ``get_current_user`` refuses anyone it cannot identify; ``get_optional_user``
 answers ``None`` instead, which is what the endpoints that stay open to visitors
 need. Both go through the same resolution, so there is one place where a
-credential turns into a user.
+credential turns into a user. ``counted_caller`` goes through it too, for a route
+that only needs to know whose request to count.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
-from fastapi import Depends, Request, Security, status
+from fastapi import Depends, HTTPException, Request, Security, status
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -279,6 +280,37 @@ async def get_optional_user(
         return None
     _record_caller(request, user)
     _authorize_api_key(request, user)
+    return user
+
+
+async def counted_caller(
+    request: Request,
+    session: Optional[AsyncSession] = Depends(optional_session, scope="function"),
+    settings: Settings = Depends(get_settings),
+) -> Optional[User]:
+    """Whose request this is, on a route that has never looked at a credential.
+
+    ``get_optional_user`` without its refusals: such a route answers a key that lacks its
+    permission, and a gateway with no signing secret, exactly as it answers nobody, and
+    presenting a credential must not start being refused because of what this is for. It
+    grants nothing. The answer only says whose budget the request is charged to and whose
+    failure it is in the error telemetry.
+    """
+    _record_caller(request, None)
+    if session is None:
+        return None
+
+    credential = _credential(request)
+    if not credential:
+        return None
+
+    try:
+        user = await _user_for_credential(credential, session, settings)
+    except HTTPException:
+        return None
+    if user is None or not user.is_active:
+        return None
+    _record_caller(request, user)
     return user
 
 

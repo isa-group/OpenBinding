@@ -266,8 +266,23 @@ class Settings(BaseSettings):
     auth_rate_limit_refresh_attempts: int = Field(default=30, ge=0)
     auth_rate_limit_ip_multiplier: int = Field(default=10, ge=1)
     #: Seconds the Redis backend is left alone after it failed, so that an
-    #: outage costs one timeout per period rather than one per login.
+    #: outage costs one timeout per period rather than one per login. The
+    #: limiter of the open routes below follows the same period.
     auth_rate_limit_redis_retry_s: float = Field(default=15.0, gt=0)
+
+    # -- Throttling of the work anybody may ask for ----------------------
+    #: Requests per window that one client may send to the routes open to
+    #: anybody that do real CPU work (``access/work_limits.py`` names them and
+    #: docs/ACCESS_POLICY.md explains them). A client is its address (its /64
+    #: for IPv6) or, signed in, its account. ``read`` reads and writes YAML;
+    #: ``compile`` runs the container's compiler or the generator, so it is much
+    #: stricter. ``0`` switches a class off for everybody. Counted like
+    #: authentication: in Redis, or per process while Redis does not answer.
+    work_rate_limit_window_s: int = Field(default=60, ge=1)
+    work_rate_limit_read_requests: int = Field(default=60, ge=0)
+    work_rate_limit_compile_requests: int = Field(default=10, ge=0)
+    #: How many times those budgets a signed-in caller gets.
+    work_rate_limit_signed_in_multiplier: int = Field(default=5, ge=1)
 
     # -- The first administrator -----------------------------------------
     #: Registration is open and produces ordinary users, so a fresh deployment
@@ -360,8 +375,9 @@ class Settings(BaseSettings):
     public_read_rate_per_minute: int = Field(default=240, ge=0)
 
     # -- Diagnostics ------------------------------------------------------
-    #: Anonymous 401/404 responses persisted as error events per client
-    #: address and minute; the rest are served but not stored
+    #: Failures of anonymous callers persisted as error events per client
+    #: address and minute, whatever their status; the rest are served but not
+    #: stored, and the next event stored says how many were dropped
     #: (``ANONYMOUS_ERROR_EVENTS_PER_MINUTE``; 0 switches the limit off).
     anonymous_error_events_per_minute: int = Field(default=30, ge=0)
 

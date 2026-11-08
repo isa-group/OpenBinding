@@ -3,6 +3,11 @@
 Captures all HTTP error responses (>= 400) and solver job execution failures,
 sanitizes sensitive fields, and persists structured ApiErrorEvent records for
 administrative visibility and operational diagnostics.
+
+A failure of somebody with an account is kept whole, because it is theirs and they
+answer for it. A failure of an anonymous caller is not: anybody can produce them at will
+and every one is a row, so they are limited per client and minute, and what is kept says
+what happened and how often, never what was said (``bounded_detail``).
 """
 
 from __future__ import annotations
@@ -19,11 +24,13 @@ from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from .core.ratelimit import client_bucket
 from .core.settings import get_settings
 from .db import base as db_base
 from .db.models import Job, utcnow
 from .db.platform_models import ApiErrorEvent
 from .domain import binding_space, usage_counters
+from .models.problem import CORRELATION_ID_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +64,8 @@ def sanitize_detail(data: Any, path: str = "") -> Any:
             return {
                 k: sanitize_detail(v, path)
                 for k, v in data.items()
-                if k in ("code", "error", "message", "title", "status", "type", "diagnostics")
+                if k in ("code", "error", "message", "title", "status", "type", "diagnostics",
+                         "endpoint", "counts", "suppressed", CORRELATION_ID_KEY)
             }
     if isinstance(data, dict):
         sanitized = {}
@@ -118,15 +126,25 @@ async def _get_db_session() -> Tuple[Optional[AsyncSession], bool]:
 
 _WINDOW_S = 60.0
 _MAX_TRACKED_CLIENTS = 10_000
+#: The widths of ``ApiErrorEvent.error_code`` and ``.endpoint``.
+_MAX_ERROR_CODE_CHARS = 64
+_MAX_ENDPOINT_CHARS = 256
 _anonymous_hits: dict[str, deque[float]] = {}
+#: Failures of a client that were served but not stored, since the last one that was.
+_anonymous_suppressed: dict[str, int] = {}
 
 
 def reset_anonymous_error_limits() -> None:
     _anonymous_hits.clear()
+    _anonymous_suppressed.clear()
 
 
 def _admit_anonymous_error(client: str) -> bool:
-    """Whether one more anonymous 401/404 from ``client`` may be persisted."""
+    """Whether one more failure of an anonymous ``client`` may be persisted.
+
+    Per process, on purpose: this protects a table from noise, it is not a security
+    boundary, and a failure path should not start waiting on Redis.
+    """
     limit = get_settings().anonymous_error_events_per_minute
     if limit <= 0:
         return True
@@ -137,6 +155,8 @@ def _admit_anonymous_error(client: str) -> bool:
     admitted = len(window) < limit
     if admitted:
         window.append(now)
+    else:
+        _anonymous_suppressed[client] = _anonymous_suppressed.get(client, 0) + 1
     if len(_anonymous_hits) > _MAX_TRACKED_CLIENTS:
         for key in [k for k, v in _anonymous_hits.items() if not v or now - v[-1] >= _WINDOW_S]:
             del _anonymous_hits[key]
@@ -146,7 +166,43 @@ def _admit_anonymous_error(client: str) -> bool:
         if excess > 0:
             for key in sorted(_anonymous_hits, key=lambda k: _anonymous_hits[k][-1])[:excess]:
                 del _anonymous_hits[key]
+        for key in [k for k in _anonymous_suppressed if k not in _anonymous_hits]:
+            del _anonymous_suppressed[key]
     return admitted
+
+
+def _diagnostic_count(body: Any) -> int:
+    """How many diagnostics a failure listed, in either of the two shapes a failure has."""
+    if not isinstance(body, dict):
+        return 0
+    found = body.get("diagnostics")
+    nested = body.get("detail")
+    if found is None and isinstance(nested, dict):
+        found = nested.get("diagnostics")
+    return len(found) if isinstance(found, list) else 0
+
+
+def bounded_detail(
+    status_code: int, endpoint: str, error_code: str, body: Any, suppressed: int,
+) -> dict[str, Any]:
+    """What is kept of an anonymous failure: fixed fields and counts, and no message.
+
+    A refusal quotes what it refuses, and an anonymous caller chooses that: the message of
+    a 422 can repeat a value as long as the document it was sent. ``suppressed`` is how many
+    failures of this client went unrecorded since the previous row, so the volume survives
+    the throttle that keeps it out of the table. A 5xx also keeps its correlation id, which
+    the gateway generated and which is the only way from the row to the cause in the log.
+    """
+    bounded: dict[str, Any] = {
+        "code": str(error_code)[:_MAX_ERROR_CODE_CHARS],
+        "status": status_code,
+        "endpoint": endpoint[:_MAX_ENDPOINT_CHARS],
+        "counts": {"diagnostics": _diagnostic_count(body), "suppressed": suppressed},
+    }
+    correlation = body.get(CORRELATION_ID_KEY) if isinstance(body, dict) else None
+    if isinstance(correlation, str):
+        bounded[CORRELATION_ID_KEY] = correlation[:_MAX_ERROR_CODE_CHARS]
+    return bounded
 
 
 async def purge_old_error_events(session: AsyncSession, days: int = 90) -> int:
@@ -243,7 +299,7 @@ class ErrorTelemetryMiddleware:
 
         endpoint = scope.get("path", "")
         method = scope.get("method", "GET")
-        client = (scope.get("client") or ("unknown",))[0]
+        client = client_bucket((scope.get("client") or ("unknown",))[0])
         # Request.state writes into scope["state"]; creating it here guarantees
         # the dependencies and this middleware share the same dict.
         state = scope.setdefault("state", {})
@@ -259,6 +315,12 @@ class ErrorTelemetryMiddleware:
                 if response_status >= 400:
                     body_chunks.append(message.get("body", b""))
                     if not message.get("more_body", False):
+                        user_id = state.get("user_id")
+                        if not isinstance(user_id, uuid.UUID):
+                            user_id = None
+                        if user_id is None and not _admit_anonymous_error(client):
+                            await send(message)
+                            return
                         full_body = b"".join(body_chunks)
                         parsed_body: dict = {}
                         error_code = f"http_{response_status}"
@@ -277,16 +339,12 @@ class ErrorTelemetryMiddleware:
                             parsed_body = {"raw": full_body.decode("utf-8", errors="replace")[:1000]}
 
                         category = categorize_error(response_status, error_code)
-                        user_id = state.get("user_id")
-                        if not isinstance(user_id, uuid.UUID):
-                            user_id = None
-                        if (
-                            user_id is None
-                            and response_status in (401, 404)
-                            and not _admit_anonymous_error(client)
-                        ):
-                            await send(message)
-                            return
+                        detail = parsed_body
+                        if user_id is None:
+                            detail = bounded_detail(
+                                response_status, endpoint, error_code, parsed_body,
+                                _anonymous_suppressed.pop(client, 0),
+                            )
                         try:
                             await record_api_error(
                                 status_code=response_status,
@@ -294,7 +352,7 @@ class ErrorTelemetryMiddleware:
                                 http_method=method,
                                 error_code=error_code,
                                 category=category,
-                                detail=parsed_body,
+                                detail=detail,
                                 user_id=user_id,
                             )
                         except Exception as exc:

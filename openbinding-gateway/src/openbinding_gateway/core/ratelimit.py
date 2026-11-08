@@ -1,10 +1,14 @@
-"""Throttling of authentication: login, registration and token refresh.
+"""Fixed-window throttling, and the throttling of authentication built on it.
 
-A fixed window counted per ``(action, client address, identifier)`` and,
-with a larger budget, per ``(action, client address)``. The first stops
-guessing one account's password from one place; the second stops one place
-spraying many identifiers. Counters live in Redis (``INCR`` + ``EXPIRE``) so
-that every replica of the gateway shares them.
+``RateLimiter`` is the counting and its failure mode. Counters live in Redis
+(``INCR`` + ``EXPIRE``) so that every replica of the gateway shares them. Two
+limiters are built on it: ``AuthRateLimiter`` here, and the one in
+``access/work_limits.py`` for the CPU-heavy routes open to anybody.
+
+Authentication (login, registration and token refresh) is counted per
+``(action, client address, identifier)`` and, with a larger budget, per
+``(action, client address)``. The first stops guessing one account's password
+from one place; the second stops one place spraying many identifiers.
 
 Failure mode, decided on purpose: **when Redis does not answer, the limiter
 does not switch itself off.** It falls back to counters held in the memory of
@@ -26,10 +30,11 @@ trusts the client address it is given - which is only meaningful behind
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Callable, Optional, Protocol
+from typing import Callable, ClassVar, Optional, Protocol
 
 from fastapi import Request, status
 
@@ -45,10 +50,10 @@ _MEMORY_MAX_KEYS = 50_000
 
 
 class RateLimitBackend(Protocol):
-    """A counter store: add one hit to ``key`` and say where the window stands."""
+    """A counter store: add ``cost`` hits to ``key`` and say where the window stands."""
 
-    async def hit(self, key: str, window_s: int) -> tuple[int, int]:
-        """``(hits in the current window including this one, seconds until it ends)``."""
+    async def hit(self, key: str, window_s: int, cost: int = 1) -> tuple[int, int]:
+        """``(hits in the current window including these, seconds until it ends, at least 1)``."""
         ...
 
 
@@ -59,12 +64,12 @@ class MemoryBackend:
         self._clock = clock
         self._windows: dict[str, tuple[int, float]] = {}
 
-    async def hit(self, key: str, window_s: int) -> tuple[int, int]:
+    async def hit(self, key: str, window_s: int, cost: int = 1) -> tuple[int, int]:
         now = self._clock()
         count, ends = self._windows.get(key, (0, 0.0))
         if now >= ends:
             count, ends = 0, now + window_s
-        count += 1
+        count += cost
         self._windows[key] = (count, ends)
         if len(self._windows) > _MEMORY_SWEEP_AT:
             self._sweep(now)
@@ -92,12 +97,12 @@ class RedisBackend:
     def from_url(cls, url: str) -> "RedisBackend":
         from redis.asyncio import Redis
 
-        # Short timeouts: this sits on the login path.
+        # Short timeouts: this sits on the path of every request it counts.
         return cls(Redis.from_url(url, socket_connect_timeout=0.5, socket_timeout=0.5))
 
-    async def hit(self, key: str, window_s: int) -> tuple[int, int]:
+    async def hit(self, key: str, window_s: int, cost: int = 1) -> tuple[int, int]:
         pipeline = self._redis.pipeline(transaction=True)
-        pipeline.incr(key)
+        pipeline.incr(key, cost)
         pipeline.ttl(key)
         count, ttl = await pipeline.execute()
         if ttl is None or ttl < 0:
@@ -105,7 +110,9 @@ class RedisBackend:
             # which would otherwise never reset.
             await self._redis.expire(key, window_s)
             ttl = window_s
-        return int(count), int(ttl)
+        # TTL rounds to the second, so the last half second reads 0. A window that
+        # is still open has to say so: 0 would read as "no wait" to a caller.
+        return int(count), max(1, int(ttl))
 
     async def aclose(self) -> None:
         await self._redis.aclose()
@@ -133,8 +140,8 @@ class RateLimited(Exception):
 
 
 @dataclass
-class AuthRateLimiter:
-    """Counts attempts through ``primary`` and, if it fails, through ``fallback``."""
+class RateLimiter:
+    """Counts hits through ``primary`` and, if it fails, through ``fallback``."""
 
     primary: Optional[RateLimitBackend]
     fallback: RateLimitBackend = field(default_factory=MemoryBackend)
@@ -142,23 +149,34 @@ class AuthRateLimiter:
     clock: Callable[[], float] = time.monotonic
     degradation: Degradation = field(default_factory=Degradation)
 
-    async def _hit(self, key: str, window_s: int) -> tuple[int, int]:
+    #: Which limiter it is, in the log line of a degradation.
+    label: ClassVar[str] = "rate limiter"
+
+    async def _hit(self, key: str, window_s: int, cost: int = 1) -> tuple[int, int]:
         if self.primary is not None and self.clock() >= self.degradation.retry_at:
             try:
-                return await self.primary.hit(key, window_s)
+                return await self.primary.hit(key, window_s, cost)
             except Exception as error:  # noqa: BLE001 - any backend failure degrades, none disables
                 self.degradation.events += 1
                 self.degradation.last_error = type(error).__name__
                 self.degradation.last_at = time.time()
                 self.degradation.retry_at = self.clock() + self.retry_after_failure_s
                 logger.warning(
-                    "authentication rate limiter: shared backend unavailable (%s); using "
+                    "%s: shared backend unavailable (%s); using "
                     "per-process counters for %.0fs (degradation #%d)",
+                    self.label,
                     type(error).__name__,
                     self.retry_after_failure_s,
                     self.degradation.events,
                 )
-        return await self.fallback.hit(key, window_s)
+        return await self.fallback.hit(key, window_s, cost)
+
+
+@dataclass
+class AuthRateLimiter(RateLimiter):
+    """Counts login, registration and refresh attempts."""
+
+    label: ClassVar[str] = "authentication rate limiter"
 
     async def check(
         self,
@@ -224,6 +242,24 @@ def client_address(request: Request) -> str:
     return str(client[0]) if client else "unknown"
 
 
+def client_bucket(address: str) -> str:
+    """What one client is counted as: its address, or for IPv6 the /64 it belongs to.
+
+    A single IPv6 subscriber holds a whole /64 and may use a new address for every request,
+    so a counter per address would count nothing. An IPv4 address mapped into IPv6 is that
+    IPv4 address; anything that is not an address (``unknown``) is its own bucket.
+    """
+    try:
+        parsed = ipaddress.ip_address(address)
+    except ValueError:
+        return address
+    if parsed.version == 4:
+        return address
+    if parsed.ipv4_mapped is not None:
+        return str(parsed.ipv4_mapped)
+    return f"{ipaddress.IPv6Address(int(parsed) >> 64 << 64)}/64"
+
+
 def _budget(settings: Settings, action: str) -> int:
     return {
         "login": settings.auth_rate_limit_login_attempts,
@@ -274,8 +310,10 @@ __all__ = [
     "MemoryBackend",
     "RateLimitBackend",
     "RateLimited",
+    "RateLimiter",
     "RedisBackend",
     "client_address",
+    "client_bucket",
     "enforce_auth_rate_limit",
     "get_auth_limiter",
     "set_auth_limiter",
