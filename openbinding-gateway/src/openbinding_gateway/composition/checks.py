@@ -11,10 +11,16 @@ one compile later and one layer further away, which is the right address for a g
 document and the wrong one for a person editing YAML. Moving them here does not make the
 container's checks redundant; it makes them late.
 
-**Every check is measured against the gate before it is enforced.** All eight refuse none of
+**Every check is measured against the gate before it is enforced.** All ten refuse none of
 the 82 packages of specification section 11.2, which is what makes it safe to refuse them at
 authoring time: a check that rejected a package in the corpus would be a claim about the
 language contradicted by the language's own examples. The measurement is a test, not a note.
+
+**Two of them guard the emitter.** A property whose neutral cannot be resolved and a goal
+with nothing to normalize over used to surface only as exceptions out of ``emit`` -- the
+first naming no property -- on documents ``parse`` accepted and sealing would have sealed.
+Both are asked here through the emitter's own functions, so the check and the package cannot
+disagree, and a complete composition is one ``emit`` can write.
 
 **One declared code is deliberately absent.** Section 14 named
 ``c2y_exclusive_condition`` for "a branch carries both a probability and a condition", and
@@ -38,6 +44,8 @@ from __future__ import annotations
 
 from . import diagnostics as codes
 from .diagnostics import Diagnostic
+from .emit import EmitError, criterion_range, property_neutral
+from .neutral import OutsideDomain, Unbounded
 from .model import (
     Composition,
     Exclusive,
@@ -93,6 +101,19 @@ def _repeats(node: Node, found: list[Repeat] | None = None) -> list[Repeat]:
     return found
 
 
+#: The domain kinds a property may have; any other is the schema's to refuse.
+_DOMAIN_KINDS = frozenset({"real", "integer", "ratio"})
+
+
+def _bound(value: float | None) -> str:
+    return "unbounded" if value is None else f"{value:g}"
+
+
+def _number(value: object) -> bool:
+    """Absent, or a number the schema would accept as one (a bool is not)."""
+    return value is None or (isinstance(value, (int, float)) and not isinstance(value, bool))
+
+
 def _capabilities(composition: Composition) -> set[str]:
     """Every capability the catalog offers, counting a fixed task's minted one.
 
@@ -144,12 +165,47 @@ def completeness(composition: Composition) -> tuple[Diagnostic, ...]:
         ))
 
     for position, goal in enumerate(composition.goals):
-        if goal.property not in composition.properties:
+        prop = composition.properties.get(goal.property)
+        if prop is None:
             found.append(Diagnostic(
                 code=codes.GOAL_UNKNOWN,
                 message=f"the goal reads property {goal.property!r}, which is not declared",
                 path=f"goals[{position}].property",
             ))
+        elif goal.normalize is None:
+            # The emitter's own function, so the check and the package cannot disagree about
+            # which goals have a range. Here rather than in coherence because it is a goal and
+            # a property read together, like the unknown property above, and a draft whose
+            # property has not been given its bounds yet is unfinished, not contradictory.
+            try:
+                criterion_range(goal.property, prop)
+            except EmitError as error:
+                found.append(Diagnostic(
+                    code=codes.GOAL_RANGE, message=str(error), path=f"goals[{position}]",
+                ))
+
+    for name, prop in composition.properties.items():
+        # A ``min`` property whose domain has no maximum yet, say: the bound is missing, not
+        # contradicted, and choosing the ``throughput`` template before typing its bound is
+        # the ordinary way to get here. So it is reported where a draft may still be
+        # unfinished -- the editor keeps working -- and refused where a version is sealed or
+        # compiled, before the emitter would raise on it. Sections 3.2 and 10.1 ask for it to
+        # be caught at authoring time, and an ``incomplete`` marker is caught.
+        try:
+            property_neutral(prop)
+        except Unbounded as error:
+            side = "max" if error.bound == "maximum" else "min"
+            found.append(Diagnostic(
+                code=codes.PROPERTY_NEUTRAL,
+                message=(
+                    f"property {name!r} aggregates a sequence with {error.operator!r} and its "
+                    f"domain has no {side}, so it has no neutral yet: give the domain a {side} "
+                    "or declare the neutral"
+                ),
+                path=f"properties.{name}",
+            ))
+        except (OutsideDomain, TypeError, ValueError, OverflowError):
+            continue  # coherence and the schema answer these, on documents that get this far
 
     offered = _capabilities(composition)
     for name, task in composition.tasks.items():
@@ -175,6 +231,34 @@ def coherence(composition: Composition) -> tuple[Diagnostic, ...]:
     document, so these are refused by ``parse``.
     """
     found: list[Diagnostic] = []
+    for name, prop in composition.properties.items():
+        # A property whose neutral lies outside its own domain contradicts itself: the domain
+        # excludes the value the property contributes where it does not participate. Asked
+        # through the emitter's own function, which applies the container's rule -- every
+        # neutral, inferred or declared, against the domain, a ratio against [0, 1] -- so the
+        # check, the package and the compiler agree.
+        if not isinstance(prop.domain.kind, str) or prop.domain.kind not in _DOMAIN_KINDS or not all(
+            _number(value) for value in (prop.neutral, prop.domain.minimum, prop.domain.maximum)
+        ):
+            # Coherence runs before the schema, and a bound written as text, or a kind the
+            # language does not have, is the schema's to name: judging a neutral against it
+            # would report the wrong problem -- a misspelt ``ratio`` would be checked as a
+            # real domain and blamed on the neutral.
+            continue
+        try:
+            property_neutral(prop)
+        except Unbounded:
+            continue  # nothing contradicts itself yet; completeness reports what is missing
+        except OutsideDomain as error:
+            found.append(Diagnostic(
+                code=codes.PROPERTY_NEUTRAL,
+                message=(
+                    f"property {name!r} has the neutral {error.value}, which lies outside its "
+                    f"own domain [{_bound(error.minimum)}, {_bound(error.maximum)}]"
+                ),
+                path=f"properties.{name}.neutral" if prop.neutral is not None else f"properties.{name}",
+            ))
+
     for choice in _exclusives(composition.workflow):
         probabilities = [branch.probability for branch in choice.branches]
         stated = [value for value in probabilities if value is not None]

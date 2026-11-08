@@ -21,6 +21,11 @@ So ``checks.coherence`` (one element contradicting itself) is refused by ``parse
 ``checks.completeness`` (references across sections, an empty market) is refused when a
 version is sealed, because a sealed version is citable and has to compile.
 
+Two more joined in phase F3 because the emitter raised on both: a property whose neutral cannot
+be resolved -- outside its domain is coherence, no bound yet is completeness -- and a goal with
+nothing to normalize over (completeness). The tests at the end pin them, and the gate measurement covers them as it
+covers the rest.
+
 **One declared code is deliberately absent, and the last test pins why.** Section 14 named
 ``c2y_exclusive_condition`` for "a branch carries both a probability and a condition", while
 section 5.2 says the opposite in as many words -- and the guiding case does carry both.
@@ -284,3 +289,106 @@ def test_the_guiding_case_carries_both_and_still_parses() -> None:
     assert choices, "version 2 chooses between the classical and the quantum solver"
     assert all(branch.condition for branch in choices[0].branches)
     assert all(branch.probability is not None for branch in choices[0].branches)
+
+
+# ------------------------------------------------- what a package needs and emit assumed
+#
+# Two refusals that used to surface only as exceptions out of ``emit`` -- the first naming no
+# property -- on documents ``parse`` accepted and sealing would have sealed. Both are asked
+# through the emitter's own functions, so the check and the package cannot disagree, and the
+# neutral's is the container's own rule.
+
+
+def _with(prop: str) -> str:
+    return SOURCE.replace("  cost:\n    unit: USD/month", f"  {prop}\n  cost:\n    unit: USD/month")
+
+
+def test_a_property_with_no_neutral_yet_is_incomplete_not_unreadable() -> None:
+    """``throughput`` before its ``domain.max`` is typed: something missing, not something
+    contradicted.
+
+    Its neutral is the domain's maximum, and there is none yet. A draft passes through this
+    state every time the template is chosen, so ``parse`` reads it -- the editor keeps
+    working -- and completeness reports it, which is where sealing and compiling stop.
+    """
+    text = _with("throughput: {template: throughput}")
+    composition = parse(text)
+    found = next(item for item in completeness(composition) if item.code == codes.PROPERTY_NEUTRAL)
+    assert found.path == "properties.throughput"
+    assert "max" in found.message
+
+
+def test_the_same_property_with_a_maximum_or_a_declared_neutral_is_complete() -> None:
+    for text in (
+        _with("throughput: {template: throughput, domain: {max: 1000}}"),
+        _with("throughput: {template: throughput, neutral: 1000}"),
+    ):
+        assert codes.PROPERTY_NEUTRAL not in _incomplete(text)
+
+
+def test_a_declared_neutral_outside_the_domain_is_refused() -> None:
+    """A property contradicting itself: coherence, and so refused by ``parse``."""
+    text = SOURCE.replace("domain: {min: 0, max: 100}", "domain: {min: 0, max: 100}\n    neutral: 500")
+    found = _located(text, codes.PROPERTY_NEUTRAL)
+    assert found.path == "properties.cost.neutral"
+
+
+def test_an_inferred_neutral_outside_the_domain_is_refused_as_the_container_would() -> None:
+    """``sum`` means a neutral of 0, and this domain starts at 10.
+
+    The container range-checks every neutral, inferred or declared; checking only a declared
+    one let this through to a compile that refused it with ``feature_neutral_domain``.
+    """
+    text = SOURCE.replace("domain: {min: 0, max: 100}", "domain: {min: 10, max: 100}")
+    found = _located(text, codes.PROPERTY_NEUTRAL)
+    assert found.path == "properties.cost"
+
+
+def test_a_ratio_is_checked_against_its_own_range_as_the_container_checks_it() -> None:
+    """A ratio with narrower bounds and a neutral of 1.0: the container checks [0, 1].
+
+    Checking the author's narrower bounds refused a package the container compiles.
+    """
+    text = _with("share: {template: availability, domain: {kind: ratio, min: 0, max: 0.9}, neutral: 1.0}")
+    assert codes.PROPERTY_NEUTRAL not in _codes_or_none(text)
+
+
+def test_a_misspelt_domain_kind_is_the_schemas_to_name() -> None:
+    """Checked as a real domain, a misspelt ``ratio`` would blame the neutral."""
+    text = _with("share: {template: availability, domain: {kind: Ratio, max: 0.99}}")
+    assert _codes(text) == [codes.SCHEMA]
+
+
+def test_a_bound_written_as_text_is_the_schemas_to_name() -> None:
+    """Coherence runs before the schema; judging a neutral against ``"high"`` would report
+    the wrong problem."""
+    text = SOURCE.replace("domain: {min: 0, max: 100}", "domain: {min: 0, max: high}")
+    assert _codes(text) == [codes.SCHEMA]
+
+
+def test_a_goal_with_nothing_to_normalize_over_is_incomplete() -> None:
+    """A goal and a property read together, like an unknown property: completeness.
+
+    The draft parses -- giving the property its bounds is a normal next step, not a
+    contradiction -- and sealing refuses it, because the criterion would have no range.
+    """
+    draft = SOURCE.replace("    domain: {min: 0, max: 100}\n", "")
+    found = next(item for item in completeness(parse(draft)) if item.code == codes.GOAL_RANGE)
+    assert found.path == "goals[0]"
+
+
+def test_a_goal_with_its_own_range_needs_no_bounds_on_the_property() -> None:
+    draft = SOURCE.replace("    domain: {min: 0, max: 100}\n", "").replace(
+        "  - property: cost", "  - property: cost\n    normalize: {min: 0, max: 50}",
+    )
+    assert codes.GOAL_RANGE not in _incomplete(draft)
+
+
+def test_what_parses_and_is_complete_emits() -> None:
+    """The point of both checks: a complete composition is one ``emit`` can write."""
+    from openbinding_gateway.composition.emit import emit  # noqa: PLC0415
+
+    for text in (SOURCE, _with("throughput: {template: throughput, domain: {max: 1000}}")):
+        composition = parse(text)
+        assert not completeness(composition)
+        assert "instance.json" in emit(composition)

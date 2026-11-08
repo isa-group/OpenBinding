@@ -160,10 +160,19 @@ def test_a_composition_error_is_a_text_error() -> None:
         parse(SOURCE + "studioo: {}\n")
 
 
-def test_an_unreadable_document_is_still_a_plain_refusal() -> None:
-    """Malformed YAML is not a composition with a bad element: there is no document yet."""
-    with pytest.raises(Exception) as raised:
+def test_an_unreadable_document_is_a_located_syntax_refusal() -> None:
+    """Malformed YAML is refused by ``parse`` itself, at the position PyYAML reached.
+
+    It used to escape as PyYAML's own exception, and the validate route turned it into
+    ``c2y_syntax``. That stopped being enough once the loader refused YAML a composition may
+    not use -- an alias, a duplicate key, a number that is not finite -- because those are
+    the language's rules, and every caller of ``parse`` has to meet them as diagnostics, not
+    only the one route that knew to catch a YAML error. There is no element to name, so the
+    path is the document's; the span is where the reading stopped.
+    """
+    with pytest.raises(CompositionError) as raised:
         parse("{not: [valid")
-    assert not isinstance(raised.value, CompositionError), (
-        "a YAML syntax error has no path to name, so it is not a located diagnostic"
-    )
+    (found,) = raised.value.diagnostics
+    assert found.code == codes.SYNTAX
+    assert found.path == ""
+    assert found.span is not None

@@ -143,6 +143,49 @@ studio: {...}                       # section 9, inert
 `metadata.name` of every emitted document, suffixed per resource. `version` is a free
 non-empty string and becomes `metadata.version`.
 
+**A document is YAML restricted to JSON's data model.** The schema that judges it is a JSON
+Schema, the package it compiles into is JSON, and the editor receives it over HTTP as JSON,
+so the reader (`composition/syntax.py`) refuses what YAML can say and JSON cannot hold, each
+as `c2y_syntax` at the position it was found (section 14):
+
+- an **alias** or a merge key. An alias re-reads a node wherever it is named, so a few
+  hundred bytes of nested aliases expand into millions of nodes: measured on the reader this
+  replaced, a 521-byte refused document took 7.6 seconds, nearly all of it in the span
+  locator walking the expansion, on routes anyone may call. A composition has nothing to
+  share that a reference by id does not already say.
+- a **duplicate key**, which YAML would silently keep last;
+- a **key that is not a string** -- YAML 1.1 reads `on:` as `true` and `1:` as an integer;
+  quoted, either is a string;
+- a **number that is not finite** (`.inf`, `.nan`), which JSON cannot hold and the
+  container refuses as an unreadable package;
+- a value of a type JSON has no value for (`!!binary`, `!!set`, `!!omap`, `!!pairs`,
+  `!!timestamp`). A plain date is not refused: it stays the string it was written as.
+- **nesting deeper than 64 levels**, nearly four times the deepest composition in the
+  corpus (17 levels counting every mapping, sequence and scalar); the readers recurse, and
+  measured, they ran out of stack at 163 nested workflow steps, about 330 levels.
+- an **integer past +-(2^53 - 1)**, which a JavaScript reader rounds and the container's
+  canonical form refuses; and a **number written in more than 64 characters**, refused
+  before it is converted, because YAML 1.1's base-60 integers (`1:30` is 90) convert in time
+  quadratic in their length. The corpus's longest number is 18 characters, and a double
+  writes in at most 24.
+
+Scalars otherwise resolve exactly as YAML 1.1 has them, PyYAML's `SafeLoader` rules
+unchanged: `yes` is `true`, `010` is 8, `1:30` is 90. Moving to YAML 1.2 would re-read
+sealed sources differently, and the writer quotes every string those rules would misread --
+and writes a string holding U+0085 double-quoted, the one character a sweep found that the
+reader would otherwise fold into a space. The one rule dropped is YAML 1.1's `=` value key:
+a plain `=` is a string. The events come from libyaml when it is installed, with the
+composer and every rule above in Python: measured on the corpus's largest composition,
+reading took 4.7 seconds on PyYAML's own scanner and 0.7 on libyaml's, giving the same
+document; and on 20,000 values in a flow list, PyYAML's scanner took 2.4 CPU-seconds flat and
+16.3 nested sixty deep, libyaml's 0.3 and 1.0. libyaml reads three corners of YAML 1.1
+differently, and its reading is the one of record: a flow key with no value (`{draft:}`) and
+a `%YAML 1.0` directive are refused, and a tab between tokens is accepted. Nothing in the
+corpus, the test suite or this specification uses any of them.
+
+None of these moves the corpus: the writer never produced any of them, and every package of
+section 11.2 reads back through this reader unchanged.
+
 ### 2.1 The pricing reference
 
 `pricing` is a reference, never an embedded pricing, and it is **the permanent link SPHERE
@@ -242,10 +285,16 @@ five templates reproduce the table in `docs/FEATURES.md` exactly:
 | `throughput` | maximize | invocation | min | min | min | identity | min |
 
 `cost`, `availability`, `reliability` and `throughput` coincide with the container's own
-shorthands `sum`, `product`, `product` and `min`, so they are emitted as the shorthand
-string. `latency` differs from every shorthand in its `parallel` operator, so it is
-emitted as a block policy. Either form lowers to the same IR, so the choice is
-digest-neutral; the spec picks the shorter source form for readability.
+shorthands `sum`, `product`, `product` and `min`, and `latency` differs from every shorthand
+in its `parallel` operator. **Every one of them is emitted as the full five-key block**,
+never as the shorthand string: both lower to the same IR, so the choice is digest-neutral,
+and the block is the form that cannot be misread -- a shorthand expands to five operators
+that a *partial* block does not reproduce. (An earlier draft of this section said the four
+were emitted as the shorthand; the emitter never did.)
+
+`GET /v1/compositions/language` serves this table, the operators each block accepts and
+the defaults a property falls back to, read from `model.TEMPLATES`, `neutral.py` and
+`text.PROPERTY_DEFAULTS` rather than restated (section 14.1).
 
 Any field declared alongside a `template` overrides it, and an `aggregate` beside a
 template is merged operator by operator rather than replacing the block: `{template:
@@ -269,10 +318,14 @@ defaults to `real`. `min`/`max` become `domain.minimum`/`domain.maximum`. A `rat
 domain is bounded to `[0, 1]` by the container and needs no explicit bounds.
 
 **A property whose `sequence` operator is `min` or `max` must bound its domain on the
-relevant side**, because that bound *is* its neutral (section 10). The
-`throughput` template therefore requires `domain.max`. Omitting it is refused at
-authoring time with `c2y_property_neutral`, rather than producing a package that fails
-to compile with `feature_neutral`.
+relevant side, or declare its neutral**, because that bound *is* its neutral otherwise
+(section 10). The `throughput` template therefore needs `domain.max` or a `neutral`.
+Without either it is reported at authoring time with `c2y_property_neutral`, rather than
+producing a package that fails to compile with `feature_neutral`. Until phase F3 this
+sentence was a promise: the document was accepted and the emitter raised an exception that
+named no property. It is now a completeness check (section 14) -- a bound not yet typed is
+something missing, not something contradicted -- so the draft stays readable and sealing and
+compiling stop at it.
 
 ### 3.3 Domain of applicability
 
@@ -518,8 +571,11 @@ Rules, each of which exists because the container enforces it:
 - **All probabilities or none**, refused as a diagnostic at authoring time
   (`c2y_exclusive_probabilities`) rather than as a compile error further away.
 - **They must sum to exactly one.** The container compares the sum against `Decimal(1)`
-  with no tolerance, so the Studio parses and sums every probability as a `Decimal` taken
-  from the YAML text and never through floating-point arithmetic.
+  with no tolerance, so the Studio sums every probability as a `Decimal` and never through
+  floating-point arithmetic. The `Decimal` is built the way the container builds it, from
+  the shortest text of the number as read (`Decimal(str(value))`), not from the source's
+  digits: `0.30000000000000001` reads as `0.3`, and a literal from-text `Decimal` would
+  refuse sums the container accepts.
 - **`distribution: uniform` is the only way to say "equally likely"**, and it emits
   `{"uniform": true}`. The Studio never computes `1/n` shares itself: for three branches
   no decimal literal is exactly one third, so three equal literals sum to `0.9999999999`
@@ -898,9 +954,15 @@ the domain**, and from nothing else:
 | `min` | `1.0` for a `ratio` domain, otherwise `domain.max` |
 | `max` | `0.0` for a `ratio` domain, otherwise `domain.min` |
 
-The neutral must then lie inside the declared domain. Where the rule yields nothing — a
-`min` property with no upper bound — the Studio refuses the document at authoring time
-instead of emitting a package that cannot compile.
+The neutral must then lie inside the domain, and that check is the container's exactly:
+every neutral is range-checked, inferred as well as declared, and a `ratio` is checked
+against its own [0, 1] rather than any narrower bounds the author gave. A neutral outside
+the domain is refused by `parse` (`c2y_property_neutral`, a property contradicting itself).
+Where the rule yields nothing — a `min` property with no upper bound — the Studio reports
+it at authoring time as incomplete, and refuses to seal or compile it, instead of emitting
+a package that cannot compile. (Before phase F3 only a declared neutral was range-checked,
+and against the author's ratio bounds: an inferred neutral outside its domain reached the
+compiler, and a ratio neutral the container accepts was refused.)
 
 A property may instead state its `neutral` outright, and then that value is used. The
 container works the same way: it reads a declared neutral before inferring anything, and
@@ -911,6 +973,11 @@ task of either kind may carry property values of its own.
 
 Applied to the templates: `cost` 0.0, `latency` 0.0, `availability` 1.0, `reliability`
 1.0, and `throughput` its `domain.max`.
+
+The table is data in `neutral.py` (`SEQUENCE_NEUTRALS`, `RATIO_NEUTRALS`) that
+`infer_neutral` reads, and `GET /v1/compositions/language` serves the same data. What a form
+shows for one property is not computed in the browser: `POST /v1/compositions/parse` returns
+each property's resolved neutral and whether it was declared or inferred.
 
 **There is a second, different neutral in the container that must never be used here.**
 The evaluator has an operator identity — `1.0` for product-like operators and `0.0` for
@@ -943,12 +1010,17 @@ substitute many values and a file holding a single record cannot grow -- and eac
 is shaped like this:
 
 ```json
-{"task": "C", "candidate": "cand_c_inhouse", "property": "qubit_count",
+{"task": "C", "candidate": "cand_C", "property": "qubit_count",
  "value": 0.0, "reason": "domain_mismatch",
  "candidateDomain": "classical", "propertyDomain": "quantum",
  "neutralSource": "inferred",
- "inferredFrom": {"sequence": "sum", "domain": {"kind": "integer", "min": 0, "max": 4096}}}
+ "inferredFrom": {"sequence": "sum", "domain": {"kind": "integer", "minimum": 0, "maximum": 4096}}}
 ```
+
+The domain in `inferredFrom` is the one the rule read, so it carries the container's keys,
+`minimum` and `maximum`, not the source's `min` and `max`. (An earlier draft of this
+example showed the source's keys; the record never did.) `POST /v1/compositions/compile`
+returns this document beside the package it describes.
 
 It cannot live inside the IR. The container's source map entries carry a resource, a
 path and an optional pointer, element or span, with no slot for "synthesized because the
@@ -1129,8 +1201,8 @@ literals, property and task paths, comparison and `and`.
 | `extensions` at any level | needs an installed dialect with lowering | no ad-hoc fields |
 | Non-identity feature bindings | a catalog slot may be named differently from the feature | property names are shared |
 | Registered and artifact resource refs | the package is always self-contained | no cross-package reuse yet |
-| An empty goal list | compiles, but means "score is penalty only" | at least one goal required |
-| Comments and formatting | the writer re-emits from the model | a Visual-mode edit normalizes the text |
+| An empty goal list | compiles, but means "score is penalty only" | an omitted list compiles; an explicit `goals: []` is refused by the schema (`minItems: 1`); nothing requires a goal yet |
+| Comments and formatting | the writer re-emits a document, and a document holds neither | a Visual-mode edit keeps everything but them; the canonical form also normalizes the rest |
 
 **Placement left this table.** It was the costliest row in it -- seven packages, said to be
 the gate's entire exclusion list -- and section 11.2 records what closing it actually took
@@ -1152,10 +1224,14 @@ limit in the corpus -- section 8 now carries the field that lifts it. A table of
 deliberate omissions is only useful if everything in it is deliberate and everything
 deliberate is in it; section 11.2 is what caught both.
 
-The last row is worth stating plainly because it will be felt in phase F3: this version
-projects the model back to text, so comments, key order and blank lines are lost on a
-round trip through the Visual editor. Lossless editing needs a concrete syntax tree and
-belongs with the editor, not with the compiler.
+The last row is worth stating plainly because phase F3 is where it is felt. Writing from the
+model -- the canonical form -- loses comments, key order, blank lines, templates and every
+explicit default. Phase F3 narrowed that for the Visual editor: a form edits the document as
+the author wrote it, and `POST /v1/compositions/serialise` writes that document back as sent,
+so a round trip through the forms keeps templates, explicit defaults and key order and loses
+only comments and formatting, which are not part of a document (section 14.1). Losing those
+too is what remains; lossless editing needs a concrete syntax tree and belongs with the
+editor, not with the compiler.
 
 ## 13. The dialect question, and its price
 
@@ -1258,8 +1334,9 @@ than pretending it is unnecessary.
 
 ## 14. Diagnostics
 
-Every diagnostic carries a code, a message and the YAML span of the element at fault, so
-the editor can underline it. Codes are prefixed `c2y_` to keep them distinct from the
+Every diagnostic carries a code, a message and the path of the element at fault, and the
+YAML span of it whenever there is text to point into -- a document sent as JSON has none --
+so the editor can underline it. Codes are prefixed `c2y_` to keep them distinct from the
 container's.
 
 **This section described something nothing produced until phase F3.** `Diagnostic`, `Span`,
@@ -1288,8 +1365,9 @@ stops at the element it cannot read.
 
 | code | meaning |
 | --- | --- |
+| `c2y_syntax` | the text is not YAML, or is YAML a composition may not use (section 2): an alias, a duplicate key, a key that is not a string, a number that is not finite, nesting past the bound |
 | `c2y_schema` | the document violates the Composition2Yaml schema, or a reader refuses its shape |
-| `c2y_property_neutral` | a `min`/`max` property has no bound and no explicit neutral |
+| `c2y_property_neutral` | a `min`/`max` property has no bound and no explicit neutral yet (incomplete), or its neutral, declared or inferred, lies outside its domain (error) |
 | `c2y_property_template` | unknown template name |
 | `c2y_task_kind` | a task is not exactly one of open, fixed or local |
 | `c2y_task_unknown` | the workflow references a task that is not declared |
@@ -1302,7 +1380,9 @@ stops at the element it cannot read.
 | `c2y_candidate_unmatched` | an open task has no eligible candidate |
 | `c2y_pricing_href` | the pricing link is relative, on another origin, or has no readable version |
 | `c2y_goal_unknown` | a goal references a property that is not declared |
+| `c2y_goal_range` | a goal states no `normalize` range and its property's domain has an open end |
 | `c2y_rule_expression` | a rule uses a form outside comparison and `and` |
+| `c2y_more` | more problems were found than a refusal lists; the first hundred are listed |
 
 Compilation is all-or-nothing, as it is in the container: a document with any error
 produces no package.
@@ -1314,14 +1394,47 @@ keystroke. So the table divides:
 
 - *Coherence*, refused by `parse`: one element that contradicts itself, which no document
   can say whether finished or not. `c2y_exclusive_id`, `c2y_exclusive_probabilities`,
-  `c2y_exclusive_distribution` and `c2y_repeat_count`.
-- *Completeness*, refused when a version is sealed: references across sections and an
-  empty market, which a draft is allowed to have. `c2y_task_unknown`,
-  `c2y_task_unreached`, `c2y_goal_unknown` and `c2y_candidate_unmatched`. A sealed version
-  is citable and has to compile, so that is where an unfinished composition stops.
+  `c2y_exclusive_distribution`, `c2y_repeat_count`, and `c2y_property_neutral` for a
+  neutral outside its own domain.
+- *Completeness*, refused when a version is sealed: references across sections, an empty
+  market, and a bound not yet written, which a draft is allowed to have. `c2y_task_unknown`,
+  `c2y_task_unreached`, `c2y_goal_unknown`, `c2y_goal_range`, `c2y_candidate_unmatched`,
+  and `c2y_property_neutral` for a property with no neutral yet. A sealed version is citable
+  and has to compile, so that is where an unfinished composition stops.
 
-Every one of the eight was measured against the 82 packages of section 11.2 before being
-enforced, and none refuses a package of the corpus; the measurement is a test.
+`c2y_property_neutral` and `c2y_goal_range` joined in phase F3, and for one reason: the
+emitter raised on both, on documents `parse` accepted and sealing would have sealed -- for the
+neutral with an exception that named no property, for the range with one that named the
+goal but surfaced only at emit. A sealed version was not, in fact, guaranteed to emit. Both checks call the emitter's own functions (`emit.property_neutral`,
+`emit.criterion_range`), and the emitter writes every feature's neutral through the first, so
+the check and the package cannot disagree -- and the neutral's range rule is the container's
+(section 10.1), so neither can the package and the compiler. One code covers both sides of
+the split because the container's `feature_neutral` and `feature_neutral_domain` are the same
+property refused for two reasons; the severity says which.
+
+**Completeness is necessary for compiling and not sufficient.** What the container still
+refuses on its own, against a JSON pointer, by its code:
+
+- `missing_feature`: a candidate lacks the value of a property a goal or a rule reads. No
+  `c2y_` code names it yet.
+- `feature_value_domain`: a candidate's value lies outside its property's domain, or is not
+  whole for an `integer` one. This is what `c2y_candidate_property` describes, not raised yet.
+- `feature_domain`: an `integer` property's bounds are not whole numbers, or a `ratio`'s lie
+  outside [0, 1].
+- `routing_missing`: an exclusive that states neither probabilities nor a distribution.
+  Section 5.2 leaves that distribution unstated for a binding scenario to give (section 5.3),
+  and the container refuses it -- "each XOR must be fully probabilistic, explicitly uniform,
+  or fully conditional", and this version emits no condition -- until that channel exists in
+  phase F5.
+
+`POST /v1/compositions/compile` hands each back as the container wrote it.
+
+The first eight were measured against the 82 packages of section 11.2 before being enforced,
+and none refuses a package of the corpus; the measurement is a test. For the two F3 added it
+licenses nothing: every gate package already emits, which is the same question, and every
+goal in the gate states its range. What they can refuse is hand-written text, and no document
+in the test suite or in this specification is refused by either except the ones written to
+be.
 
 **The order a reader sees them in is specific before general**, and that was measured twice.
 Readers run first, then the coherence checks, then the schema as a backstop: asked earlier,
@@ -1336,9 +1449,93 @@ a condition is prose, Studio-side and never compiled, so it conflicts with nothi
 the guiding case carries both. Implementing the row would have refused
 `fleet-management-v2`, whose `solver_choice` has 0.8/0.2 and a reason on each branch.
 
-Still declared and not raised: `c2y_property_neutral`, `c2y_candidate_property`,
-`c2y_pricing_href` and `c2y_rule_expression`. The container reports each of them today,
-against a JSON pointer rather than a line.
+Still not raised: `c2y_candidate_property` and `c2y_rule_expression`, which are declared,
+and `c2y_pricing_href`, which this table names and the code does not declare yet. Only the
+first has a counterpart in the container, `feature_value_domain`, which `POST
+/v1/compositions/compile` hands back as it is. The other two are checked nowhere yet: a
+pricing link never reaches a package, so nothing sees an unversioned or foreign one, and the
+container compiles a rule beyond comparison and `and` -- only the exact engine refuses it,
+when it solves.
+
+### 14.1 The language over HTTP
+
+The editor has no YAML parser of its own, by decision: `composition/text.py` is the only
+authority on the syntax, and a second parser in the browser would be a second definition of
+the language. So everything the editor needs to know about a document is a documented
+endpoint, under `/v1/compositions`, and every one of them reads what the request carries and
+stores nothing:
+
+| operation | answers |
+| --- | --- |
+| `POST /validate` | every problem, located -- the keystroke operation |
+| `POST /parse` | the same, plus the document as written (what a form edits), the canonical document (what each field effectively is) and each property's resolved neutral |
+| `POST /serialise` | a form's document written as source -- as sent, or canonical -- and judged as any source is |
+| `POST /compile` | whether it compiles, every generated document, its digests (`package.ir_digest`, `package.compilation_digest`, `package.package_digest`) and the provenance of section 10.3 |
+| `POST /package` | the `.bim.zip` itself |
+| `POST /import` | a composition read back from a BIM package, and whether it compiles back to the same IR |
+| `POST /diff` | the typed change list between two documents |
+| `GET /language` | the template, operator, neutral and default tables of sections 3 and 10 |
+| `GET /schema` | the JSON Schema `parse` consults |
+
+**The operations that read a document answer 200 whatever it says**, with `valid`,
+`complete` and the diagnostics, because the question always has an answer and one of the
+two kinds of answer -- *incomplete* -- is not an error at all. A malformed request is still a
+422. `/package` and `/import` answer 422 when there is nothing to hand back: a download
+either has bytes or it has nothing, and an archive the container refuses or the language
+cannot express has no composition to open. An import that reads as source and is then not
+valid is a 200 with that source and its located diagnostics, because there is text to fix.
+`/diff` answers 422 when either document is not a composition: a change list between a
+composition and nothing means nothing.
+
+**A form edits the document as written, and loses only comments.** `/parse` returns the
+document twice: as the author wrote it -- templates, explicit defaults and key order kept --
+and canonical, where a form reads what each field effectively is. `/serialise` writes the
+written one back as sent by default, so a round trip through the forms keeps everything a
+document holds and loses only what text alone has, comments and formatting; asked for the
+canonical form, it normalizes. Either way the text is written out and read back by `parse`
+itself, so a form cannot build a composition the text editor would refuse, and every
+diagnostic comes back located in the text the response returns -- which comes back even when
+the document is not valid, so the editor can always switch to its text. The request body is
+read as strict JSON, as the platform reads every document it is sent: a duplicated member or
+a `NaN` is refused, not kept last. (Section 12's cost of the Visual editor is therefore
+smaller than it says: the canonical form pays it, the written form pays only comments.)
+
+**Compiling goes through the platform's BIM port**, to the same compiler every uploaded
+package meets. The archive it compiles is canonical -- every document in RFC 8785 form --
+so the bytes `/package` returns are the archive whose `package_digest` `/compile` reports,
+and the same digest is the download's `ETag`.
+A refusal of the container's comes back as the container wrote it, addressed to a generated
+document and a JSON pointer: nothing maps a pointer back to a line, and the Studio's own
+checks exist to leave the container as little as possible.
+
+**An import is exact up to what a solver sees, and says whether it was.** The archive is
+compiled first, so the toolchain's own limits judge it before anything opens it; a BPMN
+workflow is read by delegation from that same compilation; and the composition is compiled
+once more and its IR digest compared with the upload's. Section 11.2 proves that equality
+for the 82 packages of the corpus; the import runs the same test on the one package it was
+given, when the composition it gives back is complete. What the IR does not carry --
+document titles and annotations, branch conditions, a fixed task, which comes back as an
+open task with one candidate, a property's `applies_to` -- it does not pretend to recover;
+`composition/read.py` lists what it keeps and what it drops.
+
+**The work is bounded by what it produces, and runs off the event loop.** A source is
+bounded at 256 KiB, three times the largest composition of the corpus outside one
+experiment, because measured, reading stops being linear above it; the eight ICWS
+`zhang2014` instances (333 KB each) are past it and import as `composition_too_large`. A
+document sent as JSON is bounded by the text it writes, the writing stopped as soon as it
+passes the bound, because block YAML indents by depth and folds long strings, so a document
+can write many times its JSON; and a composition is bounded by the feature values and the neutral
+substitutions its package would hold, counted before anything is emitted, because those grow
+with candidates times properties while the source grows with their sum. Past any of these
+the answer is `composition_too_large`. A refusal lists at most a hundred diagnostics, and a
+message is clipped, because a document can be wrong in as many places as it is long. The
+work -- reading, writing, emitting, building the responses -- runs on a small pool of its own
+threads and compiling on another, each admitting a bounded number of waiting requests and
+answering `503` with `Retry-After` past it: these routes are open to anyone, and the
+container's compiler runs in the gateway's own process. An editor calls `/validate` per
+keystroke and `/compile`, `/package` and `/import` only on request. What these bounds do not
+give is a per-client limit: one client can still keep both pools busy, and the platform has
+no anonymous rate limit to put in front of them yet.
 
 ## 15. Worked example
 

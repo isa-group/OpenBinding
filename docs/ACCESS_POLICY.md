@@ -104,6 +104,20 @@ non-member, `401` without credentials.
 | `VIEWER` | read as a member (`access: "member"`, `effective_role: "VIEWER"`) | same |
 | `MEMBER` / `ADMIN` / `OWNER` | as before | as before |
 
+## Outside any project: the composition language
+
+The Studio's authoring surface lives at `/v1/compositions`, not under a project,
+because none of it touches stored data: every operation reads the document or the
+package the request carries and keeps nothing. So none needs an account.
+
+| Route | Who | API key needs |
+|---|---|---|
+| `POST /v1/compositions/validate`, `/parse`, `/serialise`, `/diff` | anybody | `instances:read` |
+| `POST /v1/compositions/compile`, `/package`, `/import` | anybody; each runs the container's compiler, as `POST /v1/instances/validate` does for anyone | `instances:read` |
+| `GET /v1/compositions/language`, `/schema` | anybody | nothing: they describe the language, like `/v1/schemas` |
+
+A stored composition is a project artifact and follows the matrix above.
+
 ## Frontend notes
 
 - `GET .../projects/{project}` is now the way to open a public project: render it

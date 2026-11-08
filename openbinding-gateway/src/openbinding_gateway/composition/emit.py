@@ -47,6 +47,7 @@ refused by the compiler as ``undeclared_resource``.
 from __future__ import annotations
 
 import json
+from collections import Counter
 from decimal import Decimal
 from typing import Any
 
@@ -144,12 +145,11 @@ def _feature(name: str, prop: Property) -> dict[str, Any]:
         "repeat": prop.aggregation.repeat,
         "selection": prop.aggregation.selection,
     }
-    # The neutral is resolved from the shapes about to be emitted, not from the model's
-    # own objects: the rule it shares with the container is stated over the emitted
-    # document, and ``test_neutral_matches_compiler.py`` compares the two that way.
-    neutral, _source = resolve_neutral(
-        aggregation=aggregation, domain=domain, declared=prop.neutral,
-    )
+    # Through the one function ``checks`` also asks, so a property the checks accept is one
+    # this writes: it resolves the neutral from the same emitted shapes -- the rule it shares
+    # with the container is stated over the emitted document, and
+    # ``test_neutral_matches_compiler.py`` compares the two that way.
+    neutral, _source = property_neutral(prop)
     return {
         "unit": prop.unit,
         "direction": prop.direction,
@@ -281,7 +281,9 @@ def _applies(prop: Property, candidate: Candidate) -> bool:
     return prop.applies_to == "all" or candidate.domain == "all" or prop.applies_to == candidate.domain
 
 
-def _features(composition: Composition, candidate: Candidate) -> dict[str, Any]:
+def _features(
+    composition: Composition, candidate: Candidate, scopes: "_Scopes | None" = None,
+) -> dict[str, Any]:
     """A candidate's feature values, with a neutral where a property does not apply.
 
     The deterministic profile imputes nothing: a candidate that an eligible task could bind
@@ -297,14 +299,78 @@ def _features(composition: Composition, candidate: Candidate) -> dict[str, Any]:
     and hide the omission; the container refuses it by name instead.
     """
     values = dict(candidate.properties)
-    for name, prop in composition.properties.items():
-        if name not in values and not _applies(prop, candidate):
-            values[name] = _neutral(prop)[0]
+    for name, prop in (scopes or _Scopes(composition)).inapplicable(candidate):
+        if name not in values:
+            values[name] = property_neutral(prop)[0]
     return {name: values[name] for name in sorted(values)}
 
 
-def _neutral(prop: Property) -> tuple[float, str]:
-    """A property's neutral and where it came from, for the value and for the record."""
+class _Scopes:
+    """The properties that do not apply to each candidate domain, found once per domain.
+
+    Whether a property applies depends only on its ``applies_to`` and the candidate's domain,
+    of which there are three. Asking every property for every candidate cost candidates times
+    properties -- seconds, for thousands of each -- to find what is the same answer per domain.
+    """
+
+    def __init__(self, composition: Composition) -> None:
+        self._properties = composition.properties
+        self._by_domain: dict[str, list[tuple[str, Property]]] = {}
+
+    def inapplicable(self, candidate: Candidate) -> list[tuple[str, Property]]:
+        """The properties that do not apply to this candidate, in name order."""
+        if candidate.domain == "all":
+            return []
+        found = self._by_domain.get(candidate.domain)
+        if found is None:
+            found = self._by_domain[candidate.domain] = sorted(
+                (name, prop)
+                for name, prop in self._properties.items()
+                if not _applies(prop, candidate)
+            )
+        return found
+
+
+def emitted_size(composition: Composition) -> tuple[int, int]:
+    """How many feature values the catalog will hold, and how many of them are substitutions.
+
+    A candidate carries its own values and, for every property that does not apply to it, a
+    neutral (section 10.2). The second grows with candidates times properties while the source
+    grows with their sum, so a short document can emit a long package: this counts it first,
+    without building it, so a caller can refuse before the work rather than after. Counted by
+    applicability class rather than pair by pair, which would cost the product it measures.
+    """
+    by_scope = Counter(prop.applies_to for prop in composition.properties.values())
+    everywhere = by_scope.get("all", 0)
+    values = substitutions = 0
+    for candidate in (*composition.candidates, *_fixed_candidates(composition)):
+        missing = 0
+        if candidate.domain != "all":
+            missing = len(composition.properties) - everywhere - by_scope.get(candidate.domain, 0)
+            missing -= sum(
+                1
+                for name in candidate.properties
+                if name in composition.properties
+                and not _applies(composition.properties[name], candidate)
+            )
+        values += len(candidate.properties) + missing
+        substitutions += missing
+    return values, substitutions
+
+
+def property_neutral(prop: Property) -> tuple[float, str]:
+    """A property's neutral and where it came from, for the value and for the record.
+
+    Public because ``checks`` asks the same question before anything is emitted, so the
+    check and the emitter cannot disagree about which properties have one: a neutral,
+    declared or inferred, outside its domain (a ratio's being [0, 1]) is refused by
+    coherence; a ``min`` with no domain maximum and no declared neutral is reported by
+    completeness as something still missing.
+
+    Raises:
+        Unbounded: when nothing determines the neutral.
+        OutsideDomain: when the neutral lies outside the domain.
+    """
     value, source = resolve_neutral(
         aggregation={
             "sequence": prop.aggregation.sequence,
@@ -319,10 +385,12 @@ def _neutral(prop: Property) -> tuple[float, str]:
     return float(value), getattr(source, "value", str(source))
 
 
-def _candidate(composition: Composition, candidate: Candidate) -> dict[str, Any]:
+def _candidate(
+    composition: Composition, candidate: Candidate, scopes: _Scopes | None = None,
+) -> dict[str, Any]:
     body: dict[str, Any] = {
         "provides": _provides(candidate),
-        "features": _features(composition, candidate),
+        "features": _features(composition, candidate, scopes),
     }
     if candidate.attributes:
         body["properties"] = dict(sorted(candidate.attributes.items()))
@@ -354,6 +422,7 @@ def _catalog(composition: Composition) -> dict[str, Any]:
     binds is not expressible (section 12).
     """
     candidates = [*composition.candidates, *_fixed_candidates(composition)]
+    scopes = _Scopes(composition)
     providers = dict.fromkeys(
         sorted({*composition.providers, *(c.provider for c in candidates if c.provider)}),
     )
@@ -378,7 +447,7 @@ def _catalog(composition: Composition) -> dict[str, Any]:
                 for name in sorted(composition.properties)
             },
             "candidates": {
-                candidate.id: _candidate(composition, candidate)
+                candidate.id: _candidate(composition, candidate, scopes)
                 for candidate in sorted(candidates, key=lambda item: item.id)
             },
         },
@@ -450,13 +519,15 @@ class EmitError(Exception):
     """The composition cannot be written as a package, and says which part."""
 
 
-def _bounds(name: str, prop: Property) -> tuple[float, float]:
+def criterion_range(name: str, prop: Property) -> tuple[float, float]:
     """The range a criterion normalizes over when the goal states none.
 
     A ``ratio`` domain is bounded to [0, 1] by the container and needs no explicit bounds
     (section 3.2), so a goal over one has a range even though the property declares none.
     Any other domain with an open end has nothing to normalize over, and that is refused
-    here rather than emitted as a null the schema rejects three layers down.
+    here rather than emitted as a null the schema rejects three layers down -- and, before
+    that, by ``checks.completeness`` as ``c2y_goal_range``, which calls this function so the
+    two cannot disagree.
     """
     minimum = prop.domain.minimum
     maximum = prop.domain.maximum
@@ -502,7 +573,7 @@ def _optimization(composition: Composition) -> dict[str, Any]:
         if goal.normalize is not None:
             minimum, maximum, clamp = goal.normalize.minimum, goal.normalize.maximum, goal.normalize.clamp
         else:
-            minimum, maximum, clamp = *_bounds(goal.property, prop), True
+            minimum, maximum, clamp = *criterion_range(goal.property, prop), True
         criteria.append({
             "id": goal.property,
             "feature": {"resource": ids.APPLICATION, "id": goal.property},
@@ -732,12 +803,12 @@ def provenance(composition: Composition) -> list[dict[str, Any]]:
             strict=True,
         )
     ]
+    scopes = _Scopes(composition)
     for task_id, candidate in candidates:
-        for name in sorted(composition.properties):
-            prop = composition.properties[name]
-            if name in candidate.properties or _applies(prop, candidate):
+        for name, prop in scopes.inapplicable(candidate):
+            if name in candidate.properties:
                 continue
-            value, source = _neutral(prop)
+            value, source = property_neutral(prop)
             record: dict[str, Any] = {
                 "candidate": candidate.id,
                 "property": name,

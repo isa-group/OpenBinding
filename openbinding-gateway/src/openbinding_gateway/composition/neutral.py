@@ -54,6 +54,21 @@ ALLOWED: Mapping[str, frozenset[str]] = {
 }
 
 
+#: The neutral each sequence operator implies: a constant, or the name of the domain bound
+#: that does not constrain it. ``sum`` contributes nothing and ``product`` does not degrade;
+#: ``min`` is not lowered by the domain's maximum and ``max`` is not raised by its minimum.
+SEQUENCE_NEUTRALS: Mapping[str, float | str] = {
+    "sum": 0.0,
+    "product": 1.0,
+    "min": "maximum",
+    "max": "minimum",
+}
+
+#: What a ``ratio`` domain gives the two bound-reading operators, whatever bounds it states:
+#: the container reads the ratio's own [0, 1], not the author's narrower range.
+RATIO_NEUTRALS: Mapping[str, float] = {"min": 1.0, "max": 0.0}
+
+
 class NeutralSource(str, Enum):
     """Where a feature's neutral came from, recorded in provenance."""
 
@@ -135,38 +150,59 @@ def infer_neutral(aggregation: Any, domain: Any) -> float:
     policy = expand_aggregation(aggregation)
     bounds = normalize_domain(domain)
     operator = policy["sequence"]
-    if operator == "sum":
-        return 0.0
-    if operator == "product":
-        return 1.0
-    bound = "maximum" if operator == "min" else "minimum"
+    rule = SEQUENCE_NEUTRALS[operator]
+    if not isinstance(rule, str):
+        return rule
     if bounds.get("kind") == "ratio":
-        return 1.0 if operator == "min" else 0.0
-    value = bounds.get(bound)
+        return RATIO_NEUTRALS[operator]
+    value = bounds.get(rule)
     if value is None:
-        raise Unbounded(operator=operator, bound=bound)
+        raise Unbounded(operator=operator, bound=rule)
     return float(value)
+
+
+class OutsideDomain(ValueError):
+    """The neutral -- declared or inferred -- lies outside the domain the container checks.
+
+    A ``ValueError``, as the refusal always was, so a caller that caught that still does;
+    its own class so that a caller can tell it from a ``float()`` that failed.
+    """
+
+    def __init__(self, value: float, minimum: float | None, maximum: float | None) -> None:
+        self.value = value
+        self.minimum = minimum
+        self.maximum = maximum
+        super().__init__(f"neutral {value} is outside the domain [{minimum}, {maximum}]")
 
 
 def resolve_neutral(
     *, aggregation: Any, domain: Any, declared: float | int | None = None
 ) -> tuple[float, NeutralSource]:
-    """The neutral to write, and where it came from.
+    """The neutral to write, and where it came from, checked as the container checks it.
 
-    A declared neutral is honoured and must lie inside the domain, as the container also
-    requires. Otherwise it is inferred.
+    A declared neutral is honoured; otherwise it is inferred. Either way the value must lie
+    inside the domain, which is the container's rule exactly: it range-checks the neutral
+    after inferring it, not only when it was declared, and it checks a ``ratio`` against
+    the ratio's own [0, 1] rather than any narrower bounds the author gave. Checking less
+    let an inferred neutral outside its domain through to a compile that refused it with
+    ``feature_neutral_domain``; checking a ratio against the author's bounds refused a
+    package the container accepts.
 
     Raises:
         Unbounded: when nothing determines the neutral.
-        ValueError: when a declared neutral lies outside the declared domain.
+        OutsideDomain: when the neutral lies outside the domain.
     """
     if declared is None:
-        return infer_neutral(aggregation, domain), NeutralSource.INFERRED
+        value, source = infer_neutral(aggregation, domain), NeutralSource.INFERRED
+    else:
+        value, source = float(declared), NeutralSource.DECLARED
     bounds = normalize_domain(domain)
-    value = float(declared)
-    minimum, maximum = bounds.get("minimum"), bounds.get("maximum")
+    if bounds.get("kind") == "ratio":
+        minimum, maximum = 0.0, 1.0
+    else:
+        minimum, maximum = bounds.get("minimum"), bounds.get("maximum")
     if (minimum is not None and value < float(minimum)) or (
         maximum is not None and value > float(maximum)
     ):
-        raise ValueError(f"neutral {value} is outside the declared domain {bounds}")
-    return value, NeutralSource.DECLARED
+        raise OutsideDomain(value, minimum, maximum)
+    return value, source
