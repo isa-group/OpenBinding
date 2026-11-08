@@ -15,7 +15,7 @@ import { useResource } from '../../utils/useResource';
 import { featureName, withInfiniteLimits } from '../Pricing/pricingModel';
 import { FailureNotice, Tag } from './AdminChrome';
 import {
-  agreementIssues, compareLimits, contractSelection, describeAdminFailure, humanize, isCeiling, limitsOf,
+  agreementIssues, compareLimits, contractSelection, describeAdminFailure, humanize, isCeiling, isOutdatedChange, limitsOf,
   type ContractCatalog, type Failure,
 } from './adminModel';
 
@@ -69,6 +69,24 @@ const sameAddOns = (a: Record<string, number>, b: Record<string, number>) => {
   return clean(a) === clean(b);
 };
 
+/** A refusal of a contract change in the words of this card, where the gateway's alone would leave an administrator guessing. */
+function refusalInWords(refusal: Failure | null, username: string): Failure | null {
+  if (refusal?.code === 'research_requires_us_cas') {
+    return { ...refusal, title: 'RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)', text: `${username} hasn’t linked a Universidad de Sevilla CAS identity. RESEARCH can only be assigned to accounts that have.` };
+  }
+  if (refusal?.code === 'invalid_subscription') {
+    return { ...refusal, title: 'That agreement isn’t valid (422 · invalid_subscription)', text: `${refusal.text} Nothing changed.` };
+  }
+  if (refusal && isOutdatedChange(refusal)) {
+    return {
+      ...refusal,
+      title: `The subscription changed meanwhile (${refusal.status}${refusal.code ? ` · ${refusal.code}` : ''})`,
+      text: `${username}’s subscription changed after this review was drawn, so nothing was changed. The review is drawn again from the subscription as it is now: check it before you confirm again.`,
+    };
+  }
+  return refusal;
+}
+
 export interface AgreementResult {
   /** `true` when the contract’s values changed, which is what sends the notification. */
   changed: boolean;
@@ -78,6 +96,10 @@ export interface AgreementResult {
 
 interface AgreementProps {
   view: AdminSubscriptionView;
+  /** The revision of `view` (its `ETag`), sent with a change decided on it; `null` when the gateway gave none. */
+  revision: string | null;
+  /** The subscription is being read again, so what the card shows may be outdated and nothing can be confirmed. */
+  reading: boolean;
   catalog: ContractCatalog | null;
   /** The pricing document the catalog was read from, as the gateway serves it: the change review is drawn from it. */
   pricing: PricingCatalog | null;
@@ -85,6 +107,8 @@ interface AgreementProps {
   catalogLoading: boolean;
   current: PricingCurrentView | null;
   onApplied: (result: AgreementResult) => void;
+  /** A change was refused because the subscription had moved since it was read. Nothing was written: it is to be read again. */
+  onOutdated: () => void;
 }
 
 /** The two requests of this card: the whole agreement, or the plan alone with the add-ons the account already has. */
@@ -92,9 +116,11 @@ type Change = 'apply' | 'plan';
 
 /**
  * The plan and add-ons of one account, what changing them does to its limits, and the audited way to apply the change. Nothing is
- * sent from the form: either button opens the review of the change, side by side, and the request leaves from there.
+ * sent from the form: either button opens the review of the change, side by side, and the request leaves from there, with the
+ * revision of the subscription the review was drawn from. One that has moved since is refused: the card says so, the subscription is
+ * read again, and the review is drawn again from it for the administrator to confirm or not. Nothing is sent again on their behalf.
  */
-export function AgreementCard({ view, catalog, pricing, catalogFailure, catalogLoading, current, onApplied }: AgreementProps) {
+export function AgreementCard({ view, revision, reading, catalog, pricing, catalogFailure, catalogLoading, current, onApplied, onOutdated }: AgreementProps) {
   const { user: self } = useAuth();
   const { user, subscription } = view;
   const [plan, setPlan] = useState(subscription.plan);
@@ -179,37 +205,47 @@ export function AgreementCard({ view, catalog, pricing, catalogFailure, catalogL
 
   const run = async () => {
     const kind = review;
-    if (!kind || busy) return;
+    if (!kind || busy || reading) return;
     setBusy(true);
     setRefusal(null);
     try {
-      let didChange: boolean;
+      // The request carries the revision of the subscription this review was drawn from.
+      let left: { changed: boolean; plan: string; addOns: Record<string, number> };
       if (kind === 'apply') {
-        const result = await apiClient.adminUpdateSubscription(user.id, {
+        const { value } = await apiClient.adminUpdateSubscription(user.id, {
           plan, add_ons: selected, reason, ...(detail.trim() ? { detail: detail.trim() } : {}),
-        });
-        didChange = result.changed;
+        }, revision);
+        left = { changed: value.changed, plan: value.subscription.plan, addOns: value.subscription.add_ons };
       } else {
-        await apiClient.adminChangePlan(user.id, plan);
-        didChange = plan !== subscription.plan;
+        await apiClient.adminChangePlan(user.id, plan, revision);
+        left = { changed: plan !== subscription.plan, plan, addOns: subscription.add_ons };
       }
       // An administrator who changes their own contract needs the new entitlements in their browser too.
       if (user.id === self?.id) await apiClient.getPricingToken().catch(() => undefined);
+      // The form starts again from the contract the change left. The screen reads the subscription again, and with it the revision
+      // that the next change carries.
+      setPlan(left.plan);
+      setAddOns(left.addOns);
+      setReason('institutional_agreement');
+      setDetail('');
       setReview(null);
-      onApplied({ changed: didChange, plan, reason: kind === 'apply' ? reasonLabel(reason) : 'administrative decision' });
+      onApplied({ changed: left.changed, plan, reason: kind === 'apply' ? reasonLabel(reason) : 'administrative decision' });
     } catch (error: unknown) {
       // The review stays open with the refusal, so the change can be sent again or taken back to the form.
-      setRefusal(describeAdminFailure(error, 'The agreement couldn’t be applied'));
+      const failure = describeAdminFailure(error, 'The agreement couldn’t be applied');
+      setRefusal(failure);
+      // Decided on a subscription that has moved since: once it is read again, the review is drawn again from it.
+      if (isOutdatedChange(failure)) onOutdated();
     } finally {
       setBusy(false);
     }
   };
 
-  const shownRefusal: Failure | null = refusal?.code === 'research_requires_us_cas'
-    ? { ...refusal, title: 'RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)', text: `${user.username} hasn’t linked a Universidad de Sevilla CAS identity. RESEARCH can only be assigned to accounts that have.` }
-    : refusal?.code === 'invalid_subscription'
-      ? { ...refusal, title: 'That agreement isn’t valid (422 · invalid_subscription)', text: `${refusal.text} Nothing changed.` }
-      : refusal;
+  const shownRefusal = refusalInWords(refusal, user.username);
+  // A review drawn again takes the focus on its heading, a long way from where a refusal is said, so the heading says it as well.
+  const reviewTitle = refusal && isOutdatedChange(refusal)
+    ? `Review the change for ${user.username} again: the subscription changed meanwhile, so nothing was changed`
+    : `Review the change for ${user.username}`;
 
   const renews = subscription.renews_at ? formatDateTime(subscription.renews_at) : null;
 
@@ -245,10 +281,10 @@ export function AgreementCard({ view, catalog, pricing, catalogFailure, catalogL
             pricing={reviewPricing}
             before={before}
             after={after}
-            title={`Review the change for ${user.username}`}
+            title={reviewTitle}
             confirmLabel={review === 'apply' ? 'Apply agreement' : 'Change plan'}
             notices={notices}
-            pending={busy}
+            pending={busy ? 'applying' : reading ? 'reading' : null}
             error={shownRefusal ? `${shownRefusal.title}. ${shownRefusal.text}` : undefined}
             onConfirm={() => void run()}
             onBack={back}

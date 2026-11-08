@@ -37,12 +37,14 @@ interface State {
   refuse: Partial<Record<Key, Handler>>;
   users: AdminUserView[];
   addOns: Record<string, Record<string, number>>;
+  /** The revision of each account's subscription, as in the gateway: a write that names another one is refused with 412. */
+  revisions: Record<string, number>;
   /** Events recorded inside an organization or by the account actions of B2, added to the platform log when set. */
   extraAudit: AdminAuditPage['events'];
   sent: {
     patch: Array<{ id: string; body: Record<string, unknown> }>;
-    subscription: Array<{ id: string; body: Record<string, unknown> }>;
-    plan: Array<{ id: string; plan: string }>;
+    subscription: Array<{ id: string; body: Record<string, unknown>; ifMatch: string | null }>;
+    plan: Array<{ id: string; plan: string; ifMatch: string | null }>;
     revoked: string[];
     auditQueries: string[];
   };
@@ -62,11 +64,20 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
     refuse: {},
     users: structuredClone(USERS),
     addOns: {},
+    revisions: {},
     extraAudit: [],
     sent: { patch: [], subscription: [], plan: [], revoked: [], auditQueries: [] },
   };
   const me = options.role === 'user' ? { ...MARIA, role: 'user' } : { ...ALEX, institutional_branding: false };
   const answer = (key: Key, body: unknown): Handler => (route) => (state.refuse[key] ? state.refuse[key](route) : json(body)(route));
+  const etagOf = (id: string) => `"contract-${state.revisions[id] ?? 1}"`;
+  const moved = (id: string) => { state.revisions[id] = (state.revisions[id] ?? 1) + 1; };
+  const stale = (ifMatch: string | null, id: string) => ifMatch !== null && ifMatch !== etagOf(id);
+  // An answer with the `ETag` of a subscription, which the page can read across origins because the gateway exposes it.
+  const withEtag = (status: number, body: unknown, id: string): Handler => (route) => route.fulfill({
+    status, json: body, headers: { ETag: etagOf(id), 'Access-Control-Expose-Headers': 'ETag' },
+  });
+  const precondition = (id: string) => withEtag(412, failureBody(412, 'precondition_failed', 'The resource changed since it was read; fetch it again and retry.'), id);
   const userOf = (id: string | undefined) => state.users.find((account) => account.id === id);
 
   await page.addInitScript(() => {
@@ -145,22 +156,27 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
         Object.assign(account, body);
         return json({ ...account, api_key_count: 0 })(route);
       }
+      const ifMatch = route.request().headers()['if-match'] ?? null;
       if (rest === 'subscription' && method === 'GET') {
-        return answer('subscription', subscriptionOf(account, state.addOns[account.id] ?? {}))(route);
+        return (state.refuse.subscription ?? withEtag(200, subscriptionOf(account, state.addOns[account.id] ?? {}), account.id))(route);
       }
       if (rest === 'subscription' && method === 'POST') {
         const body = bodyOf(route);
-        state.sent.subscription.push({ id: account.id, body });
+        state.sent.subscription.push({ id: account.id, body, ifMatch });
+        if (stale(ifMatch, account.id)) return precondition(account.id)(route);
         if (body.plan === 'RESEARCH' && !account.cas_verified) return detail(409, 'research_requires_us_cas', 'RESEARCH requires a verified Universidad de Sevilla CAS identity.')(route);
         account.plan = String(body.plan);
         state.addOns[account.id] = body.add_ons as Record<string, number>;
-        return json({ ...subscriptionOf(account, state.addOns[account.id]), changed: true })(route);
+        moved(account.id);
+        return withEtag(200, { ...subscriptionOf(account, state.addOns[account.id]), changed: true }, account.id)(route);
       }
       if (rest === 'plan' && method === 'POST') {
         const body = bodyOf(route);
-        state.sent.plan.push({ id: account.id, plan: String(body.plan) });
+        state.sent.plan.push({ id: account.id, plan: String(body.plan), ifMatch });
+        if (stale(ifMatch, account.id)) return precondition(account.id)(route);
         account.plan = String(body.plan);
-        return json(account)(route);
+        moved(account.id);
+        return withEtag(200, account, account.id)(route);
       }
       if (rest === 'usage') return answer('usage', usageOf(account.plan))(route);
       if (rest.startsWith('api-keys/') && method === 'DELETE') {
@@ -409,9 +425,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `detail-${name}-review`, { height: tall(1800) });
       await review.getByRole('button', { name: 'Apply agreement' }).click();
       await expect(main.getByText(/Agreement updated for sam\.okafor \(institutional agreement\)/)).toBeVisible();
+      // It carries the revision of the subscription the review was drawn from.
       expect(state.sent.subscription).toEqual([{
         id: SAM.id,
         body: { plan: 'ADVANCED', add_ons: { COLLABORATION_PACK: 1 }, reason: 'institutional_agreement', detail: 'Agreement 2026-14' },
+        ifMatch: '"contract-1"',
       }]);
       await expect(main.getByText('collaboration pack ×1')).toBeVisible();
       await expect(main.getByRole('radio', { name: /^ADVANCED · current/ })).toBeChecked();
@@ -429,7 +447,30 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Change plan only, keep add-ons' }).click();
       await review.getByRole('button', { name: 'Change plan' }).click();
       await expect(main.getByText(/Agreement updated for sam\.okafor \(administrative decision\)/)).toBeVisible();
-      expect(state.sent.plan).toEqual([{ id: SAM.id, plan: 'PRO' }]);
+      // The change before this one left a new revision, and this one carries it.
+      expect(state.sent.plan).toEqual([{ id: SAM.id, plan: 'PRO', ifMatch: '"contract-2"' }]);
+
+      // Somebody else changes the subscription while a review is open: nothing is changed, the screen says so, reads it again and
+      // draws the review again from it, and nothing is sent again on the administrator's behalf.
+      await expect(plans.getByRole('radio', { name: /^PRO · current/ })).toBeChecked();
+      await plans.getByRole('radio', { name: /^ADVANCED/ }).click();
+      await main.getByRole('button', { name: 'Change plan only, keep add-ons' }).click();
+      await expect(review.getByText('PRO → ADVANCED')).toBeVisible();
+      const account = state.users.find((candidate) => candidate.id === SAM.id);
+      if (!account) throw new Error('sam.okafor is not in this mock');
+      account.plan = 'BASIC';
+      state.addOns[SAM.id] = {};
+      state.revisions[SAM.id] = (state.revisions[SAM.id] ?? 1) + 1;
+      await review.getByRole('button', { name: 'Change plan' }).click();
+      await expect(review.getByRole('alert')).toContainText('The subscription changed meanwhile (412 · precondition_failed)');
+      await expect(review.getByRole('alert')).toContainText('so nothing was changed');
+      await expect(review.getByText('BASIC → ADVANCED')).toBeVisible();
+      expect(state.sent.plan.map((request) => [request.plan, request.ifMatch])).toEqual([['PRO', '"contract-2"'], ['ADVANCED', '"contract-3"']]);
+      await capture(page, testInfo, `detail-${name}-412`, { height: tall(1800) });
+      await review.getByRole('button', { name: 'Back' }).click();
+      await expect(main.getByText('The subscription changed meanwhile (412 · precondition_failed)')).toBeVisible();
+      await expect(plans.getByRole('radio', { name: /^BASIC · current/ })).toBeVisible();
+      await expect(plans.getByRole('radio', { name: /^ADVANCED/ })).toBeChecked();
 
       // A key can be taken back by its id.
       await expect(main.getByRole('button', { name: /resync/i })).toHaveCount(0);

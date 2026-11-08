@@ -1,6 +1,8 @@
-import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { SelectionComparison } from 'pricing-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AdminSubscriptionView } from '../../api/auth';
+import type { Revised } from '../../api/client';
 import { CURRENT_FIXTURE, catalogFixture } from '../Pricing/pricingFixture';
 import { AdminUserDetail } from './AdminUserDetail';
 import { MARIA, PRIYA, SAM, USERS, subscriptionOf, userPage, usageOf } from '../../test/fixtures/admin';
@@ -61,6 +63,45 @@ configure({ asyncUtilTimeout: 5000 });
 
 const KEY_ID = '00000000-0000-4000-8000-0000000003a1';
 
+/** The revision of the subscription as the gateway first serves it. */
+const REV_1 = '"rev-1"';
+
+/** An answer of the gateway with the `ETag` it carried. */
+function revised<T>(value: T, etag: string | null = REV_1): Revised<T> {
+  return { value, etag };
+}
+
+const STALE = 'The resource changed since it was read; fetch it again and retry.';
+const MOVED = 'The subscription changed while this change was being applied, so nothing was changed. Read the subscription again and decide again.';
+
+/**
+ * sam.okafor's subscription as the gateway keeps it: every reading carries its revision (none when `revisions` is off, as with a
+ * SPACE that keeps no contract versions), a change that names another revision is refused with 412 and writes nothing, and a change
+ * that goes through makes a new revision. `meanwhile` is a change made somewhere else: another administrator, or a renewal.
+ */
+function subscriptionGateway({ revisions = true }: { revisions?: boolean } = {}) {
+  const state = { plan: 'BASIC', addOns: {} as Record<string, number>, revision: 1 };
+  const etag = () => (revisions ? `"rev-${state.revision}"` : null);
+  const read = (): Revised<AdminSubscriptionView> => revised(subscriptionOf({ ...SAM, plan: state.plan }, state.addOns), etag());
+  const refuseStale = (ifMatch: string | null) => {
+    if (ifMatch !== null && ifMatch !== etag()) throw refusal(412, 'precondition_failed', STALE);
+  };
+  const write = (plan: string, addOns: Record<string, number>) => Object.assign(state, { plan, addOns, revision: state.revision + 1 });
+  api.adminGetSubscription.mockImplementation(async () => read());
+  api.adminUpdateSubscription.mockImplementation(async (_id: string, value: { plan: string; add_ons: Record<string, number> }, ifMatch: string | null) => {
+    refuseStale(ifMatch);
+    write(value.plan, value.add_ons);
+    const answer = read();
+    return { ...answer, value: { ...answer.value, changed: true } };
+  });
+  api.adminChangePlan.mockImplementation(async (_id: string, plan: string, ifMatch: string | null) => {
+    refuseStale(ifMatch);
+    write(plan, state.addOns);
+    return revised({ ...SAM, plan }, etag());
+  });
+  return { read, meanwhile: (plan: string, addOns: Record<string, number> = {}) => write(plan, addOns) };
+}
+
 function open(param: string = SAM.id, options: Parameters<typeof renderAdmin>[1] = {}) {
   return renderAdmin(<AdminUserDetail />, { entry: `/app/admin/users/${param}`, path: '/app/admin/users/:user', ...options });
 }
@@ -87,16 +128,16 @@ describe('admin-user-detail · one account', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     review.props = null;
-    api.adminGetSubscription.mockImplementation(async (id: string) => subscriptionOf(USERS.find((account) => account.id === id) ?? SAM));
+    api.adminGetSubscription.mockImplementation(async (id: string) => revised(subscriptionOf(USERS.find((account) => account.id === id) ?? SAM)));
     api.adminListUsers.mockResolvedValue(userPage());
     api.adminGetUserUsage.mockResolvedValue(usageOf('BASIC'));
     api.getPricingCatalog.mockResolvedValue(catalogFixture);
     api.getCurrentPricing.mockResolvedValue(CURRENT_FIXTURE);
     api.getPricingToken.mockResolvedValue('token');
-    api.adminUpdateSubscription.mockImplementation(async (id: string, value: { plan: string; add_ons: Record<string, number> }) => ({
+    api.adminUpdateSubscription.mockImplementation(async (id: string, value: { plan: string; add_ons: Record<string, number> }) => revised({
       ...subscriptionOf({ ...SAM, id, plan: value.plan }, value.add_ons), changed: true,
-    }));
-    api.adminChangePlan.mockResolvedValue({ ...SAM, plan: 'ADVANCED' });
+    }, '"rev-2"'));
+    api.adminChangePlan.mockResolvedValue(revised({ ...SAM, plan: 'ADVANCED' }, '"rev-2"'));
     api.adminRevokeApiKey.mockResolvedValue(undefined);
   });
 
@@ -261,7 +302,7 @@ describe('admin-user-detail · one account', () => {
     expect(api.adminUpdateSubscription).toHaveBeenCalledTimes(1);
     expect(api.adminUpdateSubscription).toHaveBeenCalledWith(SAM.id, {
       plan: 'ADVANCED', add_ons: { COLLABORATION_PACK: 1 }, reason: 'new_feature', detail: 'Ticket 41',
-    });
+    }, REV_1);
     expect(screen.queryByRole('region', { name: 'Review the change for sam.okafor' })).not.toBeInTheDocument();
     await waitFor(() => expect(api.adminGetSubscription).toHaveBeenCalledTimes(2));
   });
@@ -275,12 +316,12 @@ describe('admin-user-detail · one account', () => {
     expect(within(drawn).getByText('Reason: administrative decision. The add-ons stay as they are.')).toBeInTheDocument();
     fireEvent.click(within(drawn).getByRole('button', { name: 'Change plan' }));
     expect(await screen.findByText(/Agreement updated for sam\.okafor \(administrative decision\)/)).toBeInTheDocument();
-    expect(api.adminChangePlan).toHaveBeenCalledWith(SAM.id, 'ADVANCED');
+    expect(api.adminChangePlan).toHaveBeenCalledWith(SAM.id, 'ADVANCED', REV_1);
     expect(api.adminUpdateSubscription).not.toHaveBeenCalled();
   });
 
   it('reviews a plan change with the add-ons the account keeps, and offers none the new plan cannot take', async () => {
-    api.adminGetSubscription.mockImplementation(async () => subscriptionOf(PRIYA, { COLLABORATION_PACK: 2 }));
+    api.adminGetSubscription.mockImplementation(async () => revised(subscriptionOf(PRIYA, { COLLABORATION_PACK: 2 })));
     open(PRIYA.id);
     await ready('priya.nair');
     choose(/^PRO/);
@@ -298,7 +339,7 @@ describe('admin-user-detail · one account', () => {
   });
 
   it('says when the contract is pinned to another pricing than the one both sides are read from', async () => {
-    api.adminGetSubscription.mockImplementation(async () => subscriptionOf(SAM, {}, '0.0.9'));
+    api.adminGetSubscription.mockImplementation(async () => revised(subscriptionOf(SAM, {}, '0.0.9')));
     open();
     await ready();
     choose(/^ADVANCED/);
@@ -307,7 +348,7 @@ describe('admin-user-detail · one account', () => {
   });
 
   it('says when nothing changed, so nobody was notified', async () => {
-    api.adminUpdateSubscription.mockResolvedValue({ ...subscriptionOf(SAM), changed: false });
+    api.adminUpdateSubscription.mockResolvedValue(revised({ ...subscriptionOf(SAM), changed: false }));
     open();
     await ready();
     choose(/^ADVANCED/);
@@ -353,6 +394,138 @@ describe('admin-user-detail · one account', () => {
     expect(api.adminUpdateSubscription).toHaveBeenCalledTimes(2);
   });
 
+  it('sends the revision of the subscription the review was drawn from, and the next change the revision of the next reading', async () => {
+    subscriptionGateway();
+    open();
+    await ready();
+    choose(/^ADVANCED/);
+    fireEvent.change(screen.getByLabelText(/^Detail/), { target: { value: 'Ticket 41' } });
+    fireEvent.click(within(await reviewOf('Apply agreement')).getByRole('button', { name: 'Apply agreement' }));
+    expect(await screen.findByText(/Agreement updated for sam\.okafor \(institutional agreement\)/)).toBeInTheDocument();
+    expect(api.adminUpdateSubscription).toHaveBeenCalledWith(SAM.id, { plan: 'ADVANCED', add_ons: {}, reason: 'institutional_agreement', detail: 'Ticket 41' }, REV_1);
+
+    // The form starts again from the contract the change left, which the screen has read again along with its new revision.
+    await waitFor(() => expect(screen.getByRole('radio', { name: /^ADVANCED · current/ })).toBeChecked());
+    expect(screen.getByLabelText(/^Detail/)).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Apply agreement' })).toBeDisabled();
+
+    choose(/^PRO/);
+    fireEvent.click(within(await reviewOf('Change plan only, keep add-ons')).getByRole('button', { name: 'Change plan' }));
+    expect(await screen.findByText(/Agreement updated for sam\.okafor \(administrative decision\)/)).toBeInTheDocument();
+    expect(api.adminChangePlan).toHaveBeenCalledWith(SAM.id, 'PRO', '"rev-2"');
+  });
+
+  it('refuses a change decided on a subscription that has moved (412), reads it again, draws the review again and sends nothing more until it is confirmed', async () => {
+    const gateway = subscriptionGateway();
+    open();
+    await ready();
+    choose(/^ADVANCED/);
+    fireEvent.change(screen.getByLabelText(/^Detail/), { target: { value: 'Ticket 41' } });
+    const drawn = await reviewOf('Apply agreement');
+    expect(comparison().plan).toMatchObject({ before: { id: 'BASIC' }, after: { id: 'ADVANCED' } });
+    const confirm = within(drawn).getByRole('button', { name: 'Apply agreement' });
+
+    // Another administrator moves the account to PRO while this review is open; the reading that follows is held, to see the review wait.
+    gateway.meanwhile('PRO');
+    let release = () => {};
+    api.adminGetSubscription.mockImplementationOnce(() => new Promise((resolve) => { release = () => resolve(gateway.read()); }));
+    fireEvent.click(confirm);
+
+    expect(await within(drawn).findByRole('alert')).toHaveTextContent(
+      'The subscription changed meanwhile (412 · precondition_failed). sam.okafor’s subscription changed after this review was drawn, so nothing was changed. The review is drawn again from the subscription as it is now: check it before you confirm again.',
+    );
+    expect(api.adminUpdateSubscription).toHaveBeenCalledTimes(1);
+    expect(api.adminUpdateSubscription).toHaveBeenLastCalledWith(SAM.id, expect.objectContaining({ plan: 'ADVANCED' }), REV_1);
+    expect(screen.queryByText(/Agreement updated/)).not.toBeInTheDocument();
+
+    // While it is read again nothing can be confirmed, and the review says why.
+    await waitFor(() => expect(api.adminGetSubscription).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(review.props?.pending).toBe(true));
+    expect(review.props?.messages?.['pricing.reviewPending']).toBe('Reading the subscription again…');
+    fireEvent.click(confirm);
+    expect(api.adminUpdateSubscription).toHaveBeenCalledTimes(1);
+
+    // Once it is read, the review compares with the subscription as it is, keeps the choices, and waits for the administrator.
+    await act(async () => { release(); });
+    await waitFor(() => expect(comparison().plan).toMatchObject({ before: { id: 'PRO' }, after: { id: 'ADVANCED' } }));
+    expect(review.props?.pending).toBe(false);
+    expect(within(drawn).getByRole('alert')).toHaveTextContent('The subscription changed meanwhile (412 · precondition_failed).');
+    // The review takes the focus on its heading when it is drawn again, far from the refusal, so the heading says what happened.
+    expect(review.props?.messages?.['pricing.reviewTitle']).toBe('Review the change for sam.okafor again: the subscription changed meanwhile, so nothing was changed');
+    expect(api.adminUpdateSubscription).toHaveBeenCalledTimes(1);
+
+    // Confirming again is theirs to do, and it carries the revision of what the review now shows.
+    fireEvent.click(confirm);
+    expect(await screen.findByText(/Agreement updated for sam\.okafor \(institutional agreement\)/)).toBeInTheDocument();
+    expect(api.adminUpdateSubscription).toHaveBeenCalledTimes(2);
+    expect(api.adminUpdateSubscription).toHaveBeenLastCalledWith(SAM.id, { plan: 'ADVANCED', add_ons: {}, reason: 'institutional_agreement', detail: 'Ticket 41' }, '"rev-2"');
+  });
+
+  it('sends no revision when the gateway gives none, and treats a contract that moved during the change (409 contract_changed) the same way', async () => {
+    const gateway = subscriptionGateway({ revisions: false });
+    open();
+    await ready();
+    choose(/^ADVANCED/);
+    fireEvent.click(within(await reviewOf('Apply agreement')).getByRole('button', { name: 'Apply agreement' }));
+    expect(await screen.findByText(/Agreement updated for sam\.okafor \(institutional agreement\)/)).toBeInTheDocument();
+    expect(api.adminUpdateSubscription).toHaveBeenCalledWith(SAM.id, { plan: 'ADVANCED', add_ons: {}, reason: 'institutional_agreement' }, null);
+    await waitFor(() => expect(screen.getByRole('radio', { name: /^ADVANCED · current/ })).toBeChecked());
+
+    choose(/^PRO/);
+    const drawn = await reviewOf('Change plan only, keep add-ons');
+    api.adminChangePlan.mockImplementationOnce(async () => {
+      gateway.meanwhile('BASIC');
+      throw refusal(409, 'contract_changed', MOVED);
+    });
+    fireEvent.click(within(drawn).getByRole('button', { name: 'Change plan' }));
+    expect(await within(drawn).findByRole('alert')).toHaveTextContent(
+      'The subscription changed meanwhile (409 · contract_changed). sam.okafor’s subscription changed after this review was drawn, so nothing was changed.',
+    );
+    expect(api.adminChangePlan).toHaveBeenCalledWith(SAM.id, 'PRO', null);
+    // What the earlier change left is no longer what the account has, so its message is gone.
+    expect(screen.queryByText(/Agreement updated/)).not.toBeInTheDocument();
+    await waitFor(() => expect(comparison().plan).toMatchObject({ before: { id: 'BASIC' }, after: { id: 'PRO' } }));
+
+    // Back in the form the refusal is said there too, the account is as it is now, and the choices are still there.
+    fireEvent.click(within(drawn).getByRole('button', { name: 'Back' }));
+    expect(await screen.findByText('The subscription changed meanwhile (409 · contract_changed)')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /^BASIC · current/ })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /^PRO/ })).toBeChecked();
+
+    // A new review starts without the refusal, and it is the administrator who sends the change again.
+    const again = await reviewOf('Change plan only, keep add-ons');
+    expect(within(again).queryByRole('alert')).not.toBeInTheDocument();
+    expect(api.adminChangePlan).toHaveBeenCalledTimes(1);
+    fireEvent.click(within(again).getByRole('button', { name: 'Change plan' }));
+    expect(await screen.findByText(/Agreement updated for sam\.okafor \(administrative decision\)/)).toBeInTheDocument();
+    expect(api.adminChangePlan).toHaveBeenCalledTimes(2);
+    expect(api.adminChangePlan).toHaveBeenLastCalledWith(SAM.id, 'PRO', null);
+  });
+
+  it('says it is reading the subscription again in the review in words too, and only then lets the change be confirmed', async () => {
+    api.getPricingCatalog.mockResolvedValue({ ...catalogFixture, syntaxVersion: '9.0' });
+    const gateway = subscriptionGateway();
+    open();
+    await ready();
+    choose(/^ADVANCED/);
+    fireEvent.click(screen.getByRole('button', { name: 'Apply agreement' }));
+    const fallback = await screen.findByRole('group', { name: 'Review the change for sam.okafor' });
+
+    gateway.meanwhile('PRO');
+    let release = () => {};
+    api.adminGetSubscription.mockImplementationOnce(() => new Promise((resolve) => { release = () => resolve(gateway.read()); }));
+    fireEvent.click(within(fallback).getByRole('button', { name: 'Apply agreement' }));
+
+    expect(await within(fallback).findByRole('alert')).toHaveTextContent('The subscription changed meanwhile (412 · precondition_failed).');
+    expect(await within(fallback).findByText('Reading the subscription again…')).toBeInTheDocument();
+    expect(within(fallback).getByRole('button', { name: 'Apply agreement' })).toBeDisabled();
+
+    await act(async () => { release(); });
+    await waitFor(() => expect(within(fallback).getByRole('button', { name: 'Apply agreement' })).toBeEnabled());
+    expect(within(fallback).queryByText('Reading the subscription again…')).not.toBeInTheDocument();
+    expect(api.adminUpdateSubscription).toHaveBeenCalledTimes(1);
+  });
+
   it('still lets a change be reviewed in words and applied when the renderer cannot read the pricing document', async () => {
     api.getPricingCatalog.mockResolvedValue({ ...catalogFixture, syntaxVersion: '9.0' });
     open();
@@ -366,7 +539,7 @@ describe('admin-user-detail · one account', () => {
     expect(review.props).toBeNull();
     fireEvent.click(within(fallback).getByRole('button', { name: 'Apply agreement' }));
     expect(await screen.findByText(/Agreement updated for sam\.okafor \(institutional agreement\)/)).toBeInTheDocument();
-    expect(api.adminUpdateSubscription).toHaveBeenCalledWith(SAM.id, { plan: 'ADVANCED', add_ons: {}, reason: 'institutional_agreement' });
+    expect(api.adminUpdateSubscription).toHaveBeenCalledWith(SAM.id, { plan: 'ADVANCED', add_ons: {}, reason: 'institutional_agreement' }, REV_1);
   });
 
   it('keeps the page useful when the active pricing cannot be read', async () => {
@@ -428,7 +601,7 @@ describe('admin-user-detail · one account', () => {
   });
 
   it('refreshes the pricing token when an administrator changes their own agreement', async () => {
-    api.adminGetSubscription.mockImplementation(async () => subscriptionOf({ ...MARIA, id: MARIA.id }));
+    api.adminGetSubscription.mockImplementation(async () => revised(subscriptionOf({ ...MARIA, id: MARIA.id })));
     open(MARIA.id, { user: { ...MARIA, role: 'admin' } });
     await ready('maria.santos');
     choose(/^ADVANCED/);

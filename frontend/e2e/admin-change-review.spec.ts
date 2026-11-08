@@ -26,15 +26,29 @@ const token = (expiresInSeconds: number) => [
 ].join('.');
 
 interface Sent {
-  subscription: Array<{ id: string; body: Record<string, unknown> }>;
-  plan: Array<{ id: string; plan: string }>;
+  subscription: Array<{ id: string; body: Record<string, unknown>; ifMatch: string | null }>;
+  plan: Array<{ id: string; plan: string; ifMatch: string | null }>;
 }
 
-/** What the account screen reads and writes, answered; anything else on the API origin is an empty 404. Returns what was sent. */
-async function mockApi(page: Page): Promise<Sent> {
+/** An answer with the `ETag` of a subscription, which the page can read across origins because the gateway exposes it. */
+const withEtag = (status: number, body: unknown, etag: string): Handler => (route) => route.fulfill({
+  status, json: body, headers: { ETag: etag, 'Access-Control-Expose-Headers': 'ETag' },
+});
+
+/**
+ * What the account screen reads and writes, answered; anything else on the API origin is an empty 404. A subscription has a revision,
+ * as in the gateway: a write that names another one is refused with 412 and changes nothing. Returns what was sent, and a way to change
+ * a subscription from somewhere else (another administrator).
+ */
+async function mockApi(page: Page): Promise<{ sent: Sent; changeElsewhere: (id: string, plan: string) => void }> {
   const sent: Sent = { subscription: [], plan: [] };
   const users: AdminUserView[] = structuredClone(USERS);
   const addOns: Record<string, Record<string, number>> = {};
+  const revisions: Record<string, number> = {};
+  const etagOf = (id: string) => `"contract-${revisions[id] ?? 1}"`;
+  const moved = (id: string) => { revisions[id] = (revisions[id] ?? 1) + 1; };
+  const stale = (ifMatch: string | null, id: string) => ifMatch !== null && ifMatch !== etagOf(id);
+  const precondition = (id: string) => withEtag(412, failureBody(412, 'precondition_failed', 'The resource changed since it was read; fetch it again and retry.'), etagOf(id));
 
   await page.addInitScript(() => {
     localStorage.setItem('openbinding-access-token', 'review-access');
@@ -58,27 +72,40 @@ async function mockApi(page: Page): Promise<Sent> {
     const account = parts[0] === 'users' ? users.find((user) => user.id === parts[1]) : undefined;
     const rest = parts.slice(2).join('/');
     if (!account) return detail(404, 'not_found', 'not mocked')(route);
-    if (rest === 'subscription' && method === 'GET') return json(subscriptionOf(account, addOns[account.id] ?? {}))(route);
+    const ifMatch = route.request().headers()['if-match'] ?? null;
+    if (rest === 'subscription' && method === 'GET') return withEtag(200, subscriptionOf(account, addOns[account.id] ?? {}), etagOf(account.id))(route);
     if (rest === 'subscription' && method === 'POST') {
       const body = bodyOf(route);
-      sent.subscription.push({ id: account.id, body });
+      sent.subscription.push({ id: account.id, body, ifMatch });
+      if (stale(ifMatch, account.id)) return precondition(account.id)(route);
       if (body.plan === 'RESEARCH' && !account.cas_verified) {
         return detail(409, 'research_requires_us_cas', 'RESEARCH requires a verified Universidad de Sevilla CAS identity.')(route);
       }
       account.plan = String(body.plan);
       addOns[account.id] = body.add_ons as Record<string, number>;
-      return json({ ...subscriptionOf(account, addOns[account.id]), changed: true })(route);
+      moved(account.id);
+      return withEtag(200, { ...subscriptionOf(account, addOns[account.id]), changed: true }, etagOf(account.id))(route);
     }
     if (rest === 'plan' && method === 'POST') {
       const body = bodyOf(route);
-      sent.plan.push({ id: account.id, plan: String(body.plan) });
+      sent.plan.push({ id: account.id, plan: String(body.plan), ifMatch });
+      if (stale(ifMatch, account.id)) return precondition(account.id)(route);
       account.plan = String(body.plan);
-      return json(account)(route);
+      moved(account.id);
+      return withEtag(200, account, etagOf(account.id))(route);
     }
     if (rest === 'usage') return json(usageOf(account.plan))(route);
     return detail(404, 'not_found', 'not mocked')(route);
   });
-  return sent;
+  return {
+    sent,
+    changeElsewhere: (id, plan) => {
+      const account = users.find((user) => user.id === id);
+      if (!account) throw new Error(`no account ${id} in this mock`);
+      account.plan = plan;
+      moved(id);
+    },
+  };
 }
 
 function watchCriticalErrors(page: Page) {
@@ -120,7 +147,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
     test('an administrator sees plan, price, add-ons, features and limits change side by side, goes back, then confirms', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
-      const sent = await mockApi(page);
+      const { sent } = await mockApi(page);
       await page.goto(`/app/admin/users/${SAM.id}`);
       const main = page.locator('#platform-main');
       await expect(main.getByRole('heading', { level: 1, name: 'sam.okafor', exact: true })).toBeVisible();
@@ -187,13 +214,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('button', { name: 'Apply agreement', exact: true })).toBeFocused();
       expect(sent.subscription).toEqual([]);
 
-      // Confirm sends the request the form always sent, once.
+      // Confirm sends the request the form always sent, once, with the revision of the subscription the review was drawn from.
       await main.getByRole('button', { name: 'Apply agreement', exact: true }).click();
       await review.locator('[data-pr-part="review-confirm"]').click();
       await expect(main.getByText(/Agreement updated for sam\.okafor \(institutional agreement\)/)).toBeVisible();
       expect(sent.subscription).toEqual([{
         id: SAM.id,
         body: { plan: 'ADVANCED', add_ons: { COLLABORATION_PACK: 1 }, reason: 'institutional_agreement', detail: 'Agreement 2026-14' },
+        ifMatch: '"contract-1"',
       }]);
       await expect(review).toHaveCount(0);
       await expect(main.getByRole('radio', { name: /^ADVANCED · current/ })).toBeChecked();
@@ -203,7 +231,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test('an open limit reads as unlimited, a refusal stays in the review, and a plan change keeps the add-ons', async ({ page }) => {
       test.skip(isMobile, 'A behaviour of the review, not of its layout: the desktop run covers it.');
       const critical = watchCriticalErrors(page);
-      const sent = await mockApi(page);
+      const { sent } = await mockApi(page);
       await page.goto(`/app/admin/users/${SAM.id}`);
       const main = page.locator('#platform-main');
       const plans = main.getByRole('radiogroup', { name: 'New plan' });
@@ -236,8 +264,74 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(review.locator('[data-pr-part="review-notices"]')).toContainText('Reason: administrative decision. The add-ons stay as they are.');
       await review.getByRole('button', { name: 'Change plan' }).click();
       await expect(main.getByText(/Agreement updated for sam\.okafor \(administrative decision\)/)).toBeVisible();
-      expect(sent.plan).toEqual([{ id: SAM.id, plan: 'ADVANCED' }]);
+      expect(sent.plan).toEqual([{ id: SAM.id, plan: 'ADVANCED', ifMatch: '"contract-1"' }]);
       expect(sent.subscription.map((request) => request.body.plan)).toEqual(['RESEARCH']);
+      expect(critical).toEqual([]);
+    });
+
+    test('a change decided on a subscription that has moved is refused, the review says so and is drawn again, and only the administrator sends it again', async ({ page }) => {
+      test.skip(isMobile, 'A behaviour of the review, not of its layout: the desktop run covers it.');
+      const critical = watchCriticalErrors(page);
+      const { sent, changeElsewhere } = await mockApi(page);
+      await page.goto(`/app/admin/users/${SAM.id}`);
+      const main = page.locator('#platform-main');
+      const plans = main.getByRole('radiogroup', { name: 'New plan' });
+      const review = main.locator('pricing-change-review');
+      const plan = review.locator('[data-pr-part="review-plan"]');
+
+      await plans.getByRole('radio', { name: /^ADVANCED/ }).click();
+      await main.getByLabel(/^Detail/).fill('Agreement 2026-14');
+      await main.getByRole('button', { name: 'Apply agreement', exact: true }).click();
+      await expect(plan).toContainText('BASIC → ADVANCED');
+
+      // Another administrator moves the account while this review is open, and the reading that follows is held for a moment.
+      changeElsewhere(SAM.id, 'PRO');
+      let release = () => {};
+      const held = new Promise<void>((resolve) => { release = resolve; });
+      let holding = true;
+      await page.route(`${API}/v1/admin/users/${SAM.id}/subscription`, async (route) => {
+        if (route.request().method() === 'GET' && holding) {
+          holding = false;
+          await held;
+        }
+        await route.fallback();
+      });
+      await review.locator('[data-pr-part="review-confirm"]').click();
+
+      const error = review.locator('[data-pr-part="review-error"]');
+      await expect(error).toContainText('The change couldn’t be applied.');
+      await expect(error).toContainText('The subscription changed meanwhile (412 · precondition_failed).');
+      await expect(error).toContainText('so nothing was changed');
+      await expect(main.getByText(/Agreement updated/)).toHaveCount(0);
+      expect(sent.subscription.map((request) => request.ifMatch)).toEqual(['"contract-1"']);
+
+      // While it is read again nothing can be confirmed, and the review says why.
+      const confirm = review.locator('[data-pr-part="review-confirm"]');
+      await expect(review.locator('[data-pr-part="review-status"]')).toHaveText('Reading the subscription again…');
+      await expect(confirm).toHaveAttribute('aria-disabled', 'true');
+      await expect(plan).toContainText('BASIC → ADVANCED');
+
+      // Once it is read, the review compares with the subscription as it is and keeps the choices. It takes the focus on its heading,
+      // far above the refusal, so the heading says what happened. Nothing has been sent again.
+      release();
+      await expect(plan).toContainText('PRO → ADVANCED');
+      const title = review.locator('[data-pr-part="review-title"]');
+      await expect(title).toBeFocused();
+      await expect(title).toHaveText('Review the change for sam.okafor again: the subscription changed meanwhile, so nothing was changed');
+      await expect(review.locator('[data-pr-part="review-status"]')).toHaveText('');
+      await expect(confirm).not.toHaveAttribute('aria-disabled', 'true');
+      await expect(error).toContainText('The subscription changed meanwhile (412 · precondition_failed).');
+      expect(sent.subscription).toHaveLength(1);
+
+      // Confirming again is the administrator's to do, with the revision of what the review now shows.
+      await confirm.click();
+      await expect(main.getByText(/Agreement updated for sam\.okafor \(institutional agreement\)/)).toBeVisible();
+      expect(sent.subscription).toEqual([
+        { id: SAM.id, body: { plan: 'ADVANCED', add_ons: {}, reason: 'institutional_agreement', detail: 'Agreement 2026-14' }, ifMatch: '"contract-1"' },
+        { id: SAM.id, body: { plan: 'ADVANCED', add_ons: {}, reason: 'institutional_agreement', detail: 'Agreement 2026-14' }, ifMatch: '"contract-2"' },
+      ]);
+      await expect(review).toHaveCount(0);
+      await expect(main.getByRole('radio', { name: /^ADVANCED · current/ })).toBeChecked();
       expect(critical).toEqual([]);
     });
   });

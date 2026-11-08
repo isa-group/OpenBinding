@@ -417,6 +417,15 @@ export interface V1JobStatus extends JobStatus {
   error?: string;
 }
 
+/**
+ * An answer of the gateway with the revision it gave the resource: its `ETag`, or `null` when the answer carried none
+ * (docs/ERRORS.md, "Conditional writes"). The tag is opaque: it goes back unchanged as `If-Match` and is never read.
+ */
+export interface Revised<T> {
+  value: T;
+  etag: string | null;
+}
+
 export class HttpError extends Error {
   status: number;
   code?: string;
@@ -641,6 +650,7 @@ export class ApiClient {
    * `retryOnUnauthorized` turns off the silent refresh (a login form has no session to renew);
    * `throwOnValidation` (on unless a caller turns it off) makes a 422 an HttpError with the gateway's code and diagnostics;
    * pass `false` only where a 422 is a result the caller reads from the body (a package found invalid, a pricing document refused).
+   * `read` turns a successful answer into the result: its body, unless the caller needs a header too (see `revised`).
    */
   async request<T>(
     endpoint: string,
@@ -648,6 +658,7 @@ export class ApiClient {
     timeoutMs?: number,
     retryOnUnauthorized = true,
     throwOnValidation = true,
+    read: (response: Response) => Promise<T> = (response) => response.json(),
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
@@ -671,7 +682,7 @@ export class ApiClient {
       // once and try again. A second 401 means the session is genuinely over.
       if (response.status === 401 && retryOnUnauthorized && this.getAccessToken()) {
         if (await this.refreshSession()) {
-          return this.request<T>(endpoint, options, timeoutMs, false, throwOnValidation);
+          return this.request<T>(endpoint, options, timeoutMs, false, throwOnValidation, read);
         }
         this.endSession();
       }
@@ -692,7 +703,7 @@ export class ApiClient {
         return undefined as T;
       }
 
-      return response.json();
+      return read(response);
     } catch (error: unknown) {
       if (isAbortError(error)) {
         if (options.signal?.aborted) throw error;
@@ -705,6 +716,21 @@ export class ApiClient {
         clearTimeout(timeoutId);
       }
     }
+  }
+
+  /**
+   * A conditional write, or the read it is decided on. `ifMatch` is the revision the change was decided on, sent as `If-Match`; with
+   * none nothing is sent, and the gateway behaves as it does without one. The answer comes back with its `ETag`.
+   */
+  private revised<T>(endpoint: string, ifMatch: string | null, init: Omit<RequestInit, 'headers'> = {}): Promise<Revised<T>> {
+    return this.request<Revised<T>>(
+      endpoint,
+      ifMatch ? { ...init, headers: { 'If-Match': ifMatch } } : init,
+      undefined,
+      true,
+      true,
+      async (response) => ({ value: await response.json() as T, etag: response.headers.get('ETag') }),
+    );
   }
 
   async requestText(
@@ -1220,18 +1246,22 @@ export class ApiClient {
   /**
    * Apply an administrator-authorized SPACE contract novation, keeping the add-ons the account already has.
    * A 422 (`invalid_subscription`) throws instead of coming back as if it were the answer.
+   * `ifMatch` is the revision of the subscription the change was decided on (from `adminGetSubscription`): a subscription that has
+   * moved since is refused with 412 `precondition_failed` and nothing is written. The answer carries the new revision.
    */
-  async adminChangePlan(userId: string, plan: string): Promise<AdminUserView> {
-    return this.request<AdminUserView>(`/v1/admin/users/${userId}/plan`, {
+  async adminChangePlan(userId: string, plan: string, ifMatch: string | null): Promise<Revised<AdminUserView>> {
+    return this.revised<AdminUserView>(`/v1/admin/users/${userId}/plan`, ifMatch, {
       method: 'POST',
       body: JSON.stringify({ plan }),
-    }, undefined, true, true);
+    });
   }
 
-  async adminGetSubscription(userId: string): Promise<AdminSubscriptionView> {
-    return this.request<AdminSubscriptionView>(`/v1/admin/users/${userId}/subscription`);
+  /** The contract of an account, with its revision: the tag a change decided on this reading sends back. */
+  async adminGetSubscription(userId: string): Promise<Revised<AdminSubscriptionView>> {
+    return this.revised<AdminSubscriptionView>(`/v1/admin/users/${userId}/subscription`, null);
   }
 
+  /** An audited agreement. `ifMatch` and the revision of the answer work as in `adminChangePlan`. */
   async adminUpdateSubscription(
     userId: string,
     value: {
@@ -1240,11 +1270,12 @@ export class ApiClient {
       reason: ContractChangeReason;
       detail?: string;
     },
-  ): Promise<AdminSubscriptionView> {
-    return this.request<AdminSubscriptionView>(`/v1/admin/users/${userId}/subscription`, {
+    ifMatch: string | null,
+  ): Promise<Revised<AdminSubscriptionView>> {
+    return this.revised<AdminSubscriptionView>(`/v1/admin/users/${userId}/subscription`, ifMatch, {
       method: 'POST',
       body: JSON.stringify(value),
-    }, undefined, true, true);
+    });
   }
 
   async adminGetUserUsage(userId: string): Promise<UsageView> {

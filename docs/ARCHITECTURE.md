@@ -543,7 +543,10 @@ flowchart LR
 - An administrator confirms a change of somebody's contract (admin-user-detail) from the change review of
   `pricing-renderer` (`compareSelections` and `PricingChangeReview`, loaded on demand): plan, price, add-ons, features
   and limits before and after, both read from the catalog, without the Upgrade/Downgrade badge, since the plans are
-  not a ladder. It sends the request the form always sent (`POST /v1/admin/users/{id}/subscription`, or `/plan`).
+  not a ladder. It sends the request the form always sent (`POST /v1/admin/users/{id}/subscription`, or `/plan`), with
+  the `ETag` of the subscription the review was drawn from as `If-Match`. A subscription that has moved since (`412`, or
+  `409 contract_changed` for a change that named no revision) is said in the review, read again, and the review is drawn
+  again from it; only the administrator sends the change again.
 - `space-react-client` 0.4.0, like 0.3.3 before it, declares React ^18.3.1; OpenBinding runs React 19. A spike
   validates it in token-only mode; if it fails, the fix is proposed upstream to `Alex-GF/space-react-client` rather
   than forked.

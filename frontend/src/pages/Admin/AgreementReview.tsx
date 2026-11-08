@@ -22,11 +22,18 @@ const HIDDEN_SECTIONS = ['relation'] as const;
 /** The review speaks to the holder of the subscription by default; here an administrator reviews somebody else's contract. */
 const MESSAGES: Record<string, string> = {
   'pricing.reviewBack': 'Back',
-  'pricing.reviewPending': 'Applying the change…',
   'pricing.reviewErrorTitle': 'The change couldn’t be applied.',
   'pricing.reviewNoChanges': 'This is the contract the account already has.',
   'pricing.contactSales': 'By agreement',
   'pricing.reviewDifferenceQuote': 'No difference is shown: paid plans and add-ons are arranged by agreement.',
+};
+
+/** What keeps the change from being confirmed for now: the request that applies it, or a new reading of the subscription. */
+export type ReviewPending = 'applying' | 'reading';
+
+const PENDING: Record<ReviewPending, string> = {
+  applying: 'Applying the change…',
+  reading: 'Reading the subscription again…',
 };
 
 export interface AgreementReviewProps {
@@ -41,7 +48,8 @@ export interface AgreementReviewProps {
   confirmLabel: string;
   /** What the request carries besides the contract, and what follows from it. */
   notices: string[];
-  pending: boolean;
+  /** Why the change can't be confirmed right now, if it can't. */
+  pending: ReviewPending | null;
   /** Why the last attempt was refused, when it was. */
   error?: string;
   onConfirm: () => void;
@@ -62,7 +70,10 @@ export default function AgreementReview({ pricing, before, after, title, confirm
   const comparison = useMemo(() => (read?.value
     ? compareSelections({ before: { pricing: read.value, selection: before }, after: { pricing: read.value, selection: after } })
     : null), [read, before, after]);
-  const messages = useMemo(() => ({ ...MESSAGES, 'pricing.reviewTitle': title }), [title]);
+  const messages = useMemo(
+    () => ({ ...MESSAGES, 'pricing.reviewTitle': title, 'pricing.reviewPending': PENDING[pending ?? 'applying'] }),
+    [title, pending],
+  );
 
   if (!comparison) {
     const codes = (read?.diagnostics ?? []).filter((diagnostic) => diagnostic.severity === 'error').map((diagnostic) => diagnostic.code);
@@ -73,9 +84,10 @@ export default function AgreementReview({ pricing, before, after, title, confirm
         </Notice>
         {notices.length > 0 && <ul className="adm-review-notes">{notices.map((notice) => <li key={notice}>{notice}</li>)}</ul>}
         {error && <Notice tone="error" title={MESSAGES['pricing.reviewErrorTitle']}>{error}</Notice>}
+        {pending && <p className="adm-muted" role="status">{PENDING[pending]}</p>}
         <div className="adm-buttons">
           <Action variant="secondary" onClick={onBack}>Back</Action>
-          <Action variant="primary" busy={pending} onClick={onConfirm}>{confirmLabel}</Action>
+          <Action variant="primary" busy={pending !== null} onClick={onConfirm}>{confirmLabel}</Action>
         </div>
       </div>
     );
@@ -88,7 +100,7 @@ export default function AgreementReview({ pricing, before, after, title, confirm
         hideSections={HIDDEN_SECTIONS}
         messages={messages}
         notices={notices}
-        pending={pending}
+        pending={pending !== null}
         error={error}
         confirmLabel={confirmLabel}
         onConfirm={onConfirm}
