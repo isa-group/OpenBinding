@@ -16,6 +16,7 @@ from openbinding_gateway.access.work_limits import (
     get_work_limiter,
     set_work_limiter,
 )
+from openbinding_gateway.core import ratelimit
 from openbinding_gateway.core.ratelimit import MemoryBackend, RedisBackend, client_bucket
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.main import app
@@ -411,8 +412,10 @@ async def test_a_signed_in_counter_is_named_after_the_account(api_client, regist
 
 
 async def test_redis_failure_degrades_to_process_counters_and_never_switches_the_limit_off(
-    api_client, budgets, caplog,
+    api_client, budgets, caplog, monkeypatch,
 ):
+    # Running alembic in-process (applies ``fileConfig``) disables every logger that existed then.
+    monkeypatch.setattr(ratelimit.logger, "disabled", False)
     budgets(read=2)
     now = [1000.0]
     limiter = WorkRateLimiter(primary=DownBackend(), retry_after_failure_s=15.0, clock=lambda: now[0])
