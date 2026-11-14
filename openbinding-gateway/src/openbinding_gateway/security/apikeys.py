@@ -430,7 +430,7 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         return frozenset({ApiKeyPermission.ENGINES_REGISTER.value})
     if path == "/v1/validate":
         return frozenset({ApiKeyPermission.INSTANCES_VALIDATE.value})
-    if path.startswith("/v1/instances") or path.startswith("/v1/generator"):
+    if path.startswith("/v1/instances"):
         return frozenset(
             {ApiKeyPermission.INSTANCES_READ.value}
             if method == "GET"
@@ -446,7 +446,7 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         if method == "GET" and path in OPEN_V1_GET_PATHS:
             return frozenset()
         # Comparing two compositions derives a view from documents the caller supplies and
-        # persists nothing, which is a validator's shape rather than the generator's: the
+        # persists nothing, which is a validator's shape rather than a writer's: the
         # read permission, not the write one. A key still needs it, because deny-by-default
         # under /v1 is the rule and "it only computes" is not an exemption.
         return frozenset({ApiKeyPermission.INSTANCES_READ.value})

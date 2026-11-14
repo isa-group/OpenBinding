@@ -2,8 +2,8 @@
 
 Going through ``BimPort`` instead of calling ``bim_core`` objects made every operation verify and copy the IR it is
 given, so the number of port calls per gateway operation is the thing that must not grow: the static descriptors
-(capabilities, protocol, Profiles, Dialects, schemas) are asked once per port, a compilation is one ``compile``, the
-re-evaluation of an answer is one ``reevaluate`` and a batch of bindings is one ``evaluate_many`` per 500.
+(capabilities, protocol, Profiles, Dialects, schemas) are asked once per port, a compilation is one ``compile``, and the
+re-evaluation of an answer is one ``reevaluate``.
 """
 
 from __future__ import annotations
@@ -12,7 +12,6 @@ from collections import Counter
 
 from _repo import REPO_ROOT
 from openbinding_gateway.core.settings import get_settings
-from openbinding_gateway.generator.package import evaluate_features
 from openbinding_gateway.integrations import bim, packages
 from openbinding_gateway.services.snapshots import compile_package
 from bim_client import InProcessBim
@@ -84,13 +83,3 @@ async def test_compiling_and_reevaluating_the_demo_costs_one_call_each() -> None
     assert port.calls["compile"] == ROUNDS
     assert port.calls["reevaluate"] == ROUNDS
     assert set(port.calls) <= {"compile", "reevaluate"}
-
-
-def test_a_thousand_bindings_are_three_requests_and_the_compilation_is_not_repeated() -> None:
-    ir = InProcessBim().compile(packages.zip_directory(DEMO))["ir"]
-    port = CountingPort(InProcessBim())
-    with bim.bim_override(port):
-        values = evaluate_features(ir, [BINDING] * 1200)
-
-    assert len(values) == 1200
-    assert port.calls == Counter(evaluate_many=3)

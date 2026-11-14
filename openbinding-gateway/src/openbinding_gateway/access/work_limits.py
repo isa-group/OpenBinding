@@ -11,7 +11,7 @@ Every such route belongs to one of two classes (``WORK_ROUTES``):
 ``read``
     Reads or writes YAML, what an editor asks at every pause in typing.
 ``compile``
-    Runs the container's compiler in this process, or the generator: far more work per request
+    Runs the container's compiler in this process: far more work per request
     and nothing an editor does by itself, so its budget is much smaller.
 
 ``GET /v1/compositions/language`` and ``/schema`` are in neither: they answer from a cache.
@@ -22,9 +22,8 @@ the budget and does not share it with whoever shares its address. A key and its 
 caller. The counters are the ones in ``core/ratelimit.py``: Redis, so every replica shares them, and
 counters per process while Redis does not answer.
 
-A request is counted when it arrives, whatever becomes of it, so a malformed one is not free; only a
-corpus waits for its body to be validated, because that is what says how much it costs. What this does
-not do: it counts requests rather than their size, and on a route with a JSON body it runs after FastAPI
+A request is counted when it arrives, whatever becomes of it, so a malformed one is not free. What this
+does not do: it counts requests rather than their size, and on a route with a JSON body it runs after FastAPI
 has read and parsed that body, so it stops the work and not the upload. The body limits bound that, and
 a client that needs stopping before it reaches the gateway is the proxy's to stop.
 """
@@ -56,9 +55,6 @@ WORK_ROUTES: dict[str, WorkClass] = {
     "/v1/compositions/package": "compile",
     "/v1/compositions/import": "compile",
     "/v1/instances/validate": "compile",
-    "/v1/generator/instances": "compile",
-    "/v1/generator/corpus": "compile",
-    "/v1/generator/convert-legacy": "compile",
 }
 
 
@@ -69,10 +65,10 @@ class WorkRateLimiter(RateLimiter):
     label: ClassVar[str] = "work rate limiter"
 
     async def check(
-        self, work_class: WorkClass, client: str, *, budget: int, window_s: int, units: int = 1,
+        self, work_class: WorkClass, client: str, *, budget: int, window_s: int,
     ) -> None:
-        """Charge ``units`` to this client; raise ``RateLimited`` once past the budget."""
-        count, ttl = await self._hit(f"workrl:{work_class}:{client}", window_s, units)
+        """Count one request of this client; raise ``RateLimited`` once past the budget."""
+        count, ttl = await self._hit(f"workrl:{work_class}:{client}", window_s)
         if count > budget:
             raise RateLimited(ttl)
 
@@ -112,16 +108,9 @@ async def enforce_work_rate_limit(
     work_class: WorkClass,
     caller: Optional[User],
     *,
-    units: int = 1,
     settings: Optional[Settings] = None,
 ) -> None:
-    """Charge ``units`` of work to this client and refuse with 429 when over budget.
-
-    ``units`` is for a request that is several requests' worth. Past the whole budget it is
-    charged as the whole budget, so a request larger than the budget still runs, alone, when
-    the window is untouched, rather than being refused forever with a ``Retry-After`` that
-    could never help.
-    """
+    """Count one request of this client and refuse with 429 when over budget."""
     settings = settings or get_settings()
     budget = _budget(settings, work_class, caller is not None)
     if budget <= 0:
@@ -130,7 +119,7 @@ async def enforce_work_rate_limit(
     window_s = settings.work_rate_limit_window_s
     try:
         await get_work_limiter().check(
-            work_class, client, budget=budget, window_s=window_s, units=min(units, budget),
+            work_class, client, budget=budget, window_s=window_s,
         )
     except RateLimited as limited:
         advice = "" if caller is not None else " An account has a larger allowance."

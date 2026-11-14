@@ -275,7 +275,7 @@ class Settings(BaseSettings):
     #: anybody that do real CPU work (``access/work_limits.py`` names them and
     #: docs/ACCESS_POLICY.md explains them). A client is its address (its /64
     #: for IPv6) or, signed in, its account. ``read`` reads and writes YAML;
-    #: ``compile`` runs the container's compiler or the generator, so it is much
+    #: ``compile`` runs the container's compiler, so it is much
     #: stricter. ``0`` switches a class off for everybody. Counted like
     #: authentication: in Redis, or per process while Redis does not answer.
     work_rate_limit_window_s: int = Field(default=60, ge=1)

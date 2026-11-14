@@ -66,7 +66,7 @@ test = [
 # them and keeps a file only if its SHA-256 is the lock's (token:
 # BIM_TOOLCHAIN_TOKEN, or `gh auth token`). A new release: fetch it with
 # `--wheels --bootstrap vX.Y.Z`, change the three paths and the two versions,
-# `uv lock`. Keep experimentation/qacobench/bim-toolchain.txt on the same release.
+# `uv lock`.
 [tool.uv.sources]
 bim-core = { path = ".bim-wheels/bim_core-0.2.0-py3-none-any.whl" }
 bim-client = { path = ".bim-wheels/bim_client-0.2.0-py3-none-any.whl" }

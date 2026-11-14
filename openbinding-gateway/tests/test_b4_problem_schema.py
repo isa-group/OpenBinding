@@ -12,12 +12,16 @@ import json
 import uuid
 
 import pytest_asyncio
+from fastapi import APIRouter
+from httpx import ASGITransport, AsyncClient
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from starlette.requests import Request
 
 from _repo import REPO_ROOT
 from openbinding_gateway import main as gateway_main
 from openbinding_gateway.db.models import User, UserRole
+from openbinding_gateway.models.errors import api_error
 from openbinding_gateway.models.problem import (
     json_pointer,
     normalize_diagnostics,
@@ -31,14 +35,43 @@ from bim_core.package import InstancePackage, load_package
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 CANONICAL = {"type", "title", "status", "code", "detail", "diagnostics"}
-GENERATOR_FEATURES = [
-    {"id": "cost", "unit": "EUR", "direction": "minimize", "scope": "selectedCandidate",
-     "distribution": {"kind": "uniform", "minimum": 1, "maximum": 10},
-     "aggregation": {"selection": "sum"}},
-    {"id": "latency", "unit": "ms", "direction": "minimize", "scope": "invocation",
-     "distribution": {"kind": "normal", "minimum": 2, "maximum": 20, "mean": 10, "stddev": 3},
-     "aggregation": {"sequence": "sum", "parallel": "max", "exclusive": "weightedSum", "repeat": "scale"}},
-]
+
+
+class _ProbeItem(BaseModel):
+    value: int = Field(ge=2)
+
+
+class _ProbeBody(BaseModel):
+    items: list[_ProbeItem] = Field(default_factory=list)
+    tasks: int = Field(default=2, ge=2)
+    candidates: int = Field(default=2, le=100)
+
+
+def _probe_app():
+    """The gateway's own exception handlers, with two routes made for these tests.
+
+    The handlers are the subject here, not any route: a fresh app from ``create_app`` carries them, and the probe
+    routes give a body with an array of objects and two bounds, and a refusal with fields of its own.
+    """
+    probe = gateway_main.create_app()
+    router = APIRouter()
+
+    @router.post("/probe/body")
+    async def body(payload: _ProbeBody) -> dict:
+        return payload.model_dump()
+
+    @router.post("/probe/refusal")
+    async def refusal() -> dict:
+        raise api_error(422, "probe_refused", "The probe refuses every request.", conflicts=[{"engine": "a"}])
+
+    probe.include_router(router)
+    return probe
+
+
+@pytest_asyncio.fixture
+async def probe_client():
+    async with AsyncClient(transport=ASGITransport(app=_probe_app()), base_url="http://gateway") as client:
+        yield client
 
 
 async def sign_in(api_client, registration, db_session=None, *, admin: bool = False) -> dict[str, str]:
@@ -152,16 +185,14 @@ async def test_malformed_json_reports_the_offset_not_a_pointer(api_client):
     assert diagnostic["hint"]
 
 
-async def test_nested_body_errors_have_a_json_pointer_with_array_indexes(api_client):
-    response = await api_client.post("/v1/generator/instances", json={"features": [5]})
+async def test_nested_body_errors_have_a_json_pointer_with_array_indexes(probe_client):
+    response = await probe_client.post("/probe/body", json={"items": [{"value": 5}, 5]})
     body = assert_problem(response, code="validation_error")
-    assert "/features/0" in by_pointer(body)
+    assert "/items/1" in by_pointer(body)
 
 
-async def test_a_value_out_of_range_says_which_bound(api_client):
-    response = await api_client.post(
-        "/v1/generator/instances", json={"tasks": 1, "candidates": 101, "features": []}
-    )
+async def test_a_value_out_of_range_says_which_bound(probe_client):
+    response = await probe_client.post("/probe/body", json={"tasks": 1, "candidates": 101})
     body = assert_problem(response)
     found = by_pointer(body)
     assert found["/tasks"]["code"] == "greater_than_equal"
@@ -225,18 +256,10 @@ async def test_a_route_refusal_keeps_its_code_and_gains_the_document(api_client,
     assert "error" not in body
 
 
-async def test_a_route_refusal_keeps_its_extra_fields(api_client):
-    response = await api_client.post(
-        "/v1/generator/instances",
-        json={
-            "tasks": 6,
-            "candidates": 3,
-            "target_engines": ["minizinc-csp", "many-heuristic"],
-            "features": GENERATOR_FEATURES,
-        },
-    )
-    body = assert_problem(response, code="incompatible_target_engines")
-    assert "conflicts" in body
+async def test_a_route_refusal_keeps_its_extra_fields(probe_client):
+    response = await probe_client.post("/probe/refusal")
+    body = assert_problem(response, code="probe_refused")
+    assert body["conflicts"] == [{"engine": "a"}]
     assert body["diagnostics"][0]["message"] == body["detail"]
 
 
