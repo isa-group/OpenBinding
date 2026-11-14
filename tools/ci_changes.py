@@ -30,7 +30,8 @@ REVISION = re.compile(r"[0-9a-fA-F]{7,64}")
 
 def classify(path: str) -> frozenset[str] | None:
     """The areas a changed path runs; an empty set when it never needs a job, None when no rule knows it."""
-    # The bim-core boundary test compares these two root files with their bim-toolchain copies (corpus root = repository).
+    # The corpus tier of the pinned bim-toolchain release (job bim-toolchain) compares these two root files with its own
+    # copies (corpus root = repository).
     if path in BIM_ROOT_FILES:
         return frozenset({"bim", "gateway"})
     if path.startswith("acceptance/ui/"):
@@ -42,7 +43,10 @@ def classify(path: str) -> frozenset[str] | None:
         return frozenset({"e2e"}) if path.startswith("frontend/e2e/") else frozenset({"e2e", "gateway"})
     if path.startswith("engines/") or path.startswith("schemas/bim/") or path == "tools/check_bim_guard.py":
         return frozenset({"engines", "bim", "gateway"})
-    if path.startswith(("bim-toolchain/", "schemas/", "examples/", "datasets/", "experimentation/")):
+    if path.startswith(("schemas/", "examples/", "datasets/", "experimentation/")):
+        return frozenset({"bim", "gateway"})
+    # How CI reads the private bim-toolchain release (wheels and test kit).
+    if path.startswith(".github/actions/bim-toolchain-access/"):
         return frozenset({"bim", "gateway"})
     # The bim-core tests read openbinding-gateway/tests/golden/bim_baseline/*, so those goldens also run the bim area.
     if path in ("openbinding-gateway/pyproject.toml", "openbinding-gateway/uv.lock") or path.startswith("openbinding-gateway/tests/golden/"):

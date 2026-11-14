@@ -3,7 +3,7 @@
 The images are built with the repository root as context (``docker-compose.yml``), so the root ``.dockerignore``
 is the one effective ignore file; a ``Dockerfile.dockerignore`` beside the Dockerfile would silently take its
 place under BuildKit, so there must not be one. The gateway installs ``bim-core`` and ``bim-client`` from the
-repository and must not receive ``bim-service``, the toolchain's tests or its corpus.
+wheels of the bim-toolchain release pinned in ``uv.lock``; nothing of the toolchain is in the context.
 
 The matcher follows Docker's ``patternmatcher``: patterns are read in order; a pattern that matches the path
 or one of its parent directories flips the path to ignored (a plain pattern) or back to kept (``!pattern``).
@@ -101,9 +101,9 @@ def test_the_matcher_follows_docker_semantics() -> None:
     assert ignored("README.md") is True
     assert ignored("openbinding-gateway/src/openbinding_gateway/main.py") is False
     assert ignored("openbinding-gateway/src/openbinding_gateway/__pycache__/main.cpython-311.pyc") is True
-    assert ignored("bim-toolchain/packages/bim-core/pyproject.toml") is False
-    assert ignored("bim-toolchain/packages/bim-core/src/bim_core/compiler.py") is False
-    assert ignored("bim-toolchain/packages/bim-core/src/bim_core/__pycache__/compiler.cpython-311.pyc") is True
+    assert ignored("openbinding-gateway/tools/seed_lab.py") is False
+    # The test kit of the pinned bim-toolchain release is a checkout of another repository, never in the context.
+    assert ignored(".bim-toolchain/tools/baseline_core.py") is True
 
 
 def test_there_is_one_effective_ignore_file_and_it_is_the_one_at_the_root() -> None:
@@ -122,8 +122,7 @@ def test_there_is_one_effective_ignore_file_and_it_is_the_one_at_the_root() -> N
 
 def test_every_path_the_dockerfile_copies_is_in_the_build_context() -> None:
     sources = copied_sources()
-    assert any(source.startswith("bim-toolchain/packages/bim-core/") for source in sources)
-    assert any(source.startswith("bim-toolchain/packages/bim-client/") for source in sources)
+    assert "openbinding-gateway/uv.lock" in sources
 
     missing = []
     for source in sources:
@@ -134,27 +133,30 @@ def test_every_path_the_dockerfile_copies_is_in_the_build_context() -> None:
     assert not missing, "the Dockerfile copies what the ignore file removes:\n" + "\n".join(missing)
 
 
-def test_the_packages_the_dockerfile_installs_are_copied_with_their_metadata() -> None:
-    text = DOCKERFILE.read_text(encoding="utf-8")
-    installed = re.findall(r"/bim-toolchain/packages/(bim-[a-z]+)(?=\s|$)", text)
-    assert sorted(set(installed)) == ["bim-client", "bim-core"]
-    for package in installed:
-        for name in ("pyproject.toml", "README.md", "NOTICE.md"):
-            assert f"bim-toolchain/packages/{package}/{name}" in copied_sources()
-
-
-def test_the_service_the_tests_and_the_corpus_stay_out_of_the_gateway_context() -> None:
-    for name in (
-        "bim-toolchain/packages/bim-service/pyproject.toml",
-        "bim-toolchain/packages/bim-service/src/bim_service/app.py",
-        "bim-toolchain/packages/bim-core/tests/test_compiler.py",
-        "bim-toolchain/packages/bim-client/tests/test_equivalence.py",
-        "bim-toolchain/corpus/example/instance.json",
-        "bim-toolchain/golden/bim_baseline/corpus.json",
-        "bim-toolchain/tools/baseline_core.py",
-    ):
-        assert ignored(name), name
+def test_nothing_of_the_bim_toolchain_is_built_from_this_repository() -> None:
+    # bim-core and bim-client come from the wheels of the release pinned in uv.lock, not from a source tree.
     instructions = [
         line for line in DOCKERFILE.read_text(encoding="utf-8").splitlines() if line.startswith(("COPY ", "RUN "))
     ]
-    assert not [line for line in instructions if "bim-service" in line]
+    assert not [line for line in instructions if "bim-toolchain" in line or "bim-service" in line]
+    assert not (REPO_ROOT / "bim-toolchain").exists()
+
+
+
+def test_the_qacobench_images_install_the_wheels_uv_lock_pins() -> None:
+    import tomllib
+
+    lock = tomllib.loads((REPO_ROOT / "openbinding-gateway" / "uv.lock").read_text(encoding="utf-8"))
+    pinned = {
+        wheel["filename"]: wheel["hash"]
+        for package in lock["package"]
+        if package["name"] in ("bim-core", "bim-client")
+        for wheel in package["wheels"]
+    }
+    listed = {}
+    for line in (REPO_ROOT / "experimentation" / "qacobench" / "bim-toolchain.txt").read_text(encoding="utf-8").splitlines():
+        if line.strip() and not line.startswith("#"):
+            path, option = line.split()
+            assert path.startswith(".bim-wheels/") and option.startswith("--hash=")
+            listed[path.removeprefix(".bim-wheels/")] = option.removeprefix("--hash=")
+    assert listed == pinned and len(pinned) == 2

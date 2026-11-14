@@ -12,13 +12,12 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-COMPOSE_FILES = ["compose.lab.json", "compose.lab-process.json"]
+COMPOSE_FILES = ["compose.lab.json"]
 PUBLIC_ORIGIN = "https://demo.example.org"
 TIMEOUT_SECONDS = 60
 
 DUMMY_ENV = {
     "DEMO_PG_PASSWORD": "dummy-pg",
-    "DEMO_BIM_TOKEN": "dummy-bim-token",
     "DEMO_JWT_SECRET": "dummy-jwt-secret",
     "DEMO_FERNET_KEY": "dummy-fernet-key",
     "DEMO_PUBLIC_ORIGIN": PUBLIC_ORIGIN,

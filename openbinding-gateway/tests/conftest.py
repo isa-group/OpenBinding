@@ -17,10 +17,10 @@ import uuid
 
 import pytest
 
-# A few tests only read files of the repository (``test_omg_xsd_wiring.py``: Dockerfiles, ignore files, workflows) and
-# also run where neither the gateway nor its dependencies are installed (the registered check of the BIM toolchain
-# runs them next to its own tests). There the gateway's setup below is left out and a test that does need the gateway
-# fails on its own import. Where the gateway is installed nothing changes: a missing dependency still stops the session.
+# A few tests only read files of the repository (Dockerfiles, ignore files, workflows) and may run where neither the
+# gateway nor its dependencies are installed. There the gateway's setup below is left out and a test that does need the
+# gateway fails on its own import. Where the gateway is installed nothing changes: a missing dependency still stops the
+# session.
 GATEWAY_INSTALLED = importlib.util.find_spec("openbinding_gateway") is not None
 try:
     import pytest_asyncio

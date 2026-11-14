@@ -14,12 +14,9 @@ DERIVED_ROOTS = {
     # Frontend test fixtures are not part of the checked-in corpus.
     ROOT / "frontend",
 }
-# Files that sit next to a package but are not entries of it: the example's
-# binding is evaluated against the package, never compiled as part of it (see
-# bim-toolchain/tools/test_packaging_metadata.py).
-NON_ENTRY_FILES = {
-    Path("bim-toolchain/packages/bim-core/tests/fixtures/example-package"): frozenset({"binding.json"}),
-}
+# Files that sit next to a package but are not entries of it (none in the corpus since the example package of
+# bim-core left with bim-toolchain).
+NON_ENTRY_FILES: dict[Path, frozenset[str]] = {}
 
 
 def package_directories(base: Path = ROOT, excluded: set[Path] | None = None) -> list[Path]:

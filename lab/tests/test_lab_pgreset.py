@@ -76,7 +76,7 @@ def test_no_forbidden_key_network_socket_or_build(manifest, postgres):
 def test_mem_limit_is_the_one_of_the_laboratory_postgres(base, postgres):
     assert postgres["mem_limit"] == base["services"]["postgres"]["mem_limit"] == "384m"
     assert rules._mib(postgres["mem_limit"]) == 384
-    # The 4032 MiB sum of the whole laboratory does not apply: this manifest is recovery-only.
+    # The 3776 MiB sum of the whole laboratory does not apply: this manifest is recovery-only.
     assert rules._total_mib(json.loads(RESET.read_text(encoding="utf-8"))["services"]) == 384
 
 

@@ -378,13 +378,17 @@ projects, plans, jobs and queues, persistence, the artifact library, studies,
 reports, the resolver and the HTTP routes. The toolchain must not know the
 platform, and the platform reaches BIM through a small port.
 
-**Current state.** The gateway depends on `bim-core` and `bim-client` from
-[`bim-toolchain/`](../../bim-toolchain/README.md) (the future private repository
-`javiercavlop/bim-toolchain`; the remote does not exist yet) and reaches the
-language only through `bim_client.BimPort`, built in
-`openbinding_gateway/integrations/bim.py`. `BIM_MODE=inproc` (default) runs
-`InProcessBim`; `BIM_MODE=http` runs `HttpBim` against `bim-service` and refuses
-to start if the service `compilerDigest` differs from the local one. Routes,
+**Current state.** The gateway depends on `bim-core==0.2.0` and
+`bim-client==0.2.0`, the wheels of release v0.2.0 of
+[`javiercavlop/bim-toolchain`](https://github.com/javiercavlop/bim-toolchain)
+(a private repository for now; pinned by SHA-256 in
+`openbinding-gateway/uv.lock` and fetched by `tools/fetch_bim_toolchain.py --wheels`), and reaches the language only through
+`bim_client.BimPort`, built in `openbinding_gateway/integrations/bim.py`.
+`BIM_MODE=inproc` (default) runs `InProcessBim`; the gateway, the worker and the
+seed run that way in the lab and the default deployment.
+`BIM_MODE=http` runs `HttpBim` against a separately deployed `bim-service` (a
+deployable of the toolchain repository) and refuses to start if the service
+`compilerDigest` differs from the local one. Routes,
 services, the generator, studies and reports use the port; BIM errors are
 translated to HTTP in one place. Details in [BIM_CORE.md](../BIM_CORE.md).
 

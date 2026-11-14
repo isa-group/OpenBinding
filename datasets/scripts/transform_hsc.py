@@ -35,14 +35,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 import zipfile
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "bim-toolchain" / "packages" / "bim-core" / "src"))
 
 from bim_core import compile_instance, load_package
 

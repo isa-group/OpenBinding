@@ -1,0 +1,26 @@
+name: The wheels of the bim-toolchain release
+description: >-
+  bim-core and bim-client (and bim-service, a test extra) are the wheels of a release of javiercavlop/bim-toolchain,
+  named in openbinding-gateway/uv.lock as files of openbinding-gateway/.bim-wheels/ with their SHA-256. This fetches
+  them (tools/fetch_bim_toolchain.py --wheels, every file checked against the lock) so that `uv sync --locked` can
+  install them, and hands the token to the Docker builds of the job (the build secret bim_toolchain_token reads
+  BIM_TOOLCHAIN_TOKEN). While that repository is private the token is the repository secret BIM_TOOLCHAIN_TOKEN, a
+  fine-grained token with read-only access to the contents of that one repository.
+inputs:
+  token:
+    description: secrets.BIM_TOOLCHAIN_TOKEN
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Fetch the wheels of the pinned bim-toolchain release
+      shell: bash
+      env:
+        BIM_TOOLCHAIN_TOKEN: ${{ inputs.token }}
+      run: |
+        if [ -z "${BIM_TOOLCHAIN_TOKEN}" ]; then
+          echo "::error::the secret BIM_TOOLCHAIN_TOKEN is not set (or this run cannot read secrets): the wheels of the private bim-toolchain release cannot be downloaded"
+          exit 1
+        fi
+        python3 tools/fetch_bim_toolchain.py --wheels
+        echo "BIM_TOOLCHAIN_TOKEN=${BIM_TOOLCHAIN_TOKEN}" >> "${GITHUB_ENV}"

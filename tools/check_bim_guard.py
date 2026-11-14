@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_PACKAGES = 83
+EXPECTED_PACKAGES = 82
 # Same scope as tools/check_bim_corpus.py: datasets/ duplicates sources and
 # frontend/ holds test fixtures, so neither contributes corpus packages.
 NON_CORPUS_ROOTS = {
@@ -16,11 +16,9 @@ NON_CORPUS_ROOTS = {
     ROOT / "datasets",
     ROOT / "frontend",
 }
-# Example binding shipped next to a package fixture; it is not a package entry
-# (see bim-toolchain/tools/smoke_installed.py and test_packaging_metadata.py).
-UNDECLARED_PACKAGE_FILES = {
-    Path("bim-toolchain/packages/bim-core/tests/fixtures/example-package/binding.json"),
-}
+# Files next to a package that are not entries of it (none since the example package of bim-core left with
+# bim-toolchain).
+UNDECLARED_PACKAGE_FILES: set[Path] = set()
 THIRD_PARTY_DIRECTORY_NAMES = {
     ".git",
     ".pnpm-store",
@@ -30,6 +28,8 @@ THIRD_PARTY_DIRECTORY_NAMES = {
 }
 THIRD_PARTY_ROOTS = {
     ROOT / "upstream",
+    # The test kit of the pinned bim-toolchain release (tools/fetch_bim_toolchain.py), another repository.
+    ROOT / ".bim-toolchain",
     ROOT / "space" / "space-src",
     ROOT / "openbinding-gateway" / "src" / "openbinding_gateway" / "v1" / "vendor",
     # A local 479 MB campaign build is reproducible output, not checked-in

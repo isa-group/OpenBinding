@@ -9,12 +9,12 @@ docs use. Counts are from `spec/platform-baseline` (from
 | Component | Unit | Integration / contract | End-to-end | Framework |
 |---|---|---|---|---|
 | Gateway (`openbinding-gateway/tests/`) | 143 `test_*.py` files, ~1,840 test functions; SQLite + `httpx`/`TestClient`, fakes for SPACE (`_fake_space.py`) | `tests/concurrency/*_pg.py` (real PostgreSQL 16, via `tools/test_pg.sh` / `compose.pgtest.json`); `tests/integration/` (`-m integration`, needs the Compose stack: engine representation, ICSOC regression, v1 gateway); OpenAPI contract tests (`test_openapi_contract.py`, `test_b4_*`); BIM consumer contract (`test_bim_consumer_contract.py`) | lab smoke `tools/smoke_lab.py` (9 steps) | pytest 8, pytest-asyncio (auto) |
-| BIM toolchain (`bim-toolchain/`) | `packages/*/tests` (~950 test functions) | goldens (`golden/**`), equivalence `InProcessBim` ≡ `HttpBim`, consumer fixtures (`contracts/consumers/openbinding/`), OpenAPI snapshot | `tools/verify_release.py` (reproducible wheels, clean-venv smoke) | pytest |
+| BIM toolchain consumer contract (CI job `bim-toolchain`; the toolchain's own suites run in [`javiercavlop/bim-toolchain`](https://github.com/javiercavlop/bim-toolchain)) | — | against the installed v0.2.0 wheels, with the release's test kit in `.bim-toolchain/`: the corpus tier `pytest -m openbinding_corpus` (`BIM_CORPUS_ROOT` = this repository), `tools/baseline_core.py --check`, the gateway's BIM consumer tests (`test_bim_baseline.py`, `test_bim_consumer_contract.py`, `test_bim_zip_dir_equivalence.py`, `test_bim_v1_conciseness.py`, `tests/composition`) and `tools/check_composition_roundtrip.py` (82/82); no test may skip | — | pytest |
 | Corpus | — | `tools/check_bim_corpus.py --expected 82` (every checked-in package compiles), `tools/check_bim_guard.py`, deterministic package builds (CI `bim-corpus`) | — | stdlib |
 | Java engines (`engines/`) | JUnit 5: `CanonicalEvaluatorConformanceTest`, `EngineJobsTest`, `EngineHttpTest`, per-engine `V1*SearchTest`, `*CancelTest`, `EvolutionarySolverTest` | `engines/e2e/test_java_engines_ir02.py` (real `java`) | through gateway integration suite | Maven Surefire, JUnit Jupiter |
 | MiniZinc engine (`engines/minizinc-csp/`) | `node --test`: `conformance`, `job_manager`, `minizinc_runner`, `cancel` (fake MiniZinc) | `pnpm test:lab` with `MINIZINC_REAL=1` (5 tests against real MiniZinc, lab image) | gateway integration | Node test runner |
 | Frontend (`frontend/`) | Vitest + Testing Library + jsdom: 218 `*.test.ts(x)` files in three projects --- `app` (207 files, jsdom), `corpus` (10 whole-tree scans and lints, `node`, shared context) and `bundle` (1 file, spawns a real `pnpm build`, run by `pnpm test:bundle` in its own CI step). `pnpm test` runs `app` and `corpus` | API client tests against recorded problem documents | Playwright: project `mocked` (Vite dev server, API answered by the spec) and project `live` (`e2e/live/*`, against the lab at `http://localhost:18100`, screenshots 1440×900 and 390×844) | Vitest 4, Playwright 1.62 |
-| Lab profiles (`lab/tests/`) | static checks of `compose.lab*.json` (memory budget, secrets, published ports) | — | `process_probe.py`, `cancel_probe.py` in the lab | pytest |
+| Lab profiles (`lab/tests/`) | static checks of `compose.lab*.json` (memory budget, secrets, published ports) | — | `cancel_probe.py`, `latency_probe.py` in the lab | pytest |
 | QACOBench (`experimentation/qacobench/`) | `test_qacobench.py` (registry/seed stability, resume key, rejection classification, reconciliation, recovery provenance) | `run.sh pilot` (2 instances × 3 engines); `verify_dataset_digests.py` | full campaign (reference `reference/1.1.1/`) | pytest, Docker Compose |
 | ICSOC (`experimentation/icsoc/`) | `generator/tests` (needs the dataset from the branch `data/icsoc-original-dataset`, skipped otherwise) | `tests/integration/test_icsoc_regression.py` (skipped without the dataset) | — | pytest |
 
@@ -54,7 +54,7 @@ tests target public interfaces, so they sit outside the component trees.
 ## 3. Property-based tests
 
 None exist yet (`.hypothesis/` is git-ignored but Hypothesis is not a dependency). Candidates, in order of value:
-canonical JSON/digest invariance (bim-core), IR order normalisation (directory ≡ ZIP ≡ permutations), evaluator
+canonical JSON/digest invariance (bim-core, in the toolchain repository), IR order normalisation (directory ≡ ZIP ≡ permutations), evaluator
 monotonicity/aggregation laws, idempotency fingerprint invariance, problem-document shape for any 422.
 Tools: Hypothesis (Python), fast-check (TS), jqwik (Java). Adding them is a dependency change (CRP-free if test-only).
 
@@ -62,15 +62,16 @@ Tools: Hypothesis (Python), fast-check (TS), jqwik (Java). Adding them is a depe
 
 - HTTP: `docs/openapi.json` snapshot (`dump_openapi.py --check`) + `test_openapi_contract.py` (operation ids, tags,
   security documented equals runtime dependencies, media types, error shape). GAP: no Schemathesis fuzzing.
-- BIM: `bim-toolchain/contracts/consumers/openbinding/*.json` replayed by `tests/test_bim_consumer_contract.py` (gateway)
-  and `tools/consumer_fixtures.py --check` (toolchain).
+- BIM: `contracts/consumers/openbinding/*.json` of the pinned toolchain release (checked out into `.bim-toolchain/` by
+  `python3 tools/fetch_bim_toolchain.py`, or `BIM_TOOLCHAIN_ROOT`) replayed by `tests/test_bim_consumer_contract.py`
+  (gateway); the toolchain checks the same fixtures in its own repository.
 - Engines: `schemas/engine-contract.openapi.yaml`; conformance of a registration is verified by the gateway
   (`services/engine_registry.py` → `bim_core.conformance`); Java `CanonicalEvaluatorConformanceTest`, MiniZinc `conformance.test.ts`.
 - Pricing: `pricingManifest.test.ts`, `test_published_pricing.py` (read-only SPHERE document).
 
 ## 5. Mutation testing
 
-Not configured anywhere (GAP). Proposed tools: `mutmut` (gateway, bim-toolchain), Stryker (frontend, minizinc-csp),
+Not configured anywhere (GAP). Proposed tools: `mutmut` (gateway), Stryker (frontend, minizinc-csp),
 PIT (Java engines). Run on changed lines only in PR CI (GitHub Actions), threshold calibrated during the pilot.
 
 ## 6. End-to-end
@@ -88,8 +89,9 @@ The QA gallery (`frontend/e2e/qa-gallery.spec.ts`) writes screenshots to `QA_GAL
 - Synthetic only: synthetic accounts (`alice`…`frank`, `admin` with the documented dev passwords exist only in
   `tools/seed_dev.py` for local stacks), generated BIM packages, fixtures under `tests/fixtures`. No personal or
   production data, no real credentials, no calls to SPACE/SPHERE/Zenodo.
-- Corpus-dependent tests read `examples/` and the corpus through `BIM_CORPUS_ROOT`; in an exported `bim-toolchain` they
-  are excluded with `-m 'not openbinding_corpus'`.
+- The toolchain's corpus-dependent tests (marker `openbinding_corpus`) read `examples/` and the corpus of this repository
+  through `BIM_CORPUS_ROOT`; they run in the CI job `bim-toolchain` here and are excluded elsewhere with
+  `-m 'not openbinding_corpus'`.
 - Datasets from Zenodo are never required by the default suites.
 
 ## 8. Known red checks at 912648c (NOT a pass)
@@ -114,13 +116,14 @@ The QA gallery (`frontend/e2e/qa-gallery.spec.ts`) writes screenshots to `QA_GAL
   `gateway`. On pull requests the jobs of an unchanged area are skipped. A push to `develop`, a manual dispatch, a
   change to `ci.yml` or `tools/ci_*.py`, a path in no known area or a git error run everything. A pull request with no
   changed file (empty diff) also runs every area. Root `LICENSE`, `THIRD_PARTY_NOTICES.md`, the vendored BPMN XSD
-  files and any `instance.json` run `bim` and `gateway` (the bim-core tests read them).
+  files and any `instance.json` run `bim` and `gateway` (the consumer contract of the job `bim-toolchain` reads them).
 - **Required check.** Require only `ci-required` (`tools/ci_required.py`): a skipped area passes, a failed or cancelled
   job does not. An always-on job (`lab`, `bim-corpus`, `frontend` and the like) that is skipped fails `ci-required`.
 - **Shards.** Playwright project `mocked` runs in three jobs `frontend-e2e`; the UI acceptance runner stays in
   `frontend`. Gateway unit tests run natively in two jobs `gateway-unit`, balanced by file size in `tools/ci_shard.py`; `test` keeps
-  the Docker integration, ICSOC and OpenAPI snapshot steps. `bim-toolchain` runs one job per package (`bim-core`,
-  `bim-service`, `bim-client`); the goldens run in the `bim-core` job.
+  the Docker integration, ICSOC and OpenAPI snapshot steps. `bim-toolchain` is one job, the consumer contract of
+  the pinned release (section 1); it reads the private repository with the secret `BIM_TOOLCHAIN_TOKEN` through
+  `.github/actions/bim-toolchain-access`.
 - **Concurrency.** A new push to a pull request cancels its older run; a newer push to `develop` cancels the older
   `develop` push run; manual runs are never cancelled.
 - **Full run by hand.** Actions > Continuous Integration > Run workflow (`workflow_dispatch`).

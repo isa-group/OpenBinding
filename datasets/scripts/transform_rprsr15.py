@@ -40,12 +40,10 @@ import argparse
 from decimal import ROUND_HALF_EVEN, Decimal
 import json
 import re
-import sys
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "bim-toolchain" / "packages" / "bim-core" / "src"))
 
 from bim_core import InstancePackage, compile_instance
 

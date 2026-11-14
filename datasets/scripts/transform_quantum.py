@@ -14,12 +14,10 @@ import argparse
 import csv
 import io
 import json
-import sys
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "bim-toolchain" / "packages" / "bim-core" / "src"))
 
 from bim_core import compile_instance, load_package
 

@@ -72,12 +72,11 @@ flowchart TB
     WEB[Web app<br/>React 19 · Vite · pricing-renderer · space-react-client]
   end
   subgraph Gateway host
-    API[Gateway API<br/>FastAPI · modules §4]
-    WRK[Workers<br/>Dramatiq: runs, study cells, maintenance]
+    API[Gateway API<br/>FastAPI · modules §4 · BIM in process]
+    WRK[Workers<br/>Dramatiq: runs, study cells, maintenance · BIM in process]
     PG[(PostgreSQL)]
     RD[(Redis<br/>queues, cache, SPACE client cache)]
     BL[(Blob store<br/>content-addressed files)]
-    BIM[bim-service<br/>optional BIM_MODE=http]
   end
   subgraph Engines
     MZ[minizinc-csp]
@@ -86,7 +85,6 @@ flowchart TB
   WEB -- HTTPS /v1, SSE --> API
   API --- PG & RD & BL
   WRK --- PG & RD & BL
-  API & WRK -- BimPort --> BIM
   WRK -- bim-engine/v1 --> MZ & JV
   WRK -- bim-engine/v1 --> FED[(Federated engines)]
   API -- PlanPort --> SPA[(Remote SPACE<br/>space.score.us.es)]
@@ -101,7 +99,7 @@ flowchart TB
 | PostgreSQL | operational source of truth | PostgreSQL 16 |
 | Redis | queues, leases, caches (including the SPACE client cache) | Redis 7 |
 | Blob store | content-addressed bytes (packages, uploads, logs, exports) | filesystem volume; S3-compatible later |
-| bim-service | the BIM toolchain over HTTP when the gateway runs `BIM_MODE=http` | `isa-group/bim-toolchain` |
+| BIM toolchain | compile, evaluate and re-evaluate BIM, in process in the gateway, the workers and the seed (`bim_client.InProcessBim` behind `BimPort`); not a container of OpenBinding | wheels of a release of `javiercavlop/bim-toolchain` (private; to the SCORELabUS organization when public). Its `bim-service` (HTTP, `BIM_MODE=http`) is a separate deployable of that repository; neither the lab nor the default deployment runs it |
 | Engines | solvers behind `bim-engine/v1`; built-in ones run beside the gateway, federated ones anywhere | Node/TypeScript (MiniZinc), Java |
 
 Every container is a Docker Compose service (§12), except SPACE, which is remote (`space.score.us.es`). The lab only
@@ -626,7 +624,7 @@ The application directories keep their names; the clutter at the root moves:
 | `pricings/` (FaaS iPricings of CLASP) | `experimentation/clasp/pricings/` |
 | `output/` (Zenodo packaging) | `experimentation/qacobench/zenodo/` |
 | — | `acceptance/` (new), `deploy/compose/production/` (new), `docs/pricing/` (OpenBinding's pricing proposals and their rationale; SPHERE holds the published versions) |
-| `bim-toolchain/` | removed after the extraction to `isa-group/bim-toolchain` |
+| the `bim-toolchain` directory | removed: extracted to `javiercavlop/bim-toolchain` (private; to the SCORELabUS organization when public), consumed as release wheels pinned in `openbinding-gateway/uv.lock` |
 
 Each move is one `refactor/<id>` change that updates CI, Dockerfiles, documentation links and tests together.
 

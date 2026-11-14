@@ -17,8 +17,8 @@ members of every JSON object while the compiler iterated them in document order,
 (another ``irDigest`` and semantic digest) once in canonical form.
 
 The golden of the gateway is now the corpus golden of the normalized toolchain
-(``bim-toolchain/golden/bim_normalized/corpus.json``).  What moved from the previous baseline is compared by
-identifier: ``bim-toolchain/golden/bim_baseline`` (frozen) and ``bim-toolchain/golden/ir_previous/evidence.json``
+(``.bim-toolchain/golden/bim_normalized/corpus.json``).  What moved from the previous baseline is compared by
+identifier: ``.bim-toolchain/golden/bim_baseline`` (frozen) and ``.bim-toolchain/golden/ir_previous/evidence.json``
 (the evaluations of the previous toolchain, bindings chosen by identifier) are the fixtures.
 
 The corpus is required.  Without it the module fails; it is skipped only with ``BIM_ZIP_DIR_ALLOW_NO_CORPUS=1``.
@@ -37,7 +37,7 @@ from typing import Any
 
 import pytest
 
-from _repo import REPO_ROOT
+from _repo import REPO_ROOT, TOOLCHAIN_ROOT
 from bim_core import canonical_json, compile_instance, digest, load_package
 from openbinding_gateway.integrations import packages
 
@@ -51,7 +51,7 @@ ALLOW_NO_CORPUS = os.environ.get("BIM_ZIP_DIR_ALLOW_NO_CORPUS") == "1"
 NON_SEMANTIC = frozenset({"profile", "dialects", "instance", "sourceMap"})
 METRICS = ("semantic", "ir", "irDigest", "packageDigest", "eligibility")
 
-TOOLCHAIN = REPO_ROOT / "bim-toolchain"
+TOOLCHAIN = TOOLCHAIN_ROOT
 FROZEN_BASELINE = TOOLCHAIN / "golden" / "bim_baseline" / "corpus.json"
 PREVIOUS_EVIDENCE = TOOLCHAIN / "golden" / "ir_previous" / "evidence.json"
 MOVED_PACKAGES = TOOLCHAIN / "packages" / "bim-core" / "tests" / "data" / "zip_divergent_packages.json"

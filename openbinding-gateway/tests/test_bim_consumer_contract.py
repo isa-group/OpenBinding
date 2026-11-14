@@ -1,6 +1,6 @@
 """The interactions OpenBinding has with BIM, replayed through the gateway's own port.
 
-``bim-toolchain/contracts/consumers/openbinding/*.json`` are scripts of the requests the platform makes to
+``.bim-toolchain/contracts/consumers/openbinding/*.json`` are scripts of the requests the platform makes to
 BIM and the answers it relies on (compile and validate, compatibility, optimization, evaluation, re-evaluation,
 result validation). They are written and checked by the toolchain against its service; this runs the same scripts
 through ``integrations.bim.get_bim()``, the port the gateway really uses (in process unless ``BIM_MODE=http``), so
@@ -19,12 +19,12 @@ from typing import Any
 
 import pytest
 
-from _repo import REPO_ROOT
+from _repo import TOOLCHAIN_ROOT
 from openbinding_gateway.integrations import bim
 from bim_core import BimError
 from bim_core.canonical import digest
 
-FIXTURES = REPO_ROOT / "bim-toolchain" / "contracts" / "consumers" / "openbinding"
+FIXTURES = TOOLCHAIN_ROOT / "contracts" / "consumers" / "openbinding"
 NON_SEMANTIC = frozenset({"profile", "dialects", "instance", "sourceMap"})
 EXPECTED_FIXTURES = {
     "compile",
@@ -145,7 +145,7 @@ def recorded_failure(body: dict[str, Any]) -> dict[str, Any]:
 
 def test_the_toolchain_fixtures_are_there_for_every_interaction() -> None:
     if not FIXTURES.is_dir():
-        pytest.skip("bim-toolchain/contracts is not mounted in this environment")
+        pytest.skip(".bim-toolchain/contracts is not checked out (python3 tools/fetch_bim_toolchain.py)")
 
     assert set(fixture_names()) == EXPECTED_FIXTURES
 
@@ -153,7 +153,7 @@ def test_the_toolchain_fixtures_are_there_for_every_interaction() -> None:
 @pytest.mark.parametrize("name", sorted(EXPECTED_FIXTURES))
 def test_the_gateways_port_answers_each_recorded_interaction(name: str) -> None:
     if not (FIXTURES / f"{name}.json").is_file():
-        pytest.skip(f"{name}.json is not mounted in this environment")
+        pytest.skip(f"{name}.json is not checked out (python3 tools/fetch_bim_toolchain.py)")
     fixture = load(name)
     port = bim.get_bim()
     bodies: dict[str, Any] = {}

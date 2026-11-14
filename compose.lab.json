@@ -1,5 +1,8 @@
 {
   "name": "openbinding-lab",
+  "secrets": {
+    "bim_toolchain_token": {"environment": "BIM_TOOLCHAIN_TOKEN"}
+  },
   "services": {
     "postgres": {
       "image": "postgres:16-alpine",
@@ -123,56 +126,17 @@
         "start_period": "60s"
       }
     },
-    "bim-service": {
-      "build": {
-        "context": "bim-toolchain",
-        "dockerfile": "packages/bim-service/Dockerfile"
-      },
-      "command": [
-        "sh",
-        "-c",
-        "umask 077; printf '%s\\n' \"$$DEMO_BIM_TOKEN\" > /run/bim/tokens && exec uvicorn --factory bim_service.app:create_app --host 0.0.0.0 --port 8080 --no-access-log --timeout-keep-alive 5"
-      ],
-      "environment": {
-        "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
-        "BIM_SERVICE_TOKENS_FILE": "/run/bim/tokens",
-        "BIM_SERVICE_MAX_BODY_BYTES": "16777216",
-        "BIM_SERVICE_MAX_CONCURRENCY": "2",
-        "BIM_SERVICE_MEMORY_BUDGET_BYTES": "134217728",
-        "BIM_SERVICE_MAX_PENDING_BODY_BYTES": "33554432"
-      },
-      "volumes": [
-        {
-          "type": "tmpfs",
-          "target": "/run/bim"
-        }
-      ],
-      "mem_limit": "256m",
-      "cpus": 1.5,
-      "pids_limit": 256,
-      "healthcheck": {
-        "test": [
-          "CMD",
-          "python",
-          "-c",
-          "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2).status == 200 else 1)"
-        ],
-        "interval": "10s",
-        "timeout": "3s",
-        "retries": 10,
-        "start_period": "20s"
-      }
-    },
     "gateway": {
       "build": {
         "context": ".",
-        "dockerfile": "openbinding-gateway/Dockerfile"
+        "dockerfile": "openbinding-gateway/Dockerfile",
+        "secrets": ["bim_toolchain_token"]
       },
       "image": "openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}",
       "command": [
         "sh",
         "-c",
-        "umask 077; printf '%s\\n' \"$$DEMO_BIM_TOKEN\" > /run/bim/token && exec uvicorn openbinding_gateway.main:app --host 0.0.0.0 --port 8000 --proxy-headers"
+        "exec uvicorn openbinding_gateway.main:app --host 0.0.0.0 --port 8000 --proxy-headers"
       ],
       "environment": {
         "APP_ENV": "dev",
@@ -204,31 +168,18 @@
         "ENGINE_MINIZINC_URL": "http://engine-minizinc:3000",
         "ENGINE_RANDOM_SEARCH_URL": "http://engine-random-search:8080",
         "ENGINE_MANY_HEURISTIC_URL": "http://engine-many-heuristic:8080",
-        "ENGINE_EVOLUTIONARY_HEURISTICS_URL": "http://engine-evolutionary-heuristics:8080",
-        "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
-        "BIM_MODE": "http",
-        "BIM_SERVICE_URL": "http://bim-service:8080",
-        "BIM_SERVICE_TOKEN_FILE": "/run/bim/token",
-        "BIM_SERVICE_ALLOW_INSECURE_HTTP": "true"
+        "ENGINE_EVOLUTIONARY_HEURISTICS_URL": "http://engine-evolutionary-heuristics:8080"
       },
       "volumes": [
         {
           "type": "volume",
           "source": "lab-artifacts-2",
           "target": "/var/lib/openbinding/artifacts"
-        },
-        {
-          "type": "tmpfs",
-          "target": "/run/bim",
-          "tmpfs": {
-            "mode": 1023
-          }
         }
       ],
       "depends_on": {
         "postgres": {"condition": "service_healthy"},
         "redis": {"condition": "service_healthy"},
-        "bim-service": {"condition": "service_healthy"},
         "engine-minizinc": {"condition": "service_healthy"},
         "engine-random-search": {"condition": "service_healthy"},
         "engine-many-heuristic": {"condition": "service_healthy"},
@@ -249,7 +200,7 @@
       "command": [
         "sh",
         "-c",
-        "umask 077; printf '%s\\n' \"$$DEMO_BIM_TOKEN\" > /run/bim/token && exec dramatiq openbinding_gateway.worker --processes 1 --threads 2 --queues default"
+        "exec dramatiq openbinding_gateway.worker --processes 1 --threads 2 --queues default"
       ],
       "environment": {
         "APP_ENV": "dev",
@@ -275,31 +226,18 @@
         "ENGINE_MINIZINC_URL": "http://engine-minizinc:3000",
         "ENGINE_RANDOM_SEARCH_URL": "http://engine-random-search:8080",
         "ENGINE_MANY_HEURISTIC_URL": "http://engine-many-heuristic:8080",
-        "ENGINE_EVOLUTIONARY_HEURISTICS_URL": "http://engine-evolutionary-heuristics:8080",
-        "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
-        "BIM_MODE": "http",
-        "BIM_SERVICE_URL": "http://bim-service:8080",
-        "BIM_SERVICE_TOKEN_FILE": "/run/bim/token",
-        "BIM_SERVICE_ALLOW_INSECURE_HTTP": "true"
+        "ENGINE_EVOLUTIONARY_HEURISTICS_URL": "http://engine-evolutionary-heuristics:8080"
       },
       "volumes": [
         {
           "type": "volume",
           "source": "lab-artifacts-2",
           "target": "/var/lib/openbinding/artifacts"
-        },
-        {
-          "type": "tmpfs",
-          "target": "/run/bim",
-          "tmpfs": {
-            "mode": 1023
-          }
         }
       ],
       "depends_on": {
         "gateway": {"condition": "service_healthy"},
-        "redis": {"condition": "service_healthy"},
-        "bim-service": {"condition": "service_healthy"}
+        "redis": {"condition": "service_healthy"}
       },
       "mem_limit": "448m",
       "healthcheck": {
@@ -362,7 +300,7 @@
       "command": [
         "sh",
         "-c",
-        "umask 077; printf '%s\\n' \"$$DEMO_BIM_TOKEN\" > /run/bim/token && python tools/${DEMO_SEED_TOOL} ${DEMO_SEED_ARGS}"
+        "python tools/${DEMO_SEED_TOOL} ${DEMO_SEED_ARGS}"
       ],
       "environment": {
         "APP_ENV": "dev",
@@ -398,30 +336,15 @@
         "ENGINE_MINIZINC_URL": "http://engine-minizinc:3000",
         "ENGINE_RANDOM_SEARCH_URL": "http://engine-random-search:8080",
         "ENGINE_MANY_HEURISTIC_URL": "http://engine-many-heuristic:8080",
-        "ENGINE_EVOLUTIONARY_HEURISTICS_URL": "http://engine-evolutionary-heuristics:8080",
-        "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
-        "BIM_MODE": "http",
-        "BIM_SERVICE_URL": "http://bim-service:8080",
-        "BIM_SERVICE_TOKEN_FILE": "/run/bim/token",
-        "BIM_SERVICE_ALLOW_INSECURE_HTTP": "true"
+        "ENGINE_EVOLUTIONARY_HEURISTICS_URL": "http://engine-evolutionary-heuristics:8080"
       },
       "volumes": [
         {
           "type": "volume",
           "source": "lab-artifacts-2",
           "target": "/var/lib/openbinding/artifacts"
-        },
-        {
-          "type": "tmpfs",
-          "target": "/run/bim",
-          "tmpfs": {
-            "mode": 1023
-          }
         }
       ],
-      "depends_on": {
-        "bim-service": {"condition": "service_healthy"}
-      },
       "mem_limit": "384m"
     },
     "e2e": {

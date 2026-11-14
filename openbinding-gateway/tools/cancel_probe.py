@@ -36,7 +36,7 @@ Environment (the ``seed`` service passes it; nothing is specific to this tool):
     DEMO_SEED_PASSWORD   required; the password the seed gave every synthetic user.
     SMOKE_BASE_URL       the proxy, default http://web:8080.
     ENGINE_MINIZINC_URL  the engine as the gateway reaches it, default http://engine-minizinc:3000
-                         (``compose.lab-process.json``, ``Settings.engine_minizinc_url``).
+                         (``compose.lab.json``, ``Settings.engine_minizinc_url``).
     DATABASE_URL         the gateway's database, to read ``job_engine_attempts``.
     CANCEL_PROBE_ENGINE_TOKEN  optional bearer token for an engine that requires one (the lab's does not).
 

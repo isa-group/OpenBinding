@@ -32,7 +32,6 @@ from _repo import REPO_ROOT
 #: holding this many, which is the tripwire for a package added to or removed from the tree.
 GATE = 82
 #: The one package the walk finds and the golden does not hold: the compiler's own fixture.
-NOT_A_TARGET = "bim-toolchain/packages/bim-core/tests/fixtures/example-package"
 
 
 @pytest.fixture(scope="module")
@@ -57,7 +56,7 @@ def tool():
 def test_the_gate_is_the_whole_golden(tool) -> None:
     members, unrecorded = tool.gate(REPO_ROOT)
     assert len(members) == GATE
-    assert unrecorded == [NOT_A_TARGET]
+    assert unrecorded == []
     # The seven that Placement used to keep out are members now, named rather than counted.
     assert {
         "engines/minizinc-csp/tests/fixtures/placement",

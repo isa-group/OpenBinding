@@ -22,8 +22,7 @@ ARTIFACT_DIR = "/var/lib/openbinding/artifacts"
 SHARED_IMAGE = "openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}"
 MAX_MIB = 4096
 # The sum of every mem_limit of compose.lab.json, seed included (docs/DEMO.md states it): 3456 before e2e (576).
-EXPECTED_MIB = 4032
-S_IWOTH = 0o002
+EXPECTED_MIB = 3776
 
 # A reference to a variable the supervisor supplies: nothing else may stand where a secret goes.
 ALLOWED_REFERENCE = re.compile(r"\$\{(?:DEMO|SPACE|SPHERE)_[A-Z0-9_]+\}")
@@ -158,19 +157,30 @@ def test_the_user_instruction_comes_after_the_dependencies_are_installed(instruc
     assert any(line.startswith("ENTRYPOINT ") for line in instructions[user_at:])
 
 
-def test_the_local_bim_packages_install_in_the_same_command_as_the_gateway(instructions: list[str]) -> None:
-    # uv 0.8.22 ignores an already installed bim-core when resolving the gateway, so one command must name all three.
+def test_the_image_installs_exactly_the_lock_with_hashes(instructions: list[str]) -> None:
+    # The requirements come from uv.lock (versions, the bim-toolchain wheels as files of .bim-wheels/, SHA-256),
+    # installed with --require-hashes; the gateway itself goes in afterwards without resolving anything again.
     installs = [line for line in instructions if line.startswith("RUN ") and "uv pip install" in line]
     assert len(installs) == 1, installs
     command = installs[0]
-    assert "--no-sources" in command
-    assert "/bim-toolchain/packages/bim-core" in command
-    assert "/bim-toolchain/packages/bim-client" in command
-    assert '".[test]"' in command
-    # Their sources are copied before the install, so the layers still cache.
-    install_at = instructions.index(command)
-    for source in ("bim-core/src/", "bim-client/src/", "openbinding-gateway/pyproject.toml", "openbinding-gateway/src/"):
-        assert any(i < install_at and line.startswith("COPY ") and source in line for i, line in enumerate(instructions)), source
+    steps = [step.strip() for step in command.removeprefix("RUN ").split("&&")]
+    assert steps[0].startswith("uv export --frozen ") and "--no-emit-project" in steps[0]
+    assert steps[1] == "uv pip install --system --require-hashes -r /tmp/requirements.txt"
+    assert steps[2] == "uv pip install --system --no-deps ."
+    assert steps[3].startswith("rm -rf .bim-wheels ")
+    # The wheels are fetched first, by the tool that checks each one against the lock.
+    fetch = next(i for i, line in enumerate(instructions) if "fetch_bim_toolchain.py --wheels --lock uv.lock" in line)
+    assert fetch < instructions.index(command)
+    # Nothing of the toolchain is built from a source tree.
+    assert not [line for line in instructions if "bim-toolchain/" in line or "hatch_build" in line]
+
+
+def test_the_token_for_the_bim_toolchain_wheels_never_reaches_a_layer(instructions: list[str]) -> None:
+    fetch = next(line for line in instructions if "fetch_bim_toolchain.py --wheels" in line)
+    assert fetch.startswith("RUN --mount=type=secret,id=bim_toolchain_token,required=false ")
+    # Read from the secret into the environment of that one process, never into a file of the image.
+    assert 'BIM_TOOLCHAIN_TOKEN="$(cat /run/secrets/bim_toolchain_token 2>/dev/null)" python ' in fetch
+    assert not [line for line in instructions if line.startswith(("ARG ", "ENV ")) and "TOKEN" in line]
 
 
 def test_code_stays_readable_and_curl_stays_for_the_healthcheck(instructions: list[str]) -> None:
@@ -210,17 +220,6 @@ def _gateway_image_services(services: dict) -> dict:
     return found
 
 
-def test_the_run_bim_tmpfs_is_writable_by_the_unprivileged_user(services: dict) -> None:
-    for name, service in _gateway_image_services(services).items():
-        mounts = [m for m in service["volumes"] if m["type"] == "tmpfs" and m["target"] == "/run/bim"]
-        assert len(mounts) == 1, name
-        mode = mounts[0].get("tmpfs", {}).get("mode")
-        # JSON has no octal: 1023 is 0o1777.
-        assert isinstance(mode, int) and mode & S_IWOTH, f"{name}: /run/bim must be world-writable (mode 1023)"
-        # The token stays private to its writer.
-        assert "umask 077" in " ".join(service["command"]), name
-
-
 def test_the_artifact_volume_is_the_one_the_image_directory_seeds(services: dict) -> None:
     for name, service in _gateway_image_services(services).items():
         mounts = [m for m in service["volumes"] if m.get("target") == ARTIFACT_DIR]
@@ -257,12 +256,6 @@ def test_the_memory_limits_stay_within_four_gib(services: dict) -> None:
         total += _mib(service["mem_limit"])
     assert total <= MAX_MIB, f"{total} MiB of mem_limit"
     assert total == EXPECTED_MIB, f"{total} MiB of mem_limit; update EXPECTED_MIB and docs/DEMO.md together"
-
-
-def test_bim_service_limits_cpu_and_processes(services: dict) -> None:
-    service = services["bim-service"]
-    assert 0 < float(service["cpus"]) <= 4
-    assert 0 < int(service["pids_limit"]) <= 1024
 
 
 def test_compose_holds_no_literal_secret(services: dict) -> None:

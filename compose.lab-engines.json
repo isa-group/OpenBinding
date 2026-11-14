@@ -1,5 +1,8 @@
 {
   "name": "openbinding-lab-engines",
+  "secrets": {
+    "bim_toolchain_token": {"environment": "BIM_TOOLCHAIN_TOKEN"}
+  },
   "services": {
     "engine": {
       "build": {
@@ -24,7 +27,8 @@
     "image-builder": {
       "build": {
         "context": ".",
-        "dockerfile": "openbinding-gateway/Dockerfile"
+        "dockerfile": "openbinding-gateway/Dockerfile",
+        "secrets": ["bim_toolchain_token"]
       },
       "image": "openbinding-lab-engines-tools:latest",
       "user": "65534:65534",

@@ -5,16 +5,20 @@ ENV PYTHONUNBUFFERED=1 PYTHONPATH=/app/src SCHEMAS_DIR=/app/schemas
 WORKDIR /app
 COPY experimentation/qacobench/gateway.lock /tmp/gateway.lock
 RUN uv pip install --system -r /tmp/gateway.lock
-# The BIM language the gateway compiles and evaluates with (bim-core) and the port it calls
-# it through (bim-client), from this repository; their dependencies are in gateway.lock.
-COPY bim-toolchain/packages/bim-core/ /bim-toolchain/packages/bim-core/
-COPY bim-toolchain/packages/bim-client/ /bim-toolchain/packages/bim-client/
-COPY openbinding-gateway/pyproject.toml .
+COPY openbinding-gateway/pyproject.toml openbinding-gateway/uv.lock ./
 COPY openbinding-gateway/src/ src/
-# The five OMG BPMN 2.0.2 XSDs of bim-core are not versioned in Git: downloaded here over https with each SHA-256
-# verified (all five or the build fails) so that the install below ships them; the build hook of bim-core is this script.
-RUN python /bim-toolchain/packages/bim-core/hatch_build.py --ensure
-RUN uv pip install --system --no-deps --no-sources /bim-toolchain/packages/bim-core /bim-toolchain/packages/bim-client .
+COPY experimentation/qacobench/bim-toolchain.txt /tmp/bim-toolchain.txt
+COPY tools/fetch_bim_toolchain.py /tmp/fetch_bim_toolchain.py
+# The BIM language the gateway compiles and evaluates with (bim-core) and the port it calls it through (bim-client):
+# the wheels of the bim-toolchain release in bim-toolchain.txt (the files and SHA-256 openbinding-gateway/uv.lock pins);
+# their dependencies are in gateway.lock. tools/fetch_bim_toolchain.py downloads them from the release, each checked
+# against the lock; while javiercavlop/bim-toolchain is private it reads the build secret bim_toolchain_token, in that
+# RUN only.
+RUN --mount=type=secret,id=bim_toolchain_token,required=false \
+    BIM_TOOLCHAIN_TOKEN="$(cat /run/secrets/bim_toolchain_token 2>/dev/null)" \
+    python /tmp/fetch_bim_toolchain.py --wheels --lock uv.lock --into .bim-wheels
+RUN uv pip install --system --no-deps --no-sources -r /tmp/bim-toolchain.txt . \
+ && rm -rf .bim-wheels /tmp/bim-toolchain.txt /tmp/fetch_bim_toolchain.py
 COPY openbinding-gateway/alembic.ini .
 COPY openbinding-gateway/alembic/ alembic/
 COPY openbinding-gateway/tools/ tools/
