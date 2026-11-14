@@ -64,7 +64,6 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/test/fixtures/admin.ts',
   '/src/test/fixtures/engines.ts',
   '/src/test/fixtures/jobs.ts',
-  '/src/test/fixtures/reports.ts',
   '/src/test/fixtures/resources.ts',
   '/src/test/fixtures/studies.ts',
   // test support under src/test/, not shipped behaviour

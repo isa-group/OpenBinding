@@ -9,11 +9,11 @@ test.use({ viewport: { width: 1440, height: 900 } });
 
 const PROJECT = '/app/acme/demo';
 // Problems and Runs use the interim segments of helpers.ts until the vocabulary slices rename them.
-const TAB_HREFS = [PROJECT, PROBLEMS, `${PROJECT}/collections`, `${PROJECT}/${RUNS_SEGMENT}`, `${PROJECT}/studies`, `${PROJECT}/published`, `${PROJECT}/settings`];
+const TAB_HREFS = [PROJECT, PROBLEMS, `${PROJECT}/collections`, `${PROJECT}/${RUNS_SEGMENT}`, `${PROJECT}/studies`, `${PROJECT}/settings`];
 
 // ---- frontend-nav-project-tabs ----------------------------------------------------------------------------------
 
-test('the project tabs of a member read Overview, Problems, Collections, Runs, Studies, Published, Settings', async ({ page }) => {
+test('the project tabs of a member read Overview, Problems, Collections, Runs, Studies, Settings', async ({ page }) => {
   await mockProject(page);
   await page.goto(`${PROJECT}/studies`);
   await expect(projectTabs(page).getByRole('link')).toHaveText(PROJECT_TABS);
@@ -36,7 +36,7 @@ test('the tab of the current area carries aria-current page', async ({ page }) =
   await expect(tabs.getByRole('link', { name: 'Overview', exact: true })).not.toHaveAttribute('aria-current', 'page');
 });
 
-test('the project tabs of a public visitor read Overview, Problems, Collections, Studies, Published', async ({ page }) => {
+test('the project tabs of a public visitor read Overview, Problems, Collections, Studies', async ({ page }) => {
   await mockProject(page, { visitor: true });
   await page.goto(`${PROJECT}/studies`);
   await expect(projectTabs(page, VISITOR_TABS).getByRole('link')).toHaveText(VISITOR_TABS);
@@ -61,20 +61,13 @@ test('the settings section Members lists the members of acme and links to manage
   await expect(page.getByRole('link', { name: 'Manage members', exact: true })).toHaveAttribute('href', '/app/acme/settings/members');
 });
 
-test('the old publications address becomes /published and marks the Published tab', async ({ page }) => {
-  await mockProject(page);
-  await page.goto(`${PROJECT}/publications`);
-  await expectAddress(page, `${PROJECT}/published`);
-  await expect(projectTabs(page).getByRole('link', { name: 'Published', exact: true })).toHaveAttribute('aria-current', 'page');
-});
-
-test('the former tabs Cases, Jobs, Publications, Files and Package are gone', async ({ page }) => {
+test('the former tabs Cases, Jobs, Publications, Published, Files and Package are gone', async ({ page }) => {
   await mockProject(page);
   await page.goto(PROJECT);
   const tabs = projectTabs(page, ['Overview', 'Settings']);
   await expect(navEntry(tabs, 'Overview')).toBeVisible();
   await expect(tabs.getByRole('link')).toHaveText(PROJECT_TABS);
-  for (const former of ['Cases', 'Jobs', 'Publications', 'Files', 'Package']) {
+  for (const former of ['Cases', 'Jobs', 'Publications', 'Published', 'Files', 'Package']) {
     await expect(navEntry(tabs, former), `tab ${former}`).toHaveCount(0);
   }
 });

@@ -67,16 +67,11 @@ export function Gate({ title, children, action }: GateProps) {
  * The same message whether the organization does not exist or the person is not in it (gap L3 of the design
  * report): the answer must not reveal which organizations exist.
  */
-export function NeutralGate({ withExplore = false }: { withExplore?: boolean }) {
+export function NeutralGate() {
   return (
     <Gate
       title="Organization not available"
-      action={(
-        <>
-          <Action to="/app" variant="primary">Back to Home</Action>
-          {withExplore && <Action to="/explore" variant="link">Explore public projects</Action>}
-        </>
-      )}
+      action={<Action to="/app" variant="primary">Back to Home</Action>}
     >
       It doesn’t exist, or you’re not a member. We show the same message either way so organization names stay private.
     </Gate>

@@ -11,7 +11,6 @@ from openbinding_gateway import space_client
 from openbinding_gateway.collaboration import sponsor_usage
 from openbinding_gateway.db.models import Organization
 from _pricing import fake_pricing_gate, largest_plan
-import _m96_seed as seed
 
 LARGER_PLAN = largest_plan()
 
@@ -242,85 +241,3 @@ async def test_delete_project_and_organization_lifecycle(
         headers=owner_headers,
     )
     assert get_org.status_code == 404
-
-
-async def test_sealed_reports_protect_project_and_organization_history(
-    api_client, registration, platform_gate, db_session
-):
-    owner, owner_headers = await account(api_client, registration)
-    platform_gate.plans[uuid.UUID(owner["id"])] = LARGER_PLAN
-    parent_slug = f"parent-org-{uuid.uuid4().hex[:8]}"
-    child_slug = f"child-org-{uuid.uuid4().hex[:8]}"
-
-    # 1. Create parent organization
-    p_res = await api_client.post(
-        "/v1/organizations",
-        headers=owner_headers,
-        json={"slug": parent_slug, "name": "Parent Org"},
-    )
-    assert p_res.status_code == 201
-    parent = p_res.json()
-
-    # 2. Create child organization
-    c_res = await api_client.post(
-        "/v1/organizations",
-        headers=owner_headers,
-        json={"slug": child_slug, "name": "Child Org", "parent_id": parent["id"]},
-    )
-    assert c_res.status_code == 201
-
-    # 3. Create project in child org
-    proj_res = await api_client.post(
-        f"/v1/organizations/{child_slug}/projects",
-        headers=owner_headers,
-        json={"slug": "nested-proj", "name": "Nested Project", "visibility": "public"},
-    )
-    assert proj_res.status_code == 201
-
-    # 4. Create case in project
-    case_res = await api_client.post(
-        f"/v1/organizations/{child_slug}/projects/nested-proj/cases",
-        headers=owner_headers,
-        json={"slug": "case-1", "name": "Case One"},
-    )
-    assert case_res.status_code == 201
-
-    # 5. Seal and publish a report in the project. The report editor and its publication route are removed
-    # since M9.6, so the report is sealed by the internal services (reports.create_report_context and
-    # reports.seal_report) and published with the rows the removed route wrote.
-    document = {'provenance': {
-        'study': {'reference': 'urn:test:editorial-study', 'digest': 'sha256-' + 'a' * 64},
-        'datasets': [{'reference': 'urn:test:external-dataset', 'digest': 'sha256-' + 'b' * 64}],
-        'software': [{'name': 'test', 'version': '1', 'digest': 'sha256-' + 'c' * 64}],
-        'bimVersion': 'bim/v1', 'engineRevisions': ['sha256-' + 'd' * 64], 'parameters': {},
-    }}
-    nested = await seed.project_by_slugs(db_session, child_slug, "nested-proj")
-    report = await seed.report(db_session, nested, owner["id"], slug="report-1", title="Initial Report",
-                               document=document, freeze=True)
-    assert report.version_id is not None
-    await seed.report_publication(db_session, report, owner["id"], slug="pub-1")
-
-    # 7. A project containing publication history cannot be deleted.
-    del_proj = await api_client.delete(
-        f"/v1/organizations/{child_slug}/projects/nested-proj",
-        headers=owner_headers,
-    )
-    assert del_proj.status_code == 409
-
-    # 8. Create another project and delete parent organization cascading to child
-    proj2_res = await api_client.post(
-        f"/v1/organizations/{child_slug}/projects",
-        headers=owner_headers,
-        json={"slug": "nested-proj-2", "name": "Nested Project 2", "visibility": "private"},
-    )
-    assert proj2_res.status_code == 201
-
-    del_parent = await api_client.delete(
-        f"/v1/organizations/{parent_slug}",
-        headers=owner_headers,
-    )
-    assert del_parent.status_code == 409
-
-    # Both organizations retain the historical publication.
-    assert (await api_client.get(f"/v1/organizations/{parent_slug}", headers=owner_headers)).status_code == 200
-    assert (await api_client.get(f"/v1/organizations/{child_slug}", headers=owner_headers)).status_code == 200

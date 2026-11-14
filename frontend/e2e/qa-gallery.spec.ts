@@ -26,7 +26,6 @@ const MEASUREMENTS = fileURLToPath(new URL('../node_modules/.cache/qa-gallery/',
 /** The first heading each screen must show once it has loaded. A screen whose title depends on the data names the mock's data. */
 const HEADING: Record<string, RegExp> = {
   'pub-home': /Describe\. Bind\. Reproduce\./,
-  'pub-explore': /Public work on OpenBinding/,
   'eng-catalog': /Engine catalog/,
   'eng-detail': /bim\.builtin\/random-search@1\.0\.0/,
   'lang-profiles': /The BIM language/,
@@ -58,7 +57,6 @@ const HEADING: Record<string, RegExp> = {
   'study-list': /^Studies$/,
   'study-builder': /New study/,
   'study-detail': /Engines × seeds/,
-  'proj-publications': /^Published$/,
   'eng-register': /Register a private engine/,
   'eng-registrations': /My engines/,
   'eng-registration-detail': /edge-solver/,

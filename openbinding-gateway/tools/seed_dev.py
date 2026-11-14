@@ -3,8 +3,8 @@
 
 Seeds users, hierarchical organizations, projects, BIM v1 cases,
 collections, comparative studies with REAL solver jobs executed against
-available engines (or gracefully handled), frozen reports, publications,
-API keys, notifications, and audit records.
+available engines (or gracefully handled), API keys, notifications,
+and audit records.
 
 Usage:
     python tools/seed_dev.py [--reset] [--verbose]
@@ -105,9 +105,6 @@ from openbinding_gateway.db.platform_models import (
     OrganizationMembership,
     OrganizationRole,
     Project,
-    Publication,
-    Report,
-    ReportState,
     RunState,
     Study,
     StudyCell,
@@ -1030,135 +1027,6 @@ async def ensure_standalone_jobs(
     return jobs
 
 
-async def ensure_reports_and_publications(
-    session: AsyncSession,
-    project: Project,
-    user: User,
-    executed_studies: list[tuple[Study, StudyRun]],
-) -> None:
-    """Create frozen reports, public citations, and draft working documents."""
-    from openbinding_gateway.db.models import ArtifactVersion
-    study_run_id = executed_studies[0][1].id if executed_studies else None
-
-    # Report 1: Frozen Report linked to StudyRun 1
-    report_slug = "qos-placement-2026-report"
-    rep1 = (
-        await session.execute(
-            select(Report).where(Report.project_id == project.id, Report.slug == report_slug)
-        )
-    ).scalars().first()
-
-    report_doc = {'title': 'Benchmark report draft', 'status': 'awaiting-execution',
-                  'summary': 'Execute the benchmark study before sealing this report.'}
-    if study_run_id:
-        from openbinding_gateway.studies import definition_from_version
-        run = executed_studies[0][1]
-        definition = definition_from_version(await session.get(ArtifactVersion, run.definition_version_id))
-        source_cases = (await session.scalars(select(BindingCaseRevision).where(
-            BindingCaseRevision.id.in_([uuid.UUID(identity) for identity in definition['case_revision_ids']])))).all()
-        source_snapshots = [await session.get(InstanceSnapshot, case.source_snapshot_id) for case in source_cases]
-        report_doc = {'schema': 'bim/v1/report', 'metadata': {'title': 'Executed binding benchmark', 'author': user.username},
-            'summary': dict(run.summary), 'provenance': {
-                'study': {'runId': str(run.id), 'matrixDigest': run.matrix_digest},
-                'datasets': [{'reference': str(case.id), 'digest': case.digest} for case in source_cases],
-                'software': [{'name': 'binding-compilation', 'version': 'bim/v1', 'digest': snapshot.compilation_digest}
-                             for snapshot in source_snapshots if snapshot],
-                'bimVersion': 'bim/v1', 'engineRevisions': definition['engines'],
-                'parameters': {'sets': definition['parameter_sets'], 'seeds': definition['seeds']},
-            }}
-
-    from openbinding_gateway.reports import create_report_context, seal_report, new_report_draft
-    if rep1 is None:
-        rep1 = await create_report_context(session, project, user, slug=report_slug,
-            title="Reproducible QoS-Aware Service Binding: Empirical Benchmark Report",
-            document=report_doc, study_run_id=study_run_id)
-    if study_run_id and rep1.state is ReportState.DRAFT:
-        # A prior seed without engines leaves a draft which a later live seed can finish.
-        rep1.study_run_id = study_run_id
-        rep1.draft.payload = {**rep1.draft.payload, 'content': report_doc}
-        rep1.draft.revision += 1
-        await seal_report(session, rep1, user)
-
-    if study_run_id and rep1.state is ReportState.FROZEN:
-        from openbinding_gateway.routes.library import publish_version
-        from openbinding_gateway.routes.studies import publish_report, delete_publication
-        from openbinding_gateway.models.artifacts import PublishVersion
-        from openbinding_gateway.models.platform import PublicationCreate
-        from openbinding_gateway.db.models import CaseArtifact
-        organization = await session.get(Organization, project.organization_id)
-        definition_version = await session.get(ArtifactVersion, executed_studies[0][1].definition_version_id)
-        for case in source_cases:
-            for resource_id in await session.scalars(select(CaseArtifact.version_id).where(CaseArtifact.revision_id == case.id)):
-                resource = await session.get(ArtifactVersion, resource_id)
-                await publish_version(resource.artifact_id, resource.id,
-                    PublishVersion(citation={'title': 'Benchmark input'}), user, session)
-        await publish_version(definition_version.artifact_id, definition_version.id,
-            PublishVersion(citation={'title': 'Executed benchmark definition'}), user, session)
-        versions = (await session.scalars(select(ArtifactVersion)
-            .where(ArtifactVersion.artifact_id == rep1.artifact_id).order_by(ArtifactVersion.ordinal))).all()
-        first = versions[0]
-        pub_slug = "qos-placement-paper"
-        pub = await session.scalar(select(Publication).where(
-            Publication.project_id == project.id, Publication.slug == pub_slug))
-        if pub is None:
-            await publish_report(organization.slug, project.slug,
-                PublicationCreate(report_id=rep1.id, version_id=first.id, slug=pub_slug,
-                    citation={'title': 'Executed binding benchmark', 'authors': [user.username],
-                              'venue': 'OpenBinding development scenario', 'year': 2026}), user, session)
-            pub = await session.scalar(select(Publication).where(
-                Publication.project_id == project.id, Publication.slug == pub_slug))
-        if len(versions) == 1:
-            draft = await new_report_draft(session, rep1, user)
-            draft.payload = {**draft.payload, 'content': {**rep1.document,
-                'editorialNote': 'Second edition: evidence and measured results are unchanged.'}}
-            draft.revision += 1
-            await seal_report(session, rep1, user)
-        second_slug = pub_slug + '-v2'
-        if await session.scalar(select(Publication.id).where(
-                Publication.project_id == project.id, Publication.slug == second_slug)) is None:
-            await publish_report(organization.slug, project.slug,
-                PublicationCreate(report_id=rep1.id, version_id=rep1.version_id, slug=second_slug,
-                    citation={'title': 'Executed binding benchmark — second edition',
-                              'authors': [user.username], 'year': 2026}), user, session)
-        if not pub.withdrawn:
-            await delete_publication(organization.slug, project.slug, pub_slug, user, session)
-
-    # Report 2: Draft report
-    draft_slug = "parallel-scaling-notes"
-    draft_rep = (
-        await session.execute(
-            select(Report).where(Report.project_id == project.id, Report.slug == draft_slug)
-        )
-    ).scalars().first()
-    if draft_rep is None:
-        draft_doc = {
-            "title": "Parallel Scaling Working Notes (Draft)",
-            "summary": "Preliminary observations on synchronization bottlenecks in parallel branch topologies.",
-            "sections": [
-                {
-                    "heading": "Introduction & Hypothesis",
-                    "content": "When expanding from 4 to 16 concurrent tasks in fork-join meshes, synchronization latency grows super-linearly.",
-                },
-                {
-                    "heading": "Preliminary Observations",
-                    "content": "MiniZinc solver proves Pareto optimality in under 350ms, while stochastic search requires at least 4,000 iterations to approach within 8% of the Pareto frontier.",
-                },
-                {
-                    "heading": "Next Steps",
-                    "content": "Evaluate evolutionary NSGA-II heuristic with hypervolume indicators across seeds 1 to 20.",
-                },
-            ],
-            "status": "draft",
-        }
-        from openbinding_gateway.reports import create_report_context
-        await create_report_context(session, project, user, slug=draft_slug,
-            title="Parallel Scaling Working Notes (Draft)", document=draft_doc,
-            study_run_id=executed_studies[1][1].id if len(executed_studies) > 1 else None)
-
-        await session.flush()
-        logger.info("Created Draft Report '%s'", draft_slug)
-
-
 def _artifact_path(settings: Settings, digest_value: str) -> Path:
     hexadecimal = digest_value.removeprefix("sha256-")
     root = Path(settings.artifact_root)
@@ -1384,8 +1252,6 @@ async def ensure_notifications_and_audit(
         (score_ai.id, alice.id, "member.added", "User", bob.id, {"role": "MEMBER", "username": "bob"}),
         (score_ai.id, alice.id, "project.created", "Project", projects["score-ai/qos-placement"].id, {"name": "QoS Placement"}),
         (score_ai.id, alice.id, "study.run.dispatched", "StudyRun", None, {"study": "exact-vs-heuristic", "cells": 4}),
-        (score_ai.id, alice.id, "report.frozen", "Report", None, {"title": "Empirical QoS Placement Optimization Report 2026"}),
-        (score_ai.id, alice.id, "publication.published", "Publication", None, {"slug": "qos-placement-paper"}),
     ]
 
     for org_id, actor_id, act, t_type, t_id, det in audit_specs:
@@ -1430,9 +1296,7 @@ def print_summary_banner(users: dict[str, User]) -> None:
     print("        ├── Resources: standard-candidate-catalog (2 revs), sla-latency-constraints, balanced-cost-latency-weights")
     print("        ├── Collection: standard-benchmarks")
     print("        ├── Studies: exact-vs-heuristic (Real Runs & Jobs), parallel-scaling-study")
-    print("        ├── Artifacts: benchmark datasets, execution traces, reproducibility package")
-    print("        ├── Report: qos-placement-2026-report (Frozen)")
-    print("        └── Publication: qos-placement-paper (Visible in /explore)")
+    print("        └── Artifacts: benchmark datasets, execution traces, reproducibility package")
     print("    - score-ai/smart-orchestration (Private)")
     print("    - score-edge/fog-latency-benchmark (Public)")
     print("        └── Resources: fog-node-topology")
@@ -1447,7 +1311,6 @@ def print_summary_banner(users: dict[str, User]) -> None:
     print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/organizations/score-ai/projects/qos-placement/resources")
     print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/organizations/score-ai/projects/qos-placement/studies")
     print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/organizations/score-ai/projects/qos-placement/blobs")
-    print("    curl http://localhost:8000/v1/explore/projects")
     print(banner + "\n")
 
 
@@ -1513,15 +1376,12 @@ async def main() -> int:
             await ensure_standalone_jobs(session, org_map["score-ai"], qos_project, user_map["alice"], snapshots=snapshots, all_states=True)
 
             # 7. Studies & Real Job Executions
-            executed_studies = await execute_real_studies(session, org_map["score-ai"], qos_project, user_map["alice"], case_map)
+            await execute_real_studies(session, org_map["score-ai"], qos_project, user_map["alice"], case_map)
 
-            # 8. Reports & Publications
-            await ensure_reports_and_publications(session, qos_project, user_map["alice"], executed_studies)
-
-            # 9. Content-addressed Artifacts
+            # 8. Content-addressed Artifacts
             await ensure_artifacts(session, org_map, project_map, user_map)
 
-            # 10. Notifications & Audit
+            # 9. Notifications & Audit
             await ensure_notifications_and_audit(session, org_map, project_map, user_map)
 
             await session.commit()

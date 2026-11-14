@@ -5,16 +5,20 @@ import { movedRoutes, routeDefinitions, routesByArea } from '../registry';
 // One pair per line: screenBudget.test.ts counts them.
 const PROTOTYPE: Array<[string, string]> = [
   ['pub-home', '/'],
-  ['pub-explore', '/explore/:section?'],
   ['pub-workbench', '/workbench'],
   ['pub-about', '/about'],
   ['pub-pricing', '/pricing'],
 ];
 
 describe('area public', () => {
-  it('has 5 screens, with the ids and routes of the prototype', () => {
-    expect(routesByArea.public).toHaveLength(5);
+  it('has 4 screens, with the ids and routes of the prototype', () => {
+    expect(routesByArea.public).toHaveLength(4);
     expect(routesByArea.public.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
+  });
+
+  it('declares neither pub-explore nor the examples', () => {
+    expect(routeDefinitions.map((definition) => definition.id)).not.toContain('pub-explore');
+    expect(movedRoutes.map((entry) => entry.path)).not.toContain('/examples');
   });
 
   it('does not declare pub-status', () => {
@@ -35,15 +39,10 @@ describe('area public', () => {
     it.each([
       ['/', 'pub-home'],
       ['/about', 'pub-about'],
-      ['/explore', 'pub-explore'],
-      ['/explore/examples', 'pub-explore'],
-      ['/explore/everything', 'pub-explore'],
+      ['/explore', null],
+      ['/explore/examples', null],
     ])('%s -> %s', (path, id) => {
       expect(matchRoutes(config, path)?.at(-1)?.route.id ?? null).toBe(id);
-    });
-
-    it('leaves /examples to the moved-routes table', () => {
-      expect(matchRoutes(config, '/examples')).toBeNull();
     });
 
     it('leaves /status to the moved-routes table', () => {

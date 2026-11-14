@@ -145,7 +145,7 @@ test.describe('route registry', () => {
   test('rejects the six words, whatever their letter case, except the engine registration publication text', () => {
     expect(forbiddenIn('job-list', ['Jobs', 'my case', 'Cases and JOB'])).toHaveLength(4);
     expect(forbiddenIn('pub-home', ['Publications and public projects'])).toEqual(['"Publications" in "Publications and public projects"']);
-    expect(forbiddenIn('proj-publications', ['A publication'])).toHaveLength(1);
+    expect(forbiddenIn('study-detail', ['A publication'])).toHaveLength(1);
     expect(forbiddenIn('eng-registration-detail', ['Publication', 'Request publication'])).toEqual([]);
     expect(forbiddenIn('eng-registration-detail', ['Jobs'])).toHaveLength(1);
     expect(forbiddenIn('case-list', ['Problems', 'showcase', 'Runs', 'Published'])).toEqual([]);
@@ -154,7 +154,7 @@ test.describe('route registry', () => {
   test('knows which pathnames are screens of the registry', () => {
     expect(isScreenAddress('/app/isa-demo/qos/problems/checkout')).toBe(true);
     expect(isScreenAddress('/app/runs')).toBe(true);
-    expect(isScreenAddress('/explore')).toBe(true);
+    expect(isScreenAddress('/explore')).toBe(false);
     expect(isScreenAddress('/')).toBe(true);
     expect(isScreenAddress('/app/isa-demo/qos/cases/checkout/compare')).toBe(false);
     expect(isScreenAddress('/no-such-screen')).toBe(false);

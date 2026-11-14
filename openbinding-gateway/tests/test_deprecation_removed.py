@@ -27,7 +27,7 @@ METHODS = {"get", "put", "post", "delete", "patch", "options", "head", "trace"}
         "/v1/analysis/sources",
         "/v1/organizations/isa-demo/projects/p1/resources",
         "/health",
-        "/v1/explore/publications",
+        "/v1/engines",
     ],
 )
 async def test_no_response_carries_a_retirement_header(api_client, path):

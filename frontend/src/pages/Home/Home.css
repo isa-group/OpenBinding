@@ -210,20 +210,6 @@
 .home-recent-chips, .home-plan-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .home-recent-chips > span { padding: 2px 6px; border-radius: var(--tp-radius-xs); background: var(--tp-surface); color: var(--tp-steel); font-size: 0.6875rem; }
 
-.home-tile {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: var(--tp-radius-sm);
-  background: var(--tp-primary-deep);
-  color: var(--tp-on-primary);
-  font-size: 0.5625rem;
-  font-weight: 600;
-}
-
 .home-empty {
   display: flex;
   flex-direction: column;

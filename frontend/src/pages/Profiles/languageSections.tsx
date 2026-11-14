@@ -1,11 +1,10 @@
 import { SectionNav } from '../../components/ui/SectionNav';
 
-/** The sections of the language area, in order; the hub owns the first three, Examples and Workbench are other screens. */
+/** The sections of the language area, in order; the hub owns the first three, the Workbench is another screen. */
 const LANGUAGE_SECTIONS = [
   { id: 'profiles', label: 'Profiles and dialects', to: '/language' },
   { id: 'schemas', label: 'Schemas', to: '/language/schemas' },
   { id: 'extensions', label: 'Extensions', to: '/language/extensions' },
-  { id: 'examples', label: 'Examples', to: '/explore/examples' },
   { id: 'workbench', label: 'Workbench', to: '/workbench' },
 ] as const;
 

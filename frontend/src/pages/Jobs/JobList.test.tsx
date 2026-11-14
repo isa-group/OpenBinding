@@ -6,7 +6,7 @@ import { jobOf } from '../../test/fixtures/jobs';
 import { JobList } from './JobList';
 
 const jobsApi = vi.hoisted(() => ({ mine: vi.fn(), history: vi.fn(), retry: vi.fn() }));
-const platform = vi.hoisted(() => ({ project: vi.fn(), projectJobs: vi.fn(), publicProjects: vi.fn() }));
+const platform = vi.hoisted(() => ({ project: vi.fn(), projectJobs: vi.fn() }));
 
 vi.mock('../../api/jobs', () => ({ jobsApi }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
@@ -39,7 +39,6 @@ describe('Jobs of a project', () => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
     platform.projectJobs.mockResolvedValue(rows);
-    platform.publicProjects.mockResolvedValue([]);
     jobsApi.mine.mockResolvedValue([rows[0], rows[2], rows[3]]);
     jobsApi.history.mockResolvedValue({ jobs: [], total: 3, retention_days: 180 });
   });

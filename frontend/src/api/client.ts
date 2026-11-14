@@ -800,15 +800,13 @@ export class ApiClient {
     }
   }
 
+  /** The public engine catalogue (GET /v1/engines): a visitor gets the built-in and published engines. */
   async getPublicEngines(): Promise<EngineCatalogEntry[]> {
-    const body = await this.request<{ engines: EngineCatalogEntry[] }>('/v1/explore/engines');
+    const body = await this.request<{ engines: EngineCatalogEntry[] }>('/v1/engines');
     return body.engines || [];
   }
 
-  async getEngines(publicOnly = false): Promise<EngineCatalogEntry[]> {
-    if (publicOnly) {
-      return this.getPublicEngines();
-    }
+  async getEngines(): Promise<EngineCatalogEntry[]> {
     try {
       const body = await this.request<{ engines: EngineCatalogEntry[] }>('/v1/engines');
       return body.engines || [];

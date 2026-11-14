@@ -100,7 +100,7 @@ describe('public catalog and validation endpoints', () => {
     fetchMock.mockResolvedValueOnce(json({ detail: 'Not authenticated' }, 401));
     fetchMock.mockResolvedValueOnce(json({ engines: [engine] }));
     expect(await client.getCatalogEngines()).toEqual({ engines: [engine], fellBackToPublic: true });
-    expect(fetchMock.mock.calls[2][0]).toBe('https://gateway.example/v1/explore/engines');
+    expect(fetchMock.mock.calls[2][0]).toBe('https://gateway.example/v1/engines');
   });
 
   it('does not hide a refusal other than an expired session', async () => {

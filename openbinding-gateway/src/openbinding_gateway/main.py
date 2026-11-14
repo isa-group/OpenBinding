@@ -61,7 +61,6 @@ from .routes.library import router as library_router
 from .routes.notifications import router as notifications_router
 from .routes.organizations import invitation_router, router as organizations_router
 from .routes.pricing import public_router as pricing_router
-from .routes.studies import public_router as public_studies_router
 from .routes.studies import router as studies_router
 from .routes.users import router as users_router
 from .routes.v1 import router as v1_router
@@ -164,11 +163,10 @@ TAGS_METADATA = [
     {"name": "Administration", "description": "Account administration."},
     {"name": "Organizations", "description": "Nested organizations, members and sponsors."},
     {"name": "Projects", "description": "Collaborative projects and immutable binding cases."},
-    {"name": "Studies", "description": "Reproducible comparative studies, reports and publications."},
+    {"name": "Studies", "description": "Reproducible comparative studies."},
     {"name": "Artifacts", "description": "Content-addressed artifacts and portable packages."},
     {"name": "Jobs", "description": "Durable job lifecycle, retries and events."},
     {"name": "Notifications", "description": "Account inbox and preferences."},
-    {"name": "Explore", "description": "Public projects, publications and immutable resources."},
     {
         "name": "Pricing",
         "description": (
@@ -374,7 +372,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(organizations_router)
     app.include_router(invitation_router)
     app.include_router(studies_router)
-    app.include_router(public_studies_router)
     app.include_router(library_router)
     app.include_router(artifacts_router)
     app.include_router(jobs_router)
@@ -1201,10 +1198,11 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     )
 
     engines = paths["/v1/engines"]
-    engines["get"]["summary"] = "List Engines visible to the authenticated account"
+    engines["get"]["summary"] = "List the Engines visible to the caller"
     engines["get"]["description"] = (
-        "Returns built-in and published Engines plus the caller's own private revisions. "
-        "Private revisions owned by other accounts, including administrators, are never disclosed."
+        "The public engine catalogue: anybody gets the built-in and published Engines, and a "
+        "signed-in caller also gets their own private revisions. Private revisions owned by other "
+        "accounts, including administrators, are never disclosed."
     )
     engines["get"]["responses"]["200"] = json_response("EngineCatalog", "Visible Engine revisions.")
     engines["post"]["summary"] = "Create an immutable private Engine revision"

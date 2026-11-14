@@ -11,7 +11,7 @@ const jobsApi = vi.hoisted(() => ({ launch: vi.fn() }));
 const casesApi = vi.hoisted(() => ({ analyseSnapshot: vi.fn(), instanceIr: vi.fn() }));
 const workbenchApi = vi.hoisted(() => ({ snapshot: vi.fn() }));
 const client = vi.hoisted(() => ({ getOwnUsage: vi.fn(), getPricingCatalog: vi.fn(), getEngines: vi.fn() }));
-const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), revisions: vi.fn(), publicProjects: vi.fn() }));
+const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), revisions: vi.fn() }));
 
 vi.mock('../../api/jobs', () => ({ jobsApi }));
 vi.mock('../../api/cases', () => ({ casesApi }));
@@ -85,7 +85,6 @@ describe('Start a run', () => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
     platform.cases.mockResolvedValue([flujo]);
-    platform.publicProjects.mockResolvedValue([]);
     platform.revisions.mockResolvedValue([revisionOf(flujo, 1, { source_snapshot_id: 'snap-1' }), revisionOf(flujo, 2, { source_snapshot_id: 'snap-2' })]);
     client.getOwnUsage.mockResolvedValue(usageOf({
       plan: 'RESEARCH',

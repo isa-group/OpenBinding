@@ -29,11 +29,11 @@ routes/  ──►  services/  ──►  repositories/ , integrations  ──�
 | `integrations/bim.py`, `v1/`, `generator/` | The BIM port (`BimPort`, settings, error translation), the remaining `v1/` platform code (remote Engine transport) and the instance generator (see [the BIM boundary](#the-bim--platform-boundary)) | `integrations/`, `v1/`, `generator/` |
 
 Not every module follows the layer table yet: several top-level modules
-(`artifacts.py`, `reports.py`, `studies.py`, `study_jobs.py`,
+(`artifacts.py`, `studies.py`, `study_jobs.py`,
 `collaboration.py`, `telemetry.py`)
 mix use-case logic and persistence outside `services/` and `repositories/`.
 (`analysis_jobs.py` and `sponsor_proposals.py` were in this list when this page
-was written; M9.6 removed both, and the sections below that name them describe
+was written; M9.6 removed both (and F0a removed `reports.py`), and the sections below that name them describe
 the gateway before that.)
 
 ## Composition layer (`create_app`)
@@ -348,7 +348,7 @@ mechanically checkable, using `ast` so that imports inside functions count:
   (`test_services_domain_and_jobs_do_not_import_routes`);
 - no module outside `routes/` and those three layers may start importing
   `routes`: the existing offenders are frozen in `ALLOWED_LEGACY`
-  (`artifacts`, `reports`, `study_jobs`; `analysis_jobs` was removed by M9.6;
+  (`artifacts`, `study_jobs`; `analysis_jobs` was removed by M9.6 and `reports` by F0a;
   `main` is exempt as the composition root), the list may only shrink
   (`test_no_new_module_imports_routes`, `test_allowed_legacy_has_no_stale_entries`);
 - `services/job_submission.py` imports `routes` nowhere and uses `fastapi` only for
@@ -374,8 +374,8 @@ rest of the table (`models/`, `db/`) is convention, not enforcement.
 BIM is a language and a toolchain: load a package, compile it to a canonical
 `BindingProblem`, evaluate and re-evaluate bindings, validate the Engine
 protocol. The platform is everything around it: accounts, organizations,
-projects, plans, jobs and queues, persistence, the artifact library, studies,
-reports and the HTTP routes. The toolchain must not know the
+projects, plans, jobs and queues, persistence, the artifact library, studies
+and the HTTP routes. The toolchain must not know the
 platform, and the platform reaches BIM through a small port.
 
 **Current state.** The gateway depends on `bim-core==0.2.0` and
@@ -389,7 +389,7 @@ seed run that way in the lab and the default deployment.
 `BIM_MODE=http` runs `HttpBim` against a separately deployed `bim-service` (a
 deployable of the toolchain repository) and refuses to start if the service
 `compilerDigest` differs from the local one. Routes,
-services, the generator, studies and reports use the port; BIM errors are
+services, the generator and studies use the port; BIM errors are
 translated to HTTP in one place. Details in [BIM_CORE.md](../BIM_CORE.md).
 
 `integrations/` may import `core`, `models` and the BIM packages, and must not

@@ -16,16 +16,10 @@ interface PublicLink {
   to: string;
   label: string;
   active: (pathname: string) => boolean;
-  /** Addresses where a link of the page carries `aria-current`, so the header link keeps only its active style. */
-  pageMarks?: (pathname: string) => boolean;
 }
 
 const publicLinks: readonly PublicLink[] = [
   { to: '/', label: 'Home', active: (pathname) => pathname === '/' },
-  {
-    to: '/explore', label: 'Explore', active: (pathname) => underPath(pathname, '/explore'),
-    pageMarks: (pathname) => underPath(pathname, '/explore/examples'),
-  },
   { to: '/engines', label: 'Engines', active: (pathname) => underPath(pathname, '/engines') },
   { to: '/language', label: 'Language', active: (pathname) => underPath(pathname, '/language') },
   { to: '/pricing', label: 'Pricing', active: (pathname) => underPath(pathname, '/pricing') },
@@ -46,7 +40,7 @@ export function Navigation() {
   const closeMenus = () => setOpened({ menu: null, at: location.key });
   const toggleMenu = (menu: MenuName) => setOpened({ menu: openMenu === menu ? null : menu, at: location.key });
   const isActive = (link: PublicLink) => link.active(location.pathname);
-  const current = (link: PublicLink) => (isActive(link) && !link.pageMarks?.(location.pathname) ? 'page' : undefined);
+  const current = (link: PublicLink) => (isActive(link) ? 'page' : undefined);
 
   useEffect(() => {
     if (!openMenu) return undefined;

@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..access.dependencies import optional_session, require_v1_admin, solve_caller
+from ..access.dependencies import get_optional_user, optional_session, require_v1_admin, solve_caller
 from ..access.work_limits import limit_work_of_counted_caller
 from ..core import revision
 from ..core.settings import get_settings
@@ -673,8 +673,9 @@ async def get_example_package(example_path: str):
 @router.get("/engines")
 async def list_v1_engines(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
-    caller: User = Depends(solve_caller),
+    caller: User | None = Depends(get_optional_user),
 ) -> dict[str, Any]:
+    # The public engine catalogue: a visitor gets the built-in and published Engines.
     return await discovery.engines_document(session, caller)
 
 

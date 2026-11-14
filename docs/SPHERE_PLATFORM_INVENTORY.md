@@ -25,10 +25,10 @@ blindly copied from an unmerged branch.
 
 | SPHERE capability | Decision | OpenBinding interpretation |
 |---|---|---|
-| Public shell, Explore and dashboards | Adapt | A binding observatory centred on projects, cases, studies, engines and reproducible activity |
+| Public shell and dashboards | Adapt | A binding observatory centred on projects, cases, studies, engines and reproducible activity |
 | Organizations and teams | Extend | Arbitrarily nested organizations, inherited roles, invitations, sponsors and unique-member accounting |
 | Pricings and immutable versions | Adapt (revised) | Immutable BIM/case revisions in the user platform. Pricing lifecycle: not in OpenBinding; it lives in the remote SPHERE/SPACE consoles and is read-only here (see below) |
-| Public/private resources | Adapt | Project, case, artifact, report and publication visibility |
+| Public/private resources | Adapt | Project, case and artifact visibility |
 | Collections | Redesign | Ordered, versioned curation of immutable references; collections never execute work |
 | Configuration-space analysis | Redesign | Feasibility, Pareto, convergence, objectives, runtime, stability and cross-engine comparison |
 | HARVEY assistant | Exclude/replace | Deterministic diagnostic actions and documentation links; no LLM dependency or fabricated result |
@@ -53,7 +53,7 @@ OpenBinding. A collection may seed a study, but does not become one.
 
 SPHERE's version catalogue becomes the provenance spine for BIM resources:
 revisions are immutable and content-addressed, mutable aliases are short-lived,
-and published reports cite exact BIM, dialect, engine, dataset and parameter
+and runs and studies pin exact BIM, dialect, engine, dataset and parameter
 digests. This preserves the existing package → validation → dialect/profile →
 IR → engine → reevaluation pipeline instead of wrapping it in a second solver.
 

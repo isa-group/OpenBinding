@@ -36,7 +36,6 @@ export function buildCommands({ organizations = [], projects = [], organization,
     command('Go to', 'Generator', 'Generate benchmark instances', labLinks.generator.to),
     command('Go to', 'Engines', 'Engines by exact identity', mainLinks.engines.to),
     command('Go to', 'Language', 'How instances become binding problems', mainLinks.language.to),
-    command('Go to', 'Explore', 'Public projects, published results and engines', '/explore'),
     command('Go to', 'Pricing', 'Plans, limits and add-ons', '/pricing'),
   ];
 
@@ -54,7 +53,6 @@ export function buildCommands({ organizations = [], projects = [], organization,
       ['Problems', 'Binding problems and their versions', problems.to],
       ['Collections', 'Problems grouped into suites', `${root}/collections`],
       ['Studies', 'Problems × engines × parameters × seeds', studies?.to],
-      ['Published', 'Published editions and how to cite them', `${root}/published`],
       ['Project settings', 'Name, visibility, members and package', `${root}/settings`],
     ];
     for (const [label, desc, href] of sections) {

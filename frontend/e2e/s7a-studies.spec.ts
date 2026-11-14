@@ -8,7 +8,7 @@ import {
   CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, RUN_ID, VERSION_ID, analyticsFixture, cellFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
 } from '../src/test/fixtures/studies';
 
-// S7a · studies: study-list, study-builder and study-detail with its tabs Setup, Progress (the run), Results (analytics and cells) and Publish.
+// S7a · studies: study-list, study-builder and study-detail with its tabs Setup, Progress (the run) and Results (analytics, cells and the CSV export).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
 // so they can be looked at after a run. Every test walks a screen through its states on a desktop and on a phone.
 
@@ -733,10 +733,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `run-${name}-table-failed`, { area: main.locator('section[aria-labelledby="st-cells-title"]') });
       await main.getByRole('button', { name: 'All (8)' }).click();
 
-      // Retry: a sealed report refuses, then it is queued.
-      state.refuse.retry = detail(409, 'sealed_evidence', 'This run is evidence of a sealed report.');
+      // Retry: a refusal is said, then it is queued.
+      state.refuse.retry = detail(409, 'cell_not_retryable', 'Only failed or cancelled cells can be retried.');
       await table.getByRole('button', { name: 'Retry cell 1' }).click();
-      await expect(main.getByText('A sealed report cites this run (409 · sealed_evidence)')).toBeVisible();
+      await expect(main.getByText('This cell can’t be retried (409 · cell_not_retryable)')).toBeVisible();
       await capture(page, testInfo, `run-${name}-409`, { height: 1300 });
       state.refuse.retry = undefined;
       await table.getByRole('button', { name: 'Retry cell 1' }).click();
@@ -771,10 +771,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('img', { name: '2 completed, 2 running, 2 queued of 6 cells' }).first()).toBeVisible();
       await capture(page, testInfo, `run-${name}-live`, { height: 1500 });
 
-      // Cancelling a run whose results a sealed report cites is refused.
-      state.refuse.cancel = detail(409, 'sealed_evidence', 'This run is evidence of a sealed report.');
+      // Cancelling a run that ended meanwhile is refused.
+      state.refuse.cancel = detail(409, 'terminal_run', 'The study run is already terminal.');
       await main.getByRole('button', { name: 'Cancel run' }).click();
-      await expect(main.getByText('A sealed report cites this run (409 · sealed_evidence)')).toBeVisible();
+      await expect(main.getByText('This run already finished (409 · terminal_run)')).toBeVisible();
       expect(state.sent.cancel).toBe(LIVE_RUN_ID);
       await capture(page, testInfo, `run-${name}-cancel-409`, { height: 1300 });
 
@@ -880,9 +880,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(dialog.getByRole('button', { name: 'Attach this result' })).toBeDisabled();
       await choices.getByRole('radio', { name: /random-search · completed/ }).check();
       await capture(page, testInfo, `cell-${name}-attach`);
-      state.refuse.attach = detail(409, 'sealed_evidence', 'This run is evidence of a sealed report.');
+      state.refuse.attach = detail(409, 'job_already_attached', 'The job is already the result of another cell.');
       await dialog.getByRole('button', { name: 'Attach this result' }).click();
-      await expect(dialog.getByText('A sealed report cites this run (409 · sealed_evidence)')).toBeVisible();
+      await expect(dialog.getByText('That run is already the result of another cell (409 · job_already_attached)')).toBeVisible();
       await capture(page, testInfo, `cell-${name}-attach-409`);
       state.refuse.attach = undefined;
       await dialog.getByRole('button', { name: 'Attach this result' }).click();
@@ -941,31 +941,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('combobox', { name: 'Problem' }).selectOption(REVISION_2.id);
       await expect(main.getByText(/Best trade-offs:/)).toContainText('cell 4 (0.104, 420); cell 6 (0.109, 398).');
 
-      // The CSV file is in the Publish tab.
-      await expect(main.getByRole('button', { name: 'Export CSV' })).toHaveCount(0);
+      // Every cell goes into a CSV file, never onto the page.
+      const downloaded = page.waitForEvent('download');
+      await main.getByRole('button', { name: 'Export CSV' }).click();
+      expect((await downloaded).suggestedFilename()).toBe('engines-vs-seeds-run-1-cells.csv');
 
       // Provenance of each cell.
       const provenance = main.getByRole('region', { name: 'Provenance of every cell' });
       await expect(provenance.getByRole('row')).toHaveCount(9);
       await expect(provenance.getByRole('button', { name: 'Copy digest of cell 2' })).toBeVisible();
       await expect(provenance).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      expect(critical).toEqual([]);
-    });
-
-    test('study-detail /app/:org/:project/studies/:study/publish · every cell in a CSV file, and the way to the published results', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      await mockApi(page);
-      await page.goto(`${STUDY}/publish?run=${RUN_ID}`);
-      const main = page.locator('#platform-main');
-
-      await expect(main.getByRole('tab', { name: 'Publish' })).toHaveAttribute('aria-selected', 'true');
-      await expect(main.getByRole('link', { name: 'Published results of this project' })).toHaveAttribute('href', `${ROOT}/published`);
-      await capture(page, testInfo, `publish-${name}-top`);
-
-      // Every cell goes into a CSV file, never onto the page.
-      const downloaded = page.waitForEvent('download');
-      await main.getByRole('button', { name: 'Export CSV' }).click();
-      expect((await downloaded).suggestedFilename()).toBe('engines-vs-seeds-run-1-cells.csv');
       expect(critical).toEqual([]);
     });
 

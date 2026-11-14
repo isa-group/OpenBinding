@@ -480,8 +480,4 @@ describe('the scan for retired addresses', () => {
     expect(found, 'links to a moved address that is not permanent: point them at the new address').toEqual([]);
   });
 
-  it('keeps the report endpoints of the API client, which no scan may flag', () => {
-    expect(application['src/api/platform.ts']).toContain('${root(org, project)}/reports');
-    expect(retiredAddresses({ 'src/api/platform.ts': application['src/api/platform.ts'] }, ['/app/:org/:project/reports', '/app/:org/:project/reports/:report'])).toEqual([]);
-  });
 });

@@ -143,9 +143,8 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/pricing", "get"),
         ("/v1/pricing/catalog", "get"),
         ("/v1/pricing/current", "get"),
-        ("/v1/explore/projects", "get"),
-        ("/v1/explore/publications", "get"),
-        ("/v1/explore/engines", "get"),
+        # The public engine catalogue: a visitor gets the built-in and published Engines.
+        ("/v1/engines", "get"),
         ("/v1/instances/validate", "post"),
         ("/v1/generator/instances", "post"),
         ("/v1/generator/corpus", "post"),

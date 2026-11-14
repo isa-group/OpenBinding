@@ -87,8 +87,9 @@ all-Engines key because its immutable digest cannot be selected in advance.
 candidate, export, reports and the Pareto tasks) and their extra
 `engines:execute` check were removed by M9.6, together with the analysis queue.
 The kept `GET /v1/jobs/{job_id}/analysis/neighborhood` is guarded by `jobs:read`
-like any job read. Keys that hold `reports:write` or `engines:execute` keep
-working: both permissions still guard kept operations.
+like any job read. Keys that hold `engines:execute` keep working: it still
+guards kept operations. The `reports:read` and `reports:write` permissions were
+removed in F0a with the reports; no route needs them.
 
 The number of active keys is the plan's `apiKeys` limit, read from the
 contract (`routes/users.py`); exceeding it is `402 quota_exceeded`. Revoked keys

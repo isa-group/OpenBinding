@@ -5,7 +5,6 @@ const columns = [
   {
     title: 'Platform',
     links: [
-      { label: 'Explore', to: '/explore' },
       { label: 'Engines', to: '/engines' },
       { label: 'Pricing', to: '/pricing' },
     ],
@@ -15,7 +14,6 @@ const columns = [
     links: [
       { label: 'Profiles & dialects', to: '/language' },
       { label: 'Schemas', to: '/language/schemas/application' },
-      { label: 'Examples', to: '/explore/examples' },
       { label: 'Workbench', to: '/workbench' },
     ],
   },

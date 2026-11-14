@@ -23,7 +23,6 @@ PROTECTED_LAYERS = ("services", "domain", "jobs", "composition")
 ALLOWED_LEGACY = frozenset(
     {
         "artifacts",
-        "reports",
         "study_jobs",
     }
 )

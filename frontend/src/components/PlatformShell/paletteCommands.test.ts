@@ -21,14 +21,11 @@ describe('buildCommands', () => {
     expect(commands.map((command) => command.href)).toContain('/app/isa-demo/qos-benchmarks/studies');
   });
 
-  it('offers Published instead of Reports and Publications in a project', () => {
+  it('offers no Reports, Publications, Published or Explore command', () => {
     const commands = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: false });
 
-    expect(commands.filter((command) => command.label === 'Reports' || command.label === 'Publications')).toEqual([]);
-    expect(commands.filter((command) => /\/(reports|publications)([/?#]|$)/.test(command.href))).toEqual([]);
-    const published = commands.filter((command) => command.label === 'Published');
-    expect(published.map((command) => [command.group, command.href])).toEqual([['Project', '/app/isa-demo/qos-benchmarks/published']]);
-    expect(published[0]?.desc).toContain('QoS benchmarks');
+    expect(commands.filter((command) => ['Reports', 'Publications', 'Published', 'Explore'].includes(command.label))).toEqual([]);
+    expect(commands.filter((command) => /\/(reports|publications|published|explore)([/?#]|$)/.test(command.href))).toEqual([]);
   });
 
   it('offers no Files command and keeps the package with the project settings', () => {
@@ -73,7 +70,7 @@ describe('buildCommands', () => {
     expect(commands.filter((command) => command.group === 'Tools')).toEqual([]);
     expect(goTo.map((command) => [command.label, command.href])).toEqual([
       ['Home', '/app'], ['Runs', '/app/runs'], ['Generator', '/app/generator'], ['Engines', '/engines'], ['Language', '/language'],
-      ['Explore', '/explore'], ['Pricing', '/pricing'],
+      ['Pricing', '/pricing'],
     ]);
     expect(commands.filter((command) => ['Jobs', 'Verify', 'Verifier', 'Engine catalog', 'My engines', 'Generator lab', 'Workbench'].includes(command.label))).toEqual([]);
     expect(commands.filter((command) => command.label === 'Problems').map((command) => command.href)).toEqual(['/app/isa-demo/qos-benchmarks/problems']);

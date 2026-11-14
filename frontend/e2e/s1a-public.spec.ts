@@ -3,40 +3,14 @@ import { expect as baseExpect, test, type Page, type Route } from '@playwright/t
 // The dev server compiles each route on first use, so the first assertion of a test can wait for a cold page.
 const expect = baseExpect.configure({ timeout: 15_000 });
 
-// S1a · public screens: pub-home, pub-explore, pub-about (with the service-status note that took the place of /status).
+// S1a · public screens: pub-home and pub-about (with the service-status note that took the place of /status).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 
 const API = 'http://localhost:8000';
 const HIDE_FLOATING = '.site-header, .skip-link { visibility: hidden !important; }';
 
-const HEX = 'e5f60718'.repeat(8);
-const DIGEST = `sha256-${HEX}`;
 const ENGINE_DIGEST = `sha256-${'b2c3d4e5'.repeat(8)}`;
-
-const projects = [
-  { organization: { slug: 'isa-demo', name: 'ISA Demo Group' }, project: { slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: 'Reference binding cases with workflow and placement.' } },
-  { organization: { slug: 'score-lab', name: 'SCORE Lab' }, project: { slug: 'service-corpus', name: 'Service corpus', description: 'Cases derived from published service-composition papers.' } },
-];
-
-const publications = [
-  {
-    slug: 'checkout-engines',
-    citation: { title: 'Engine comparison at checkout', authors: ['Lucía Vega'], year: 2026 },
-    report: { title: 'Engine comparison at checkout', digest: DIGEST, version_id: 'version-1' },
-    project: 'qos-benchmarks',
-    organization: 'isa-demo',
-    publishedAt: '2026-09-25T11:55:00Z',
-  },
-  {
-    slug: 'corpus-baseline',
-    citation: { title: 'Baseline results on the service corpus', authors: ['Marco Díaz', 'Sofía Rey'], year: 2026 },
-    report: { title: 'Baseline results on the service corpus', digest: `sha256-${'12ab34cd'.repeat(8)}`, version_id: 'version-2' },
-    project: 'service-corpus',
-    organization: 'score-lab',
-    publishedAt: '2026-09-12T08:00:00Z',
-  },
-];
 
 const engine = (name: string, mode: string, digest: string) => ({
   id: name, name, namespace: 'bim.builtin', version: '1.0.0', digest, ref: { namespace: 'bim.builtin', name, version: '1.0.0', digest },
@@ -62,7 +36,6 @@ const researchUser = {
 
 interface Mocks {
   signedIn?: boolean;
-  projects?: (route: Route) => Promise<void> | void;
   ready?: (route: Route) => Promise<void> | void;
   /** Every health probe fails to connect. */
   offline?: boolean;
@@ -70,9 +43,11 @@ interface Mocks {
 
 const json = (body: unknown, status = 200) => (route: Route) => route.fulfill({ status, json: body });
 
-/** Everything the five screens read, answered; anything else on the API origin is an empty 404. */
+/** Everything the screens read, answered; anything else on the API origin is an empty 404. */
 async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/**`, (route) => route.fulfill({ status: 404, json: { detail: 'not mocked' } }));
+  // The public engine catalogue; a signed-in account gets its own list below.
+  await page.route(`${API}/v1/engines`, json({ engines }));
   if (mocks.signedIn) {
     await page.addInitScript(() => localStorage.setItem('openbinding-access-token', 's1a-token'));
     await page.route(`${API}/v1/users/me`, json(researchUser));
@@ -81,9 +56,6 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   }
   await page.route(`${API}/v1/profiles`, json({ profiles: [{ id: 'qos-binding/v1' }] }));
   await page.route(`${API}/v1/dialects`, json({ dialects: [{ id: 'qos-binding' }, { id: 'bpmn-workflow' }, { id: 'placement' }] }));
-  await page.route(`${API}/v1/explore/projects`, mocks.projects ?? json(projects));
-  await page.route(`${API}/v1/explore/publications`, json(publications));
-  await page.route(`${API}/v1/explore/engines`, json({ engines }));
   if (mocks.offline) {
     for (const path of ['/health', '/health/live', '/health/ready']) await page.route(`${API}${path}`, (route) => route.abort('connectionrefused'));
   } else {
@@ -133,7 +105,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'Describe. Bind. Reproduce.' })).toBeVisible();
       await ready(page);
       await expect(main.getByRole('link', { name: /Validate a package/ })).toHaveAttribute('href', '/workbench');
-      await expect(main.getByRole('link', { name: /Explore published results/ })).toHaveAttribute('href', '/explore');
+      await expect(main.getByRole('link', { name: /Browse the engines/ })).toHaveAttribute('href', '/engines');
       await expect(main.getByRole('link', { name: /Create an account/ })).toHaveAttribute('href', '/register');
       await expect(main.getByRole('status', { name: 'Runtime catalogue status' })).toContainText('3 installed dialects');
       await expect(main.getByRole('status', { name: 'Runtime catalogue status' })).toContainText('3 public engine revisions');
@@ -144,13 +116,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('tab', { name: /Validation/ }).click();
       await expect(main.getByRole('link', { name: 'Validate a package' }).last()).toHaveAttribute('href', '/workbench');
 
-      // Recently public, from /v1/explore/*.
-      const recent = main.getByRole('region', { name: 'Published results and public projects' });
-      await expect(recent.getByRole('link', { name: /Engine comparison at checkout/ })).toHaveAttribute('href', '/explore?tab=publications');
-      await expect(recent.getByRole('link', { name: /Engine comparison at checkout/ })).toContainText('ISA Demo Group / QoS Benchmarks');
-      await expect(recent.locator('a[href="/explore?tab=projects"]').filter({ hasText: 'Service corpus' })).toBeVisible();
-      await expect(recent.getByRole('link', { name: /Baseline results on the service corpus/ })).toHaveAttribute('href', '/explore?tab=publications');
+      // The public engines, from GET /v1/engines.
+      const recent = main.getByRole('region', { name: 'Engines anyone can run' });
       await expect(recent.getByRole('link', { name: /3 public engine revisions/ })).toContainText('random-search · evolutionary · minizinc');
+      await expect(recent.getByRole('link', { name: 'All engines' })).toHaveAttribute('href', '/engines');
+      await expect(main.locator('a[href^="/explore"]')).toHaveCount(0);
 
       // Plans.
       const plans = main.getByRole('region', { name: 'Free to start, institutional when you scale' });
@@ -180,75 +150,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('status', { name: 'Runtime catalogue status' })).toContainText('4 engine revisions');
       await ready(page);
       await main.locator('.home-hero').screenshot({ path: testInfo.outputPath(`home-${name}-signed-in.png`), animations: 'disabled', style: HIDE_FLOATING });
-    });
-
-    test('pub-explore /explore', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      await mockApi(page);
-      await page.goto('/explore');
-      const main = page.locator('main');
-
-      await expect(main.getByRole('heading', { level: 1, name: 'Public work on OpenBinding' })).toBeVisible();
-      await expect(main.getByRole('tab', { name: /Published results/ })).toHaveAttribute('aria-selected', 'true');
-      await expect(main.getByRole('tab', { name: /Projects/ })).toContainText('2');
-      await expect(main.getByRole('tab', { name: /Engines/ })).toContainText('3');
-      const details = main.getByRole('complementary', { name: 'Details' });
-      await expect(details.getByRole('heading', { name: 'Engine comparison at checkout' })).toBeVisible();
-      await expect(details).toContainText('Sep 25, 2026');
-      await expect(details).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      await ready(page);
-      await page.screenshot({ path: testInfo.outputPath(`explore-${name}-publications.png`), fullPage: true, animations: 'disabled' });
-
-      // Selecting another publication swaps the details; a search narrows the list.
-      await main.getByRole('button', { name: /Baseline results on the service corpus/ }).click();
-      await expect(details.getByRole('heading', { name: 'Baseline results on the service corpus' })).toBeVisible();
-      await expect(details.getByText('Marco Díaz, Sofía Rey', { exact: true })).toBeVisible();
-      await main.getByRole('searchbox', { name: 'Search this tab' }).fill('checkout');
-      await expect(main.getByText('1 published result')).toBeVisible();
-      await main.getByRole('searchbox', { name: 'Search this tab' }).fill('no such thing');
-      await expect(main.getByText('No published results match “no such thing”.')).toBeVisible();
-      await expect(details.getByText('Select an item to see its details.')).toBeVisible();
-
-      // Projects: a visitor can see them but must log in to open one.
-      await main.getByRole('tab', { name: /Projects/ }).click();
-      await expect(page).toHaveURL(/\/explore\?tab=projects$/);
-      await expect(details.getByRole('heading', { name: 'QoS Benchmarks' })).toBeVisible();
-      await expect(details.getByRole('link', { name: 'Log in to open as a member' })).toHaveAttribute('href', '/login');
-      await main.getByRole('button', { name: 'SCORE Lab', exact: true }).click();
-      await expect(main.getByRole('button', { name: /QoS Benchmarks/ })).toHaveCount(0);
-      await main.getByRole('button', { name: 'All organizations' }).click();
-      await page.screenshot({ path: testInfo.outputPath(`explore-${name}-projects.png`), fullPage: true, animations: 'disabled' });
-
-      // Engines.
-      await main.getByRole('tab', { name: /Engines/ }).click();
-      await expect(details.getByRole('heading', { name: 'random-search 1.0.0' })).toBeVisible();
-      await expect(details.getByText('bim.builtin', { exact: true })).toBeVisible();
-      await expect(details).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      await expect(details.getByText('time_budget_ms (ms, default 30,000); iterations (default 100,000)')).toBeVisible();
-      await expect(details.getByRole('link', { name: 'Open engine' })).toHaveAttribute('href', '/engines/bim.builtin/random-search/1.0.0');
-      await page.screenshot({ path: testInfo.outputPath(`explore-${name}-engines.png`), fullPage: true, animations: 'disabled' });
-
-      await expectNoHorizontalOverflow(page);
-      expect(critical).toEqual([]);
-    });
-
-    test('pub-explore /explore when a list cannot be loaded', async ({ page }, testInfo) => {
-      await mockApi(page, { projects: json({ detail: 'database unavailable' }, 503) });
-      await page.goto('/explore?tab=projects');
-      const main = page.locator('main');
-
-      const alert = main.getByRole('alert');
-      await expect(alert).toContainText('Projects couldn’t be loaded (HTTP 503). Your search and filters are kept.');
-      await expect(main.getByRole('tab', { name: /Projects/ })).toContainText('–');
-      await expect(main.getByRole('tab', { name: /Published results/ })).toContainText('2');
-      await ready(page);
-      await page.screenshot({ path: testInfo.outputPath(`explore-${name}-error.png`), fullPage: true, animations: 'disabled' });
-
-      // Retry asks again, and this time the list arrives.
-      await page.route(`${API}/v1/explore/projects`, json(projects));
-      await alert.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('button', { name: /QoS Benchmarks/ })).toBeVisible();
-      await expect(main.getByRole('alert')).toHaveCount(0);
     });
 
     test('/status is replaced by /about, which holds the service-status note', async ({ page }, testInfo) => {

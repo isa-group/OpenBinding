@@ -1,12 +1,12 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { org, project, reportOf, renderProjectScreen } from '../Project/testKit';
+import { org, project, renderProjectScreen } from '../Project/testKit';
 import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, analyticsFixture, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), publicProjects: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), analytics: vi.fn(), reports: vi.fn(),
+  project: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), analytics: vi.fn(),
   cases: vi.fn(), revisions: vi.fn(),
 }));
 const client = vi.hoisted(() => ({ getJobStatus: vi.fn() }));
@@ -44,12 +44,10 @@ describe('Analytics of a run, in the Results tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
-    platform.publicProjects.mockResolvedValue([]);
     platform.studies.mockResolvedValue([studyFixture()]);
     platform.studyRuns.mockResolvedValue([runFixture()]);
     platform.studyCells.mockResolvedValue(cells);
     platform.analytics.mockResolvedValue(analyticsFixture());
-    platform.reports.mockResolvedValue([]);
     platform.cases.mockResolvedValue([CHECKOUT]);
     platform.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
     client.getJobStatus.mockResolvedValue({ id: 'job', status: 'completed', result: { solutions: [] } });
@@ -145,31 +143,11 @@ describe('Analytics of a run, in the Results tab', () => {
     expect(screen.getByRole('region', { name: 'Engines ranked by time taken' })).toBeInTheDocument();
   });
 
-  it('leaves the CSV export to the Publish tab', async () => {
+  it('offers the CSV export of the run', async () => {
     renderAnalytics();
 
     await screen.findByRole('heading', { level: 2, name: 'Compare results · run #1' });
-    expect(screen.queryByRole('button', { name: 'Export CSV' })).not.toBeInTheDocument();
-  });
-
-  it('offers no report action, whether or not a draft report of the run exists, and reads no report', async () => {
-    const action = /create (a |draft )?report|open the report/i;
-    const view = renderAnalytics();
-
-    await screen.findByRole('heading', { level: 2, name: 'Compare results · run #1' });
-    expect(screen.queryByRole('button', { name: action })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: action })).not.toBeInTheDocument();
-    view.unmount();
-
-    platform.reports.mockResolvedValue([reportOf('engines-vs-seeds-run-1', 'draft', { study_run_id: RUN_ID })]);
-    renderAnalytics();
-    await screen.findByRole('heading', { level: 2, name: 'Compare results · run #1' });
-    expect(screen.queryByRole('link', { name: action })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: action })).not.toBeInTheDocument();
-    const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
-    expect(hrefs.filter((href) => /\/reports([/?#]|$)/.test(href))).toEqual([]);
-    await waitFor(() => expect(platform.analytics).toHaveBeenCalled());
-    expect(platform.reports).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Export CSV' })).toBeInTheDocument();
   });
 
   it('loads the solutions of one cell only when asked', async () => {

@@ -77,7 +77,7 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
         // Runs are history: the gateway refuses the delete, so the study is archived instead and its results stay.
         try {
           await platformApi.updateStudy(org, slug, study.slug, { archived: true });
-          setOutcome({ tone: 'success', text: 'This study has runs, so it was archived instead of deleted. Results cited by reports stay intact.' });
+          setOutcome({ tone: 'success', text: 'This study has runs, so it was archived instead of deleted. Its runs and results stay intact.' });
         } catch (second) {
           setOutcome({ tone: 'error', refusal: studyRefusal(second, 'archive') });
         }

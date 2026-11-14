@@ -220,7 +220,6 @@ export function WorkbenchPage() {
               </button>
             ))}
             {examples.status === 'ready' && suggested.length === 0 && <small>This deployment ships no example packages.</small>}
-            <Link to="/explore/examples">Browse official examples</Link>
           </div>
 
           <div className="workbench-card is-account">

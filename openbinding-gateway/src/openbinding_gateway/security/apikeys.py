@@ -59,8 +59,6 @@ class ApiKeyPermission(str, Enum):
     PROJECTS_WRITE = "projects:write"
     STUDIES_READ = "studies:read"
     STUDIES_WRITE = "studies:write"
-    REPORTS_READ = "reports:read"
-    REPORTS_WRITE = "reports:write"
     ARTIFACTS_READ = "artifacts:read"
     ARTIFACTS_WRITE = "artifacts:write"
     NOTIFICATIONS_READ = "notifications:read"
@@ -242,7 +240,7 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
     aliases = {
         "organizations": ("org", "organization", "organization_id", "org_id"),
         "projects": ("project", "project_id"),
-        "slugs": ("slug", "case", "collection", "study", "report", "publication", "resource"),
+        "slugs": ("slug", "case", "collection", "study", "resource"),
     }
     for field, names in aliases.items():
         allowed = boundary.get(field)
@@ -264,8 +262,6 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "studies": {"study", "studies"},
             "runs": {"run", "runs"},
             "cells": {"cell", "cells"},
-            "reports": {"report", "reports"},
-            "publications": {"publication", "publications"},
             "artifacts": {"artifact", "artifacts"},
             "library": {"artifact", "artifacts"},
             "blobs": {"artifact", "artifacts", "blob", "blobs"},
@@ -398,20 +394,12 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             if method == "GET" or path == "/v1/artifacts/resolve"
             else {ApiKeyPermission.ARTIFACTS_WRITE.value}
         )
-    if path.startswith("/v1/explore"):
-        return frozenset({ApiKeyPermission.PROJECTS_READ.value})
     if "/projects" in path:
         if any(token in path for token in ("/studies", "/runs")):
             return frozenset(
                 {ApiKeyPermission.STUDIES_READ.value}
                 if method == "GET"
                 else {ApiKeyPermission.STUDIES_WRITE.value}
-            )
-        if any(token in path for token in ("/reports", "/publications")):
-            return frozenset(
-                {ApiKeyPermission.REPORTS_READ.value}
-                if method == "GET"
-                else {ApiKeyPermission.REPORTS_WRITE.value}
             )
         if "/artifacts" in path:
             return frozenset(

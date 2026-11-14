@@ -221,7 +221,6 @@ function SchemaView({ kind, item }: { kind: BimSchemaKind; item: SchemaCatalogIt
 
       <div className="schemas-next">
         <span>See this kind in a full package.</span>
-        <Link to="/explore/examples">Open examples</Link>
         <Link to="/workbench">Validate a package</Link>
       </div>
     </section>

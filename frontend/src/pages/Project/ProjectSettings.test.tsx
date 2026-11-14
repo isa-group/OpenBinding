@@ -8,7 +8,7 @@ import { caseOf, org, project, renderProjectScreen, revisionOf, usageWithProject
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn(), getPricingCatalog: vi.fn() }));
 const platform = vi.hoisted(() => ({
   project: vi.fn(), updateProject: vi.fn(), deleteProject: vi.fn(), cases: vi.fn(), revisions: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(),
-  reports: vi.fn(), publications: vi.fn(), publicProjects: vi.fn(), members: vi.fn(),
+  members: vi.fn(),
 }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
@@ -38,9 +38,6 @@ describe('Project settings', () => {
     platform.revisions.mockResolvedValue([]);
     platform.studies.mockResolvedValue([]);
     platform.studyRuns.mockResolvedValue([]);
-    platform.reports.mockResolvedValue([]);
-    platform.publications.mockResolvedValue([]);
-    platform.publicProjects.mockResolvedValue([]);
     platform.members.mockResolvedValue([
       { id: 'm1', organization_id: group.id, user_id: 'user-1', username: 'lucia', email: 'lucia@example.org', role: 'OWNER', created_at: '2026-01-01T00:00:00Z' },
       { id: 'm2', organization_id: group.id, user_id: 'user-2', username: 'tomas', email: 'tomas@example.org', role: 'MEMBER', created_at: '2026-01-01T00:00:00Z' },
@@ -112,8 +109,8 @@ describe('Project settings', () => {
       expect(screen.getByRole('button', { name: 'Change visibility' })).toBeDisabled();
 
       fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
-      expect(screen.getByText(/Its card \(name, description\) appears in Explore/)).toBeInTheDocument();
-      expect(screen.getByText(/Already-published reports stay verifiable by fingerprint/)).toBeInTheDocument();
+      expect(screen.getByText(/Anybody can read it, without changing anything/)).toBeInTheDocument();
+      expect(screen.getByText(/Runs and the settings still need membership to open/)).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Change visibility' }));
 
       await waitFor(() => expect(platform.updateProject).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', { visibility: 'public' }));
@@ -223,7 +220,6 @@ describe('Project settings', () => {
       const first = caseOf('flujo');
       platform.cases.mockResolvedValue([first]);
       platform.revisions.mockResolvedValue([revisionOf(first, 1), revisionOf(first, 2)]);
-      platform.reports.mockResolvedValue([]);
       renderSettings();
 
       const note = await screen.findByRole('note');

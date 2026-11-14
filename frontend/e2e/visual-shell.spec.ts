@@ -44,7 +44,7 @@ async function signIn(page: Page, persona: keyof typeof personas) {
 
 async function openWorkspace(page: Page) {
   // A project screen whose data is not mocked (the API answers 404) keeps the page behind the header independent of any API data.
-  await page.goto('/app/isa-demo/qos-benchmarks/published');
+  await page.goto('/app/isa-demo/qos-benchmarks/studies');
   await expect(page.locator('header.app-header')).toBeVisible();
   await expect(page.getByRole('button', { name: '1 unread notifications' })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);

@@ -6,7 +6,7 @@ import {
   sealedShare, visibilityEffects,
 } from './projectModel';
 import { createRefusal, deleteRefusal, exportFailure, importRefusal, updateRefusal } from './projectErrors';
-import { caseOf, org, reportOf, revisionOf, runOf, studyOf, usageWithProjects } from './testKit';
+import { caseOf, org, revisionOf, runOf, studyOf, usageWithProjects } from './testKit';
 
 describe('who can do what in a project', () => {
   it('reads it from the role in the organization', () => {
@@ -63,7 +63,7 @@ describe('access levels', () => {
       expect(canOpenSection('public_read', section)).toBe(false);
       expect(canOpenSection('VIEWER', section)).toBe(true);
     }
-    for (const section of ['overview', 'cases', 'collections', 'studies', 'published']) expect(canOpenSection('public_read', section)).toBe(true);
+    for (const section of ['overview', 'cases', 'collections', 'studies']) expect(canOpenSection('public_read', section)).toBe(true);
     expect(canOpenSection('ADMIN', 'settings')).toBe(true);
   });
 });
@@ -72,15 +72,14 @@ describe('what is sealed and what is a draft', () => {
   const first = caseOf('flujo');
   const study = studyOf('engines');
 
-  it('counts case revisions, study runs and frozen reports as sealed, and report drafts as drafts', () => {
+  it('counts case revisions and study runs as sealed', () => {
     const items = integrityOf({
       cases: [{ item: first, revisions: [revisionOf(first, 1), revisionOf(first, 2)] }],
       studies: [{ study, runs: [runOf(study, 1)] }],
-      reports: [reportOf('a', 'frozen'), reportOf('b', 'draft'), reportOf('c', 'draft')],
     });
 
-    expect(items.map((item) => [item.id, item.kind, item.count])).toEqual([['revisions', 'sealed', 2], ['runs', 'sealed', 1], ['frozen', 'sealed', 1], ['drafts', 'draft', 2]]);
-    expect(sealedShare(items)).toEqual({ sealed: 4, drafts: 2, sealedPct: 67, draftPct: 33 });
+    expect(items.map((item) => [item.id, item.kind, item.count])).toEqual([['revisions', 'sealed', 2], ['runs', 'sealed', 1]]);
+    expect(sealedShare(items)).toEqual({ sealed: 3, drafts: 0, sealedPct: 100, draftPct: 0 });
     expect(countWord(items[0])).toBe('problem versions');
     expect(countWord(items[1])).toBe('study run');
   });
@@ -101,7 +100,7 @@ describe('what is sealed and what is a draft', () => {
   });
 });
 
-describe('jobs and reports in words', () => {
+describe('jobs and visibility in words', () => {
   it('says how a job ended, not only that it finished', () => {
     expect(jobStatus('running')).toEqual({ label: 'Running', tone: 'running' });
     expect(jobStatus('queued')).toEqual({ label: 'Queued', tone: 'queued' });
@@ -115,9 +114,9 @@ describe('jobs and reports in words', () => {
   });
 
   it('words what a visibility change does', () => {
-    expect(visibilityEffects('public').changes).toContain('Its card (name, description) appears in Explore');
+    expect(visibilityEffects('public').changes).toContain('Anybody can read it, without changing anything');
     expect(visibilityEffects('private').changes).toContain('It counts as a private project for the sponsor');
-    expect(visibilityEffects('private').stays).toHaveLength(3);
+    expect(visibilityEffects('private').stays).toHaveLength(1);
   });
 });
 
@@ -175,7 +174,7 @@ describe('the gateway’s refusals in words', () => {
     expect(importRefusal(refusal(413, 'package_too_large')).kind).toBe('too-large');
     expect(importRefusal(refusal(403, 'forbidden')).kind).toBe('forbidden');
     expect(importRefusal(refusal(404, 'not_found')).kind).toBe('gone');
-    expect(importRefusal(refusal(409, 'publication_withdrawn')).kind).toBe('unpublished');
+    expect(importRefusal(refusal(409, 'private_dependency')).kind).toBe('unpublished');
     expect(importRefusal(refusal(409, 'run_identity_conflict')).kind).toBe('collision');
     expect(importRefusal(refusal(409, 'toolchain_mismatch')).kind).toBe('engine');
     expect(importRefusal(refusal(422, 'checksum_mismatch')).kind).toBe('fingerprint');

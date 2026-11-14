@@ -8,7 +8,7 @@ import { canOpenSection, levelOf } from '../../utils/accessLevel';
 import './SectionNav.css';
 
 // The keys `cases` and `jobs` are the section names the problem and run screens pass today, not addresses.
-export type ProjectSection = 'overview' | 'cases' | 'collections' | 'jobs' | 'studies' | 'published' | 'settings';
+export type ProjectSection = 'overview' | 'cases' | 'collections' | 'jobs' | 'studies' | 'settings';
 
 interface ProjectTabsProps {
   active?: ProjectSection;
@@ -33,7 +33,6 @@ const TABS: readonly Tab[] = [
   { key: 'collections', label: 'Collections', suffix: '/collections' },
   { key: 'jobs', label: 'Runs', suffix: `/${RUNS_SEGMENT}` },
   { key: 'studies', label: 'Studies', suffix: '/studies' },
-  { key: 'published', label: 'Published', suffix: '/published' },
   { key: 'settings', label: 'Settings', suffix: '/settings', trailing: true },
 ];
 

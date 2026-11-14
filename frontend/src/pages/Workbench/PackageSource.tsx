@@ -139,7 +139,6 @@ export function PackageSource({ wb, choices, requestedExample, maxBytes, maxLabe
                 {wb.examples.map((path) => <option key={path} value={path}>{path}</option>)}
               </select>
             </label>
-            <p className="wb-muted">Or pick a ready example in <Link to="/explore/examples" viewTransition>Examples</Link> and choose “Open in workbench”.</p>
           </div>
         )}
       </TabPanel>

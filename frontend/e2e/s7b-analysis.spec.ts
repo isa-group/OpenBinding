@@ -1,12 +1,10 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import type { Publication } from '../src/api/platform';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
-import { FROZEN, publicationOf } from '../src/test/fixtures/reports';
 import { usageOf } from '../src/test/fixtures/resources';
 import { RUN_ID, cellsFixture, runFixture, studyFixture } from '../src/test/fixtures/studies';
 
-// S7b · reports: the redirect of the retired analysis and report addresses, and proj-publications.
+// S7b · the redirect of the retired analysis addresses.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
 // so they can be looked at after a run. Every test walks a screen through its states on a desktop and on a phone.
 
@@ -18,7 +16,6 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 type Handler = (route: Route) => Promise<void> | void;
 const json = (body: unknown, status = 200): Handler => (route) => route.fulfill({ status, json: body });
 const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json(failureBody(status, code, error, extra), status);
-const unavailable: Handler = json({ detail: 'The service is not reachable.' }, 503);
 
 const token = (expiresInSeconds: number) => [
   'header',
@@ -51,27 +48,13 @@ const projectsOf: Record<string, ReturnType<typeof project>[]> = {
 
 // --- what the gateway answers
 
-type Overridable = 'withdraw' | 'publications';
-
-interface State {
-  /** A handler that replaces the default answer of one call. */
-  refuse: Partial<Record<Overridable, Handler>>;
-  sent: { withdrawn: string[] };
-  publications: Publication[];
-}
-
 interface MockOptions {
   /** The account's role in ISA Demo Group. */
   role?: Role;
 }
 
 /** Everything these screens read and write, answered; anything else on the API origin is an empty 404. */
-async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
-  const state: State = {
-    refuse: {},
-    sent: { withdrawn: [] },
-    publications: [publicationOf(FROZEN)],
-  };
+async function mockApi(page: Page, options: MockOptions = {}): Promise<void> {
   const organizations = [
     org('org-isa-demo', 'isa-demo', 'ISA Demo Group', options.role ?? 'OWNER'),
     org('org-4', 'read-lab', 'Read Lab', 'VIEWER', 'user-nora'),
@@ -92,12 +75,11 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
   await page.route(`${API}/v1/engines`, json({ engines: [] }));
 
-  // --- projects, reports and publications
+  // --- projects and studies
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
     const url = new URL(route.request().url());
     const parts = url.pathname.split('/').filter(Boolean);
     const [, , orgSlug, section, projectSlug, sub, subId, action] = parts;
-    const method = route.request().method();
     const found = organizations.find((item) => item.slug === orgSlug);
 
     if (!orgSlug) return json(organizations)(route);
@@ -126,24 +108,8 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       return json(studyFixture())(route);
     }
 
-    if (sub === 'publications') {
-      if (method === 'DELETE') {
-        state.sent.withdrawn.push(subId);
-        if (state.refuse.withdraw) return state.refuse.withdraw(route);
-        const target = state.publications.find((item) => item.slug === subId);
-        if (target) target.withdrawn = true;
-        return route.fulfill({ status: 204 });
-      }
-      if (state.refuse.publications) return state.refuse.publications(route);
-      return json(empty ? [] : state.publications)(route);
-    }
-
-    // The publications screen reads each edition's title from the project's reports (a publication does not carry it).
-    if (sub === 'reports') return json(empty ? [] : [FROZEN])(route);
-
     return json([])(route);
   });
-  return state;
 }
 
 function watchCriticalErrors(page: Page) {
@@ -193,7 +159,7 @@ const viewports = [
 const ROOT = '/app/isa-demo/qos-benchmarks';
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
-  test.describe(`${name} · S7b analysis and reports`, () => {
+  test.describe(`${name} · S7b analysis`, () => {
     // One worker per viewport: with every test in parallel the browsers starve each other and the same walk takes twice as long.
     test.describe.configure({ mode: 'default' });
     test.use({ viewport, isMobile, deviceScaleFactor });
@@ -210,81 +176,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto(`/app/analysis?org=isa-demo&project=qos-benchmarks&study=engines-vs-seeds&run=${RUN_ID}`);
       await expect(page).toHaveURL(new RegExp(`${ROOT}/studies/engines-vs-seeds/progress\\?run=${RUN_ID}$`));
       await capture(page, testInfo, `analysis-${name}-old-link`, { height: 900 });
-      expect(critical).toEqual([]);
-    });
-
-    test('retired report editor · old links land on the published results, with or without a slug, a query or an encoded slug', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      await mockApi(page);
-
-      await page.goto(`${ROOT}/reports/engine-comparison`);
-      await expect(page).toHaveURL(new RegExp(`${ROOT}/published$`));
-      await expect(page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Published' })).toBeVisible();
-      await capture(page, testInfo, `reports-${name}-old-link`, { height: 900 });
-
-      await page.goto(`${ROOT}/reports?filter=drafts#top`);
-      await expect(page).toHaveURL(new RegExp(`${ROOT}/published$`));
-      await page.goto(`${ROOT}/reports/hallazgos%20de%20checkout`);
-      await expect(page).toHaveURL(new RegExp(`${ROOT}/published$`));
-      expect(critical).toEqual([]);
-    });
-
-    test('proj-publications /app/:org/:project/published · citing and withdrawing', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto(`${ROOT}/published`);
-      const main = page.locator('#platform-main');
-
-      await expect(main.getByRole('heading', { level: 1, name: 'Published' })).toBeVisible();
-      await expect(main.getByText(/Report editions made public from QoS Benchmarks\. Withdrawing hides one from listings but keeps its citation valid\./)).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Published', exact: true })).toHaveAttribute('aria-current', 'page');
-      await expect(main.getByRole('heading', { level: 2, name: 'Engine comparison at checkout' })).toBeVisible();
-      await expect(main.getByText('checkout-comparison · published Sep 25, 2026', { exact: true })).toBeVisible();
-      await expect(main.locator('.rp-pub')).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      await expect(main.getByText('Alex Rivera (2026). Engine comparison at checkout. ISA Demo Group / QoS Benchmarks.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open the report' })).toHaveCount(0);
-      await capture(page, testInfo, `publications-${name}-list`, { height: 1500 });
-
-      await main.getByRole('button', { name: 'Withdraw' }).click();
-      const dialog = page.getByRole('dialog', { name: 'Withdraw checkout-comparison?' });
-      await capture(page, testInfo, `publications-${name}-confirm`);
-      state.refuse.withdraw = detail(403, 'forbidden', 'Your role does not reach this.');
-      await dialog.getByRole('button', { name: 'Withdraw' }).click();
-      await expect(dialog.getByText('Your role doesn’t reach this (403 · forbidden)')).toBeVisible();
-      state.refuse.withdraw = undefined;
-      await dialog.getByRole('button', { name: 'Withdraw' }).click();
-      await expect(main.getByText('Withdrawn. It’s no longer listed in Explore, and its citation stays valid.')).toBeVisible();
-      await expect(main.getByText('Withdrawn', { exact: true })).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Withdraw' })).toHaveCount(0);
-      expect(state.sent.withdrawn).toEqual(['checkout-comparison', 'checkout-comparison']);
-      await capture(page, testInfo, `publications-${name}-withdrawn`, { height: 1500 });
-      expect(critical).toEqual([]);
-    });
-
-    test('proj-publications /app/:org/:project/published · nothing yet, a viewer, 503 and a project that is not there', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      const main = page.locator('#platform-main');
-
-      await page.goto('/app/isa-demo/checkout-privado/published');
-      await expect(main.getByText('Nothing published yet')).toBeVisible();
-      await expect(main.getByText(/Nothing published from this project yet\./)).toBeVisible();
-      await capture(page, testInfo, `publications-${name}-empty`, { height: 900 });
-
-      await page.goto('/app/read-lab/bench/published');
-      await expect(main.getByRole('heading', { level: 1, name: 'Published' })).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Withdraw' })).toHaveCount(0);
-      state.refuse.publications = unavailable;
-      await page.goto(`${ROOT}/published`);
-      await expect(main.getByText(/Published results couldn’t be loaded \(503\)/)).toBeVisible();
-      await expect(main.getByText('Nothing published yet')).toHaveCount(0);
-      await capture(page, testInfo, `publications-${name}-503`, { height: 900 });
-      state.refuse.publications = undefined;
-      await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('heading', { level: 2, name: 'Engine comparison at checkout' })).toBeVisible();
-
-      await page.goto('/app/isa-demo/ghost/published');
-      await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
       expect(critical).toEqual([]);
     });
   });

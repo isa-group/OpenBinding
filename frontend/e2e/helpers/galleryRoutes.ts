@@ -85,8 +85,6 @@ export const EXAMPLE = {
   run: '00000000-0000-4000-8000-000000000101',
   cell: '00000000-0000-4000-8000-000000000202',
   job: '00000000-0000-4000-8000-0000000000a1',
-  report: 'engine-comparison',
-  kind: 'report',
   digest: `sha256-${'e'.repeat(64)}`,
   namespace: 'bim.builtin',
   name: 'random-search',

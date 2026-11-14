@@ -5,7 +5,7 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { zipStore } from '../src/utils/bimZip';
 
-// S1b · public screens, part 2: eng-catalog, eng-detail, lang-profiles, lang-schemas, the examples section of pub-explore, pub-workbench.
+// S1b · public screens, part 2: eng-catalog, eng-detail, lang-profiles, lang-schemas, pub-workbench.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 
@@ -292,6 +292,8 @@ const json = (body: unknown, status = 200) => (route: Route) => route.fulfill({ 
 /** Everything the six screens read, answered; anything else on the API origin is an empty 404. */
 async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/**`, (route) => route.fulfill({ status: 404, json: { detail: 'not mocked' } }));
+  // The public engine catalogue; a signed-in account gets its own list below.
+  await page.route(`${API}/v1/engines`, mocks.engines ?? json({ engines: [randomSearch, evolutionary, minizinc] }));
   if (mocks.signedIn) {
     await page.addInitScript(() => localStorage.setItem('openbinding-access-token', 's1b-token'));
     await page.route(`${API}/v1/users/me`, json(lucia));
@@ -314,7 +316,6 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
     await page.route(`${API}/v1/organizations`, json([{ id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, billing_sponsor_user_id: lucia.id, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z' }]));
     await page.route(`${API}/v1/organizations/isa-demo/projects`, json([{ id: 'p1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: '', visibility: 'private', created_by_id: lucia.id, created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z', access: 'member', effective_role: 'OWNER' }]));
   }
-  await page.route(`${API}/v1/explore/engines`, mocks.engines ?? json({ engines: [randomSearch, evolutionary, minizinc] }));
   // EngineDetail reads the live catalog (the deprecated YAML at /v1/pricing is no longer requested).
   await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
   await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
@@ -429,7 +430,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('alert')).toContainText('The catalog couldn’t be loaded (HTTP 503).');
       await ready(page);
       await shot(page, testInfo, 'engines-error');
-      await page.route(`${API}/v1/explore/engines`, json({ engines: [randomSearch] }));
+      await page.route(`${API}/v1/engines`, json({ engines: [randomSearch] }));
       await main.getByRole('button', { name: 'Retry' }).click();
       await expect(main.getByRole('region', { name: 'Engines' })).toBeVisible();
       await expect(main.getByRole('alert')).toHaveCount(0);
@@ -656,74 +657,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await page.goto('/app/language/extensions?tab=resources');
       await expect(page).toHaveURL(/\/language\/extensions\?tab=resources$/);
-    });
-
-    test('pub-explore /explore/examples', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      await mockApi(page);
-      await page.goto('/explore/examples');
-      const main = page.locator('main');
-
-      await expect(main.getByRole('heading', { level: 1, name: 'BIM examples' })).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Explore' }).getByRole('link', { name: 'BIM examples' })).toHaveAttribute('aria-current', 'page');
-      // The header keeps the active style of Explore but leaves aria-current to the page's own link.
-      const headerExplore = page.locator('header.site-header .public-nav a[href="/explore"]');
-      await expect(headerExplore).not.toHaveAttribute('aria-current', 'page');
-      await expect(headerExplore).toHaveClass(/is-active/);
-      await expect(main.getByRole('heading', { name: 'Demo · 3 packages' })).toBeVisible();
-      await expect(main.getByRole('heading', { name: 'Placement · 1 package' })).toBeVisible();
-      await expect(main.getByRole('heading', { name: 'Literature · 1 package' })).toBeVisible();
-      const first = main.locator('article').filter({ hasText: 'demo/01_simple_seq' });
-      await expect(first).toContainText('A first binding · Basic sequence');
-      await expect(first.getByRole('link', { name: 'Open in workbench' })).toHaveAttribute('href', '/workbench?example=demo%2F01_simple_seq');
-      await expect(first.getByRole('link', { name: 'Log in to import' })).toHaveAttribute('href', '/login');
-      await ready(page);
-
-      const [download] = await Promise.all([page.waitForEvent('download'), first.getByRole('button', { name: 'Download .bim.zip' }).click()]);
-      expect(download.suggestedFilename()).toBe('01_simple_seq.bim.zip');
-      await expect(first.getByRole('status')).toContainText(/^Downloaded [\d,]+ bytesCopy digest$/);
-      await expect(first.getByRole('status')).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      await shot(page, testInfo, 'examples-visitor');
-
-      await main.getByRole('button', { name: 'Placement', exact: true }).click();
-      await expect(main.getByRole('heading', { name: /^Demo/ })).toHaveCount(0);
-      await main.getByRole('button', { name: 'All', exact: true }).click();
-      await main.getByRole('searchbox', { name: 'Search examples' }).fill('xor');
-      await expect(main.locator('article')).toHaveCount(1);
-
-      await expectNoHorizontalOverflow(page);
-      expect(critical).toEqual([]);
-    });
-
-    test('pub-explore examples for a signed-in account imports into a chosen project', async ({ page }, testInfo) => {
-      await mockApi(page, { signedIn: true });
-      await page.goto('/explore/examples');
-      const main = page.locator('main');
-      const first = main.locator('article').filter({ hasText: 'demo/01_simple_seq' });
-
-      await expect(main.getByRole('link', { name: 'Log in to import' })).toHaveCount(0);
-      await first.getByRole('button', { name: 'Import as problem' }).click();
-      await expect(first.getByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' }))
-        .toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/workbench?example=demo%2F01_simple_seq');
-      await ready(page);
-      await shot(page, testInfo, 'examples-signed-in');
-    });
-
-    test('pub-explore examples names a corrupt example (422) and survives a failed list', async ({ page }, testInfo) => {
-      await mockApi(page);
-      await page.route(`${API}/v1/examples/**`, json({ title: 'invalid_example', detail: 'corrupt package' }, 422));
-      await page.goto('/explore/examples');
-      const main = page.locator('main');
-      const second = main.locator('article').filter({ hasText: 'demo/02_parallel' });
-      await second.getByRole('button', { name: 'Download .bim.zip' }).click();
-      await expect(second.getByRole('alert')).toContainText('This example package is corrupt (422 · invalid_example). The download stopped; other examples are unaffected.');
-      await ready(page);
-      await shot(page, testInfo, 'examples-corrupt');
-
-      await page.route(`${API}/v1/examples`, json({ detail: 'down' }, 503));
-      await page.goto('/explore/examples');
-      await expect(main.getByText('Live catalogue unavailable')).toBeVisible();
-      await expect(main.getByRole('heading', { name: /^Demo · \d+ packages$/ })).toBeVisible();
     });
 
     test('pub-workbench /workbench validates an uploaded package', async ({ page, context }, testInfo) => {

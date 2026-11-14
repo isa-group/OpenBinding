@@ -60,8 +60,8 @@ const engine = { ...engineRef, id: 'bim.builtin/random-search', ref: engineRef, 
 
 const reader = {
   id: 'k1', name: 'ci-lectura-resultados', prefix: 'obk_demo0001', created_at: '2026-09-01T00:00:00Z', last_used_at: '2026-10-08T00:00:00Z',
-  expires_at: '2099-12-31T00:00:00Z', permissions: ['jobs:read', 'projects:read', 'reports:read', 'studies:read'], engine_access: { all: true, engines: [] },
-  boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['jobs', 'studies', 'reports'], slugs: null },
+  expires_at: '2099-12-31T00:00:00Z', permissions: ['jobs:read', 'projects:read', 'studies:read'], engine_access: { all: true, engines: [] },
+  boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['jobs', 'studies'], slugs: null },
 };
 const runner = {
   id: 'k2', name: 'ejecucion-engine-fijo', prefix: 'obk_demo0002', created_at: '2026-09-10T00:00:00Z', last_used_at: null, expires_at: null,
@@ -470,7 +470,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(first.getByText('created Sep 1, 2026')).toBeVisible();
       await expect(first.getByText('last used Oct 8, 2026')).toBeVisible();
       await expect(first.getByText('expires Dec 31, 2099')).toBeVisible();
-      for (const label of ['GET only', 'org isa-demo', 'project qos-benchmarks', 'jobs, studies, reports']) await expect(first.getByText(label, { exact: true })).toBeVisible();
+      for (const label of ['GET only', 'org isa-demo', 'project qos-benchmarks', 'jobs, studies']) await expect(first.getByText(label, { exact: true })).toBeVisible();
       await expect(first.getByText('All engines, including future ones')).toBeVisible();
       const second = main.getByRole('article', { name: 'ejecucion-engine-fijo' });
       await expect(second.getByText('Only bim.builtin/random-search@1.0.0', { exact: true })).toBeVisible();

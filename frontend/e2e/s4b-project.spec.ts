@@ -1,7 +1,7 @@
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
-import { REPORT_MARKER, samplePackage } from '../src/pages/Project/packageFixture';
+import { BODY_MARKER, samplePackage } from '../src/pages/Project/packageFixture';
 
 // S4b · organization and collaboration, part 2: the New project dialog (was proj-create), proj-overview, proj-settings (with the package export and import).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
@@ -136,10 +136,6 @@ const studyRun = { id: 'run-1', definition_version_id: 'sv-1', study_id: 'study-
 const cells = [...Array.from({ length: 6 }, () => 'completed'), 'failed', 'cancelled'].map((state, index) => ({
   id: `cell-${index}`, study_run_id: 'run-1', ordinal: index, binding_case_revision_id: 'rev-1', engine_ref: {}, parameters: {}, seed: index, fingerprint: 'f', job_id: null, state, metrics: {},
 }));
-const report = (slug: string, title: string, state: 'frozen' | 'draft') => ({
-  artifact_id: `artifact-${slug}`, version_id: state === 'frozen' ? `version-${slug}` : null, draft_id: null, draft_revision: state === 'draft' ? 3 : null, id: `report-${slug}`,
-  project_id: 'project-1', study_run_id: null, slug, title, document: {}, digest: digest('e'), state, created_at: '2026-09-25T00:00:00Z',
-});
 
 /** The members of every organization of the mock: the project settings list them. */
 const orgMembers = [
@@ -189,7 +185,6 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
   await page.route(`${API}/v1/users/me/usage`, json(researchUsage()));
   await page.route(new RegExp(`^${API}/v1/users/me/jobs(\\?.*)?$`), json(ownJobs()));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
-  await page.route(`${API}/v1/explore/projects`, json([{ organization: { slug: 'consultora-demo', name: 'Consultora Demo' }, project: { slug: 'public-card', name: 'Public card', description: '' } }]));
 
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
     const parts = new URL(route.request().url()).pathname.split('/').filter(Boolean);
@@ -250,16 +245,12 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
         if (subId && subSub === 'runs' && parts.includes('cells')) return json(cells)(route);
         if (subId && subSub === 'runs') return json([studyRun])(route);
         return json(filled ? [study] : [])(route);
-      case 'reports':
-        return json(filled ? [report('comparativa', 'Engine comparison', 'frozen'), report('borrador', 'Draft: placement', 'draft')] : [])(route);
-      case 'publications':
-        return json(filled ? [{ version_id: 'version-comparativa', withdrawn: false, id: 'pub-1', project_id: 'project-1', report_id: 'report-comparativa', slug: 'comparativa', citation: {}, published_at: '2026-09-25T00:00:00Z' }] : [])(route);
       case 'blobs':
         return json([])(route);
       case 'package':
-        if (method === 'POST') return state.refuse.import ? state.refuse.import(route) : json({ imported: { cases: 1, caseRevisions: 2, reports: 1, artifacts: 1 }, packageDigest: digest('a') })(route);
+        if (method === 'POST') return state.refuse.import ? state.refuse.import(route) : json({ imported: { cases: 1, caseRevisions: 2, artifacts: 1 }, packageDigest: digest('a') })(route);
         if (state.refuse.export) return state.refuse.export(route);
-        return route.fulfill({ status: 200, contentType: 'application/json', body: Buffer.from(JSON.stringify({ apiVersion: 'openbinding.dev/package/v1', note: REPORT_MARKER })) });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: Buffer.from(JSON.stringify({ apiVersion: 'openbinding.dev/package/v1', note: BODY_MARKER })) });
       default:
         return detail(404, 'not_found', 'Not mocked.')(route);
     }
@@ -401,12 +392,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(band.getByRole('link', { name: 'New problem' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems');
       await expect(band.getByRole('link', { name: 'Export package' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/settings');
       const tabs = main.getByRole('navigation', { name: 'Project sections' });
-      await expect(tabs.getByRole('link')).toHaveText(['Overview', 'Problems', 'Collections', 'Runs', 'Studies', 'Published', 'Settings']);
+      await expect(tabs.getByRole('link')).toHaveText(['Overview', 'Problems', 'Collections', 'Runs', 'Studies', 'Settings']);
       await expect(tabs.getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
       await expect(tabs.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/settings');
 
       const strip = main.getByRole('region', { name: 'What’s sealed and what’s still a draft' });
-      await expect(strip.getByRole('list', { name: 'Sealed and draft items' }).getByRole('listitem')).toHaveText(['2 problem versions', '1 study run', '1 frozen report', '1 report draft']);
+      await expect(strip.getByRole('list', { name: 'Sealed and draft items' }).getByRole('listitem')).toHaveText(['2 problem versions', '1 study run']);
       const cases = main.getByRole('region', { name: 'Problems' });
       await expect(cases.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems/flujo-checkout');
       await expect(cases.getByText('2 revisions')).toBeVisible();
@@ -443,14 +434,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // A private project of an organization the account is not in reads the same: 403, and no hint that it exists.
       await page.goto('/app/secret-lab/hidden');
       await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Explore public projects' })).toHaveAttribute('href', '/explore');
+      await expect(main.getByRole('link', { name: 'Back to Home' })).toHaveAttribute('href', '/app');
 
-      // A public project of an organization the account is not in opens read-only: no gate that sends it to Explore.
+      // A public project of an organization the account is not in opens read-only: no gate in front of it.
       await page.goto('/app/open-lab/open-bench');
       await expect(main.getByRole('heading', { level: 1, name: 'Open bench' })).toBeVisible();
       await expect(main.getByText('You are viewing a public project (read-only).')).toBeVisible();
       const publicTabs = main.getByRole('navigation', { name: 'Project sections' });
-      await expect(publicTabs.getByRole('link')).toHaveText(['Overview', 'Problems', 'Collections', 'Studies', 'Published']);
+      await expect(publicTabs.getByRole('link')).toHaveText(['Overview', 'Problems', 'Collections', 'Studies']);
       await expect(band.getByRole('link', { name: 'Browse problems' })).toHaveAttribute('href', '/app/open-lab/open-bench/problems');
       for (const hidden of ['New problem', 'Run', 'New study', 'New report', 'Export package']) await expect(band.getByText(hidden, { exact: true })).toHaveCount(0);
       await expect(main.getByRole('region', { name: 'Recent runs' })).toHaveCount(0);
@@ -522,8 +513,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByLabel('Name', { exact: true })).toHaveValue('QoS Benchmarks');
       await expect(main.getByText('/app/isa-demo/qos-benchmarks', { exact: true })).toBeVisible();
       await expect(main.getByRole('button', { name: 'Save' })).toBeDisabled();
-      // The project has case revisions, study runs and a frozen report: deleting is blocked up front, and says why.
-      await expect(main.getByRole('note')).toContainText('Deleting is blocked: this project has sealed history (2 problem versions, 1 study run, 1 frozen report), including 1 published report.');
+      // The project has case revisions and study runs: deleting is blocked up front, and says why.
+      await expect(main.getByRole('note')).toContainText('Deleting is blocked: this project has sealed history (2 problem versions, 1 study run).');
       await expect(main.getByRole('button', { name: 'Delete project' })).toBeDisabled();
       await capture(page, testInfo, `settings-${name}-success`);
 
@@ -634,11 +625,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       });
       await upload(await samplePackage());
       const report = main.getByRole('list', { name: 'Import verification report' });
-      await expect(report.getByRole('listitem')).toHaveCount(5);
-      await expect(main.getByText('3 verified')).toBeVisible();
+      await expect(report.getByRole('listitem')).toHaveCount(4);
+      await expect(main.getByText('2 verified')).toBeVisible();
       await expect(main.getByText('2 new')).toBeVisible();
       await expect(report.getByText('Package manifest')).toBeVisible();
-      await expect(main.getByText(REPORT_MARKER)).toHaveCount(0);
+      await expect(main.getByText(BODY_MARKER)).toHaveCount(0);
       await capture(page, testInfo, `package-${name}-review`);
       if (isMobile) {
         await main.getByRole('button', { name: 'Cancel' }).click();
@@ -654,7 +645,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Import into QoS Benchmarks' }).click();
       expect((await imported).headers()['content-type']).toContain('application/json');
       await expect(main.getByText('Import complete')).toBeVisible();
-      await expect(main.getByText('5 items added (1 problems, 2 problem versions, 1 reports, 1 artifacts).')).toBeVisible();
+      await expect(main.getByText('4 items added (1 problems, 2 problem versions, 1 artifacts).')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Back to the project' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks');
       await capture(page, testInfo, `package-${name}-done`);
 
@@ -683,9 +674,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // The gateway's refusals, one by one: 409 unpublished, 413, 403.
       await upload(await samplePackage());
       await expect(main.getByRole('button', { name: 'Import into QoS Benchmarks' })).toBeVisible();
-      state.refuse.import = detail(409, 'unpublished_import', 'Publish the exact report version before importing its public citation.');
+      state.refuse.import = detail(409, 'private_dependency', 'Another organization can only consume public artifacts.');
       await main.getByRole('button', { name: /^Import into/ }).click();
-      await expect(main.getByRole('alert')).toContainText('Unpublished items from another organization (409 · unpublished_import)');
+      await expect(main.getByRole('alert')).toContainText('Unpublished items from another organization (409 · private_dependency)');
       await capture(page, testInfo, `package-${name}-409`);
       await main.getByRole('button', { name: 'Choose another package' }).click();
       await upload(await samplePackage());
@@ -710,7 +701,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Export package' }).click();
       expect((await download).suggestedFilename()).toBe('qos-benchmarks.openbinding.json');
       await expect(main.getByText('Downloaded qos-benchmarks.openbinding.json.')).toBeVisible();
-      await expect(main.getByText(REPORT_MARKER)).toHaveCount(0);
+      await expect(main.getByText(BODY_MARKER)).toHaveCount(0);
       state.refuse.export = detail(403, 'forbidden', 'Your key cannot read this project.');
       await main.getByRole('button', { name: 'Export again' }).click();
       await expect(main.getByText('Your credential can’t read this project (403 · forbidden), so nothing was exported.')).toBeVisible();

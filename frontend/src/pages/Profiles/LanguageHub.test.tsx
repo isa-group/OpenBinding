@@ -47,7 +47,7 @@ describe('language hub', () => {
     expect(within(nav).getByText('Profiles and dialects')).toHaveAttribute('aria-current', 'page');
     expect(within(nav).getByRole('link', { name: 'Schemas' })).toHaveAttribute('href', '/language/schemas');
     expect(within(nav).getByRole('link', { name: 'Extensions' })).toHaveAttribute('href', '/language/extensions');
-    expect(within(nav).getByRole('link', { name: 'Examples' })).toHaveAttribute('href', '/explore/examples');
+    expect(within(nav).queryByRole('link', { name: 'Examples' })).not.toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: 'Workbench' })).toHaveAttribute('href', '/workbench');
     expect(api.getBimSchema).not.toHaveBeenCalled();
   });

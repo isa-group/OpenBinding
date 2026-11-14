@@ -126,10 +126,7 @@ export function ProjectGate({ failure, organizationName, onRetry }: ProjectGateP
       <Gate
         title="Project not found"
         action={(
-          <>
-            <Action to="/app" variant="primary">Back to Home</Action>
-            <Action to="/explore" variant="link">Explore public projects</Action>
-          </>
+          <Action to="/app" variant="primary">Back to Home</Action>
         )}
       >
         It doesn’t exist, or it’s private and you’re not a member of its organization.

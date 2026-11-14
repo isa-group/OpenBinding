@@ -1,11 +1,10 @@
-"""M9.6 keeps what was sealed or published: the data drop changes no answer about it.
+"""M9.6 keeps what was sealed: the data drop changes no answer about it.
 
 A SQLite file is built with ``alembic upgrade b6c7d8e9f0a1`` and filled through the gateway (HTTP) and the
 internal services that replaced the removed write routes (``_m96_seed.py``): two case revisions that pin
-sealed library versions, a frozen published report, a draft report that carries a publication, a sealed but
-unpublished report version, a project resource with two revisions, and one never-sealed draft report that
-the migration removes. The answers are recorded, the database is exported and upgraded with the manifest
-(as ``test_drop_retired_data_migration.py`` does), and the same answers are read again.
+sealed library versions and a project resource with two revisions. The answers are recorded, the database
+is exported and upgraded with the manifest (as ``test_drop_retired_data_migration.py`` does), and the same
+answers are read again.
 """
 
 from __future__ import annotations
@@ -31,16 +30,6 @@ from test_export_retired_data import HEAD, MIGRATION, build_template, export_run
 
 ORG, PROJECT = "isa-demo", "p1"
 BASE = f"/v1/organizations/{ORG}/projects/{PROJECT}"
-
-
-def report_document(title: str) -> dict:
-    """A report document whose provenance is enough to seal it (no linked run)."""
-    return {"title": title, "provenance": {
-        "study": {"reference": f"urn:openbinding:study:{title}", "digest": "sha256-" + "b" * 64},
-        "datasets": [{"reference": "urn:openbinding:dataset:checkout-v1", "digest": "sha256-" + "d" * 64}],
-        "software": [{"name": "openbinding-gateway", "version": "1.0.0", "digest": "sha256-" + "c" * 64}],
-        "bimVersion": "v1", "engineRevisions": ["sha256-" + "a" * 64], "parameters": {"seed": 7},
-    }}
 
 
 @asynccontextmanager
@@ -83,9 +72,7 @@ async def populate(client, session, registration) -> dict:
     from test_artifacts_platform import multi_resource_package
 
     from openbinding_gateway.artifacts import reference
-    from openbinding_gateway.db.models import User
     from openbinding_gateway.models.artifacts import ArtifactUse
-    from openbinding_gateway.reports import new_report_draft
 
     alice, headers = await sign_up(client, registration)
     created = await client.post("/v1/organizations", headers=headers, json={"slug": ORG, "name": "ISA"})
@@ -122,54 +109,22 @@ async def populate(client, session, registration) -> dict:
         revisions[slug] = revision.json()
     assert revisions["c1"]["digest"] != revisions["c2"]["digest"]
 
-    # f1: frozen and published.
-    f1 = await seed.report(session, project, alice, slug="f1", title="F1", document=report_document("f1"),
-                           freeze=True)
-    await seed.report_publication(session, f1, alice, slug="f1", citation={"doi": "10.0000/f1"})
-    # d3: published at version 1, then returned to draft.
-    d3 = await seed.report(session, project, alice, slug="d3", title="D3", document=report_document("d3"),
-                           freeze=True)
-    await seed.report_publication(session, d3, alice, slug="d3")
-    d3_digest = d3.version.content_digest
-    await new_report_draft(session, d3, await session.get(User, uuid.UUID(alice)))
-    # d2: frozen at version 1, never published, then returned to draft.
-    d2 = await seed.report(session, project, alice, slug="d2", title="D2", document=report_document("d2"),
-                           freeze=True)
-    d2_digest = d2.version.content_digest
-    await new_report_draft(session, d2, await session.get(User, uuid.UUID(alice)))
-    # d1: never sealed and never published, so the migration removes it.
-    d1 = await seed.report(session, project, alice, slug="d1", title="D1", document=report_document("d1"))
     # r1: a project resource with two revisions.
     await seed.project_resource(session, project, alice, slug="r1", name="R1", kind="qos-offerings",
                                 documents=[{"offers": [{"id": "edge-a", "latency": 20}]},
                                            {"offers": [{"id": "edge-a", "latency": 25}]}])
     await session.commit()
-    assert d3.draft.sealed_version_id is None and d2.draft.sealed_version_id is None
-    return {
-        "headers": headers, "revisions": revisions,
-        "f1": f1.version.content_digest, "d3": d3_digest, "d2": d2_digest,
-        "report:d1": str(d1.id), "artifact:d1": str(d1.artifact_id),
-        "report:d3": str(d3.id), "draft:d3": str(d3.draft_id),
-        "content:f1": f"/v1/artifacts/{f1.artifact_id}/versions/{f1.version_id}/content",
-        "content:d3": f"/v1/artifacts/{d3.artifact_id}/versions/{d3.version_id}/content",
-        "content:d2": f"/v1/artifacts/{d2.artifact_id}/versions/{d2.version_id}/content",
-    }
+    return {"headers": headers, "revisions": revisions}
 
 
 async def read_everything(client, ids: dict) -> dict:
     """Every answer the requirements compare, as ``{name: body}``; each one must be 200."""
-    anonymous, member = {}, ids["headers"]
+    member = ids["headers"]
     calls = {
         **{f"case:{slug}": (f"{BASE}/cases/{slug}/revisions", member) for slug in ids["revisions"]},
-        "report:f1": (ids["content:f1"], member),
-        "report:d3": (ids["content:d3"], member),
-        "report:d2": (ids["content:d2"], member),
-        "publications": (f"{BASE}/publications", anonymous),
-        "explore": ("/v1/explore/publications", anonymous),
         "resources": (f"{BASE}/resources", member),
         "revisions": (f"{BASE}/resources/r1/revisions", member),
         "library": (f"/v1/organizations/{ORG}/library", member),
-        "reports": (f"{BASE}/reports", member),
     }
     bodies = {}
     for name, (path, headers) in calls.items():
@@ -235,24 +190,7 @@ async def recompile(session, revision_id: str) -> tuple[str, str]:
     return compiled[0].ir_digest, stored
 
 
-def rows_exist(database: Path, ids: dict) -> dict[str, bool]:
-    import sqlite3
-    from contextlib import closing
-
-    hexed = {name: uuid.UUID(ids[name]).hex for name in ("report:d1", "report:d3", "draft:d3")}
-    with closing(sqlite3.connect(database)) as connection:
-        def present(sql: str, value: str) -> bool:
-            return connection.execute(sql, (value,)).fetchone() is not None
-
-        return {
-            "report:d1": present("SELECT 1 FROM reports WHERE id = ?", hexed["report:d1"]),
-            "report:d3": present("SELECT 1 FROM reports WHERE id = ?", hexed["report:d3"]),
-            "draft:d3": present("SELECT 1 FROM artifact_drafts WHERE id = ?", hexed["draft:d3"]),
-            "publication:d3": present("SELECT 1 FROM publications WHERE report_id = ?", hexed["report:d3"]),
-        }
-
-
-async def test_sealed_and_published_data_answer_the_same_after_the_upgrade(tmp_path, monkeypatch, registration):
+async def test_sealed_data_answers_the_same_after_the_upgrade(tmp_path, monkeypatch, registration):
     monkeypatch.setenv("ARTIFACT_ROOT", str(tmp_path / "artifacts"))
     get_settings.cache_clear()
     # Anonymous reads of a public project are counted per client address for the whole process.
@@ -263,7 +201,6 @@ async def test_sealed_and_published_data_answer_the_same_after_the_upgrade(tmp_p
             ids = await populate(client, session, registration)
             before = await read_everything(client, ids)
             ir_before = {slug: await recompile(session, revision["id"]) for slug, revision in ids["revisions"].items()}
-        assert rows_exist(database, ids) == dict.fromkeys(("report:d1", "report:d3", "draft:d3", "publication:d3"), True)
 
         exported = export_run(sqlite_url(database), tmp_path / "export" / "m96")
         assert exported.returncode == 0, exported.stderr
@@ -283,20 +220,10 @@ async def test_sealed_and_published_data_answer_the_same_after_the_upgrade(tmp_p
         assert ir_before["c1"][0] != ir_before["c2"][0]
         for slug in ids["revisions"]:
             assert ids["revisions"][slug]["digest"] in {row["digest"] for row in before[f"case:{slug}"]}
-        # Publications and sealed report versions: the same bodies.
-        for name in ("case:c1", "case:c2", "report:f1", "report:d3", "report:d2", "publications", "explore",
-                     "resources", "revisions"):
+        # Sealed versions and resources: the same bodies.
+        for name in ("case:c1", "case:c2", "resources", "revisions", "library"):
             assert after[name] == before[name], name
-        assert {item["slug"] for item in before["publications"]} == {"f1", "d3"}
-        assert {item["slug"] for item in before["explore"]} == {"f1", "d3"}
         assert len(before["revisions"]) == 2
-        # Only the never-sealed draft report d1 and its artifact are gone.
-        assert after["reports"] == [item for item in before["reports"] if item["id"] != ids["report:d1"]]
-        assert len(after["reports"]) == len(before["reports"]) - 1
-        assert after["library"] == [item for item in before["library"] if item["id"] != ids["artifact:d1"]]
-        assert len(after["library"]) == len(before["library"]) - 1
-        assert rows_exist(database, ids) == {
-            "report:d1": False, "report:d3": True, "draft:d3": True, "publication:d3": True}
     finally:
         public_read.reset_rate_limits()
         get_settings.cache_clear()

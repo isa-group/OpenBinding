@@ -3,7 +3,6 @@ import type { Page, Route } from '@playwright/test';
 import type { AdminUserView } from '../../src/api/auth';
 import type { Job } from '../../src/api/platform';
 import { digestOf as caseDigest, irDocument, refOf, revisionDocument, sourceContents } from '../../src/pages/Cases/fixtures';
-import { LESSONS } from '../../src/pages/Examples/lessons';
 import { CURRENT_FIXTURE, catalogFixture } from '../../src/pages/Pricing/pricingFixture';
 import {
   AUDIT, ERROR_EVENTS, ERROR_OVERVIEW, MODERATION, OVERVIEW, USERS, queuesAt, subscriptionOf, usageOf as adminUsageOf, userPage,
@@ -13,7 +12,6 @@ import {
   REPORT_FAILED, REPORT_PENDING, REPORT_VERIFIED, SHARED_SOLVER, SOLVER_IN_REVIEW, reportOf as registrationReport,
 } from '../../src/test/fixtures/engines';
 import { INSTANCE, NEIGHBORHOOD, REGISTRATION, REPORT as JOB_REPORT, SOLUTION, detailOf as jobDetailOf, jobOf } from '../../src/test/fixtures/jobs';
-import { DRAFT, EDITION, FROZEN, LEGACY, publicationOf } from '../../src/test/fixtures/reports';
 import {
   blobOf, caseItem, collectionOf, collectionRevisionOf, resourceItem, resourceOf, resourceRevisionOf,
 } from '../../src/test/fixtures/resources';
@@ -26,7 +24,7 @@ import {
 } from './libraryFixtures';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
-// with a project that has cases, runs, studies, reports and a library behind it, and everything the public screens read.
+// with a project that has cases, runs, studies and a library behind it, and everything the public screens read.
 // Every date is fixed, so two runs of the gallery draw the same pictures. A request nobody answers is a 404 and is recorded.
 
 export const API = 'http://localhost:8000';
@@ -145,8 +143,8 @@ const ENGINE_DIGEST = `sha256-${'b2c3d4e5'.repeat(8)}`;
 const API_KEYS = [
   {
     id: 'k1', name: 'ci-read-results', prefix: 'obk_demo0001', created_at: '2026-09-01T00:00:00Z', last_used_at: '2026-10-08T00:00:00Z', expires_at: '2099-12-31T00:00:00Z',
-    permissions: ['jobs:read', 'projects:read', 'reports:read', 'studies:read'], engine_access: { all: true, engines: [] },
-    boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['jobs', 'studies', 'reports'], slugs: null },
+    permissions: ['jobs:read', 'projects:read', 'studies:read'], engine_access: { all: true, engines: [] },
+    boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['jobs', 'studies'], slugs: null },
   },
   {
     id: 'k2', name: 'run-fixed-engine', prefix: 'obk_demo0002', created_at: '2026-09-10T00:00:00Z', last_used_at: null, expires_at: null,
@@ -301,7 +299,7 @@ function jobDetail(id: string): Record<string, unknown> | null {
   }
 }
 
-// -- Studies, reports and the analysis
+// -- Studies and the analysis
 
 const STUDY = localize(studyFixture());
 const OTHER_STUDY = localize(studyFixture({
@@ -322,25 +320,11 @@ const ANALYTICS = localize(analyticsFixture({
   },
 }));
 
-const REPORTS = localize([FROZEN, DRAFT, LEGACY]);
-const PUBLICATION = localize(publicationOf(FROZEN, { citation: { title: 'Engine comparison at checkout', authors: ['Alex Rivera'], year: 2026, venue: 'ISA Demo Group / QoS Benchmarks' } }));
-
 // -- Public screens
 
-const PUBLIC_PROJECTS = [
-  { organization: { slug: 'isa-demo', name: 'ISA Demo Group' }, project: { slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: 'Reference binding cases with workflow and placement.' } },
-  { organization: { slug: 'partner-lab', name: 'Partner Lab' }, project: { slug: 'service-corpus', name: 'Service corpus', description: 'Cases derived from published service-composition papers.' } },
-];
-const PUBLIC_PUBLICATIONS = [
-  {
-    slug: 'checkout-engines', citation: { title: 'Engine comparison at checkout', authors: ['Alex Rivera'], year: 2026 },
-    report: { title: 'Engine comparison at checkout', digest: EDITION, version_id: 'version-1' }, project: 'qos-benchmarks', organization: 'isa-demo', publishedAt: '2026-09-25T11:55:00Z',
-  },
-  {
-    slug: 'corpus-baseline', citation: { title: 'Baseline results on the service corpus', authors: ['Sam Okafor', 'Jordan Lee'], year: 2026 },
-    report: { title: 'Baseline results on the service corpus', digest: `sha256-${'12ab34cd'.repeat(8)}`, version_id: 'version-2' }, project: 'service-corpus', organization: 'partner-lab', publishedAt: '2026-09-12T08:00:00Z',
-  },
-];
+/** The example packages the gateway serves (GET /v1/examples). */
+const EXAMPLE_PATHS = ['demo/01_simple_seq', 'demo/02_parallel', 'demo/03_xor_choice', 'demo/05_multi_obj', 'demo/15_bpmn_complete', 'placement/01_small_placement'];
+
 /** A JSON Schema with enough structure to read: nested groups, a list, required fields and allowed values. */
 function schemaOf(kind: string) {
   return {
@@ -455,13 +439,6 @@ function projectRoutes(request: Request, orgSlug: string, projectSlug: string): 
       }
       return ok(STUDIES.find((item) => item.slug === subId));
     }
-    case 'reports': {
-      if (!filled) return ok([]);
-      if (!subId) return ok(REPORTS);
-      return notFound('Not mocked.');
-    }
-    case 'publications':
-      return ok(filled ? [PUBLICATION] : []);
     case 'blobs':
       return ok(filled ? localize([blobOf('a'), blobOf('b', { media_type: 'text/csv', size_bytes: 18_432, public: true, created_at: '2026-09-30T09:00:00Z' })]) : []);
     case 'resources': {
@@ -650,11 +627,6 @@ function route(request: Request): Reply | null {
     case 'artifacts': return artifactRoutes(request);
     case 'engine-registrations': return engineRegistrationRoutes(request);
     case 'admin': return adminRoutes(request);
-    case 'explore':
-      if (second === 'projects') return ok(PUBLIC_PROJECTS);
-      if (second === 'publications') return ok(PUBLIC_PUBLICATIONS);
-      if (second === 'engines') return ok({ engines: PUBLIC_ENGINES });
-      return null;
     case 'engines':
       if (!second) return ok({ engines: OWN_ENGINES });
       if (second === 'revisions') return ok({ revisions: [] });
@@ -663,7 +635,7 @@ function route(request: Request): Reply | null {
     case 'dialects': return ok({ dialects: DIALECTS });
     case 'resources': return ok({ resources: REGISTERED });
     case 'schemas': return ok(schemaOf(decodeURIComponent(second ?? 'Instance')));
-    case 'examples': return second ? { status: 200, type: 'application/zip', bytes: request.archive } : ok({ examples: Object.keys(LESSONS) });
+    case 'examples': return second ? { status: 200, type: 'application/zip', bytes: request.archive } : ok({ examples: EXAMPLE_PATHS });
     case 'validate':
       return ok({
         valid: true, instanceDigest: caseDigest('a'), packageDigest: caseDigest('b'), irDigest: caseDigest('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],
@@ -724,6 +696,11 @@ export async function installMockApi(page: Page, session: Session): Promise<Mock
         }
       },
     };
+    // The engine catalogue is public: a visitor gets the public engines.
+    if (session === 'none' && known.method === 'GET' && parts.join('/') === 'v1/engines') {
+      await call.fulfill({ status: 200, json: { engines: PUBLIC_ENGINES } });
+      return;
+    }
     if (session === 'none' && parts[0] === 'v1' && SESSION_ONLY.has(parts[1])) {
       await call.fulfill({ status: 401, json: { detail: { code: 'not_authenticated', error: 'Authentication required.' } } });
       return;

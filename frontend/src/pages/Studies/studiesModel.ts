@@ -562,7 +562,6 @@ export const STUDY_TABS = [
   { id: 'setup', label: 'Setup' },
   { id: 'progress', label: 'Progress' },
   { id: 'results', label: 'Results' },
-  { id: 'publish', label: 'Publish' },
 ] as const;
 
 export type StudyTabId = (typeof STUDY_TABS)[number]['id'];

@@ -6,7 +6,7 @@ import { cellsFixture, runFixture, studyFixture } from '../../test/fixtures/stud
 import { StudyList } from './StudyList';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), publicProjects: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), updateStudy: vi.fn(), deleteStudy: vi.fn(),
+  project: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), updateStudy: vi.fn(), deleteStudy: vi.fn(),
 }));
 const client = vi.hoisted(() => ({ getOwnUsage: vi.fn() }));
 
@@ -31,7 +31,6 @@ describe('Studies of a project', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
-    platform.publicProjects.mockResolvedValue([]);
     platform.studies.mockResolvedValue([studyFixture()]);
     platform.studyRuns.mockResolvedValue([runFixture()]);
     platform.studyCells.mockResolvedValue(cellsFixture());
@@ -119,7 +118,7 @@ describe('Studies of a project', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Delete Engines × seeds?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete study' }));
 
-    expect(await screen.findByText('This study has runs, so it was archived instead of deleted. Results cited by reports stay intact.')).toBeInTheDocument();
+    expect(await screen.findByText('This study has runs, so it was archived instead of deleted. Its runs and results stay intact.')).toBeInTheDocument();
     expect(platform.deleteStudy).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds');
     expect(platform.updateStudy).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds', { archived: true });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());

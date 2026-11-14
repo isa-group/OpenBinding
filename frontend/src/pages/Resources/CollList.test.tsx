@@ -8,7 +8,7 @@ import { caseItem, collectionOf, collectionRevisionOf, digestOf, resourceItem, u
 import { CollList } from './CollList';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), publicProjects: vi.fn(), collections: vi.fn(), collectionRevisions: vi.fn(), createCollection: vi.fn(), deleteCollection: vi.fn(),
+  project: vi.fn(), collections: vi.fn(), collectionRevisions: vi.fn(), createCollection: vi.fn(), deleteCollection: vi.fn(),
 }));
 const client = vi.hoisted(() => ({ getOwnUsage: vi.fn() }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
@@ -48,7 +48,6 @@ describe('Collections', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
-    platform.publicProjects.mockResolvedValue([]);
     platform.collections.mockResolvedValue([checkout, empty]);
     platform.collectionRevisions.mockImplementation(async (_org: string, _project: string, slug: string) => (slug === 'referencias-checkout' ? [checkoutRevision] : []));
     client.getOwnUsage.mockResolvedValue(usageOf());

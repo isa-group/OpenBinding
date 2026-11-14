@@ -75,7 +75,7 @@ export function deleteRefusal(caught: unknown): ProjectRefusal {
   if (failure.status === 409) {
     return {
       kind: 'slug',
-      text: `This project has sealed history (published reports, study runs or problem versions), so it can’t be deleted${marker(failure)}. Sealed history must stay reachable so people can still verify it.`,
+      text: `This project has sealed history (study runs or problem versions), so it can’t be deleted${marker(failure)}. Sealed history must stay reachable so people can still verify it.`,
     };
   }
   if (failure.status === 403) {
@@ -98,8 +98,8 @@ export interface ImportRefusal {
   text: string;
 }
 
-const COLLISION_CODES = new Set(['case_identity_conflict', 'version_conflict', 'run_identity_conflict', 'job_identity_conflict', 'evidence_identity_conflict']);
-const UNPUBLISHED_CODES = new Set(['unpublished_import', 'external_namespace_unavailable', 'publication_withdrawn', 'private_dependency']);
+const COLLISION_CODES = new Set(['case_identity_conflict', 'version_conflict', 'run_identity_conflict', 'job_identity_conflict']);
+const UNPUBLISHED_CODES = new Set(['external_namespace_unavailable', 'private_dependency']);
 
 /** What the gateway's answer to an import means, with the code a person can quote. */
 export function importRefusal(caught: unknown): ImportRefusal {
@@ -123,7 +123,7 @@ export function importRefusal(caught: unknown): ImportRefusal {
     return {
       kind: 'unpublished',
       title: `Unpublished items from another organization${marker(failure)}`,
-      text: `The package refers to library versions or reports that were never published, so they can’t be brought into a different organization. Ask the source to publish them first.${gateway}`,
+      text: `The package refers to library versions that were never published, so they can’t be brought into a different organization. Ask the source to publish them first.${gateway}`,
     };
   }
   if (failure.status === 409 && COLLISION_CODES.has(code)) {

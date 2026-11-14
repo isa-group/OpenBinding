@@ -18,7 +18,7 @@ const member: UserProfile = {
 };
 
 const PUBLIC_LINKS = [
-  ['Home', '/'], ['Explore', '/explore'], ['Engines', '/engines'], ['Language', '/language'], ['Pricing', '/pricing'],
+  ['Home', '/'], ['Engines', '/engines'], ['Language', '/language'], ['Pricing', '/pricing'],
   ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
 ] as const;
 
@@ -58,7 +58,7 @@ describe('Public header', () => {
     renderHeader('/pricing');
 
     expect(screen.getByRole('link', { name: 'Pricing' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Explore' })).not.toHaveAttribute('aria-current');
+    expect(screen.queryByRole('link', { name: 'Explore' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
   });
 
@@ -70,20 +70,6 @@ describe('Public header', () => {
     renderHeader('/language/schemas/application');
     expect(screen.getByRole('link', { name: 'Language' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
-  });
-
-  it('leaves aria-current on /explore/examples to the page and keeps the active style of Explore', () => {
-    renderHeader('/explore/examples');
-
-    const explore = screen.getByRole('link', { name: 'Explore' });
-    expect(explore).not.toHaveAttribute('aria-current');
-    expect(explore).toHaveClass('is-active');
-  });
-
-  it('keeps aria-current on Explore elsewhere under /explore', () => {
-    renderHeader('/explore/engines');
-
-    expect(screen.getByRole('link', { name: 'Explore' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('closes open menus when pressing outside the header', () => {

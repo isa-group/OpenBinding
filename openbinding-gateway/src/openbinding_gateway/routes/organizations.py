@@ -308,8 +308,6 @@ async def update_organization(
 
 
 async def _cascade_delete_project(session: AsyncSession, project: Project) -> None:
-    if await session.scalar(select(Publication.id).where(Publication.project_id == project.id).limit(1)) or await session.scalar(select(Report.id).where(Report.project_id == project.id, Report.version_id.is_not(None)).limit(1)):
-        raise api_error(409, "historical_references", "A project with sealed reports or publications cannot be deleted.")
     historical_run = await session.scalar(select(StudyRun.id).join(Study).where(
         Study.project_id == project.id).limit(1))
     if historical_run:
@@ -1139,7 +1137,7 @@ async def list_project_resources(
     return [_legacy_resource_view(row, found_project.id) for row in rows
             if row.kind not in {"Application", "CandidateCatalog", "ConstraintSet",
                                 "ExecutionConfiguration", "AnalysisConfiguration",
-                                "Collection", "Study", "Report", "BindingDecision"}
+                                "Collection", "Study", "BindingDecision"}
             and await _visible_resource(session, found_project, row)]
 
 

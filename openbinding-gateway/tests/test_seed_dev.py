@@ -24,8 +24,6 @@ from openbinding_gateway.db.platform_models import (
     Organization,
     OrganizationMembership,
     OrganizationRole,
-    Publication,
-    Report,
     Visibility,
 )
 from openbinding_gateway.security.passwords import verify_password
@@ -40,7 +38,6 @@ from seed_dev import (
     ensure_organizations,
     ensure_project_resources,
     ensure_projects,
-    ensure_reports_and_publications,
     ensure_standalone_jobs,
     ensure_users,
     load_and_persist_snapshots,
@@ -50,71 +47,6 @@ from seed_dev import (
 def test_seed_zip_is_byte_for_byte_deterministic():
     entries = [("README.md", "seed"), ("data.json", b"{}")]
     assert _deterministic_zip(entries) == _deterministic_zip(entries)
-
-
-async def test_live_report_seed_upgrades_drafts_and_preserves_two_editions(
-    api_client, db_session, registration, monkeypatch
-):
-    from test_studies_platform import _headers, EXAMPLE
-    from _pricing import fake_pricing_gate, largest_plan
-    from openbinding_gateway import space_client
-    from openbinding_gateway.core.settings import get_settings
-    from openbinding_gateway.services import execution
-    from openbinding_gateway.services.engines import engine_ref, manifest as engine_manifest
-    from openbinding_gateway.db.models import Project, InstanceSnapshot, Study, StudyRun
-    from bim_core.package import load_package
-    import uuid
-
-    async def solve(*args, **kwargs):
-        return {'termination': 'FEASIBLE', 'solutions': [{'decision': {'kind': 'binding', 'binding': {
-            't1': {'resource': 'catalog', 'id': 'c1a'}, 't2': {'resource': 'catalog', 'id': 'c2a'},
-            't3': {'resource': 'catalog', 'id': 'c3a'}}}}]}
-
-    previous = space_client.get_gate()
-    gate = fake_pricing_gate()
-    space_client.set_gate(gate)
-    try:
-        monkeypatch.setattr(get_settings(), 'job_dispatch_mode', 'inline')
-        monkeypatch.setattr(execution, 'solve_remote', solve)
-        headers = await _headers(api_client, registration)
-        profile = (await api_client.get('/v1/users/me', headers=headers)).json()
-        user = await db_session.get(User, uuid.UUID(profile['id']))
-        gate.plans[user.id] = largest_plan()
-        await api_client.post('/v1/organizations', headers=headers, json={'slug': 'seed-live', 'name': 'Seed live'})
-        response = await api_client.post('/v1/organizations/seed-live/projects', headers=headers,
-            json={'slug': 'benchmark', 'name': 'Benchmark', 'visibility': 'public'})
-        project = await db_session.get(Project, uuid.UUID(response.json()['id']))
-        await ensure_reports_and_publications(db_session, project, user, [])
-        package = load_package(EXAMPLE)
-        response = await api_client.post('/v1/instances', headers={**headers, 'Content-Type': 'application/vnd.bim+zip'}, content=package.to_zip())
-        snapshot = await db_session.get(InstanceSnapshot, uuid.UUID(response.json()['id']))
-        cases = await ensure_cases_and_collections(db_session, project, user, {'01_simple_seq': (package, snapshot)})
-        base = '/v1/organizations/seed-live/projects/benchmark'
-        response = await api_client.post(base + '/studies', headers=headers, json={
-            'slug': 'benchmark', 'name': 'Benchmark', 'definition': {
-                'case_revision_ids': [str(cases['simple-seq'][1].id)],
-                'engines': [{**engine_ref(engine_manifest('random-search')), 'mode': 'seeded',
-                             'optimization': {'type': 'SINGLE', 'scalarization': 'weighted-sum'}}],
-                'parameter_sets': [{'iterations': 1}], 'seeds': [1]}})
-        assert response.status_code == 201, response.text
-        study = await db_session.get(Study, uuid.UUID(response.json()['id']))
-        response = await api_client.post(base + '/studies/benchmark/runs', headers=headers)
-        assert response.status_code == 202, response.text
-        run = await db_session.get(StudyRun, uuid.UUID(response.json()['id']))
-        await ensure_reports_and_publications(db_session, project, user, [(study, run)])
-        report = await db_session.scalar(select(Report).where(Report.project_id == project.id, Report.slug == 'qos-placement-2026-report'))
-        versions = (await db_session.scalars(select(ArtifactVersion).where(ArtifactVersion.artifact_id == report.artifact_id))).all()
-        assert len(versions) == 2
-        original = {version.id: version.version_digest for version in versions}
-        await ensure_reports_and_publications(db_session, project, user, [(study, run)])
-        versions = (await db_session.scalars(select(ArtifactVersion).where(ArtifactVersion.artifact_id == report.artifact_id))).all()
-        assert {version.id: version.version_digest for version in versions} == original
-        publications = (await db_session.scalars(select(Publication).where(Publication.report_id == report.id).order_by(Publication.slug))).all()
-        assert len(publications) == 2
-        assert [publication.withdrawn for publication in publications] == [True, False]
-        assert len({publication.version_id for publication in publications}) == 2
-    finally:
-        space_client.set_gate(previous)
 
 
 @pytest.mark.asyncio
@@ -194,17 +126,7 @@ async def test_seed_dev_lifecycle(db_session):
     assert jobs == []
     assert not (await db_session.scalars(select(Job))).all()
 
-    # 5. Reports & Publications
-    await ensure_reports_and_publications(db_session, qos_proj, users["alice"], [])
-    reports = (await db_session.execute(select(Report))).scalars().all()
-    assert len(reports) >= 2
-    frozen_reports = [r for r in reports if r.state.value == "frozen"]
-    assert frozen_reports == []  # No fabricated terminal evidence when studies were not executed.
-
-    pubs = (await db_session.execute(select(Publication))).scalars().all()
-    assert pubs == []
-
-    # 6. Reusable Project Resources & Revisions
+    # 5. Reusable Project Resources & Revisions
     res_map = await ensure_project_resources(db_session, projects, users)
     assert len(res_map) >= 3
     assert "01_simple_seq-catalog" in res_map
@@ -232,7 +154,7 @@ async def test_seed_dev_lifecycle(db_session):
     db_revs = (await db_session.execute(select(ArtifactVersion))).scalars().all()
     assert len(db_revs) >= 4
 
-    # 7. Artifacts
+    # 6. Artifacts
     artifacts = await ensure_artifacts(db_session, orgs, projects, users)
     assert len(artifacts) >= 3
     for art in artifacts:
@@ -241,21 +163,21 @@ async def test_seed_dev_lifecycle(db_session):
     db_artifacts = (await db_session.execute(select(Blob))).scalars().all()
     assert len(db_artifacts) >= 3
 
-    # 8. Notifications & Audit
+    # 7. Notifications & Audit
     await ensure_notifications_and_audit(db_session, orgs, projects, users)
     notifs = (await db_session.execute(select(Notification))).scalars().all()
     assert len(notifs) >= 4
 
     audits = (await db_session.execute(select(AuditEvent))).scalars().all()
-    assert len(audits) >= 6
+    assert len(audits) >= 4
 
-    # 9. Idempotency test (calling again does not crash or duplicate orgs)
+    # 8. Idempotency test (calling again does not crash or duplicate orgs)
     users_again = await ensure_users(db_session)
     assert len(users_again) == 7
     orgs_again = await ensure_organizations(db_session, users)
     assert len(orgs_again) == 5
 
-    # 10. Reset test
+    # 9. Reset test
     await clean_existing_data(db_session)
 
     # Verify that clean deleted the seeded orgs, artifacts, resources, and non-admin users

@@ -134,7 +134,7 @@ def validate_content(kind: str, payload: DraftContent) -> tuple[bytes, list[dict
             raise api_error(422, 'invalid_content',
                             'Composition content is Composition2Yaml source text; send it as '
                             'application/yaml, not as JSON.')
-        if kind in {'Dataset', 'Report', 'Collection', 'Study', 'BindingDecision',
+        if kind in {'Dataset', 'Collection', 'Study', 'BindingDecision',
                     'ExecutionConfiguration', 'AnalysisConfiguration'}:
             if kind != 'Dataset' and not document:
                 raise api_error(422, 'invalid_content', f'{kind} content cannot be empty.')
@@ -281,18 +281,6 @@ async def seal_draft(session: AsyncSession, artifact: Artifact, draft: ArtifactD
     for dependency, version in dependencies:
         if dependency.organization_id != artifact.organization_id and not await session.get(ArtifactPublication, version.id):
             raise api_error(422, 'private_dependency', 'Cross-organization dependencies must be public.')
-    report_sources = []
-    if artifact.kind == 'Report':
-        from .reports import report_evidence
-        report_sources = await report_evidence(session, artifact, payload.content, user)
-        report_sources = sorted({(source.get("study_run_id"), source.get("job_id")): source for source in report_sources}.values(), key=lambda source: str(source.get("study_run_id") or source["job_id"]))
-    for source in report_sources:
-        if source.get('study_run_id'):
-            from .db.models import StudyRun
-            run = await session.get(StudyRun, source['study_run_id'])
-            target = await session.get(ArtifactVersion, run.definition_version_id)
-            if target.id not in {version.id for _, version in dependencies}:
-                dependencies.append((await session.get(Artifact, target.artifact_id), target))
     case_references = []
     if artifact.kind in {'Study', 'Collection'}:
         from .db.models import BindingCase, BindingCaseRevision, Project
@@ -343,17 +331,13 @@ async def seal_draft(session: AsyncSession, artifact: Artifact, draft: ArtifactD
     manifest = dict(apiVersion='openbinding/artifact/v1', kind=artifact.kind,
         identity=dict(namespace=artifact.namespace, name=artifact.name, version=label),
         contentDigest=digest_bytes(content), mediaType=payload.media_type, contracts=contracts,
-        evidence=[{'kind': 'StudyRun' if source.get('study_run_id') else 'Job',
-                   'id': str(source.get('study_run_id') or source['job_id']), 'digest': source['digest']} for source in report_sources],
+        evidence=[],
         dependencies=sorted([reference(a, v) for a, v in dependencies], key=lambda item: (item['namespace'], item['name'], item['version'])))
     existing = await session.scalar(select(ArtifactVersion).where(ArtifactVersion.artifact_id == artifact.id, ArtifactVersion.version == label))
     if existing:
         if existing.version_digest != digest(manifest):
             raise api_error(409, 'immutable_version', 'Version label already identifies different content.')
         draft.sealed_version_id = existing.id
-        if artifact.kind == 'Report':
-            from .reports import adopt_sealed_report_draft
-            await adopt_sealed_report_draft(session, draft, existing)
         return existing
     blob = await store_blob(session, artifact, user, content, payload.media_type)
     version = ArtifactVersion(artifact_id=artifact.id, ordinal=ordinal, version=label, blob_id=blob.id, blob=blob,
@@ -361,17 +345,12 @@ async def seal_draft(session: AsyncSession, artifact: Artifact, draft: ArtifactD
         based_on_id=draft.based_on_id, created_by_id=user.id)
     session.add(version)
     await session.flush()
-    from .db.models import ArtifactCaseReference, ArtifactEvidence
-    for position, source in enumerate(report_sources):
-        session.add(ArtifactEvidence(version_id=version.id, position=position, **source))
+    from .db.models import ArtifactCaseReference
     for position, case_revision_id in case_references:
         session.add(ArtifactCaseReference(version_id=version.id, position=position, case_revision_id=case_revision_id))
     for _, target in dependencies:
         session.add(ArtifactDependency(version_id=version.id, dependency_id=target.id))
     draft.sealed_version_id = version.id
-    if artifact.kind == 'Report':
-        from .reports import adopt_sealed_report_draft
-        await adopt_sealed_report_draft(session, draft, version)
     session.add(AuditEvent(organization_id=artifact.organization_id, actor_id=user.id,
         action='artifact.version.sealed', target_type='ArtifactVersion', target_id=version.id,
         detail={'ref': reference(artifact, version)}))

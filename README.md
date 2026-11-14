@@ -171,7 +171,7 @@ procedure leaves Redis, artifacts and other development volumes intact.
 
 ### Seeding development data
 
-To populate the database with a complete set of development entities (users, hierarchical organizations, projects, compiled BIM v1 cases, collections, real solver jobs, comparative studies, reports, publications, and API keys) for testing all platform features:
+To populate the database with a complete set of development entities (users, hierarchical organizations, projects, compiled BIM v1 cases, collections, real solver jobs, comparative studies, and API keys) for testing all platform features:
 
 ```bash
 # Seed development data (idempotent: adds or updates without duplicating)
@@ -204,7 +204,7 @@ errors use `application/problem+json` with source-located diagnostics.
 The React workbench is a single transactional `InstanceWorkspace` over the
 same package and compiler contracts used by API clients. Its surrounding
 platform shell adds the organization/project context, onboarding for new
-accounts, cases, resources, collections, studies, public Explore surfaces,
+accounts, cases, resources, collections, studies, the public engine catalogue,
 authenticated Engine management (`/app/engines`) with owner telemetry. Pricing
 is managed in the remote SPHERE and SPACE UIs, not in OpenBinding.
 
@@ -212,9 +212,8 @@ is managed in the remote SPHERE and SPACE UIs, not in OpenBinding.
 
 OpenBinding guarantees strict cryptographic immutability and provenance:
 - **In-browser ZIP Uncompression & Inspection**: Explore `.bim.zip` snapshots and artifact archives directly in the browser with directory trees and syntax-highlighted code inspection via CodeMirror.
-- **Report editions**: Report drafts and sealed versions share the artifact library. Publications pin an exact version; withdrawal retains its citation and evidence.
 - **Versioned study definitions**: Projects can share an exact library Study version and adopt updates independently. Runs retain their original version and matrix; archive/restore preserves execution history. See the [artifact lifecycle and migration status](docs/VERSIONED_ARTIFACTS.md).
-- **Dedicated Deep-Linked Views**: Full-page inspection and editing for Cases (`/cases/:caseSlug`), Snapshots (`/snapshots/:snapshotId`), Collections (`/collections/:collectionSlug`), Jobs (`/jobs/:jobId`), and Reports (`/reports/:reportSlug`).
+- **Dedicated Deep-Linked Views**: Full-page inspection and editing for Cases (`/cases/:caseSlug`), Snapshots (`/snapshots/:snapshotId`), Collections (`/collections/:collectionSlug`) and Jobs (`/jobs/:jobId`).
 
 ## Repository layout
 

@@ -31,8 +31,6 @@ export type ApiKeyPermission =
   | 'projects:write'
   | 'studies:read'
   | 'studies:write'
-  | 'reports:read'
-  | 'reports:write'
   | 'artifacts:read'
   | 'artifacts:write'
   | 'notifications:read'

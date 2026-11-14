@@ -7,7 +7,7 @@ import { CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, digestOf
 import { StudyBuilder } from './StudyBuilder';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), publicProjects: vi.fn(), cases: vi.fn(), revisions: vi.fn(), createStudy: vi.fn(), collection: vi.fn(), collectionRevisions: vi.fn(),
+  project: vi.fn(), cases: vi.fn(), revisions: vi.fn(), createStudy: vi.fn(), collection: vi.fn(), collectionRevisions: vi.fn(),
 }));
 const client = vi.hoisted(() => ({ getEngines: vi.fn(), getOwnUsage: vi.fn(), getPricingCatalog: vi.fn() }));
 const library = vi.hoisted(() => ({ libraryApi: { list: vi.fn(), versions: vi.fn(), content: vi.fn() } }));
@@ -57,7 +57,6 @@ describe('A new study', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
-    platform.publicProjects.mockResolvedValue([]);
     platform.cases.mockResolvedValue([CHECKOUT]);
     platform.revisions.mockResolvedValue([REVISION_1, REVISION_2, revisionFixture(3, { source_snapshot_id: null })]);
     client.getEngines.mockResolvedValue([engineEntry(RANDOM_SEARCH), engineEntry(EVOLUTIONARY)]);

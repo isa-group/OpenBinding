@@ -36,17 +36,17 @@ queue and its worker were removed too.
 
 ### Report editor
 
-Replacement: none yet. Published results of study runs and collections are planned (M6.5).
+Replacement: none. Reports and publications were removed altogether in F0a; a study is exported instead.
 
 | Method | Path | After removal |
 |---|---|---|
 | GET | `/v1/organizations/{org}/projects/{project}/reports/{report}` | 404 |
-| POST | `/v1/organizations/{org}/projects/{project}/reports` | 405 (`Allow: GET`) |
+| POST | `/v1/organizations/{org}/projects/{project}/reports` | 404 |
 | POST | `/v1/organizations/{org}/projects/{project}/reports/{report}/freeze` | 404 |
 | POST | `/v1/organizations/{org}/projects/{project}/reports/{report}/drafts` | 404 |
 | PATCH | `/v1/organizations/{org}/projects/{project}/reports/{report}` | 404 |
 | DELETE | `/v1/organizations/{org}/projects/{project}/reports/{report}` | 404 |
-| POST | `/v1/organizations/{org}/projects/{project}/publications` | 405 (`Allow: GET`) |
+| POST | `/v1/organizations/{org}/projects/{project}/publications` | 404 |
 
 ### Library catalogue
 
@@ -103,13 +103,12 @@ Replacement: none. Administrators assign the RESEARCH or LAB plan in SPACE. Only
 | POST | `/v1/sponsor-proposals/{proposal_id}/decline` | 404 |
 | POST | `/v1/sponsor-proposals/{proposal_id}/cancel` | 404 |
 
-## Kept operations (12)
+## Kept operations (7)
 
 These stay, tested, because kept screens use them.
 
 | Method | Path | Why |
 |---|---|---|
-| GET | `/v1/organizations/{org}/projects/{project}/reports` | project data, publications screen |
 | GET | `/v1/organizations/{org}/library` | study builder, version picker |
 | GET | `/v1/artifacts/{artifact_id}/versions` | study detail, version picker |
 | GET | `/v1/artifacts/{artifact_id}/versions/{version_id}/content` | study builder |
@@ -117,12 +116,10 @@ These stay, tested, because kept screens use them.
 | GET | `/v1/organizations/{org}/projects/{project}/resources` | resources screen |
 | GET | `/v1/organizations/{org}/projects/{project}/resources/{resource}/revisions` | resources screen |
 | GET | `/v1/jobs/{job_id}/analysis/neighborhood` | run page |
-| GET | `/v1/organizations/{org}/projects/{project}/publications` | publications screen |
-| DELETE | `/v1/organizations/{org}/projects/{project}/publications/{publication}` | withdraw a publication |
-| GET | `/v1/explore/publications` | Explore |
 
-Existing publications keep answering in the project publication list and in Explore. No kept operation creates a new publication from a report or makes an artifact version public; package
-import and export (`/package`) are unchanged.
+No kept operation makes an artifact version public. The report list, the project publications and their
+withdrawal, and Explore (`/v1/explore/*`) were removed later, in F0a, with the reports themselves; the public engine
+catalogue is `GET /v1/engines`. Package import and export (`/package`) no longer carry reports or publications.
 
 ## Sponsor rule change
 

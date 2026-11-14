@@ -4,7 +4,7 @@
 > library, its pages and endpoints) retires; the versioned-artifact store described here stays as the
 > repository's internal storage of sealed parts, and sealed problem versions keep their exact references.
 
-The artifact cutover is in progress. The shared library, private sealing, version publication, exact BIM references and case materialization are implemented. Study definitions are stored exclusively in library versions; project study contexts select a version, and each run pins its original definition with a restrictive FK. Library Study and Collection versions validate typed definitions and protect exact case references. Report documents now live in common drafts and sealed versions; publications pin a version and withdrawal retains their citation. The specialized Collection routes still use their earlier model. External citation metadata remains a declaration, not proof that an external dataset is available.
+The artifact cutover is in progress. The shared library, private sealing, version publication, exact BIM references and case materialization are implemented. Study definitions are stored exclusively in library versions; project study contexts select a version, and each run pins its original definition with a restrictive FK. Library Study and Collection versions validate typed definitions and protect exact case references. Reports and publications were removed in F0a (see below). The specialized Collection routes still use their earlier model. External citation metadata remains a declaration, not proof that an external dataset is available.
 
 ## Identity and content
 
@@ -12,7 +12,7 @@ The artifact cutover is in progress. The shared library, private sealing, versio
 
 `Blob` replaces the former file-storage meaning of `Artifact`. Project file operations use `/v1/organizations/{org}/projects/{project}/blobs`. They do not create editorial identities. Deduplication of bytes does not confer access or merge artifact identities. Maintenance excludes blobs referenced by versions and retains shared files while any blob row uses them.
 
-`DELETE .../blobs/{digest}` needs ADMIN on the project and is refused with `409 blob_in_use` while the project has sealed or revisioned elements that depend on that digest: sealed library versions (also `Report` and `Collection` ones, counted apart), case revisions and their snapshots, historical collection revisions and items, project-resource revisions, and publications. The body lists only kinds and counts, `{"references": [{"type": "case_revision", "count": 2}, ...]}`, never names. The lookup runs on the indexed digest columns (`content_digest`, `digest`, `target_digest`, `package_digest`) of the project's own elements, not over the whole project. Blobs backing a library version are organization-level and cannot be deleted from a project at all.
+`DELETE .../blobs/{digest}` needs ADMIN on the project and is refused with `409 blob_in_use` while the project has sealed or revisioned elements that depend on that digest: sealed library versions (`Collection` ones counted apart), case revisions and their snapshots, historical collection revisions and items, and project-resource revisions. The body lists only kinds and counts, `{"references": [{"type": "case_revision", "count": 2}, ...]}`, never names. The lookup runs on the indexed digest columns (`content_digest`, `digest`, `target_digest`, `package_digest`) of the project's own elements, not over the whole project. Blobs backing a library version are organization-level and cannot be deleted from a project at all.
 
 The portable resource reference is:
 
@@ -83,7 +83,7 @@ execution jobs can already pin an `ExecutionConfiguration` version explicitly.
 
 ## Development cutover and outstanding integration
 
-Migration `b3c4d5e6f7a8` follows the existing head, renames file storage to `blobs`, adds library tables and changes snapshot uniqueness. Its downgrade deliberately refuses to discard sealed history. SQLite upgrade-chain tests exercise a fresh database. The same migration chain and library/composition/portability checks have also passed against an isolated local PostgreSQL database. Independent PostgreSQL connections verify concurrent idempotent sealing, conflicting version labels and optimistic draft edits. Report editing and draft creation take the same artifact lock as generic sealing.
+Migration `b3c4d5e6f7a8` follows the existing head, renames file storage to `blobs`, adds library tables and changes snapshot uniqueness. Its downgrade deliberately refuses to discard sealed history. SQLite upgrade-chain tests exercise a fresh database. The same migration chain and library/composition/portability checks have also passed against an isolated local PostgreSQL database. Independent PostgreSQL connections verify concurrent idempotent sealing, conflicting version labels and optimistic draft edits.
 
 The project-resource and collection HTTP surfaces now delegate to the common
 artifact identities and sealed versions while retaining their historical response
@@ -146,10 +146,6 @@ The frontend exposes shared-version selection, adoption and archive/restore.
 Migration `e6f7a8b9c0d1` also protects cell identity, case revision, Engine reference,
 parameters, seed and fingerprint from SQL updates and rejects cell deletion.
 Operational state, retry job assignment and metrics remain writable.
-Once a sealed report cites the run, migration `a8b9c0d1e2f3` additionally freezes
-its summary, state and completion time, and its cells' job links, state and metrics.
-Adding cells to such a run is rejected. Result attachment, cancellation and retry
-return `409 sealed_evidence`; a new execution must create another run.
 
 `POST .../runs/{run}/cells/{cell}/result` attaches an existing job to a cell. The job
 must belong to the caller (otherwise `404`), be terminal (`409 job_not_finished`), have a
@@ -174,49 +170,17 @@ Analysis seed galleries are non-executable Dataset versions with
 `apiVersion: "openbinding/analysis-gallery/v1"`. Their fixture matrices remain
 inspectable; the study execution endpoint rejects them as evidence-only data.
 
-## Report editions and evidence
+## Reports and publications (removed)
 
-Report project contexts contain an artifact identity and draft/version pointers;
-there is no second `reports.document` or `reports.digest` column. `POST .../reports/{report}/drafts`
-creates an editable draft based on the last sealed version. Document edits require
-`draft_revision`; stale edits return 409. Freezing seals a common `ArtifactVersion`.
-The library history continues to expose older accessible versions.
+Reports, their editions, project publications and Explore were removed in F0a (no route, service, screen or seed
+creates or reads them; their tables stay until the F0b baseline). A study is exported instead (the CSV of the
+Results tab). Sealed versions no longer carry evidence (`manifest.evidence` is always empty), and package export and
+import no longer carry reports, publications or job evidence.
 
-Run-linked reports require terminal runs, cells and jobs. Analysis receipts require
-terminal jobs whose result hashes match their original sources. Their typed
-`artifact_evidence` rows prevent deletion of those sources. The version manifest
-includes exact evidence identities and hashes; a run report also depends on the
-run's exact Study definition. SQL rejects changes to referenced job results,
-requests, options, state and provenance. Reports containing only external citations
-preserve those declarations; they do not certify external content or authorship.
-
-Publications pin `version_id`; different editions of one report can be published.
-Their target and citation are immutable. Deleting a publication withdraws it,
-retaining historical access. Publishing checks that source study definitions are
-published and job evidence belongs to public projects. Reports with versions and
-projects with sealed report/publication history cannot be deleted.
-
-Importing a citation does not publish private content. The exact version must
-already have an authoritative library publication, and an import cannot restore
-a withdrawn edition. An unresolved publication returns `409 unpublished_import`.
-This remains a limitation for moving a complete public archive to an empty server;
-portable declarations are not treated as verified remote publication authority.
-
-The live development seed creates two report editions from the recorded run,
-publishes both and withdraws the first. A seed without executions leaves drafts;
-a later live seed completes the draft. Repeating the live seed preserves the same
-two version identities and digests. Test solver output is confined to tests.
-
-Migration `f7a8b9c0d1e2` performs this cutover and adds evidence retention. A fresh
-SQLite upgrade and the complete PostgreSQL chain have passed; 16 focused PostgreSQL
-study, report, publication and package tests also pass. The complete development
+Migration `f7a8b9c0d1e2` performed the report cutover and added evidence retention. A fresh
+SQLite upgrade and the complete PostgreSQL chain have passed. The complete development
 seed requires a PostgreSQL volume created after this cutover; when an older volume
 is present, follow the targeted reset procedure in the README before starting the
 stack.
 
-Packages include report version references, all historical publication targets,
-source runs and referenced job evidence. Import checks identity collisions and
-retains source UUIDs when absent; reports wait until their exact sources exist.
-Receipts whose result hashes describe PostgreSQL storage bytes currently require
-that encoding to verify newly imported evidence. This limitation is separate from
-canonical JSON content digests and must not be silently reinterpreted.
+Import checks identity collisions and retains source UUIDs when absent.

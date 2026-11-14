@@ -2,14 +2,14 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import type { Report, StudyCell } from '../../api/platform';
-import { org, project, reportOf, renderProjectScreen } from '../Project/testKit';
+import type { StudyCell } from '../../api/platform';
+import { org, project, renderProjectScreen } from '../Project/testKit';
 import { CHECKOUT, EVOLUTIONARY, REVISION_1, REVISION_2, RUN_ID, cellFixture, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), publicProjects: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), cancelStudyRun: vi.fn(), retryStudyCell: vi.fn(),
-  reports: vi.fn(), cases: vi.fn(), revisions: vi.fn(),
+  project: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), cancelStudyRun: vi.fn(), retryStudyCell: vi.fn(),
+  cases: vi.fn(), revisions: vi.fn(),
 }));
 
 const library = vi.hoisted(() => ({ libraryApi: { versions: vi.fn().mockResolvedValue([]) } }));
@@ -34,17 +34,14 @@ function renderRun(options: { slug?: string; run?: string } = {}) {
   });
 }
 
-const draftOf = (over: Partial<Report> = {}) => reportOf('engines-vs-seeds-run-1', 'draft', { study_run_id: RUN_ID, ...over });
 
 describe('One run of a study, in the Progress tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
-    platform.publicProjects.mockResolvedValue([]);
     platform.studies.mockResolvedValue([studyFixture()]);
     platform.studyRuns.mockResolvedValue([runFixture()]);
     platform.studyCells.mockResolvedValue(cellsFixture());
-    platform.reports.mockResolvedValue([]);
     platform.cases.mockResolvedValue([CHECKOUT]);
     platform.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
   });
@@ -124,13 +121,13 @@ describe('One run of a study, in the Progress tab', () => {
     expect(platform.retryStudyCell).toHaveBeenCalledTimes(2);
   });
 
-  it('says when a sealed report protects the run from a retry', async () => {
-    platform.retryStudyCell.mockRejectedValue(refusal(409, 'sealed_evidence'));
+  it('says when a cell can no longer be retried', async () => {
+    platform.retryStudyCell.mockRejectedValue(refusal(409, 'cell_not_retryable'));
     renderRun();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Retry cell 5' }));
 
-    expect(await screen.findByText('A sealed report cites this run (409 · sealed_evidence)')).toBeInTheDocument();
+    expect(await screen.findByText('This cell can’t be retried (409 · cell_not_retryable)')).toBeInTheDocument();
   });
 
   it('follows a run that is still going and stops when asked to', async () => {
@@ -172,34 +169,13 @@ describe('One run of a study, in the Progress tab', () => {
   it('says why a cancel was refused', async () => {
     platform.studyRuns.mockResolvedValue([runFixture({ state: 'running', finished_at: null })]);
     platform.studyCells.mockResolvedValue(running(cellsFixture()));
-    platform.cancelStudyRun.mockRejectedValue(refusal(409, 'sealed_evidence'));
+    platform.cancelStudyRun.mockRejectedValue(refusal(409, 'terminal_run'));
     renderRun();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Cancel run' }));
 
-    expect(await screen.findByText('A sealed report cites this run (409 · sealed_evidence)')).toBeInTheDocument();
-    expect(screen.getByText(/Its results can’t change now\. Start a new run instead\./)).toBeInTheDocument();
-  });
-
-  it('offers no report action, whether or not a draft report of the run exists, and reads no report', async () => {
-    const action = /create (a |draft )?report|open the report/i;
-    const view = renderRun();
-
-    await screen.findByRole('heading', { level: 2, name: 'Run #1' });
-    expect(screen.getByRole('link', { name: 'Compare results' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: action })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: action })).not.toBeInTheDocument();
-    view.unmount();
-
-    platform.reports.mockResolvedValue([draftOf()]);
-    renderRun();
-    await screen.findByRole('heading', { level: 2, name: 'Run #1' });
-    expect(screen.queryByRole('link', { name: action })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: action })).not.toBeInTheDocument();
-    const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
-    expect(hrefs.filter((href) => /\/reports([/?#]|$)/.test(href))).toEqual([]);
-    await waitFor(() => expect(platform.studyCells).toHaveBeenCalled());
-    expect(platform.reports).not.toHaveBeenCalled();
+    expect(await screen.findByText('This run already finished (409 · terminal_run)')).toBeInTheDocument();
+    expect(screen.getByText(/There’s nothing left to cancel\./)).toBeInTheDocument();
   });
 
   it('shows a viewer everything and offers nothing to change', async () => {

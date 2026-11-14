@@ -4,7 +4,7 @@ import { moved } from '../moved';
 import type { MovedRoute } from '../moved';
 import type { RouteDefinition } from '../types';
 
-// Area: language. The problem language: the hub (profiles, schemas, extensions). The examples are a section of Explore.
+// Area: language. The problem language: the hub (profiles, schemas, extensions).
 
 export const routes: RouteDefinition[] = [
   live('lang-profiles', '/language/:section?/:item?', <LanguageHub />),
@@ -12,7 +12,6 @@ export const routes: RouteDefinition[] = [
 
 const movedAddresses: MovedRoute[] = [
   moved('lang-extensions', '/app/language/extensions', '/language/extensions'),
-  moved('lang-examples', '/examples', '/explore/examples'),
 ];
 
 // The registry reads `moved` from every area module.

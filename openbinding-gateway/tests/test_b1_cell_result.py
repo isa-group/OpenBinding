@@ -302,28 +302,3 @@ async def test_roles_and_credentials_decide_who_may_attach(api_client, db_sessio
     assert anonymous.status_code == 401
     assert others_job_as_member.status_code == 404
     assert own_job_as_member.status_code == 200, own_job_as_member.text
-
-
-async def test_a_run_sealed_into_a_report_still_refuses_results(api_client, db_session, world):
-    cell = world.cells[0]
-    twin = await clone_job(db_session, world.jobs[0])
-    # The report editor is removed since M9.6: the report is sealed by the internal report services.
-    import _m96_seed as seed
-    report = await seed.report(
-        db_session, await seed.project_by_slugs(db_session, "lab", "routing"), world.owner["id"],
-        slug="run-evidence", title="Run evidence", study_run_id=uuid.UUID(world.run["id"]), freeze=True,
-        document={"provenance": {
-            "study": {"runId": world.run["id"], "matrixDigest": world.run["matrix_digest"]},
-            "datasets": [{"reference": world.revision["id"], "digest": world.revision["digest"]}],
-            "software": [{"name": "test-evaluator", "version": "1", "digest": "sha256-" + "a" * 64}],
-            "bimVersion": "bim/v1", "engineRevisions": [world.engine], "parameters": {},
-        }},
-    )
-    assert report.version_id is not None
-
-    response = await attach(api_client, world, cell, twin)
-
-    assert response.status_code == 409, response.text
-    assert response.json()["detail"]["code"] == "sealed_evidence"
-    await db_session.refresh(cell)
-    assert cell.job_id == world.jobs[0].id

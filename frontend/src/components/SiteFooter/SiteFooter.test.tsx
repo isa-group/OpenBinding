@@ -25,22 +25,22 @@ describe('SiteFooter', () => {
 
     const nav = screen.getByRole('navigation', { name: 'Footer navigation' });
     for (const [name, href] of [
-      ['Explore', '/explore'], ['Engines', '/engines'], ['Pricing', '/pricing'],
+      ['Engines', '/engines'], ['Pricing', '/pricing'],
       ['Profiles & dialects', '/language'], ['Schemas', '/language/schemas/application'],
-      ['Examples', '/explore/examples'], ['Workbench', '/workbench'],
+      ['Workbench', '/workbench'],
       ['Team', '/about?tab=team'], ['Research', '/about?tab=research'],
       ['Funding', '/about?tab=funding'], ['Changelog', '/about?tab=changelog'],
     ] as const) {
       expect(within(nav).getByRole('link', { name })).toHaveAttribute('href', href);
     }
-    expect(within(nav).getAllByRole('link')).toHaveLength(11);
+    expect(within(nav).getAllByRole('link')).toHaveLength(9);
   });
 
-  it('lists Explore, Engines and Pricing in the Platform column', () => {
+  it('lists Engines and Pricing in the Platform column', () => {
     renderFooter();
 
     const platform = screen.getByText('Platform').closest('section') as HTMLElement;
-    expect(within(platform).getAllByRole('link').map((link) => link.textContent)).toEqual(['Explore', 'Engines', 'Pricing']);
+    expect(within(platform).getAllByRole('link').map((link) => link.textContent)).toEqual(['Engines', 'Pricing']);
   });
 
   it('links to no status page', () => {

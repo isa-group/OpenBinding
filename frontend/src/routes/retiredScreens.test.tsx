@@ -9,6 +9,7 @@ import { RAW_RENDERING_ALLOW_LIST, UNLISTED_FINDINGS } from '../test/rawRenderin
 import { followMoved } from './followMoved';
 import { AppRoutes } from './index';
 import { movedRoutes, routeDefinitions } from './registry';
+import { RETIRED_ROUTES } from './retiredRoutes';
 
 // The decision-space workspace is retired. Its addresses redirect to the run history or to the study run.
 //
@@ -132,7 +133,7 @@ describe('the retired decision-space workspace', () => {
   });
 });
 
-// M2.4 slice 2: the report list and the report editor are retired. Their addresses redirect to the published results of the project.
+// M2.4 slice 2 retired the report list and the report editor; F0a removed the reports altogether, with no redirect.
 describe('the retired report editor', () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -148,14 +149,10 @@ describe('the retired report editor', () => {
     expect(files).toEqual([]);
   });
 
-  // `req~frontend-retire-reports-publications-stay~1` (the publications stay routed, and their files exist) is superseded by
-  // m26-navigation (design.md section 7): the Published tab replaces those screens. Its tests are no longer here; the area test
-  // (areas/project.test.ts) holds what its own screens need.
-
-  it('sends the report list and a report to the published results of their project', async () => {
-    await endsAt('/app/acme/atlas/reports', '/app/acme/atlas/published');
-    await endsAt('/app/acme/atlas/reports/engines-vs-seeds-informe', '/app/acme/atlas/published');
-    await endsAt('/app/acme/atlas/reports/engines-vs-seeds-informe?x=1', '/app/acme/atlas/published');
+  it('leaves no redirect, no published results screen and no Reports page folder', () => {
+    expect(RETIRED_ROUTES.map((route) => route.path).filter((path) => /\/reports(\/|$)/.test(path))).toEqual([]);
+    expect(routeDefinitions.map((definition) => definition.id)).not.toContain('proj-publications');
+    expect(Object.keys(import.meta.glob('../pages/Reports/*.tsx'))).toEqual([]);
   });
 });
 

@@ -710,8 +710,6 @@
           "projects:write",
           "studies:read",
           "studies:write",
-          "reports:read",
-          "reports:write",
           "artifacts:read",
           "artifacts:write",
           "notifications:read",
@@ -3300,8 +3298,7 @@
             "enum": [
               "case",
               "resource",
-              "result",
-              "report"
+              "result"
             ],
             "title": "Target Kind",
             "type": "string"
@@ -9195,60 +9192,6 @@
         "title": "ProjectView",
         "type": "object"
       },
-      "PublicationView": {
-        "properties": {
-          "citation": {
-            "additionalProperties": true,
-            "title": "Citation",
-            "type": "object"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "project_id": {
-            "format": "uuid",
-            "title": "Project Id",
-            "type": "string"
-          },
-          "published_at": {
-            "format": "date-time",
-            "title": "Published At",
-            "type": "string"
-          },
-          "report_id": {
-            "format": "uuid",
-            "title": "Report Id",
-            "type": "string"
-          },
-          "slug": {
-            "title": "Slug",
-            "type": "string"
-          },
-          "version_id": {
-            "format": "uuid",
-            "title": "Version Id",
-            "type": "string"
-          },
-          "withdrawn": {
-            "title": "Withdrawn",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "version_id",
-          "withdrawn",
-          "id",
-          "project_id",
-          "report_id",
-          "slug",
-          "citation",
-          "published_at"
-        ],
-        "title": "PublicationView",
-        "type": "object"
-      },
       "QuotaBody": {
         "description": "Which allowance refused, and where it stands.\n\nEnough for a client to decide what to do next without asking again: the\nlimit that ran out, how much of it there was, and when it comes back.",
         "properties": {
@@ -9535,115 +9478,6 @@
           "mediaType",
           "status"
         ],
-        "type": "object"
-      },
-      "ReportView": {
-        "properties": {
-          "artifact_id": {
-            "format": "uuid",
-            "title": "Artifact Id",
-            "type": "string"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "digest": {
-            "title": "Digest",
-            "type": "string"
-          },
-          "document": {
-            "additionalProperties": true,
-            "title": "Document",
-            "type": "object"
-          },
-          "draft_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Draft Id"
-          },
-          "draft_revision": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Draft Revision"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "project_id": {
-            "format": "uuid",
-            "title": "Project Id",
-            "type": "string"
-          },
-          "slug": {
-            "title": "Slug",
-            "type": "string"
-          },
-          "state": {
-            "title": "State",
-            "type": "string"
-          },
-          "study_run_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Study Run Id"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          },
-          "version_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Version Id"
-          }
-        },
-        "required": [
-          "artifact_id",
-          "version_id",
-          "draft_id",
-          "draft_revision",
-          "id",
-          "project_id",
-          "study_run_id",
-          "slug",
-          "title",
-          "document",
-          "digest",
-          "state",
-          "created_at"
-        ],
-        "title": "ReportView",
         "type": "object"
       },
       "ReviewableRevision": {
@@ -15312,7 +15146,7 @@
     },
     "/v1/engines": {
       "get": {
-        "description": "Returns built-in and published Engines plus the caller's own private revisions. Private revisions owned by other accounts, including administrators, are never disclosed.",
+        "description": "The public engine catalogue: anybody gets the built-in and published Engines, and a signed-in caller also gets their own private revisions. Private revisions owned by other accounts, including administrators, are never disclosed.",
         "operationId": "list_v1_engines_v1_engines_get",
         "responses": {
           "200": {
@@ -15324,53 +15158,11 @@
               }
             },
             "description": "Visible Engine revisions."
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
           }
         },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "List Engines visible to the authenticated account",
+        "summary": "List the Engines visible to the caller",
         "tags": [
           "BIM v1"
-        ],
-        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
-        "x-required-api-key-permissions": [
-          "engines:read"
         ]
       },
       "post": {
@@ -15852,81 +15644,6 @@
         "summary": "Get Example Package",
         "tags": [
           "BIM v1"
-        ]
-      }
-    },
-    "/v1/explore/engines": {
-      "get": {
-        "operationId": "exploreEngines",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Exploreengines",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Explore Engines",
-        "tags": [
-          "Explore"
-        ]
-      }
-    },
-    "/v1/explore/projects": {
-      "get": {
-        "operationId": "explorePublicProjects",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "additionalProperties": true,
-                    "type": "object"
-                  },
-                  "title": "Response Explorepublicprojects",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Explore Projects",
-        "tags": [
-          "Explore"
-        ]
-      }
-    },
-    "/v1/explore/publications": {
-      "get": {
-        "operationId": "explorePublications",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "additionalProperties": true,
-                    "type": "object"
-                  },
-                  "title": "Response Explorepublications",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Explore Publications",
-        "tags": [
-          "Explore"
         ]
       }
     },
@@ -20282,7 +19999,7 @@
                 }
               }
             },
-            "description": "A sealed or revisioned element of the project depends on this file (code `blob_in_use`). `references` lists the kinds of element and how many of each (`library_version`, `report`, `collection_revision`, `case_revision`, `snapshot`, `project_resource_revision`, `publication`); names are not disclosed."
+            "description": "A sealed or revisioned element of the project depends on this file (code `blob_in_use`). `references` lists the kinds of element and how many of each (`library_version`, `collection_revision`, `case_revision`, `snapshot`, `project_resource_revision`); names are not disclosed."
           },
           "422": {
             "content": {
@@ -23357,294 +23074,6 @@
         ]
       }
     },
-    "/v1/organizations/{org}/projects/{project}/publications": {
-      "get": {
-        "operationId": "listProjectPublications",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PublicationView"
-                  },
-                  "title": "Response Listprojectpublications",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "List Project Publications",
-        "tags": [
-          "Studies"
-        ],
-        "x-public-read": true,
-        "x-required-api-key-permissions": [
-          "reports:read"
-        ]
-      }
-    },
-    "/v1/organizations/{org}/projects/{project}/publications/{publication}": {
-      "delete": {
-        "operationId": "deletePublication",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "publication",
-            "required": true,
-            "schema": {
-              "title": "Publication",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Delete Publication",
-        "tags": [
-          "Studies"
-        ],
-        "x-required-api-key-permissions": [
-          "reports:write"
-        ]
-      }
-    },
-    "/v1/organizations/{org}/projects/{project}/reports": {
-      "get": {
-        "operationId": "listReports",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ReportView"
-                  },
-                  "title": "Response Listreports",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "List Reports",
-        "tags": [
-          "Studies"
-        ],
-        "x-public-read": true,
-        "x-required-api-key-permissions": [
-          "reports:read"
-        ]
-      }
-    },
     "/v1/organizations/{org}/projects/{project}/resources": {
       "get": {
         "operationId": "listProjectResources",
@@ -25108,7 +24537,7 @@
                 }
               }
             },
-            "description": "The run is evidence of a sealed report (code `sealed_evidence`); the job is not finished (`job_not_finished`) or completed without a result (`job_result_missing`); the job is already the result of another cell (`job_already_attached`); or the job is not an execution of this cell (`cell_job_mismatch`): its `fields` list names each of `case_revision`, `engine`, `mode` and `seed` that differ, and `details` gives the `cell` and `job` values."
+            "description": "The job is not finished (`job_not_finished`) or completed without a result (`job_result_missing`); the job is already the result of another cell (`job_already_attached`); or the job is not an execution of this cell (`cell_job_mismatch`): its `fields` list names each of `case_revision`, `engine`, `mode` and `seed` that differ, and `details` gives the `cell` and `job` values."
           },
           "422": {
             "content": {
@@ -27193,7 +26622,7 @@
       "name": "Projects"
     },
     {
-      "description": "Reproducible comparative studies, reports and publications.",
+      "description": "Reproducible comparative studies.",
       "name": "Studies"
     },
     {
@@ -27207,10 +26636,6 @@
     {
       "description": "Account inbox and preferences.",
       "name": "Notifications"
-    },
-    {
-      "description": "Public projects, publications and immutable resources.",
-      "name": "Explore"
     },
     {
       "description": "The published pricing, read only from SPHERE. Pricings, versions, plans and contracts are administered in the SPHERE and SPACE consoles.",
@@ -27239,8 +26664,6 @@
     "projects:write",
     "studies:read",
     "studies:write",
-    "reports:read",
-    "reports:write",
     "artifacts:read",
     "artifacts:write",
     "notifications:read",

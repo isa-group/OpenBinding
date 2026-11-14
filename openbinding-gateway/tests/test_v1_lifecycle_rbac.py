@@ -137,7 +137,6 @@ def _assert_component(component: str, payload: dict) -> None:
     ("method", "path"),
     [
         ("GET", "/v1/catalog"),
-        ("GET", "/v1/engines"),
         ("GET", "/v1/engine-registrations"),
         ("POST", "/v1/validate"),
         ("POST", "/v1/jobs"),
@@ -154,6 +153,13 @@ async def test_engine_discovery_and_execution_never_allow_anonymous_callers(
     assert response.status_code == 401, response.text
     assert response.headers["www-authenticate"].startswith("Bearer")
     assert response.headers["content-type"].startswith("application/problem+json")
+
+
+async def test_the_engine_catalogue_is_public_and_lists_only_public_engines(api_client) -> None:
+    response = await api_client.get("/v1/engines")
+    assert response.status_code == 200, response.text
+    _assert_component("EngineCatalog", response.json())
+    assert "random-search" in {engine["name"] for engine in response.json()["engines"]}
 
 
 async def test_second_user_cannot_distinguish_private_v1_resources(

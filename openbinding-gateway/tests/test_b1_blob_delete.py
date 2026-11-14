@@ -31,9 +31,6 @@ from openbinding_gateway.db.models import (
     InstanceSnapshot,
     ProjectResource,
     ProjectResourceRevision,
-    Publication,
-    Report,
-    ReportState,
 )
 
 @pytest.fixture
@@ -90,10 +87,6 @@ async def library_version(db, ctx, blob):
 
 async def version_pointing_at_the_blob(db, ctx, blob):
     await add_version(db, ctx, kind="Dataset", content_digest=random_digest(), blob=blob)
-
-
-async def sealed_report(db, ctx, blob):
-    await add_version(db, ctx, kind="Report", content_digest=blob.digest, project_id=ctx.project_id)
 
 
 async def sealed_collection(db, ctx, blob):
@@ -156,23 +149,6 @@ async def resource_revision(db, ctx, blob):
     await db.flush()
 
 
-async def published_report(db, ctx, blob):
-    artifact, version = await add_version(
-        db, ctx, kind="Report", content_digest=blob.digest, project_id=ctx.project_id
-    )
-    report = Report(
-        project_id=ctx.project_id, slug=f"{SECRET}-report", title=f"{SECRET} report", artifact_id=artifact.id,
-        version_id=version.id, state=ReportState.FROZEN, created_by_id=ctx.user_id,
-    )
-    db.add(report)
-    await db.flush()
-    db.add(Publication(
-        project_id=ctx.project_id, report_id=report.id, version_id=version.id,
-        slug=f"{SECRET}-publication", citation={}, published_by_id=ctx.user_id,
-    ))
-    await db.flush()
-
-
 def refs(**counts: int) -> list[dict]:
     return [{"type": kind, "count": count} for kind, count in sorted(counts.items())]
 
@@ -180,7 +156,6 @@ def refs(**counts: int) -> list[dict]:
 SCENARIOS = {
     "library_version": (library_version, refs(library_version=1)),
     "version_blob_id": (version_pointing_at_the_blob, refs(library_version=1)),
-    "sealed_report": (sealed_report, refs(report=1)),
     "sealed_collection": (sealed_collection, refs(collection_revision=1)),
     "case_revision": (case_revision, refs(case_revision=1)),
     "package_snapshot": (package_snapshot, refs(case_revision=1, snapshot=1)),
@@ -188,7 +163,6 @@ SCENARIOS = {
     "legacy_collection_revision": (legacy_collection_revision, refs(collection_revision=1)),
     "collection_item": (collection_item, refs(collection_revision=1)),
     "project_resource_revision": (resource_revision, refs(project_resource_revision=1)),
-    "published_report": (published_report, refs(publication=1, report=1)),
 }
 
 
@@ -231,7 +205,7 @@ async def test_every_dependency_kind_is_counted_together(api_client, db_session,
     blob = (await db_session.execute(
         select(Blob).where(Blob.project_id == ctx.project_id, Blob.digest == digest)
     )).scalars().one()
-    for builder in (library_version, case_revision, collection_item, resource_revision, published_report):
+    for builder in (library_version, case_revision, collection_item, resource_revision):
         await builder(db_session, ctx, blob)
     await case_revision(db_session, ctx, blob)
 
@@ -240,7 +214,6 @@ async def test_every_dependency_kind_is_counted_together(api_client, db_session,
     assert response.status_code == 409
     assert response.json()["detail"]["references"] == refs(
         case_revision=2, collection_revision=1, library_version=1, project_resource_revision=1,
-        publication=1, report=1,
     )
 
 

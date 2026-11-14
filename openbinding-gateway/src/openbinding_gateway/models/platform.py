@@ -292,7 +292,7 @@ class CompositionVersionView(BaseModel):
 
 class CollectionItemInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    target_kind: Literal["case", "resource", "result", "report"]
+    target_kind: Literal["case", "resource", "result"]
     target_digest: str = Field(..., pattern=DIGEST)
     target_ref: dict[str, Any]
 
@@ -430,41 +430,6 @@ class StudyCellView(BaseModel):
     job_id: Optional[uuid.UUID]
     state: str
     metrics: dict[str, Any]
-
-
-class ReportView(BaseModel):
-    artifact_id: uuid.UUID
-    version_id: Optional[uuid.UUID]
-    draft_id: Optional[uuid.UUID]
-    draft_revision: Optional[int]
-    id: uuid.UUID
-    project_id: uuid.UUID
-    study_run_id: Optional[uuid.UUID]
-    slug: str
-    title: str
-    document: dict[str, Any]
-    digest: str
-    state: str
-    created_at: datetime
-
-
-class PublicationCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    version_id: Optional[uuid.UUID] = None
-    report_id: uuid.UUID
-    slug: str = Field(..., pattern=SLUG)
-    citation: dict[str, Any] = Field(default_factory=dict)
-
-
-class PublicationView(BaseModel):
-    version_id: uuid.UUID
-    withdrawn: bool
-    id: uuid.UUID
-    project_id: uuid.UUID
-    report_id: uuid.UUID
-    slug: str
-    citation: dict[str, Any]
-    published_at: datetime
 
 
 class BlobView(BaseModel):

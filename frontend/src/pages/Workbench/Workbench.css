@@ -296,8 +296,6 @@
 .wb-index button span, .wb-index-registered span { color: var(--tp-steel); font-size: 0.6875rem; }
 .wb-index button strong, .wb-index-registered strong { font-size: 0.8125rem; font-weight: 600; overflow-wrap: anywhere; }
 .wb-index button code, .wb-index-registered code { color: var(--tp-steel); font-size: 0.6875rem; overflow-wrap: anywhere; }
-.wb-index-link { display: inline-flex; align-items: center; gap: 6px; margin: 8px 8px 4px; font-size: 0.8125rem; font-weight: 500; }
-.wb-index-link svg { width: 14px; height: 14px; }
 
 .wb-editor-main { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-sm); }
 .wb-selected { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

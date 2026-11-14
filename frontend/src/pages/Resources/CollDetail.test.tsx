@@ -6,7 +6,7 @@ import { CollDetail } from './CollDetail';
 import { caseItem, collectionOf, collectionRevisionOf, digestOf, resourceItem, resourceOf, resourceRevisionOf } from '../../test/fixtures/resources';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), publicProjects: vi.fn(), collection: vi.fn(), collectionRevisions: vi.fn(), createCollectionRevision: vi.fn(), updateCollection: vi.fn(), deleteCollection: vi.fn(),
+  project: vi.fn(), collection: vi.fn(), collectionRevisions: vi.fn(), createCollectionRevision: vi.fn(), updateCollection: vi.fn(), deleteCollection: vi.fn(),
   cases: vi.fn(), revisions: vi.fn(), resources: vi.fn(), resourceRevisions: vi.fn(),
 }));
 const download = vi.hoisted(() => ({ saveBytes: vi.fn() }));
@@ -49,7 +49,6 @@ describe('Collection detail', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
-    platform.publicProjects.mockResolvedValue([]);
     platform.collection.mockResolvedValue(checkout);
     platform.collectionRevisions.mockResolvedValue([rev1, rev2]);
     platform.cases.mockResolvedValue([flujo]);

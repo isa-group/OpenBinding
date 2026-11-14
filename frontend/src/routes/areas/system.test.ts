@@ -37,18 +37,18 @@ describe('area system', () => {
       vi.resetModules();
     });
 
-    it('leaves sys-states out of a production build and counts 44 screens', async () => {
+    it('leaves sys-states out of a production build and counts 42 screens', async () => {
       const registry = await load(false);
       expect(registry.routeDefinitions.map((definition) => definition.id)).not.toContain('sys-states');
       expect(registry.routesByArea.system).toEqual([]);
-      expect(registry.routeDefinitions).toHaveLength(44);
+      expect(registry.routeDefinitions).toHaveLength(42);
     });
 
-    it('adds sys-states to a development build, on top of the 44 screens', async () => {
+    it('adds sys-states to a development build, on top of the 42 screens', async () => {
       const registry = await load(true);
       expect(registry.routeDefinitions.map((definition) => definition.id)).toContain('sys-states');
-      expect(registry.routeDefinitions.filter((definition) => !definition.devOnly)).toHaveLength(44);
-      expect(registry.routeDefinitions).toHaveLength(45);
+      expect(registry.routeDefinitions.filter((definition) => !definition.devOnly)).toHaveLength(42);
+      expect(registry.routeDefinitions).toHaveLength(43);
     });
   });
 

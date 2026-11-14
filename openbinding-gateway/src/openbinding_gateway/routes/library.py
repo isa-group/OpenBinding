@@ -110,17 +110,6 @@ async def publish_version(artifact_id: uuid.UUID, version_id: uuid.UUID, payload
                     version=engine['version'], manifest_digest=engine['digest'])
             except HTTPException as exc:
                 raise api_error(422, 'private_engine_dependency', 'Publish the exact Engine contract before publishing this version.') from exc
-    if artifact.kind == 'Report':
-        from ..db.models import ArtifactEvidence, Job, StudyRun
-        for evidence in await session.scalars(select(ArtifactEvidence).where(ArtifactEvidence.version_id == version.id)):
-            if evidence.study_run_id:
-                study_version = await session.scalar(select(StudyRun.definition_version_id).where(StudyRun.id == evidence.study_run_id))
-                if await session.get(ArtifactPublication, study_version) is None:
-                    raise api_error(422, 'private_evidence', 'Publish the exact study definition before publishing its report.')
-            if evidence.job_id:
-                job_project = await session.scalar(select(Project.visibility).join(Job, Job.project_id == Project.id).where(Job.id == evidence.job_id))
-                if job_project != Visibility.PUBLIC:
-                    raise api_error(422, 'private_evidence', 'Job evidence must belong to a public project before report publication.')
     targets = (await session.scalars(select(ArtifactDependency.dependency_id).where(ArtifactDependency.version_id == version.id))).all()
     for target in targets:
         if await session.get(ArtifactPublication, target) is None:
@@ -144,17 +133,5 @@ async def publish_version(artifact_id: uuid.UUID, version_id: uuid.UUID, payload
         session.add(publication)
     elif publication.withdrawn:
         raise api_error(409, 'publication_withdrawn', 'Publish a new version to supersede a withdrawn edition.')
-    await session.flush()
-    return version_view(artifact, version, publication)
-
-
-async def withdraw_version(artifact_id: uuid.UUID, version_id: uuid.UUID, user: User, session: AsyncSession) -> dict:
-    """Withdraw a public version; used by the kept ``DELETE .../publications/{publication}`` (not routed itself)."""
-    await owned_artifact(session, artifact_id, user, OrganizationRole.ADMIN)
-    artifact, version = await _version(session, artifact_id, version_id, user)
-    publication = await session.get(ArtifactPublication, version.id)
-    if publication is None:
-        raise api_error(404, 'not_found', 'Publication not found.')
-    publication.withdrawn = True
     await session.flush()
     return version_view(artifact, version, publication)

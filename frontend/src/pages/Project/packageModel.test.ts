@@ -28,10 +28,9 @@ describe('inspecting a package before it is sent', () => {
       ['Manifest', 'verified'],
       ['Problem version', 'later'],
       ['Problem version', 'later'],
-      ['Frozen report', 'verified'],
       ['File · text/plain', 'verified'],
     ]);
-    expect(countRows(inspection.rows)).toEqual({ verified: 3, reused: 0, added: 0, later: 2 });
+    expect(countRows(inspection.rows)).toEqual({ verified: 2, reused: 0, added: 0, later: 2 });
     expect(inspection.cases).toEqual([{
       slug: 'flujo', name: 'Flujo de checkout',
       revisions: [{ revision: 1, digest: CASE_DIGESTS[0] }, { revision: 2, digest: CASE_DIGESTS[1] }],

@@ -19,12 +19,9 @@ describe('area language', () => {
     expect(routeDefinitions.map((definition) => definition.path)).not.toContain('/examples');
   });
 
-  it('moves /examples to /explore/examples and keeps the query', () => {
-    const route = movedRoutes.find((entry) => entry.id === 'lang-examples');
-    expect(route?.path).toBe('/examples');
-    expect(route?.permanent).toBeFalsy();
-    expect(route?.target(new URLSearchParams('profile=placement'), {})).toBe('/explore/examples?profile=placement');
-    expect(route?.target(new URLSearchParams(''), {})).toBe('/explore/examples');
+  it('moves /examples nowhere: the examples are gone', () => {
+    expect(movedRoutes.map((entry) => entry.id)).not.toContain('lang-examples');
+    expect(movedRoutes.map((entry) => entry.path)).not.toContain('/examples');
   });
 
   it('removes lang-schemas and lang-extensions from the registry', () => {

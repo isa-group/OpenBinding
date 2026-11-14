@@ -5,7 +5,7 @@ import { HttpError } from '../../api/client';
 import { caseOf, org, project, renderProjectScreen, revisionOf } from '../Project/testKit';
 import { CaseList } from './CaseList';
 
-const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), revisions: vi.fn(), deleteCase: vi.fn(), publicProjects: vi.fn() }));
+const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), revisions: vi.fn(), deleteCase: vi.fn() }));
 const cases = vi.hoisted(() => ({ createCase: vi.fn() }));
 
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
@@ -46,7 +46,6 @@ describe('Problem list', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
-    platform.publicProjects.mockResolvedValue([]);
     platform.cases.mockResolvedValue([checkout, draft]);
     platform.revisions.mockImplementation(async (_org: string, _project: string, slug: string) => (slug === 'flujo-checkout' ? [revisionOf(checkout, 1), revisionOf(checkout, 2)] : []));
   });
@@ -121,7 +120,7 @@ describe('Problem list', () => {
     const guide = await screen.findByRole('region', { name: 'No problems yet' });
     expect(guide).toHaveTextContent('Start from a ready example, or create a problem and save its first version from the workbench.');
     expect(guide.textContent).not.toMatch(/composer|compose one/);
-    expect(within(guide).getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/explore/examples');
+    expect(within(guide).getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', `${root}/workbench`);
     expect(within(guide).queryByRole('link', { name: /library/i })).toBeNull();
   });
 
@@ -149,12 +148,11 @@ describe('Problem list', () => {
     expect(screen.getAllByRole('link', { name: 'Run latest' })).toHaveLength(1);
   });
 
-  it('offers a MEMBER the workbench, the examples and a new problem, but not deleting', async () => {
+  it('offers a MEMBER the workbench and a new problem, but not deleting', async () => {
     renderList();
 
     await screen.findByRole('list', { name: 'Problems' });
     expect(screen.getByRole('link', { name: 'Workbench' })).toHaveAttribute('href', `${root}/workbench`);
-    expect(screen.getByRole('link', { name: 'Import from example' })).toHaveAttribute('href', '/explore/examples');
     expect(screen.getByRole('button', { name: 'New problem' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Delete/ })).not.toBeInTheDocument();
   });

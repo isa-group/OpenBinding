@@ -50,7 +50,7 @@ export const PROBLEMS = `/app/acme/demo/${PROBLEMS_SEGMENT}`;
 export const RUN_NEW = `/app/acme/demo/${RUNS_SEGMENT}/new`;
 export const RUNS_ALL = `/app/${RUNS_SEGMENT}`;
 
-export const EXAMPLES =['demo/01_simple_seq', 'demo/02_parallel', 'placement/01_small_placement'];
+const EXAMPLES = ['demo/01_simple_seq', 'demo/02_parallel', 'placement/01_small_placement'];
 
 /**
  * Answers the API origin: the user, the organization `acme` with its project `demo`, notifications and the few public
@@ -69,9 +69,6 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Re
   await page.route(`${API}/v1/examples`, json({ examples: EXAMPLES }));
   await page.route(`${API}/v1/profiles`, json({ profiles: [{ id: 'qos-binding/v1' }] }));
   await page.route(`${API}/v1/dialects`, json({ dialects: [{ id: 'qos-binding' }] }));
-  await page.route(`${API}/v1/explore/projects`, json({ projects: [], pagination: { total: 0, limit: 20, offset: 0, has_more: false } }));
-  await page.route(`${API}/v1/explore/engines`, json({ engines: [] }));
-  await page.route(`${API}/v1/explore/publications`, json({ publications: [], pagination: { total: 0, limit: 20, offset: 0, has_more: false } }));
   await page.route(`${API}/v1/engines`, json({ engines: [] }));
   if (options.gateway === 'down') {
     for (const path of ['/health', '/health/live', '/health/ready']) await page.route(`${API}${path}`, (route) => route.abort('connectionrefused'));

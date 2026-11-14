@@ -1,9 +1,8 @@
 """Seed data that the routes removed by M9.6 used to create (design.md §7, tasks.md S7).
 
-Not a test module (no ``test_`` prefix). Tests whose setup called the report editor, the
-library editor or the project-resource writes seed through the internal services here
-instead: ``artifacts.seal_draft``, ``reports.create_report_context`` and
-``reports.seal_report``. The rows are the ones those routes wrote.
+Not a test module (no ``test_`` prefix). Tests whose setup called the library editor or the
+project-resource writes seed through the internal services here instead
+(``artifacts.seal_draft``). The rows are the ones those routes wrote.
 """
 
 from __future__ import annotations
@@ -86,49 +85,6 @@ async def publish(db, version: ArtifactVersion, user, citation: dict | None = No
     """The publication record of a version (the removed publish route wrote this row)."""
     user = await _user(db, user)
     row = ArtifactPublication(version_id=version.id, citation=citation or {}, published_by_id=user.id)
-    db.add(row)
-    await db.flush()
-    return row
-
-
-async def report(db, project, user, *, slug: str, title: str, document: dict, study_run_id=None,
-                 freeze: bool = False):
-    """A project report through ``reports.create_report_context`` (and ``seal_report`` when ``freeze``)."""
-    from openbinding_gateway.reports import create_report_context, seal_report
-
-    project, user = await _project(db, project), await _user(db, user)
-    value = await create_report_context(db, project, user, slug=slug, title=title, document=document,
-        study_run_id=study_run_id)
-    if freeze:
-        await seal_report(db, value, user)
-    return value
-
-
-async def new_edition(db, value, user, document: dict | None = None):
-    """A new sealed version of a frozen report, optionally with a new document (the removed draft, edit and
-    freeze routes)."""
-    from openbinding_gateway.reports import new_report_draft, seal_report
-
-    user = await _user(db, user)
-    draft = await new_report_draft(db, value, user)
-    if document is not None:
-        draft.payload = {**draft.payload, "content": document}
-        draft.revision += 1
-        await db.flush()
-    return await seal_report(db, value, user)
-
-
-async def report_publication(db, value, user, *, slug: str, citation: dict | None = None, version_id=None):
-    """The rows the removed ``POST .../publications`` wrote: the version's publication and the project's."""
-    from openbinding_gateway.db.models import Publication
-
-    user = await _user(db, user)
-    version_id = version_id or value.version_id
-    recorded = {"title": value.title, **(citation or {})}
-    if await db.get(ArtifactPublication, version_id) is None:
-        db.add(ArtifactPublication(version_id=version_id, citation=recorded, published_by_id=user.id))
-    row = Publication(project_id=value.project_id, report_id=value.id, version_id=version_id, slug=slug,
-        citation=recorded, published_by_id=user.id)
     db.add(row)
     await db.flush()
     return row

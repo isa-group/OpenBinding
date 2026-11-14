@@ -1,12 +1,10 @@
-"""Curated collections, comparative studies, reports and publications."""
+"""Curated collections and comparative studies."""
 
 from __future__ import annotations
 
 import uuid
-import re
 import math
 from collections.abc import Mapping
-from typing import Any
 
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy import delete, func, select
@@ -31,9 +29,6 @@ from ..db.models import (
     Organization,
     OrganizationRole,
     Project,
-    Publication,
-    Report,
-    ReportState,
     RunState,
     Study,
     StudyCell,
@@ -51,9 +46,6 @@ from ..models.platform import (
     CollectionRevisionView,
     CollectionUpdate,
     CollectionView,
-    PublicationCreate,
-    PublicationView,
-    ReportView,
     StudyCellResult,
     StudyCellView,
     StudyCreate,
@@ -83,7 +75,6 @@ from ..models.artifacts import CollectionArtifactContent
 import json
 
 router = APIRouter(prefix="/v1/organizations/{org}/projects/{project}", tags=["Studies"])
-public_router = APIRouter(prefix="/v1/explore", tags=["Explore"])
 
 
 def _audit(session: AsyncSession, user: User, action: str, target, organization_id, **detail) -> None:
@@ -151,7 +142,6 @@ async def _validate_collection_item(
         reference.get("caseRevisionId")
         or reference.get("resourceRevisionId")
         or reference.get("jobId")
-        or reference.get("reportId")
         or reference.get("id")
     )
     try:
@@ -180,14 +170,10 @@ async def _validate_collection_item(
             .where(ArtifactVersion.id == target_id))).first()
         if row:
             actual_digest, belongs = row[0].content_digest, row[1] == project_id
-    elif item.target_kind == "result":
+    else:
         row = await session.get(Job, target_id)
         if row:
             actual_digest, belongs = digest(row.result or {}), row.project_id == project_id
-    else:
-        row = await session.get(Report, target_id)
-        if row:
-            actual_digest, belongs = row.digest, row.project_id == project_id
     if not belongs or actual_digest != item.target_digest:
         raise api_error(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -805,12 +791,6 @@ async def get_study_cell(
     )
 
 
-async def _require_mutable_evidence(session, run):
-    from ..db.models import ArtifactEvidence
-    if await session.scalar(select(ArtifactEvidence.version_id).where(ArtifactEvidence.study_run_id == run.id).limit(1)):
-        raise api_error(409, 'sealed_evidence', 'This run is evidence of a sealed report. Start a new run to change its results.')
-
-
 @router.post("/studies/{study}/runs/{run_id}/cancel", response_model=StudyRunView, operation_id="cancelStudyRun")
 async def cancel_study_run(
     org: str, project: str, study: str, run_id: uuid.UUID,
@@ -820,7 +800,6 @@ async def cancel_study_run(
     organization, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
     found_study = await _study(session, found_project.id, study, user, check_engines=False)
     run = await _run(session, found_study.id, run_id, user)
-    await _require_mutable_evidence(session, run)
     try:
         run, cells = await cancel_run(session, run.id)
     except LookupError as exc:
@@ -842,8 +821,8 @@ async def cancel_study_run(
         409: {
             "model": ErrorResponse,
             "description": (
-                "The run is evidence of a sealed report (code `sealed_evidence`); the job is not "
-                "finished (`job_not_finished`) or completed without a result (`job_result_missing`); "
+                "The job is not finished (`job_not_finished`) or completed without a result "
+                "(`job_result_missing`); "
                 "the job is already the result of another cell (`job_already_attached`); or the job "
                 "is not an execution of this cell (`cell_job_mismatch`): its `fields` list names "
                 "each of `case_revision`, `engine`, `mode` and `seed` that differ, and `details` "
@@ -861,7 +840,6 @@ async def attach_cell_result(
     organization, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
     found_study = await _study(session, found_project.id, study, user, check_engines=False)
     run = await _run(session, found_study.id, run_id, user)
-    await _require_mutable_evidence(session, run)
     # It rewrites the run's aggregate like _sync does, so it takes the same locks.
     run = await lock_run(session, run.id) or run
     cell = (
@@ -915,7 +893,6 @@ async def retry_study_cell(
     organization, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
     found_study = await _study(session, found_project.id, study, user, check_engines=False)
     run = await _run(session, found_study.id, run_id, user)
-    await _require_mutable_evidence(session, run)
     # Run first, then the cell, as cancel and _sync do. A second retry of the same
     # cell waits here and then finds the replacement the first one launched: it is
     # answered with that job and ``idempotent: true`` (200), not refused with a 409.
@@ -1085,266 +1062,3 @@ async def get_study_analytics(
             }
 
     return AnalyticsView(**metrics_data, binding_space=binding_space_info)
-
-
-def _published_report(project_id: uuid.UUID):
-    """Frozen reports with a live (not withdrawn) publication: all a non-member may read."""
-
-    return (Report.state == ReportState.FROZEN) & Report.id.in_(
-        select(Publication.report_id).where(
-            Publication.project_id == project_id, Publication.withdrawn.is_(False)
-        )
-    )
-
-
-def _report_view(value: Report) -> ReportView:
-    return ReportView(
-        id=value.id, project_id=value.project_id, study_run_id=value.study_run_id,
-        artifact_id=value.artifact_id, version_id=value.version_id, draft_id=value.draft_id,
-        draft_revision=value.draft.revision if value.draft and not value.draft.sealed_version_id else None,
-        slug=value.slug, title=value.title, document=value.document, digest=value.digest,
-        state=value.state.value, created_at=value.created_at,
-    )
-
-
-def _exact_digest(value: object) -> bool:
-    return isinstance(value, str) and bool(re.fullmatch(r"sha256-[0-9a-f]{64}", value))
-
-
-async def _validate_report_provenance(
-    value: Report,
-    project_id: uuid.UUID,
-    provenance: object,
-    session: AsyncSession,
-) -> None:
-    """Require enough immutable identity to reproduce a frozen report."""
-
-    if not isinstance(provenance, dict):
-        provenance = {}
-    required = {
-        "study",
-        "datasets",
-        "software",
-        "bimVersion",
-        "engineRevisions",
-        "parameters",
-    }
-    if not required <= set(provenance):
-        raise api_error(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-            "incomplete_provenance",
-            "Frozen reports require study, datasets, software, bimVersion, engineRevisions and parameters provenance.",
-        )
-    if not isinstance(provenance["bimVersion"], str) or not provenance["bimVersion"].strip():
-        raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_provenance", "bimVersion must be a non-empty version string.")
-    engines = provenance["engineRevisions"]
-    if not isinstance(engines, list) or not engines or not all(
-        _exact_digest(item) or (
-            isinstance(item, dict)
-            and isinstance(item.get("name"), str)
-            and isinstance(item.get("version"), str)
-            and _exact_digest(item.get("digest"))
-        )
-        for item in engines
-    ):
-        raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_provenance", "engineRevisions must identify one or more immutable engine digests.")
-    if not isinstance(provenance["parameters"], dict):
-        raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_provenance", "parameters must be an object.")
-    datasets = provenance["datasets"]
-    if not isinstance(datasets, list) or not datasets or not all(
-        isinstance(item, dict)
-        and isinstance(item.get("reference"), str)
-        and bool(item["reference"].strip())
-        and _exact_digest(item.get("digest"))
-        for item in datasets
-    ):
-        raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_provenance", "datasets must contain reproducible reference and sha256 digest pairs.")
-    software = provenance["software"]
-    if not isinstance(software, list) or not software or not all(
-        isinstance(item, dict)
-        and all(isinstance(item.get(key), str) and item[key].strip() for key in ("name", "version"))
-        and _exact_digest(item.get("digest"))
-        for item in software
-    ):
-        raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_provenance", "software must identify name, version and sha256 digest.")
-
-    study = provenance["study"]
-    if not isinstance(study, dict):
-        raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_provenance", "study must be an object.")
-    if value.study_run_id is not None:
-        run = await session.get(StudyRun, value.study_run_id)
-        linked_project_id = await session.scalar(
-            select(Study.project_id).where(Study.id == run.study_id)
-        ) if run is not None else None
-        if (
-            run is None
-            or linked_project_id != project_id
-            or study.get("runId") != str(run.id)
-            or study.get("matrixDigest") != run.matrix_digest
-        ):
-            raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "study_provenance_mismatch", "study.runId and study.matrixDigest must match the linked run in this project.")
-    elif not (
-        isinstance(study.get("reference"), str)
-        and bool(study["reference"].strip())
-        and _exact_digest(study.get("digest"))
-    ):
-        raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_provenance", "A report without a linked run must provide study.reference and study.digest.")
-
-
-@router.get("/reports", response_model=list[ReportView], operation_id="listReports")
-async def list_reports(
-    org: str, project: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> list[ReportView]:
-    _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    query = select(Report).where(Report.project_id == found_project.id)
-    if public_read.is_public_read(session):
-        query = query.where(_published_report(found_project.id))
-    rows = (await session.execute(query.order_by(Report.created_at.desc()))).scalars().all()
-    return [_report_view(row) for row in rows]
-
-
-# The report editor (get one, create, freeze, new draft, edit, delete) and the publication of a report are not
-# routed since M9.6 (design.md §2.1 rows 9 to 15). Reports are sealed by the internal services (reports.py).
-
-
-# Not routed (row 15): the development seeder (tools/seed_dev.py) still publishes its demonstration report
-# through this function.
-async def publish_report(
-    org: str, project: str, payload: PublicationCreate, user: User, session: AsyncSession,
-) -> PublicationView:
-    organization, found_project = await _context(session, org, project, user, OrganizationRole.ADMIN)
-    report = await session.get(Report, payload.report_id)
-    if report is None or report.project_id != found_project.id:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Report not found.")
-    if report.state is not ReportState.FROZEN:
-        raise api_error(status.HTTP_409_CONFLICT, "report_not_frozen", "Freeze a report before publishing it.")
-    from ..db.models import ArtifactVersion
-    version = await session.get(ArtifactVersion, payload.version_id or report.version_id)
-    if version is None or version.artifact_id != report.artifact_id:
-        raise api_error(422, 'foreign_report_version', 'Select a sealed version of this report.')
-    duplicate = await session.scalar(
-        select(func.count(Publication.id)).where(
-            (Publication.project_id == found_project.id) & (Publication.slug == payload.slug)
-            | ((Publication.report_id == report.id) & (Publication.version_id == version.id))
-        )
-    )
-    if duplicate:
-        raise api_error(
-            status.HTTP_409_CONFLICT,
-            "publication_conflict",
-            "That slug is in use or the report is already published.",
-        )
-    from .library import publish_version
-    from ..models.artifacts import PublishVersion
-    citation = {'title': report.title, **payload.citation}
-    await publish_version(report.artifact_id, version.id, PublishVersion(citation=citation), user, session)
-    value = Publication(
-        project_id=found_project.id, report_id=report.id, version_id=version.id, slug=payload.slug,
-        citation=citation, published_by_id=user.id,
-    )
-    session.add(value)
-    await session.flush()
-    _audit(session, user, "publication.created", value, organization.id, reportDigest=report.digest)
-    return PublicationView.model_validate(value, from_attributes=True)
-
-
-@router.get("/publications", response_model=list[PublicationView], operation_id="listProjectPublications")
-async def list_project_publications(
-    org: str, project: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> list[PublicationView]:
-    _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    query = select(Publication).where(Publication.project_id == found_project.id)
-    if public_read.is_public_read(session):
-        query = query.where(Publication.withdrawn.is_(False))
-    rows = (await session.execute(query.order_by(Publication.published_at.desc()))).scalars().all()
-    return [PublicationView.model_validate(row, from_attributes=True) for row in rows]
-
-
-@router.delete("/publications/{publication}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deletePublication")
-async def delete_publication(
-    org: str, project: str, publication: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> None:
-    organization, found_project = await _context(session, org, project, user, OrganizationRole.ADMIN)
-    try:
-        parsed = uuid.UUID(publication)
-    except ValueError:
-        parsed = None
-    value = (await session.execute(select(Publication).where(
-        Publication.project_id == found_project.id,
-        Publication.id == parsed if parsed else Publication.slug == publication,
-    ))).scalars().first()
-    if value is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Publication not found.")
-    from .library import withdraw_version
-    await withdraw_version(value.version.artifact_id, value.version_id, user, session)
-    _audit(session, user, "publication.withdrawn", value, organization.id)
-    value.withdrawn = True
-    await session.flush()
-
-
-@public_router.get("/projects", operation_id="explorePublicProjects")
-async def explore_projects(
-    response: Response,
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> list[dict]:
-    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
-    rows = (await session.execute(
-        select(Project, Organization).join(Organization, Organization.id == Project.organization_id).where(Project.visibility == "public").order_by(Project.updated_at.desc())
-    )).all()
-    return [{
-        "organization": {"slug": organization.slug, "name": organization.name},
-        "project": {"slug": project.slug, "name": project.name, "description": project.description},
-    } for project, organization in rows]
-
-
-@public_router.get("/publications", operation_id="explorePublications")
-async def explore_publications(
-    response: Response,
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> list[dict]:
-    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
-    rows = (await session.execute(
-        select(Publication, Report, Project, Organization)
-        .join(Report, Report.id == Publication.report_id)
-        .join(Project, Project.id == Publication.project_id)
-        .join(Organization, Organization.id == Project.organization_id)
-        .where(Project.visibility == "public", Publication.withdrawn.is_(False))
-        .order_by(Publication.published_at.desc())
-    )).all()
-    return [{
-        "slug": publication.slug, "citation": publication.citation,
-        "report": {"title": publication.citation.get("title", report.title), "digest": publication.version.content_digest, "version_id": str(publication.version_id)},
-        "project": project.slug, "organization": organization.slug,
-        "publishedAt": publication.published_at,
-    } for publication, report, project, organization in rows]
-
-
-@public_router.get("/engines", operation_id="exploreEngines")
-async def explore_engines(
-    response: Response,
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> dict[str, Any]:
-    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
-    from ..services.engines import available_engine_documents, engine_ref
-
-    engines = []
-    for document, namespace in await available_engine_documents(session, caller=None):
-        reference = engine_ref(document, namespace)
-        engines.append(
-            {
-                "id": reference["name"],
-                "name": reference["name"],
-                "namespace": reference["namespace"],
-                "version": reference["version"],
-                "digest": reference["digest"],
-                "ref": reference,
-                "modes": document.get("spec", {}).get("modes", []),
-            }
-        )
-    return {"engines": engines}

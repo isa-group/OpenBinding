@@ -16,7 +16,7 @@ test('the project screens are headed Problems and Runs and the Problems tab offe
 
 const SIGNED_IN_SCREENS = [
   '/app', '/app/acme', '/app/acme/demo', PROBLEMS_FINAL, RUNS_FINAL, RUNS_ALL_FINAL,
-  '/app/acme/demo/collections', '/app/acme/demo/studies', '/app/acme/demo/published', '/app/account/usage',
+  '/app/acme/demo/collections', '/app/acme/demo/studies', '/app/account/usage',
 ];
 
 test('no signed-in screen shows the words case or job outside code, SourceView and LogPanel', async ({ page }) => {

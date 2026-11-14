@@ -76,8 +76,8 @@ export const isCurrent = (group: Locator, name: string): Locator => group
 
 // ---- project --------------------------------------------------------------------------------------------------
 
-export const PROJECT_TABS = ['Overview', 'Problems', 'Collections', 'Runs', 'Studies', 'Published', 'Settings'];
-export const VISITOR_TABS = ['Overview', 'Problems', 'Collections', 'Studies', 'Published'];
+export const PROJECT_TABS = ['Overview', 'Problems', 'Collections', 'Runs', 'Studies', 'Settings'];
+export const VISITOR_TABS = ['Overview', 'Problems', 'Collections', 'Studies'];
 
 export interface ProjectMockOptions extends MockOptions {
   /** A signed-in person who only reads the public project `demo` of `acme` (access `public_read`). */
@@ -106,7 +106,7 @@ export async function mockProject(page: Page, options: ProjectMockOptions = {}):
   } else {
     await answer(page, '/v1/organizations/acme/members', orgMembers);
   }
-  for (const list of ['cases', 'jobs', 'collections', 'studies', 'publications', 'reports']) {
+  for (const list of ['cases', 'jobs', 'collections', 'studies']) {
     await answer(page, `/v1/organizations/acme/projects/demo/${list}`, []);
   }
   await page.route(`${ROOT}/package**`, (route) => (route.request().method() === 'POST'
@@ -115,7 +115,7 @@ export async function mockProject(page: Page, options: ProjectMockOptions = {}):
   return calls;
 }
 
-/** The project tabs: the navigation that holds all the given labels (the seven of a member by default). */
+/** The project tabs: the navigation that holds all the given labels (the six of a member by default). */
 export const projectTabs = (page: Page, labels: string[] = PROJECT_TABS): Locator => sectionNav(page, labels);
 
 export const packageCalls = (calls: Call[]): Call[] => calls.filter((call) => call.path === '/v1/organizations/acme/projects/demo/package');

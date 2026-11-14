@@ -165,33 +165,6 @@ export interface StoredBlob {
   created_at: string;
 }
 
-export interface Report {
-  artifact_id: string;
-  version_id: string | null;
-  draft_id: string | null;
-  draft_revision: number | null;
-  id: string;
-  project_id: string;
-  study_run_id: string | null;
-  slug: string;
-  title: string;
-  document: Record<string, unknown>;
-  digest: string;
-  state: 'draft' | 'frozen';
-  created_at: string;
-}
-
-export interface Publication {
-  version_id: string;
-  withdrawn: boolean;
-  id: string;
-  project_id: string;
-  report_id: string;
-  slug: string;
-  citation: Record<string, unknown>;
-  published_at: string;
-}
-
 /** One engine of a study definition: the pinned revision, the mode and the optimization the gateway requires of each. */
 export interface StudyEngine {
   namespace?: string;
@@ -533,14 +506,6 @@ export const platformApi = {
   /** Needs ADMIN. 409 `study_history_retained` once the study has runs: archive it instead. */
   deleteStudy: (org: string, project: string, study: string) =>
     apiClient.request<void>(`${root(org, project)}/studies/${encodeURIComponent(study)}`, { method: 'DELETE' }, undefined, true, true),
-  reports: (org: string, project: string) =>
-    apiClient.request<Report[]>(`${root(org, project)}/reports`),
-  /** Withdrawn publications are listed too: `withdrawn` says which. */
-  publications: (org: string, project: string) =>
-    apiClient.request<Publication[]>(`${root(org, project)}/publications`),
-  /** Needs ADMIN. This withdraws: the publication, its link, citation and fingerprint stay; it only leaves the listings. */
-  deletePublication: (org: string, project: string, publication: string) =>
-    apiClient.request<void>(`${root(org, project)}/publications/${encodeURIComponent(publication)}`, { method: 'DELETE' }, undefined, true, true),
   /** The project's files (content-addressed blobs), newest first. VIEWER can read. */
   artifacts: (org: string, project: string) =>
     apiClient.request<StoredBlob[]>(`${root(org, project)}/blobs`),
@@ -607,41 +572,22 @@ export const platformApi = {
       `${root(org, project)}/studies/${encodeURIComponent(study)}/runs?definition_version_id=${encodeURIComponent(version)}`,
       { method: 'POST' }, undefined, true, true,
     ),
-  /** Needs MEMBER. 409 `sealed_evidence` when a sealed report cites the run, 409 `terminal_run` once it ended. */
+  /** Needs MEMBER. 409 `terminal_run` once it ended. */
   cancelStudyRun: (org: string, project: string, study: string, run: string) =>
     apiClient.request<StudyRun>(
       `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cancel`,
       { method: 'POST' }, undefined, true, true,
     ),
-  /** Needs MEMBER. Only failed or cancelled cells: 409 `cell_not_retryable` otherwise, 409 `sealed_evidence`, 422 when the cell can't be launched again. */
+  /** Needs MEMBER. Only failed or cancelled cells: 409 `cell_not_retryable` otherwise, 422 when the cell can't be launched again. */
   retryStudyCell: (org: string, project: string, study: string, run: string, cell: string) =>
     apiClient.request<StudyCellRetry>(
       `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells/${encodeURIComponent(cell)}/retry`,
       { method: 'POST' }, undefined, true, true,
     ),
-  /** Needs MEMBER. Attaches a finished job of the caller as the cell's result: 404 for a job that isn't theirs, 409 `job_not_finished`, 409 `sealed_evidence`. */
+  /** Needs MEMBER. Attaches a finished job of the caller as the cell's result: 404 for a job that isn't theirs, 409 `job_not_finished`. */
   attachStudyCellResult: (org: string, project: string, study: string, run: string, cell: string, jobId: string) =>
     apiClient.request<StudyCellAttached>(
       `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells/${encodeURIComponent(cell)}/result`,
       { method: 'POST', body: JSON.stringify({ job_id: jobId }) }, undefined, true, true,
     ),
-  publicProjects: () => apiClient.request<Array<{
-    organization: { slug: string; name: string };
-    project: { slug: string; name: string; description: string };
-  }>>('/v1/explore/projects'),
-  publicPublications: () => apiClient.request<PublicPublication[]>('/v1/explore/publications'),
 };
-
-/**
- * One row of GET /v1/explore/publications. Only public, non-withdrawn publications are listed; the
- * organization and project are slugs, and `citation` is whatever the publisher recorded, so every field is optional.
- */
-export interface PublicPublication {
-  slug?: string;
-  citation?: Record<string, unknown> | null;
-  report?: { title?: string; digest?: string; version_id?: string } | null;
-  project?: string;
-  organization?: string;
-  publishedAt?: string | null;
-  [key: string]: unknown;
-}

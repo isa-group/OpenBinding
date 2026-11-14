@@ -15,8 +15,9 @@ import { studyRunLabel } from '../../shared/lib/identity';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
+import { saveBytes } from '../Project/download';
 import { DistributionPlot, RankingTable, SeedTable, TimeBars, TradeoffPlot } from './AnalyticsCharts';
-import { engineRows, measureTitle, scatterOf, seedGroups, spreadOf } from './analyticsModel';
+import { cellsCsv, engineRows, measureTitle, scatterOf, seedGroups, spreadOf } from './analyticsModel';
 import { StateChip, StudyGate } from './parts';
 import { loadRun } from './runData';
 import type { StudyScopeValue } from './StudyScope';
@@ -92,7 +93,7 @@ function CellSolutions({ cells, index }: { cells: readonly StudyCell[]; index: R
   );
 }
 
-/** The Results tab of the study page: the analytics of the study run `runId` and its cells. */
+/** The Results tab of the study page: the analytics of the study run `runId`, its cells and their CSV export. */
 export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
   const { study, organization, project, root } = scope;
   const org = organization.slug;
@@ -138,6 +139,10 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
   const median = spreadOf(summary.runtimes_s)?.median;
 
   const caseIds = [...new Set(completed.map((cell) => cell.binding_case_revision_id))];
+  const exportCsv = () => {
+    const text = cellsCsv(allCells, measures, index);
+    saveBytes(new TextEncoder().encode(text).slice().buffer, `${study.slug}-run-${data.run.run_number}-cells.csv`, 'text/csv');
+  };
   const scatterCase = caseIds.includes(caseChoice) ? caseChoice : caseIds[0] ?? '';
   const xName = xChoice && objectives.includes(xChoice) ? xChoice : objectives[0] ?? '';
   const yName = yChoice && objectives.includes(yChoice) && yChoice !== xName ? yChoice : objectives.find((name) => name !== xName) ?? '';
@@ -150,6 +155,9 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
         <div className="proj-title">
           <h2>Compare results · run #{data.run.run_number}</h2>
           <p>Only what the run recorded. Nothing here is estimated: lower is better for every objective.</p>
+        </div>
+        <div className="proj-actions">
+          <Action variant="secondary" onClick={exportCsv}>Export CSV</Action>
         </div>
       </header>
 
@@ -304,7 +312,7 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
                 ))}
               </tbody>
             </DataTable>
-            {cells.length > 200 && <small className="org-muted">Showing the first 200 of {cells.length.toLocaleString('en-US')} cells; the CSV in Publish has them all.</small>}
+            {cells.length > 200 && <small className="org-muted">Showing the first 200 of {cells.length.toLocaleString('en-US')} cells; the CSV export has them all.</small>}
             {formatDateTime(data.run.finished_at) && <small className="org-muted">Run finished {formatDateTime(data.run.finished_at)}.</small>}
           </section>
         </>

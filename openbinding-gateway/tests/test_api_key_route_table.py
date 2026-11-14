@@ -67,12 +67,9 @@ def test_every_v1_route_is_open_by_allowlist_or_needs_a_permission(method, path)
         assert is_open(method, path), f"{method} {path} is open but not in the allowlist"
 
 
-def test_explore_is_not_in_the_open_allowlist():
-    assert not any(path.startswith("/v1/explore") for path in OPEN_V1_PREFIXES)
-    assert not any(path.startswith("/v1/explore") for path in OPEN_V1_GET_PATHS)
-    assert required_permissions("/v1/explore/projects", "GET") == frozenset({"projects:read"})
-    assert required_permissions("/v1/explore/publications", "GET")
-    assert required_permissions("/v1/explore/engines", "GET")
+def test_explore_is_gone_and_reports_need_no_permission():
+    assert not [route for route in ROUTES if route[1].startswith("/v1/explore")]
+    assert not {"reports:read", "reports:write"} & set(ALL_PERMISSIONS)
 
 
 def test_the_analysis_workspace_is_gone_and_the_neighbourhood_stays_a_job_read():
@@ -84,8 +81,8 @@ def test_the_analysis_workspace_is_gone_and_the_neighbourhood_stays_a_job_read()
     # A retired /v1/analysis path is unrouted, so it is no longer classified either.
     assert required_permissions("/v1/analysis/pareto", "POST") == frozenset({UNCLASSIFIED_ROUTE_PERMISSION})
     assert not hasattr(apikeys, "analysis_work_permissions")
-    # Existing keys may hold these; both still guard kept operations (design D6).
-    assert {"reports:write", "engines:execute"} <= set(ALL_PERMISSIONS)
+    # Existing keys may hold it; it still guards kept operations (design D6).
+    assert "engines:execute" in ALL_PERMISSIONS
     # The "analysis" alias lets a job-scoped key read the neighbourhood (design D5).
     jobs_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["job"]}})
     projects_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["project"]}})
@@ -102,19 +99,20 @@ def test_the_library_report_and_resource_writes_are_gone_and_the_kept_reads_keep
         ("POST", "/v1/artifacts/{artifact_id}/drafts"),
         ("POST", "/v1/artifacts/{artifact_id}/versions/{version_id}/publish"),
         ("PUT", f"{project}/library/{{artifact_id}}"),
+        ("GET", f"{project}/reports"),
         ("POST", f"{project}/reports"),
+        ("GET", f"{project}/publications"),
         ("POST", f"{project}/publications"),
+        ("DELETE", f"{project}/publications/{{publication}}"),
         ("POST", f"{project}/resources"),
         ("PATCH", f"{project}/resources/{{resource}}"),
     }
     assert not retired & set(ROUTES)
-    # The kept operations of the same areas stay classified as before (design D6: reports:write still guards K3).
+    # The kept operations of the same areas stay classified as before (design D6).
     kept = {
         ("GET", "/v1/organizations/{org}/library"): {"artifacts:read"},
         ("GET", "/v1/artifacts/{artifact_id}/versions"): {"artifacts:read"},
         ("POST", "/v1/artifacts/resolve"): {"artifacts:read"},
-        ("GET", f"{project}/reports"): {"reports:read"},
-        ("DELETE", f"{project}/publications/{{publication}}"): {"reports:write"},
         ("GET", f"{project}/resources/{{resource}}/revisions"): {"projects:read"},
     }
     for (method, path), permissions in kept.items():

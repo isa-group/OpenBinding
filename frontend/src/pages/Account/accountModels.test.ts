@@ -9,7 +9,7 @@ import { exactValueText, usageRows } from './usageModel';
 describe('API-key permissions', () => {
   it('offers every permission of the closed set exactly once', () => {
     const listed = PERMISSION_GROUPS.flatMap((group) => group.permissions.map((permission) => permission.id));
-    expect(ALL_PERMISSIONS).toHaveLength(30);
+    expect(ALL_PERMISSIONS).toHaveLength(28);
     expect(new Set(listed).size).toBe(listed.length);
     expect([...listed].sort()).toEqual([...ALL_PERMISSIONS].sort());
   });

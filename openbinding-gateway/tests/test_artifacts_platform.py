@@ -70,12 +70,8 @@ async def project(client, headers, *, visibility="public") -> tuple[str, str]:
 async def test_packages_round_trip_cases_resources_collections_and_artifacts(
     api_client, registration, platform_gate, monkeypatch, tmp_path, db_session
 ) -> None:
-    # A negative control of M9.6: package import is the only creator of publications left, and only for a
-    # version that is already public. The resource, report and publication are seeded through the internal
-    # services, because their write routes are removed (design.md §2.1 rows 10, 11, 12, 15, 29 and 31).
-    from openbinding_gateway.db.models import Publication
-    from sqlalchemy import select
-
+    # The resource is seeded through the internal services, because its write routes are removed
+    # (design.md §2.1 rows 29 and 31).
     monkeypatch.setenv("ARTIFACT_ROOT", str(tmp_path / "artifacts"))
     get_settings.cache_clear()
     try:
@@ -126,29 +122,6 @@ async def test_packages_round_trip_cases_resources_collections_and_artifacts(
             },
         )
         assert study.status_code == 201, study.text
-        report = await seed.report(
-            db_session, source_project, profile["id"], slug="findings", title="Findings", freeze=True,
-            document={"provenance": {
-                "study": {
-                    "reference": "urn:openbinding:study:standalone-findings",
-                    "digest": "sha256-" + "b" * 64,
-                },
-                "datasets": [{
-                    "reference": "urn:openbinding:dataset:checkout-v1",
-                    "digest": case_revision.json()["digest"],
-                }],
-                "software": [{
-                    "name": "openbinding-gateway", "version": "1.0.0",
-                    "digest": "sha256-" + "c" * 64,
-                }],
-                "bimVersion": "v1", "engineRevisions": ["sha256-" + "a" * 64],
-                "parameters": {"seed": 7},
-            }},
-        )
-        published_version = report.version_id
-        await seed.report_publication(db_session, report, profile["id"], slug="findings",
-                                      citation={"doi": "10.0000/example"})
-
         artifact_body = b"reproducible solver trace\n"
         artifact = await api_client.post(
             f"{base}/blobs?public=true", headers={**headers, "Content-Type": "text/plain"},
@@ -164,6 +137,7 @@ async def test_packages_round_trip_cases_resources_collections_and_artifacts(
         assert package_json["resources"][0]["revisions"][0]["digest"] == resource_revision.content_digest
         assert package_json["studies"][0]["definition"]["case_revision_ids"] == [case_revision.json()["id"]]
         assert package_json["artifacts"][0]["contentBase64"]
+        assert not {"reports", "publications", "evidenceJobs"} & set(package_json)
         with zipfile.ZipFile(io.BytesIO(exported.content)) as archive:
             manifest = json.loads(archive.read("package.json"))
             assert archive.read(manifest["artifacts"][0]["path"]) == artifact_body
@@ -188,36 +162,6 @@ async def test_packages_round_trip_cases_resources_collections_and_artifacts(
         )
         assert restored_resources.json()[0]["slug"] == "offers"
         assert restored_artifacts.json()[0]["public"] is False
-        # The published report version is imported with its publication, citing the same version.
-        restored_project = await seed.project_by_slugs(db_session, org, "restored")
-        restored_publications = (await db_session.scalars(
-            select(Publication).where(Publication.project_id == restored_project.id))).all()
-        assert [row.version_id for row in restored_publications] == [published_version]
-
-        # A signed package is only a checksum, not permission to publish a new edition.
-        next_version = await seed.new_edition(db_session, report, profile["id"])
-        assert next_version.id != published_version
-        portable = (await api_client.get(f'{base}/package?format=json', headers=headers)).json()
-        report_entry = portable['reports'][0]
-        portable['publications'].append({'reportId': report_entry['id'], 'slug': 'forged-publication',
-            'versionRef': report_entry['versionRef'], 'citation': {}})
-        from bim_core.canonical import digest
-        portable['packageDigest'] = digest({key: value for key, value in portable.items() if key != 'packageDigest'})
-        from sqlalchemy import func
-        from openbinding_gateway.db.models import Artifact, Report
-
-        async def target_rows():
-            return [await db_session.scalar(select(func.count()).select_from(model).where(column == value))
-                    for model, column, value in ((Report, Report.project_id, source_project.id),
-                                                 (Publication, Publication.project_id, source_project.id),
-                                                 (Artifact, Artifact.organization_id, source_project.organization_id))]
-
-        before = await target_rows()
-        forged = await api_client.post(f'{base}/package', headers=headers, json=portable)
-        assert forged.status_code == 409, forged.text
-        assert forged.json()['detail']['code'] == 'unpublished_import'
-        # The target project gains no report, publication or artifact.
-        assert await target_rows() == before
     finally:
         get_settings.cache_clear()
 
