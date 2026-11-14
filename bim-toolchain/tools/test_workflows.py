@@ -33,12 +33,15 @@ def test_workflows_use_no_secrets_and_never_publish_to_an_index(name: str) -> No
 
 
 @pytest.mark.parametrize("name", ["ci.yml", "release.yml"])
-def test_actions_are_pinned_by_major_version_and_the_todo_is_documented(name: str) -> None:
+def test_actions_are_pinned_to_a_commit_with_the_version_in_a_comment(name: str) -> None:
     text = (WORKFLOWS / name).read_text(encoding="utf-8")
     uses = [step["uses"] for job in load(name)["jobs"].values() for step in job["steps"] if "uses" in step]
     assert uses
-    assert all(re.fullmatch(r"[\w./-]+@v\d+", item) for item in uses), uses
-    assert "SECURITY TODO" in text
+    assert all(re.fullmatch(r"[\w./-]+@[0-9a-f]{40}", item) for item in uses), uses
+    for line in text.splitlines():
+        match = USES_LINE.match(line)
+        if match is not None:
+            assert re.fullmatch(r"\s*#\s*v\d+\.\d+\.\d+", match.group(2)), line
 
 
 ENSURE_XSD = "python3 tools/xsd_inventory.py --ensure"
@@ -162,16 +165,31 @@ def test_every_action_is_pinned_to_a_commit_or_marked_as_pending() -> None:
         assert pin_problems((WORKFLOWS / name).read_text(encoding="utf-8")) == [], name
 
 
-def test_the_list_of_pending_pins_is_exactly_what_the_workflows_still_need() -> None:
+def pinned_actions(texts: dict[str, str]) -> dict[str, tuple[str, str, list[str]]]:
+    """The actions pinned to a commit: action -> (sha, version of the trailing comment, workflow files)."""
+    found: dict[str, tuple[str, str, set[str]]] = {}
+    for name, text in texts.items():
+        for line in text.splitlines():
+            match = USES_LINE.match(line)
+            if match is None or COMMIT_PIN.fullmatch(match.group(1)) is None:
+                continue
+            action, sha = match.group(1).rsplit("@", 1)
+            version = match.group(2).strip().lstrip("#").strip()
+            previous = found.setdefault(action, (sha, version, set()))
+            assert previous[:2] == (sha, version), f"{action} is pinned to two commits"
+            previous[2].add(name)
+    return {action: (sha, version, sorted(files)) for action, (sha, version, files) in sorted(found.items())}
+
+
+def test_the_record_of_the_pins_is_exactly_what_the_workflows_use() -> None:
     texts = {name: (WORKFLOWS / name).read_text(encoding="utf-8") for name in WORKFLOW_FILES}
     pins = json.loads((ROOT / "licenses.json").read_text(encoding="utf-8"))["action_pins"]
-    assert pins["state"] == "pending" and pins["marker"] == PIN_MARKER
-    assert {item["uses"]: sorted(item["files"]) for item in pins["pending"]} == pending_actions(texts)
-    assert sorted(pending_actions(texts)) == [
-        "actions/checkout@v4", "actions/download-artifact@v4", "actions/setup-python@v5",
-        "actions/upload-artifact@v4", "astral-sh/setup-uv@v5",
+    assert pins["state"] == "pinned" and pending_actions(texts) == {}
+    recorded = {item["uses"]: (item["sha"], item["version"], sorted(item["files"])) for item in pins["pins"]}
+    assert recorded == pinned_actions(texts)
+    assert sorted(recorded) == [
+        "actions/checkout", "actions/download-artifact", "actions/setup-python", "actions/upload-artifact", "astral-sh/setup-uv",
     ]
-    assert "invented" in pins["reason"]
 
 
 def test_the_detector_flags_an_unmarked_action_and_a_stale_marker() -> None:

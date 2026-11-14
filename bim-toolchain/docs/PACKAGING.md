@@ -167,9 +167,8 @@ wheel is reported in the summary); a different backend version may write other b
 - The release and CI workflows have never run (no remote); `.github/workflows/*.yml` is checked only by
   `tools/test_workflows.py` (parsed as YAML, structure and policy), not by GitHub. That includes the step after every checkout
   that runs `python3 tools/xsd_inventory.py --ensure`.
-- Actions are pinned by major version only: every `uses:` is marked `PIN-PENDING`, a test fails on one that is neither marked nor
-  pinned to a commit SHA, and `licenses.json` lists exactly which are pending. No SHA was looked up or invented (no network
-  to GitHub).
+- Actions are pinned to the commit SHAs their major-version tags pointed to on 2026-11-14 (`licenses.json`, `action_pins`); a
+  test fails on an unpinned `uses:` or a record that disagrees with the workflows.
 - The wheels were installed by `uv pip install`, first offline (from the uv cache) and then, if that fails, with network
   access to an index; which of the two served in the recorded runs was not recorded, so an offline install is **not**
   claimed.

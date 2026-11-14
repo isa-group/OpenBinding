@@ -27,7 +27,7 @@ bim-toolchain/
   LICENSE                           CC BY 4.0 (OpenBinding's, unchanged)
   THIRD_PARTY_NOTICES.md            OpenBinding's credits, unchanged, plus a section on what this repository adds
   NOTICE.md                         the license (CC-BY-4.0), holder, attribution and scope; OMG BPMN schemas: rights not demonstrated
-  licenses.json                     the manifest: SPDX identifier, scope, OMG XSD clearance switch, pending action pins
+  licenses.json                     the manifest: SPDX identifier, scope, OMG XSD clearance switch, action pins
   packages/bim-core/
     pyproject.toml, README.md, LICENSE and NOTICE.md (copies of the root ones, shipped as license-files)
     hatch_build.py                  build hook and script: downloads and verifies the OMG XSDs (outside src/bim_core)
