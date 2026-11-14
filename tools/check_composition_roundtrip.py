@@ -97,7 +97,7 @@ def roundtrip(root: Path, package: str) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--root", type=Path, default=Path.cwd())
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--json", action="store_true", help="print the result as a document")
     parser.add_argument("--expected", type=int, default=82, help="the gate's size")
     args = parser.parse_args(argv)

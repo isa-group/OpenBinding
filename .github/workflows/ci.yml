@@ -174,6 +174,7 @@ jobs:
 
       - name: The corpus tier of the toolchain against this corpus (no test may be skipped)
         working-directory: .bim-toolchain
+        shell: bash
         env:
           BIM_CORPUS_ROOT: ${{ github.workspace }}
           BIM_REQUIRE_CORPUS: "1"
@@ -193,9 +194,11 @@ jobs:
 
       - name: The gateway's BIM consumer tests and the composition round-trip gate (no test may be skipped)
         working-directory: openbinding-gateway
+        shell: bash
         env:
           OPENBINDING_REPO_ROOT: ${{ github.workspace }}
           BIM_TOOLCHAIN_ROOT: ${{ github.workspace }}/.bim-toolchain
+          BIM_BASELINE_FULL: "1"
         run: |
           .venv/bin/python -m pytest -p no:cacheprovider -rs \
             tests/test_bim_baseline.py tests/test_bim_consumer_contract.py tests/test_bim_zip_dir_equivalence.py \
@@ -341,6 +344,8 @@ jobs:
         working-directory: openbinding-gateway
         env:
           OPENBINDING_REPO_ROOT: ${{ github.workspace }}
+          # The test kit is checked out only in the bim-toolchain job, which runs this module with no skips.
+          BIM_ZIP_DIR_ALLOW_NO_CORPUS: "1"
         run: |
           list="$(python3 ../tools/ci_shard.py --shard ${{ matrix.shard }}/2 --root openbinding-gateway/tests)"
           test -n "$list"
