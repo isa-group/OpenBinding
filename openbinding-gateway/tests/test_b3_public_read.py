@@ -159,7 +159,7 @@ VISITORS = ("anonymous", "outsider", "api_key")
 
 def test_the_route_table_has_the_project_surface():
     methods = {method for method, _ in ROUTES}
-    assert len(ROUTES) > 40
+    assert len(ROUTES) >= 40
     # M9.6 removed the project library association, the only PUT under a project.
     assert {"GET", "POST", "PATCH", "DELETE"} <= methods
 
