@@ -7,16 +7,8 @@
 !schemas/**
 !examples/
 !examples/**
-!experimentation/
-!experimentation/qacobench/
-!experimentation/qacobench/**
-!datasets/
-!datasets/scripts/
-!datasets/scripts/transform_*.py
-!datasets/scripts/write_benchmark_metadata.py
 
 **/.git
 **/.venv
 **/__pycache__
 **/*.pyc
-experimentation/qacobench/paper/

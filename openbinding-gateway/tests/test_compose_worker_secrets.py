@@ -10,7 +10,7 @@ import yaml
 from _repo import REPO_ROOT
 
 SECRET = "GATEWAY_JWT_SECRET"
-COMPOSE_FILES = ("docker-compose.yml", "experimentation/qacobench/compose.yaml")
+COMPOSE_FILES = ("docker-compose.yml",)
 
 
 def _load(relative: str) -> dict:
@@ -105,8 +105,3 @@ def test_the_queue_reader_sees_an_analysis_worker() -> None:
 def test_gateway_services_keep_jwt_secret(name: str) -> None:
     services = _load("docker-compose.yml")["services"]
     assert SECRET in _env_names(services[name])
-
-
-def test_qacobench_gateway_keeps_jwt_secret() -> None:
-    services = _load("experimentation/qacobench/compose.yaml")["services"]
-    assert SECRET in _env_names(services["gateway"])

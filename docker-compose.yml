@@ -275,35 +275,6 @@ services:
       retries: 5
       start_period: 30s
 
-  qacobench-runner:
-    build:
-      context: .
-      dockerfile: experimentation/qacobench/Dockerfile
-      args:
-        <<: *proxy-build-args
-      secrets: [bim_toolchain_token]
-    profiles: ["benchmark", "dev"]
-    ports:
-      - "${QACOBENCH_JUPYTER_PORT:-8888}:8888"
-    volumes:
-      - .:/workspace
-      - ./schemas:/app/schemas:ro
-      - ./openbinding-gateway/src:/app/src:ro
-      - artifacts:/var/lib/openbinding/artifacts
-    environment:
-      - PYTHONPATH=/workspace/openbinding-gateway/src:/workspace
-      - OPENBINDING_GATEWAY_URL=http://gateway-dev:8000
-      - SCHEMAS_DIR=/workspace/schemas
-    depends_on:
-      gateway-dev:
-        condition: service_healthy
-      engine-minizinc:
-        condition: service_healthy
-      engine-random-search:
-        condition: service_healthy
-      engine-evolutionary-heuristics:
-        condition: service_healthy
-
   frontend-dev:
     build:
       context: ./frontend
