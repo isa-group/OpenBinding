@@ -25,15 +25,9 @@ from _b1_helpers import (  # noqa: F401
 )
 from openbinding_gateway.db.models import (
     Blob,
-    Collection,
-    CollectionItem,
-    CollectionRevision,
     InstanceSnapshot,
     ProjectResource,
     ProjectResourceRevision,
-    Publication,
-    Report,
-    ReportState,
 )
 
 @pytest.fixture
@@ -67,21 +61,6 @@ async def upload(api_client, ctx, content: bytes | None = None) -> str:
     return response.json()["digest"]
 
 
-async def add_collection_revision(db, ctx, *, digest: str) -> CollectionRevision:
-    collection = Collection(
-        project_id=ctx.project_id, slug=f"{SECRET}-col-{uuid.uuid4().hex[:6]}",
-        name=f"{SECRET} collection", created_by_id=ctx.user_id,
-    )
-    db.add(collection)
-    await db.flush()
-    revision = CollectionRevision(
-        collection_id=collection.id, revision=1, digest=digest, created_by_id=ctx.user_id
-    )
-    db.add(revision)
-    await db.flush()
-    return revision
-
-
 # Each builder makes one dependency on `blob` (a project file); the second item is the
 # `references` the refusal must report.
 async def library_version(db, ctx, blob):
@@ -90,14 +69,6 @@ async def library_version(db, ctx, blob):
 
 async def version_pointing_at_the_blob(db, ctx, blob):
     await add_version(db, ctx, kind="Dataset", content_digest=random_digest(), blob=blob)
-
-
-async def sealed_report(db, ctx, blob):
-    await add_version(db, ctx, kind="Report", content_digest=blob.digest, project_id=ctx.project_id)
-
-
-async def sealed_collection(db, ctx, blob):
-    await add_version(db, ctx, kind="Collection", content_digest=blob.digest, project_id=ctx.project_id)
 
 
 async def case_revision(db, ctx, blob):
@@ -131,19 +102,6 @@ async def resource_snapshot(db, ctx, blob):
     await add_case_revision(db, ctx, digest=random_digest(), snapshot_id=snapshot.id)
 
 
-async def legacy_collection_revision(db, ctx, blob):
-    await add_collection_revision(db, ctx, digest=blob.digest)
-
-
-async def collection_item(db, ctx, blob):
-    revision = await add_collection_revision(db, ctx, digest=random_digest())
-    db.add(CollectionItem(
-        collection_revision_id=revision.id, position=0, target_kind="instance",
-        target_digest=blob.digest, target_ref={}, added_by_id=ctx.user_id,
-    ))
-    await db.flush()
-
-
 async def resource_revision(db, ctx, blob):
     resource = ProjectResource(
         project_id=ctx.project_id, slug=f"{SECRET}-res", name=f"{SECRET} resource", created_by_id=ctx.user_id
@@ -156,23 +114,6 @@ async def resource_revision(db, ctx, blob):
     await db.flush()
 
 
-async def published_report(db, ctx, blob):
-    artifact, version = await add_version(
-        db, ctx, kind="Report", content_digest=blob.digest, project_id=ctx.project_id
-    )
-    report = Report(
-        project_id=ctx.project_id, slug=f"{SECRET}-report", title=f"{SECRET} report", artifact_id=artifact.id,
-        version_id=version.id, state=ReportState.FROZEN, created_by_id=ctx.user_id,
-    )
-    db.add(report)
-    await db.flush()
-    db.add(Publication(
-        project_id=ctx.project_id, report_id=report.id, version_id=version.id,
-        slug=f"{SECRET}-publication", citation={}, published_by_id=ctx.user_id,
-    ))
-    await db.flush()
-
-
 def refs(**counts: int) -> list[dict]:
     return [{"type": kind, "count": count} for kind, count in sorted(counts.items())]
 
@@ -180,15 +121,10 @@ def refs(**counts: int) -> list[dict]:
 SCENARIOS = {
     "library_version": (library_version, refs(library_version=1)),
     "version_blob_id": (version_pointing_at_the_blob, refs(library_version=1)),
-    "sealed_report": (sealed_report, refs(report=1)),
-    "sealed_collection": (sealed_collection, refs(collection_revision=1)),
     "case_revision": (case_revision, refs(case_revision=1)),
     "package_snapshot": (package_snapshot, refs(case_revision=1, snapshot=1)),
     "resource_snapshot": (resource_snapshot, refs(case_revision=1, snapshot=1)),
-    "legacy_collection_revision": (legacy_collection_revision, refs(collection_revision=1)),
-    "collection_item": (collection_item, refs(collection_revision=1)),
     "project_resource_revision": (resource_revision, refs(project_resource_revision=1)),
-    "published_report": (published_report, refs(publication=1, report=1)),
 }
 
 
@@ -231,7 +167,7 @@ async def test_every_dependency_kind_is_counted_together(api_client, db_session,
     blob = (await db_session.execute(
         select(Blob).where(Blob.project_id == ctx.project_id, Blob.digest == digest)
     )).scalars().one()
-    for builder in (library_version, case_revision, collection_item, resource_revision, published_report):
+    for builder in (library_version, case_revision, resource_revision):
         await builder(db_session, ctx, blob)
     await case_revision(db_session, ctx, blob)
 
@@ -239,8 +175,7 @@ async def test_every_dependency_kind_is_counted_together(api_client, db_session,
 
     assert response.status_code == 409
     assert response.json()["detail"]["references"] == refs(
-        case_revision=2, collection_revision=1, library_version=1, project_resource_revision=1,
-        publication=1, report=1,
+        case_revision=2, library_version=1, project_resource_revision=1,
     )
 
 

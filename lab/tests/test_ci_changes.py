@@ -235,7 +235,6 @@ WALKING_TESTS = {
     "composition/test_the_text_layer.py": "the pinned golden (tests/golden/bim_baseline) and every gate package, through tools/check_composition_roundtrip.py",
     "composition/test_the_model_diff.py": "the pinned golden (tests/golden/bim_baseline) and every gate package, through tools/check_composition_roundtrip.py",
     "integration/test_engine_representation_regression.py": "schemas/bim/v1/manifests, examples/federation",
-    "test_b2_resolve_urls.py": "frontend/src/routes",
     "test_b5_corpus.py": "engine manifests",
     "test_b5_open_ranges.py": "engine manifests, examples/federation",
     "test_b8_range_refusal_pointer.py": "engine manifests",

@@ -54,7 +54,6 @@ from .models.problem import (
 )
 from .routes.admin import router as admin_router
 from .routes.artifacts import router as artifacts_router
-from .routes.resolve import router as resolve_router
 from .routes.auth import router as auth_router
 from .routes.cas import identity_router, router as cas_router
 from .routes.jobs import router as jobs_router
@@ -62,11 +61,9 @@ from .routes.library import router as library_router
 from .routes.notifications import router as notifications_router
 from .routes.organizations import invitation_router, router as organizations_router
 from .routes.pricing import public_router as pricing_router
-from .routes.studies import public_router as public_studies_router
 from .routes.studies import router as studies_router
 from .routes.users import router as users_router
 from .routes.v1 import router as v1_router
-from .routes.verifier import router as verifier_router
 from .routes.generator import router as generator_router
 from .routes.compositions import project_router as compositions_project_router
 from .routes.compositions import router as compositions_router
@@ -166,11 +163,10 @@ TAGS_METADATA = [
     {"name": "Administration", "description": "Account administration."},
     {"name": "Organizations", "description": "Nested organizations, members and sponsors."},
     {"name": "Projects", "description": "Collaborative projects and immutable binding cases."},
-    {"name": "Studies", "description": "Reproducible comparative studies, reports and publications."},
+    {"name": "Studies", "description": "Reproducible comparative studies."},
     {"name": "Artifacts", "description": "Content-addressed artifacts and portable packages."},
     {"name": "Jobs", "description": "Durable job lifecycle, retries and events."},
     {"name": "Notifications", "description": "Account inbox and preferences."},
-    {"name": "Explore", "description": "Public projects, publications and immutable resources."},
     {
         "name": "Pricing",
         "description": (
@@ -183,12 +179,9 @@ TAGS_METADATA = [
 _BIM_PATH_PREFIXES = (
     "/v1/profiles",
     "/v1/dialects",
-    "/v1/catalog",
-    "/v1/schemas",
     "/v1/examples",
     "/v1/engines",
     "/v1/engine-registrations",
-    "/v1/resources",
     "/v1/instances",
     "/v1/validate",
     "/v1/jobs",
@@ -376,13 +369,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(organizations_router)
     app.include_router(invitation_router)
     app.include_router(studies_router)
-    app.include_router(public_studies_router)
     app.include_router(library_router)
     app.include_router(artifacts_router)
-    app.include_router(resolve_router)
     app.include_router(jobs_router)
     app.include_router(notifications_router)
-    app.include_router(verifier_router)
     app.include_router(generator_router)
     app.include_router(compositions_router)
     app.include_router(compositions_project_router)
@@ -470,9 +460,9 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     component_schemas.setdefault("Problem", problem_schema)
     document["x-api-key-permissions"] = list(ALL_PERMISSIONS)
     schemas = document["components"]["schemas"]
-    from .models.artifacts import StudyArtifactContent, CollectionArtifactContent
+    from .models.artifacts import StudyArtifactContent
     document['x-artifact-content-schemas'] = {}
-    for kind, model in [('Study', StudyArtifactContent), ('Collection', CollectionArtifactContent)]:
+    for kind, model in [('Study', StudyArtifactContent)]:
         content_schema = model.model_json_schema(ref_template='#/components/schemas/{model}')
         schemas.update(content_schema.pop('$defs', {}))
         schemas[model.__name__] = content_schema
@@ -516,7 +506,6 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
         "A bare null is not a valid value."
     )
     schemas["ProfileManifest"] = embedded_schema("profile.schema.json", "ProfileManifest")
-    schemas["DialectManifest"] = embedded_schema("dialect.schema.json", "DialectManifest")
     digest_schema = {"type": "string", "pattern": "^sha256-[0-9a-f]{64}$"}
     diagnostic_list = {"type": "array", "items": {"type": "object"}}
     digest_map = {"type": "object", "additionalProperties": digest_schema}
@@ -623,40 +612,6 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
         },
         "additionalProperties": False,
     }
-    schemas["ReviewableRevision"] = {
-        "type": "object",
-        "required": [*resource_ref_required, "status"],
-        "properties": {
-            **resource_ref_properties,
-            "status": {
-                "type": "string",
-                "enum": ["pending_review", "published"],
-            },
-        },
-        "additionalProperties": False,
-    }
-    schemas["RegisteredResourceSummary"] = {
-        "type": "object",
-        "required": [
-            *resource_ref_required,
-            "role",
-            "apiVersion",
-            "kind",
-            "dialect",
-            "mediaType",
-            "status",
-        ],
-        "properties": {
-            **resource_ref_properties,
-            "role": {"type": "string"},
-            "apiVersion": {"type": "string"},
-            "kind": {"type": "string"},
-            "dialect": {"type": "string"},
-            "mediaType": {"type": "string"},
-            "status": {"const": "published"},
-        },
-        "additionalProperties": False,
-    }
     schemas["ProfileList"] = {
         "type": "object",
         "required": ["profiles"],
@@ -679,35 +634,11 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
         },
         "additionalProperties": False,
     }
-    schemas["RegisteredResourceList"] = {
-        "type": "object",
-        "required": ["resources"],
-        "properties": {
-            "resources": {
-                "type": "array",
-                "items": {"$ref": "#/components/schemas/RegisteredResourceSummary"},
-            }
-        },
-        "additionalProperties": False,
-    }
     schemas["ExampleList"] = {
         "type": "object",
         "required": ["examples"],
         "properties": {
             "examples": {"type": "array", "items": {"type": "string"}}
-        },
-        "additionalProperties": False,
-    }
-    schemas["BimCatalog"] = {
-        "type": "object",
-        "required": ["apiVersion", "profiles", "dialects", "resources", "examples", "engines"],
-        "properties": {
-            "apiVersion": {"const": "bim/v1"},
-            "profiles": schemas["ProfileList"]["properties"]["profiles"],
-            "dialects": schemas["DialectList"]["properties"]["dialects"],
-            "resources": schemas["RegisteredResourceList"]["properties"]["resources"],
-            "examples": schemas["ExampleList"]["properties"]["examples"],
-            "engines": schemas["EngineCatalog"]["properties"]["engines"],
         },
         "additionalProperties": False,
     }
@@ -1114,88 +1045,9 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     paths = document["paths"]
     profiles = paths["/v1/profiles"]["get"]
     profiles["responses"]["200"] = json_response("ProfileList", "Installed BIM Profiles.")
-    dialects = paths["/v1/dialects"]
-    dialects["get"]["responses"]["200"] = json_response(
+    paths["/v1/dialects"]["get"]["responses"]["200"] = json_response(
         "DialectList", "Installed BIM Dialects."
     )
-    dialects["post"]["summary"] = "Submit an immutable Dialect revision"
-    dialects["post"]["description"] = (
-        "Stores the caller-owned revision for administrator approval. Publication records "
-        "never install executable adapter code; the adapter must already be deployed."
-    )
-    dialects["post"]["requestBody"] = json_body(
-        "DialectManifest", "Immutable BIM v1 Dialect manifest."
-    )
-    dialects["post"]["responses"]["201"] = json_response(
-        "ReviewableRevision", "Dialect revision awaiting administrator review."
-    )
-    dialect_approval = paths["/v1/dialects/{name}/approve"]["post"]
-    dialect_approval["summary"] = "Approve an installed Dialect revision"
-    dialect_approval["responses"]["200"] = json_response(
-        "ReviewableRevision", "Published Dialect revision."
-    )
-
-    resources = paths["/v1/resources"]
-    resources["get"]["responses"]["200"] = json_response(
-        "RegisteredResourceList", "Published immutable BIM resources."
-    )
-    resources["post"]["requestBody"] = {
-        "required": True,
-        "description": "JSON or XML resource governed by an installed Dialect.",
-        "content": {
-            "application/json": {"schema": {"type": "object"}},
-            "application/xml": {"schema": {"type": "string"}},
-            "text/xml": {"schema": {"type": "string"}},
-            "application/vnd.omg.bpmn+xml": {"schema": {"type": "string"}},
-        },
-    }
-    resources["post"]["summary"] = "Submit an immutable BIM resource revision"
-    resources["post"]["description"] = (
-        "Stores JSON or XML source data only; executable adapters are never accepted. "
-        "Ordinary users receive pending_review, while administrators may publish directly."
-    )
-    resources["post"]["responses"]["201"] = json_response(
-        "ReviewableRevision", "Stored immutable resource revision."
-    )
-    resource = paths["/v1/resources/{name}"]["get"]
-    resource["responses"]["200"] = {
-        "description": "Exact published resource bytes in their registered media type.",
-        "headers": {
-            "Digest": {
-                "description": "SHA-256 digest of the resource.",
-                "schema": {"type": "string"},
-            }
-        },
-        "content": {
-            "application/json": {"schema": {"type": "object"}},
-            "application/xml": {"schema": {"type": "string"}},
-            "text/xml": {"schema": {"type": "string"}},
-            "application/vnd.omg.bpmn+xml": {"schema": {"type": "string"}},
-            "application/*+xml": {"schema": {"type": "string"}},
-        },
-    }
-    resource_approval = paths["/v1/resources/{name}/approve"]["post"]
-    resource_approval["summary"] = "Approve a BIM resource revision"
-    resource_approval["responses"]["200"] = json_response(
-        "ReviewableRevision", "Published immutable resource revision."
-    )
-    paths["/v1/catalog"]["get"]["responses"]["200"] = json_response(
-        "BimCatalog", "Profiles, Dialects, resources, examples and visible Engines."
-    )
-    paths["/v1/schemas/{kind}"]["get"]["responses"]["200"] = {
-        "description": "Requested JSON Schema or the BIM Engine OpenAPI contract.",
-        "content": {
-            "application/json": {
-                "schema": {"type": "object", "additionalProperties": True}
-            }
-        },
-    }
-    paths["/v1/pricing"]["get"]["responses"]["200"] = {
-        "description": "Pricing2Yaml contract enforced by this deployment.",
-        "content": {
-            "application/yaml": {"schema": {"type": "string"}}
-        },
-    }
     examples = paths["/v1/examples"]
     examples["get"]["responses"]["200"] = json_response(
         "ExampleList", "Available BIM example package identifiers."
@@ -1205,10 +1057,11 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     )
 
     engines = paths["/v1/engines"]
-    engines["get"]["summary"] = "List Engines visible to the authenticated account"
+    engines["get"]["summary"] = "List the Engines visible to the caller"
     engines["get"]["description"] = (
-        "Returns built-in and published Engines plus the caller's own private revisions. "
-        "Private revisions owned by other accounts, including administrators, are never disclosed."
+        "The public engine catalogue: anybody gets the built-in and published Engines, and a "
+        "signed-in caller also gets their own private revisions. Private revisions owned by other "
+        "accounts, including administrators, are never disclosed."
     )
     engines["get"]["responses"]["200"] = json_response("EngineCatalog", "Visible Engine revisions.")
     engines["post"]["summary"] = "Create an immutable private Engine revision"
@@ -1395,20 +1248,6 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             if method in methods and "422" in operation.get("responses", {}):
                 add_problem(operation, 422, "The request does not satisfy the BIM v1 contract.")
 
-    add_problem(dialects["post"], 403, "The Dialect namespace does not belong to the caller.")
-    add_problem(dialects["post"], 409, "The revision is immutable or its adapter is not installed.")
-    add_problem(dialects["post"], 413, "The Dialect manifest exceeds the request size limit.")
-    add_problem(dialects["post"], 422, "The Dialect manifest is invalid.")
-    add_problem(dialect_approval, 404, "The exact Dialect revision does not exist.")
-    add_problem(dialect_approval, 409, "The referenced adapter contract is not installed.")
-    add_problem(resources["post"], 403, "The resource namespace does not belong to the caller.")
-    add_problem(resources["post"], 409, "The immutable identity or Dialect contract conflicts.")
-    add_problem(resources["post"], 413, "The resource exceeds the request size limit.")
-    add_problem(resources["post"], 415, "The resource media type is not supported.")
-    add_problem(resources["post"], 422, "The resource does not satisfy its installed Dialect.")
-    add_problem(resource, 404, "The exact published resource does not exist.")
-    add_problem(resource_approval, 404, "The exact resource revision does not exist.")
-    add_problem(paths["/v1/schemas/{kind}"]["get"], 404, "The requested BIM schema does not exist.")
     add_problem(paths["/v1/examples/{example_path}"]["get"], 404, "The example package does not exist.")
     add_problem(paths["/v1/examples/{example_path}"]["get"], 422, "The installed example package is invalid.")
     add_problem(engines["post"], 403, "The manifest namespace does not belong to the caller.")

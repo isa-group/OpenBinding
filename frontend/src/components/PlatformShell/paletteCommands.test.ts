@@ -21,14 +21,11 @@ describe('buildCommands', () => {
     expect(commands.map((command) => command.href)).toContain('/app/isa-demo/qos-benchmarks/studies');
   });
 
-  it('offers Published instead of Reports and Publications in a project', () => {
+  it('offers no Reports, Publications, Published or Explore command', () => {
     const commands = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: false });
 
-    expect(commands.filter((command) => command.label === 'Reports' || command.label === 'Publications')).toEqual([]);
-    expect(commands.filter((command) => /\/(reports|publications)([/?#]|$)/.test(command.href))).toEqual([]);
-    const published = commands.filter((command) => command.label === 'Published');
-    expect(published.map((command) => [command.group, command.href])).toEqual([['Project', '/app/isa-demo/qos-benchmarks/published']]);
-    expect(published[0]?.desc).toContain('QoS benchmarks');
+    expect(commands.filter((command) => ['Reports', 'Publications', 'Published', 'Explore'].includes(command.label))).toEqual([]);
+    expect(commands.filter((command) => /\/(reports|publications|published|explore)([/?#]|$)/.test(command.href))).toEqual([]);
   });
 
   it('offers no Files command and keeps the package with the project settings', () => {
@@ -38,17 +35,13 @@ describe('buildCommands', () => {
     expect(commands.filter((command) => command.label === 'Project settings').map((command) => command.href)).toEqual(['/app/isa-demo/qos-benchmarks/settings']);
   });
 
-  it('offers Collections instead of Library in a project, and no library or resources command anywhere', () => {
+  it('offers no Library or Collections command, and no library, resources or collections command anywhere', () => {
     const inProject = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: true });
     const without = buildCommands({ organizations: [organization], isAdmin: true });
 
-    expect(inProject.filter((command) => command.label === 'Library')).toEqual([]);
-    const collections = inProject.filter((command) => command.label === 'Collections');
-    expect(collections.map((command) => [command.group, command.href])).toEqual([['Project', '/app/isa-demo/qos-benchmarks/collections']]);
-    expect(collections[0]?.desc).toMatch(/^Problems grouped into suites/);
-    expect(collections[0]?.desc).toContain('QoS benchmarks');
+    expect(inProject.filter((command) => ['Library', 'Collections', 'New collection'].includes(command.label))).toEqual([]);
     for (const commands of [inProject, without]) {
-      expect(commands.filter((command) => /\/(library|resources)([/?#]|$)/.test(command.href))).toEqual([]);
+      expect(commands.filter((command) => /\/(library|resources|collections)([/?#]|$)/.test(command.href))).toEqual([]);
     }
   });
 
@@ -72,14 +65,14 @@ describe('buildCommands', () => {
 
     expect(commands.filter((command) => command.group === 'Tools')).toEqual([]);
     expect(goTo.map((command) => [command.label, command.href])).toEqual([
-      ['Home', '/app'], ['Runs', '/app/runs'], ['Generator', '/app/generator'], ['Engines', '/engines'], ['Language', '/language'],
-      ['Explore', '/explore'], ['Verify', '/verify'], ['Pricing', '/pricing'],
+      ['Home', '/app'], ['Runs', '/app/runs'], ['Generator', '/app/generator'], ['Engines', '/engines'],
+      ['Pricing', '/pricing'],
     ]);
-    expect(commands.filter((command) => ['Jobs', 'Verifier', 'Engine catalog', 'My engines', 'Generator lab', 'Workbench'].includes(command.label))).toEqual([]);
+    expect(commands.filter((command) => ['Jobs', 'Verify', 'Verifier', 'Engine catalog', 'My engines', 'Generator lab', 'Workbench'].includes(command.label))).toEqual([]);
     expect(commands.filter((command) => command.label === 'Problems').map((command) => command.href)).toEqual(['/app/isa-demo/qos-benchmarks/problems']);
   });
 
-  it('offers New problem, collection, study and run in the current project, and none without one', () => {
+  it('offers New problem, study and run in the current project, and none without one', () => {
     const inProject = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: false });
     const without = buildCommands({ organizations: [organization], isAdmin: false });
     const created = (commands: typeof inProject) => commands
@@ -87,7 +80,6 @@ describe('buildCommands', () => {
 
     expect(created(inProject)).toEqual([
       ['New problem', '/app/isa-demo/qos-benchmarks/problems?create=problem'],
-      ['New collection', '/app/isa-demo/qos-benchmarks/collections?create=collection'],
       ['New study', '/app/isa-demo/qos-benchmarks/studies/new'],
       ['New run', '/app/isa-demo/qos-benchmarks/runs/new'],
     ]);

@@ -142,22 +142,6 @@ async function rowsOf(pkg: Dict, archive: JSZip | null): Promise<VerificationRow
     }
   }
 
-  // The gateway checks a report's declared digest against the canonical digest of its document: so can this page.
-  for (const entry of list(pkg.reports)) {
-    const fingerprint = text(entry.digest);
-    let matches = false;
-    try {
-      matches = Boolean(fingerprint) && isDict(entry.document) && (await computeCanonicalDigest(entry.document)) === fingerprint;
-    } catch {
-      matches = false;
-    }
-    rows.push(row(`report:${text(entry.slug)}`, text(entry.title) ?? text(entry.slug) ?? 'Report', entry.state === 'frozen' ? 'Frozen report' : 'Report draft', fingerprint, matches ? 'verified' : 'mismatch'));
-  }
-
-  for (const entry of list(pkg.publications)) {
-    rows.push(row(`publication:${text(entry.slug)}`, text(entry.slug) ?? 'Published result', 'Published result', null, 'later'));
-  }
-
   for (const entry of list(pkg.artifacts)) {
     const fingerprint = text(entry.digest);
     let actualFile: string | null = null;
@@ -290,7 +274,7 @@ export function packageImportCounts(result: PackageImportResult | null | undefin
   return { total: parts.reduce((sum, part) => sum + part.count, 0), parts };
 }
 
-/** `caseRevisions` → `problem versions`, `jobs` → `runs`, `publications` → `published results`. */
+/** `caseRevisions` → `problem versions`, `jobs` → `runs`. */
 export function humanizeCount(id: string): string {
   return inInterfaceWords(id.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase()).replace(/\brevision(s?)\b/g, 'version$1');
 }

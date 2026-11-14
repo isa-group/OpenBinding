@@ -12,7 +12,7 @@ import { formatDate, formatDateTime } from '../../utils/format';
 import { useResource, type Resource } from '../../utils/useResource';
 import { roleSource } from '../Organization/orgModel';
 import { RoleChip } from '../Organization/parts';
-import { loadCases, loadReports, loadStudies, type ReportsContent } from './projectData';
+import { loadCases, loadStudies } from './projectData';
 import { classifyAuthError, marker } from './projectErrors';
 import {
   cellBreakdown, countWord, integrityOf, jobStatus, latestRun, sealedShare,
@@ -215,7 +215,7 @@ function IntegrityStrip({ items }: { items: IntegrityItem[] }) {
 
 function GetStarted({ root, canCreate }: { root: string; canCreate: boolean }) {
   const steps: Array<{ title: string; detail: string; cta: string; to: string; needsMember?: boolean }> = [
-    { title: 'Import an example', detail: 'Start from a ready package and adapt it.', cta: 'Browse examples', to: '/explore/examples' },
+    { title: 'Import an example', detail: 'Start from a ready package and adapt it.', cta: 'Open an example', to: `${root}/workbench` },
     { title: 'Create a problem', detail: 'Compose a workflow, candidates, constraints and goal.', cta: 'New problem', to: problemsPath(root), needsMember: true },
     { title: 'Validate a package', detail: 'Check a .bim.zip you already have.', cta: 'Open Workbench', to: '/workbench' },
   ];
@@ -257,16 +257,13 @@ function OverviewBody({ organization, project, canCreate, canAdminister, publicR
     return { rows, mine: own ? new Set(own.jobs.map((job) => job.id)) : null };
   });
   const studies = useResource(`overview-studies:${org}/${slug}`, () => loadStudies(org, slug, RECENT));
-  // The reports have no card any more; they still count in the sealed-history strip and in the empty-project test.
-  // A failed read leaves them out as if there were none, rather than hiding the strip and GetStarted.
-  const reports = useResource(`overview-reports:${org}/${slug}`, () => loadReports(org, slug).catch((): ReportsContent => ({ reports: [], publications: [] })));
 
-  const loaded = [cases, jobs, studies, reports].every((item) => item.status === 'ready');
+  const loaded = [cases, jobs, studies].every((item) => item.status === 'ready');
   const empty = loaded
     && (cases.data?.length ?? 0) === 0 && (jobs.data?.rows.length ?? 0) === 0
-    && (studies.data?.length ?? 0) === 0 && (reports.data?.reports.length ?? 0) === 0;
-  const sealed = [cases, studies, reports].every((item) => item.status === 'ready')
-    ? integrityOf({ cases: cases.data, studies: studies.data, reports: reports.data?.reports })
+    && (studies.data?.length ?? 0) === 0;
+  const sealed = [cases, studies].every((item) => item.status === 'ready')
+    ? integrityOf({ cases: cases.data, studies: studies.data })
     : null;
 
   const header = (
@@ -295,7 +292,7 @@ function OverviewBody({ organization, project, canCreate, canAdminister, publicR
           {!publicRead && canAdminister && <Action to={`${root}/settings`} variant="secondary">Export package</Action>}
         </div>
       </div>
-      {publicRead && <small className="org-muted">Problems, studies, the files marked public and the published reports are open to read. Only members can change anything or see runs.</small>}
+      {publicRead && <small className="org-muted">Problems, studies and the files marked public are open to read. Only members can change anything or see runs.</small>}
       {!publicRead && !canCreate && <small className="org-muted">You’re a VIEWER: you can read everything here; creating needs MEMBER.</small>}
     </>
   );

@@ -15,46 +15,32 @@ from ..models.analysis import NeighborhoodResponse
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..access.dependencies import optional_session, require_v1_admin, solve_caller
+from ..access.dependencies import get_optional_user, optional_session, require_v1_admin, solve_caller
 from ..access.work_limits import limit_work_of_counted_caller
 from ..core import revision
 from ..core.settings import get_settings
 from ..db import base as db_base
 from ..db.models import (
     BindingIRSnapshot,
-    DialectRevision,
     InstanceSnapshot,
-    ManifestPublication,
-    RegisteredResourceRevision,
     User,
 )
 from ..job_dispatch import dispatch_persisted_job
 from ..models.problem import PROBLEM_MEDIA_TYPE, VALIDATION_ERROR, problem_response, split_detail
 from ..security.apikeys import allows_engine
 from bim_core import PackageError
-from bim_core.canonical import canonical_json, digest, digest_bytes
+from bim_core.canonical import digest_bytes
 from ..core.jsonio import strict_json_loads
 from ..integrations import bim
-from ..integrations.bim_host import (
-    XmlResource,
-    dialect_type_matches,
-    dialect_xml_type_matches,
-    resource_schema_diagnostics,
-)
 from ..v1.remote import fetch_remote_document, solve_remote, validate_endpoint
 
 from ..v1.remote import RemoteEngineError as RemoteEngineError  # re-exported for the tests
 from ..services import discovery, engine_registry, instances
 from ..services.entitlements import EntitlementsUnavailable, entitlement_service
 from ..services.engine_registry import RegistrationKey
-from ..services.engines import (
-    embedded_secret_paths,
-    owned_job,
-    schema_diagnostics,
-)
+from ..services.engines import owned_job
 from ..services.engines import protocol_digest as protocol_digest  # re-exported for the tests
 from ..services.engines import manifest as _manifest
 from ..services.engines import manifest_async
@@ -69,8 +55,6 @@ from ..services.job_submission import (
 from ..services.job_submission import discard_pending_launches as discard_pending_launches
 from ..services.job_submission import pending_launches as pending_launches
 from ..services.snapshots import (
-    CUSTOM_RESOURCES,
-    RegisteredResource,
     compile_resolved,
     package_file_digests,
     persist_snapshot,
@@ -80,7 +64,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1", tags=["BIM v1"])
 
-_CUSTOM_RESOURCE_RECORDS: dict[tuple[str, str, str, str], dict[str, Any]] = {}
 _BIM_ZIP_TYPES = instances.BIM_ZIP_TYPES
 
 
@@ -181,472 +164,14 @@ async def list_profiles() -> dict[str, Any]:
     return discovery.profiles_document()
 
 
-def _builtin_profiles() -> list[dict[str, Any]]:
-    return bim.profile_manifests()
-
-
 def _builtin_dialects() -> list[dict[str, Any]]:
     return discovery.builtin_dialects()
 
 
-def _installed_dialect_contract(document: Mapping[str, Any]) -> bool:
-    """Whether a manifest exactly describes a locally installed adapter ABI."""
-    return discovery.installed_dialect_contract(document, _builtin_dialects())
-
-
 @router.get("/dialects")
-async def list_dialects(session: AsyncSession | None = Depends(optional_session, scope="function")) -> dict[str, Any]:
-    # Publication records are audit state, not an installation mechanism: only the installed contracts are listed.
-    del session
+async def list_dialects() -> dict[str, Any]:
+    # Only the installed contracts are listed: the gateway takes no Dialect submissions.
     return discovery.dialects_document(_builtin_dialects())
-
-
-SYSTEM_NAMESPACES = frozenset({"system", "openbinding"})
-
-
-@router.post("/dialects", status_code=status.HTTP_201_CREATED)
-async def publish_dialect(
-    request: Request,
-    caller: User = Depends(solve_caller),
-    session: AsyncSession | None = Depends(optional_session, scope="function"),
-):
-    try:
-        body = await request.body()
-        if len(body) > _max_expanded():
-            return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
-        document = strict_json_loads(body)
-    except PackageError as exc:
-        return _problem(422, "invalid_dialect", str(exc))
-    diagnostics = (
-        schema_diagnostics(document, "Dialect")
-        if isinstance(document, dict)
-        else [{"code": "document", "message": "Dialect must be an object"}]
-    )
-    secret_paths = embedded_secret_paths(document)
-    diagnostics.extend(
-        {"code": "secret_in_document", "pointer": path, "message": "secret-like field is forbidden"}
-        for path in secret_paths
-    )
-    if diagnostics:
-        return _problem(422, "invalid_dialect", "Dialect manifest does not satisfy bim/v1", diagnostics)
-    name = document["metadata"]["name"]
-    version = document["metadata"]["version"]
-    revision_digest = digest(document)
-    adapter_digest = document["spec"]["adapter"]["binaryDigest"]
-    if session is not None:
-        if caller is None:
-            return _problem(401, "unauthorized", "Publishing a Dialect requires an account")
-        namespace = document["metadata"]["namespace"]
-        if caller.is_admin:
-            if namespace != caller.username and namespace not in SYSTEM_NAMESPACES:
-                return _problem(403, "forbidden", "Dialect namespace must match the caller or an official system namespace")
-        elif namespace != caller.username:
-            return _problem(403, "forbidden", "Dialect namespace must match the caller")
-        existing = (
-            await session.execute(
-                select(DialectRevision).where(
-                    DialectRevision.namespace == namespace,
-                    DialectRevision.name == name,
-                    DialectRevision.version == version,
-                )
-            )
-        ).scalars().first()
-        if existing is not None:
-            if existing.digest != revision_digest:
-                return _problem(409, "immutable_dialect", "Dialect revisions are immutable; publish a new version")
-            return {"namespace": namespace, "name": name, "version": version, "digest": revision_digest, "status": existing.state}
-        state = "published" if (caller.is_admin and namespace in SYSTEM_NAMESPACES) else "pending_review"
-        row = DialectRevision(
-            owner_id=caller.id,
-            namespace=namespace,
-            name=name,
-            version=version,
-            digest=revision_digest,
-            adapter_digest=adapter_digest,
-            document=document,
-            state=state,
-        )
-        try:
-            async with session.begin_nested():
-                session.add(row)
-                if state == "published":
-                    publication = (
-                        await session.execute(
-                            select(ManifestPublication).where(
-                                ManifestPublication.resource_kind == "Dialect",
-                                ManifestPublication.resource_digest == revision_digest,
-                            )
-                        )
-                    ).scalars().first()
-                    if publication is None:
-                        session.add(
-                            ManifestPublication(
-                                resource_kind="Dialect",
-                                resource_digest=revision_digest,
-                                publisher_id=caller.id,
-                                state="public",
-                            )
-                        )
-                await session.flush()
-        except IntegrityError:
-            return _problem(409, "immutable_dialect", "Dialect identity already exists with different content")
-        return {"namespace": namespace, "name": name, "version": version, "digest": revision_digest, "status": state}
-    if not _installed_dialect_contract(document):
-        return _problem(409, "adapter_not_installed", "Dialect does not match an installed adapter and schema contract")
-    namespace = document["metadata"]["namespace"]
-    return {"namespace": namespace, "name": name, "version": version, "digest": revision_digest, "status": "published"}
-
-
-@router.post("/dialects/{name}/approve")
-async def approve_dialect(
-    name: str,
-    namespace: str,
-    version: str,
-    revision: str,
-    caller: User = Depends(require_v1_admin),
-    session: AsyncSession | None = Depends(optional_session, scope="function"),
-):
-    if session is None or caller is None:
-        return _problem(404, "not_found", "Dialect revision not found")
-    if not caller.is_admin:
-        return _problem(403, "forbidden", "Only an administrator may approve Dialects")
-    row = (
-        await session.execute(
-            select(DialectRevision).where(
-                DialectRevision.namespace == namespace,
-                DialectRevision.name == name,
-                DialectRevision.version == version,
-                DialectRevision.digest == revision,
-            )
-        )
-    ).scalars().first()
-    if row is None:
-        return _problem(404, "not_found", "Dialect revision not found")
-    if not _installed_dialect_contract(row.document):
-        return _problem(409, "adapter_not_installed", "Dialect does not match an installed adapter and schema contract")
-    row.state = "published"
-    publication = (
-        await session.execute(
-            select(ManifestPublication).where(
-                ManifestPublication.resource_kind == "Dialect",
-                ManifestPublication.resource_digest == row.digest,
-            )
-        )
-    ).scalars().first()
-    if publication is None:
-        session.add(
-            ManifestPublication(
-                resource_kind="Dialect",
-                resource_digest=row.digest,
-                publisher_id=caller.id,
-                state="public",
-            )
-        )
-    await session.flush()
-    return {"namespace": namespace, "name": name, "version": version, "digest": revision, "status": "published"}
-
-
-@router.post("/resources", status_code=status.HTTP_201_CREATED)
-async def register_bim_resource(
-    request: Request,
-    namespace: str = Query(min_length=1, max_length=128),
-    name: str = Query(min_length=1, max_length=128),
-    version: str = Query(min_length=1, max_length=64),
-    role: str = Query(),
-    caller: User = Depends(solve_caller),
-    session: AsyncSession | None = Depends(optional_session, scope="function"),
-):
-    """Store an immutable BIM source resource; no executable adapter is accepted."""
-    if session is not None and caller is None:
-        return _problem(401, "unauthorized", "Registering a BIM resource requires an account")
-    if caller is not None:
-        if caller.is_admin:
-            if namespace != caller.username and namespace not in SYSTEM_NAMESPACES:
-                return _problem(403, "forbidden", "Resource namespace must match the caller or an official system namespace")
-        elif namespace != caller.username:
-            return _problem(403, "forbidden", "Resource namespace must match the caller")
-    content_type = (request.headers.get("content-type") or "").split(";", 1)[0].casefold()
-    body = await request.body()
-    if len(body) > _max_expanded():
-        return _problem(413, "payload_too_large", f"resource exceeds {_max_expanded()} bytes")
-    document: dict[str, Any] | None = None
-    dialects = bim.dialect_manifests()
-    dialect_id: str
-    api_version: str
-    if content_type == "application/json":
-        try:
-            parsed = strict_json_loads(body)
-        except PackageError as exc:
-            return _problem(422, "invalid_resource", str(exc))
-        if not isinstance(parsed, dict):
-            return _problem(422, "invalid_resource", "registered JSON resource must be an object")
-        document = parsed
-        kind = document.get("kind")
-        api_version = document.get("apiVersion")
-        if not isinstance(api_version, str) or not isinstance(kind, str):
-            return _problem(422, "invalid_resource_identity", "resource requires string apiVersion and kind")
-        matches = [
-            pair for pair in dialect_type_matches(dialects, api_version, kind, content_type)
-            if role in pair[1].get("roles", [])
-        ]
-        if not matches:
-            return _problem(
-                422,
-                "invalid_resource_contract",
-                f"no installed Dialect permits {api_version!r} {kind!r} in role {role!r}",
-            )
-        if len(matches) != 1:
-            return _problem(409, "ambiguous_resource_contract", "more than one installed Dialect claims this resource identity")
-        dialect, resource_type = matches[0]
-        dialect_id = bim.manifest_id(dialect)
-        diagnostics = resource_schema_diagnostics(document, api_version, kind, content_type, "resource")
-        if diagnostics:
-            return _problem(422, "invalid_resource", "resource does not satisfy its installed Dialect schema", [item.as_dict() for item in diagnostics])
-        metadata = document.get("metadata", {})
-        if metadata.get("name") != name or metadata.get("version") != version:
-            return _problem(
-                422,
-                "resource_identity",
-                "registered JSON metadata.name/version must match the requested identity",
-            )
-        content = canonical_json(document)
-        media_type = "application/json"
-    elif content_type in {"application/vnd.omg.bpmn+xml", "application/xml", "text/xml"} or content_type.endswith("+xml"):
-        content = body.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
-        try:
-            source_package = XmlResource(content)
-            xml_root = source_package.root()
-        except PackageError as exc:
-            return _problem(422, "invalid_resource", str(exc))
-        if isinstance(xml_root.tag, str) and xml_root.tag.startswith("{") and "}" in xml_root.tag:
-            xml_namespace, local_name = xml_root.tag[1:].split("}", 1)
-        else:
-            xml_namespace, local_name = "", str(xml_root.tag)
-        matches = [
-            pair for pair in dialect_xml_type_matches(dialects, xml_namespace, local_name, content_type)
-            if role in pair[1].get("roles", [])
-        ]
-        if not matches:
-            return _problem(
-                422,
-                "invalid_resource_contract",
-                f"no installed Dialect permits XML {{{xml_namespace}}}{local_name} ({content_type}) in role {role!r}",
-            )
-        if len(matches) != 1:
-            return _problem(409, "ambiguous_resource_contract", "more than one installed Dialect claims this XML resource")
-        dialect, resource_type = matches[0]
-        if dialect.get("spec", {}).get("adapter", {}).get("id") == "bim-bpmn":
-            try:
-                source_package.validate_bpmn()
-            except PackageError as exc:
-                return _problem(422, "invalid_resource", str(exc))
-        else:
-            return _problem(409, "adapter_not_installed", "the XML Dialect has no deployed validator adapter")
-        dialect_id = bim.manifest_id(dialect)
-        api_version = str(resource_type["apiVersion"])
-        kind = str(resource_type["kind"])
-        media_type = content_type
-    else:
-        return _problem(
-            415,
-            "unsupported_media_type",
-            "BIM resources use application/json or application/vnd.omg.bpmn+xml",
-        )
-    # ``content`` is already in the form the package contract digests: canonical JSON, or LF-normalised XML.
-    revision_digest = digest_bytes(content)
-    key = (namespace, name, version, revision_digest)
-    state = "published" if (caller is None or (caller.is_admin and namespace in SYSTEM_NAMESPACES)) else "pending_review"
-    if session is not None:
-        existing = (
-            await session.execute(
-                select(RegisteredResourceRevision).where(
-                    RegisteredResourceRevision.namespace == namespace,
-                    RegisteredResourceRevision.name == name,
-                    RegisteredResourceRevision.version == version,
-                )
-            )
-        ).scalars().first()
-        if existing is not None:
-            if existing.digest != revision_digest:
-                return _problem(409, "immutable_resource", "resource revisions are immutable; register a new version")
-            return {
-                "namespace": namespace,
-                "name": name,
-                "version": version,
-                "digest": revision_digest,
-                "status": existing.state,
-            }
-        row = RegisteredResourceRevision(
-            owner_id=caller.id,
-            namespace=namespace,
-            name=name,
-            version=version,
-            digest=revision_digest,
-            role=role,
-            api_version=api_version,
-            kind=str(kind),
-            dialect_id=dialect_id,
-            media_type=media_type,
-            document=document,
-            content=content,
-            state=state,
-        )
-        try:
-            async with session.begin_nested():
-                session.add(row)
-                if state == "published":
-                    publication = (
-                        await session.execute(
-                            select(ManifestPublication).where(
-                                ManifestPublication.resource_kind == "RegisteredResource",
-                                ManifestPublication.resource_digest == revision_digest,
-                            )
-                        )
-                    ).scalars().first()
-                    if publication is None:
-                        session.add(
-                            ManifestPublication(
-                                resource_kind="RegisteredResource",
-                                resource_digest=revision_digest,
-                                publisher_id=caller.id,
-                                state="public",
-                            )
-                        )
-                await session.flush()
-        except IntegrityError:
-            return _problem(409, "immutable_resource", "resource identity already exists")
-    else:
-        conflicting = next(
-            (
-                record
-                for record_key, record in _CUSTOM_RESOURCE_RECORDS.items()
-                if record_key[:3] == key[:3] and record_key != key
-            ),
-            None,
-        )
-        if conflicting is not None:
-            return _problem(409, "immutable_resource", "resource revisions are immutable; register a new version")
-        CUSTOM_RESOURCES[key] = RegisteredResource(content, media_type)
-        _CUSTOM_RESOURCE_RECORDS[key] = {
-            "namespace": namespace,
-            "name": name,
-            "version": version,
-            "digest": revision_digest,
-            "role": role,
-            "apiVersion": api_version,
-            "kind": kind,
-            "dialect": dialect_id,
-            "mediaType": media_type,
-            "status": "published",
-        }
-        state = "published"
-    return {
-        "namespace": namespace,
-        "name": name,
-        "version": version,
-        "digest": revision_digest,
-        "status": state,
-    }
-
-
-@router.get("/resources")
-async def list_registered_bim_resources(
-    session: AsyncSession | None = Depends(optional_session, scope="function"),
-) -> dict[str, Any]:
-    return await discovery.registered_resources_document(session, _CUSTOM_RESOURCE_RECORDS)
-
-
-@router.get("/resources/{name}")
-async def get_registered_bim_resource(
-    name: str,
-    namespace: str,
-    version: str,
-    revision: str,
-    session: AsyncSession | None = Depends(optional_session, scope="function"),
-):
-    try:
-        resource = await discovery.registered_resource(namespace, name, version, revision, session)
-    except discovery.DiscoveryProblem as exc:
-        return _service_problem(exc)
-    return Response(
-        resource.content,
-        media_type=resource.media_type,
-        headers={"Digest": f"sha-256={resource.digest.removeprefix('sha256-')}"},
-    )
-
-
-@router.post("/resources/{name}/approve")
-async def approve_registered_bim_resource(
-    name: str,
-    namespace: str,
-    version: str,
-    revision: str,
-    caller: User = Depends(require_v1_admin),
-    session: AsyncSession | None = Depends(optional_session, scope="function"),
-):
-    if session is None or caller is None:
-        return _problem(404, "not_found", "Registered BIM resource not found")
-    if not caller.is_admin:
-        return _problem(403, "forbidden", "Only an administrator may approve BIM resources")
-    row = (
-        await session.execute(
-            select(RegisteredResourceRevision).where(
-                RegisteredResourceRevision.namespace == namespace,
-                RegisteredResourceRevision.name == name,
-                RegisteredResourceRevision.version == version,
-                RegisteredResourceRevision.digest == revision,
-            )
-        )
-    ).scalars().first()
-    if row is None:
-        return _problem(404, "not_found", "Registered BIM resource not found")
-    row.state = "published"
-    publication = (
-        await session.execute(
-            select(ManifestPublication).where(
-                ManifestPublication.resource_kind == "RegisteredResource",
-                ManifestPublication.resource_digest == row.digest,
-            )
-        )
-    ).scalars().first()
-    if publication is None:
-        session.add(ManifestPublication(
-            resource_kind="RegisteredResource",
-            resource_digest=row.digest,
-            publisher_id=caller.id,
-            state="public",
-        ))
-    await session.flush()
-    return {
-        "namespace": namespace,
-        "name": name,
-        "version": version,
-        "digest": revision,
-        "status": "published",
-    }
-
-
-@router.get("/catalog")
-async def get_catalog(
-    session: AsyncSession | None = Depends(optional_session, scope="function"),
-    caller: User = Depends(solve_caller),
-) -> dict[str, Any]:
-    return {
-        "apiVersion": "bim/v1",
-        **(await list_profiles()),
-        **(await list_dialects(session=session)),
-        **(await list_registered_bim_resources(session=session)),
-        **(await list_examples()),
-        **(await list_v1_engines(session=session, caller=caller)),
-    }
-
-
-@router.get("/schemas/{kind}")
-async def get_v1_schema(kind: str):
-    try:
-        return await discovery.schema_document(kind)
-    except discovery.DiscoveryProblem as exc:
-        return _service_problem(exc)
 
 
 @router.get("/examples")
@@ -673,8 +198,9 @@ async def get_example_package(example_path: str):
 @router.get("/engines")
 async def list_v1_engines(
     session: AsyncSession | None = Depends(optional_session, scope="function"),
-    caller: User = Depends(solve_caller),
+    caller: User | None = Depends(get_optional_user),
 ) -> dict[str, Any]:
+    # The public engine catalogue: a visitor gets the built-in and published Engines.
     return await discovery.engines_document(session, caller)
 
 

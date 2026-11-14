@@ -23,21 +23,16 @@ export type ApiKeyPermission =
   | 'engines:register'
   | 'engines:publish'
   | 'engines:moderate'
-  | 'extensions:register'
-  | 'extensions:moderate'
   | 'organizations:read'
   | 'organizations:write'
   | 'projects:read'
   | 'projects:write'
   | 'studies:read'
   | 'studies:write'
-  | 'reports:read'
-  | 'reports:write'
   | 'artifacts:read'
   | 'artifacts:write'
   | 'notifications:read'
   | 'pricing:read'
-  | 'pricing:admin'
   | 'admin:accounts:read'
   | 'admin:accounts:write';
 
@@ -241,7 +236,6 @@ export interface AdminAuditPage {
  */
 export interface AdminModerationOverview {
   engines: Record<string, number>;
-  dialects: Record<string, number>;
   registrations: Record<string, number>;
 }
 

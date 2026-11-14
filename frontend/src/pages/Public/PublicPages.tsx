@@ -5,7 +5,6 @@ import { apiClient, HttpError, type PackageValidationOutcome } from '../../api/c
 import { Button } from '../../components/ui/Button';
 import { Notice } from '../../components/ui/Notice';
 import { ProjectPicker } from '../../components/ui/ProjectPicker';
-import { LanguageNav } from '../Profiles/languageSections';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
@@ -161,7 +160,6 @@ export function WorkbenchPage() {
     <div className="workbench-page">
       <div className="workbench-head">
         <div>
-          <LanguageNav current="workbench" />
           <h1>Workbench</h1>
           <p>Validate a BIM package without an account. You get localized diagnostics, digests and the structure of the composition. Nothing is executed.</p>
         </div>
@@ -220,7 +218,6 @@ export function WorkbenchPage() {
               </button>
             ))}
             {examples.status === 'ready' && suggested.length === 0 && <small>This deployment ships no example packages.</small>}
-            <Link to="/explore/examples">Browse official examples</Link>
           </div>
 
           <div className="workbench-card is-account">

@@ -30,10 +30,11 @@ field is unchanged. A visitor does not get `created_by_id` (`null`).
 2. **Private projects do not change.** A non-member asking for a private project
    (or one that does not exist) gets `403 organization_forbidden`, the same body
    for both, so existence is not disclosed; an anonymous caller gets `401`.
-3. **Anonymous reads follow Explore.** `GET /v1/explore/*` is already served
-   without a session, so the matrix routes may be called without credentials, and
-   only those routes on public projects. A malformed or revoked credential is
-   still `401`.
+3. **Anonymous reads are allowed on these routes only.** The matrix routes may be
+   called without credentials, and only on public projects. A malformed or
+   revoked credential is still `401`. Outside the project path, the public engine
+   catalogue `GET /v1/engines` answers a visitor with the built-in and published
+   Engines.
 4. **API keys** keep their own rules (permission, engine and boundary checks run
    first); the key's owner is then a visitor like anybody else.
 5. **Abuse limits.** Public reads are counted per *caller* — the account (a
@@ -57,8 +58,6 @@ field is unchanged. A visitor does not get `created_by_id` (`null`).
 | `` (the project itself) | public metadata; `access: "public_read"` |
 | `/cases`, `/cases/{case}` | binding cases |
 | `/cases/{case}/revisions`, `/cases/{case}/revisions/{revision}` | sealed case revisions (with their source-snapshot digest) |
-| `/collections`, `/collections/{collection}` | collections |
-| `/collections/{collection}/revisions`, `/collections/{collection}/revisions/{revision}` | collection revisions |
 | `/compositions`, `/compositions/{composition}` | compositions |
 | `/compositions/{composition}/versions`, `/compositions/{composition}/versions/{version}/content` | sealed composition versions, and one version's source |
 | `/compositions/{composition}/diff` | the change list between two sealed versions |
@@ -69,17 +68,14 @@ field is unchanged. A visitor does not get `created_by_id` (`null`).
 | `/studies/{study}/runs` | study runs |
 | `/studies/{study}/runs/{run_id}/cells`, `/studies/{study}/runs/{run_id}/cells/{cell_id}` | cells of a run |
 | `/studies/{study}/runs/{run_id}/analytics` | run analytics |
-| `/reports`, `/reports/{report}` | **only reports that are frozen and have a live publication**; a draft, an unpublished frozen report and a withdrawn one answer `404 not_found`, like a missing one |
-| `/publications` | publications that are not withdrawn |
 | `/blobs`, `/blobs/{digest_value}` | the file list and the download, **only files marked `public`**; a private file answers `404` like a missing one |
 
 Two precisions. *Resources* are the project's own contents; an artifact of
 **another** organization that the project merely associates (resources,
-collections, library) is shown to visitors only while it is itself published, so
+library) is shown to visitors only while it is itself published, so
 a withdrawn one does not stay reachable through the project. *Snapshots* of case
-revisions are served by `/v1/snapshots/...` and `/v1/resolve/...`, which are not
-under the project path and keep their own visibility rules (see
-`RESOLVER_AND_VERIFIER.md`); this policy does not widen them.
+revisions are served by `/v1/snapshots/...`, which is not under the project path
+and keeps its own visibility rules; this policy does not widen them.
 
 ## Always denied to visitors
 
@@ -87,7 +83,7 @@ under the project path and keep their own visibility rules (see
 |---|---|
 | `GET /jobs` | jobs carry members' requests, options, results and history |
 | `GET /package` | a full export, including private files and drafts |
-| every `POST`, `PUT`, `PATCH`, `DELETE` under the project | writes (creating or changing cases, resources, collections, compositions, studies, runs, cells, reports, publications, files, library associations, settings, visibility, package import, deleting the project) |
+| every `POST`, `PUT`, `PATCH`, `DELETE` under the project | writes (creating or changing cases, resources, compositions, studies, runs, cells, files, library associations, settings, visibility, package import, deleting the project) |
 
 Outside the project path nothing changes either: members, invitations,
 organization settings, quota/usage/billing, API keys, library drafts, and the
@@ -114,7 +110,7 @@ package the request carries and keeps nothing. So none needs an account.
 |---|---|---|
 | `POST /v1/compositions/validate`, `/parse`, `/serialise`, `/diff` | anybody | `instances:read` |
 | `POST /v1/compositions/compile`, `/package`, `/import` | anybody; each runs the container's compiler, as `POST /v1/instances/validate` does for anyone | `instances:read` |
-| `GET /v1/compositions/language`, `/schema` | anybody | nothing: they describe the language, like `/v1/schemas` |
+| `GET /v1/compositions/language`, `/schema` | anybody | nothing: they describe the language, like `/v1/profiles` |
 
 A stored composition is a project artifact and follows the matrix above.
 
@@ -168,5 +164,5 @@ kept whole, as before.
 - Expect `429` with `Retry-After` while browsing other people's public projects
   quickly, and from the routes above when one client asks too often; show the
   countdown the way other `429`s are shown.
-- The report/publication/file/library lists a visitor gets are already narrowed by
+- The file and library lists a visitor gets are already narrowed by
   the server; do not try to infer drafts or private files from them.

@@ -52,7 +52,7 @@ const TABLE = [
   moved('t-app', '/app/:org/:project/old-home', '/app/:org'),
   moved('t-dropped', '/app/:org/:project/old-bare', '/app/:org', { keepQuery: false }),
   moved('t-permanent', '/app/:org/:project/old-kept', '/app/:org', { permanent: true }),
-  // An application address whose target is public, like the gateway's `/app/verifier?digest=…`.
+  // An application address whose target is public.
   moved('t-to-public', '/app/old', '/public-target', { permanent: true }),
   moved('t-own-hash', '/old-hash', `${PUBLIC}#own`),
 ];

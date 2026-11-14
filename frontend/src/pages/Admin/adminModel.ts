@@ -12,14 +12,27 @@ import type { ApiErrorEventItem } from './types';
 
 // -- The administration sections ---------------------------------------------------------------
 
+/** The sections the overview screen (/app/admin) holds itself, picked with `?section=`. */
+export const OVERVIEW_SECTIONS = ['audit', 'errors', 'queues', 'maintenance'] as const;
+
+export type OverviewSection = (typeof OVERVIEW_SECTIONS)[number];
+
+/** The address of one section of the overview screen. */
+export const overviewSectionPath = (section: OverviewSection) => `/app/admin?section=${section}`;
+
+/** The section a `?section=` value names; anything else is the overview itself. */
+export function overviewSectionOf(value: string | null): OverviewSection | null {
+  return OVERVIEW_SECTIONS.find((section) => section === value) ?? null;
+}
+
 export const ADMIN_SECTIONS = [
   { id: 'overview', label: 'Overview', to: '/app/admin' },
   { id: 'users', label: 'Accounts', to: '/app/admin/users' },
-  { id: 'audit', label: 'Audit', to: '/app/admin/audit' },
-  { id: 'errors', label: 'Errors', to: '/app/admin/errors' },
-  { id: 'queues', label: 'Queues', to: '/app/admin/queues' },
+  { id: 'audit', label: 'Audit', to: overviewSectionPath('audit') },
+  { id: 'errors', label: 'Errors', to: overviewSectionPath('errors') },
+  { id: 'queues', label: 'Queues', to: overviewSectionPath('queues') },
   { id: 'moderation', label: 'Moderation', to: '/app/admin/moderation' },
-  { id: 'maintenance', label: 'Maintenance', to: '/app/admin/maintenance' },
+  { id: 'maintenance', label: 'Maintenance', to: overviewSectionPath('maintenance') },
 ] as const;
 
 export type AdminSection = (typeof ADMIN_SECTIONS)[number]['id'];
@@ -113,14 +126,13 @@ export function isOutdatedChange(failure: Pick<Failure, 'status' | 'code'>): boo
  * A failure of moderation. A key needs the moderation permission for what it decides, not the accounts one, and a 409 here
  * usually means somebody else decided first.
  */
-export function describeModerationFailure(error: unknown, what: string, scope: 'engines' | 'extensions'): Failure {
+export function describeModerationFailure(error: unknown, what: string): Failure {
   const base = describeAdminFailure(error, what);
   if (base.status === 403) {
-    const [label, permission] = scope === 'engines' ? ['moderate engines', 'engines:moderate'] : ['moderate extensions', 'extensions:moderate'];
     return {
       ...base,
       title: 'This key can’t moderate (403)',
-      text: `The account is an administrator, but the API key behind this session doesn’t include “${label}” (${permission}).`,
+      text: 'The account is an administrator, but the API key behind this session doesn’t include “moderate engines” (engines:moderate).',
     };
   }
   if (base.status === 409) {

@@ -37,16 +37,12 @@ from openbinding_gateway.access.public_read import (
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import (
     Artifact,
-    ArtifactDraft,
     ArtifactPublication,
     BindingCase,
     Blob,
     Job,
     Project,
     ProjectArtifact,
-    Publication,
-    Report,
-    ReportState,
     Visibility,
 )
 from openbinding_gateway.main import app
@@ -102,8 +98,8 @@ async def ctx(api_client, registration, db_session, gate):  # noqa: F811
         )
         assert created.status_code == 201, created.text
         projects[name] = uuid.UUID(created.json()["id"])
-    read_perms = ["projects:read", "studies:read", "reports:read", "artifacts:read"]
-    write_perms = ["projects:write", "studies:write", "reports:write", "artifacts:write"]
+    read_perms = ["projects:read", "studies:read", "artifacts:read"]
+    write_perms = ["projects:write", "studies:write", "artifacts:write"]
     c = SimpleNamespace(
         client=api_client, db=db_session, gate=gate, slug=slug, org_id=uuid.UUID(organization["id"]),
         owner=owner, user_id=uuid.UUID(owner["id"]), vera=vera, mike=mike, carol=carol,
@@ -130,9 +126,6 @@ async def ctx(api_client, registration, db_session, gate):  # noqa: F811
         db_session, c.project_id, c.user_id, slug="providers", name="Providers", kind="qos-offerings",
         documents=[{"apiVersion": "openbinding.dev/qos-binding/v1", "providers": ["alpha"]}],
     )
-    assert (await api_client.post(
-        f"{c.url}/collections", headers=owner_h, json={"slug": "coll", "name": "Collection"},
-    )).status_code == 201
     octets = {"Content-Type": "application/octet-stream"}
     c.public_blob = (await api_client.post(
         f"{c.url}/blobs?public=true", headers={**owner_h, **octets}, content=b"public bytes"
@@ -140,31 +133,6 @@ async def ctx(api_client, registration, db_session, gate):  # noqa: F811
     c.private_blob = (await api_client.post(
         f"{c.url}/blobs", headers={**owner_h, **octets}, content=b"private bytes"
     )).json()["digest"]
-
-    async def report(slug_: str, state: ReportState, *, publication: str | None = None):
-        artifact, version = await add_version(db_session, c, kind="Report", content_digest=random_digest())
-        draft = ArtifactDraft(
-            artifact_id=artifact.id, created_by_id=c.user_id, payload={"content": {"note": slug_}}
-        )
-        db_session.add(draft)
-        await db_session.flush()
-        row = Report(
-            project_id=c.project_id, artifact_id=artifact.id, draft=draft, slug=slug_,
-            title=slug_, state=state, created_by_id=c.user_id,
-        )
-        db_session.add(row)
-        await db_session.flush()
-        if publication:
-            db_session.add(Publication(
-                project_id=c.project_id, report_id=row.id, version_id=version.id, slug=publication,
-                citation={"title": slug_}, published_by_id=c.user_id, withdrawn=publication == "gone",
-            ))
-            await db_session.flush()
-
-    await report("the-draft", ReportState.DRAFT)
-    await report("frozen-private", ReportState.FROZEN)
-    await report("frozen-public", ReportState.FROZEN, publication="live")
-    await report("frozen-withdrawn", ReportState.FROZEN, publication="gone")
 
     # Two sealed library versions of the project, one published, sealed by the internal artifact service.
     artifacts = []
@@ -191,7 +159,7 @@ VISITORS = ("anonymous", "outsider", "api_key")
 
 def test_the_route_table_has_the_project_surface():
     methods = {method for method, _ in ROUTES}
-    assert len(ROUTES) > 40
+    assert len(ROUTES) >= 40
     # M9.6 removed the project library association, the only PUT under a project.
     assert {"GET", "POST", "PATCH", "DELETE"} <= methods
 
@@ -337,45 +305,18 @@ async def test_the_allowed_reads_return_the_project_data(ctx):
         revision = await get(c, who, f"{c.url}/cases/{c.case}/revisions/1")
         resources = await get(c, who, f"{c.url}/resources")
         resource_revisions = await get(c, who, f"{c.url}/resources/providers/revisions")
-        collections = await get(c, who, f"{c.url}/collections")
-        collection = await get(c, who, f"{c.url}/collections/coll")
-        collection_revisions = await get(c, who, f"{c.url}/collections/coll/revisions")
         studies = await get(c, who, f"{c.url}/studies")
         missing_run = await get(c, who, f"{c.url}/studies/nope/runs")
 
-        for response in (cases, case, revisions, revision, resources, resource_revisions,
-                         collections, collection, collection_revisions, studies):
+        for response in (cases, case, revisions, revision, resources, resource_revisions, studies):
             assert response.status_code == 200, (who, str(response.url), response.text)
         assert [item["slug"] for item in cases.json()] == [c.case]
         assert revisions.json()[0]["digest"] == c.revision_digest
         assert revision.json()["digest"] == c.revision_digest
         assert "providers" in {item["slug"] for item in resources.json()}
         assert resource_revisions.json()[0]["document"]["providers"] == ["alpha"]
-        assert [item["slug"] for item in collections.json()] == ["coll"]
         assert studies.json() == []
         assert missing_run.status_code == 404 and missing_run.json()["detail"]["code"] == "not_found"
-
-
-async def test_reports_are_only_the_frozen_ones_with_a_live_publication(ctx):
-    c = ctx
-    for who in VISITORS:
-        # The list is the only report read left since M9.6 (GET of one report is removed, design.md §2.1 row 9).
-        listed = await get(c, who, f"{c.url}/reports")
-        assert [item["slug"] for item in listed.json()] == ["frozen-public"], who
-        assert listed.json()[0]["state"] == "frozen"
-    # Members keep seeing everything, drafts included.
-    for who in ("viewer", "member", "owner"):
-        slugs = {item["slug"] for item in (await get(c, who, f"{c.url}/reports")).json()}
-        assert slugs == {"the-draft", "frozen-private", "frozen-public", "frozen-withdrawn"}
-
-
-async def test_publications_exclude_the_withdrawn_for_visitors_only(ctx):
-    c = ctx
-    for who in ("anonymous", "outsider"):
-        assert [item["slug"] for item in (await get(c, who, f"{c.url}/publications")).json()] == ["live"]
-    for who in ("viewer", "owner"):
-        slugs = {item["slug"] for item in (await get(c, who, f"{c.url}/publications")).json()}
-        assert slugs == {"live", "gone"}
 
 
 async def test_files_are_listed_and_downloaded_only_when_public(ctx):
@@ -438,22 +379,20 @@ async def test_a_foreign_artifact_that_is_not_published_does_not_show_through(ct
 async def counts(c) -> dict[str, int]:
     c.db.expire_all()
     result = {}
-    for model in (BindingCase, Blob, Report, Publication, Artifact, ProjectArtifact, Project):
+    for model in (BindingCase, Blob, Artifact, ProjectArtifact, Project):
         result[model.__name__] = int(await c.db.scalar(select(func.count()).select_from(model)))
     return result
 
 
 # method, path suffix, JSON body (None: a raw body), exact refusal wanted (False: any non-success)
 WRITES = [
-    # The resource, report and report-publication writes are removed since M9.6 (test_removed_operations.py).
+    # The resource writes are removed since M9.6 (test_removed_operations.py).
     ("POST", "/cases", {"slug": "intruder", "name": "Intruder"}, True),
-    ("POST", "/collections", {"slug": "intruder", "name": "Intruder"}, True),
     ("PATCH", "", {"name": "Hijacked", "visibility": "private"}, True),
     ("PATCH", "/cases/{case}", {"name": "Hijacked"}, True),
     ("DELETE", "", None, True),
     ("DELETE", "/cases/{case}", None, True),
     ("DELETE", "/blobs/{public_blob}", None, True),
-    ("DELETE", "/publications/live", None, True),
     ("POST", "/studies/nothing/runs", None, True),
     ("POST", "/blobs", None, False),
     ("POST", "/package", None, False),

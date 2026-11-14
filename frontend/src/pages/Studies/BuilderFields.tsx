@@ -6,7 +6,7 @@ import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { problemsPath } from '../../routes/paths/problems';
 import { formatDate } from '../../utils/format';
-import { collectionVersionLabel, engineLabel } from '../../shared/lib/identity';
+import { engineLabel, studyVersionLabel } from '../../shared/lib/identity';
 import {
   MAX_SETTINGS, isExecutable, latestExecutable, offeredRevisions, plural, readVariant,
   describeParameters, type EngineChoice, type MatrixSize, type Variant,
@@ -17,19 +17,10 @@ interface CasesFieldProps {
   selected: readonly string[];
   onChange: (ids: string[]) => void;
   root: string;
-  collections: readonly Artifact[];
-  collectionArtifact: string;
-  onCollectionArtifact: (id: string) => void;
-  collectionVersions: readonly ArtifactVersion[];
-  collectionVersion: string;
-  onCollectionVersion: (id: string) => void;
-  collectionNote: string | null;
 }
 
-/** 1 · Cases: the executable revisions of the project, and optionally a sealed collection whose cases join them. */
-export function CasesField({
-  cases, selected, onChange, root, collections, collectionArtifact, onCollectionArtifact, collectionVersions, collectionVersion, onCollectionVersion, collectionNote,
-}: CasesFieldProps) {
+/** 1 · Cases: the executable revisions of the project. */
+export function CasesField({ cases, selected, onChange, root }: CasesFieldProps) {
   const offered = offeredRevisions(cases);
   const toggle = (id: string) => onChange(selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id]);
   return (
@@ -66,27 +57,6 @@ export function CasesField({
           <Action variant="ghost" size="sm" onClick={() => onChange([])} disabled={selected.length === 0}>Clear</Action>
         </div>
       )}
-      <details className="st-collection" open={Boolean(collectionArtifact)}>
-        <summary>Or add a sealed collection</summary>
-        <p className="org-muted">All the problem versions of that exact collection version join the ones chosen above. Make one in <Link to={`${root}/collections`} viewTransition>Collections</Link>.</p>
-        <div className="st-pair">
-          <label>
-            <span>Collection</span>
-            <select value={collectionArtifact} onChange={(event) => onCollectionArtifact(event.target.value)}>
-              <option value="">None</option>
-              {collections.map((item) => <option key={item.id} value={item.id}>{item.display_name}</option>)}
-            </select>
-          </label>
-          <label>
-            <span>Sealed version</span>
-            <select value={collectionVersion} disabled={!collectionArtifact} onChange={(event) => onCollectionVersion(event.target.value)}>
-              <option value="">Choose a version</option>
-              {collectionVersions.map((version) => <option key={version.id} value={version.id}>{collectionVersionLabel({ name: version.ref.name, version: version.ordinal })}</option>)}
-            </select>
-          </label>
-        </div>
-        {collectionNote && <small className="org-muted">{collectionNote}</small>}
-      </details>
     </fieldset>
   );
 }
@@ -219,7 +189,7 @@ export function AdoptPanel({ studies, artifact, onArtifact, versions, version, o
           <span>Sealed version</span>
           <select value={version} disabled={!artifact} onChange={(event) => onVersion(event.target.value)}>
             <option value="">Choose a version</option>
-            {versions.map((item) => <option key={item.id} value={item.id}>{collectionVersionLabel({ name: item.ref.name, version: item.ordinal })}</option>)}
+            {versions.map((item) => <option key={item.id} value={item.id}>{studyVersionLabel({ name: item.ref.name, version: item.ordinal })}</option>)}
           </select>
         </label>
       </div>

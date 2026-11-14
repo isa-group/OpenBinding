@@ -13,7 +13,7 @@ import { newestFirst } from '../Cases/casesModel';
 import { ProjectFrame, ProjectGate, ProjectSkeleton } from '../Project/parts';
 import { planLimit } from '../Project/projectModel';
 import { useRouteProject } from '../Project/useRouteProject';
-import { uploadCeiling } from '../Resources/resourceModel';
+import { uploadCeiling } from './uploadCeiling';
 import { ActionBar } from './ActionBar';
 import { CheckResult } from './CheckResult';
 import { PackageEditor } from './PackageEditor';

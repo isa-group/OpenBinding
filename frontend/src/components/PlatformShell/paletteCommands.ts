@@ -35,9 +35,6 @@ export function buildCommands({ organizations = [], projects = [], organization,
     command('Go to', 'Runs', 'Every run you can see', labLinks.runs.to),
     command('Go to', 'Generator', 'Generate benchmark instances', labLinks.generator.to),
     command('Go to', 'Engines', 'Engines by exact identity', mainLinks.engines.to),
-    command('Go to', 'Language', 'How instances become binding problems', mainLinks.language.to),
-    command('Go to', 'Explore', 'Public projects, published results and engines', '/explore'),
-    command('Go to', 'Verify', 'Resolve a digest and check its provenance', '/verify'),
     command('Go to', 'Pricing', 'Plans, limits and add-ons', '/pricing'),
   ];
 
@@ -53,9 +50,7 @@ export function buildCommands({ organizations = [], projects = [], organization,
     const studies = labEntries(organization, project).find((entry) => entry.id === 'studies');
     const sections: Array<[string, string, string | undefined]> = [
       ['Problems', 'Binding problems and their versions', problems.to],
-      ['Collections', 'Problems grouped into suites', `${root}/collections`],
       ['Studies', 'Problems × engines × parameters × seeds', studies?.to],
-      ['Published', 'Published editions and how to cite them', `${root}/published`],
       ['Project settings', 'Name, visibility, members and package', `${root}/settings`],
     ];
     for (const [label, desc, href] of sections) {
@@ -64,7 +59,7 @@ export function buildCommands({ organizations = [], projects = [], organization,
     const where = `in ${project.name}`;
     const created = createItems(organization, project);
     const describe: Record<string, string> = {
-      Problem: 'Add a binding problem', Collection: 'Group problems into a suite', Study: 'Compare engines on problems', Run: 'Launch an engine run',
+      Problem: 'Add a binding problem', Study: 'Compare engines on problems', Run: 'Launch an engine run',
     };
     for (const item of created) {
       if (item.to) commands.push(command('Create', `New ${item.label.toLowerCase()}`, `${describe[item.label]} ${where}`, item.to, '+'));

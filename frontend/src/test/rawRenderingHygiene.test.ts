@@ -326,7 +326,7 @@ describe('the allow-list', () => {
     expect(ceilingMismatch(13, new Array(13))).toBeUndefined();
   });
 
-  it('has a ceiling of 0 once the Verify page replaces offender 6, as many as its entries', () => {
+  it('has a ceiling of 0, as many as its entries', () => {
     expect(MAX_ALLOWED_OFFENDERS).toBe(0);
     expect(RAW_RENDERING_ALLOW_LIST).toHaveLength(0);
     expect(ceilingMismatch(MAX_ALLOWED_OFFENDERS, RAW_RENDERING_ALLOW_LIST)).toBeUndefined();
@@ -342,10 +342,8 @@ describe('the allow-list', () => {
     }
   });
 
-  it('holds exactly the offenders that remain after the Verify page', () => {
+  it('holds no offender of the retired analysis pages', () => {
     expect(RAW_RENDERING_ALLOW_LIST.map((entry) => entry.offender)).toEqual([]);
-    expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => /^pages\/(Reports\/Verifier|Verify\/)/.test(entry.file))).toEqual([]);
-    expect(unlistedFindings(Object.fromEntries(Object.entries(sources).filter(([path]) => path.startsWith('/src/pages/Verify/'))), [])).toEqual([]);
     expect([...RAW_RENDERING_ALLOW_LIST, ...UNLISTED_FINDINGS].filter((entry) => entry.file.startsWith('pages/Analysis'))).toEqual([]);
   });
 

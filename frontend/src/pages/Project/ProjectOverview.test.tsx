@@ -3,12 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import type { Job, StudyCell } from '../../api/platform';
 import { ProjectOverview } from './ProjectOverview';
-import { caseOf, iker, org, project, renderProjectScreen, reportOf, revisionOf, runOf, studyOf } from './testKit';
+import { caseOf, iker, org, project, renderProjectScreen, revisionOf, runOf, studyOf } from './testKit';
 
 const api = vi.hoisted(() => ({ listOwnJobs: vi.fn() }));
 const platform = vi.hoisted(() => ({
   project: vi.fn(), cases: vi.fn(), revisions: vi.fn(), projectJobs: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(),
-  reports: vi.fn(), publications: vi.fn(), publicProjects: vi.fn(),
 }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
@@ -53,9 +52,6 @@ describe('Project overview', () => {
     platform.studies.mockResolvedValue([study]);
     platform.studyRuns.mockResolvedValue([runOf(study, 1)]);
     platform.studyCells.mockResolvedValue([...[1, 2, 3, 4, 5, 6].map((n) => cell(n, 'completed')), cell(7, 'failed'), cell(8, 'cancelled')]);
-    platform.reports.mockResolvedValue([reportOf('comparativa', 'frozen', { title: 'Engine comparison' }), reportOf('borrador', 'draft', { title: 'Draft: placement' })]);
-    platform.publications.mockResolvedValue([{ id: 'pub', report_id: 'report-comparativa', withdrawn: false }]);
-    platform.publicProjects.mockResolvedValue([]);
   });
 
   it('opens with the project’s name, visibility, role and the actions of the project', async () => {
@@ -85,7 +81,7 @@ describe('Project overview', () => {
 
     const strip = await screen.findByRole('region', { name: 'What’s sealed and what’s still a draft' });
     const chips = within(strip).getByRole('list', { name: 'Sealed and draft items' });
-    expect(within(chips).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['2 problem versions', '1 study run', '1 frozen report', '1 report draft']);
+    expect(within(chips).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['2 problem versions', '1 study run']);
   });
 
   it('lists the cases with their revisions', async () => {
@@ -146,28 +142,9 @@ describe('Project overview', () => {
     expect(screen.queryByRole('region', { name: 'Reports' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'All reports' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'New report' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Engine comparison')).not.toBeInTheDocument();
     expect(screen.queryByText(/No reports yet/)).not.toBeInTheDocument();
     const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
     expect(hrefs.filter((href) => /\/reports([/?#]|$)/.test(href))).toEqual([]);
-  });
-
-  it('treats a failed reports request as no reports: the cards render and the page does not crash', async () => {
-    platform.reports.mockRejectedValue(refusal(503, 'unavailable'));
-    renderOverview();
-
-    for (const name of ['Recent runs', 'Problems', 'Studies']) expect(await screen.findByRole('region', { name })).toBeInTheDocument();
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  });
-
-  it('shows the get-started guide when the reports request fails on an otherwise empty project', async () => {
-    platform.cases.mockResolvedValue([]);
-    platform.projectJobs.mockResolvedValue([]);
-    platform.studies.mockResolvedValue([]);
-    platform.reports.mockRejectedValue(refusal(503, 'unavailable'));
-    renderOverview();
-
-    expect(await screen.findByRole('region', { name: 'Get started' })).toBeInTheDocument();
   });
 
   describe('a card that fails does not take the others with it', () => {
@@ -226,13 +203,12 @@ describe('Project overview', () => {
     platform.cases.mockResolvedValue([]);
     platform.projectJobs.mockResolvedValue([]);
     platform.studies.mockResolvedValue([]);
-    platform.reports.mockResolvedValue([]);
     renderOverview();
 
     const guide = await screen.findByRole('region', { name: 'Get started' });
     const steps = within(guide).getAllByRole('listitem');
     expect(steps).toHaveLength(3);
-    expect(within(guide).getByRole('link', { name: 'Browse examples' })).toHaveAttribute('href', '/explore/examples');
+    expect(within(guide).getByRole('link', { name: 'Open an example' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/workbench');
     expect(within(guide).getByRole('link', { name: 'New problem' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems');
     expect(within(guide).getByRole('link', { name: 'Open Workbench' })).toHaveAttribute('href', '/workbench');
     expect(screen.queryByRole('region', { name: 'Recent runs' })).not.toBeInTheDocument();
@@ -260,8 +236,8 @@ describe('Project overview', () => {
       }
       expect(within(band).getByRole('link', { name: 'Browse problems' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/problems');
       const tabs = within(screen.getByRole('navigation', { name: 'Project sections' }));
-      expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Problems', 'Collections', 'Studies', 'Published']);
-      expect(tabs.getByRole('link', { name: 'Published' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/published');
+      expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Problems', 'Studies']);
+      expect(tabs.queryByRole('link', { name: 'Published' })).not.toBeInTheDocument();
       expect(tabs.queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
       expect(tabs.queryByRole('link', { name: 'Runs' })).not.toBeInTheDocument();
       expect(tabs.queryByRole('link', { name: 'Package' })).not.toBeInTheDocument();
@@ -282,7 +258,6 @@ describe('Project overview', () => {
     it('does not show the get-started guide of a member when it is empty', async () => {
       platform.cases.mockResolvedValue([]);
       platform.studies.mockResolvedValue([]);
-      platform.reports.mockResolvedValue([]);
       renderVisitor();
 
       expect(await screen.findByText('Nothing has been shared in this project yet.')).toBeInTheDocument();
@@ -306,8 +281,7 @@ describe('Project overview', () => {
       expect(await screen.findByRole('heading', { name: 'Project not found' })).toBeInTheDocument();
       expect(screen.getByText(/It doesn’t exist, or it’s private and you’re not a member of its organization\./)).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Back to Home' })).toHaveAttribute('href', '/app');
-      expect(screen.getByRole('link', { name: 'Explore public projects' })).toHaveAttribute('href', '/explore');
-      expect(screen.queryByRole('link', { name: 'See its public card in Explore' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /Explore/ })).not.toBeInTheDocument();
     });
 
     it('the same message when the organization itself is not one of the account’s and the project is private', async () => {

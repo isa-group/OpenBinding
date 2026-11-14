@@ -38,7 +38,7 @@ describe('New project', () => {
     renderCreate();
 
     const dialog = await screen.findByRole('dialog', { name: 'New project' });
-    expect(within(dialog).getByText(/^In ISA Demo Group\. A project holds the problems, runs, studies and reports for one piece of work\./)).toBeInTheDocument();
+    expect(within(dialog).getByText(/^In ISA Demo Group\. A project holds the problems, runs and studies for one piece of work\./)).toBeInTheDocument();
     expect(within(dialog).getByLabelText('Name')).toHaveFocus();
     expect(within(dialog).getByRole('button', { name: 'Create project' })).toBeDisabled();
     expect(within(dialog).getByRole('radio', { name: /^Private/ })).toBeChecked();

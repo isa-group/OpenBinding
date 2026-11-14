@@ -47,7 +47,6 @@ const REMOVED_PATHS: [string, RegExp][] = [
 ];
 
 const KEPT_BINDINGS = [
-  'platformApi.reports',
   'platformApi.resources',
   'platformApi.resourceRevisions',
   'libraryItemsApi.list',

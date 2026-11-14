@@ -2,7 +2,7 @@ import { computeCanonicalDigest, computeRawSha256 } from '../../utils/canonicalD
 
 /** A small, internally consistent portable package for the tests of the package screen (never shipped to people). */
 export const FILE_TEXT = 'artifact bytes of the sample package';
-export const REPORT_MARKER = 'REPORT-BODY-MARKER-that-must-never-be-shown';
+export const BODY_MARKER = 'PACKAGE-BODY-MARKER-that-must-never-be-shown';
 export const CASE_DIGESTS = [`sha256-${'1'.repeat(64)}`, `sha256-${'2'.repeat(64)}`] as const;
 
 const utf8 = (text: string): ArrayBuffer => {
@@ -29,7 +29,6 @@ export interface SampleOptions {
 }
 
 export async function samplePackage(options: SampleOptions = {}): Promise<Record<string, unknown>> {
-  const document = { title: 'Engine comparison', body: REPORT_MARKER };
   const digest = await fileDigest();
   const pkg: Record<string, unknown> = {
     apiVersion: options.apiVersion ?? 'openbinding.dev/package/v1',
@@ -42,15 +41,11 @@ export async function samplePackage(options: SampleOptions = {}): Promise<Record
       id: 'case-1', slug: options.caseSlug ?? 'flujo', name: 'Flujo de checkout', description: '',
       revisions: CASE_DIGESTS.map((value, index) => ({
         id: `rev-${index + 1}`, revision: index + 1, digest: options.conflicting && index === 1 ? `sha256-${'9'.repeat(64)}` : value,
-        document: {}, createdAt: null, snapshotId: null, resources: [],
+        document: { note: BODY_MARKER }, createdAt: null, snapshotId: null, resources: [],
       })),
     }],
     resources: [],
-    collections: [],
     studies: [],
-    evidenceJobs: [],
-    reports: [{ id: 'report-1', studyRunId: null, slug: 'comparativa', title: 'Engine comparison', document, digest: await computeCanonicalDigest(document), state: 'frozen', versionRef: null }],
-    publications: [],
     artifacts: [{
       digest, mediaType: 'text/plain', size: FILE_TEXT.length, public: false, expiresAt: null,
       ...(options.fileByPath ? { path: `artifacts/${digest}` } : { contentBase64: btoa(options.corruptFile ? `${FILE_TEXT} (changed)` : FILE_TEXT) }),

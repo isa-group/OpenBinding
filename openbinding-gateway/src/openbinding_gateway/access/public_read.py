@@ -8,16 +8,15 @@ in ``PUBLIC_READ_ALLOWED``. The rest of the project API stays deny-by-default:
   in ``PUBLIC_READ_ALLOWED``. Writes, ``PUBLIC_READ_DENIED_GET`` and any route
   added later without being listed are never eligible.
 * ``get_current_user`` binds the eligibility of the current request to its
-  session (``bind``). Eligible requests may be anonymous (Explore is already
-  served without a session); every other request without credentials is still
-  a 401.
+  session (``bind``). Eligible requests may be anonymous; every other request
+  without credentials is still a 401.
 * ``collaboration.require_project`` is the only place that turns eligibility
   into access (``admit_public_project``): the caller must not be a member, the
   project must be public, and the caller's rate window must have room. Anything
   else falls through to the usual membership check, so a private project, a
   denied route and a write answer exactly as they did before.
-* Handlers whose data is only partly public (reports, publications, files,
-  library) ask ``is_public_read(session)`` and narrow what they return.
+* Handlers whose data is only partly public (files, library) ask
+  ``is_public_read(session)`` and narrow what they return.
 
 Reads are counted against the *caller* (the account, or the client address when
 anonymous) and never against the sponsor of the project: nothing here touches
@@ -51,10 +50,6 @@ PUBLIC_READ_ALLOWED: dict[str, str] = {
     f"{PROJECT}/cases/{{case}}": "A binding case.",
     f"{PROJECT}/cases/{{case}}/revisions": "Sealed case revisions (and, through them, their snapshot digests).",
     f"{PROJECT}/cases/{{case}}/revisions/{{revision}}": "One sealed case revision.",
-    f"{PROJECT}/collections": "Collections.",
-    f"{PROJECT}/collections/{{collection}}": "A collection.",
-    f"{PROJECT}/collections/{{collection}}/revisions": "Collection revisions.",
-    f"{PROJECT}/collections/{{collection}}/revisions/{{revision}}": "One collection revision.",
     f"{PROJECT}/compositions": "Compositions.",
     f"{PROJECT}/compositions/{{composition}}": "A composition.",
     f"{PROJECT}/compositions/{{composition}}/versions": "Sealed composition versions.",
@@ -68,8 +63,6 @@ PUBLIC_READ_ALLOWED: dict[str, str] = {
     f"{PROJECT}/studies/{{study}}/runs/{{run_id}}/cells": "Run cells.",
     f"{PROJECT}/studies/{{study}}/runs/{{run_id}}/cells/{{cell_id}}": "One run cell.",
     f"{PROJECT}/studies/{{study}}/runs/{{run_id}}/analytics": "Run analytics.",
-    f"{PROJECT}/reports": "Reports, only frozen ones with a live publication (never drafts).",
-    f"{PROJECT}/publications": "Publications that have not been withdrawn.",
     f"{PROJECT}/blobs": "The file list, only files marked public.",
     f"{PROJECT}/blobs/{{digest_value}}": "File download, only files marked public.",
 }

@@ -60,12 +60,12 @@ REMOVED = [
     Removed("7", "GET", "/v1/analysis/pareto/{task_id}", 404),
     Removed("8", "POST", "/v1/analysis/pareto/{task_id}/cancel", 404),
     Removed("9", "GET", f"{PROJECT}/reports/{{report}}", 404),
-    Removed("10", "POST", f"{PROJECT}/reports", 405),
+    Removed("10", "POST", f"{PROJECT}/reports", 404),
     Removed("11", "POST", f"{PROJECT}/reports/{{report}}/freeze", 404),
     Removed("12", "POST", f"{PROJECT}/reports/{{report}}/drafts", 404),
     Removed("13", "PATCH", f"{PROJECT}/reports/{{report}}", 404),
     Removed("14", "DELETE", f"{PROJECT}/reports/{{report}}", 404),
-    Removed("15", "POST", f"{PROJECT}/publications", 405),
+    Removed("15", "POST", f"{PROJECT}/publications", 404),
     Removed("16", "POST", "/v1/organizations/{org}/library", 405),
     Removed("17", "GET", "/v1/artifacts/{artifact_id}", 404),
     Removed("18", "PATCH", "/v1/artifacts/{artifact_id}", 404),
@@ -96,7 +96,6 @@ REMOVED = [
 
 #: The kept operations of design.md §2.2 next to the removed ones above.
 KEPT = [
-    Kept("B1", "GET", f"{PROJECT}/reports"),
     Kept("B2", "GET", "/v1/organizations/{org}/library"),
     Kept("B3", "GET", "/v1/artifacts/{artifact_id}/versions"),
     Kept("B4", "GET", "/v1/artifacts/{artifact_id}/versions/{version_id}/content"),
@@ -104,11 +103,6 @@ KEPT = [
     Kept("B6", "GET", f"{PROJECT}/resources"),
     Kept("B7", "GET", f"{PROJECT}/resources/{{resource}}/revisions"),
     Kept("K1", "GET", "/v1/jobs/{job_id}/analysis/neighborhood"),
-    Kept("K2", "GET", f"{PROJECT}/publications"),
-    Kept("K3", "DELETE", f"{PROJECT}/publications/{{publication}}"),
-    Kept("K4", "GET", "/v1/explore/publications"),
-    Kept("K5", "GET", "/v1/resolve/{kind}/{digest_value}"),
-    Kept("K5", "GET", "/v1/resolve/{kind}/{digest_value}/content"),
     Kept("sponsor", "PATCH", "/v1/organizations/{org}"),
 ]
 
@@ -268,23 +262,15 @@ async def test_an_api_key_gets_the_unrouted_answer_and_not_a_permission_refusal(
 
 
 #: Permissions that would let a key use every removed operation of rows 9 to 34 if it were still routed.
-WRITER = ["projects:read", "projects:write", "reports:read", "reports:write", "artifacts:read", "artifacts:write"]
-
-REPORT_DOCUMENT = {"provenance": {
-    "study": {"reference": "urn:test:m96-study", "digest": "sha256-" + "a" * 64},
-    "datasets": [{"reference": "urn:test:m96-dataset", "digest": "sha256-" + "b" * 64}],
-    "software": [{"name": "test", "version": "1", "digest": "sha256-" + "c" * 64}],
-    "bimVersion": "bim/v1", "engineRevisions": ["sha256-" + "d" * 64], "parameters": {},
-}}
+WRITER = ["projects:read", "projects:write", "artifacts:read", "artifacts:write"]
 
 
 @pytest.fixture
 async def area(api_client, registration, db_session, gate, monkeypatch, tmp_path):  # noqa: F811
     """An OWNER of ``isa-demo`` with the public project ``p1``, holding what the removed routes used to create.
 
-    The rows are seeded through the internal services (``artifacts.seal_draft``, ``reports.create_report_context``,
-    ``reports.seal_report``), as before this change: resource ``r1`` with two revisions, a frozen report ``r1``
-    with a live publication, and a sealed Dataset of the organization library.
+    The rows are seeded through the internal services (``artifacts.seal_draft``), as before this change:
+    resource ``r1`` with two revisions and a sealed Dataset of the organization library.
     """
     from openbinding_gateway.core.settings import get_settings
 
@@ -299,13 +285,10 @@ async def area(api_client, registration, db_session, gate, monkeypatch, tmp_path
         db_session, project, owner["id"], slug="r1", name="Providers", kind="qos-offerings",
         documents=[{"providers": ["alpha"]}, {"providers": ["alpha", "beta"]}],
     )
-    report = await seed.report(db_session, project, owner["id"], slug="r1", title="Findings",
-                               document=REPORT_DOCUMENT, freeze=True)
-    await seed.report_publication(db_session, report, owner["id"], slug="pub-1")
     dataset = await seed.library_artifact(db_session, organization["id"], owner["id"], name="d1", kind="Dataset")
     version = await seed.seal(db_session, dataset, owner["id"], {"rows": [1, 2]})
     return SimpleNamespace(owner=owner, headers=headers, project=project, resource=resource, revisions=revisions,
-                           report=report, dataset=dataset, version=version)
+                           dataset=dataset, version=version)
 
 
 async def test_an_owner_gets_the_same_answers_and_nothing_is_written(api_client, db_session, area):
@@ -344,7 +327,6 @@ async def test_the_kept_operations_answer_a_member_as_before(api_client, area):
     headers, base = area.headers, "/v1/organizations/isa-demo/projects/p1"
     artifact = f"/v1/artifacts/{area.dataset.id}"
 
-    reports = await api_client.get(f"{base}/reports", headers=headers)  # B1
     library = await api_client.get("/v1/organizations/isa-demo/library", headers=headers)  # B2
     versions = await api_client.get(f"{artifact}/versions", headers=headers)  # B3
     content = await api_client.get(f"{artifact}/versions/{area.version.id}/content", headers=headers)  # B4
@@ -352,16 +334,10 @@ async def test_the_kept_operations_answer_a_member_as_before(api_client, area):
                                      json=reference(area.dataset, area.version))  # B5
     resources = await api_client.get(f"{base}/resources", headers=headers)  # B6
     revisions = await api_client.get(f"{base}/resources/r1/revisions", headers=headers)  # B7
-    publications = await api_client.get(f"{base}/publications", headers=headers)  # K2
-    explore = await api_client.get("/v1/explore/publications")  # K4
-    permanent = await api_client.get(f"/v1/resolve/report/{area.report.digest}", headers=headers)  # K5
-    permanent_content = await api_client.get(f"/v1/resolve/report/{area.report.digest}/content", headers=headers)
     renamed = await api_client.patch("/v1/organizations/isa-demo", headers=headers, json={"name": "ISA demo"})
 
-    for response in (reports, library, versions, content, resolved, resources, revisions, publications, explore,
-                     permanent, permanent_content, renamed):
+    for response in (library, versions, content, resolved, resources, revisions, renamed):
         assert response.status_code == 200, (str(response.url), response.text)
-    assert [(row["slug"], row["state"]) for row in reports.json()] == [("r1", "frozen")]
     assert "d1" in {row["name"] for row in library.json()}
     assert [row["ref"]["versionDigest"] for row in versions.json()] == [area.version.version_digest]
     assert content.content == canonical_json({"rows": [1, 2]})
@@ -369,15 +345,7 @@ async def test_the_kept_operations_answer_a_member_as_before(api_client, area):
     assert "r1" in {row["slug"] for row in resources.json()}
     assert [row["revision"] for row in revisions.json()] == [1, 2]
     assert [row["digest"] for row in revisions.json()] == [version.content_digest for version in area.revisions]
-    assert [(row["slug"], row["withdrawn"]) for row in publications.json()] == [("pub-1", False)]
-    assert "pub-1" in {row["slug"] for row in explore.json()}
-    assert permanent_content.json() == REPORT_DOCUMENT
     assert renamed.json()["name"] == "ISA demo"
-
-    withdrawn = await api_client.delete(f"{base}/publications/pub-1", headers=headers)  # K3
-    assert withdrawn.status_code == 204, withdrawn.text
-    listed = await api_client.get(f"{base}/publications", headers=headers)
-    assert [(row["slug"], row["withdrawn"]) for row in listed.json()] == [("pub-1", True)]
 
 
 async def test_a_version_sealed_by_package_import_is_listed(api_client, db_session, area):

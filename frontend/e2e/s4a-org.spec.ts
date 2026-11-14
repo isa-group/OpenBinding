@@ -486,7 +486,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto('/app/ghost-lab');
       await expect(main.getByRole('heading', { name: 'Organization not available' })).toBeVisible();
       await expect(main.getByText(/It doesn’t exist, or you’re not a member\./)).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Explore public projects' })).toHaveAttribute('href', '/explore');
+      await expect(main.getByRole('link', { name: 'Back to Home' })).toHaveAttribute('href', '/app');
       await capture(page, testInfo, `overview-${name}-not-available`);
       if (isMobile) {
         expect(critical).toEqual([]);

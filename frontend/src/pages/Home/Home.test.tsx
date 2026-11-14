@@ -11,27 +11,11 @@ const api = vi.hoisted(() => ({
   getEngines: vi.fn(),
   getPublicEngines: vi.fn(),
 }));
-const platform = vi.hoisted(() => ({ publicProjects: vi.fn(), publicPublications: vi.fn() }));
 const auth = vi.hoisted(() => ({ user: null as UserProfile | null }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
-vi.mock('../../api/platform', () => ({ platformApi: platform }));
 vi.mock('../../contexts/auth', () => ({ useAuth: () => auth }));
 
-const DIGEST = `sha256-${'ab'.repeat(32)}`;
-
-const publication = {
-  slug: 'checkout-engines',
-  citation: { title: 'Engines at checkout', authors: ['Lucía Vega'], year: 2026 },
-  report: { title: 'Engines at checkout', digest: DIGEST, version_id: 'v1' },
-  project: 'qos',
-  organization: 'isa-demo',
-  publishedAt: '2026-09-25T10:00:00Z',
-};
-const project = {
-  organization: { slug: 'isa-demo', name: 'ISA Demo Group' },
-  project: { slug: 'qos', name: 'QoS Benchmarks', description: 'Reference binding cases.' },
-};
 const engine = (name: string) => ({ id: name, namespace: 'bim.builtin', name, version: '1.0.0', digest: `sha256-${'cd'.repeat(32)}`, ref: {}, modes: [] });
 
 function renderHome() {
@@ -46,8 +30,6 @@ describe('Home', () => {
     api.getDialects.mockResolvedValue([{ id: 'json' }, { id: 'bpmn' }]);
     api.getEngines.mockResolvedValue([engine('private-solver'), engine('random-search')]);
     api.getPublicEngines.mockResolvedValue([engine('random-search'), engine('evolutionary')]);
-    platform.publicProjects.mockResolvedValue([project]);
-    platform.publicPublications.mockResolvedValue([publication]);
   });
 
   describe('hero and runtime catalogue', () => {
@@ -57,7 +39,7 @@ describe('Home', () => {
       expect(screen.getByRole('heading', { level: 1, name: 'Describe. Bind. Reproduce.' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Create an account/ })).toHaveAttribute('href', '/register');
       expect(screen.getByRole('link', { name: /Validate a package/ })).toHaveAttribute('href', '/workbench');
-      expect(screen.getByRole('link', { name: /Explore published results/ })).toHaveAttribute('href', '/explore');
+      expect(screen.getByRole('link', { name: /Browse the engines/ })).toHaveAttribute('href', '/engines');
       const runtime = screen.getByRole('status', { name: 'Runtime catalogue status' });
       expect(await within(runtime).findByText('2 public engine revisions')).toBeInTheDocument();
       expect(within(runtime).getByText('1 executable profile')).toBeInTheDocument();
@@ -88,8 +70,8 @@ describe('Home', () => {
     it('keeps the shortcuts the previous home offered', () => {
       renderHome();
 
-      expect(screen.getByRole('link', { name: /Learn with an example/ })).toHaveAttribute('href', '/explore/examples');
-      expect(screen.getByRole('link', { name: /Explore extensibility/ })).toHaveAttribute('href', '/language');
+      expect(screen.getByRole('link', { name: /Learn with an example/ })).toHaveAttribute('href', '/workbench');
+      expect(screen.queryByRole('link', { name: /Explore extensibility/ })).not.toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'A stable core, plural problem families.' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Inspect engine modes/ })).toHaveAttribute('href', '/engines');
     });
@@ -111,62 +93,53 @@ describe('Home', () => {
       const tabs = within(screen.getByRole('tablist', { name: 'Pipeline stages' })).getAllByRole('tab');
 
       expect(tabs).toHaveLength(6);
-      expect(screen.getByRole('link', { name: 'Browse example packages' })).toHaveAttribute('href', '/explore/examples');
+      expect(screen.getByRole('link', { name: 'Try an example package' })).toHaveAttribute('href', '/workbench');
       fireEvent.click(screen.getByRole('tab', { name: /Engine/ }));
       expect(screen.getByRole('tab', { name: /Engine/ })).toHaveAttribute('aria-selected', 'true');
       expect(screen.getByRole('link', { name: 'Browse engines' })).toHaveAttribute('href', '/engines');
       fireEvent.keyDown(screen.getByRole('tab', { name: /Engine/ }), { key: 'End' });
-      expect(screen.getByRole('link', { name: 'See published results' })).toHaveAttribute('href', '/explore');
+      expect(screen.getByRole('link', { name: 'About OpenBinding' })).toHaveAttribute('href', '/about');
     });
   });
 
-  describe('recently public', () => {
+  describe('public engines', () => {
     it('shows a loading placeholder first', () => {
-      platform.publicPublications.mockReturnValue(new Promise(() => undefined));
+      api.getPublicEngines.mockReturnValue(new Promise(() => undefined));
       renderHome();
 
-      expect(screen.getByText('Loading recent published results')).toBeInTheDocument();
+      expect(screen.getByText('Loading the public engines')).toBeInTheDocument();
     });
 
-    it('lists publications, projects and engines with the places they open', async () => {
+    it('lists the public engines with the page they open', async () => {
       renderHome();
 
-      const publicationLink = await screen.findByRole('link', { name: /Engines at checkout/ });
-      expect(publicationLink).toHaveAttribute('href', `/resolve/report/${DIGEST}`);
-      expect(publicationLink).toHaveTextContent('ISA Demo Group / QoS Benchmarks');
-      expect(publicationLink).toHaveTextContent('Lucía Vega · 2026');
-      expect(screen.getByRole('link', { name: /Reference binding cases/ })).toHaveAttribute('href', '/explore?tab=projects');
-      const engines = screen.getByRole('link', { name: /2 public engine revisions/ });
+      const engines = await screen.findByRole('link', { name: /2 public engine revisions/ });
       expect(engines).toHaveAttribute('href', '/engines');
       expect(engines).toHaveTextContent('random-search · evolutionary');
-      expect(screen.getByRole('link', { name: 'View all in Explore' })).toHaveAttribute('href', '/explore');
+      expect(screen.getByRole('link', { name: 'All engines' })).toHaveAttribute('href', '/engines');
+      expect(screen.getAllByRole('link').map((link) => link.getAttribute('href') ?? '').filter((href) => href.startsWith('/explore'))).toEqual([]);
     });
 
     it('explains an empty catalogue instead of leaving a gap', async () => {
-      platform.publicProjects.mockResolvedValue([]);
-      platform.publicPublications.mockResolvedValue([]);
       api.getPublicEngines.mockResolvedValue([]);
       renderHome();
 
-      expect(await screen.findByText('Nothing has been published yet')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Read the language guide' })).toHaveAttribute('href', '/language');
+      expect(await screen.findByText('No public engines yet')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Open the Workbench' })).toHaveAttribute('href', '/workbench');
     });
 
     it('reports a failure with its status, keeps the page and retries on request', async () => {
-      platform.publicProjects.mockRejectedValue(new HttpError(503, 'down'));
-      platform.publicPublications.mockRejectedValue(new HttpError(503, 'down'));
+      api.getPublicEngines.mockRejectedValue(new HttpError(503, 'down'));
       renderHome();
 
       const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('Recent published results couldn’t be loaded (HTTP 503)');
+      expect(alert).toHaveTextContent('The public engines couldn’t be loaded (HTTP 503)');
       expect(screen.getByRole('heading', { name: 'Free to start, institutional when you scale' })).toBeInTheDocument();
 
-      platform.publicProjects.mockResolvedValue([project]);
-      platform.publicPublications.mockResolvedValue([publication]);
+      api.getPublicEngines.mockResolvedValue([engine('random-search')]);
       fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
-      expect(await screen.findByRole('link', { name: /Engines at checkout/ })).toBeInTheDocument();
-      expect(platform.publicPublications).toHaveBeenCalledTimes(2);
+      expect(await screen.findByRole('link', { name: /1 public engine revision/ })).toBeInTheDocument();
     });
   });
 
@@ -183,10 +156,10 @@ describe('Home', () => {
 
     it('links only to routes that exist', async () => {
       renderHome();
-      await screen.findByRole('link', { name: /Engines at checkout/ });
+      await screen.findByRole('link', { name: /2 public engine revisions/ });
 
       const hrefs = screen.getAllByRole('link').map((link) => link.getAttribute('href') ?? '');
-      expect(hrefs.filter((href) => /^\/(playground|profiles|schemas|team|research|funding|contributions|changelog|engines\/new|analytics|artifacts)(\/|\?|$)/.test(href))).toEqual([]);
+      expect(hrefs.filter((href) => /^\/(playground|profiles|schemas|language|team|research|funding|contributions|changelog|engines\/new|analytics|artifacts)(\/|\?|$)/.test(href))).toEqual([]);
     });
   });
 });

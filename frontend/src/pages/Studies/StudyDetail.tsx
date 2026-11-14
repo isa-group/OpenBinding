@@ -20,7 +20,6 @@ import { CellBar, StateChip, StudyFrame } from './parts';
 import { CellPanel } from './StudyCell';
 import { StudyScope, type StudyScopeValue } from './StudyScope';
 import { RunResults } from './StudyAnalytics';
-import { RunPublish } from './StudyPublish';
 import { RunProgress } from './StudyRun';
 import {
   STUDY_TABS, definitionGrid, definitionSize, describeParameters, formulaOf, isStudyTab, plural, revisionLabel, stateWord, studyPageHref, type StudyTabId,
@@ -356,7 +355,6 @@ function DetailBody({ scope, tab }: { scope: StudyScopeValue; tab: StudyTabId | 
                     ? <CellPanel key={`${runId}/${cellId}`} scope={scope} runId={runId} cellId={cellId} />
                     : <RunResults key={runId} scope={scope} runId={runId} />
                   : <NoRuns />)}
-                {active === 'publish' && <RunPublish key={runId} scope={scope} runId={runId} />}
               </>
             )}
           </TabPanel>
@@ -413,7 +411,7 @@ function EditDialog({ study, org, project, onClose, onSaved }: { study: Study; o
 }
 
 /**
- * One study (`study-detail`, `/app/:org/:project/studies/:study/:tab?`): Setup (the definition), Progress, Results and Publish of the study run
+ * One study (`study-detail`, `/app/:org/:project/studies/:study/:tab?`): Setup (the definition), Progress and Results of the study run
  * named by `?run=` (the latest when none). Any other tab is a page that does not exist.
  */
 export function StudyDetail() {

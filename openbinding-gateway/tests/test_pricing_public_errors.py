@@ -312,7 +312,7 @@ def sphere_is_on(monkeypatch):
     app.dependency_overrides.pop(get_settings, None)
 
 
-PUBLIC_PATHS = ("/v1/pricing/current", "/v1/pricing/catalog", "/v1/pricing")
+PUBLIC_PATHS = ("/v1/pricing/current", "/v1/pricing/catalog")
 
 
 @pytest.mark.parametrize("path", PUBLIC_PATHS)

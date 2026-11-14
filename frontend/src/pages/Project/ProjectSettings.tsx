@@ -15,7 +15,7 @@ import { Gate } from '../Organization/parts';
 import { RoomBars } from '../Organization/room';
 import { roomFromUsage } from '../Organization/roomModel';
 import { NotFoundScreen } from '../../routes/NotFoundScreen';
-import { loadCases, loadReports, loadStudies } from './projectData';
+import { loadCases, loadStudies } from './projectData';
 import { deleteRefusal, updateRefusal, type ProjectRefusal } from './projectErrors';
 import { countWord, DESCRIPTION_MAX, integrityOf, NAME_MAX, visibilityEffects, visibilityLabel } from './projectModel';
 import { canOpenSection } from './accessLevel';
@@ -93,8 +93,8 @@ function SettingsBody({ organization, project, canEdit, canImport, reloadProject
 
   const history = useResource(`settings-history:${org}/${project.slug}`, async () => {
     try {
-      const [cases, studies, reports] = await Promise.all([loadCases(org, project.slug), loadStudies(org, project.slug), loadReports(org, project.slug)]);
-      return { items: integrityOf({ cases, studies, reports: reports.reports }).filter((item) => item.kind === 'sealed'), published: reports.publications.filter((item) => !item.withdrawn).length };
+      const [cases, studies] = await Promise.all([loadCases(org, project.slug), loadStudies(org, project.slug)]);
+      return { items: integrityOf({ cases, studies }).filter((item) => item.kind === 'sealed') };
     } catch {
       return null;
     }
@@ -266,7 +266,7 @@ function SettingsBody({ organization, project, canEdit, canImport, reloadProject
             <div className="proj-note is-warning" role="note">
               <Lock aria-hidden="true" className="org-inline-icon" />
               <span>
-                Deleting is blocked: this project has sealed history ({sealedList}){history.data && history.data.published > 0 ? `, including ${history.data.published} published ${history.data.published === 1 ? 'report' : 'reports'}` : ''}.
+                Deleting is blocked: this project has sealed history ({sealedList}).
                 Sealed history must stay reachable so people can still verify it.
               </span>
             </div>

@@ -101,9 +101,9 @@ function targetOf(route: RetiredRoute, query: string, params: Params = {}): stri
 }
 
 /** Realistic values of the parameters of the retired paths, each needing the encoding of a path segment. */
-const PARAMS: Params = { org: 'a b', project: 'p/q', report: 'r#1', artifact: 'c', draft: 'd', version: 'e', resource: 'f', case: 'c?x' };
+const PARAMS: Params = { org: 'a b', project: 'p/q', artifact: 'c', draft: 'd', version: 'e', resource: 'f', case: 'c?x' };
 /** The sample of the table: one plain value per parameter. */
-const SAMPLE: Params = { org: 'a', project: 'b', report: 'c', artifact: 'c', draft: 'd', version: 'e', resource: 'f', case: 'g' };
+const SAMPLE: Params = { org: 'a', project: 'b', artifact: 'c', draft: 'd', version: 'e', resource: 'f', case: 'g' };
 
 describe('the table of retired addresses', () => {
   it.each(RETIRED_ROUTES.filter((route) => route.slice === 1))('follows one rule for $path', (route) => {
@@ -132,8 +132,7 @@ describe('the table of retired addresses', () => {
     const encodedQuery = 'org=a%20b&project=p%2Fq&study=s%23t&run=r%3Fx';
     // The address of the encoded sample: the shape the table promises, the screens behind it are the area's business.
     const fixedTarget: Record<number, (route: RetiredRoute) => string> = {
-      2: () => '/app/a%20b/p%2Fq/published',
-      3: (route) => (route.id.startsWith('lib-') ? '/app/a%20b' : '/app/a%20b/p%2Fq/collections'),
+      3: () => '/app/a%20b',
       4: () => '/app/a%20b/p%2Fq/workbench?case=c%3Fx',
       5: () => '/app/admin',
     };
@@ -151,34 +150,24 @@ describe('the table of retired addresses', () => {
     }
   });
 
-  it('holds the library catalogue and the project resources as the entries of slice 3, the library artifact before the project routes it ties with', () => {
+  it('holds the library catalogue as the entries of slice 3', () => {
     const slice3 = RETIRED_ROUTES.filter((route) => route.slice === 3);
     expect(slice3.map((route) => [route.id, route.path])).toEqual([
       ['lib-list', '/app/:org/library'],
       ['lib-artifact', '/app/:org/library/:artifact'],
       ['lib-draft', '/app/:org/library/:artifact/drafts/:draft'],
       ['lib-version', '/app/:org/library/:artifact/versions/:version'],
-      ['proj-library', '/app/:org/:project/library'],
-      ['proj-resources', '/app/:org/:project/resources'],
-      ['proj-resource-detail', '/app/:org/:project/resources/:resource'],
     ]);
-    const order = (id: string) => RETIRED_ROUTES.findIndex((route) => route.id === id);
-    for (const later of ['rep-list', 'proj-library', 'proj-resources']) expect(order('lib-artifact'), later).toBeLessThan(order(later));
   });
 
-  it.each(RETIRED_ROUTES.filter((route) => route.slice === 3))('sends $path to the organization overview or the collections, whatever the rest', (route) => {
+  it.each(RETIRED_ROUTES.filter((route) => route.slice === 3))('sends $path to the organization overview, whatever the rest', (route) => {
     const to = (query: string, params: Params) => targetOf(route, query, params);
-    const organization = route.id.startsWith('lib-');
 
-    expect(to('', { org: 'acme', project: 'demo', artifact: 'x', draft: 'y', version: 'z', resource: 'r' })).toBe(organization ? '/app/acme' : '/app/acme/demo/collections');
-    expect(to('org=other&project=other&tab=x', { org: 'acme', project: 'demo' })).toBe(organization ? '/app/acme' : '/app/acme/demo/collections');
-    expect(to('', { org: 'a/b', project: 'p q' })).toBe(organization ? '/app/a%2Fb' : '/app/a%2Fb/p%20q/collections');
+    expect(to('', { org: 'acme', project: 'demo', artifact: 'x', draft: 'y', version: 'z', resource: 'r' })).toBe('/app/acme');
+    expect(to('org=other&project=other&tab=x', { org: 'acme', project: 'demo' })).toBe('/app/acme');
+    expect(to('', { org: 'a/b', project: 'p q' })).toBe('/app/a%2Fb');
     expect(to('', {})).toBe('/app');
     expect(to('', { project: 'demo' })).toBe('/app');
-    if (!organization) {
-      expect(to('', { org: 'a' })).toBe('/app');
-      expect(to('', { org: '', project: 'b' })).toBe('/app');
-    }
   });
 
   it('holds the composer as the only entry of slice 4, after the entries of slice 3', () => {
@@ -211,27 +200,6 @@ describe('the table of retired addresses', () => {
     const target = targetOf(slice5[0], 'tab=requests', { org: 'a' });
     expect(target).toBe('/app/admin');
     expect(matchRoutes(config, new URL(settled(target), 'http://localhost').pathname)).not.toBeNull();
-  });
-
-  it('holds the report list and the report editor as the entries of slice 2', () => {
-    const slice2 = RETIRED_ROUTES.filter((route) => route.slice === 2);
-    expect(slice2.map((route) => [route.id, route.path])).toEqual([
-      ['rep-list', '/app/:org/:project/reports'],
-      ['rep-detail', '/app/:org/:project/reports/:report'],
-    ]);
-  });
-
-  it.each(RETIRED_ROUTES.filter((route) => route.slice === 2))('sends $path to the published results of the project, whatever the query and the report', (route) => {
-    const to = (query: string, params: Params) => targetOf(route, query, params);
-
-    expect(to('', { org: 'acme', project: 'demo', report: 'engines' })).toBe('/app/acme/demo/published');
-    expect(to('', { org: 'acme', project: 'demo' })).toBe('/app/acme/demo/published');
-    expect(to('org=other&project=other&report=x&tab=blocks', { org: 'acme', project: 'demo', report: 'engines' })).toBe('/app/acme/demo/published');
-    expect(to('', { org: 'a/b', project: 'p q', report: 'r#1' })).toBe('/app/a%2Fb/p%20q/published');
-    expect(to('', { org: 'isa-demo', project: 'qos-benchmarks', report: 'engines-vs-seeds-informe' })).toBe('/app/isa-demo/qos-benchmarks/published');
-    expect(to('', {})).toBe('/app');
-    expect(to('', { org: 'a' })).toBe('/app');
-    expect(to('', { org: '', project: 'b' })).toBe('/app');
   });
 });
 
@@ -270,24 +238,9 @@ describe('the redirect of a retired address', () => {
   });
 
   it.each([
-    ['/app/acme/demo/reports', '/app/acme/demo/published'],
-    ['/app/acme/demo/reports/engines-vs-seeds-informe', '/app/acme/demo/published'],
-    ['/app/acme/demo/reports/x?tab=blocks&report=y#top', '/app/acme/demo/published'],
-    ['/app/acme/demo/reports?x=1', '/app/acme/demo/published'],
-    ['/app/a%2Fb/my%20proj/reports', '/app/a%2Fb/my%20proj/published'],
-    ['/app/a%2Fb/my%20proj/reports/r%2F1', '/app/a%2Fb/my%20proj/published'],
-  ])('sends the report address %s to %s, without a query', async (old, expected) => {
-    renderAt([old]);
-
-    await landsOn(expected);
-    expect(screen.getByTestId('hash').textContent).toBe('');
-  });
-
-  it.each([
-    '/app/isa-demo/library/reports',
     '/app/isa-demo/library/library',
     '/app/isa-demo/library/resources',
-  ])('sends %s to the organization overview, not to the publications or the collections of a project called library', async (old) => {
+  ])('sends %s to the organization overview, not to a project called library', async (old) => {
     renderAt([old]);
 
     await landsOn('/app/isa-demo');
@@ -299,10 +252,6 @@ describe('the redirect of a retired address', () => {
     ['/app/acme/library/a1/drafts/d1?x=1#top', '/app/acme'],
     ['/app/acme/library/a1/versions/v1', '/app/acme'],
     ['/app/a%2Fb/library/a1', '/app/a%2Fb'],
-    ['/app/acme/demo/library', '/app/acme/demo/collections'],
-    ['/app/acme/demo/resources', '/app/acme/demo/collections'],
-    ['/app/acme/demo/resources/r1?x=1#top', '/app/acme/demo/collections'],
-    ['/app/a%2Fb/my%20proj/resources/r%2F1', '/app/a%2Fb/my%20proj/collections'],
   ])('sends the library address %s to %s, without a query or a hash', async (old, expected) => {
     renderAt([old]);
 
@@ -318,7 +267,6 @@ describe('the redirect of a retired address', () => {
     first.unmount();
 
     for (const [old, target] of [
-      ['/app/acme/demo/resources/r1', '/app/acme/demo/collections'],
       ['/app/isa-demo/library/checkout-engines/drafts/d-1', '/app/isa-demo'],
     ]) {
       const signedOut = renderAt([old], null);
@@ -434,33 +382,5 @@ describe('the redirect of a retired address', () => {
   ])('leaves %s out of the sponsorship path', (address) => {
     expect(matchRoutes([{ path: '/app/admin/organizations/:org/sponsor' }], address)).toBeNull();
     expect(matchRoutes(config, new URL(settled(address), 'http://localhost').pathname)).not.toBeNull();
-  });
-
-  it('replaces the history entry, so going back skips the report address', async () => {
-    renderAt(['/app/account', '/app/acme/demo/reports/x']);
-
-    await landsOn('/app/acme/demo/published');
-    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-
-    await landsOn('/app/account');
-  });
-
-  it.each(['/app/acme/demo/reports', '/app/acme/demo/reports/x?tab=blocks'])('asks a visitor without a session to sign in before the redirect from %s', async (old) => {
-    const signedOut = renderAt([old], null);
-
-    await signInShown();
-    expect(where()).toMatch(/^\/login/);
-    expect(screen.getByTestId('from').textContent).toBe(old);
-    signedOut.unmount();
-
-    renderAt([old]);
-    await landsOn('/app/acme/demo/published');
-  });
-
-  it('renders no report screen', async () => {
-    renderAt(['/app/acme/demo/reports/x']);
-
-    await landsOn('/app/acme/demo/published');
-    expect(document.querySelector('[data-screen^="rep-"]')).toBeNull();
   });
 });

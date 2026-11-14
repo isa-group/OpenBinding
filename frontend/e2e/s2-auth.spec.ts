@@ -1,8 +1,8 @@
 import { expect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 
-// S2 · authentication, invitations and the state gallery:
-// auth-login, auth-register, auth-reset-request (with and without a token), auth-cas-callback, org-invite-accept, sys-states.
+// S2 · authentication and invitations:
+// auth-login, auth-register, auth-reset-request (with and without a token), auth-cas-callback, org-invite-accept.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 // One test per screen and viewport: each walks the states of its screen in order, on one page.
@@ -168,14 +168,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // A visitor sent here by a protected page signs in and goes back to it.
       await forgetEverything(page);
       await page.route(`${API}/v1/auth/login`, json(tokens));
-      await page.goto('/app/system/states');
+      await page.goto('/app/account');
       await expect(page).toHaveURL(/\/login$/);
       await main.getByLabel('Username or email').fill('sofia');
       await main.getByLabel('Password').fill('a-long-enough-password');
       await main.getByRole('button', { name: 'Log in' }).click();
-      await expect(page).toHaveURL(/\/app\/system\/states$/);
+      await expect(page).toHaveURL(/\/app\/account$/);
       await expect(page.locator('header.app-header')).toBeVisible();
-      await expect(page.getByRole('heading', { level: 1, name: 'States and recoverable errors' })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: 'Account' })).toBeVisible();
       expect(critical).toEqual([]);
     });
 
@@ -340,13 +340,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `cas-${name}-no-code`);
 
       // Log in with CAS, heading for a protected page: the success card carries the institution's own mark.
-      await page.evaluate(() => sessionStorage.setItem('openbinding-cas-flow', JSON.stringify({ mode: 'login', returnTo: '/app/system/states', at: Date.now() })));
+      await page.evaluate(() => sessionStorage.setItem('openbinding-cas-flow', JSON.stringify({ mode: 'login', returnTo: '/app/account', at: Date.now() })));
       await page.goto(`/auth/cas/callback?code=${CAS_CODE}`);
       await expect(main.getByText('Universidad de Sevilla · CAS · log in')).toBeVisible();
       await expect(main.getByRole('heading', { name: 'You’re signed in' })).toBeVisible();
       await expect(main.getByText(/qualifies for RESEARCH under the current pricing/)).toBeVisible();
       await expect(main.locator('.auth-institution img[alt="Universidad de Sevilla"]')).toHaveAttribute('src', '/brands/us-fama.png');
-      await expect(main.getByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute('href', '/app/system/states');
+      await expect(main.getByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute('href', '/app/account');
       await expect(main.getByRole('link', { name: 'Account › Identities' })).toHaveAttribute('href', '/app/account/identities');
       await capture(page, testInfo, `cas-${name}-login-success`);
 
@@ -489,37 +489,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'You’re already a member of ISA Demo Group' })).toBeVisible();
       await expect(main.getByText('Nothing changed: your current role stays as it is.')).toBeVisible();
       await capture(page, testInfo, `invite-${name}-already-member`);
-      expect(critical).toEqual([]);
-    });
-
-    test('sys-states /app/system/states', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      await mockApi(page, { account: person() });
-      await page.goto('/app/system/states');
-      const main = page.locator('#platform-main');
-
-      await expect(page.locator('header.app-header')).toBeVisible();
-      await expect(main.getByRole('heading', { level: 1, name: 'States and recoverable errors' })).toBeVisible();
-      for (const status of ['401', '402', '403', '404', '429', '503']) {
-        await expect(main.locator('.ui-state-chip', { hasText: new RegExp(`^${status}$`) }).first()).toBeVisible();
-      }
-      await expect(main.getByRole('heading', { name: 'This needs ADMIN in ISA Demo Group' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'See who manages this organization' })).toHaveAttribute('href', '/app/isa-demo/settings/members');
-      await expect(main.getByRole('button', { name: 'Retry now' })).toBeDisabled();
-      await expect(main.getByRole('meter')).toHaveCount(0);
-      await capture(page, testInfo, `states-${name}-all`);
-
-      await main.getByRole('button', { name: 'Quota', exact: true }).click();
-      await expect(main.locator('article.ui-state')).toHaveCount(3);
-      await capture(page, testInfo, `states-${name}-quota`);
-
-      await main.getByRole('button', { name: 'Warnings & dates', exact: true }).click();
-      await main.getByRole('button', { name: 'Present', exact: true }).click();
-      await expect(main.getByRole('heading', { name: 'Plan features: confirmed' })).toBeVisible();
-      await capture(page, testInfo, `states-${name}-warnings`);
-
-      await main.getByRole('button', { name: 'All', exact: true }).click();
-      await expect(main.getByText('Headline: “All your run slots are busy”')).toBeVisible();
       expect(critical).toEqual([]);
     });
   });

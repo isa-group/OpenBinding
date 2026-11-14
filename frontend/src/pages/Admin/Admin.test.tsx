@@ -34,7 +34,7 @@ describe('the administration console, now the overview', { timeout: 30000 }, () 
     vi.clearAllMocks();
     api.adminOverview.mockResolvedValue({ counts: {}, jobs: {}, contracts: {}, recentAudit: [] });
     api.adminQueues.mockImplementation(async () => queuesAt(Date.now()));
-    api.adminModeration.mockResolvedValue({ engines: {}, dialects: {}, registrations: { pending_review: 1 } });
+    api.adminModeration.mockResolvedValue({ engines: {}, registrations: { pending_review: 1 } });
     api.adminErrorOverview.mockResolvedValue({ total_errors_24h: 0, by_category_24h: {}, by_status_code_24h: {}, top_users_quota: [], top_solvers_failed: [], timeline: [] });
     api.getCurrentPricing.mockResolvedValue({ version: '0.1.0', digest: 'sha256-x', url: 'https://sphere.example.test/0.1.0' });
   });

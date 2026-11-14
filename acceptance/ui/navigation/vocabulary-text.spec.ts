@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
-  PROBLEMS_FINAL, RUNS_ALL_FINAL, RUNS_FINAL, VERIFY_DIGEST, forbiddenText, kindOptionText, mockGateway,
+  PROBLEMS_FINAL, RUNS_ALL_FINAL, RUNS_FINAL, forbiddenText, mockGateway,
 } from './helpers-vocabulary';
 
 test.use({ viewport: { width: 1440, height: 900 } });
@@ -14,15 +14,9 @@ test('the project screens are headed Problems and Runs and the Problems tab offe
   await expect(page.getByRole('heading', { name: 'Runs', exact: true }).first()).toBeVisible();
 });
 
-test('the Verify kind selector reads Problem version for the kind case-revision', async ({ page }) => {
-  await mockGateway(page, { role: null });
-  await page.goto(`/verify?digest=${VERIFY_DIGEST}`);
-  expect(await kindOptionText(page, 'case-revision')).toBe('Problem version');
-});
-
 const SIGNED_IN_SCREENS = [
   '/app', '/app/acme', '/app/acme/demo', PROBLEMS_FINAL, RUNS_FINAL, RUNS_ALL_FINAL,
-  '/app/acme/demo/collections', '/app/acme/demo/studies', '/app/acme/demo/published', '/app/account/usage',
+  '/app/acme/demo/studies', '/app/account/usage',
 ];
 
 test('no signed-in screen shows the words case or job outside code, SourceView and LogPanel', async ({ page }) => {

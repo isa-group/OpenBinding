@@ -18,8 +18,8 @@ const member: UserProfile = {
 };
 
 const PUBLIC_LINKS = [
-  ['Home', '/'], ['Explore', '/explore'], ['Engines', '/engines'], ['Language', '/language'], ['Pricing', '/pricing'],
-  ['Verify', '/verify'], ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
+  ['Home', '/'], ['Engines', '/engines'], ['Pricing', '/pricing'],
+  ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
 ] as const;
 
 function renderHeader(path = '/') {
@@ -35,7 +35,7 @@ describe('Public header', () => {
     auth.isAdmin = false;
   });
 
-  it('lists the nine links in order with their addresses', () => {
+  it('lists the links in order with their addresses', () => {
     renderHeader();
 
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
@@ -58,32 +58,18 @@ describe('Public header', () => {
     renderHeader('/pricing');
 
     expect(screen.getByRole('link', { name: 'Pricing' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Explore' })).not.toHaveAttribute('aria-current');
+    expect(screen.queryByRole('link', { name: 'Explore' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
   });
 
-  it('marks Home only at the root and Language under the language hub', () => {
+  it('marks Home only at the root and links to no language hub', () => {
     const { unmount } = renderHeader('/');
     expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
     unmount();
 
-    renderHeader('/language/schemas/application');
-    expect(screen.getByRole('link', { name: 'Language' })).toHaveAttribute('aria-current', 'page');
+    renderHeader('/engines');
+    expect(screen.queryByRole('link', { name: 'Language' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
-  });
-
-  it('leaves aria-current on /explore/examples to the page and keeps the active style of Explore', () => {
-    renderHeader('/explore/examples');
-
-    const explore = screen.getByRole('link', { name: 'Explore' });
-    expect(explore).not.toHaveAttribute('aria-current');
-    expect(explore).toHaveClass('is-active');
-  });
-
-  it('keeps aria-current on Explore elsewhere under /explore', () => {
-    renderHeader('/explore/engines');
-
-    expect(screen.getByRole('link', { name: 'Explore' })).toHaveAttribute('aria-current', 'page');
   });
 
   it('closes open menus when pressing outside the header', () => {
@@ -99,7 +85,7 @@ describe('Public header', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('lists the same nine links in the phone menu and closes it after navigating', () => {
+  it('lists the same links in the phone menu and closes it after navigating', () => {
     renderHeader();
 
     const toggle = screen.getByRole('button', { name: 'Open menu' });

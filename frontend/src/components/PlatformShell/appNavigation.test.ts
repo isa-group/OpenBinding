@@ -19,10 +19,10 @@ const pathOf = (address: string) => address.split(/[?#]/)[0];
 const addressesOf = (entries: readonly MenuEntry[]) => entries.flatMap((entry) => (entry.to ? [entry.to] : []));
 
 describe('mainLinks', () => {
-  it('lists Home, Engines, Language and Admin, each leading to a routed address and none to a retired path', () => {
-    expect(Object.keys(mainLinks)).toEqual(['home', 'engines', 'language', 'admin']);
+  it('lists Home, Engines and Admin, each leading to a routed address and none to a retired path', () => {
+    expect(Object.keys(mainLinks)).toEqual(['home', 'engines', 'admin']);
     expect(Object.values(mainLinks).map((link) => [link.label, link.to])).toEqual([
-      ['Home', '/app'], ['Engines', '/engines'], ['Language', '/language'], ['Admin', '/app/admin'],
+      ['Home', '/app'], ['Engines', '/engines'], ['Admin', '/app/admin'],
     ]);
     for (const link of Object.values(mainLinks)) {
       expect(link.to).not.toMatch(/^\/app\/analysis([/?#]|$)/);
@@ -38,7 +38,7 @@ describe('mainLinks', () => {
       ...addressesOf(createItems(organization, project)),
       ...accountLinks.map((link) => link.to),
     ];
-    expect(addresses.length).toBeGreaterThan(15);
+    expect(addresses.length).toBeGreaterThan(14);
     expect(addresses.filter((address) => /\/(reports|library|resources)([/?#]|$)/.test(address))).toEqual([]);
   });
 });
@@ -65,10 +65,9 @@ describe('problemsEntry and labEntries', () => {
 });
 
 describe('createItems', () => {
-  it('offers Problem, Collection, Study and Run in the current project, in this order', () => {
+  it('offers Problem, Study and Run in the current project, in this order', () => {
     expect(createItems(organization, project).map((item) => [item.label, item.to])).toEqual([
       ['Problem', '/app/isa-demo/qos/problems?create=problem'],
-      ['Collection', '/app/isa-demo/qos/collections?create=collection'],
       ['Study', '/app/isa-demo/qos/studies/new'],
       ['Run', '/app/isa-demo/qos/runs/new'],
     ]);
@@ -77,18 +76,17 @@ describe('createItems', () => {
     }
   });
 
-  it('disables the four items with the hint "Needs a project" when no project is current', () => {
+  it('disables the three items with the hint "Needs a project" when no project is current', () => {
     for (const items of [createItems(), createItems(organization)]) {
       expect(items.map((item) => [item.label, item.to, item.hint])).toEqual([
-        ['Problem', undefined, 'Needs a project'], ['Collection', undefined, 'Needs a project'],
-        ['Study', undefined, 'Needs a project'], ['Run', undefined, 'Needs a project'],
+        ['Problem', undefined, 'Needs a project'], ['Study', undefined, 'Needs a project'], ['Run', undefined, 'Needs a project'],
       ]);
     }
   });
 
   it('has none of the former items', () => {
     const labels = createItems(organization, project).map((item) => item.label);
-    for (const former of ['Organization', 'Project', 'Case', 'Job', 'API key', 'Engine']) expect(labels).not.toContain(former);
+    for (const former of ['Organization', 'Project', 'Case', 'Collection', 'Job', 'API key', 'Engine']) expect(labels).not.toContain(former);
   });
 });
 
@@ -118,16 +116,13 @@ describe('currentSection', () => {
     ['/app/generator', 'lab'],
     ['/engines', 'engines'],
     ['/app/engines/registrations', 'engines'],
-    ['/language', 'language'],
-    ['/language/extensions', 'language'],
+    ['/language', null],
     ['/app/admin', 'admin'],
-    ['/app/admin/audit', 'admin'],
+    ['/app/admin/users', 'admin'],
     ['/app/isa-demo/qos/published', null],
     ['/app/isa-demo/qos/settings', null],
     ['/app/account/usage', null],
-    ['/app/system/states', null],
     ['/explore', null],
-    ['/verify', null],
   ] as const)('marks %s as %s', (pathname, expected) => {
     expect(currentSection(pathname)).toBe(expected);
   });
@@ -143,7 +138,6 @@ describe('currentSection', () => {
   it('marks the entry of each header link at its own address', () => {
     expect(currentSection(mainLinks.home.to)).toBe('home');
     expect(currentSection(mainLinks.engines.to)).toBe('engines');
-    expect(currentSection(mainLinks.language.to)).toBe('language');
     expect(currentSection(mainLinks.admin.to)).toBe('admin');
     expect(currentSection(labLinks.runs.to)).toBe('lab');
     expect(currentSection(labLinks.generator.to)).toBe('lab');

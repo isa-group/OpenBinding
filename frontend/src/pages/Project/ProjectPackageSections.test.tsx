@@ -2,14 +2,14 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { saveBytes } from './download';
-import { CASE_DIGESTS, REPORT_MARKER, samplePackage } from './packageFixture';
+import { CASE_DIGESTS, BODY_MARKER, samplePackage } from './packageFixture';
 import { ProjectSettings } from './ProjectSettings';
 import { caseOf, ensureSubtleCrypto, org, project, renderProjectScreen, revisionOf, usageWithProjects } from './testKit';
 
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn(), getPricingCatalog: vi.fn() }));
 const platform = vi.hoisted(() => ({
   project: vi.fn(), exportPackage: vi.fn(), importPackage: vi.fn(), cases: vi.fn(), revisions: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(),
-  reports: vi.fn(), publications: vi.fn(), artifacts: vi.fn(), publicProjects: vi.fn(),
+  artifacts: vi.fn(),
 }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
@@ -48,11 +48,8 @@ describe('Export package and Import package in the General section of the projec
     platform.revisions.mockResolvedValue([revisionOf(flujo, 1), revisionOf(flujo, 2)]);
     platform.studies.mockResolvedValue([]);
     platform.studyRuns.mockResolvedValue([]);
-    platform.reports.mockResolvedValue([]);
-    platform.publications.mockResolvedValue([]);
     platform.artifacts.mockResolvedValue([]);
-    platform.publicProjects.mockResolvedValue([]);
-    platform.exportPackage.mockResolvedValue(new TextEncoder().encode(REPORT_MARKER).buffer);
+    platform.exportPackage.mockResolvedValue(new TextEncoder().encode(BODY_MARKER).buffer);
     platform.importPackage.mockResolvedValue({ imported: { cases: 1, caseRevisions: 2 }, packageDigest: 'sha256-x' });
     api.getOwnUsage.mockResolvedValue(usageWithProjects());
     api.getPricingCatalog.mockResolvedValue({});
@@ -91,7 +88,7 @@ describe('Export package and Import package in the General section of the projec
       await waitFor(() => expect(platform.exportPackage).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'zip'));
       await waitFor(() => expect(saveBytes).toHaveBeenCalledWith(expect.anything(), 'qos-benchmarks.openbinding.zip', 'application/zip'));
       expect(await screen.findByText('Downloaded qos-benchmarks.openbinding.zip.')).toBeInTheDocument();
-      expect(document.body.textContent).not.toContain(REPORT_MARKER);
+      expect(document.body.textContent).not.toContain(BODY_MARKER);
     });
 
     it('downloads the file of the chosen format', async () => {
@@ -131,18 +128,18 @@ describe('Export package and Import package in the General section of the projec
       const file = await chooseJson(await samplePackage());
 
       const report = await screen.findByRole('list', { name: 'Import verification report' });
-      expect(within(importCard()).getByText('3 verified')).toBeInTheDocument();
+      expect(within(importCard()).getByText('2 verified')).toBeInTheDocument();
       expect(within(importCard()).getByText('0 already here · reused')).toBeInTheDocument();
       expect(within(importCard()).getByText('2 new')).toBeInTheDocument();
       expect(report.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
       const rows = within(report).getAllByRole('listitem');
-      expect(rows).toHaveLength(5);
+      expect(rows).toHaveLength(4);
       expect(within(rows[0]).getByText('Package manifest')).toBeInTheDocument();
       expect(within(rows[1]).getByText('Flujo de checkout · version 1')).toBeInTheDocument();
       expect(within(rows[1]).getByText('Will be added')).toBeInTheDocument();
       expect(within(rows[3]).getByText('Verified')).toBeInTheDocument();
       expect(platform.importPackage).not.toHaveBeenCalled();
-      expect(document.body.textContent).not.toContain(REPORT_MARKER);
+      expect(document.body.textContent).not.toContain(BODY_MARKER);
 
       fireEvent.click(screen.getByRole('button', { name: 'Import into QoS Benchmarks' }));
 
@@ -227,8 +224,8 @@ describe('Export package and Import package in the General section of the projec
       }
 
       it('409: unpublished items from another organization', async () => {
-        const alert = await importAndRefuse(refusal(409, 'unpublished_import'));
-        expect(alert).toHaveTextContent('Unpublished items from another organization (409 · unpublished_import)');
+        const alert = await importAndRefuse(refusal(409, 'private_dependency'));
+        expect(alert).toHaveTextContent('Unpublished items from another organization (409 · private_dependency)');
       });
 
       it('409: an identity collision', async () => {
@@ -242,9 +239,9 @@ describe('Export package and Import package in the General section of the projec
       });
 
       it('422: a fingerprint the gateway recomputed', async () => {
-        const alert = await importAndRefuse(refusal(422, 'checksum_mismatch', 'A report digest does not match its document.'));
+        const alert = await importAndRefuse(refusal(422, 'checksum_mismatch', 'An artifact digest or size does not match its content.'));
         expect(alert).toHaveTextContent('Fingerprint doesn’t match (422 · checksum_mismatch)');
-        expect(alert).toHaveTextContent('A report digest does not match its document.');
+        expect(alert).toHaveTextContent('An artifact digest or size does not match its content.');
       });
 
       it('413: too large for the plan', async () => {

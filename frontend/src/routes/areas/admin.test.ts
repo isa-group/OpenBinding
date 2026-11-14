@@ -7,42 +7,36 @@ const PROTOTYPE: Array<[string, string]> = [
   ['admin-overview', '/app/admin'],
   ['admin-users', '/app/admin/users'],
   ['admin-user-detail', '/app/admin/users/:user'],
-  ['admin-audit', '/app/admin/audit'],
-  ['admin-errors', '/app/admin/errors'],
-  ['admin-queues', '/app/admin/queues'],
   ['admin-moderation', '/app/admin/moderation'],
-  ['admin-maintenance', '/app/admin/maintenance'],
 ];
 
 describe('area admin', () => {
-  it('has 8 screens, with the ids and routes of the prototype', () => {
-    expect(routesByArea.admin).toHaveLength(8);
+  it('has 4 screens, with the ids and routes of the prototype', () => {
+    expect(routesByArea.admin).toHaveLength(4);
     expect(routesByArea.admin.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
   });
 
-  it('declares no sponsorship screen, and keeps the eight administration screens', () => {
+  it('declares no sponsorship screen, and keeps the audit log, errors, queues and maintenance inside the overview', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     const paths = routeDefinitions.map((definition) => definition.path);
     expect(ids).not.toContain('admin-sponsor');
     expect(paths.filter((path) => path.endsWith('/sponsor') || path.startsWith('/app/admin/organizations'))).toEqual([]);
-    expect(routesByArea.admin.map((definition) => definition.id)).toEqual([
-      'admin-overview', 'admin-users', 'admin-user-detail', 'admin-audit', 'admin-errors', 'admin-queues', 'admin-moderation', 'admin-maintenance',
-    ]);
+    for (const section of ['audit', 'errors', 'queues', 'maintenance']) {
+      expect(ids).not.toContain(`admin-${section}`);
+      expect(paths).not.toContain(`/app/admin/${section}`);
+    }
   });
 
-  it('reads each administration address as its own screen, with accounts and organizations named in the path', () => {
+  it('reads each administration address as its own screen, with accounts named in the path', () => {
     const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
     const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id;
 
     expect(resolve('/app/admin')).toBe('admin-overview');
+    expect(resolve('/app/admin?section=audit')).toBe('admin-overview');
     expect(resolve('/app/admin/users')).toBe('admin-users');
     expect(resolve('/app/admin/users/00000000-0000-4000-8000-000000000002')).toBe('admin-user-detail');
     expect(resolve('/app/admin/users/marco.diaz')).toBe('admin-user-detail');
-    expect(resolve('/app/admin/audit')).toBe('admin-audit');
-    expect(resolve('/app/admin/errors')).toBe('admin-errors');
-    expect(resolve('/app/admin/queues')).toBe('admin-queues');
     expect(resolve('/app/admin/moderation')).toBe('admin-moderation');
-    expect(resolve('/app/admin/maintenance')).toBe('admin-maintenance');
   });
 
   describe('address resolution', () => {
@@ -53,9 +47,12 @@ describe('area admin', () => {
       ['/app/admin/users', 'admin-users'],
       ['/app/admin/users/new', 'admin-user-detail'],
       ['/app/admin/users/settings', 'admin-user-detail'],
-      ['/app/admin/audit', 'admin-audit'],
     ])('%s -> %s', (path, id) => {
       expect(matchRoutes(config, path)?.at(-1)?.route.id ?? null).toBe(id);
+    });
+
+    it.each(['/app/admin/audit', '/app/admin/errors', '/app/admin/queues', '/app/admin/maintenance'])('serves %s by no administration screen', (path) => {
+      expect(routesByArea.admin.map((definition) => definition.id)).not.toContain(matchRoutes(config, path)?.at(-1)?.route.id);
     });
   });
 });

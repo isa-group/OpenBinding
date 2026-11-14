@@ -1,4 +1,4 @@
-"""Portable project packages and immutable public content."""
+"""Portable project packages."""
 
 from __future__ import annotations
 
@@ -67,15 +67,11 @@ async def project(client, headers, *, visibility="public") -> tuple[str, str]:
     return org_slug, project_slug
 
 
-async def test_packages_round_trip_cases_resources_collections_and_artifacts(
+async def test_packages_round_trip_cases_resources_and_artifacts(
     api_client, registration, platform_gate, monkeypatch, tmp_path, db_session
 ) -> None:
-    # A negative control of M9.6: package import is the only creator of publications left, and only for a
-    # version that is already public. The resource, report and publication are seeded through the internal
-    # services, because their write routes are removed (design.md §2.1 rows 10, 11, 12, 15, 29 and 31).
-    from openbinding_gateway.db.models import Publication
-    from sqlalchemy import select
-
+    # The resource is seeded through the internal services, because its write routes are removed
+    # (design.md §2.1 rows 29 and 31).
     monkeypatch.setenv("ARTIFACT_ROOT", str(tmp_path / "artifacts"))
     get_settings.cache_clear()
     try:
@@ -97,21 +93,7 @@ async def test_packages_round_trip_cases_resources_collections_and_artifacts(
             db_session, source_project, profile["id"], slug="offers", name="Offers", kind="qos-offerings",
             documents=[{"offers": [{"id": "edge-a", "latency": 20}]}],
         )
-        collection = await api_client.post(
-            f"{base}/collections", headers=headers,
-            json={"slug": "benchmark", "name": "Benchmark"},
-        )
-        collection_revision = await api_client.post(
-            f"{base}/collections/benchmark/revisions", headers=headers,
-            json={"items": [{
-                "target_kind": "case",
-                "target_digest": case_revision.json()["digest"],
-                "target_ref": {"caseRevisionId": case_revision.json()["id"]},
-            }]},
-        )
-        assert all(response.status_code == 201 for response in (
-            case, case_revision, collection, collection_revision
-        ))
+        assert all(response.status_code == 201 for response in (case, case_revision))
 
         study = await api_client.post(
             f"{base}/studies", headers=headers,
@@ -126,29 +108,6 @@ async def test_packages_round_trip_cases_resources_collections_and_artifacts(
             },
         )
         assert study.status_code == 201, study.text
-        report = await seed.report(
-            db_session, source_project, profile["id"], slug="findings", title="Findings", freeze=True,
-            document={"provenance": {
-                "study": {
-                    "reference": "urn:openbinding:study:standalone-findings",
-                    "digest": "sha256-" + "b" * 64,
-                },
-                "datasets": [{
-                    "reference": "urn:openbinding:dataset:checkout-v1",
-                    "digest": case_revision.json()["digest"],
-                }],
-                "software": [{
-                    "name": "openbinding-gateway", "version": "1.0.0",
-                    "digest": "sha256-" + "c" * 64,
-                }],
-                "bimVersion": "v1", "engineRevisions": ["sha256-" + "a" * 64],
-                "parameters": {"seed": 7},
-            }},
-        )
-        frozen_digest, published_version = report.digest, report.version_id
-        await seed.report_publication(db_session, report, profile["id"], slug="findings",
-                                      citation={"doi": "10.0000/example"})
-
         artifact_body = b"reproducible solver trace\n"
         artifact = await api_client.post(
             f"{base}/blobs?public=true", headers={**headers, "Content-Type": "text/plain"},
@@ -164,6 +123,7 @@ async def test_packages_round_trip_cases_resources_collections_and_artifacts(
         assert package_json["resources"][0]["revisions"][0]["digest"] == resource_revision.content_digest
         assert package_json["studies"][0]["definition"]["case_revision_ids"] == [case_revision.json()["id"]]
         assert package_json["artifacts"][0]["contentBase64"]
+        assert not {"reports", "publications", "evidenceJobs", "collections"} & set(package_json)
         with zipfile.ZipFile(io.BytesIO(exported.content)) as archive:
             manifest = json.loads(archive.read("package.json"))
             assert archive.read(manifest["artifacts"][0]["path"]) == artifact_body
@@ -188,60 +148,6 @@ async def test_packages_round_trip_cases_resources_collections_and_artifacts(
         )
         assert restored_resources.json()[0]["slug"] == "offers"
         assert restored_artifacts.json()[0]["public"] is False
-        # The published report version is imported with its publication, citing the same version.
-        restored_project = await seed.project_by_slugs(db_session, org, "restored")
-        restored_publications = (await db_session.scalars(
-            select(Publication).where(Publication.project_id == restored_project.id))).all()
-        assert [row.version_id for row in restored_publications] == [published_version]
-
-        public_case_res = await api_client.get(
-            f"/v1/resolve/case-revision/{case_revision.json()['digest']}"
-        )
-        assert public_case_res.status_code == 200
-        assert public_case_res.json()["verified"] is True
-        assert len(public_case_res.json()["locations"]) >= 1
-
-        public_case = await api_client.get(
-            f"/v1/resolve/case-revision/{case_revision.json()['digest']}/content"
-        )
-        public_resource = await api_client.get(
-            f"/v1/resolve/resource-revision/{resource_revision.content_digest}/content"
-        )
-        public_report = await api_client.get(
-            f"/v1/resolve/report/{frozen_digest}/content"
-        )
-        public_artifact = await api_client.get(
-            f"/v1/resolve/artifact/{artifact.json()['digest']}/content"
-        )
-        for response in (public_case, public_resource, public_report, public_artifact):
-            assert response.status_code == 200, response.text
-            assert response.headers["cache-control"].endswith("immutable")
-            assert response.headers["etag"].startswith('"sha256-')
-
-        # A signed package is only a checksum, not permission to publish a new edition.
-        next_version = await seed.new_edition(db_session, report, profile["id"])
-        assert next_version.id != published_version
-        portable = (await api_client.get(f'{base}/package?format=json', headers=headers)).json()
-        report_entry = portable['reports'][0]
-        portable['publications'].append({'reportId': report_entry['id'], 'slug': 'forged-publication',
-            'versionRef': report_entry['versionRef'], 'citation': {}})
-        from bim_core.canonical import digest
-        portable['packageDigest'] = digest({key: value for key, value in portable.items() if key != 'packageDigest'})
-        from sqlalchemy import func
-        from openbinding_gateway.db.models import Artifact, Report
-
-        async def target_rows():
-            return [await db_session.scalar(select(func.count()).select_from(model).where(column == value))
-                    for model, column, value in ((Report, Report.project_id, source_project.id),
-                                                 (Publication, Publication.project_id, source_project.id),
-                                                 (Artifact, Artifact.organization_id, source_project.organization_id))]
-
-        before = await target_rows()
-        forged = await api_client.post(f'{base}/package', headers=headers, json=portable)
-        assert forged.status_code == 409, forged.text
-        assert forged.json()['detail']['code'] == 'unpublished_import'
-        # The target project gains no report, publication or artifact.
-        assert await target_rows() == before
     finally:
         get_settings.cache_clear()
 

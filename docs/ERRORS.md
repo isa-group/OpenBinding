@@ -33,14 +33,13 @@ extended with a stable `code` and a list of `diagnostics`. OpenAPI names it
 | `type` | string | `https://openbinding.dev/problems/<code>` |
 | `title` | string | **Same value as `code`.** `/v1/validate` and the other BIM routes always did this and clients read `title` as the code; it is kept. |
 | `status` | integer | the HTTP status (`422`) |
-| `code` | string | stable, machine-readable. `validation_error` when the request itself is malformed (types, required fields, ranges, JSON syntax); a specific code (`weak_password`, `invalid_instance`, `invalid_pricing`, `checksum_mismatch`, …) when a route refuses a value it understood. |
+| `code` | string | stable, machine-readable. `validation_error` when the request itself is malformed (types, required fields, ranges, JSON syntax); a specific code (`weak_password`, `invalid_instance`, `checksum_mismatch`, …) when a route refuses a value it understood. |
 | `detail` | string | one-line, human-readable summary. For request validation: `Request validation failed: <pointer or parameter>: <message>` plus `(+N more)`. |
 | `diagnostics` | array | **always present and never empty on a 422.** A refusal that names no finer detail has one diagnostic restating `code`/`detail`. |
 
 A route may add fields of its own beside these (for example `conflicts` on
-`incompatible_target_engines`, or `valid`/`errors`/`warnings`/`plans`/`add_ons`
-on `invalid_pricing`). They never replace a canonical key; if one tried to, it is
-kept under `extra`.
+`incompatible_target_engines`). They never replace a canonical key; if one tried
+to, it is kept under `extra`.
 
 ## Diagnostic
 
@@ -125,14 +124,13 @@ document and `main.py` for the handlers.
 | a route raises `api_error(422, …)` / `HTTPException(422, …)` | `http_error` → the route's `code`; its `error`/`message` becomes `detail`; its `diagnostics` are normalised |
 | the BIM compiler refuses a package (`CompileError`) | the route's own `invalid_instance`; any route that does not catch it is covered by `compile_error` |
 | a BIM route that returns its refusal instead of raising (`_problem`, `_error_from_http`) | the same `problem_response` helper |
-| a pricing document is invalid | `invalid_pricing` (below) |
 
 Routes keep raising `api_error(422, code, message)`; they need not know the shape.
 
 ### Media type
 
 BIM routes (`/v1/validate`, `/v1/instances`, `/v1/jobs`, `/v1/engines`,
-`/v1/resources`, … — the prefixes in `_BIM_PATH_PREFIXES`) answer
+`/v1/profiles`, … — the prefixes in `_BIM_PATH_PREFIXES`) answer
 `application/problem+json`, as they always did. `POST /v1/compositions/import`
 is among them, because it is a package upload and answers like the others; the
 rest of `/v1/compositions` does not. The platform routes
@@ -214,27 +212,3 @@ had; nothing was removed.
   Failures with a plain-string `detail` (`{"detail": "Not Found"}`) are unchanged.
 * **BIM routes** answer `Problem` (`type`, `title`, `status`, `code`, `detail`,
   optional `diagnostics`, plus route-specific fields such as `quota`).
-
-## Pricing validation
-
-`POST /v1/admin/pricing/validate`:
-
-* a valid document → `200` with the validation view (`valid: true`, `version`,
-  `digest`, `syntax_version`, `plans`, `add_ons`, `errors: []`, `warnings`);
-* an invalid one → **`422`**, `code: "invalid_pricing"`, with the unified problem
-  **and** the same validation view fields (`valid: false`, `errors`, …) in the
-  body, so a client that reads the view from the 422 keeps working.
-
-Each message of `errors` has exactly one diagnostic with the same `message`.
-`pointer` is a JSON Pointer into the YAML when the message names a field:
-
-| `code` | Example `pointer` |
-|---|---|
-| `invalid_field` | `/saasName`, `/plans`, `/plans/PRO/usageLimits/maxTimeoutSeconds` |
-| `secret_in_document` | `/apiToken` (one diagnostic per secret-shaped key; the value is never repeated) |
-| `invalid_yaml`, `invalid_root`, `document_too_large` | none (the document as a whole) |
-
-`POST /v1/admin/pricing/drafts` refuses an invalid document with the same
-`invalid_pricing` diagnostics. There is no other pricing validation endpoint.
-Until this change an invalid document answered `200` with `valid: false` from
-`/validate`; the decision is `422`, documented here and in the OpenAPI document.

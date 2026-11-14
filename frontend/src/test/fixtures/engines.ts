@@ -1,6 +1,6 @@
 import type { UsageView } from '../../api/auth';
 import type {
-  BimDialect, BimProfile, EngineManifest, EngineRegistrationManifest, EngineRegistrationReport, EngineRegistrationRevision, RegisteredResource,
+  BimDialect, BimProfile, EngineManifest, EngineRegistrationManifest, EngineRegistrationReport, EngineRegistrationRevision,
 } from '../../api/client';
 
 // Shared by the engine screens' tests and by the end-to-end spec: types only, so it loads in Node as well.
@@ -198,21 +198,3 @@ export const PLACEMENT_DIALECT: BimDialect = {
   digest: digestOf('d1'),
 };
 
-export const COMMUNITY_DIALECT: BimDialect = {
-  apiVersion: 'bim/v1',
-  kind: 'Dialect',
-  metadata: { namespace: OWNER, name: 'edge-annotations', version: '1.0.0', description: 'Latency tables measured at the edge' },
-  spec: {
-    compatibleProfiles: ['qos-binding/v1'],
-    resourceTypes: [{ apiVersion: 'edge-annotations/v1', kind: 'LatencyTable', roles: ['latency-table'], mediaType: 'application/vnd.omg.bpmn+xml', schemaDigest: SCHEMA_DIGEST, xmlRoot: { namespace: 'urn:edge', localName: 'definitions' } }],
-    extensionPoints: [{ target: { apiVersion: 'qos-binding/v1', kind: 'Application' }, pointer: '/spec/annotations', schemaDigest: digestOf('5c1f') }],
-    irFeatures: [],
-    adapter: { id: 'edge-annotations-adapter', version: '1.0.0', binaryDigest: digestOf('ad03') },
-  },
-  digest: digestOf('d2'),
-};
-
-export const REGISTERED_RESOURCES: RegisteredResource[] = [
-  { namespace: 'bim.builtin', name: 'default-optimization', version: '1', digest: digestOf('01'), role: 'optimization', apiVersion: 'qos-binding/v1', kind: 'Optimization', dialect: 'qos-binding/v1', mediaType: 'application/json', status: 'published' },
-  { namespace: OWNER, name: 'eu-edge-placement', version: '1.0.0', digest: digestOf('02'), role: 'candidateCatalog', apiVersion: 'qos-binding-placement/v1', kind: 'Placement', dialect: 'placement/v1', mediaType: 'application/json', status: 'published' },
-];

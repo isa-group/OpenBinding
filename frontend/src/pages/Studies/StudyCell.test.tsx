@@ -9,7 +9,7 @@ import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, cellsFixture, runFixture, stu
 import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), publicProjects: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), studyCell: vi.fn(), retryStudyCell: vi.fn(),
+  project: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), studyCell: vi.fn(), retryStudyCell: vi.fn(),
   attachStudyCellResult: vi.fn(), projectJobs: vi.fn(), cases: vi.fn(), revisions: vi.fn(),
 }));
 const jobs = vi.hoisted(() => ({ jobsApi: { mine: vi.fn() } }));
@@ -41,7 +41,6 @@ describe('One cell of a run, inside the Results tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
-    platform.publicProjects.mockResolvedValue([]);
     platform.studies.mockResolvedValue([studyFixture()]);
     platform.studyRuns.mockResolvedValue([runFixture()]);
     platform.studyCells.mockResolvedValue(cells);
@@ -116,7 +115,7 @@ describe('One cell of a run, inside the Results tab', () => {
   it.each([
     ['402', new QuotaError('quota_exceeded', 'full', { limit_id: 'studies', limit: 50, used: 50 }), /The sponsor has no study definitions left \(402 · quota_exceeded\)/],
     ['429', refusal(429, 'concurrency_limit_exceeded', 'busy'), /All your run slots are busy \(429 · concurrency_limit_exceeded\)/],
-    ['409', refusal(409, 'sealed_evidence'), /A sealed report cites this run \(409 · sealed_evidence\)/],
+    ['409', refusal(409, 'cell_not_retryable'), /This cell can’t be retried \(409 · cell_not_retryable\)/],
   ])('says why a retry was refused: %s', async (_name, failure, expected) => {
     platform.retryStudyCell.mockRejectedValue(failure);
     renderCell(1);
@@ -164,7 +163,7 @@ describe('One cell of a run, inside the Results tab', () => {
     const mine = [jobOf('job-mine-a', 'random-search', 'completed', 'FEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:01:00Z')];
     platform.projectJobs.mockResolvedValue(mine);
     jobs.jobsApi.mine.mockResolvedValue(mine);
-    platform.attachStudyCellResult.mockRejectedValue(refusal(409, 'sealed_evidence'));
+    platform.attachStudyCellResult.mockRejectedValue(refusal(409, 'job_already_attached'));
     renderCell(5);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Use an existing run’s result' }));
@@ -172,7 +171,7 @@ describe('One cell of a run, inside the Results tab', () => {
     fireEvent.click(await within(dialog).findByRole('radio', { name: /random-search · completed/ }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Attach this result' }));
 
-    expect(await within(dialog).findByText('A sealed report cites this run (409 · sealed_evidence)')).toBeInTheDocument();
+    expect(await within(dialog).findByText('That run is already the result of another cell (409 · job_already_attached)')).toBeInTheDocument();
   });
 
   it('names what differs when the job is not a run of this cell (409 cell_job_mismatch)', async () => {

@@ -87,8 +87,9 @@ all-Engines key because its immutable digest cannot be selected in advance.
 candidate, export, reports and the Pareto tasks) and their extra
 `engines:execute` check were removed by M9.6, together with the analysis queue.
 The kept `GET /v1/jobs/{job_id}/analysis/neighborhood` is guarded by `jobs:read`
-like any job read. Keys that hold `reports:write` or `engines:execute` keep
-working: both permissions still guard kept operations.
+like any job read. Keys that hold `engines:execute` keep working: it still
+guards kept operations. The `reports:read` and `reports:write` permissions were
+removed in F0a with the reports; no route needs them.
 
 The number of active keys is the plan's `apiKeys` limit, read from the
 contract (`routes/users.py`); exceeding it is `402 quota_exceeded`. Revoked keys
@@ -174,7 +175,7 @@ before anything is compiled, reserved or written.
 |---|---|---|
 | Read jobs, studies, runs, cells, artifacts and results of a project | `GET` routes of `/v1/organizations/{org}/projects/{project}/…` | VIEWER (jobs redacted, see below) |
 | Launch a job on a snapshot shared with the organization | `POST /v1/jobs` with `{"snapshot": …}` | MEMBER |
-| Create a study, collection or case | `POST …/studies`, `…/collections`, `…/cases` | MEMBER |
+| Create a study or case | `POST …/studies`, `…/cases` | MEMBER |
 | Run a study, retry a cell, cancel a run | `POST …/studies/{study}/runs`, `…/cells/{cell}/retry`, `…/runs/{run}/cancel` | MEMBER |
 | Retry or cancel a job of an organization | `POST /v1/jobs/{id}/retry`, `POST /v1/jobs/{id}/cancel` | MEMBER (the job must also be the caller's) |
 | Delete a study | `DELETE …/studies/{study}` | ADMIN |

@@ -1,7 +1,8 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AdminMaintenance } from './AdminMaintenance';
+import { AdminOverview } from './AdminOverview';
 import { MARIA } from '../../test/fixtures/admin';
+import { overviewSectionPath } from './adminModel';
 import { refusal, renderAdmin } from './adminTestUtils';
 
 const api = vi.hoisted(() => ({
@@ -27,7 +28,10 @@ const tile = async (label: string) => {
   return within(within(list).getByText(label).closest('[role="listitem"]') as HTMLElement);
 };
 
-describe('admin-maintenance · preview, purge and reconcile jobs', { timeout: 30000 }, () => {
+/** The maintenance section of admin-overview, where /app/admin?section=maintenance leads. */
+const renderMaintenance = (options: Parameters<typeof renderAdmin>[1] = {}) => renderAdmin(<AdminOverview />, { entry: overviewSectionPath('maintenance'), ...options });
+
+describe('admin-overview, maintenance section · preview, purge and reconcile jobs', { timeout: 30000 }, () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.adminMaintenancePreview.mockResolvedValue(PREVIEW);
@@ -41,7 +45,7 @@ describe('admin-maintenance · preview, purge and reconcile jobs', { timeout: 30
   });
 
   it('previews what the default retention would touch, as counted by the server', async () => {
-    renderAdmin(<AdminMaintenance />);
+    renderMaintenance();
     expect(screen.getByRole('heading', { level: 1, name: 'Maintenance' })).toBeInTheDocument();
     expect((await tile('Expired artifacts')).getByText('2')).toBeInTheDocument();
     expect((await tile('Expired API keys')).getByText('1')).toBeInTheDocument();
@@ -54,7 +58,7 @@ describe('admin-maintenance · preview, purge and reconcile jobs', { timeout: 30
   });
 
   it('previews another retention, and refuses one the API would refuse', async () => {
-    renderAdmin(<AdminMaintenance />);
+    renderMaintenance();
     await tile('Expired artifacts');
     fireEvent.change(retention(), { target: { value: '30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
@@ -72,12 +76,12 @@ describe('admin-maintenance · preview, purge and reconcile jobs', { timeout: 30
 
   it('says when there is nothing to purge', async () => {
     api.adminMaintenancePreview.mockResolvedValue(NOTHING);
-    renderAdmin(<AdminMaintenance />);
+    renderMaintenance();
     expect(await screen.findByText('Nothing to purge with these retention periods.')).toBeInTheDocument();
   });
 
   it('purges only after the exact phrase is typed, with the retention of jobs and of errors', async () => {
-    renderAdmin(<AdminMaintenance />);
+    renderMaintenance();
     await tile('Expired artifacts');
     const purge = screen.getByRole('button', { name: 'Purge…' });
     await waitFor(() => expect(purge).toBeEnabled());
@@ -104,7 +108,7 @@ describe('admin-maintenance · preview, purge and reconcile jobs', { timeout: 30
   });
 
   it('asks again before purging when the retention changed after the preview', async () => {
-    renderAdmin(<AdminMaintenance />);
+    renderMaintenance();
     await tile('Expired artifacts');
     fireEvent.change(retention(), { target: { value: '30' } });
     expect(screen.getByRole('button', { name: 'Purge…' })).toBeDisabled();
@@ -117,7 +121,7 @@ describe('admin-maintenance · preview, purge and reconcile jobs', { timeout: 30
 
   it('says what a refused purge did, and that nothing was removed', async () => {
     api.adminPurgeExpired.mockRejectedValue(refusal(409, 'maintenance_running', 'Another run holds the lock.'));
-    renderAdmin(<AdminMaintenance />);
+    renderMaintenance();
     await tile('Expired artifacts');
     fireEvent.click(screen.getByRole('button', { name: 'Purge…' }));
     const dialog = screen.getByRole('dialog', { name: 'Purge expired data?' });
@@ -129,7 +133,7 @@ describe('admin-maintenance · preview, purge and reconcile jobs', { timeout: 30
   });
 
   it('settles abandoned jobs and says how many', async () => {
-    renderAdmin(<AdminMaintenance />);
+    renderMaintenance();
     await tile('Abandoned runs');
     fireEvent.click(screen.getByRole('button', { name: 'Reconcile runs' }));
     expect(await screen.findByText('1 abandoned run settled. Recorded in the audit log.')).toBeInTheDocument();
@@ -138,7 +142,7 @@ describe('admin-maintenance · preview, purge and reconcile jobs', { timeout: 30
 
   it('says when job reconciliation fails', async () => {
     api.adminReconcileJobs.mockRejectedValue(refusal(503, 'space_unavailable', 'SPACE did not answer.'));
-    renderAdmin(<AdminMaintenance />);
+    renderMaintenance();
     await tile('Abandoned runs');
     fireEvent.click(screen.getByRole('button', { name: 'Reconcile runs' }));
     expect(await screen.findByText('A dependency is down (503 · space_unavailable)')).toBeInTheDocument();
@@ -146,7 +150,7 @@ describe('admin-maintenance · preview, purge and reconcile jobs', { timeout: 30
   });
 
   it('offers no contract or pricing action: contracts live in SPACE', async () => {
-    renderAdmin(<AdminMaintenance />);
+    renderMaintenance();
     await tile('Abandoned runs');
     expect(screen.queryByRole('button', { name: /contract/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/LIVE/)).not.toBeInTheDocument();
@@ -154,7 +158,7 @@ describe('admin-maintenance · preview, purge and reconcile jobs', { timeout: 30
 
   it('words a preview that fails, apart from an empty one, and tries again', async () => {
     api.adminMaintenancePreview.mockRejectedValueOnce(refusal(503, 'database_unavailable', 'The database did not answer.'));
-    renderAdmin(<AdminMaintenance />);
+    renderMaintenance();
     expect(await screen.findByText('A dependency is down (503 · database_unavailable)')).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Maintenance preview' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
@@ -163,13 +167,13 @@ describe('admin-maintenance · preview, purge and reconcile jobs', { timeout: 30
 
   it('tells a key without the permission so, with no retry', async () => {
     api.adminMaintenancePreview.mockRejectedValue(refusal(403, 'insufficient_api_key_permission'));
-    renderAdmin(<AdminMaintenance />);
+    renderMaintenance();
     expect(await screen.findByText('This key can’t use administration (403)')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {
-    renderAdmin(<AdminMaintenance />, { user: MARIA });
+    renderMaintenance({ user: MARIA });
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(api.adminMaintenancePreview).not.toHaveBeenCalled();
     expect(api.getCurrentPricing).not.toHaveBeenCalled();

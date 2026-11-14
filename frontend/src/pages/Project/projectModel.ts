@@ -1,5 +1,5 @@
 import type { PricingCatalog, UsageView } from '../../api/auth';
-import type { BindingCase, CaseRevision, Organization, OrganizationRole, ProjectAccessKind, Report, Study, StudyCell, StudyRun, Visibility } from '../../api/platform';
+import type { BindingCase, CaseRevision, Organization, OrganizationRole, ProjectAccessKind, Study, StudyCell, StudyRun, Visibility } from '../../api/platform';
 import { canWrite, levelOf, type AccessLevel } from './accessLevel';
 
 export { atLeast, SLUG_PATTERN, slugFromName } from '../Organization/orgModel';
@@ -16,7 +16,7 @@ export interface ProjectAccess {
   level: AccessLevel | null;
   /** A visitor of a public project: everything reads, nothing writes, and jobs, package and settings are out of reach. */
   publicRead: boolean;
-  /** Create cases, studies and reports; import packages. */
+  /** Create cases and studies; import packages. */
   canCreate: boolean;
   /** Rename, change visibility, delete. */
   canAdminister: boolean;
@@ -47,12 +47,10 @@ export function visibilityLabel(visibility: Visibility): string {
 export function visibilityEffects(next: Visibility): { changes: string[]; stays: string[] } {
   return {
     changes: next === 'public'
-      ? ['Its card (name, description) appears in Explore', 'It stops counting as a private project for the sponsor']
-      : ['It disappears from Explore', 'It counts as a private project for the sponsor'],
+      ? ['Anybody can read it, without changing anything', 'It stops counting as a private project for the sponsor']
+      : ['Only its members can read it', 'It counts as a private project for the sponsor'],
     stays: [
-      'Problems, drafts and runs still need membership to open',
-      'Nothing gets published: publishing is a separate step per report',
-      'Already-published reports stay verifiable by fingerprint',
+      'Runs and the settings still need membership to open',
     ],
   };
 }
@@ -96,19 +94,15 @@ export function cellBreakdown(cells: readonly StudyCell[]): Array<{ id: 'complet
 }
 
 /**
- * Sealed items carry a fingerprint and never change: case revisions, frozen reports and study runs. A report draft
- * can still be edited. Studies themselves are definitions, so they are not counted here.
+ * Sealed items carry a fingerprint and never change: case revisions and study runs. Studies themselves are definitions,
+ * so they are not counted here.
  */
-export function integrityOf(input: { cases?: CaseContent[]; reports?: Report[]; studies?: StudyContent[] }): IntegrityItem[] {
+export function integrityOf(input: { cases?: CaseContent[]; studies?: StudyContent[] }): IntegrityItem[] {
   const revisions = (input.cases ?? []).reduce((total, entry) => total + entry.revisions.length, 0);
   const runs = (input.studies ?? []).reduce((total, entry) => total + entry.runs.length, 0);
-  const frozen = (input.reports ?? []).filter((item) => item.state === 'frozen').length;
-  const drafts = (input.reports ?? []).filter((item) => item.state === 'draft').length;
   const items: IntegrityItem[] = [
     { id: 'revisions', kind: 'sealed', count: revisions, singular: 'problem version', plural: 'problem versions' },
     { id: 'runs', kind: 'sealed', count: runs, singular: 'study run', plural: 'study runs' },
-    { id: 'frozen', kind: 'sealed', count: frozen, singular: 'frozen report', plural: 'frozen reports' },
-    { id: 'drafts', kind: 'draft', count: drafts, singular: 'report draft', plural: 'report drafts' },
   ];
   return items.filter((item) => item.count > 0);
 }

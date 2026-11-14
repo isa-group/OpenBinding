@@ -394,7 +394,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // A project with no problem explains how to start.
       await page.goto('/app/isa-demo/checkout-privado/problems');
       const guide = main.getByRole('region', { name: 'No problems yet' });
-      await expect(guide.getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/explore/examples');
+      await expect(guide.getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/app/isa-demo/checkout-privado/workbench');
       await expect(guide.getByRole('link', { name: 'Open the library' })).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-empty`);
 

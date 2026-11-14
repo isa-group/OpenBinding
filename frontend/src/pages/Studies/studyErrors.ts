@@ -149,8 +149,6 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
         return { ...base, kind: 'conflict', title: `This study is archived${at}`, text: `Restore it to run again. ${nothing}` };
       case 'evidence_only_study':
         return { ...base, kind: 'conflict', title: `This study only holds stored evidence${at}`, text: `It isn’t an executable definition, so it can’t run engines. ${nothing}` };
-      case 'sealed_evidence':
-        return { ...base, kind: 'terminal', title: `A sealed report cites this run${at}`, text: `Its results can’t change now. Start a new run instead. ${nothing}` };
       case 'terminal_run':
         return { ...base, kind: 'terminal', title: `This run already finished${at}`, text: `There’s nothing left to cancel. ${nothing}` };
       case 'cell_not_retryable':
@@ -196,11 +194,9 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
         };
       }
       case 'empty_study_cases':
-        return { ...base, kind: 'other', title: `The study needs a problem${at}`, text: `Choose at least one problem version, or a sealed collection with problems in it. ${nothing}` };
+        return { ...base, kind: 'other', title: `The study needs a problem${at}`, text: `Choose at least one problem version. ${nothing}` };
       case 'foreign_case_revision':
         return { ...base, kind: 'other', title: `A problem version isn’t in this organization${at}`, text: `Every problem version of a study must belong to this organization. ${nothing}` };
-      case 'unavailable_collection':
-        return { ...base, kind: 'other', title: `That collection isn’t available${at}`, text: `Choose a sealed collection version you can read. ${nothing}` };
       case 'engine_mode_incompatible':
       case 'invalid_engine':
         return { ...base, kind: 'incompatible', title: `An engine can’t run this${at}`, text: `${gateway}Pick another engine or mode. ${nothing}` };

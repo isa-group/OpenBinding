@@ -3,40 +3,14 @@ import { expect as baseExpect, test, type Page, type Route } from '@playwright/t
 // The dev server compiles each route on first use, so the first assertion of a test can wait for a cold page.
 const expect = baseExpect.configure({ timeout: 15_000 });
 
-// S1a · public screens: pub-home, pub-explore, verify, pub-about (with the service-status note that took the place of /status).
+// S1a · public screens: pub-home and pub-about (with the service-status note that took the place of /status).
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 
 const API = 'http://localhost:8000';
 const HIDE_FLOATING = '.site-header, .skip-link { visibility: hidden !important; }';
 
-const HEX = 'e5f60718'.repeat(8);
-const DIGEST = `sha256-${HEX}`;
 const ENGINE_DIGEST = `sha256-${'b2c3d4e5'.repeat(8)}`;
-
-const projects = [
-  { organization: { slug: 'isa-demo', name: 'ISA Demo Group' }, project: { slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: 'Reference binding cases with workflow and placement.' } },
-  { organization: { slug: 'score-lab', name: 'SCORE Lab' }, project: { slug: 'service-corpus', name: 'Service corpus', description: 'Cases derived from published service-composition papers.' } },
-];
-
-const publications = [
-  {
-    slug: 'checkout-engines',
-    citation: { title: 'Engine comparison at checkout', authors: ['Lucía Vega'], year: 2026 },
-    report: { title: 'Engine comparison at checkout', digest: DIGEST, version_id: 'version-1' },
-    project: 'qos-benchmarks',
-    organization: 'isa-demo',
-    publishedAt: '2026-09-25T11:55:00Z',
-  },
-  {
-    slug: 'corpus-baseline',
-    citation: { title: 'Baseline results on the service corpus', authors: ['Marco Díaz', 'Sofía Rey'], year: 2026 },
-    report: { title: 'Baseline results on the service corpus', digest: `sha256-${'12ab34cd'.repeat(8)}`, version_id: 'version-2' },
-    project: 'service-corpus',
-    organization: 'score-lab',
-    publishedAt: '2026-09-12T08:00:00Z',
-  },
-];
 
 const engine = (name: string, mode: string, digest: string) => ({
   id: name, name, namespace: 'bim.builtin', version: '1.0.0', digest, ref: { namespace: 'bim.builtin', name, version: '1.0.0', digest },
@@ -53,26 +27,6 @@ const engines = [
   engine('minizinc', 'cp', `sha256-${'d4e5f607'.repeat(8)}`),
 ];
 
-const resolved = {
-  verified: true,
-  kind: 'report',
-  digest: DIGEST,
-  canonical_name: 'Engine comparison at checkout',
-  media_type: 'application/json',
-  size_bytes: 20480,
-  created_at: '2026-09-25T11:55:00Z',
-  author: { id: 'author-1', username: 'lucia.vega', email: 'lucia@example.invalid' },
-  document: { title: 'Engine comparison at checkout', sections: [{ id: 's1' }, { id: 's2' }, { id: 's3' }], schemaVersion: 1, evidence: { runs: 12 } },
-  content_url: `/v1/resolve/report/${DIGEST}/content`,
-  locations: [{
-    organization: { id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group' },
-    project: { id: 'project-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks', visibility: 'public' },
-    element_id: 'element-1', slug: 'checkout-engines', version_or_revision: 1, created_at: '2026-09-25T11:55:00Z', web_url: '/app/isa-demo/library',
-  }],
-  pagination: { total: 1, limit: 20, offset: 0, has_more: false },
-  citation: null,
-};
-
 const HEALTHY_READY = { status: 'ready', dependencies: { database: 'ok', redis: 'not-required', sphere: 'configured', space: 'configured' } };
 const DEGRADED_READY = { detail: { code: 'not_ready', dependencies: { database: 'unavailable', redis: 'not-required' } } };
 
@@ -82,9 +36,6 @@ const researchUser = {
 
 interface Mocks {
   signedIn?: boolean;
-  /** Answers GET /v1/resolve/report/<digest>. */
-  resolve?: (route: Route) => Promise<void> | void;
-  projects?: (route: Route) => Promise<void> | void;
   ready?: (route: Route) => Promise<void> | void;
   /** Every health probe fails to connect. */
   offline?: boolean;
@@ -92,9 +43,11 @@ interface Mocks {
 
 const json = (body: unknown, status = 200) => (route: Route) => route.fulfill({ status, json: body });
 
-/** Everything the five screens read, answered; anything else on the API origin is an empty 404. */
+/** Everything the screens read, answered; anything else on the API origin is an empty 404. */
 async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/**`, (route) => route.fulfill({ status: 404, json: { detail: 'not mocked' } }));
+  // The public engine catalogue; a signed-in account gets its own list below.
+  await page.route(`${API}/v1/engines`, json({ engines }));
   if (mocks.signedIn) {
     await page.addInitScript(() => localStorage.setItem('openbinding-access-token', 's1a-token'));
     await page.route(`${API}/v1/users/me`, json(researchUser));
@@ -103,13 +56,6 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   }
   await page.route(`${API}/v1/profiles`, json({ profiles: [{ id: 'qos-binding/v1' }] }));
   await page.route(`${API}/v1/dialects`, json({ dialects: [{ id: 'qos-binding' }, { id: 'bpmn-workflow' }, { id: 'placement' }] }));
-  await page.route(`${API}/v1/explore/projects`, mocks.projects ?? json(projects));
-  await page.route(`${API}/v1/explore/publications`, json(publications));
-  await page.route(`${API}/v1/explore/engines`, json({ engines }));
-  await page.route(new RegExp(`${API}/v1/resolve/report/sha256-[0-9a-f]{64}(\\?.*)?$`), mocks.resolve ?? json(resolved));
-  await page.route(`${API}/v1/resolve/report/${DIGEST}/content`, (route) => route.fulfill({
-    status: 200, contentType: 'application/json', body: JSON.stringify(resolved.document),
-  }));
   if (mocks.offline) {
     for (const path of ['/health', '/health/live', '/health/ready']) await page.route(`${API}${path}`, (route) => route.abort('connectionrefused'));
   } else {
@@ -159,7 +105,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'Describe. Bind. Reproduce.' })).toBeVisible();
       await ready(page);
       await expect(main.getByRole('link', { name: /Validate a package/ })).toHaveAttribute('href', '/workbench');
-      await expect(main.getByRole('link', { name: /Explore published results/ })).toHaveAttribute('href', '/explore');
+      await expect(main.getByRole('link', { name: /Browse the engines/ })).toHaveAttribute('href', '/engines');
       await expect(main.getByRole('link', { name: /Create an account/ })).toHaveAttribute('href', '/register');
       await expect(main.getByRole('status', { name: 'Runtime catalogue status' })).toContainText('3 installed dialects');
       await expect(main.getByRole('status', { name: 'Runtime catalogue status' })).toContainText('3 public engine revisions');
@@ -170,13 +116,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('tab', { name: /Validation/ }).click();
       await expect(main.getByRole('link', { name: 'Validate a package' }).last()).toHaveAttribute('href', '/workbench');
 
-      // Recently public, from /v1/explore/*.
-      const recent = main.getByRole('region', { name: 'Published results and public projects' });
-      await expect(recent.getByRole('link', { name: /Engine comparison at checkout/ })).toHaveAttribute('href', `/resolve/report/${DIGEST}`);
-      await expect(recent.getByRole('link', { name: /Engine comparison at checkout/ })).toContainText('ISA Demo Group / QoS Benchmarks');
-      await expect(recent.locator('a[href="/explore?tab=projects"]').filter({ hasText: 'Service corpus' })).toBeVisible();
-      await expect(recent.getByRole('link', { name: /Baseline results on the service corpus/ })).toHaveAttribute('href', `/resolve/report/sha256-${'12ab34cd'.repeat(8)}`);
+      // The public engines, from GET /v1/engines.
+      const recent = main.getByRole('region', { name: 'Engines anyone can run' });
       await expect(recent.getByRole('link', { name: /3 public engine revisions/ })).toContainText('random-search · evolutionary · minizinc');
+      await expect(recent.getByRole('link', { name: 'All engines' })).toHaveAttribute('href', '/engines');
+      await expect(main.locator('a[href^="/explore"]')).toHaveCount(0);
 
       // Plans.
       const plans = main.getByRole('region', { name: 'Free to start, institutional when you scale' });
@@ -206,199 +150,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('status', { name: 'Runtime catalogue status' })).toContainText('4 engine revisions');
       await ready(page);
       await main.locator('.home-hero').screenshot({ path: testInfo.outputPath(`home-${name}-signed-in.png`), animations: 'disabled', style: HIDE_FLOATING });
-    });
-
-    test('pub-explore /explore', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      await mockApi(page);
-      await page.goto('/explore');
-      const main = page.locator('main');
-
-      await expect(main.getByRole('heading', { level: 1, name: 'Public work on OpenBinding' })).toBeVisible();
-      await expect(main.getByRole('tab', { name: /Published results/ })).toHaveAttribute('aria-selected', 'true');
-      await expect(main.getByRole('tab', { name: /Projects/ })).toContainText('2');
-      await expect(main.getByRole('tab', { name: /Engines/ })).toContainText('3');
-      const details = main.getByRole('complementary', { name: 'Details' });
-      await expect(details.getByRole('heading', { name: 'Engine comparison at checkout' })).toBeVisible();
-      await expect(details).toContainText('Sep 25, 2026');
-      await expect(details).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      await expect(details.getByRole('link', { name: 'Open verification' })).toHaveAttribute('href', `/resolve/report/${DIGEST}`);
-      await ready(page);
-      await page.screenshot({ path: testInfo.outputPath(`explore-${name}-publications.png`), fullPage: true, animations: 'disabled' });
-
-      // Selecting another publication swaps the details; a search narrows the list.
-      await main.getByRole('button', { name: /Baseline results on the service corpus/ }).click();
-      await expect(details.getByRole('heading', { name: 'Baseline results on the service corpus' })).toBeVisible();
-      await expect(details.getByText('Marco Díaz, Sofía Rey', { exact: true })).toBeVisible();
-      await main.getByRole('searchbox', { name: 'Search this tab' }).fill('checkout');
-      await expect(main.getByText('1 published result')).toBeVisible();
-      await main.getByRole('searchbox', { name: 'Search this tab' }).fill('no such thing');
-      await expect(main.getByText('No published results match “no such thing”.')).toBeVisible();
-      await expect(details.getByText('Select an item to see its citation and where to verify it.')).toBeVisible();
-
-      // Projects: a visitor can see them but must log in to open one.
-      await main.getByRole('tab', { name: /Projects/ }).click();
-      await expect(page).toHaveURL(/\/explore\?tab=projects$/);
-      await expect(details.getByRole('heading', { name: 'QoS Benchmarks' })).toBeVisible();
-      await expect(details.getByRole('link', { name: 'Log in to open as a member' })).toHaveAttribute('href', '/login');
-      await main.getByRole('button', { name: 'SCORE Lab', exact: true }).click();
-      await expect(main.getByRole('button', { name: /QoS Benchmarks/ })).toHaveCount(0);
-      await main.getByRole('button', { name: 'All organizations' }).click();
-      await page.screenshot({ path: testInfo.outputPath(`explore-${name}-projects.png`), fullPage: true, animations: 'disabled' });
-
-      // Engines.
-      await main.getByRole('tab', { name: /Engines/ }).click();
-      await expect(details.getByRole('heading', { name: 'random-search 1.0.0' })).toBeVisible();
-      await expect(details.getByText('bim.builtin', { exact: true })).toBeVisible();
-      await expect(details).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      await expect(details.getByText('time_budget_ms (ms, default 30,000); iterations (default 100,000)')).toBeVisible();
-      await expect(details.getByRole('link', { name: 'Open engine' })).toHaveAttribute('href', '/engines/bim.builtin/random-search/1.0.0');
-      await page.screenshot({ path: testInfo.outputPath(`explore-${name}-engines.png`), fullPage: true, animations: 'disabled' });
-
-      await expectNoHorizontalOverflow(page);
-      expect(critical).toEqual([]);
-    });
-
-    test('pub-explore /explore when a list cannot be loaded', async ({ page }, testInfo) => {
-      await mockApi(page, { projects: json({ detail: 'database unavailable' }, 503) });
-      await page.goto('/explore?tab=projects');
-      const main = page.locator('main');
-
-      const alert = main.getByRole('alert');
-      await expect(alert).toContainText('Projects couldn’t be loaded (HTTP 503). Your search and filters are kept.');
-      await expect(main.getByRole('tab', { name: /Projects/ })).toContainText('–');
-      await expect(main.getByRole('tab', { name: /Published results/ })).toContainText('2');
-      await ready(page);
-      await page.screenshot({ path: testInfo.outputPath(`explore-${name}-error.png`), fullPage: true, animations: 'disabled' });
-
-      // Retry asks again, and this time the list arrives.
-      await page.route(`${API}/v1/explore/projects`, json(projects));
-      await alert.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('button', { name: /QoS Benchmarks/ })).toBeVisible();
-      await expect(main.getByRole('alert')).toHaveCount(0);
-    });
-
-    test('verify /verify · a permanent link in the address', async ({ page, context }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-      await mockApi(page);
-      await page.goto(`/verify/report/${DIGEST}`);
-      const main = page.locator('main');
-
-      await expect(main.getByRole('heading', { level: 1, name: 'Verify' })).toBeVisible();
-      await expect(main.getByText('Verified', { exact: true })).toBeVisible();
-      await expect(main.getByText('kind · report')).toBeVisible();
-      const identity = main.getByRole('region', { name: 'Identity and provenance' });
-      await expect(identity).toContainText('Engine comparison at checkout');
-      await expect(identity).toContainText('20 KiB (20,480 bytes)');
-      await expect(identity).toContainText('Sep 25, 2026, 11:55 UTC');
-      await expect(identity).toContainText('lucia.vega');
-      await expect(main.getByText('example.invalid')).toHaveCount(0);
-      const locations = main.getByRole('region', { name: 'Locations' });
-      await expect(locations).toContainText('ISA Demo Group / QoS Benchmarks');
-      await expect(locations.getByRole('link', { name: 'Log in to open' })).toHaveAttribute('href', '/login');
-      await expect(main.getByRole('region', { name: 'Content' })).toContainText('Document structure');
-      await ready(page);
-      await page.screenshot({ path: testInfo.outputPath(`verify-${name}-verified.png`), fullPage: true, animations: 'disabled' });
-
-      // Download the content as a file.
-      const [download] = await Promise.all([page.waitForEvent('download'), main.getByRole('button', { name: 'Download content' }).click()]);
-      expect(download.suggestedFilename()).toBe('report-engine-comparison-at-checkout.json');
-      await expect(main.getByText(/Downloaded \d+ bytes of application\/json\./)).toBeVisible();
-
-      // Cite it: the permanent link keeps the /resolve/<kind>/<digest> form.
-      const cite = main.getByRole('region', { name: 'Cite and link' });
-      await cite.getByRole('button', { name: 'Copy permanent link' }).click();
-      await expect(cite.getByRole('status').filter({ hasText: 'permanent link copied' })).toHaveCount(1);
-      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`${new URL(page.url()).origin}/resolve/report/${DIGEST}`);
-      await expect(cite.locator('.citation-panel__text')).toHaveText('lucia.vega (2026). Engine comparison at checkout. OpenBinding report edition.');
-      await expect(cite.locator('.citation-panel__text')).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      await cite.getByRole('button', { name: 'Copy BibTeX' }).click();
-      await expect(cite.getByRole('button', { name: 'BibTeX copied' })).toBeVisible();
-      const bibtex = await page.evaluate(() => navigator.clipboard.readText());
-      expect(bibtex).toContain('@misc{');
-      expect(bibtex).toContain('title        = {Engine comparison at checkout}');
-      expect(bibtex).not.toMatch(/doi/i);
-
-      // Verify another digest from the form.
-      await main.getByRole('textbox', { name: 'Link or digest' }).fill(`SHA256:${'12AB34CD'.repeat(8)}`);
-      await main.getByRole('button', { name: 'Verify' }).click();
-      await expect(page).toHaveURL(new RegExp(`/verify/report/sha256-${'12ab34cd'.repeat(8)}$`));
-
-      await expectNoHorizontalOverflow(page);
-      expect(critical).toEqual([]);
-    });
-
-    test('verify /verify · the permanent links /resolve/:kind/:digest and /app/verifier land on the page, with no login', async ({ page }) => {
-      await mockApi(page);
-
-      await page.goto(`/resolve/report/${DIGEST}?ref=cite#locations`);
-      await expect(page).toHaveURL(new RegExp(`/verify/report/${DIGEST}\\?ref=cite#locations$`));
-      await expect(page.locator('main').getByText('Verified', { exact: true })).toBeVisible();
-
-      await page.goto(`/app/verifier?digest=${DIGEST}`);
-      await expect(page).toHaveURL(new RegExp(`/verify\\?digest=${DIGEST}$`));
-      await expect(page.locator('main').getByRole('heading', { level: 1, name: 'Verify' })).toBeVisible();
-      await expect(page.locator('main').getByRole('textbox', { name: 'Link or digest' })).toHaveValue(DIGEST);
-    });
-
-    test('verify /verify · a digest without a kind needs a kind, and a document or a file needs an account', async ({ page }) => {
-      const asked: string[] = [];
-      await mockApi(page);
-      page.on('request', (request) => { if (request.url().startsWith(`${API}/v1/`)) asked.push(new URL(request.url()).pathname); });
-      await page.goto(`/verify?digest=${DIGEST}`);
-      const main = page.locator('main');
-
-      await expect(main.getByRole('textbox', { name: 'Link or digest' })).toHaveValue(DIGEST);
-      await expect(main.getByLabel('Kind')).toBeVisible();
-      expect(asked.filter((path) => path.startsWith('/v1/resolve/'))).toEqual([]);
-      await main.getByLabel('Kind').selectOption('report');
-      await expect(page).toHaveURL(new RegExp(`/verify/report/${DIGEST}$`));
-      await expect(main.getByText('Verified', { exact: true })).toBeVisible();
-
-      await main.getByRole('tab', { name: 'Document' }).click();
-      await expect(main.getByText('Log in to check a document or a file')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Log in', exact: true })).toHaveAttribute('href', '/login');
-      await main.getByRole('tab', { name: 'File' }).click();
-      await expect(main.getByText('Log in to check a document or a file')).toBeVisible();
-      expect(asked.filter((path) => path.startsWith('/v1/verifier/'))).toEqual([]);
-    });
-
-    test('verify /verify · a verified element with no visible location', async ({ page }, testInfo) => {
-      await mockApi(page, {
-        resolve: json({ ...resolved, locations: [], pagination: { total: 0, limit: 20, offset: 0, has_more: false } }),
-      });
-      await page.goto(`/verify/report/${DIGEST}`);
-      const main = page.locator('main');
-
-      await expect(main.getByText('Verified', { exact: true })).toBeVisible();
-      await expect(main.getByText(/none of the places it lives are visible to you/)).toBeVisible();
-      await expect(main.getByRole('region', { name: 'Locations' })).toContainText('0 visible');
-      await ready(page);
-      await main.getByRole('region', { name: 'Locations' }).screenshot({ path: testInfo.outputPath(`verify-${name}-no-locations.png`), animations: 'disabled', style: HIDE_FLOATING });
-    });
-
-    test('verify /verify · nothing public matches, malformed digest and 503', async ({ page }, testInfo) => {
-      await mockApi(page, { resolve: json({ detail: { code: 'not_found', message: 'Element not found.' } }, 404) });
-      await page.goto(`/verify/report/${DIGEST}`);
-      const main = page.locator('main');
-
-      await expect(main.getByText('Nothing public matches this digest')).toBeVisible();
-      await expect(main.getByText('404 · not_found')).toBeVisible();
-      await expect(main.getByRole('textbox', { name: 'Link or digest' })).toBeVisible();
-      await ready(page);
-      await page.screenshot({ path: testInfo.outputPath(`verify-${name}-not-found.png`), fullPage: true, animations: 'disabled' });
-
-      await page.goto('/verify/report/not-a-digest');
-      await expect(main.getByText('That digest isn’t well formed')).toBeVisible();
-      await expect(main.getByRole('textbox', { name: 'Link or digest' })).toHaveAttribute('aria-invalid', 'true');
-      await page.screenshot({ path: testInfo.outputPath(`verify-${name}-malformed.png`), fullPage: true, animations: 'disabled' });
-
-      await page.route(new RegExp(`${API}/v1/resolve/report/sha256-[0-9a-f]{64}(\\?.*)?$`), json({ detail: { code: 'service_unavailable' } }, 503));
-      await page.goto(`/verify/report/${DIGEST}`);
-      await expect(main.getByText(/Verification is unavailable right now \(HTTP 503\)/)).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Retry' })).toBeVisible();
-      await page.screenshot({ path: testInfo.outputPath(`verify-${name}-unavailable.png`), fullPage: true, animations: 'disabled' });
     });
 
     test('/status is replaced by /about, which holds the service-status note', async ({ page }, testInfo) => {

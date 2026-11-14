@@ -51,21 +51,16 @@ class ApiKeyPermission(str, Enum):
     ENGINES_REGISTER = "engines:register"
     ENGINES_PUBLISH = "engines:publish"
     ENGINES_MODERATE = "engines:moderate"
-    EXTENSIONS_REGISTER = "extensions:register"
-    EXTENSIONS_MODERATE = "extensions:moderate"
     ORGANIZATIONS_READ = "organizations:read"
     ORGANIZATIONS_WRITE = "organizations:write"
     PROJECTS_READ = "projects:read"
     PROJECTS_WRITE = "projects:write"
     STUDIES_READ = "studies:read"
     STUDIES_WRITE = "studies:write"
-    REPORTS_READ = "reports:read"
-    REPORTS_WRITE = "reports:write"
     ARTIFACTS_READ = "artifacts:read"
     ARTIFACTS_WRITE = "artifacts:write"
     NOTIFICATIONS_READ = "notifications:read"
     PRICING_READ = "pricing:read"
-    PRICING_ADMIN = "pricing:admin"
     ADMIN_ACCOUNTS_READ = "admin:accounts:read"
     ADMIN_ACCOUNTS_WRITE = "admin:accounts:write"
 
@@ -74,10 +69,8 @@ ALL_PERMISSIONS = tuple(permission.value for permission in ApiKeyPermission)
 ADMIN_PERMISSIONS = frozenset(
     {
         ApiKeyPermission.ENGINES_MODERATE.value,
-        ApiKeyPermission.EXTENSIONS_MODERATE.value,
         ApiKeyPermission.ADMIN_ACCOUNTS_READ.value,
         ApiKeyPermission.ADMIN_ACCOUNTS_WRITE.value,
-        ApiKeyPermission.PRICING_ADMIN.value,
     }
 )
 ENGINE_LIMITED_PERMISSIONS = frozenset(
@@ -100,16 +93,13 @@ UNCLASSIFIED_ROUTE_PERMISSION = "route:unclassified"
 #: /v1 routes that deliberately need no API-key permission.
 OPEN_V1_PREFIXES = (
     "/v1/auth",
-    "/v1/resolve",
     "/v1/profiles",
-    "/v1/schemas",
     "/v1/examples",
 )
 OPEN_V1_GET_PATHS = frozenset({
     "/v1/dialects",
-    "/v1/resources",
     # The composition language's own description and schema: what the language is, not
-    # anyone's data, so open like /v1/schemas.
+    # anyone's data, so open like /v1/profiles.
     "/v1/compositions/language",
     "/v1/compositions/schema",
 })
@@ -243,7 +233,7 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
     aliases = {
         "organizations": ("org", "organization", "organization_id", "org_id"),
         "projects": ("project", "project_id"),
-        "slugs": ("slug", "case", "collection", "study", "report", "publication", "resource"),
+        "slugs": ("slug", "case", "study", "resource"),
     }
     for field, names in aliases.items():
         allowed = boundary.get(field)
@@ -261,12 +251,9 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "projects": {"project", "projects"},
             "cases": {"case", "cases"},
             "resources": {"resource", "resources"},
-            "collections": {"collection", "collections"},
             "studies": {"study", "studies"},
             "runs": {"run", "runs"},
             "cells": {"cell", "cells"},
-            "reports": {"report", "reports"},
-            "publications": {"publication", "publications"},
             "artifacts": {"artifact", "artifacts"},
             "library": {"artifact", "artifacts"},
             "blobs": {"artifact", "artifacts", "blob", "blobs"},
@@ -384,8 +371,6 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             else {ApiKeyPermission.ACCOUNT_WRITE.value}
         )
     if path.startswith("/v1/admin"):
-        if path.startswith("/v1/admin/pricing"):
-            return frozenset({ApiKeyPermission.PRICING_ADMIN.value})
         return frozenset(
             {ApiKeyPermission.ADMIN_ACCOUNTS_READ.value}
             if method == "GET"
@@ -399,20 +384,12 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             if method == "GET" or path == "/v1/artifacts/resolve"
             else {ApiKeyPermission.ARTIFACTS_WRITE.value}
         )
-    if path.startswith("/v1/explore"):
-        return frozenset({ApiKeyPermission.PROJECTS_READ.value})
     if "/projects" in path:
         if any(token in path for token in ("/studies", "/runs")):
             return frozenset(
                 {ApiKeyPermission.STUDIES_READ.value}
                 if method == "GET"
                 else {ApiKeyPermission.STUDIES_WRITE.value}
-            )
-        if any(token in path for token in ("/reports", "/publications")):
-            return frozenset(
-                {ApiKeyPermission.REPORTS_READ.value}
-                if method == "GET"
-                else {ApiKeyPermission.REPORTS_WRITE.value}
             )
         if "/artifacts" in path:
             return frozenset(
@@ -437,16 +414,8 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         return frozenset({ApiKeyPermission.NOTIFICATIONS_READ.value})
     if path.startswith("/v1/pricing"):
         return frozenset({ApiKeyPermission.PRICING_READ.value})
-    if path.endswith("/approve") or path.endswith("/reject"):
-        if path.startswith("/v1/engine-registrations"):
-            return frozenset({ApiKeyPermission.ENGINES_MODERATE.value})
-        return frozenset({ApiKeyPermission.EXTENSIONS_MODERATE.value})
-    if path == "/v1/dialects" and method == "POST":
-        return frozenset({ApiKeyPermission.EXTENSIONS_REGISTER.value})
-    if path == "/v1/resources" and method == "POST":
-        return frozenset({ApiKeyPermission.EXTENSIONS_REGISTER.value})
-    if path == "/v1/catalog":
-        return frozenset({ApiKeyPermission.ENGINES_READ.value})
+    if path.startswith("/v1/engine-registrations") and (path.endswith("/approve") or path.endswith("/reject")):
+        return frozenset({ApiKeyPermission.ENGINES_MODERATE.value})
     if path.startswith("/v1/engines"):
         return frozenset(
             {ApiKeyPermission.ENGINES_READ.value}
@@ -477,11 +446,9 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         if method == "GET" and path in OPEN_V1_GET_PATHS:
             return frozenset()
         # Comparing two compositions derives a view from documents the caller supplies and
-        # persists nothing, which is the verifier's shape rather than the generator's: the
+        # persists nothing, which is a validator's shape rather than the generator's: the
         # read permission, not the write one. A key still needs it, because deny-by-default
         # under /v1 is the rule and "it only computes" is not an exemption.
-        return frozenset({ApiKeyPermission.INSTANCES_READ.value})
-    if path.startswith("/v1/verifier"):
         return frozenset({ApiKeyPermission.INSTANCES_READ.value})
     if path.startswith("/v1/snapshots"):
         return frozenset({ApiKeyPermission.INSTANCES_READ.value})
@@ -493,6 +460,4 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
 
 
 def _is_open_v1_read(path: str) -> bool:
-    if path in OPEN_V1_GET_PATHS:
-        return True
-    return path.startswith("/v1/resources/") and path.count("/") == 3
+    return path in OPEN_V1_GET_PATHS

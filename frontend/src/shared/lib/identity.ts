@@ -33,10 +33,6 @@ function version(value: Maybe<number | string>): string | null {
   return n === null ? null : `v${n}`;
 }
 
-function count(value: Maybe<number>): number | null {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null;
-}
-
 function utcText(value: string): string {
   if (/T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(value)) return `${value}Z`;
   const spaced = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)$/.exec(value);
@@ -79,19 +75,14 @@ export function problemVersionLabel(input: ProblemVersionInput): string {
   return join([problemHead(problemVersionParts(input), 'problem') ?? 'problem version', sealed === null ? null : `sealed ${sealed}`]);
 }
 
-export interface CollectionVersionInput {
+export interface StudyVersionInput {
   name?: Maybe<string>;
   version?: Maybe<number | string>;
-  problemCount?: Maybe<number>;
 }
 
-/** `QACOBench icws v2 · 12 problems` */
-export function collectionVersionLabel(input: CollectionVersionInput): string {
-  const n = count(input.problemCount);
-  return join([
-    problemHead({ name: text(input.name), version: version(input.version) }, 'collection') ?? 'collection version',
-    n === null ? null : `${n.toLocaleString('en-US')} ${n === 1 ? 'problem' : 'problems'}`,
-  ]);
+/** `engines-vs-suite v2` */
+export function studyVersionLabel(input: StudyVersionInput): string {
+  return problemHead({ name: text(input.name), version: version(input.version) }, 'study') ?? 'study version';
 }
 
 export interface EngineInput {

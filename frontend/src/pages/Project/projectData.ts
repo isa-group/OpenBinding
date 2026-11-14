@@ -1,5 +1,4 @@
 import { platformApi } from '../../api/platform';
-import type { Publication, Report } from '../../api/platform';
 import { latestRun, type CaseContent, type StudyContent } from './projectModel';
 
 /** The cases of a project with their sealed revisions. A case whose revisions can't be read still shows, with none. */
@@ -26,17 +25,4 @@ export async function loadStudies(org: string, project: string, withCells = 0): 
       : undefined;
     return { study, runs, latestCells };
   }));
-}
-
-export interface ReportsContent {
-  reports: Report[];
-  publications: Publication[];
-}
-
-export async function loadReports(org: string, project: string): Promise<ReportsContent> {
-  const [reports, publications] = await Promise.all([
-    platformApi.reports(org, project),
-    platformApi.publications(org, project).catch(() => []),
-  ]);
-  return { reports, publications };
 }

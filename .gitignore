@@ -270,3 +270,5 @@ space/space-src/
 /output/zenodo/*.zip
 /output/zenodo/*.part*
 /output/zenodo/stage-*/
+
+.claude-work/

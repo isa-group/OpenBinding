@@ -9,13 +9,13 @@ import { exactValueText, usageRows } from './usageModel';
 describe('API-key permissions', () => {
   it('offers every permission of the closed set exactly once', () => {
     const listed = PERMISSION_GROUPS.flatMap((group) => group.permissions.map((permission) => permission.id));
-    expect(ALL_PERMISSIONS).toHaveLength(30);
+    expect(ALL_PERMISSIONS).toHaveLength(25);
     expect(new Set(listed).size).toBe(listed.length);
     expect([...listed].sort()).toEqual([...ALL_PERMISSIONS].sort());
   });
 
-  it('locks the five admin-only permissions and none of the presets uses one', () => {
-    expect([...ADMIN_ONLY].sort()).toEqual(['admin:accounts:read', 'admin:accounts:write', 'engines:moderate', 'extensions:moderate', 'pricing:admin']);
+  it('locks the three admin-only permissions and none of the presets uses one', () => {
+    expect([...ADMIN_ONLY].sort()).toEqual(['admin:accounts:read', 'admin:accounts:write', 'engines:moderate']);
     for (const permissions of Object.values(PRESETS)) {
       expect(permissions.some((permission) => ADMIN_ONLY.has(permission))).toBe(false);
     }

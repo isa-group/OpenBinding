@@ -148,7 +148,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
             <div className="org-empty">
               <strong>No projects yet</strong>
               <span>
-                A project groups the problems, runs, studies and reports for one piece of work. Public projects can be found in Explore;
+                A project groups the problems, runs and studies for one piece of work. Anybody can read a public project;
                 private ones are only for members.
               </span>
               {canCreate && <Action to={createAddress(`/app/${slug}`, 'project')} variant="primary" size="sm">Create the first project</Action>}
@@ -225,6 +225,6 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
 export function OrgOverview() {
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <div className="org-page"><PageSkeleton /></div>;
-  if (!organization) return <div className="org-page"><NeutralGate withExplore /></div>;
+  if (!organization) return <div className="org-page"><NeutralGate /></div>;
   return <OrgOverviewBody organization={organization} />;
 }

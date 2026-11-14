@@ -20,7 +20,7 @@ import './AccountKeyNew.css';
 
 const STEPS = ['Name', 'Permissions', 'Engines', 'Limits', 'Review'] as const;
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
-const KIND_SUGGESTIONS = ['jobs', 'studies', 'reports', 'cases', 'artifacts'];
+const KIND_SUGGESTIONS = ['jobs', 'studies', 'cases', 'artifacts'];
 
 type BoundaryKey = 'methods' | 'organizations' | 'projects' | 'resource_kinds' | 'slugs';
 type BoundaryState = Record<BoundaryKey, string[]>;

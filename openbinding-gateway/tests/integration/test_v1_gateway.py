@@ -125,16 +125,13 @@ def _wait_for_job(
 
 
 @pytest.mark.integration
-def test_health_and_v1_catalog_are_available() -> None:
+def test_health_and_v1_profiles_are_available() -> None:
     with httpx.Client(base_url=GATEWAY_URL, timeout=10.0) as client:
         health = client.get("/health")
-        anonymous = client.get("/v1/catalog")
-        catalog = client.get("/v1/catalog", headers=_register_and_login(client))
+        profiles = client.get("/v1/profiles")
     assert health.status_code == 200
-    # The catalog was never anonymous (see tests/test_v1_lifecycle_rbac.py).
-    assert anonymous.status_code == 401, anonymous.text
-    assert catalog.status_code == 200, catalog.text
-    assert catalog.json()["apiVersion"] == "bim/v1"
+    assert profiles.status_code == 200, profiles.text
+    assert any(profile["id"] == "qos-binding/v1" for profile in profiles.json()["profiles"])
 
 
 @pytest.mark.integration

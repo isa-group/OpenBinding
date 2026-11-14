@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-  collectionVersionLabel,
   engineLabel,
   problemVersionLabel,
   publishedResultLabel,
   runLabel,
   studyRunLabel,
+  studyVersionLabel,
 } from './identity';
 
 const SEALED = '2026-08-20T09:30:00Z';
@@ -14,7 +14,7 @@ const ENGINE = { name: 'minizinc-csp', version: '1.1.1', mode: 'exact' };
 const RUN = { number: 14, problem: { name: 'checkout-flow', version: 3 }, engine: ENGINE, createdAt: '2026-10-21T16:05:00Z' };
 const STUDY_RUN = { study: 'engines-vs-suite', number: 3, createdAt: '2026-10-21T08:00:00Z' };
 const PUBLISHED = { title: 'Engines versus the ICWS suite', publishedAt: '2026-10-22T12:00:00Z' };
-const COLLECTION = { name: 'QACOBench icws', version: 2, problemCount: 12 };
+const STUDY_VERSION = { name: 'engines-vs-suite', version: 2 };
 
 const FULL_DIGEST = `sha256-${'a'.repeat(64)}`;
 const SHORT_DIGEST = 'sha256-e5f6…0718';
@@ -29,11 +29,8 @@ describe('identity labels', () => {
     expect(problemVersionLabel(PV)).toBe('checkout-flow v3 · sealed 20 Aug 2026');
   });
 
-  it('collection version, singular and plural', () => {
-    expect(collectionVersionLabel(COLLECTION)).toBe('QACOBench icws v2 · 12 problems');
-    expect(collectionVersionLabel({ ...COLLECTION, problemCount: 1 })).toBe('QACOBench icws v2 · 1 problem');
-    expect(collectionVersionLabel({ ...COLLECTION, problemCount: 0 })).toBe('QACOBench icws v2 · 0 problems');
-    expect(collectionVersionLabel({ ...COLLECTION, problemCount: 1200 })).toBe('QACOBench icws v2 · 1,200 problems');
+  it('study definition version', () => {
+    expect(studyVersionLabel(STUDY_VERSION)).toBe('engines-vs-suite v2');
   });
 
   it('run, study run, published result and engine', () => {
@@ -62,8 +59,8 @@ describe('identity labels', () => {
   });
 
   it('drops missing parts of the other labels', () => {
-    expect(collectionVersionLabel({ ...COLLECTION, problemCount: undefined })).toBe('QACOBench icws v2');
-    expect(collectionVersionLabel({})).toBe('collection version');
+    expect(studyVersionLabel({ ...STUDY_VERSION, version: undefined })).toBe('engines-vs-suite');
+    expect(studyVersionLabel({})).toBe('study version');
     expect(runLabel({ ...RUN, number: undefined })).toBe('run of checkout-flow v3 · minizinc-csp 1.1.1 exact · 21 Oct 2026');
     expect(runLabel({ ...RUN, problem: undefined, engine: { ...ENGINE, mode: undefined } })).toBe('run 14 · minizinc-csp 1.1.1 · 21 Oct 2026');
     expect(runLabel({})).toBe('run');
@@ -113,7 +110,7 @@ describe('identity labels', () => {
     };
     for (const a of texts) for (const n of numbers) for (const d of dates) {
       check(problemVersionLabel({ name: a, version: n, sealedAt: d }));
-      for (const c of numbers) check(collectionVersionLabel({ name: a, version: n, problemCount: c }));
+      check(studyVersionLabel({ name: a, version: n }));
       check(studyRunLabel({ study: a, number: n, createdAt: d }));
       check(publishedResultLabel({ title: a, publishedAt: d }));
       for (const v of texts) for (const m of texts) check(engineLabel({ name: a, version: v, mode: m }));

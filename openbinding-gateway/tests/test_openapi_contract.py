@@ -135,19 +135,12 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/artifacts/{artifact_id}/versions", "get"),
         ("/v1/artifacts/{artifact_id}/versions/{version_id}/content", "get"),
         ("/v1/artifacts/resolve", "post"),
-        ("/v1/resources", "get"),
-        ("/v1/resources/{name}", "get"),
-        ("/v1/schemas/{kind}", "get"),
         ("/v1/examples", "get"),
         ("/v1/examples/{example_path}", "get"),
-        ("/v1/pricing", "get"),
         ("/v1/pricing/catalog", "get"),
         ("/v1/pricing/current", "get"),
-        ("/v1/explore/projects", "get"),
-        ("/v1/explore/publications", "get"),
-        ("/v1/explore/engines", "get"),
-        ("/v1/resolve/{kind}/{digest_value}", "get"),
-        ("/v1/resolve/{kind}/{digest_value}/content", "get"),
+        # The public engine catalogue: a visitor gets the built-in and published Engines.
+        ("/v1/engines", "get"),
         ("/v1/instances/validate", "post"),
         ("/v1/generator/instances", "post"),
         ("/v1/generator/corpus", "post"),
@@ -168,7 +161,7 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/compositions/package", "post"),
         ("/v1/compositions/import", "post"),
         # What the language is, not anyone's data: open even to an API key without
-        # permissions, like /v1/schemas.
+        # permissions, like /v1/profiles.
         ("/v1/compositions/language", "get"),
         ("/v1/compositions/schema", "get"),
     }
@@ -191,8 +184,6 @@ def test_authentication_and_role_requirements_are_explicit(document):
         assert "403" in operation["responses"]
 
     admin_only = {
-        ("/v1/dialects/{name}/approve", "post"),
-        ("/v1/resources/{name}/approve", "post"),
         ("/v1/admin/users", "get"),
         ("/v1/admin/users/{user_id}", "patch"),
         ("/v1/admin/users/{user_id}/plan", "post"),
@@ -292,8 +283,6 @@ def test_engine_registration_contract_describes_private_lifecycle_and_openapi(do
 
 def test_binary_yaml_and_job_inputs_have_their_real_media_types(document):
     paths = document["paths"]
-    pricing = paths["/v1/pricing"]["get"]["responses"]["200"]["content"]
-    assert set(pricing) == {"application/yaml"}
     example = paths["/v1/examples/{example_path}"]["get"]["responses"]["200"]["content"]
     source = paths["/v1/instances/{snapshot_id}/source"]["get"]["responses"]["200"]["content"]
     assert set(example) == set(source) == {"application/vnd.bim+zip"}
@@ -312,7 +301,6 @@ def test_binary_yaml_and_job_inputs_have_their_real_media_types(document):
     [
         ("/v1/profiles", "ProfileList"),
         ("/v1/dialects", "DialectList"),
-        ("/v1/resources", "RegisteredResourceList"),
         ("/v1/examples", "ExampleList"),
     ],
 )

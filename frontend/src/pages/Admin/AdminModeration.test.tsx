@@ -10,7 +10,6 @@ const api = vi.hoisted(() => ({
   getEngineRegistrationReport: vi.fn(),
   adminApproveEngineRegistration: vi.fn(),
   adminRejectEngineRegistration: vi.fn(),
-  adminApproveExtension: vi.fn(),
 }));
 
 vi.mock('../../api/client', async () => ({
@@ -38,7 +37,6 @@ describe('admin-moderation · what waits for a decision', { timeout: 30000 }, ()
     api.getEngineRegistrationReport.mockResolvedValue(REPORT);
     api.adminApproveEngineRegistration.mockResolvedValue({ ...PENDING_ENGINE, status: 'published' });
     api.adminRejectEngineRegistration.mockResolvedValue({ ...PENDING_ENGINE, status: 'private' });
-    api.adminApproveExtension.mockResolvedValue({ namespace: 'maria-santos', name: 'edge-annotations', version: '1.0.0', digest: 'sha256-x', status: 'published' });
   });
 
   afterEach(() => {
@@ -50,7 +48,7 @@ describe('admin-moderation · what waits for a decision', { timeout: 30000 }, ()
     expect(screen.getByRole('heading', { level: 1, name: 'Moderation' })).toBeInTheDocument();
     const tiles = await screen.findByRole('list', { name: 'Waiting for review' });
     expect(within(within(tiles).getByText('Engine requests').closest('div')!).getByText('1')).toBeInTheDocument();
-    expect(within(within(tiles).getByText('Dialects').closest('div')!).getByText('1')).toBeInTheDocument();
+    expect(within(tiles).queryByText('Dialects')).not.toBeInTheDocument();
     expect(within(within(tiles).getByText('Engine revisions').closest('div')!).getByText('0')).toBeInTheDocument();
     expect(await screen.findByRole('listitem', { name: 'maria-santos/edge-solver' })).toBeInTheDocument();
     expect(within(request()).getByText('Waiting for review')).toBeInTheDocument();
@@ -145,46 +143,10 @@ describe('admin-moderation · what waits for a decision', { timeout: 30000 }, ()
 
   it('says when nothing is waiting', async () => {
     api.adminListEngineRegistrations.mockResolvedValue([]);
-    api.adminModeration.mockResolvedValue({ engines: {}, dialects: {}, registrations: {} });
+    api.adminModeration.mockResolvedValue({ engines: {}, registrations: {} });
     renderAdmin(<AdminModeration />);
     expect(await screen.findByText('No engine is waiting for review')).toBeInTheDocument();
-    expect(await screen.findByText(/No dialect is waiting for approval/)).toBeInTheDocument();
-  });
-
-  it('approves a dialect named by its exact revision, after a confirmation, and offers no reject', async () => {
-    renderAdmin(<AdminModeration />);
-    const form = await screen.findByRole('form', { name: 'Approve a dialect or resource' });
-    expect(screen.getByText(/1 dialect revision waiting for approval/)).toBeInTheDocument();
-    const approve = within(form).getByRole('button', { name: 'Approve…' });
-    expect(approve).toBeDisabled();
-    fireEvent.change(within(form).getByLabelText('Namespace'), { target: { value: 'maria-santos' } });
-    fireEvent.change(within(form).getByLabelText('Name'), { target: { value: 'edge-annotations' } });
-    fireEvent.change(within(form).getByLabelText('Version'), { target: { value: '1.0.0' } });
-    expect(approve).toBeDisabled();
-    fireEvent.change(within(form).getByLabelText('Revision'), { target: { value: 'sha256-abc' } });
-    expect(approve).toBeEnabled();
-    fireEvent.click(approve);
-    const dialog = screen.getByRole('dialog', { name: 'Approve dialect maria-santos/edge-annotations@1.0.0?' });
-    expect(api.adminApproveExtension).not.toHaveBeenCalled();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Approve dialect' }));
-    await waitFor(() => expect(api.adminApproveExtension).toHaveBeenCalledWith('dialect', { namespace: 'maria-santos', name: 'edge-annotations', version: '1.0.0', revision: 'sha256-abc' }));
-    expect(await screen.findByText('Dialect maria-santos/edge-annotations@1.0.0 approved and published. Recorded in the audit log.')).toBeInTheDocument();
-    expect(screen.getByText(/there is no reject action for them/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Language extensions' })).toHaveAttribute('href', '/language/extensions');
-  });
-
-  it('says why a resource cannot be approved', async () => {
-    api.adminApproveExtension.mockRejectedValue(refusal(404, 'not_found', 'No such resource revision.'));
-    renderAdmin(<AdminModeration />);
-    const form = await screen.findByRole('form', { name: 'Approve a dialect or resource' });
-    fireEvent.change(within(form).getByLabelText('Kind'), { target: { value: 'resource' } });
-    for (const [label, value] of [['Namespace', 'maria-santos'], ['Name', 'eu-edge-placement'], ['Version', '1.0.0'], ['Revision', 'sha256-abc']]) {
-      fireEvent.change(within(form).getByLabelText(label), { target: { value } });
-    }
-    fireEvent.click(within(form).getByRole('button', { name: 'Approve…' }));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Approve resource' }));
-    expect(await screen.findByText('Not found (404 · not_found)')).toBeInTheDocument();
-    expect(api.adminApproveExtension).toHaveBeenCalledWith('resource', expect.objectContaining({ name: 'eu-edge-placement' }));
+    expect(screen.queryByRole('form', { name: 'Approve a dialect or resource' })).not.toBeInTheDocument();
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {

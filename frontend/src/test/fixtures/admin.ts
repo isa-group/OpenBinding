@@ -118,7 +118,6 @@ export const OVERVIEW: AdminOverview = {
 
 export const MODERATION: AdminModerationOverview = {
   engines: { published: 3, pending_review: 0 },
-  dialects: { published: 2, pending_review: 1 },
   registrations: { private: 2, pending_review: 1 },
 };
 

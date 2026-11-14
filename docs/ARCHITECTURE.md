@@ -18,7 +18,7 @@ Contents: 1 Principles · 2 System context · 3 Containers · 4 Backend · 5 Fro
    SPHERE, CAS, blob storage and mail are adapters; contracts are versioned and tested on both sides.
 4. **Render, never dump.** The frontend renders every domain object with a shared catalogue of components; source
    views are secondary.
-5. **Immutable evidence, named for people and addressed by digest for machines.** Problem and collection versions,
+5. **Immutable evidence, named for people and addressed by digest for machines.** Problem versions,
    compiled forms, runs, study runs and published results are sealed; permanent links and digests make them citable
    and verifiable. Screens name them by name, version number and date; a digest appears only where verifying is the
    task (§5.4).
@@ -34,7 +34,6 @@ Contents: 1 Principles · 2 System context · 3 Containers · 4 Backend · 5 Fro
 flowchart LR
   R([Researcher / curator])
   E([Engine author])
-  X([Extension author])
   A([Platform admin])
   P([Paper reader])
   subgraph OB[OpenBinding]
@@ -45,16 +44,14 @@ flowchart LR
   SPA[(SPACE<br/>space.score.us.es)]
   CAS[(Universidad de Sevilla CAS)]
   FED[(Federated engines)]
-  ADS[(Adapter services)]
   Z[(Zenodo)]
-  R & E & X & A & P --> W --> G
+  R & E & A & P --> W --> G
   R -. API keys, scripts, QACOBench, MCP .-> G
   G -- space-python-client --> SPA
   SPA -- permanent-link sync --> SPH
   G -- public permanent-link API --> SPH
   G -- CAS 3.0 --> CAS
   G -- bim-engine/v1 --> FED
-  G -- bim-adapter/v1 --> ADS
   R -. datasets and artifacts .-> Z
 ```
 
@@ -113,12 +110,12 @@ has the one-shot `pricing-bootstrap`, a separate compose project that prepares t
 |---|---|---|---|
 | `identity` | accounts, sessions, passwords, API keys, external identities (CAS) | `IdentityProvider` (CAS), `Mailer` | `routes/auth.py`, `routes/users.py`, `routes/cas.py`, `cas.py`, `security/*` |
 | `collaboration` | organizations (nested), projects, memberships, roles, invitations, audit, notifications, public read | — | `collaboration.py`, `routes/organizations.py` (org/project/member parts), `repositories/organizations.py`, `access/public_read.py` |
-| `repository` | problems and versions, collections, package import and export, blobs, permanent links of problems and collections, problem metrics, and the versioned-artifact store as internal storage of sealed parts (resources of problem versions, study definitions, execution configurations) | `BimPort`, `BlobStore` | case/collection/blob routes, `services/snapshots.py`, `services/instances.py`, `artifacts.py`; the library as a catalogue (`routes/library.py`, the library and project-resource parts of `routes/artifacts.py`) retires (§4.3) |
-| `language` | profiles, dialects, adapters, schemas, examples, compilation, the extension lifecycle | `BimPort`, `AdapterServicePort` | `integrations/bim*.py`, `services/discovery.py`, dialect/resource/profile routes |
+| `repository` | problems and versions, package import and export, blobs, permanent links of problems, problem metrics, and the versioned-artifact store as internal storage of sealed parts (resources of problem versions, study definitions, execution configurations) | `BimPort`, `BlobStore` | case/blob routes, `services/snapshots.py`, `services/instances.py`, `artifacts.py`; the library as a catalogue (`routes/library.py`, the library and project-resource parts of `routes/artifacts.py`) retires (§4.3) |
+| `language` | profiles, dialects, adapters, schemas, examples, compilation | `BimPort` | `integrations/bim*.py`, `services/discovery.py`, the profile and dialect lists |
 | `engines` | engine revisions, modes and manifests, federated deployments, conformance, capability matching | `EngineTransport` | `services/engines.py`, `services/engine_registry.py`, `services/probe.py`, `v1/remote.py` |
 | `execution` | runs: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood | `EngineTransport`, `BimPort`, `PlanPort` | `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py`, job routes |
 | `laboratory` | studies, study runs, cells, protocol metrics, trade-offs across engines, the generator | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py`, `generator/*`; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
-| `publishing` | published results (a frozen study run or collection version), citations, Zenodo-ready export, permanent-link resolution, Verify | application APIs of `repository` and `laboratory` | publication parts of `reports.py` and its routes, `routes/resolve.py`, `routes/verifier.py`; reports and editions retire |
+| `publishing` | published results (a frozen study run), citations, Zenodo-ready export | application APIs of `repository` and `laboratory` | none: the reports, their publications and Explore were removed in F0a |
 | `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH through CAS) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`; local metering (`domain/usage_counters.py`) retires; sponsor proposals (`sponsor_proposals.py`) were removed by M9.6, and only the caller can become billing sponsor |
 | `administration` | users, queues and engine health, storage and retention, audit, moderation of public content | application APIs of the other modules | `routes/admin.py`, `telemetry.py` |
 | `shared` (kernel) | settings, logging, problem+json errors, pagination, digests, clock, ids, mail | — | `core/*`, `mailer.py`, `security/bodylimit.py` |
@@ -146,10 +143,10 @@ openbinding-gateway/src/openbinding_gateway/
   → `execution` → `engines` | `repository` → `language` → `collaboration` → `identity` → `plans` → `shared`
   (`|` marks independent siblings).
 - External systems only through ports: `BimPort` (exists), `PlanPort`, `PricingSource`, `EngineTransport`,
-  `AdapterServicePort`, `BlobStore`, `IdentityProvider`, `Mailer`, `Clock`.
+  `BlobStore`, `IdentityProvider`, `Mailer`, `Clock`.
 - Patterns: ports and adapters; application services as use-case functions; repositories with a unit of work per
   request (SQLAlchemy session); domain events for side effects; dispatch after commit (exists for runs); strategy
-  for engine transports (built-in, federated) and adapter tiers (§8).
+  for engine transports (built-in, federated).
 - Enforcement: the empty packages `openbinding_gateway/app`, `shared` and `modules` exist, with import-linter
   contracts in `openbinding-gateway/importlinter-modules.ini`: `kernel` (`shared` imports no module, composition
   root or legacy layer), `composition-root` (modules and shared do not import `app`), `no-legacy-http` (modules
@@ -197,7 +194,7 @@ frontend/src/
   pages/      route-level screens; compose widgets and features; no HTTP
   widgets/    composite blocks shared by pages (ProblemHeader, RunResult, StudyResults, TradeOffs, PlanSummary)
   features/   user actions (create-problem-version, launch-run, compare-runs, publish-result, install-extension, change-plan)
-  entities/   read models with their API hooks and small views (problem, version, run, engine, study, collection,
+  entities/   read models with their API hooks and small views (problem, version, run, engine, study,
               published-result, organization, profile, dialect, plan)
   shared/     ui (design system and rendering catalogue §5.3), api (types generated from docs/openapi.json, http,
               problem+json), lib (formatters, including the identity labels of §5.4), config
@@ -209,12 +206,12 @@ types. Enforced with `eslint-plugin-boundaries`.
 
 ### 5.2 Information architecture
 
-- **Public:** Home · Explore (Problems · Collections · Published results) · Engines · Language · Pricing · Verify ·
+- **Public:** Home · Explore (Problems · Published results) · Engines · Language · Pricing · Verify ·
   About · Log in / Sign up.
 - **Signed in:** header with organization/project switcher; Home · Problems · Lab (Runs · Studies · Generator) ·
-  Engines · Language · Admin (administrators); "+ New" (problem, collection, study, run); search; notifications;
+  Engines · Language · Admin (administrators); "+ New" (problem, study, run); search; notifications;
   account menu (Profile · Plan · API keys · Identities · Notifications).
-- **Project:** Overview · Problems · Collections · Runs · Studies · Published · Settings (General · Members).
+- **Project:** Overview · Problems · Runs · Studies · Published · Settings (General · Members).
 - **Problem page (the SPHERE "pricing page" analogue):** header with metrics and version selector; tabs Overview ·
   Runs · Versions · Source · Settings.
 - **Run page:** verdict, engine mode and budget first; then the binding table, QoS against bounds, the objective
@@ -223,7 +220,7 @@ types. Enforced with `eslint-plugin-boundaries`.
 - **Study page:** Setup · Progress · Results (protocol metrics, verdicts, gaps, times, ranking, trade-offs) ·
   Publish.
 - **Published result page:** what was frozen and when, the rendered results and the citation panel.
-- **Screen budget:** at most 45 routed screens. A test counts the route registry, and each user
+- **Screen budget:** at most 40 routed screens. A test counts the route registry, and each user
   journey has a Playwright flow that completes in at most five screens.
 
 ### 5.3 Rendering catalogue
@@ -235,7 +232,7 @@ types. Enforced with `eslint-plugin-boundaries`.
 | `WorkflowGraph` | the compiled workflow (SEQ, AND, XOR with probabilities, LOOP) | problem Overview, version compare |
 | `CandidateMatrix` | tasks × candidates × features, colour scales per feature, intervals as ranges | problem Overview |
 | `ConstraintList`, `ObjectiveView` | bounds, hard/soft, penalties; objective terms, weights, directions | problem Overview, run result |
-| `MetricSmallMultiples` | evolution of problem metrics across versions | problem Versions, collection page |
+| `MetricSmallMultiples` | evolution of problem metrics across versions | problem Versions |
 | `DistributionChart` | feature-value distributions per task or catalog | problem Overview |
 | `BindingTable` | task → candidate → provider with per-feature contributions | run result |
 | `QoSAgainstBounds` | aggregated QoS against constraint bounds | run result |
@@ -251,8 +248,6 @@ types. Enforced with `eslint-plugin-boundaries`.
 | `FeatureGate` | UI gated by plan (`space-react-client` `<Feature>`) | anywhere a feature depends on the plan |
 | `PlanUsage` | features and limits of the user's subscription from the pricing token | Plan, dashboards |
 | `SourceView` | read-only code viewer with copy and download | only in Source tabs |
-| `CitationPanel` | permanent link, citation (BibTeX, CSL-JSON) and the one copyable digest | problem, collection and published-result pages |
-| `VerifyResult` | what a permanent link, a digest or a file resolves to, and whether it matches | Verify |
 
 Charts use Recharts (already a dependency). A hygiene test forbids rendering `JSON.stringify` output or `<pre>`
 outside `SourceView` and `LogPanel`, and digest-shaped text outside the components that §5.4 allows.
@@ -264,14 +259,13 @@ People read names, machines read digests.
 | Thing | Shown as | Not shown |
 |---|---|---|
 | Problem version | `checkout-flow` v3 · sealed 20 Aug 2026 | content or version digests |
-| Collection version | `QACOBench icws` v2 · 12 problems | digests, member fingerprints |
 | Run | run 14 of `checkout-flow` v3 · `minizinc-csp` 1.1.1 exact · 21 Oct 2026 | job UUID, request digest |
 | Study run | `engines-vs-suite` run 3 · 21 Oct 2026 | matrix or cell fingerprints |
 | Published result | its title · published 22 Oct 2026 | edition fingerprint |
 | Engine | `minizinc-csp` 1.1.1 · mode exact | manifest digest |
 
-The API keeps every digest. `CitationPanel`, `VerifyResult` and export manifests are the only places that show one,
-as a single value with a copy button; `SourceView` shows files as they are. UUIDs never appear in UI text; URLs
+The API keeps every digest. Export manifests are the only places that show one, as a single value with a copy
+button; `SourceView` shows files as they are. UUIDs never appear in UI text; URLs
 use permanent ids or slugs. The hygiene test fails on a digest-shaped string (`sha256-` or 40/64 hexadecimal
 characters) or a UUID rendered anywhere else.
 
@@ -285,9 +279,6 @@ classDiagram
   Project "1" --> "*" Problem
   Problem "1" --> "*" ProblemVersion
   ProblemVersion "1" --> "1" CompiledForm
-  Project "1" --> "*" Collection
-  Collection "1" --> "*" CollectionVersion
-  CollectionVersion "*" --> "*" ProblemVersion : ordered members
   Engine "1" --> "*" EngineRevision
   EngineRevision "1" --> "*" Mode
   EngineDeployment "*" --> "1" EngineRevision
@@ -298,7 +289,6 @@ classDiagram
   StudyRun "1" --> "*" Cell
   Cell "1" --> "0..1" Run
   PublishedResult "*" --> "0..1" StudyRun : freezes
-  PublishedResult "*" --> "0..1" CollectionVersion : freezes
   Profile "*" --> "0..1" Profile : extends
   Dialect "*" --> "*" Profile : compatible with
   Account "1" --> "1" Plan : SPACE contract
@@ -309,7 +299,7 @@ and its IR), Run = `Job`, Result = job result plus re-evaluation, PublishedResul
 record (no report, no editions). A problem version's resources are sealed parts in the internal versioned-artifact
 store, addressed by digest; there is no component catalogue. Every sealed entity has a content digest
 that the API returns and Verify checks;
-screens name it as §5.4 says. Permanent links address problems, collections and published results independently of
+screens name it as §5.4 says. Permanent links address problems and published results independently of
 slugs.
 
 ## 7. Key flows
@@ -359,7 +349,7 @@ sequenceDiagram
 
 ### 7.3 Study
 
-A study selects collections or problem versions, engine modes, parameter sets and seeds. A study run expands the
+A study selects problem versions, engine modes, parameter sets and seeds. A study run expands the
 matrix into cells, each one a run with frozen inputs; cells retry independently. Analytics read only re-evaluated
 results and compute the QACOBench protocol metrics: coverage (processable over submitted), conditional binding
 yield (binding-returning over processable), gap to the certified optimum, verdict reconciliation (an UNSAT proof
@@ -369,7 +359,7 @@ harness keeps working against the public API; the study is the same protocol ins
 
 ### 7.4 Publish a result
 
-`Publish` freezes a finished study run or a collection version. The gateway seals the exact problem versions, engine
+`Publish` freezes a finished study run. The gateway seals the exact problem versions, engine
 revisions, budgets, seeds and computed metrics into a published result with a permanent link, a digest and a
 citation, and offers a Zenodo-ready export (results as CSV and JSON plus a manifest with every digest). A published
 result is never edited: a correction is a new published result that names the one it corrects, and withdrawal hides
@@ -380,10 +370,6 @@ in the paper.
 
 See §9.
 
-### 7.6 Language extension lifecycle
-
-See §8.4.
-
 ## 8. Language extensibility
 
 ### 8.1 Layers
@@ -393,8 +379,7 @@ See §8.4.
 | BIM core | envelope, `Instance`, role-indexed resources, references, digests, provenance | BIM MAJOR/MINOR release only |
 | Profile | a problem family: roles and cardinalities, resource types per role, output IR schema, capability vocabulary, limit vocabulary, evaluation semantics, adapter; **may extend one other profile** | new profile version |
 | Dialect | a concrete syntax for resources of one or more profiles (media type, schema or XML root), lowered to the profile's canonical resource types or to declared extension points | new dialect version |
-| Adapter | the lowering (and, for profiles, compile hooks and evaluator plug-ins) | tier 0, 1 or 2 (§8.3) |
-| Extension package | a digest-addressed bundle: manifests, schemas, adapter descriptor, golden examples, documentation | submitted and reviewed (§8.4) |
+| Adapter | the lowering (and, for profiles, compile hooks and evaluator plug-ins) | new BIM release (§8.3) |
 
 ### 8.2 Profiles that extend profiles
 
@@ -422,25 +407,13 @@ A pricing-aware profile (candidates as subscriptions; iPricings plus expected co
 as in CLASP and PACO) is the next candidate. A domain that fits the core without new semantics — quantum resource
 selection — needs no extension at all: it is plain BIM data.
 
-### 8.3 Adapter tiers
+### 8.3 Adapters
 
-| Tier | What it is | Who can install | Safety |
-|---|---|---|---|
-| 0 Built-in | reviewed Python in `bim-toolchain` (qos-binding, placement, BPMN) | ships with a BIM release | code review, goldens, consumer contracts |
-| 1 Declarative | a mapping document evaluated by bim-core's sandboxed transform engine (BIM Expression IR plus structural mapping); no code | organization admins for their organization; platform admins publicly | total and bounded (size, steps, time); double lowering must match byte for byte |
-| 2 Adapter service | an HTTP service implementing `bim-adapter/v1` (`GET /manifest`, `GET /health`, `POST /lower`) | platform admins | registered and verified like a federated engine: destination policy, authentication, determinism probes; outputs cached by input digest and stored with the compiled form |
+Every adapter is built in: reviewed Python in `bim-toolchain` (qos-binding, placement, BPMN), shipped with a BIM
+release and guarded by code review, goldens and consumer contracts. The gateway keeps no registry of dialects or
+resources and takes no submissions: what it compiles is what the installed `bim-toolchain` release ships.
 
-BPMN stays tier 0 but is packaged and installed through the same lifecycle, as the reference for third-party
-dialects.
-
-### 8.4 Lifecycle
-
-`draft → submitted → checked → approved → installed → deprecated → retired`, per exact version. Checking runs schema
-validation, the golden examples, double lowering, and for tier 2 the conformance probes. A deprecated version still
-compiles existing problem versions and is not offered for new ones; a version used by a sealed or cited problem
-version is never retired. Approval in production is an owner decision.
-
-### 8.5 Language API
+### 8.4 Language API
 
 | Operation | Purpose |
 |---|---|
@@ -449,19 +422,18 @@ version is never retired. Approval in production is an owner decision.
 | `GET /v1/language/dialects` (same shape) | dialects |
 | `GET /v1/language/schemas/{kind}` | schemas (download) |
 | `POST /v1/language/compile` | compile a package or an exact problem version: diagnostics, summary metrics, compatible engine modes |
-| `POST /v1/language/extensions`, `GET .../extensions`, `GET .../extensions/{id}` | submit an extension package and follow its checks |
-| `POST /v1/language/extensions/{id}/{approve,reject,deprecate,retire}` | administer the lifecycle |
-| `POST /v1/language/adapter-services` and `.../{name}/{activate,deactivate}` | register tier 2 deployments |
 
-The current `/v1/profiles`, `/v1/dialects`, `/v1/resources`, `/v1/schemas/{kind}`, `/v1/catalog`, `/v1/examples`
-and `/v1/validate` stay as aliases without `Deprecation` or `Sunset` headers (the deprecation middleware was removed
-in M9.6); only `GET /v1/pricing` is still marked deprecated.
+Today the gateway serves `GET /v1/profiles` and `GET /v1/dialects` (the installed contracts, read by the home page
+and the engine registration form), `/v1/examples` and `/v1/validate`, without `Deprecation` or `Sunset` headers (the
+deprecation middleware was removed in M9.6). The registry routes (`POST /v1/dialects`, `/v1/resources`, their
+approvals), `/v1/schemas/{kind}`, `/v1/catalog` and the deprecated pricing YAML proxy `GET /v1/pricing` were removed in
+F0a.
 
-### 8.6 Developer kit
+### 8.5 Developer kit
 
 `bim-toolchain` ships a `bim-ext` command: `new` (scaffold a dialect or profile), `test` (schemas, golden examples,
-double lowering), `pack` (extension package and digest) and `submit` (to a platform with an API key), plus a template
-repository and a how-to in `docs/`.
+double lowering) and `pack` (extension package and digest), plus a template repository and a how-to in `docs/`. A
+dialect reaches the gateway in a `bim-toolchain` release, never through an upload.
 
 ## 9. Plans: SPACE and SPHERE
 
@@ -571,7 +543,7 @@ remote SPACE and its routes are unverified until the first live run of the one-s
 
 | Data | Where | Retention |
 |---|---|---|
-| Sealed problem and collection versions, compiled forms, published results | PostgreSQL + blob store | permanent; withdrawal hides, never deletes |
+| Sealed problem versions, compiled forms, published results | PostgreSQL + blob store | permanent; withdrawal hides, never deletes |
 | Sealed parts in the versioned-artifact store (resources, study definitions, execution configurations) | PostgreSQL + blob store | permanent while a sealed version, a study run or a run references them |
 | Drafts | PostgreSQL | until deleted; owner notified after 180 idle days |
 | Runs and results | PostgreSQL + blob store | permanent while part of a study run or a published result; otherwise 365 days |

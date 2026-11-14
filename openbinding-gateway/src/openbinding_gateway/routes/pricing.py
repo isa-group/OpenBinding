@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends
 
 from ..core.public_errors import PUBLISHED_PRICING_UNAVAILABLE, pricing_unavailable_error
 from ..core.settings import Settings, get_settings
@@ -54,22 +54,6 @@ async def _published(settings: Settings) -> PublishedPricing:
 async def current_pricing(settings: Settings = Depends(get_settings)) -> PricingCurrentView:
     value = await _published(settings)
     return PricingCurrentView(version=value.version, digest=value.digest, url=value.url)
-
-
-@public_router.get(
-    "",
-    deprecated=True,
-    operation_id="getPricingDocument",
-    response_class=Response,
-    responses={200: {"content": {"application/yaml": {"schema": {"type": "string"}}}}},
-)
-async def proxy_current_pricing(settings: Settings = Depends(get_settings)) -> Response:
-    value = await _published(settings)
-    return Response(
-        value.content,
-        media_type="application/yaml",
-        headers={"ETag": f'"{value.digest}"', "Cache-Control": "public, max-age=300"},
-    )
 
 
 @public_router.get("/catalog", operation_id="getPricingCatalog")

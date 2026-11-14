@@ -25,11 +25,11 @@ blindly copied from an unmerged branch.
 
 | SPHERE capability | Decision | OpenBinding interpretation |
 |---|---|---|
-| Public shell, Explore and dashboards | Adapt | A binding observatory centred on projects, cases, studies, engines and reproducible activity |
+| Public shell and dashboards | Adapt | A binding observatory centred on projects, cases, studies, engines and reproducible activity |
 | Organizations and teams | Extend | Arbitrarily nested organizations, inherited roles, invitations, sponsors and unique-member accounting |
 | Pricings and immutable versions | Adapt (revised) | Immutable BIM/case revisions in the user platform. Pricing lifecycle: not in OpenBinding; it lives in the remote SPHERE/SPACE consoles and is read-only here (see below) |
-| Public/private resources | Adapt | Unified Resolver (`/v1/resolve/{kind}/{digest}`) with offset pagination and privacy guarantees (see [RESOLVER_AND_VERIFIER.md](RESOLVER_AND_VERIFIER.md)); project, case, artifact, report and publication visibility |
-| Collections | Redesign | Ordered, versioned curation of immutable references; collections never execute work |
+| Public/private resources | Adapt | Project, case and artifact visibility |
+| Collections | Exclude | Removed in F0a: a study selects its case revisions directly |
 | Configuration-space analysis | Redesign | Feasibility, Pareto, convergence, objectives, runtime, stability and cross-engine comparison |
 | HARVEY assistant | Exclude/replace | Deterministic diagnostic actions and documentation links; no LLM dependency or fabricated result |
 | API keys and entity permissions | Extend | Closed capabilities plus optional method, organization, project, resource slug and exact-engine reductions |
@@ -39,7 +39,7 @@ blindly copied from an unmerged branch.
 | Team, Research and Funding pages | Adapt | Verified people, publications, grants, projects and reproducibility links stored as reviewed Git data |
 | MongoDB | Exclude | PostgreSQL remains the only operational source of truth |
 | Local YAML storage | Limit | Fixtures and portable packages only (`space/pricing/openbinding.yml`); never the live operational pricing |
-| Public file URLs | Harden | Content resolution via `/v1/resolve/{kind}/{digest}/content` with ETag/immutable cache for public items and `private, no-store` for authenticated assets |
+| Public file URLs | Harden | File downloads with ETag/immutable cache for public items and `private, no-store` for authenticated assets |
 | Direct database administration | Constrain | Local-only Adminer profile plus audited safe maintenance endpoints |
 | Simulated payment | Exclude | `Contact us / Institutional agreement`; no checkout or fictitious transactions |
 
@@ -49,11 +49,11 @@ SPHERE's pricing comparison becomes a **study**: a reproducible Cartesian
 product of case revisions, exact engine revisions, parameter sets and seeds.
 Every cell freezes its inputs, can be retried independently and contributes to
 aggregate analysis only after its canonical result is reevaluated by
-OpenBinding. A collection may seed a study, but does not become one.
+OpenBinding. A study selects its case revisions directly.
 
 SPHERE's version catalogue becomes the provenance spine for BIM resources:
 revisions are immutable and content-addressed, mutable aliases are short-lived,
-and published reports cite exact BIM, dialect, engine, dataset and parameter
+and runs and studies pin exact BIM, dialect, engine, dataset and parameter
 digests. This preserves the existing package → validation → dialect/profile →
 IR → engine → reevaluation pipeline instead of wrapping it in a second solver.
 
@@ -84,14 +84,12 @@ development service is a different service from the production one, but both sit
 inside the *same organizations*. A shared organization does not isolate
 credentials, so a development key is high-risk (see the README).
 
-**Code that predates this decision.** The gateway still contains modules from
-the earlier pricing-release workflow: `routes/pricing.py` (it imports
-`SpaceDeploymentClient`; its public `GET /v1/pricing` is marked deprecated and
-the admin router exposes at least `POST /v1/admin/pricing/validate`),
-`space_client/deployments.py`, and the contract-renewal and drained-release
-sweeps that `jobs/reconciler.py` calls (`access/contracts.py`). I did not
-trace which of these remain reachable. Removing them is **pending work**, not
-something this document promises.
+**Code that predates this decision.** The earlier pricing-release workflow is
+gone from the gateway: there is no `SpaceDeploymentClient`, no
+`space_client/deployments.py`, no admin pricing route and no `pricing:admin`
+API-key permission, and the deprecated YAML proxy `GET /v1/pricing` was removed.
+`routes/pricing.py` serves only `GET /v1/pricing/catalog` and
+`GET /v1/pricing/current`, which the public Pricing page reads.
 
 SPHERE's static-file route does not authenticate the content URL even when a
 version is private in its catalogue. “Private” therefore means catalogue and

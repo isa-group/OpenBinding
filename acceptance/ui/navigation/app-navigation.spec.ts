@@ -4,8 +4,8 @@ import { PROBLEMS, RUNS_ALL, RUN_NEW, current, entry, expectInOrder, menuScope, 
 test.use({ viewport: { width: 1280, height: 800 } });
 
 const PUBLIC_LINKS: Array<[string, string]> = [
-  ['Home', '/'], ['Explore', '/explore'], ['Engines', '/engines'], ['Language', '/language'], ['Pricing', '/pricing'],
-  ['Verify', '/verify'], ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
+  ['Home', '/'], ['Engines', '/engines'], ['Pricing', '/pricing'],
+  ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
 ];
 
 const banner = (page: Page) => page.getByRole('banner');
@@ -16,17 +16,17 @@ async function signedIn(page: Page, path: string, role: Role = 'user', projects?
   await expect(banner(page)).toBeVisible();
 }
 
-test('public header lists the nine links in order with their addresses and marks the current one', async ({ page }) => {
+test('public header lists the six links in order with their addresses and marks the current one', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/pricing');
   const links = PUBLIC_LINKS.map(([name]) => entry(banner(page), name));
   await expectInOrder(links);
   for (const [index, [, href]] of PUBLIC_LINKS.entries()) await expect(links[index]).toHaveAttribute('href', href);
-  await expect(links[4]).toHaveAttribute('aria-current', 'page');
+  await expect(links[2]).toHaveAttribute('aria-current', 'page');
 });
 
-test('phone menu lists the same nine links in the same order', async ({ page }) => {
+test('phone menu lists the same six links in the same order', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
@@ -37,8 +37,8 @@ test('phone menu lists the same nine links in the same order', async ({ page }) 
 test('public header has no link or menu of the former header', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.goto('/');
-  await expect(entry(banner(page), 'Explore')).toBeVisible();
-  for (const name of ['Profiles & dialects', 'Schemas', 'Examples', 'Workbench']) {
+  await expect(entry(banner(page), 'Engines')).toBeVisible();
+  for (const name of ['Explore', 'Language', 'Profiles & dialects', 'Schemas', 'Examples', 'Workbench']) {
     await expect(banner(page).getByRole('link', { name, exact: true })).toHaveCount(0);
     await expect(banner(page).getByRole('button', { name, exact: true })).toHaveCount(0);
   }
@@ -49,7 +49,7 @@ test('application header lists its entries with a current project and a Lab menu
   const header = banner(page);
   await expectInOrder([
     entry(header, 'Home'), entry(header, 'Problems'), header.getByRole('button', { name: 'Lab' }),
-    entry(header, 'Engines'), entry(header, 'Language'), entry(header, 'Admin'),
+    entry(header, 'Engines'), entry(header, 'Admin'),
   ]);
   await expect(entry(header, 'Problems')).toHaveAttribute('href', PROBLEMS);
   await expect(entry(header, 'Problems')).toHaveAttribute('aria-current', 'page');
@@ -84,18 +84,17 @@ test('a person whose role is user sees no Admin entry', async ({ page }) => {
 test('application header has none of the former entries', async ({ page }) => {
   await signedIn(page, '/app', 'admin');
   await expect(entry(banner(page), 'Home')).toBeVisible();
-  for (const name of ['Jobs', 'Explore', 'Tools', 'Verifier', 'Engine catalog']) {
+  for (const name of ['Jobs', 'Explore', 'Tools', 'Verifier', 'Engine catalog', 'Language']) {
     await expect(banner(page).getByRole('link', { name, exact: true })).toHaveCount(0);
     await expect(banner(page).getByRole('button', { name, exact: true })).toHaveCount(0);
   }
 });
 
-test('New menu offers Problem, Collection, Study and Run in the current project', async ({ page }) => {
+test('New menu offers Problem, Study and Run in the current project', async ({ page }) => {
   await signedIn(page, '/app/acme/demo');
   await banner(page).getByRole('button', { name: 'New', exact: true }).click();
   const items: Array<[string, string]> = [
-    ['Problem', `${PROBLEMS}?create=problem`], ['Collection', '/app/acme/demo/collections?create=collection'],
-    ['Study', '/app/acme/demo/studies/new'], ['Run', RUN_NEW],
+    ['Problem', `${PROBLEMS}?create=problem`], ['Study', '/app/acme/demo/studies/new'], ['Run', RUN_NEW],
   ];
   await expectInOrder(items.map(([name]) => entry(menuScope(page), name)));
   for (const [name, href] of items) await expect(entry(menuScope(page), name)).toHaveAttribute('href', href);
@@ -104,7 +103,7 @@ test('New menu offers Problem, Collection, Study and Run in the current project'
 test('New menu items are disabled with a hint without a current project', async ({ page }) => {
   await signedIn(page, '/app', 'user', []);
   await banner(page).getByRole('button', { name: 'New', exact: true }).click();
-  for (const name of ['Problem', 'Collection', 'Study', 'Run']) {
+  for (const name of ['Problem', 'Study', 'Run']) {
     const item = menuScope(page).getByText(name, { exact: true }).last();
     await expect(item).toHaveAttribute('aria-disabled', 'true');
     await expect(item).toHaveAccessibleDescription(/Needs a project/);

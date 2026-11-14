@@ -60,8 +60,8 @@ const engine = { ...engineRef, id: 'bim.builtin/random-search', ref: engineRef, 
 
 const reader = {
   id: 'k1', name: 'ci-lectura-resultados', prefix: 'obk_demo0001', created_at: '2026-09-01T00:00:00Z', last_used_at: '2026-10-08T00:00:00Z',
-  expires_at: '2099-12-31T00:00:00Z', permissions: ['jobs:read', 'projects:read', 'reports:read', 'studies:read'], engine_access: { all: true, engines: [] },
-  boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['jobs', 'studies', 'reports'], slugs: null },
+  expires_at: '2099-12-31T00:00:00Z', permissions: ['jobs:read', 'projects:read', 'studies:read'], engine_access: { all: true, engines: [] },
+  boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['jobs', 'studies'], slugs: null },
 };
 const runner = {
   id: 'k2', name: 'ejecucion-engine-fijo', prefix: 'obk_demo0002', created_at: '2026-09-10T00:00:00Z', last_used_at: null, expires_at: null,
@@ -470,7 +470,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(first.getByText('created Sep 1, 2026')).toBeVisible();
       await expect(first.getByText('last used Oct 8, 2026')).toBeVisible();
       await expect(first.getByText('expires Dec 31, 2099')).toBeVisible();
-      for (const label of ['GET only', 'org isa-demo', 'project qos-benchmarks', 'jobs, studies, reports']) await expect(first.getByText(label, { exact: true })).toBeVisible();
+      for (const label of ['GET only', 'org isa-demo', 'project qos-benchmarks', 'jobs, studies']) await expect(first.getByText(label, { exact: true })).toBeVisible();
       await expect(first.getByText('All engines, including future ones')).toBeVisible();
       const second = main.getByRole('article', { name: 'ejecucion-engine-fijo' });
       await expect(second.getByText('Only bim.builtin/random-search@1.0.0', { exact: true })).toBeVisible();
@@ -557,7 +557,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         await main.getByLabel('Name').fill('ci-nightly');
         await next();
         await expect(main.getByRole('heading', { name: 'Permissions' })).toBeVisible();
-        await expect(main.getByText('Only global administrators can grant this.')).toHaveCount(5);
+        await expect(main.getByText('Only global administrators can grant this.')).toHaveCount(3);
         await capture(page, testInfo, `keynew-${name}-2-permissions`);
         expect(critical).toEqual([]);
         return;
@@ -569,13 +569,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByLabel('Expires').selectOption('30');
       await next();
 
-      // The five admin-only permissions are locked with a reason, so nothing implies an admin key from the browser.
+      // The three admin-only permissions are locked with a reason, so nothing implies an admin key from the browser.
       await expect(main.getByRole('heading', { name: 'Permissions' })).toBeVisible();
-      await expect(main.getByRole('checkbox')).toHaveCount(30);
-      for (const id of ['engines:moderate', 'extensions:moderate', 'pricing:admin', 'admin:accounts:read', 'admin:accounts:write']) {
+      await expect(main.getByRole('checkbox')).toHaveCount(27);
+      for (const id of ['engines:moderate', 'admin:accounts:read', 'admin:accounts:write']) {
         await expect(main.getByRole('checkbox', { name: new RegExp(`^${id}`) })).toBeDisabled();
       }
-      await expect(main.getByText('Only global administrators can grant this.')).toHaveCount(5);
+      await expect(main.getByText('Only global administrators can grant this.')).toHaveCount(3);
       await expect(main.getByText(/Permissions marked ADMIN are only granted to global administrators/)).toBeVisible();
       await next();
       await expect(main.getByRole('alert')).toContainText('Choose at least one permission.');
@@ -660,12 +660,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await main.getByLabel('Name').fill('admin-audit-reader');
       await main.getByRole('button', { name: 'Continue' }).click();
-      await expect(main.getByRole('checkbox')).toHaveCount(30);
-      for (const id of ['engines:moderate', 'pricing:admin', 'admin:accounts:read']) {
+      await expect(main.getByRole('checkbox')).toHaveCount(27);
+      for (const id of ['engines:moderate', 'admin:accounts:read']) {
         await expect(main.getByRole('checkbox', { name: new RegExp(`^${id}`) })).toBeEnabled();
       }
       await expect(main.getByText('Only global administrators can grant this.')).toHaveCount(0);
-      await expect(main.getByText('ADMIN', { exact: true })).toHaveCount(5);
+      await expect(main.getByText('ADMIN', { exact: true })).toHaveCount(4);
       await main.getByRole('checkbox', { name: /^admin:accounts:read/ }).check();
       await capture(page, testInfo, `keynew-${name}-admin`);
     });

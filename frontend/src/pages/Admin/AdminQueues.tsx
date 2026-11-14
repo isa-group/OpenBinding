@@ -9,8 +9,8 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { formatDateTime } from '../../utils/format';
 import { formatDuration } from '../../utils/limits';
 import { useResource } from '../../utils/useResource';
-import { AdminFrame, AdminOnly, FailureNotice, Meter, Tag } from './AdminChrome';
-import { ageLabel, ageSeconds, count, describeAdminFailure, shortId } from './adminModel';
+import { AdminFrame, FailureNotice, Meter, Tag } from './AdminChrome';
+import { ageLabel, ageSeconds, count, describeAdminFailure, overviewSectionPath, shortId } from './adminModel';
 
 const STATES = [
   { id: 'queued', label: 'Queued', tone: 'muted' },
@@ -22,7 +22,8 @@ const STATES = [
 
 const REFRESH_MS = 10_000;
 
-function QueuesScreen() {
+/** The queues section of admin-overview: jobs by state and the oldest ones still waiting or running. */
+export function QueuesSection() {
   const [live, setLive] = useState(false);
   const queues = useResource('admin-queues', async () => ({ status: await apiClient.adminQueues(), at: Date.now() }));
   const reload = queues.reload;
@@ -57,7 +58,7 @@ function QueuesScreen() {
       actions={(
         <>
           <Action variant="secondary" onClick={reload} busy={queues.status === 'loading' && Boolean(data)}><RefreshCw aria-hidden="true" />Refresh</Action>
-          <Action variant="secondary" to="/app/admin/maintenance">Go to maintenance</Action>
+          <Action variant="secondary" to={overviewSectionPath('maintenance')}>Go to maintenance</Action>
         </>
       )}
     >
@@ -88,7 +89,7 @@ function QueuesScreen() {
             <Notice
               tone="warning"
               title={overdue.length === 1 ? 'One run has gone far past its time budget' : `${overdue.length} runs have gone far past their time budget`}
-              action={<Action size="sm" variant="primary" to="/app/admin/maintenance">Reconcile abandoned runs</Action>}
+              action={<Action size="sm" variant="primary" to={overviewSectionPath('maintenance')}>Reconcile abandoned runs</Action>}
             >
               {overdue.length === 1
                 ? `A ${overdue[0].engine} run asked for ${formatDuration(overdue[0].budgetSeconds)} and has been ${overdue[0].state} for ${ageLabel(overdue[0].createdAt, now)}. It may be abandoned.`
@@ -140,9 +141,4 @@ function QueuesScreen() {
       )}
     </AdminFrame>
   );
-}
-
-/** admin-queues: jobs by state and the oldest ones still waiting or running. */
-export function AdminQueues() {
-  return <AdminOnly><QueuesScreen /></AdminOnly>;
 }

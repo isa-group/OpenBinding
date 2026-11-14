@@ -15,7 +15,6 @@ export interface MenuEntry {
   hint?: string;
 }
 
-const COLLECTIONS_SEGMENT = 'collections';
 const STUDIES_SEGMENT = 'studies';
 
 export const NEEDS_PROJECT = 'Needs a project';
@@ -23,14 +22,13 @@ export const NEEDS_PROJECT = 'Needs a project';
 const under = (pathname: string, root: string) => pathname === root || pathname.startsWith(`${root}/`);
 const sameSegment = (segment: string | undefined, ...names: string[]) => segment !== undefined && names.includes(segment);
 
-export type MainSection = 'home' | 'problems' | 'lab' | 'engines' | 'language' | 'admin' | null;
+export type MainSection = 'home' | 'problems' | 'lab' | 'engines' | 'admin' | null;
 export type LabEntryId = 'runs' | 'studies' | 'generator';
 
 /** The entries of the header that do not depend on the current project. */
 export const mainLinks = {
   home: { to: '/app', label: 'Home' },
   engines: { to: '/engines', label: 'Engines' },
-  language: { to: '/language', label: 'Language' },
   admin: { to: '/app/admin', label: 'Admin' },
 } as const satisfies Record<string, NavLinkItem>;
 
@@ -69,21 +67,20 @@ export function labEntries(organization?: Organization, project?: Project): Arra
   ];
 }
 
-/** Entries of the "New" menu: always these four, in the current project. */
+/** Entries of the "New" menu: always these three, in the current project. */
 export function createItems(organization?: Organization, project?: Project): MenuEntry[] {
   const root = projectRoot(organization, project);
   return [
     inProject('Problem', root, `/${PROBLEMS_SEGMENT}?create=problem`),
-    inProject('Collection', root, `/${COLLECTIONS_SEGMENT}?create=collection`),
     inProject('Study', root, `/${STUDIES_SEGMENT}/new`),
     inProject('Run', root, `/${RUNS_SEGMENT}/new`),
   ];
 }
 
 /** The first segments under `/app` that name a place of their own, not an organization. */
-const APP_PLACES = new Set(['admin', RUNS_SEGMENT, 'jobs', 'generator', 'engines', 'language', 'account', 'system', 'verifier', 'analysis', 'organizations']);
+const APP_PLACES = new Set(['admin', RUNS_SEGMENT, 'jobs', 'generator', 'engines', 'account', 'analysis', 'organizations']);
 /** Of those, the places that belong to no entry of the header. */
-const UNMARKED_PLACES = new Set(['account', 'system', 'verifier', 'analysis']);
+const UNMARKED_PLACES = new Set(['account', 'analysis']);
 /** `/app/:org/…` screens that belong to the organization, not to one of its projects. */
 const ORGANIZATION_SCREENS = new Set(['settings', 'new-project']);
 
@@ -116,7 +113,6 @@ export function currentSection(pathname: string): MainSection {
   if (under(pathname, mainLinks.admin.to)) return 'admin';
   if (labEntryOf(pathname)) return 'lab';
   if (under(pathname, '/app/engines') || under(pathname, mainLinks.engines.to)) return 'engines';
-  if (under(pathname, '/app/language') || under(pathname, mainLinks.language.to)) return 'language';
   const [root, place] = pathname.split('/').filter(Boolean);
   if (root !== 'app' || UNMARKED_PLACES.has(place)) return null;
   if (sameSegment(projectSegment(pathname), PROBLEMS_SEGMENT)) return 'problems';

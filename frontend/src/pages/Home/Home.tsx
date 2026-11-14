@@ -1,21 +1,17 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { ArrowRight, ArrowUpRight, Boxes, Braces, Check, Info, Network, Search, ServerCog, ShieldCheck, User, Waypoints } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Boxes, Braces, Check, Info, Network, ServerCog, ShieldCheck, User, Waypoints } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiClient, HttpError, SESSION_ENDED_EVENT } from '../../api/client';
-import { platformApi } from '../../api/platform';
 import { Button } from '../../components/ui/Button';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { PRICING_VERSION, planSummaries } from '../../content/plans';
 import { useAuth } from '../../contexts/auth';
 import { useResource, type Resource } from '../../utils/useResource';
-import { projectItems, publicationItems } from '../Public/exploreModel';
 import {
   COMPATIBILITY_GATE, EXTENSION_ROUTES, LAYERS, PIPELINE, WORKFLOW_OPTIONS, type WorkflowOption,
 } from './homeContent';
 import './Home.css';
-
-const RECENT_LIMIT = 3;
 
 function Eyebrow({ children }: { children: string }) {
   return <span className="home-eyebrow">{children}</span>;
@@ -60,7 +56,7 @@ export function Home() {
         )}
         <Hero signedIn={signedIn} name={user?.username ?? ''} plan={user?.plan ?? ''} runtime={runtime} />
         <Pipeline />
-        <RecentlyPublic />
+        <PublicEngines />
         <Plans />
         <ExtendingBim executableProfiles={runtime.data?.profiles ?? 0} />
       </div>
@@ -81,7 +77,7 @@ function Hero({ signedIn, name, plan, runtime }: { signedIn: boolean; name: stri
       </h1>
       <p className="home-lede">
         OpenBinding validates BIM v1 service-composition packages, compiles them into a binding problem and re-evaluates every
-        binding an engine returns, so results can be compared, published and verified by digest.
+        binding an engine returns, so results can be compared and verified by digest.
       </p>
       <div className="home-cards">
         <Link to="/workbench" viewTransition className="home-card">
@@ -89,10 +85,10 @@ function Hero({ signedIn, name, plan, runtime }: { signedIn: boolean; name: stri
           <strong>Validate a package</strong>
           <span>No account needed. Upload a .bim.zip and get localized diagnostics and digests. Nothing is executed.</span>
         </Link>
-        <Link to="/explore" viewTransition className="home-card">
-          <span className="home-card-top"><span className="home-card-icon"><Search aria-hidden="true" /></span><span className="home-card-go" aria-hidden="true">↗</span></span>
-          <strong>Explore published results</strong>
-          <span>Public projects, frozen report editions and engines, each one verifiable by its SHA-256 digest.</span>
+        <Link to="/engines" viewTransition className="home-card">
+          <span className="home-card-top"><span className="home-card-icon"><ServerCog aria-hidden="true" /></span><span className="home-card-go" aria-hidden="true">↗</span></span>
+          <strong>Browse the engines</strong>
+          <span>The engines anyone can run, each one an exact revision with its modes and SHA-256 digest.</span>
         </Link>
         {signedIn ? (
           <Link to="/app" viewTransition className="home-card is-accent">
@@ -104,13 +100,12 @@ function Hero({ signedIn, name, plan, runtime }: { signedIn: boolean; name: stri
           <Link to="/register" viewTransition className="home-card is-accent">
             <span className="home-card-top"><span className="home-card-icon"><User aria-hidden="true" /></span><span className="home-card-go is-filled" aria-hidden="true">↗</span></span>
             <strong>Create an account</strong>
-            <span>Start on BASIC: compose problems, run engines and publish studies. Verified Universidad de Sevilla accounts can get RESEARCH.</span>
+            <span>Start on BASIC: compose problems, run engines and compare them in studies. Verified Universidad de Sevilla accounts can get RESEARCH.</span>
           </Link>
         )}
       </div>
       <div className="home-quick">
-        <Link to="/explore/examples" viewTransition className="link-arrow">Learn with an example <ArrowRight aria-hidden="true" /></Link>
-        <Link to="/language" viewTransition className="link-arrow">Explore extensibility <ArrowRight aria-hidden="true" /></Link>
+        <Link to="/workbench" viewTransition className="link-arrow">Learn with an example <ArrowRight aria-hidden="true" /></Link>
         <div className="home-runtime" role="status" aria-label="Runtime catalogue status">
           {counts ? (
             <>
@@ -183,86 +178,53 @@ function Pipeline() {
   );
 }
 
-function RecentlyPublic() {
-  const publications = useResource('home-publications', () => platformApi.publicPublications());
-  const projects = useResource('home-projects', () => platformApi.publicProjects());
+function PublicEngines() {
   const engines = useResource('home-engines', () => apiClient.getPublicEngines());
-  const resources = [publications, projects, engines];
-
-  const loading = resources.some((resource) => resource.status === 'loading');
-  const failed = publications.status === 'error' && projects.status === 'error';
-  const reload = () => resources.forEach((resource) => { if (resource.status === 'error') resource.reload(); });
-
-  const publicationCards = publicationItems(publications.data ?? [], projects.data ?? []).slice(0, RECENT_LIMIT);
-  const projectCards = projectItems(projects.data ?? [], publications.data ?? null).slice(0, RECENT_LIMIT);
   const engineList = engines.data ?? [];
   const engineNames = [...new Set(engineList.map((engine) => engine.name))];
   const namespaces = [...new Set(engineList.map((engine) => engine.namespace))];
   const versions = [...new Set(engineList.map((engine) => engine.version))];
-  const empty = publicationCards.length === 0 && projectCards.length === 0 && engineList.length === 0;
 
   return (
     <section aria-labelledby="home-recent-title" className="home-section">
       <div className="home-section-head">
         <div>
-          <Eyebrow>Recently public</Eyebrow>
-          <h2 id="home-recent-title">Published results and public projects</h2>
+          <Eyebrow>Public engines</Eyebrow>
+          <h2 id="home-recent-title">Engines anyone can run</h2>
         </div>
-        <Link to="/explore" viewTransition>View all in Explore</Link>
+        <Link to="/engines" viewTransition>All engines</Link>
       </div>
-      <div aria-live="polite" aria-busy={loading}>
-        {loading && (
+      <div aria-live="polite" aria-busy={engines.status === 'loading'}>
+        {engines.status === 'loading' && (
           <>
-            <div className="home-recent"><Skeleton /><Skeleton /><Skeleton /></div>
-            <span className="sr-only">Loading recent published results</span>
+            <div className="home-recent"><Skeleton /></div>
+            <span className="sr-only">Loading the public engines</span>
           </>
         )}
-        {!loading && failed && (
-          <Notice tone="error" action={<Button size="sm" variant="secondary" onClick={reload}>Retry</Button>}>
-            Recent published results couldn’t be loaded ({publications.error instanceof HttpError ? `HTTP ${publications.error.status}` : 'the gateway can’t be reached'}).
+        {engines.status === 'error' && (
+          <Notice tone="error" action={<Button size="sm" variant="secondary" onClick={engines.reload}>Retry</Button>}>
+            The public engines couldn’t be loaded ({engines.error instanceof HttpError ? `HTTP ${engines.error.status}` : 'the gateway can’t be reached'}).
             The rest of the page still works.
           </Notice>
         )}
-        {!loading && !failed && empty && (
+        {engines.status === 'ready' && engineList.length === 0 && (
           <div className="home-empty">
             <Network aria-hidden="true" />
-            <strong>Nothing has been published yet</strong>
-            <span>When a team freezes a report and publishes it, it appears here with its citation and digest. Meanwhile, the language guide explains what a package contains.</span>
-            <Link to="/language">Read the language guide</Link>
+            <strong>No public engines yet</strong>
+            <span>An engine appears here once it is published. Meanwhile, the Workbench shows what a package contains.</span>
+            <Link to="/workbench">Open the Workbench</Link>
           </div>
         )}
-        {!loading && !failed && !empty && (
+        {engines.status === 'ready' && engineList.length > 0 && (
           <ul className="home-recent">
-            {publicationCards.map((item) => (
-              <li key={item.id}>
-                <Link to={item.digest ? `/resolve/report/${item.digest}` : '/explore?tab=publications'} viewTransition className="home-recent-card">
-                  <span className="home-recent-meta"><span className="home-tile" aria-hidden="true">{item.glyph}</span>{item.meta}</span>
-                  <strong>{item.title}</strong>
-                  <span className="home-recent-sub">{item.sub}</span>
-                  <span className="home-recent-chips">{[...item.chips, 'Public'].map((chip) => <span key={chip}>{chip}</span>)}</span>
-                </Link>
-              </li>
-            ))}
-            {projectCards.map((item) => (
-              <li key={item.id}>
-                <Link to="/explore?tab=projects" viewTransition className="home-recent-card">
-                  <span className="home-recent-meta"><span className="home-tile" aria-hidden="true">{item.glyph}</span>{item.meta}</span>
-                  <strong>{item.title}</strong>
-                  <span className="home-recent-sub">{item.sub}</span>
-                  <span className="home-recent-chips">{item.chips.map((chip) => <span key={chip}>{chip}</span>)}</span>
-                </Link>
-              </li>
-            ))}
-            {engineList.length > 0 && (
-              <li>
-                <Link to="/engines" viewTransition className="home-recent-card">
-                  <span className="home-recent-meta">Public engines</span>
-                  <strong>{engineList.length} public engine revision{engineList.length === 1 ? '' : 's'}</strong>
-                  <span className="home-recent-sub is-mono">{engineNames.join(' · ')}</span>
-                  <span className="home-recent-chips">{[...namespaces, ...versions.map((version) => `v${version}`)].map((chip) => <span key={chip}>{chip}</span>)}</span>
-                </Link>
-              </li>
-            )}
+            <li>
+              <Link to="/engines" viewTransition className="home-recent-card">
+                <span className="home-recent-meta">Public engines</span>
+                <strong>{engineList.length} public engine revision{engineList.length === 1 ? '' : 's'}</strong>
+                <span className="home-recent-sub is-mono">{engineNames.join(' · ')}</span>
+                <span className="home-recent-chips">{[...namespaces, ...versions.map((version) => `v${version}`)].map((chip) => <span key={chip}>{chip}</span>)}</span>
+              </Link>
+            </li>
           </ul>
         )}
       </div>

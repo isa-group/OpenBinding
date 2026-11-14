@@ -189,10 +189,8 @@ describe('internal links written in the code', () => {
   });
 
   it('resolve to a screen of routes/areas, or to a permanent moved address', () => {
-    // Where one `${…}` stands for more than one segment: the engine slug of a resolved location is `namespace/name`.
-    const composed = new Set(['/engines/${slug}/${location.version_or_revision}']);
     const lost = staticLinks()
-      .filter(({ address }) => !composed.has(address) && !matchRoutes(config, pathOf(address)))
+      .filter(({ address }) => !matchRoutes(config, pathOf(address)))
       .map(({ file, line, address }) => `${file}:${line}: ${address}`);
     expect(lost, 'links to an address that no screen and no permanent moved address answers').toEqual([]);
   });
@@ -324,7 +322,7 @@ describe('the scan for retired addresses', () => {
     it('does not report look-alikes, the addresses that replace the retired ones or the endpoints of the API client', () => {
       const source = [
         "const a = '/app/acme/libraryx';",
-        'const b = `${root}/collections`;',
+        'const b = `${root}/studies`;',
         'const c = `/app/${org}/${project}/files`;',
         'const d = `/app/${slug}`;',
         'const f = `${root}/resourcesx`;',
@@ -415,9 +413,9 @@ describe('the scan for retired addresses', () => {
     expect(retiredAddresses(application, ['/app/:org/:project/reports', '/app/:org/:project/reports/:report'])).toEqual([]);
   });
 
-  it('finds none in the application sources, for the library catalogue and the project resources', () => {
+  it('finds none in the application sources, for the library catalogue', () => {
     const library = RETIRED_ROUTES.filter((route) => route.slice === 3).map((route) => route.path);
-    expect(library).toHaveLength(7);
+    expect(library).toHaveLength(4);
     expect(retiredAddresses(application, library)).toEqual([]);
   });
 
@@ -482,8 +480,4 @@ describe('the scan for retired addresses', () => {
     expect(found, 'links to a moved address that is not permanent: point them at the new address').toEqual([]);
   });
 
-  it('keeps the report endpoints of the API client, which no scan may flag', () => {
-    expect(application['src/api/platform.ts']).toContain('${root(org, project)}/reports');
-    expect(retiredAddresses({ 'src/api/platform.ts': application['src/api/platform.ts'] }, ['/app/:org/:project/reports', '/app/:org/:project/reports/:report'])).toEqual([]);
-  });
 });

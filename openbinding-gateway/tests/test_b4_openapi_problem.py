@@ -114,7 +114,7 @@ def test_the_published_pricing_is_served_read_only(document):
     pricing_paths = {
         path: item for path, item in document["paths"].items() if path.startswith("/v1/pricing")
     }
-    assert set(pricing_paths) == {"/v1/pricing", "/v1/pricing/catalog", "/v1/pricing/current"}
+    assert set(pricing_paths) == {"/v1/pricing/catalog", "/v1/pricing/current"}
     for path, item in pricing_paths.items():
         assert set(item) == {"get"}, path
         assert "503" in item["get"]["responses"], path

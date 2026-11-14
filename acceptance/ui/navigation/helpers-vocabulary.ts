@@ -1,6 +1,6 @@
-import { expect, type Locator, type Page, type Route } from '@playwright/test';
+import { type Page, type Route } from '@playwright/test';
 import { API, mockApi, type MockOptions, type Recorded } from './helpers';
-import { PROBLEM_SLUG, selectorOf } from './helpers-problems';
+import { PROBLEM_SLUG } from './helpers-problems';
 
 // Mocks and locators of the vocabulary acceptance specs. There is no backend: the API origin is answered by page.route();
 // routes added here win over the catch-all of mockApi() because they are registered later.
@@ -14,8 +14,6 @@ export const RUNS_ALL_FINAL = '/app/runs';
 
 export const API_CASES = '/v1/organizations/acme/projects/demo/cases';
 export const API_JOBS = '/v1/organizations/acme/projects/demo/jobs';
-
-export const VERIFY_DIGEST = `sha256-${'1'.repeat(64)}`;
 
 const NOW = '2026-09-01T00:00:00Z';
 
@@ -53,9 +51,7 @@ export async function mockGateway(page: Page, options: MockOptions = {}): Promis
   await answer(page, API_CASES, [problem]);
   await answer(page, `${API_CASES}/${PROBLEM_SLUG}`, problem);
   await answer(page, API_JOBS, []);
-  await answer(page, '/v1/organizations/acme/projects/demo/collections', []);
   await answer(page, '/v1/organizations/acme/projects/demo/studies', []);
-  await answer(page, '/v1/organizations/acme/projects/demo/publications', []);
   return { writes, gets };
 }
 
@@ -102,25 +98,4 @@ export async function forbiddenText(page: Page, screen: string, words: RegExp = 
     return hits;
   }, { exempt: EXEMPT, source: words.source, flags: words.flags.replace('g', '') });
   return found.map((text) => `${screen}: "${text}"`);
-}
-
-// ---- the Verify kind selector -----------------------------------------------------------------------------------
-
-/**
- * What the kind selector offers for the kind `case-revision`: the text of its option. A native selector is read by the
- * option value; a listbox is opened and read through the one option that reads `Problem version` or still names a case.
- */
-export async function kindOptionText(page: Page, kind: string): Promise<string | null> {
-  const selector: Locator = selectorOf(page, /kind/i);
-  await expect(selector, 'the kind selector is shown').toBeVisible();
-  if (await selector.evaluate((element) => element.tagName === 'SELECT')) {
-    return selector.evaluate((element, wanted) => {
-      const option = Array.from((element as HTMLSelectElement).options).find((candidate) => candidate.value === wanted);
-      return option ? (option.textContent ?? '').trim() : null;
-    }, kind);
-  }
-  await selector.click();
-  const option = page.getByRole('option', { name: /problem version|case.?revision/i }).first();
-  await option.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined);
-  return (await option.isVisible()) ? ((await option.textContent()) ?? '').trim() : null;
 }

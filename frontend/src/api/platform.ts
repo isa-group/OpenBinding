@@ -128,31 +128,6 @@ export interface ProjectResourceRevision {
   created_at: string;
 }
 
-export interface CollectionItem {
-  target_kind: 'case' | 'resource' | 'result' | 'report';
-  target_digest: string;
-  target_ref: Record<string, unknown>;
-}
-
-export interface Collection {
-  id: string;
-  project_id: string;
-  slug: string;
-  name: string;
-  description: string;
-  created_by_id: string;
-  created_at: string;
-}
-
-export interface CollectionRevision {
-  id: string;
-  collection_id: string;
-  revision: number;
-  digest: string;
-  items: CollectionItem[];
-  created_at: string;
-}
-
 export interface StoredBlob {
   id: string;
   organization_id: string;
@@ -163,33 +138,6 @@ export interface StoredBlob {
   public: boolean;
   expires_at: string | null;
   created_at: string;
-}
-
-export interface Report {
-  artifact_id: string;
-  version_id: string | null;
-  draft_id: string | null;
-  draft_revision: number | null;
-  id: string;
-  project_id: string;
-  study_run_id: string | null;
-  slug: string;
-  title: string;
-  document: Record<string, unknown>;
-  digest: string;
-  state: 'draft' | 'frozen';
-  created_at: string;
-}
-
-export interface Publication {
-  version_id: string;
-  withdrawn: boolean;
-  id: string;
-  project_id: string;
-  report_id: string;
-  slug: string;
-  citation: Record<string, unknown>;
-  published_at: string;
 }
 
 /** One engine of a study definition: the pinned revision, the mode and the optimization the gateway requires of each. */
@@ -213,7 +161,6 @@ export interface Study {
   description: string;
   definition: {
     case_revision_ids: string[];
-    collection_version_id?: string;
     engines: StudyEngine[];
     parameter_sets: Array<Record<string, unknown>>;
     seeds: number[];
@@ -487,39 +434,11 @@ export const platformApi = {
     apiClient.request<ProjectResourceRevision[]>(
       `${root(org, project)}/resources/${encodeURIComponent(resource)}/revisions`,
     ),
-  collections: (org: string, project: string) =>
-    apiClient.request<Collection[]>(`${root(org, project)}/collections`),
-  /** One collection by its address. 404 whether it is missing or not in this project. */
-  collection: (org: string, project: string, collection: string) =>
-    apiClient.request<Collection>(`${root(org, project)}/collections/${encodeURIComponent(collection)}`, {}, undefined, true, true),
-  /** Needs MEMBER. 402 when the sponsor has no collection left, 409 `slug_conflict`, 422 for an invalid address or name. */
-  createCollection: (org: string, project: string, value: { slug: string; name: string; description: string }) =>
-    apiClient.request<Collection>(`${root(org, project)}/collections`, {
-      method: 'POST', body: JSON.stringify(value),
-    }, undefined, true, true),
-  /** Needs MEMBER. */
-  updateCollection: (org: string, project: string, collection: string, value: { name?: string; description?: string }) =>
-    apiClient.request<Collection>(`${root(org, project)}/collections/${encodeURIComponent(collection)}`, {
-      method: 'PATCH', body: JSON.stringify(value),
-    }, undefined, true, true),
-  /** Needs ADMIN. Takes the collection out of the project; what it pointed to is untouched. */
-  deleteCollection: (org: string, project: string, collection: string) =>
-    apiClient.request<void>(`${root(org, project)}/collections/${encodeURIComponent(collection)}`, { method: 'DELETE' }, undefined, true, true),
-  collectionRevisions: (org: string, project: string, collection: string) =>
-    apiClient.request<CollectionRevision[]>(`${root(org, project)}/collections/${encodeURIComponent(collection)}/revisions`),
-  /**
-   * Needs MEMBER. Only `case` and `resource` items are accepted. 422 for a repeated target (`a collection revision cannot repeat a target`),
-   * `invalid_collection_target`, `collection_target_mismatch` (the pinned fingerprint is not the target's) and `unsupported_collection_target`.
-   */
-  createCollectionRevision: (org: string, project: string, collection: string, items: CollectionItem[]) =>
-    apiClient.request<CollectionRevision>(`${root(org, project)}/collections/${encodeURIComponent(collection)}/revisions`, {
-      method: 'POST', body: JSON.stringify({ items }),
-    }, undefined, true, true),
   studies: (org: string, project: string, includeArchived = false) =>
     apiClient.request<Study[]>(`${root(org, project)}/studies?include_archived=${includeArchived}`),
   /**
    * Needs MEMBER. 402 `quota_exceeded` when the sponsor has no study definition left, 403 `api_key_engine_forbidden`, 409 `slug_conflict`,
-   * 422 for an empty or foreign selection (`empty_study_cases`, `foreign_case_revision`, `unavailable_collection`) or a matrix over 10,000 cells (`study_matrix_too_large`).
+   * 422 for an empty or foreign selection (`empty_study_cases`, `foreign_case_revision`) or a matrix over 10,000 cells (`study_matrix_too_large`).
    */
   createStudy: (org: string, project: string, value: Pick<Study, 'slug' | 'name' | 'description'> & ({ definition: Study['definition'] } | { definition_version_id: string })) =>
     apiClient.request<Study>(`${root(org, project)}/studies`, {
@@ -533,14 +452,6 @@ export const platformApi = {
   /** Needs ADMIN. 409 `study_history_retained` once the study has runs: archive it instead. */
   deleteStudy: (org: string, project: string, study: string) =>
     apiClient.request<void>(`${root(org, project)}/studies/${encodeURIComponent(study)}`, { method: 'DELETE' }, undefined, true, true),
-  reports: (org: string, project: string) =>
-    apiClient.request<Report[]>(`${root(org, project)}/reports`),
-  /** Withdrawn publications are listed too: `withdrawn` says which. */
-  publications: (org: string, project: string) =>
-    apiClient.request<Publication[]>(`${root(org, project)}/publications`),
-  /** Needs ADMIN. This withdraws: the publication, its link, citation and fingerprint stay; it only leaves the listings. */
-  deletePublication: (org: string, project: string, publication: string) =>
-    apiClient.request<void>(`${root(org, project)}/publications/${encodeURIComponent(publication)}`, { method: 'DELETE' }, undefined, true, true),
   /** The project's files (content-addressed blobs), newest first. VIEWER can read. */
   artifacts: (org: string, project: string) =>
     apiClient.request<StoredBlob[]>(`${root(org, project)}/blobs`),
@@ -607,162 +518,22 @@ export const platformApi = {
       `${root(org, project)}/studies/${encodeURIComponent(study)}/runs?definition_version_id=${encodeURIComponent(version)}`,
       { method: 'POST' }, undefined, true, true,
     ),
-  /** Needs MEMBER. 409 `sealed_evidence` when a sealed report cites the run, 409 `terminal_run` once it ended. */
+  /** Needs MEMBER. 409 `terminal_run` once it ended. */
   cancelStudyRun: (org: string, project: string, study: string, run: string) =>
     apiClient.request<StudyRun>(
       `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cancel`,
       { method: 'POST' }, undefined, true, true,
     ),
-  /** Needs MEMBER. Only failed or cancelled cells: 409 `cell_not_retryable` otherwise, 409 `sealed_evidence`, 422 when the cell can't be launched again. */
+  /** Needs MEMBER. Only failed or cancelled cells: 409 `cell_not_retryable` otherwise, 422 when the cell can't be launched again. */
   retryStudyCell: (org: string, project: string, study: string, run: string, cell: string) =>
     apiClient.request<StudyCellRetry>(
       `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells/${encodeURIComponent(cell)}/retry`,
       { method: 'POST' }, undefined, true, true,
     ),
-  /** Needs MEMBER. Attaches a finished job of the caller as the cell's result: 404 for a job that isn't theirs, 409 `job_not_finished`, 409 `sealed_evidence`. */
+  /** Needs MEMBER. Attaches a finished job of the caller as the cell's result: 404 for a job that isn't theirs, 409 `job_not_finished`. */
   attachStudyCellResult: (org: string, project: string, study: string, run: string, cell: string, jobId: string) =>
     apiClient.request<StudyCellAttached>(
       `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells/${encodeURIComponent(cell)}/result`,
       { method: 'POST', body: JSON.stringify({ job_id: jobId }) }, undefined, true, true,
     ),
-  publicProjects: () => apiClient.request<Array<{
-    organization: { slug: string; name: string };
-    project: { slug: string; name: string; description: string };
-  }>>('/v1/explore/projects'),
-  publicPublications: () => apiClient.request<PublicPublication[]>('/v1/explore/publications'),
-  /** `POST /v1/verifier/inspect` with the request the contract defines (`digest`, `document`). A 422 throws; 401 ends the session. */
-  verifierCheck: (payload: VerifierCheckRequest) =>
-    apiClient.request<VerifierVerdict>('/v1/verifier/inspect', {
-      method: 'POST', body: JSON.stringify(payload),
-    }, undefined, true, true),
-  /** `POST /v1/verifier/inspect-file`: the raw bytes of a file, hashed by the gateway. 413 when the file is too large, 422 for a refused body. */
-  verifierCheckFile: (file: Blob, filename: string) =>
-    apiClient.request<VerifierVerdict>('/v1/verifier/inspect-file', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/octet-stream', 'X-Filename': encodeURIComponent(filename) },
-      body: file,
-    }, undefined, true, true),
-  /** A 422 (a fingerprint that is not one) is a result here: the screen words it from the body ({@link asResolved}). */
-  resolveElement: (kind: string, digest: string, limit = 20, offset = 0) =>
-    apiClient.request<ResolveResponse>(
-      `/v1/resolve/${encodeURIComponent(kind)}/${encodeURIComponent(digest)}?limit=${limit}&offset=${offset}`,
-      { method: 'GET' }, undefined, true, false,
-    ),
-  resolveContentUrl: (kind: string, digest: string) =>
-    `/v1/resolve/${encodeURIComponent(kind)}/${encodeURIComponent(digest)}/content`,
-  /** The raw bytes of a resolved element, fetched with the caller's session so private content stays private. */
-  resolveContent: (kind: string, digest: string) =>
-    apiClient.requestBinary(`/v1/resolve/${encodeURIComponent(kind)}/${encodeURIComponent(digest)}/content`),
 };
-
-/**
- * One row of GET /v1/explore/publications. Only public, non-withdrawn publications are listed; the
- * organization and project are slugs, and `citation` is whatever the publisher recorded, so every field is optional.
- */
-export interface PublicPublication {
-  slug?: string;
-  citation?: Record<string, unknown> | null;
-  report?: { title?: string; digest?: string; version_id?: string } | null;
-  project?: string;
-  organization?: string;
-  publishedAt?: string | null;
-  [key: string]: unknown;
-}
-
-export interface ResolveOrganizationRef {
-  id: string;
-  slug: string;
-  name: string;
-}
-
-export interface ResolveProjectRef {
-  id: string;
-  slug: string;
-  name: string;
-  visibility: string;
-}
-
-export interface ResolveAuthorRef {
-  id: string;
-  username?: string | null;
-  email?: string | null;
-}
-
-export interface ResolveLocation {
-  organization?: ResolveOrganizationRef | null;
-  project?: ResolveProjectRef | null;
-  element_id: string;
-  slug?: string | null;
-  version_or_revision?: string | number | null;
-  created_at?: string | null;
-  web_url?: string | null;
-}
-
-export interface ResolvePagination {
-  total: number;
-  limit: number;
-  offset: number;
-  has_more: boolean;
-}
-
-export interface ResolveResponse {
-  verified: boolean;
-  kind: string;
-  digest: string;
-  canonical_name?: string | null;
-  media_type: string;
-  size_bytes?: number | null;
-  created_at?: string | null;
-  author?: ResolveAuthorRef | null;
-  document?: Record<string, unknown> | unknown[] | null;
-  content_url: string;
-  locations: ResolveLocation[];
-  pagination: ResolvePagination;
-  citation?: ReplicationCitation | null;
-}
-
-export interface ReplicationCitation {
-  title?: string;
-  authors?: string[];
-  year?: number;
-  doi?: string | null;
-  venue?: string | null;
-  url?: string | null;
-  bibtex: string;
-  markdown_badge: string;
-  uri?: string;
-}
-
-/** What `POST /v1/verifier/inspect` accepts (`VerifierInspectRequest` of the contract): a digest, a document, or both to compare them. */
-export interface VerifierCheckRequest {
-  digest?: string | null;
-  document?: unknown;
-  kind?: string | null;
-  entity_id?: string | null;
-}
-
-export type VerifierStatus = 'verified' | 'computed' | 'mismatch' | 'not_found';
-
-/** One element the gateway recorded with the fingerprint (`VerifierEntityMatch`). `entity_type` is `case`, `snapshot`, `collection`, `report`, `artifact`, `engine` or `study_run`. */
-export interface VerifierEntity {
-  entity_type: string;
-  id: string;
-  slug?: string | null;
-  title_or_name?: string | null;
-  organization_slug?: string | null;
-  project_slug?: string | null;
-  revision?: number | null;
-  created_at?: string | null;
-}
-
-/** The answer of the verifier (`VerifierInspectResponse` of the contract). */
-export interface VerifierVerdict {
-  status: VerifierStatus;
-  digest: string;
-  matches: boolean;
-  verified_at: string;
-  detail?: string | null;
-  canonical_json?: string | null;
-  entities?: VerifierEntity[];
-  citation?: ReplicationCitation | null;
-}

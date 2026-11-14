@@ -11,7 +11,7 @@ import {
 
 const NOT_AVAILABLE = 'The compiled problem of this run is not available, so tasks and candidates are shown by id, without feature values, bounds or units.';
 
-const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), caseRevisions: vi.fn(), snapshotArchive: vi.fn(), publicProjects: vi.fn() }));
+const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), caseRevisions: vi.fn(), snapshotArchive: vi.fn() }));
 const client = vi.hoisted(() => ({
   getBimExamples: vi.fn(), getBimExamplePackage: vi.fn(), createBimJob: vi.fn(), createConfiguredBimJob: vi.fn(),
   getV1Job: vi.fn(), getOwnUsage: vi.fn(), getPricingCatalog: vi.fn(),
@@ -71,7 +71,6 @@ describe('Workbench', () => {
     platform.project.mockResolvedValue(qos);
     platform.cases.mockResolvedValue([checkout]);
     platform.caseRevisions.mockResolvedValue([r1, r2]);
-    platform.publicProjects.mockResolvedValue([]);
     client.getBimExamples.mockResolvedValue(['demo/01_simple_seq']);
     client.getOwnUsage.mockResolvedValue({
       plan: 'RESEARCH', capabilities: { maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: 20 }, features: {}, contract_pending: false,
@@ -107,7 +106,6 @@ describe('Workbench', () => {
       await openWorkbench();
       fireEvent.click(screen.getByRole('tab', { name: 'Example' }));
       expect(await screen.findByRole('option', { name: 'demo/01_simple_seq' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Examples' })).toHaveAttribute('href', '/explore/examples');
     });
 
     it('keeps the package import control keyboard-focusable', async () => {

@@ -1,6 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, Code2 } from 'lucide-react';
+import { Code2 } from 'lucide-react';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
@@ -63,7 +62,6 @@ export function PackageEditor({ wb }: { wb: Workbench }) {
                 )))}
             </section>
           ))}
-          <Link className="wb-index-link" to="/explore/examples" viewTransition>Browse guided examples <ArrowRight aria-hidden="true" /></Link>
         </nav>
 
         <div className="wb-editor-main">

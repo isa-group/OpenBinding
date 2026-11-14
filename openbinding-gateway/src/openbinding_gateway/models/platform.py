@@ -204,26 +204,6 @@ class ProjectResourceRevisionView(BaseModel):
     created_at: datetime
 
 
-class CollectionCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    slug: str = Field(..., pattern=SLUG)
-    name: str = Field(..., min_length=1, max_length=160)
-    description: str = Field(default="", max_length=2000)
-
-
-class CollectionUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    name: Optional[str] = Field(default=None, min_length=1, max_length=160)
-    description: Optional[str] = Field(default=None, max_length=2000)
-
-
-class CollectionView(CollectionCreate):
-    id: uuid.UUID
-    project_id: uuid.UUID
-    created_by_id: uuid.UUID
-    created_at: datetime
-
-
 class CompositionCreate(BaseModel):
     """A composition's identity, which is what a reader cites and a fork takes a copy of."""
 
@@ -248,7 +228,7 @@ class CompositionVersionCreate(BaseModel):
     """One sealed version, from the source the author wrote.
 
     ``version`` is the label a reader cites. Left out, the ordinal is used, which is what
-    the collection library does; given, it has to be free, because a label that already
+    the versioned library does; given, it has to be free, because a label that already
     names different content would make two different compositions answer to one name.
     """
 
@@ -290,34 +270,6 @@ class CompositionVersionView(BaseModel):
     created_at: datetime
 
 
-class CollectionItemInput(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    target_kind: Literal["case", "resource", "result", "report"]
-    target_digest: str = Field(..., pattern=DIGEST)
-    target_ref: dict[str, Any]
-
-
-class CollectionRevisionCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    items: list[CollectionItemInput] = Field(..., max_length=1000)
-
-    @model_validator(mode="after")
-    def unique_targets(self):
-        identities = {(item.target_kind, item.target_digest) for item in self.items}
-        if len(identities) != len(self.items):
-            raise ValueError("a collection revision cannot repeat a target")
-        return self
-
-
-class CollectionRevisionView(BaseModel):
-    id: uuid.UUID
-    collection_id: uuid.UUID
-    revision: int
-    digest: str
-    items: list[CollectionItemInput]
-    created_at: datetime
-
-
 class StudyDefinition(BaseModel):
     """The reproducible Cartesian product behind a comparative study."""
 
@@ -326,12 +278,11 @@ class StudyDefinition(BaseModel):
     engines: list[dict[str, Any]] = Field(..., min_length=1, max_length=50)
     parameter_sets: list[dict[str, Any]] = Field(default_factory=lambda: [{}], min_length=1, max_length=100)
     seeds: list[int] = Field(default_factory=lambda: [0], min_length=1, max_length=100)
-    collection_version_id: Optional[uuid.UUID] = None
 
     @model_validator(mode="after")
     def bounded_matrix(self):
-        if not self.case_revision_ids and self.collection_version_id is None:
-            raise ValueError("provide case_revision_ids or collection_version_id")
+        if not self.case_revision_ids:
+            raise ValueError("provide case_revision_ids")
         if len(set(self.case_revision_ids)) != len(self.case_revision_ids):
             raise ValueError("case_revision_ids contains duplicates")
         if len(set(self.seeds)) != len(self.seeds):
@@ -432,41 +383,6 @@ class StudyCellView(BaseModel):
     metrics: dict[str, Any]
 
 
-class ReportView(BaseModel):
-    artifact_id: uuid.UUID
-    version_id: Optional[uuid.UUID]
-    draft_id: Optional[uuid.UUID]
-    draft_revision: Optional[int]
-    id: uuid.UUID
-    project_id: uuid.UUID
-    study_run_id: Optional[uuid.UUID]
-    slug: str
-    title: str
-    document: dict[str, Any]
-    digest: str
-    state: str
-    created_at: datetime
-
-
-class PublicationCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    version_id: Optional[uuid.UUID] = None
-    report_id: uuid.UUID
-    slug: str = Field(..., pattern=SLUG)
-    citation: dict[str, Any] = Field(default_factory=dict)
-
-
-class PublicationView(BaseModel):
-    version_id: uuid.UUID
-    withdrawn: bool
-    id: uuid.UUID
-    project_id: uuid.UUID
-    report_id: uuid.UUID
-    slug: str
-    citation: dict[str, Any]
-    published_at: datetime
-
-
 class BlobView(BaseModel):
     id: uuid.UUID
     organization_id: uuid.UUID
@@ -559,96 +475,3 @@ class AnalyticsView(BaseModel):
     pareto: list[dict[str, Any]]
     stability: dict[str, Any]
     binding_space: Optional[dict[str, Any]] = None
-
-
-class ReplicationCitation(BaseModel):
-    title: str
-    authors: list[str] = Field(default_factory=list)
-    year: int = 2026
-    doi: Optional[str] = None
-    venue: Optional[str] = None
-    url: Optional[str] = None
-    bibtex: str
-    markdown_badge: str
-
-
-class VerifierEntityMatch(BaseModel):
-    entity_type: str
-    id: str
-    slug: Optional[str] = None
-    title_or_name: Optional[str] = None
-    organization_slug: Optional[str] = None
-    project_slug: Optional[str] = None
-    revision: Optional[int] = None
-    created_at: Optional[datetime] = None
-
-
-class VerifierInspectRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    digest: Optional[str] = None
-    kind: Optional[str] = None
-    document: Optional[Any] = None
-    entity_id: Optional[uuid.UUID] = None
-
-
-class VerifierInspectResponse(BaseModel):
-    status: Literal["verified", "computed", "mismatch", "not_found"]
-    digest: str
-    canonical_json: Optional[str] = None
-    matches: bool
-    verified_at: datetime
-    entities: list[VerifierEntityMatch] = Field(default_factory=list)
-    citation: Optional[ReplicationCitation] = None
-    detail: Optional[str] = None
-
-
-class ResolveOrganizationRef(BaseModel):
-    id: uuid.UUID
-    slug: str
-    name: str
-
-
-class ResolveProjectRef(BaseModel):
-    id: uuid.UUID
-    slug: str
-    name: str
-    visibility: str
-
-
-class ResolveAuthorRef(BaseModel):
-    id: uuid.UUID
-    username: Optional[str] = None
-    email: Optional[str] = None
-
-
-class ResolveLocation(BaseModel):
-    organization: Optional[ResolveOrganizationRef] = None
-    project: Optional[ResolveProjectRef] = None
-    element_id: str
-    slug: Optional[str] = None
-    version_or_revision: Optional[int | str] = None
-    created_at: Optional[datetime] = None
-    web_url: Optional[str] = None
-
-
-class ResolvePagination(BaseModel):
-    total: int
-    limit: int
-    offset: int
-    has_more: bool
-
-
-class ResolveResponse(BaseModel):
-    verified: bool
-    kind: str
-    digest: str
-    canonical_name: Optional[str] = None
-    media_type: str = "application/json"
-    size_bytes: Optional[int] = None
-    created_at: Optional[datetime] = None
-    author: Optional[ResolveAuthorRef] = None
-    document: Optional[Any] = None
-    content_url: str
-    locations: list[ResolveLocation] = Field(default_factory=list)
-    pagination: ResolvePagination
-    citation: Optional[ReplicationCitation] = None

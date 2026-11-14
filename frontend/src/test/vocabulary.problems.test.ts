@@ -113,7 +113,7 @@ describe('the vocabulary scanner', () => {
     for (const path of ['/src/a/X.test.tsx', '/src/a/xTestKit.tsx', '/src/a/testUtils.ts', '/src/test/fixtures/jobs.ts', '/src/a/fixtures.ts', '/src/pages/Pricing/pricingFixture.ts', '/src/components/rendering/runResultFixtures.ts', '/src/test/setup.ts', '/src/a/x.d.ts']) {
       expect(isTestSupport(path), path).toBe(true);
     }
-    for (const path of ['/src/pages/Cases/CaseList.tsx', '/src/pages/Workbench/workbenchModel.ts', '/src/pages/Resources/parts.tsx']) {
+    for (const path of ['/src/pages/Cases/CaseList.tsx', '/src/pages/Workbench/workbenchModel.ts', '/src/pages/Studies/StudyList.tsx']) {
       expect(isTestSupport(path), path).toBe(false);
     }
   });
@@ -131,19 +131,18 @@ describe('the vocabulary scanner', () => {
   });
 });
 
-// The sources of the problem area: the problem list and page, the workbench except its source panel, and the collections.
+// The sources of the problem area: the problem list and page, and the workbench except its source panel.
 const sources = import.meta.glob(
-  ['/src/pages/Cases/**/*.{ts,tsx}', '/src/pages/Workbench/**/*.{ts,tsx}', '/src/pages/Resources/**/*.{ts,tsx}'],
+  ['/src/pages/Cases/**/*.{ts,tsx}', '/src/pages/Workbench/**/*.{ts,tsx}'],
   { query: '?raw', import: 'default', eager: true },
 ) as Record<string, string>;
 const area = Object.fromEntries(Object.entries(sources).filter(([path]) => !/\/pages\/Workbench\/SourcePanel[^/]*$/.test(path)));
 
 describe('the problem area', () => {
-  it('reads the sources of pages/Cases, pages/Workbench (not SourcePanel) and pages/Resources', () => {
+  it('reads the sources of pages/Cases and pages/Workbench (not SourcePanel)', () => {
     const paths = Object.keys(area);
     expect(paths.filter((path) => path.includes('/pages/Cases/') && !isTestSupport(path)).length).toBeGreaterThan(10);
     expect(paths.filter((path) => path.includes('/pages/Workbench/') && !isTestSupport(path)).length).toBeGreaterThan(10);
-    expect(paths.filter((path) => path.includes('/pages/Resources/') && !isTestSupport(path)).length).toBeGreaterThan(5);
     expect(paths.some((path) => /SourcePanel/.test(path))).toBe(false);
   });
 

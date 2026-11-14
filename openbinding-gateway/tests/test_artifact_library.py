@@ -143,8 +143,7 @@ async def test_case_composition_closes_exact_resources_without_copying_authority
     await db_session.flush()
     case_ref = {'caseRevisionId': str(revision.id), 'compositionDigest': revision.digest}
     for kind, content in [('Study', {'apiVersion': 'openbinding/study/v1', 'cases': [case_ref], 'engines': [{**_engine_ref(_manifest('random-search')), 'mode': 'seeded',
-                                                                                                              'optimization': {'type': 'SINGLE', 'scalarization': 'weighted-sum'}}]}),
-                          ('Collection', {'apiVersion': 'openbinding/collection/v1', 'members': [case_ref]})]:
+                                                                                                              'optimization': {'type': 'SINGLE', 'scalarization': 'weighted-sum'}}]})]:
         identity = Artifact(organization_id=org.id, namespace=str(org.id), name=kind.lower(),
             display_name=kind, kind=kind, created_by_id=user.id)
         db_session.add(identity)

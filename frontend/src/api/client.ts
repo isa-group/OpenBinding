@@ -264,16 +264,6 @@ export interface EngineRegistrationReport extends EngineRegistrationRevision {
   report: Record<string, unknown> | null;
 }
 
-/** One published, immutable resource listed by GET /v1/resources. */
-export interface RegisteredResource extends BimResourceRef {
-  role: string;
-  apiVersion: string;
-  kind: string;
-  dialect: string;
-  mediaType: string;
-  status: 'published';
-}
-
 /** The engine list, and whether it is the public one because the session could not be used (401). */
 export interface EngineCatalogResult {
   engines: EngineCatalogEntry[];
@@ -302,24 +292,6 @@ export interface PackageRefusal {
 export type PackageValidationOutcome =
   | { valid: true; result: PackageValidation }
   | { valid: false; refusal: PackageRefusal };
-
-export const BIM_SCHEMA_KINDS = [
-  'Instance',
-  'Profile',
-  'Application',
-  'CandidateCatalog',
-  'ConstraintSet',
-  'Optimization',
-  'Placement',
-  'RoutingOverlay',
-  'BindingProblem',
-  'Engine',
-  'Dialect',
-  'EngineRegistration',
-  'engine-contract',
-] as const;
-
-export type BimSchemaKind = (typeof BIM_SCHEMA_KINDS)[number];
 
 export function bimResourceKey(ref: BimResourceRef): string {
   return `${ref.namespace}/${ref.name}@${ref.version}#${ref.digest}`;
@@ -800,15 +772,13 @@ export class ApiClient {
     }
   }
 
+  /** The public engine catalogue (GET /v1/engines): a visitor gets the built-in and published engines. */
   async getPublicEngines(): Promise<EngineCatalogEntry[]> {
-    const body = await this.request<{ engines: EngineCatalogEntry[] }>('/v1/explore/engines');
+    const body = await this.request<{ engines: EngineCatalogEntry[] }>('/v1/engines');
     return body.engines || [];
   }
 
-  async getEngines(publicOnly = false): Promise<EngineCatalogEntry[]> {
-    if (publicOnly) {
-      return this.getPublicEngines();
-    }
+  async getEngines(): Promise<EngineCatalogEntry[]> {
     try {
       const body = await this.request<{ engines: EngineCatalogEntry[] }>('/v1/engines');
       return body.engines || [];
@@ -836,18 +806,6 @@ export class ApiClient {
     }
   }
 
-  /** Published registered resources (GET /v1/resources); public. */
-  async getRegisteredResources(): Promise<RegisteredResource[]> {
-    const body = await this.request<{ resources: RegisteredResource[] }>('/v1/resources');
-    return body.resources || [];
-  }
-
-  /** The exact published bytes of one registered resource, fetched by all four pins. */
-  async getRegisteredResourceContent(ref: BimResourceRef): Promise<ArrayBuffer> {
-    const query = new URLSearchParams({ namespace: ref.namespace, version: ref.version, revision: ref.digest });
-    return this.requestBinary(`/v1/resources/${encodeURIComponent(ref.name)}?${query}`);
-  }
-
   async getProfiles(): Promise<BimProfile[]> {
     const body = await this.request<{ profiles: BimProfile[] }>('/v1/profiles');
     return body.profiles || [];
@@ -856,10 +814,6 @@ export class ApiClient {
   async getDialects(): Promise<BimDialect[]> {
     const body = await this.request<{ dialects: BimDialect[] }>('/v1/dialects');
     return body.dialects || [];
-  }
-
-  async getBimSchema(kind: BimSchemaKind): Promise<Record<string, unknown>> {
-    return this.request<Record<string, unknown>>(`/v1/schemas/${encodeURIComponent(kind)}`);
   }
 
   /**
@@ -1339,15 +1293,6 @@ export class ApiClient {
     });
   }
 
-  /**
-   * Publish a Dialect or registered resource revision that waits for review (`extensions:moderate`). The gateway lists no pending
-   * dialects or resources, so the exact revision is named by the caller; there is no reject for them.
-   */
-  async adminApproveExtension(kind: 'dialect' | 'resource', ref: { namespace: string; name: string; version: string; revision: string }): Promise<{ namespace: string; name: string; version: string; digest: string; status: string }> {
-    const query = new URLSearchParams({ namespace: ref.namespace, version: ref.version, revision: ref.revision });
-    return this.request(`/v1/${kind === 'dialect' ? 'dialects' : 'resources'}/${encodeURIComponent(ref.name)}/approve?${query.toString()}`, { method: 'POST' }, undefined, true, true);
-  }
-
   private requireExactResourceRef<T extends object>(body: T): T & BimResourceRef {
     for (const field of ['namespace', 'name', 'version', 'digest'] as const) {
       if (typeof (body as Record<string, unknown>)[field] !== 'string' || !(body as Record<string, string>)[field]) {
@@ -1599,9 +1544,6 @@ export interface GenerateCorpusParams {
   base_config: GenerateInstanceParams;
   name?: string;
   persist?: boolean;
-  project_id?: string | null;
-  collection_name?: string | null;
-  create_study?: boolean;
   as_archive?: boolean;
 }
 
@@ -1617,8 +1559,6 @@ export interface CorpusGeneratedResponse {
     workload_features: Record<string, unknown>;
     actual_constraint_count: number;
   }>;
-  collection_id?: string | null;
-  study_id?: string | null;
 }
 
 export interface ConvertLegacyParams {

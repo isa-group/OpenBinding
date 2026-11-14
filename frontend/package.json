@@ -13,7 +13,6 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run --project app --project corpus",
-    "test:bundle": "vitest run --project bundle",
     "test:watch": "vitest --project app --project corpus",
     "test:e2e": "playwright test"
   },

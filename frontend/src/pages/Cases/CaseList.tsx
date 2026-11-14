@@ -84,7 +84,6 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
         {canCreate && (
           <div className="proj-actions">
             <Action to={`${root}/workbench`} variant="secondary">Workbench</Action>
-            <Action to="/explore/examples" variant="secondary">Import from example</Action>
             <Action variant="primary" data-create-opener="problem" onClick={dialog.openDialog}>New problem</Action>
           </div>
         )}
@@ -131,7 +130,7 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
             <>
               <p>Start from a ready example, or create a problem and save its first version from the workbench.</p>
               <div className="proj-actions">
-                <Action to="/explore/examples" variant="primary">Import an example</Action>
+                <Action to={`${root}/workbench`} variant="primary">Import an example</Action>
               </div>
             </>
           )}

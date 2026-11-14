@@ -67,7 +67,7 @@ describe('admin-overview · how the platform is doing', () => {
     const queue = block('Run queue');
     expect(await within(queue).findByRole('img', { name: 'Queued: 1, Running: 1, Done: 2, Failed: 1, Cancelled: 1' })).toBeInTheDocument();
     expect(within(queue).getByText(/Oldest waiting: minizinc run, running for about 1 day/)).toBeInTheDocument();
-    expect(within(queue).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/admin/queues');
+    expect(within(queue).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/admin?section=queues');
   });
 
   it('counts what waits for moderation, and flags the block when something does', async () => {
@@ -76,8 +76,8 @@ describe('admin-overview · how the platform is doing', () => {
     expect(await within(moderation).findByText('Engine catalogue requests')).toBeInTheDocument();
     const lines = within(moderation).getByRole('list', { name: 'Waiting for review' });
     expect(within(within(lines).getByText('Engine catalogue requests').closest('li')!).getByText('1')).toBeInTheDocument();
-    expect(within(within(lines).getByText('Dialects').closest('li')!).getByText('1')).toBeInTheDocument();
-    expect(within(moderation).getByText('2')).toBeInTheDocument();
+    expect(within(lines).queryByText('Dialects')).not.toBeInTheDocument();
+    expect(within(moderation).getByText('1', { selector: '.adm-big' })).toBeInTheDocument();
     expect(moderation).toHaveClass('is-attention');
   });
 
@@ -87,7 +87,7 @@ describe('admin-overview · how the platform is doing', () => {
     expect(await within(errors).findByText('9 events in total')).toBeInTheDocument();
     expect(within(errors).getByText('402')).toBeInTheDocument();
     expect(within(errors).getByText('5')).toBeInTheDocument();
-    expect(within(errors).getByRole('link', { name: 'Diagnose errors' })).toHaveAttribute('href', '/app/admin/errors');
+    expect(within(errors).getByRole('link', { name: 'Diagnose errors' })).toHaveAttribute('href', '/app/admin?section=errors');
   });
 
   it('shows the LIVE pricing and links to the native SPACE and SPHERE consoles', async () => {
@@ -111,7 +111,7 @@ describe('admin-overview · how the platform is doing', () => {
     renderAdmin(<AdminOverview />);
     const recent = block('Recent changes');
     expect(await within(recent).findByText('contract.subscription.changed')).toBeInTheDocument();
-    expect(within(recent).getByRole('link', { name: 'Audit log' })).toHaveAttribute('href', '/app/admin/audit');
+    expect(within(recent).getByRole('link', { name: 'Audit log' })).toHaveAttribute('href', '/app/admin?section=audit');
   });
 
   it('shows the platform in numbers', async () => {
@@ -127,11 +127,11 @@ describe('admin-overview · how the platform is doing', () => {
     await screen.findByText('Tools');
     const tools = screen.getByRole('heading', { name: 'Tools' }).closest('section')!;
     expect(within(tools).getByRole('link', { name: /^Accounts/ })).toHaveAttribute('href', '/app/admin/users');
-    expect(within(tools).getByRole('link', { name: /^Audit log/ })).toHaveAttribute('href', '/app/admin/audit');
-    expect(within(tools).getByRole('link', { name: /^Errors/ })).toHaveAttribute('href', '/app/admin/errors');
-    expect(within(tools).getByRole('link', { name: /^Queues/ })).toHaveAttribute('href', '/app/admin/queues');
+    expect(within(tools).getByRole('link', { name: /^Audit log/ })).toHaveAttribute('href', '/app/admin?section=audit');
+    expect(within(tools).getByRole('link', { name: /^Errors/ })).toHaveAttribute('href', '/app/admin?section=errors');
+    expect(within(tools).getByRole('link', { name: /^Queues/ })).toHaveAttribute('href', '/app/admin?section=queues');
     expect(within(tools).getByRole('link', { name: /^Moderation/ })).toHaveAttribute('href', '/app/admin/moderation');
-    expect(within(tools).getByRole('link', { name: /^Maintenance/ })).toHaveAttribute('href', '/app/admin/maintenance');
+    expect(within(tools).getByRole('link', { name: /^Maintenance/ })).toHaveAttribute('href', '/app/admin?section=maintenance');
   });
 
   it('holds exactly the seven tools, with no sponsorship form, and a lede that names no sponsorship', async () => {
@@ -139,7 +139,7 @@ describe('admin-overview · how the platform is doing', () => {
     await screen.findByText('Tools');
     const tools = screen.getByRole('heading', { name: 'Tools' }).closest('section')!;
     expect(within(tools).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
-      '/app/admin/users', '/app/admin/users', '/app/admin/audit', '/app/admin/errors', '/app/admin/queues', '/app/admin/moderation', '/app/admin/maintenance',
+      '/app/admin/users', '/app/admin/users', '/app/admin?section=audit', '/app/admin?section=errors', '/app/admin?section=queues', '/app/admin/moderation', '/app/admin?section=maintenance',
     ]);
     for (const name of [/^Accounts/, /^Account agreement/, /^Audit log/, /^Errors/, /^Queues/, /^Moderation/, /^Maintenance/]) {
       expect(within(tools).getByRole('link', { name })).toBeInTheDocument();
@@ -179,7 +179,7 @@ describe('admin-overview · how the platform is doing', () => {
     await waitFor(() => expect(api.adminQueues).toHaveBeenCalledTimes(2));
   });
 
-  it('no longer carries the publication review or maintenance: each has its own screen', async () => {
+  it('opens on the overview, with maintenance a section of its own and the publication review its own screen', async () => {
     renderAdmin(<AdminOverview />);
     await within(block('Moderation')).findByText('Engine catalogue requests');
     expect(screen.queryByRole('heading', { name: 'Engine catalogue requests' })).not.toBeInTheDocument();
@@ -189,6 +189,29 @@ describe('admin-overview · how the platform is doing', () => {
     expect(within(block('Moderation')).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/admin/moderation');
     expect(api.adminListEngineRegistrations).not.toHaveBeenCalled();
     expect(api.adminMaintenancePreview).not.toHaveBeenCalled();
+  });
+
+  it('holds the queues as a section of the same screen, picked from the section pills', async () => {
+    renderAdmin(<AdminOverview />, { entry: '/app/admin?section=queues' });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Queues' })).toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: 'Administration' });
+    expect(within(nav).getByText('Queues')).toHaveAttribute('aria-current', 'page');
+    expect(within(nav).getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '/app/admin');
+    expect(within(nav).getByRole('link', { name: 'Maintenance' })).toHaveAttribute('href', '/app/admin?section=maintenance');
+    expect(api.adminOverview).not.toHaveBeenCalled();
+
+    fireEvent.click(within(nav).getByRole('link', { name: 'Maintenance' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Maintenance' })).toBeInTheDocument();
+    await waitFor(() => expect(api.adminMaintenancePreview).toHaveBeenCalled());
+
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Administration' })).getByRole('link', { name: 'Overview' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Administration' })).toBeInTheDocument();
+    await waitFor(() => expect(api.adminOverview).toHaveBeenCalled());
+  });
+
+  it('reads a section it does not know as the overview', async () => {
+    renderAdmin(<AdminOverview />, { entry: '/app/admin?section=pricing' });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Administration' })).toBeInTheDocument();
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {

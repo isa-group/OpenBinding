@@ -1,28 +1,23 @@
-"""What the platform offers, read-only: profiles, Dialects, registered resources, schemas, examples and Engines.
+"""What the platform offers, read-only: profiles, Dialects, examples and Engines.
 
 ``routes.v1`` authenticates the caller and turns the outcome into a response; this module builds the documents.
-Nothing here writes. The Dialects are always the ones installed in this process (publication records are audit
-state, not an installation mechanism), so the catalog can never promise a stale deployment. A refusal is a
-``DiscoveryProblem``; the route renders it.
-
-The registered resources uploaded without a database are kept by the route that registers them, which passes
-them in: this module holds no state of its own.
+Nothing here writes. The Dialects are always the ones installed in this process, so the list can never promise a
+stale deployment. A refusal is a ``DiscoveryProblem``; the route renders it.
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
 from pathlib import Path
-from typing import Any, Callable, Mapping, NamedTuple
+from typing import Any, Callable, NamedTuple
 
-from bim_core import ContractError, PackageError
+from bim_core import PackageError
 from bim_core.canonical import digest
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..db.models import EngineRegistrationRevision, EngineRevision, RegisteredResourceRevision, User, utcnow
+from ..db.models import EngineRegistrationRevision, EngineRevision, User, utcnow
 from ..integrations import bim, packages
 from ..security.apikeys import allows_engine
 from .engines import (
@@ -30,10 +25,8 @@ from .engines import (
     available_engine_documents,
     engine_ref,
     protocol_digest,
-    protocol_document,
     registration_summary,
 )
-from .snapshots import CUSTOM_RESOURCES
 
 
 class DiscoveryProblem(Exception):
@@ -44,14 +37,6 @@ class DiscoveryProblem(Exception):
         self.status = status
         self.code = code
         self.detail = detail
-
-
-class ResourceContent(NamedTuple):
-    """The exact bytes of a published registered resource."""
-
-    content: bytes
-    media_type: str
-    digest: str
 
 
 class ExamplePackage(NamedTuple):
@@ -81,91 +66,8 @@ def builtin_dialects() -> list[dict[str, Any]]:
     return bim.dialect_manifests()
 
 
-def installed_dialect_contract(document: Mapping[str, Any], installed: list[dict[str, Any]]) -> bool:
-    """Whether a manifest exactly describes one of the ``installed`` adapter ABIs."""
-    metadata = document.get("metadata")
-    spec = document.get("spec")
-    if not isinstance(metadata, Mapping) or not isinstance(spec, Mapping):
-        return False
-    return any(digest(document) == digest(item) for item in installed)
-
-
 def dialects_document(installed: list[dict[str, Any]]) -> dict[str, Any]:
     return {"dialects": [{**item, "digest": digest(item)} for item in installed]}
-
-
-async def registered_resources_document(
-    session: AsyncSession | None, custom_records: Mapping[Any, dict[str, Any]]
-) -> dict[str, Any]:
-    """The published registered resources: the ones kept in this process and, with accounts, the stored ones."""
-    resources = list(custom_records.values())
-    if session is not None:
-        rows = (
-            await session.execute(
-                select(RegisteredResourceRevision)
-                .where(RegisteredResourceRevision.state == "published")
-                .order_by(
-                    RegisteredResourceRevision.namespace,
-                    RegisteredResourceRevision.name,
-                    RegisteredResourceRevision.version,
-                )
-            )
-        ).scalars().all()
-        resources.extend({
-            "namespace": row.namespace,
-            "name": row.name,
-            "version": row.version,
-            "digest": row.digest,
-            "role": row.role,
-            "apiVersion": row.api_version,
-            "kind": row.kind,
-            "dialect": row.dialect_id,
-            "mediaType": row.media_type,
-            "status": row.state,
-        } for row in rows)
-    unique = {
-        (item["namespace"], item["name"], item["version"], item["digest"]): item
-        for item in resources
-        if item.get("status") == "published"
-    }
-    return {"resources": [unique[key] for key in sorted(unique)]}
-
-
-async def registered_resource(
-    namespace: str, name: str, version: str, revision: str, session: AsyncSession | None
-) -> ResourceContent:
-    """The bytes of one published registered resource."""
-    local = CUSTOM_RESOURCES.get((namespace, name, version, revision))
-    if local is not None:
-        return ResourceContent(local.content, local.media_type, revision)
-    if session is not None:
-        row = (
-            await session.execute(
-                select(RegisteredResourceRevision).where(
-                    RegisteredResourceRevision.namespace == namespace,
-                    RegisteredResourceRevision.name == name,
-                    RegisteredResourceRevision.version == version,
-                    RegisteredResourceRevision.digest == revision,
-                    RegisteredResourceRevision.state == "published",
-                )
-            )
-        ).scalars().first()
-        if row is not None:
-            return ResourceContent(row.content, row.media_type, row.digest)
-    raise DiscoveryProblem(404, "not_found", "Registered BIM resource not found")
-
-
-async def schema_document(kind: str) -> dict[str, Any]:
-    if kind in {"engine-contract", "bim-engine-v1"}:
-        return {
-            "protocol": "bim-engine/v1",
-            "digest": protocol_digest(),
-            "openapi": protocol_document(),
-        }
-    try:
-        return await asyncio.to_thread(bim.schema_document, kind)
-    except ContractError as exc:
-        raise DiscoveryProblem(404, "not_found", "Unknown v1 kind") from exc
 
 
 def _examples_root() -> Path:

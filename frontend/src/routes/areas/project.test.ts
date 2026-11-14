@@ -8,7 +8,6 @@ import { moved as moves } from './project';
 const SCREENS: Array<[string, string]> = [
   ['proj-overview', '/app/:org/:project'],
   ['proj-settings', '/app/:org/:project/settings/:section?'],
-  ['proj-publications', '/app/:org/:project/published'],
 ];
 
 const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
@@ -17,8 +16,8 @@ const entry = (path: string) => moves.find((route) => route.path === path);
 const idsOfScreens = routeDefinitions.map((definition) => definition.id);
 
 describe('area project', () => {
-  it('has 3 screens: the overview, the settings and the published results', () => {
-    expect(routesByArea.project).toHaveLength(3);
+  it('has 2 screens: the overview and the settings', () => {
+    expect(routesByArea.project).toHaveLength(2);
     expect(routesByArea.project.map((definition) => [definition.id, definition.path])).toEqual(SCREENS);
   });
 
@@ -29,13 +28,10 @@ describe('area project', () => {
     expect(routeDefinitions.map((definition) => definition.path)).not.toContain('/app/:org/:project/package');
   });
 
-  it('keeps the published results, which hold nothing about reports', () => {
-    expect(idsOfScreens).toContain('proj-publications');
-  });
-
-  it('resolves the published address through the route definitions, and no longer the publications one', () => {
-    expect(resolve('/app/acme/atlas/published')).toBe('proj-publications');
-    expect(resolve('/app/acme/atlas/publications') ?? null).toBeNull();
+  it('declares no published results screen and moves no publications address', () => {
+    expect(idsOfScreens).not.toContain('proj-publications');
+    expect(resolve('/app/acme/atlas/published') ?? null).toBeNull();
+    expect(entry('/app/:org/:project/publications')).toBeUndefined();
   });
 
   it('declares no creation screen: a new project is made in a dialog over the organization', () => {
@@ -49,7 +45,7 @@ describe('area project', () => {
       ['/app/acme/atlas/settings', 'proj-settings'],
       ['/app/acme/atlas/settings/members', 'proj-settings'],
       ['/app/acme/atlas/settings/anything', 'proj-settings'],
-      ['/app/acme/atlas/published', 'proj-publications'],
+      ['/app/acme/atlas/published', null],
       ['/app/acme/atlas/package', null],
       ['/app/acme/atlas/files', null],
       ['/app/acme/atlas/publications', null],
@@ -64,10 +60,9 @@ describe('the moved addresses of the project area', () => {
   const project = 'atlas';
   const target = (path: string, search = '') => entry(path)?.target(new URLSearchParams(search), { org, project });
 
-  it('declares the creation address, publications, files and package, with ids of their own', () => {
+  it('declares the creation address, files and package, with ids of their own', () => {
     expect(moves.map((route) => route.path)).toEqual([
       '/app/:org/new-project',
-      '/app/:org/:project/publications',
       '/app/:org/:project/files',
       '/app/:org/:project/package',
     ]);
@@ -88,12 +83,6 @@ describe('the moved addresses of the project area', () => {
       expect(end).toBe('/app/acme?create=project');
       expect(new URL(end, 'http://localhost').hash).toBe('');
     }
-  });
-
-  it('moves the publications to the published results and keeps the query', () => {
-    expect(target('/app/:org/:project/publications')).toBe('/app/acme/atlas/published');
-    expect(target('/app/:org/:project/publications', 'a=1')).toBe('/app/acme/atlas/published?a=1');
-    expect(entry('/app/:org/:project/publications')?.permanent).toBeUndefined();
   });
 
   it('moves the files to the project overview, as a permanent address, and the package to the settings', () => {

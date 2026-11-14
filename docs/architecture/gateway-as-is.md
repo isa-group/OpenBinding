@@ -29,11 +29,11 @@ routes/  ──►  services/  ──►  repositories/ , integrations  ──�
 | `integrations/bim.py`, `v1/`, `generator/` | The BIM port (`BimPort`, settings, error translation), the remaining `v1/` platform code (remote Engine transport) and the instance generator (see [the BIM boundary](#the-bim--platform-boundary)) | `integrations/`, `v1/`, `generator/` |
 
 Not every module follows the layer table yet: several top-level modules
-(`artifacts.py`, `reports.py`, `studies.py`, `study_jobs.py`,
+(`artifacts.py`, `studies.py`, `study_jobs.py`,
 `collaboration.py`, `telemetry.py`)
 mix use-case logic and persistence outside `services/` and `repositories/`.
 (`analysis_jobs.py` and `sponsor_proposals.py` were in this list when this page
-was written; M9.6 removed both, and the sections below that name them describe
+was written; M9.6 removed both (and F0a removed `reports.py`), and the sections below that name them describe
 the gateway before that.)
 
 ## Composition layer (`create_app`)
@@ -281,18 +281,15 @@ used by `verify_registration` (Engine registry).
 
 ## Discovery
 
-`GET /v1/profiles`, `/dialects`, `/resources` (and `/resources/{name}`),
-`/schemas/{kind}`, `/examples` (and `/examples/{path}`), `/engines`,
+`GET /v1/profiles`, `/dialects`, `/examples` (and `/examples/{path}`), `/engines`,
 `/engines/revisions` and `/engines/{namespace}/{name}/revisions/{version}` build
-their documents in `services/discovery.py`; `/catalog` is the composition of
-those handlers and stays in the route. The service raises
+their documents in `services/discovery.py`. The service raises
 `DiscoveryProblem(status, code, detail)`; the route renders it. It reads, never
-writes, and keeps no state: the resources registered without a database are held by
-the route that registers them (`_CUSTOM_RESOURCE_RECORDS`) and passed in, and the
-installed Dialects are always the ones of this process. `v1.py` keeps
-`_builtin_dialects` and `_installed_dialect_contract` as wrappers (the
-publication routes and the tests use them) and passes its own `_manifest` to
-`engine_revision_document`.
+writes, and keeps no state: the installed Dialects are always the ones of this
+process. `v1.py` keeps `_builtin_dialects` as a wrapper (the tests use it) and
+passes its own `_manifest` to `engine_revision_document`. There is no registry
+of dialects or resources: the publication routes, `/resources`, `/schemas/{kind}`
+and `/catalog` were removed in F0a.
 
 `GET /v1/engines/{name}` stays in the route: the permission check
 (`allows_engine`) is its whole decision and the rest is `services.engines`.
@@ -348,7 +345,7 @@ mechanically checkable, using `ast` so that imports inside functions count:
   (`test_services_domain_and_jobs_do_not_import_routes`);
 - no module outside `routes/` and those three layers may start importing
   `routes`: the existing offenders are frozen in `ALLOWED_LEGACY`
-  (`artifacts`, `reports`, `study_jobs`; `analysis_jobs` was removed by M9.6;
+  (`artifacts`, `study_jobs`; `analysis_jobs` was removed by M9.6 and `reports` by F0a;
   `main` is exempt as the composition root), the list may only shrink
   (`test_no_new_module_imports_routes`, `test_allowed_legacy_has_no_stale_entries`);
 - `services/job_submission.py` imports `routes` nowhere and uses `fastapi` only for
@@ -374,8 +371,8 @@ rest of the table (`models/`, `db/`) is convention, not enforcement.
 BIM is a language and a toolchain: load a package, compile it to a canonical
 `BindingProblem`, evaluate and re-evaluate bindings, validate the Engine
 protocol. The platform is everything around it: accounts, organizations,
-projects, plans, jobs and queues, persistence, the artifact library, studies,
-reports, the resolver and the HTTP routes. The toolchain must not know the
+projects, plans, jobs and queues, persistence, the artifact library, studies
+and the HTTP routes. The toolchain must not know the
 platform, and the platform reaches BIM through a small port.
 
 **Current state.** The gateway depends on `bim-core==0.2.0` and
@@ -389,7 +386,7 @@ seed run that way in the lab and the default deployment.
 `BIM_MODE=http` runs `HttpBim` against a separately deployed `bim-service` (a
 deployable of the toolchain repository) and refuses to start if the service
 `compilerDigest` differs from the local one. Routes,
-services, the generator, studies and reports use the port; BIM errors are
+services, the generator and studies use the port; BIM errors are
 translated to HTTP in one place. Details in [BIM_CORE.md](../BIM_CORE.md).
 
 `integrations/` may import `core`, `models` and the BIM packages, and must not
@@ -401,8 +398,9 @@ import `routes`, `services`, `repositories`, `jobs` or `db`
 
 These are real and not scheduled; no dates are promised.
 
-- `routes/v1.py` is 1,329 lines (frozen at 1,400 by
-  `test_v1_router_does_not_grow`; it was about 2,960 before job creation moved
+- `routes/v1.py` is 892 lines (frozen at 900 by
+  `test_v1_router_does_not_grow`; it was 1,329 before the dialect and resource
+  registries were removed in F0a, about 2,960 before job creation moved
   to `services/job_submission.py`, about 2,570 before the Engine registry
   moved to `services/engine_registry.py`, and 1,692 before instances, snapshots
   and discovery moved to `services/instances.py` and `services/discovery.py`).
@@ -411,9 +409,6 @@ These are real and not scheduled; no dates are promised.
   replace); the job routes and their transport (`create_job`, `_create_job_core`,
   `_read_job_request`, which `study_jobs.py` and many tests reach through the
   router); and the code that still has not moved, in this order of expected size:
-  the dialect and resource registries (`POST /dialects`, `POST /resources` and
-  their approvals), which hold their own publication logic inline and the
-  in-module `_CUSTOM_RESOURCE_RECORDS` that `discovery` receives as an argument;
   the job read routes (`/jobs/{id}`, neighbourhood with its `_ANALYSIS_SLOTS`
   semaphore, IR, instance, report), whose queries belong in
   `repositories/jobs.py`; and `GET /engines/{name}`. Each should move into

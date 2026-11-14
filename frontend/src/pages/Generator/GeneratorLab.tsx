@@ -7,7 +7,7 @@ import type { PlatformOutletContext } from '../../components/PlatformShell/Platf
 import { Action } from '../../components/ui/Action';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useAuth } from '../../contexts/auth';
-import { PROBLEMS_SEGMENT } from '../../routes/paths/problems';
+import { problemsPath } from '../../routes/paths/problems';
 import { saveDraft } from '../../utils/workspaceDraft';
 import { useResource } from '../../utils/useResource';
 import { Breadcrumb } from '../Organization/parts';
@@ -138,21 +138,19 @@ export function GeneratorLab() {
   };
 
   const save = async () => {
-    if (!output || !chosen || saving) return;
+    if (!output || output.kind === 'corpus' || !chosen || saving) return;
     setSaving(true);
     setKeep(null);
     try {
       if (output.kind === 'instance') {
         await generatorApi.instance({ ...output.params, persist: true, project_id: chosen.id, case_name: output.params.name });
-      } else if (output.kind === 'corpus') {
-        await generatorApi.corpus({ count: output.count, base_config: output.params, name: output.name, persist: true, project_id: chosen.id, collection_name: output.name });
       } else {
         await generatorApi.convertLegacy({ ...output.request, persist: true, project_id: chosen.id, case_name: output.request.name });
       }
       setKeep({
         tone: 'success',
-        text: `Saved to ${chosen.label} as ${output.kind === 'corpus' ? 'a collection of synthetic instances' : 'a synthetic instance'}.`,
-        href: `/app/${chosen.org}/${chosen.project}/${output.kind === 'corpus' ? 'collections' : PROBLEMS_SEGMENT}`,
+        text: `Saved to ${chosen.label} as a synthetic instance.`,
+        href: problemsPath(`/app/${chosen.org}/${chosen.project}`),
       });
     } catch (caught: unknown) {
       setKeep({ tone: 'error', text: labRefusal(caught, 'nothing was saved', 'keep').text });
@@ -195,7 +193,6 @@ export function GeneratorLab() {
                 <form className="gl-card gl-form" onSubmit={(event) => void generate(event)} noValidate>
                   {tool === 'corpus' && <p className="gl-lede">Same settings as a single instance, repeated as many times as you ask for.</p>}
                   <InstanceFields settings={settings} errors={errors} onChange={changeSettings} tool={tool} />
-                  {tool === 'corpus' && !user && <span className="gl-note is-warning">Keeping a corpus needs an account; without one you only see the preview.</span>}
                   {formError && <div className="gl-alert" role="alert">{formError}</div>}
                   <Action type="submit" variant="primary" busy={generating}>{tool === 'corpus' ? 'Generate batch' : 'Generate instance'}</Action>
                 </form>
@@ -214,6 +211,7 @@ export function GeneratorLab() {
               selected={chosen?.id ?? ''}
               onSelect={setProject}
               hasOutput={Boolean(output)}
+              savable={output?.kind !== 'corpus'}
               hasFiles={Boolean(output) && output?.kind !== 'corpus'}
               saving={saving}
               keep={keep}

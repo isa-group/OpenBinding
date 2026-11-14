@@ -39,7 +39,6 @@ class PublishedPricing:
     version: str
     digest: str
     url: str
-    content: bytes
     document: dict[str, Any]
 
     def public_view(self) -> dict[str, Any]:
@@ -108,7 +107,7 @@ async def published_pricing(settings: Settings, *, transport=None) -> PublishedP
         raise PricingCatalogError("SPHERE returned a different pricing version.")
 
     value = PublishedPricing(
-        version=version, digest=digest, url=metadata.yaml_url, content=content, document=document
+        version=version, digest=digest, url=metadata.yaml_url, document=document
     )
     _CACHE[version] = (time.monotonic(), value)
     return value

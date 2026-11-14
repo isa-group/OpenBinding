@@ -3,19 +3,17 @@ import type { Page, Route } from '@playwright/test';
 import type { AdminUserView } from '../../src/api/auth';
 import type { Job } from '../../src/api/platform';
 import { digestOf as caseDigest, irDocument, refOf, revisionDocument, sourceContents } from '../../src/pages/Cases/fixtures';
-import { LESSONS } from '../../src/pages/Examples/lessons';
 import { CURRENT_FIXTURE, catalogFixture } from '../../src/pages/Pricing/pricingFixture';
 import {
   AUDIT, ERROR_EVENTS, ERROR_OVERVIEW, MODERATION, OVERVIEW, USERS, queuesAt, subscriptionOf, usageOf as adminUsageOf, userPage,
 } from '../../src/test/fixtures/admin';
 import {
-  COMMUNITY_DIALECT, EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, PLACEMENT_DIALECT, QOS_PROFILE, REGISTERED_RESOURCES,
+  EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, PLACEMENT_DIALECT, QOS_PROFILE,
   REPORT_FAILED, REPORT_PENDING, REPORT_VERIFIED, SHARED_SOLVER, SOLVER_IN_REVIEW, reportOf as registrationReport,
 } from '../../src/test/fixtures/engines';
 import { INSTANCE, NEIGHBORHOOD, REGISTRATION, REPORT as JOB_REPORT, SOLUTION, detailOf as jobDetailOf, jobOf } from '../../src/test/fixtures/jobs';
-import { DRAFT, EDITION, FROZEN, LEGACY, publicationOf } from '../../src/test/fixtures/reports';
 import {
-  blobOf, caseItem, collectionOf, collectionRevisionOf, resourceItem, resourceOf, resourceRevisionOf,
+  blobOf, resourceOf, resourceRevisionOf,
 } from '../../src/test/fixtures/resources';
 import {
   RANDOM_SEARCH, REVISION_2, VERSION_ID, analyticsFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
@@ -26,7 +24,7 @@ import {
 } from './libraryFixtures';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
-// with a project that has cases, runs, studies, reports and a library behind it, and everything the public screens read.
+// with a project that has cases, runs, studies and a library behind it, and everything the public screens read.
 // Every date is fixed, so two runs of the gallery draw the same pictures. A request nobody answers is a 404 and is recorded.
 
 export const API = 'http://localhost:8000';
@@ -145,8 +143,8 @@ const ENGINE_DIGEST = `sha256-${'b2c3d4e5'.repeat(8)}`;
 const API_KEYS = [
   {
     id: 'k1', name: 'ci-read-results', prefix: 'obk_demo0001', created_at: '2026-09-01T00:00:00Z', last_used_at: '2026-10-08T00:00:00Z', expires_at: '2099-12-31T00:00:00Z',
-    permissions: ['jobs:read', 'projects:read', 'reports:read', 'studies:read'], engine_access: { all: true, engines: [] },
-    boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['jobs', 'studies', 'reports'], slugs: null },
+    permissions: ['jobs:read', 'projects:read', 'studies:read'], engine_access: { all: true, engines: [] },
+    boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['jobs', 'studies'], slugs: null },
   },
   {
     id: 'k2', name: 'run-fixed-engine', prefix: 'obk_demo0002', created_at: '2026-09-10T00:00:00Z', last_used_at: null, expires_at: null,
@@ -155,7 +153,7 @@ const API_KEYS = [
   },
 ];
 
-// -- The language: the profile with the roles it asks for, the dialects and the registered resources
+// -- The language: the profile with the roles it asks for and the installed dialects
 
 const roleOf = (kind: string, minimum: number, maximum?: number, extensionTypes: 'none' | 'installed' = 'none') => ({
   resourceTypes: [{ apiVersion: 'qos-binding/v1', kind, minimum, ...(maximum === undefined ? {} : { maximum }) }], extensionTypes,
@@ -172,8 +170,7 @@ const PROFILE = localize({
     },
   },
 });
-const DIALECTS = localize([PLACEMENT_DIALECT, COMMUNITY_DIALECT]);
-const REGISTERED = localize(REGISTERED_RESOURCES);
+const DIALECTS = localize([PLACEMENT_DIALECT]);
 
 // -- Engines
 
@@ -301,7 +298,7 @@ function jobDetail(id: string): Record<string, unknown> | null {
   }
 }
 
-// -- Studies, reports and the analysis
+// -- Studies and the analysis
 
 const STUDY = localize(studyFixture());
 const OTHER_STUDY = localize(studyFixture({
@@ -322,81 +319,10 @@ const ANALYTICS = localize(analyticsFixture({
   },
 }));
 
-const REPORTS = localize([FROZEN, DRAFT, LEGACY]);
-const PUBLICATION = localize(publicationOf(FROZEN, { citation: { title: 'Engine comparison at checkout', authors: ['Alex Rivera'], year: 2026, venue: 'ISA Demo Group / QoS Benchmarks' } }));
-
 // -- Public screens
 
-const PUBLIC_PROJECTS = [
-  { organization: { slug: 'isa-demo', name: 'ISA Demo Group' }, project: { slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: 'Reference binding cases with workflow and placement.' } },
-  { organization: { slug: 'partner-lab', name: 'Partner Lab' }, project: { slug: 'service-corpus', name: 'Service corpus', description: 'Cases derived from published service-composition papers.' } },
-];
-const PUBLIC_PUBLICATIONS = [
-  {
-    slug: 'checkout-engines', citation: { title: 'Engine comparison at checkout', authors: ['Alex Rivera'], year: 2026 },
-    report: { title: 'Engine comparison at checkout', digest: EDITION, version_id: 'version-1' }, project: 'qos-benchmarks', organization: 'isa-demo', publishedAt: '2026-09-25T11:55:00Z',
-  },
-  {
-    slug: 'corpus-baseline', citation: { title: 'Baseline results on the service corpus', authors: ['Sam Okafor', 'Jordan Lee'], year: 2026 },
-    report: { title: 'Baseline results on the service corpus', digest: `sha256-${'12ab34cd'.repeat(8)}`, version_id: 'version-2' }, project: 'service-corpus', organization: 'partner-lab', publishedAt: '2026-09-12T08:00:00Z',
-  },
-];
-const RESOLVED = {
-  verified: true, kind: 'report', digest: EDITION, canonical_name: 'Engine comparison at checkout', media_type: 'application/json', size_bytes: 20480, created_at: '2026-09-25T11:55:00Z',
-  author: { id: 'author-1', username: 'alex.rivera', email: null },
-  document: { title: 'Engine comparison at checkout', sections: [{ id: 's1' }, { id: 's2' }, { id: 's3' }], schemaVersion: 1, evidence: { runs: 12 } },
-  content_url: `/v1/resolve/report/${EDITION}/content`,
-  locations: [{
-    organization: { id: 'org-isa-demo', slug: 'isa-demo', name: 'ISA Demo Group' },
-    project: { id: 'project-qos-benchmarks', slug: 'qos-benchmarks', name: 'QoS Benchmarks', visibility: 'public' },
-    element_id: 'element-1', slug: 'checkout-engines', version_or_revision: 1, created_at: '2026-09-25T11:55:00Z', web_url: '/app/isa-demo/library',
-  }],
-  pagination: { total: 1, limit: 20, offset: 0, has_more: false },
-  citation: {
-    title: 'Engine comparison at checkout', authors: ['Alex Rivera'], year: 2026, doi: null, venue: 'ISA Demo Group / QoS Benchmarks', url: null,
-    bibtex: '@misc{checkout_engines_2026,\n  title = {Engine comparison at checkout},\n  author = {Rivera, Alex},\n  year = {2026}\n}',
-    markdown_badge: `[![OpenBinding](https://openbinding.example/badge/${EDITION})](https://openbinding.example/resolve/report/${EDITION})`,
-    uri: `https://openbinding.example/resolve/report/${EDITION}`,
-  },
-};
-
-/** A JSON Schema with enough structure to read: nested groups, a list, required fields and allowed values. */
-function schemaOf(kind: string) {
-  return {
-    $schema: 'https://json-schema.org/draft/2020-12/schema', $id: `https://openbinding.example/schemas/bim-v1-${kind.toLowerCase()}.json`, title: kind, type: 'object',
-    required: ['apiVersion', 'kind', 'metadata', 'spec'],
-    properties: {
-      apiVersion: { type: 'string', const: 'bim/v1', description: 'The version of the language the document is written in.' },
-      kind: { type: 'string', const: kind, description: `Always ${kind}.` },
-      metadata: {
-        type: 'object', required: ['name'], description: 'Who the document is.',
-        properties: {
-          name: { type: 'string', description: 'A fixed name, unique in its namespace.', pattern: '^[a-z0-9-]+$' },
-          namespace: { type: 'string', description: 'Where the name lives.' },
-          labels: { type: 'object', additionalProperties: { type: 'string' }, description: 'Free labels for finding it again.' },
-        },
-      },
-      spec: {
-        type: 'object', required: ['profile'], description: 'What the document says.',
-        properties: {
-          profile: { type: 'string', description: 'The Profile that directs the reading of the package.', enum: ['qos-binding/v1'] },
-          resources: {
-            type: 'array', description: 'The parts the package is made of.',
-            items: {
-              type: 'object', required: ['role', 'alias'],
-              properties: {
-                role: { type: 'string', enum: ['application', 'candidateCatalog', 'constraintSet', 'optimization'], description: 'What the part is for.' },
-                alias: { type: 'string', description: 'How other parts name it.' },
-                timeout: { type: 'number', description: 'Longest time one evaluation may take.', 'x-unit': 'ms' },
-              },
-            },
-          },
-        },
-      },
-    },
-    $defs: { Metric: { type: 'object', properties: { unit: { type: 'string' }, direction: { enum: ['minimize', 'maximize'] } } } },
-  };
-}
+/** The example packages the gateway serves (GET /v1/examples). */
+const EXAMPLE_PATHS = ['demo/01_simple_seq', 'demo/02_parallel', 'demo/03_xor_choice', 'demo/05_multi_obj', 'demo/15_bpmn_complete', 'placement/01_small_placement'];
 
 // -- Administration
 
@@ -474,13 +400,6 @@ function projectRoutes(request: Request, orgSlug: string, projectSlug: string): 
       }
       return ok(STUDIES.find((item) => item.slug === subId));
     }
-    case 'reports': {
-      if (!filled) return ok([]);
-      if (!subId) return ok(REPORTS);
-      return notFound('Not mocked.');
-    }
-    case 'publications':
-      return ok(filled ? [PUBLICATION] : []);
     case 'blobs':
       return ok(filled ? localize([blobOf('a'), blobOf('b', { media_type: 'text/csv', size_bytes: 18_432, public: true, created_at: '2026-09-30T09:00:00Z' })]) : []);
     case 'resources': {
@@ -497,22 +416,6 @@ function projectRoutes(request: Request, orgSlug: string, projectSlug: string): 
       return ok(localize(subId === 'notes' ? [] : [
         resourceRevisionOf(found, 2, { title: 'Latency probes', samples: 5 }),
         resourceRevisionOf(found, 1, { title: 'Latency probes', samples: 3 }),
-      ]));
-    }
-    case 'collections': {
-      if (!filled) return ok([]);
-      const references = collectionOf('checkout-references', 'Checkout references', { description: 'What a reviewer needs to reproduce the published comparison.' });
-      const empty = collectionOf('empty-list', 'Empty list', { description: 'A list that has not got its first revision yet.' });
-      const items = (...picked: Array<'c1' | 'c2' | 'w1'>) => picked.map((part) => (part === 'w1'
-        ? resourceItem('latency-probes', '1', caseDigest('a'))
-        : caseItem(`rev-checkout-${part.slice(1)}`, caseDigest(part.slice(1)))));
-      const collections = localize([references, empty]);
-      if (!subId) return ok(collections);
-      const found = collections.find((item) => item.slug === subId);
-      if (!found) return notFound('Collection not found.');
-      if (action !== 'revisions') return ok(found);
-      return ok(localize(subId === 'empty-list' ? [] : [
-        collectionRevisionOf(references, 2, items('c1', 'c2', 'w1')), collectionRevisionOf(references, 1, items('c1', 'w1')),
       ]));
     }
     case 'package':
@@ -643,7 +546,7 @@ function adminRoutes(request: Request): Reply {
 }
 
 /** The first path segments the gateway only answers to a session. */
-const SESSION_ONLY = new Set(['users', 'admin', 'notifications', 'organizations', 'jobs', 'engines', 'engine-registrations', 'artifacts', 'snapshots', 'instances', 'verifier']);
+const SESSION_ONLY = new Set(['users', 'admin', 'notifications', 'organizations', 'jobs', 'engines', 'engine-registrations', 'artifacts', 'snapshots', 'instances']);
 
 function route(request: Request): Reply | null {
   const { method, parts } = request;
@@ -669,29 +572,13 @@ function route(request: Request): Reply | null {
     case 'artifacts': return artifactRoutes(request);
     case 'engine-registrations': return engineRegistrationRoutes(request);
     case 'admin': return adminRoutes(request);
-    case 'explore':
-      if (second === 'projects') return ok(PUBLIC_PROJECTS);
-      if (second === 'publications') return ok(PUBLIC_PUBLICATIONS);
-      if (second === 'engines') return ok({ engines: PUBLIC_ENGINES });
-      return null;
     case 'engines':
       if (!second) return ok({ engines: OWN_ENGINES });
       if (second === 'revisions') return ok({ revisions: [] });
       return null;
     case 'profiles': return ok({ profiles: [PROFILE] });
     case 'dialects': return ok({ dialects: DIALECTS });
-    case 'resources': return ok({ resources: REGISTERED });
-    case 'schemas': return ok(schemaOf(decodeURIComponent(second ?? 'Instance')));
-    case 'examples': return second ? { status: 200, type: 'application/zip', bytes: request.archive } : ok({ examples: Object.keys(LESSONS) });
-    case 'resolve':
-      if (parts[4] === 'content') return ok(RESOLVED.document);
-      return ok({ ...RESOLVED, kind: second, digest: third });
-    case 'verifier':
-      return ok({
-        status: 'verified', digest: (request.body().digest as string | undefined) ?? EDITION, matches: true, verified_at: NOW,
-        detail: 'Cryptographically verified against 1 registered entity.',
-        entities: [{ entity_type: 'report', id: 'report-1', slug: 'engine-comparison', title_or_name: 'Engine comparison at checkout', organization_slug: 'isa-demo', project_slug: 'qos-benchmarks', created_at: '2026-09-25T09:00:00Z' }],
-      });
+    case 'examples': return second ? { status: 200, type: 'application/zip', bytes: request.archive } : ok({ examples: EXAMPLE_PATHS });
     case 'validate':
       return ok({
         valid: true, instanceDigest: caseDigest('a'), packageDigest: caseDigest('b'), irDigest: caseDigest('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],
@@ -752,6 +639,11 @@ export async function installMockApi(page: Page, session: Session): Promise<Mock
         }
       },
     };
+    // The engine catalogue is public: a visitor gets the public engines.
+    if (session === 'none' && known.method === 'GET' && parts.join('/') === 'v1/engines') {
+      await call.fulfill({ status: 200, json: { engines: PUBLIC_ENGINES } });
+      return;
+    }
     if (session === 'none' && parts[0] === 'v1' && SESSION_ONLY.has(parts[1])) {
       await call.fulfill({ status: 401, json: { detail: { code: 'not_authenticated', error: 'Authentication required.' } } });
       return;

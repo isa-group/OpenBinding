@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRegistry } from './registry';
-
-/** The budget counts the production registry: the development screens (`sys-states`) are not in it. */
-const { routeDefinitions, routesByArea } = buildRegistry(false);
+import { routeDefinitions, routesByArea } from './registry';
 
 /** The source of every area test, as text: importing them would run their tests a second time. */
 const areaTests = import.meta.glob<string>('./areas/*.test.ts', { query: '?raw', import: 'default', eager: true });
@@ -34,36 +31,26 @@ describe('screen budget', () => {
     }
   });
 
-  it('does not count the development screens', () => {
-    expect(routeDefinitions.some((definition) => definition.devOnly)).toBe(false);
-    expect(buildRegistry(true).routeDefinitions.map((definition) => definition.id)).toContain('sys-states');
-    expect(routeDefinitions.map((definition) => definition.id)).not.toContain('sys-states');
+  it('has at most 35 screens', () => {
+    expect(routeDefinitions.length, `${routeDefinitions.length} screens against a ceiling of 35`).toBeLessThanOrEqual(35);
   });
 
-  it('has at most 45 screens', () => {
-    expect(routeDefinitions.length, `${routeDefinitions.length} screens against a ceiling of 45`).toBeLessThanOrEqual(45);
-  });
-
-  // `pub-workbench` is registered in the public area (public 5, problems 3).
-  it('has the area sizes of the registry, 45 screens in all', () => {
+  // `pub-workbench` is registered in the public area (public 4, problems 3).
+  it('has the area sizes of the registry, 35 screens in all', () => {
     const sizes = Object.fromEntries(Object.entries(routesByArea).map(([area, routes]) => [area, routes.length]));
     expect(sizes).toEqual({
-      public: 5,
+      public: 4,
       auth: 5,
-      verify: 1,
-      system: 0,
-      language: 1,
       engines: 5,
       account: 1,
       organizations: 3,
-      project: 3,
+      project: 2,
       problems: 3,
-      collections: 2,
       runs: 5,
       studies: 3,
-      admin: 8,
+      admin: 4,
     });
-    expect(routeDefinitions).toHaveLength(45);
+    expect(routeDefinitions).toHaveLength(35);
   });
 
   it('keeps no per-domain route file and no mention of routesByDomain under routes/', () => {
@@ -90,6 +77,5 @@ describe('screen budget', () => {
     };
     expect(duplicates({ public: [{ id: 'a' }, { id: 'b' }], runs: [{ id: 'b' }, { id: 'c' }] })).toEqual(['b: public, runs']);
     expect(duplicates(routesByArea)).toEqual([]);
-    expect(duplicates(buildRegistry(true).routesByArea)).toEqual([]);
   });
 });

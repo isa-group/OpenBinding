@@ -33,7 +33,7 @@ export function kindOf(action: string): AuditKind {
   if (/^organization\.(member|members|invitation)/.test(action)) return 'members';
   if (action.startsWith('organization.')) return 'organization';
   if (action.startsWith('project.')) return 'projects';
-  if (/^(binding_case|project_resource|collection|study|report|publication|library|artifact)/.test(action)) return 'content';
+  if (/^(binding_case|project_resource|study|report|publication|library|artifact)/.test(action)) return 'content';
   return 'other';
 }
 

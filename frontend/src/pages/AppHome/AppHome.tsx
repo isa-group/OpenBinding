@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
-import { Building2, FilePlus2, Play, Plus, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { Building2, FilePlus2, Play, Plus, type LucideIcon } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import type { JobSummary } from '../../api/client';
 import type { Notification } from '../../api/auth';
@@ -105,8 +105,8 @@ function ActivityBlock() {
         <div className="home-guide">
           <strong>No runs yet. Here’s a way to your first run.</strong>
           <ol>
-            <li><Link to="/workbench">Open the Workbench</Link> and validate a package, or <Link to="/explore/examples">start from an example</Link>.</li>
-            <li>Open or create a project to keep its problems, runs and reports together.</li>
+            <li><Link to="/workbench">Open the Workbench</Link> and validate a package, or start from one of its examples.</li>
+            <li>Open or create a project to keep its problems, runs and studies together.</li>
             <li>Launch a run from the project; it appears here while it works.</li>
           </ol>
         </div>
@@ -258,7 +258,6 @@ export function AppHome() {
     shortcuts.push({ label: 'New problem', to: problemsPath(`/app/${organization.slug}/${project.slug}`), icon: FilePlus2 });
     shortcuts.push({ label: 'Run', to: `/app/${organization.slug}/${project.slug}/runs/new`, icon: Play });
   }
-  shortcuts.push({ label: 'Verify a digest', to: '/verify', icon: ShieldCheck });
 
   const subtitle = isAdmin
     ? 'You’re a platform administrator. Admin tools are in the header.'

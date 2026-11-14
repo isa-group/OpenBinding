@@ -79,6 +79,8 @@ interface KeepItProps {
   onSelect: (id: string) => void;
   /** There is a result to keep. */
   hasOutput: boolean;
+  /** The result can be saved to a project: an instance or a conversion, not a batch. */
+  savable: boolean;
   /** The result has files a workbench can open. */
   hasFiles: boolean;
   saving: boolean;
@@ -88,7 +90,7 @@ interface KeepItProps {
 }
 
 /** Keeping the result: adding it to a project, or opening it in that project's workbench. */
-export function KeepIt({ signedIn, projects, projectsLoading, selected, onSelect, hasOutput, hasFiles, saving, keep, onSave, onOpen }: KeepItProps) {
+export function KeepIt({ signedIn, projects, projectsLoading, selected, onSelect, hasOutput, savable, hasFiles, saving, keep, onSave, onOpen }: KeepItProps) {
   return (
     <section className="gl-card" aria-label="Keep it">
       <span className="gl-eyebrow">Keep it</span>
@@ -105,10 +107,11 @@ export function KeepIt({ signedIn, projects, projectsLoading, selected, onSelect
             </select>
           </label>
           <div className="gl-buttons">
-            <Action variant="primary" busy={saving} disabled={!hasOutput || !selected} onClick={onSave}>Save to project</Action>
+            <Action variant="primary" busy={saving} disabled={!hasOutput || !savable || !selected} onClick={onSave}>Save to project</Action>
             {hasFiles && <Action variant="secondary" disabled={!selected || saving} onClick={onOpen}>Open in Workbench</Action>}
           </div>
           {!hasOutput && <span className="gl-muted">Generate something first; then you can keep it.</span>}
+          {hasOutput && !savable && <span className="gl-muted">A batch is a preview only; generate one instance to save it to a project.</span>}
         </>
       )}
       {keep && (

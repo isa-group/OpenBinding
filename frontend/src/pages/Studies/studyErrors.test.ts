@@ -42,10 +42,9 @@ describe('why the gateway refuses a study', () => {
     expect(studyRefusal(refused(409, 'slug_conflict'), 'create').title).toBe('That address is already used (409 · slug_conflict)');
     expect(studyRefusal(refused(409, 'study_archived'), 'run').title).toBe('This study is archived (409 · study_archived)');
     expect(studyRefusal(refused(409, 'evidence_only_study'), 'run').title).toBe('This study only holds stored evidence (409 · evidence_only_study)');
-    const sealed = studyRefusal(refused(409, 'sealed_evidence'), 'cancel');
-    expect(sealed.kind).toBe('terminal');
-    expect(sealed.title).toBe('A sealed report cites this run (409 · sealed_evidence)');
-    expect(studyRefusal(refused(409, 'terminal_run'), 'cancel').title).toBe('This run already finished (409 · terminal_run)');
+    const finished = studyRefusal(refused(409, 'terminal_run'), 'cancel');
+    expect(finished.kind).toBe('terminal');
+    expect(finished.title).toBe('This run already finished (409 · terminal_run)');
     expect(studyRefusal(refused(409, 'cell_not_retryable'), 'retry').title).toBe('This cell can’t be retried (409 · cell_not_retryable)');
     expect(studyRefusal(refused(409, 'job_not_finished'), 'attach').title).toBe('That run hasn’t finished (409 · job_not_finished)');
     expect(studyRefusal(refused(409, 'study_history_retained'), 'delete').title).toBe('This study has runs (409 · study_history_retained)');
@@ -82,7 +81,6 @@ describe('why the gateway refuses a study', () => {
     expect(studyRefusal(refused(422, 'study_matrix_too_large'), 'create')).toMatchObject({ kind: 'too-big', title: 'The matrix is too large (422 · study_matrix_too_large)' });
     expect(studyRefusal(refused(422, 'empty_study_cases'), 'create').title).toBe('The study needs a problem (422 · empty_study_cases)');
     expect(studyRefusal(refused(422, 'foreign_case_revision'), 'create').title).toBe('A problem version isn’t in this organization (422 · foreign_case_revision)');
-    expect(studyRefusal(refused(422, 'unavailable_collection'), 'create').title).toBe('That collection isn’t available (422 · unavailable_collection)');
     const mode = studyRefusal(refused(422, 'engine_mode_incompatible', 'MiniZinc has no mode for this goal.'), 'create');
     expect(mode.kind).toBe('incompatible');
     expect(mode.text).toContain('MiniZinc has no mode for this goal.');

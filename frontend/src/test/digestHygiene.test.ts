@@ -3,8 +3,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 // docs/ARCHITECTURE.md §5.4: the interface shows names, not digests. A digest-shaped string (`sha256-` followed
-// by hexadecimal, a bare 40- or 64-hexadecimal run) or a UUID is rendered only by CitationPanel, VerifyResult, the export manifests and
-// SourceView / LogPanel. This test reads the shipped sources (as src/hygiene.test.ts does) and fails on a literal of that shape, or on a
+// by hexadecimal, a bare 40- or 64-hexadecimal run) or a UUID is rendered only by the export manifests and SourceView /
+// LogPanel. This test reads the shipped sources (as src/hygiene.test.ts does) and fails on a literal of that shape, or on a
 // use of `shortDigest` / `digestPrefix`, outside that allowed set.
 //
 // Every shipped file outside the allowed set is scanned.
@@ -33,7 +33,7 @@ const TEST_KIT_FILES: readonly string[] = [
 const all = [...Object.entries(files).filter(([path]) => !path.endsWith('.css')), ...stylesheets];
 const shipped = all.filter(([path]) => !TEST_KIT.test(path));
 
-const ALLOWED = /\/src\/(components\/CitationPanel\/|components\/VerifyResult\/|components\/rendering\/(SourceView|LogPanel)|utils\/(digest|uuid|canonicalDigest)|api\/|test\/)|[Ff]ixtures?\.ts$/;
+const ALLOWED = /\/src\/(components\/rendering\/(SourceView|LogPanel)|utils\/(digest|uuid|canonicalDigest)|api\/|test\/)|[Ff]ixtures?\.ts$/;
 
 // Every shipped file the ALLOWED pattern exempts; a new exempt-named file needs an edit here.
 const EXEMPT_FILES: readonly string[] = [
@@ -50,15 +50,6 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/api/platform.ts',
   '/src/api/problem.ts',
   '/src/api/workbench.ts',
-  // citation and verify components: the places that show a digest on purpose
-  '/src/components/CitationPanel/CitationPanel.css',
-  '/src/components/CitationPanel/CitationPanel.tsx',
-  '/src/components/CitationPanel/citationModel.ts',
-  '/src/components/CitationPanel/index.ts',
-  '/src/components/VerifyResult/VerifyResult.css',
-  '/src/components/VerifyResult/VerifyResult.tsx',
-  '/src/components/VerifyResult/index.ts',
-  '/src/components/VerifyResult/verifyModel.ts',
   // log and source views: raw engine output and source text are shown verbatim
   '/src/components/rendering/LogPanel.css',
   '/src/components/rendering/LogPanel.tsx',
@@ -73,7 +64,6 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/test/fixtures/admin.ts',
   '/src/test/fixtures/engines.ts',
   '/src/test/fixtures/jobs.ts',
-  '/src/test/fixtures/reports.ts',
   '/src/test/fixtures/resources.ts',
   '/src/test/fixtures/studies.ts',
   // test support under src/test/, not shipped behaviour
@@ -103,8 +93,8 @@ describe('names, not digests: no digest-shaped string or UUID outside the places
 
   it('reads the stylesheets from disk with their content', () => {
     expect(stylesheets.length).toBeGreaterThan(0);
-    const citation = stylesheets.find(([path]) => path === '/src/components/CitationPanel/CitationPanel.css');
-    expect(citation?.[1].trim().length).toBeGreaterThan(0);
+    const logPanel = stylesheets.find(([path]) => path === '/src/components/rendering/LogPanel.css');
+    expect(logPanel?.[1].trim().length).toBeGreaterThan(0);
   });
 
   it('leaves out exactly the files of the explicit test-kit list', () => {

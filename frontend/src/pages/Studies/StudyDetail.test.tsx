@@ -8,7 +8,7 @@ import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, VERSION_ID, analyticsFixture,
 import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), publicProjects: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), runStudy: vi.fn(), updateStudy: vi.fn(), deleteStudy: vi.fn(),
+  project: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), runStudy: vi.fn(), updateStudy: vi.fn(), deleteStudy: vi.fn(),
   cases: vi.fn(), revisions: vi.fn(), analytics: vi.fn(),
 }));
 const library = vi.hoisted(() => ({ libraryApi: { versions: vi.fn() } }));
@@ -57,7 +57,6 @@ describe('One study', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
-    platform.publicProjects.mockResolvedValue([]);
     platform.studies.mockResolvedValue([studyFixture()]);
     platform.studyRuns.mockResolvedValue([runFixture()]);
     platform.studyCells.mockResolvedValue(cellsFixture());
@@ -72,7 +71,7 @@ describe('One study', () => {
     const view = renderDetail('isa-demo', 'engines-vs-seeds', '');
 
     const tabs = await screen.findByRole('tablist', { name: 'Study sections' });
-    expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Setup', 'Progress', 'Results', 'Publish']);
+    expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Setup', 'Progress', 'Results']);
     expect(within(tabs).getByRole('tab', { name: 'Progress' })).toHaveAttribute('aria-selected', 'true');
     expect(await screen.findByRole('combobox', { name: 'Study run' })).toHaveValue('run-2');
     expect(await screen.findByRole('heading', { level: 2, name: 'Run #2' })).toBeInTheDocument();
@@ -102,18 +101,18 @@ describe('One study', () => {
     platform.studyRuns.mockResolvedValue([runFixture(), runTwo()]);
     const view = renderDetail('isa-demo', 'engines-vs-seeds', `/progress?run=${RUN_ID}`);
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Publish' }));
-    await waitFor(() => expect(where()).toBe(`${STUDY}/publish?run=${RUN_ID}`));
-    expect(screen.getByRole('tab', { name: 'Publish' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Results' }));
+    await waitFor(() => expect(where()).toBe(`${STUDY}/results?run=${RUN_ID}`));
+    expect(screen.getByRole('tab', { name: 'Results' })).toHaveAttribute('aria-selected', 'true');
     view.unmount();
 
     renderDetail('isa-demo', 'engines-vs-seeds', '/progress?run=ghost');
     expect(await screen.findByRole('heading', { name: 'Run not found' })).toBeInTheDocument();
   });
 
-  it('holds the CSV export of the study run and a link to the Published tab in Publish', async () => {
+  it('holds the CSV export of the study run in Results', async () => {
     platform.studyRuns.mockResolvedValue([runFixture(), runTwo()]);
-    renderDetail('isa-demo', 'engines-vs-seeds', `/publish?run=${RUN_ID}`);
+    renderDetail('isa-demo', 'engines-vs-seeds', `/results?run=${RUN_ID}`);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Export CSV' }));
 
@@ -122,7 +121,7 @@ describe('One study', () => {
     expect(name).toBe('engines-vs-seeds-run-1-cells.csv');
     expect(type).toBe('text/csv');
     expect(new TextDecoder().decode(bytes).split('\n')[0]).toBe('cell,case_revision,engine,engine_version,mode,setting,seed,state,feasible,cost,latency,runtime_seconds,job_id,fingerprint');
-    expect(screen.getByRole('link', { name: 'Published results of this project' })).toHaveAttribute('href', `${ROOT}/published`);
+    expect(screen.queryByRole('tab', { name: 'Publish' })).not.toBeInTheDocument();
   });
 
   it('says Progress and Results have nothing to show before the first study run', async () => {

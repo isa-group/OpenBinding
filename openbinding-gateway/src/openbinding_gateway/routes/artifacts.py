@@ -31,18 +31,12 @@ from ..db.models import (
     BindingCase,
     BindingCaseRevision,
     InstanceResource, InstanceSnapshot, BindingIRSnapshot, Artifact, ArtifactVersion, ArtifactDraft, ArtifactDependency, CaseArtifact, ProjectArtifact,
-    Collection,
-    CollectionItem,
-    CollectionRevision,
     Job,
     JobState,
     Organization,
     OrganizationRole,
     ProjectResource,
     ProjectResourceRevision,
-    Publication,
-    Report,
-    ReportState,
     RunState,
     Study,
     StudyCell,
@@ -87,9 +81,6 @@ def _validate_portable_shape(package: dict) -> None:
         _portable_objects(declaration, "revisions", "case")
     for declaration in _portable_objects(package, "resources", "package"):
         _portable_objects(declaration, "revisions", "resource")
-    for declaration in _portable_objects(package, "collections", "package"):
-        for revision in _portable_objects(declaration, "revisions", "collection"):
-            _portable_objects(revision, "items", "collection revision")
     for declaration in _portable_objects(package, "studies", "package"):
         if not isinstance(declaration.get("definition", {}), dict):
             raise api_error(
@@ -105,27 +96,10 @@ def _validate_portable_shape(package: dict) -> None:
                         "invalid_portable_package",
                         "study cell.job must be an object or null.",
                     )
-    _portable_objects(package, "reports", "package")
-    _portable_objects(package, "publications", "package")
     _portable_objects(package, "artifacts", "package")
     from pydantic import ValidationError
     from ..models.artifacts import ArtifactRef, ArtifactManifest, ArtifactUse
     try:
-        for job in _portable_objects(package, 'evidenceJobs', 'package'):
-            uuid.UUID(job.get('id', ''))
-            if not isinstance(job.get('engineId'), str) or not job['engineId']:
-                raise ValueError('Job evidence requires an engine identifier.')
-            if job.get('state') not in {'completed', 'failed', 'cancelled'}:
-                raise ValueError('Job evidence must be terminal.')
-        for report in package.get('reports', []):
-            if report.get('state') == 'frozen':
-                ArtifactRef.model_validate(report.get('versionRef'))
-        for publication in package.get('publications', []):
-            ArtifactRef.model_validate(publication.get('versionRef'))
-            if not isinstance(publication.get('slug'), str) or not publication['slug']:
-                raise ValueError('A publication requires a slug.')
-            if not isinstance(publication.get('withdrawn', False), bool):
-                raise ValueError('Publication withdrawal must be boolean.')
         for study in package.get('studies', []):
             ArtifactRef.model_validate(study.get('definitionRef'))
             for run in study.get('runs', []):
@@ -352,26 +326,9 @@ async def blob_references(session: AsyncSession, project_id: uuid.UUID, blob: Bl
             and_(ArtifactVersion.content_digest == wanted, Artifact.id.in_(project_artifacts)),
         ))
     )).all()
-    version_ids = {version_id for version_id, _ in versions}
     references: dict[str, int] = {
-        "library_version": len({v for v, kind in versions if kind not in {"Report", "Collection"}}),
-        "report": len({v for v, kind in versions if kind == "Report"}),
+        "library_version": len({v for v, _kind in versions}),
     }
-
-    collection_revisions = {v for v, kind in versions if kind == "Collection"}
-    collection_scope = (
-        select(CollectionRevision.id)
-        .join(Collection, Collection.id == CollectionRevision.collection_id)
-        .where(Collection.project_id == project_id)
-    )
-    collection_revisions |= set(await session.scalars(
-        collection_scope.where(CollectionRevision.digest == wanted)
-    ))
-    collection_revisions |= set(await session.scalars(
-        collection_scope.join(CollectionItem, CollectionItem.collection_revision_id == CollectionRevision.id)
-        .where(CollectionItem.target_digest == wanted)
-    ))
-    references["collection_revision"] = len(collection_revisions)
 
     project_cases = (
         select(BindingCaseRevision.id, BindingCaseRevision.digest, BindingCaseRevision.source_snapshot_id)
@@ -409,11 +366,6 @@ async def blob_references(session: AsyncSession, project_id: uuid.UUID, blob: Bl
         .join(ProjectResource, ProjectResource.id == ProjectResourceRevision.project_resource_id)
         .where(ProjectResource.project_id == project_id, ProjectResourceRevision.digest == wanted)
     ) or 0)
-    references["publication"] = int(await session.scalar(
-        select(func.count(Publication.id)).where(
-            Publication.project_id == project_id, Publication.version_id.in_(version_ids)
-        )
-    ) or 0) if version_ids else 0
     return {kind: count for kind, count in references.items() if count}
 
 
@@ -427,8 +379,8 @@ async def blob_references(session: AsyncSession, project_id: uuid.UUID, blob: Bl
             "description": (
                 "A sealed or revisioned element of the project depends on this file "
                 "(code `blob_in_use`). `references` lists the kinds of element and how many of each "
-                "(`library_version`, `report`, `collection_revision`, `case_revision`, `snapshot`, "
-                "`project_resource_revision`, `publication`); names are not disclosed."
+                "(`library_version`, `case_revision`, `snapshot`, "
+                "`project_resource_revision`); names are not disclosed."
             ),
         }
     },
@@ -500,17 +452,11 @@ async def export_project_package(
                Artifact.id.not_in(case_used_artifact_ids),
                Artifact.kind.not_in({"Application", "CandidateCatalog", "ConstraintSet",
                                      "ExecutionConfiguration", "AnalysisConfiguration",
-                                     "Collection", "Study", "Report", "BindingDecision"}))
+                                     "Study", "BindingDecision"}))
         .order_by(Artifact.name))).all()
     resource_revisions = (await session.scalars(select(ArtifactVersion)
         .where(ArtifactVersion.artifact_id.in_([resource.id for resource in resources]))
         .order_by(ArtifactVersion.ordinal))).all() if resources else []
-    collections = (await session.scalars(select(Artifact).join(ProjectArtifact)
-        .where(ProjectArtifact.project_id == found_project.id, Artifact.kind == "Collection")
-        .order_by(Artifact.name))).all()
-    collection_revisions = (await session.scalars(select(ArtifactVersion)
-        .where(ArtifactVersion.artifact_id.in_([collection.id for collection in collections]))
-        .order_by(ArtifactVersion.ordinal))).all() if collections else []
     studies = (await session.execute(select(Study).where(Study.project_id == found_project.id))).scalars().all()
     study_ids = [study.id for study in studies]
     runs = (await session.execute(select(StudyRun).where(StudyRun.study_id.in_(study_ids)))).scalars().all() if study_ids else []
@@ -518,19 +464,6 @@ async def export_project_package(
     cells = (await session.execute(select(StudyCell).where(StudyCell.study_run_id.in_(run_ids)))).scalars().all() if run_ids else []
     job_ids = [cell.job_id for cell in cells if cell.job_id]
     jobs = (await session.execute(select(Job).where(Job.id.in_(job_ids)))).scalars().all() if job_ids else []
-    reports = (await session.execute(select(Report).where(Report.project_id == found_project.id))).scalars().all()
-    publications = (await session.execute(select(Publication).where(Publication.project_id == found_project.id))).scalars().all()
-    from ..db.models import ArtifactEvidence
-    report_versions = {report.version_id for report in reports if report.version_id} | {publication.version_id for publication in publications}
-    report_versions.update(await session.scalars(select(ArtifactVersion.id).join(ProjectArtifact,
-        ProjectArtifact.artifact_id == ArtifactVersion.artifact_id).where(ProjectArtifact.project_id == found_project.id)))
-    evidence = (await session.scalars(select(ArtifactEvidence).where(ArtifactEvidence.version_id.in_(report_versions)))).all()
-    evidence_run_ids = {item.study_run_id for item in evidence if item.study_run_id}
-    evidence_job_ids = {item.job_id for item in evidence if item.job_id}
-    runs = list({run.id: run for run in [*runs, *(await session.scalars(select(StudyRun).where(StudyRun.id.in_(evidence_run_ids)))).all()]} .values())
-    studies = list({study.id: study for study in [*studies, *(await session.scalars(select(Study).where(Study.id.in_({run.study_id for run in runs})))).all()]} .values())
-    cells = (await session.scalars(select(StudyCell).where(StudyCell.study_run_id.in_({run.id for run in runs})))).all()
-    jobs = (await session.scalars(select(Job).where(Job.id.in_(evidence_job_ids | {cell.job_id for cell in cells if cell.job_id})))).all()
     artifacts = (await session.execute(select(Blob).where(Blob.project_id == found_project.id))).scalars().all()
     revisions_by_case: dict[str, list[BindingCaseRevision]] = {}
     for revision in revisions:
@@ -538,9 +471,6 @@ async def export_project_package(
     revisions_by_resource: dict[str, list[ArtifactVersion]] = {}
     for revision in resource_revisions:
         revisions_by_resource.setdefault(str(revision.artifact_id), []).append(revision)
-    revisions_by_collection: dict[str, list[ArtifactVersion]] = {}
-    for revision in collection_revisions:
-        revisions_by_collection.setdefault(str(revision.artifact_id), []).append(revision)
     runs_by_study: dict[str, list[StudyRun]] = {}
     for run in runs:
         runs_by_study.setdefault(str(run.study_id), []).append(run)
@@ -556,8 +486,6 @@ async def export_project_package(
     snapshots = {}
     case_uses = {}
     version_ids = {study.definition_version_id for study in studies} | {run.definition_version_id for run in runs}
-    version_ids.update(report.version_id for report in reports if report.version_id)
-    version_ids.update(publication.version_id for publication in publications)
     version_ids.update(job.configuration_version_id for job in jobs if job.configuration_version_id)
     definition_refs = {}
     for version_id in version_ids:
@@ -680,28 +608,6 @@ async def export_project_package(
         legacy_resources.append({"id": str(resource.id), "slug": resource.name,
             "name": resource.display_name, "description": resource.description,
             "kind": resource.kind, "revisions": serialized_revisions})
-    legacy_collections = []
-    for collection in collections:
-        serialized_revisions = []
-        for version in sorted(revisions_by_collection.get(str(collection.id), []), key=lambda value: value.ordinal):
-            content, _ = await version_content(session, version)
-            document = json.loads(content.decode())
-            items = []
-            for member in document.get("members", []):
-                if "caseRevisionId" in member:
-                    items.append({"kind": "case", "digest": member.get("compositionDigest"),
-                                  "ref": {"caseRevisionId": member.get("caseRevisionId")}})
-                else:
-                    items.append({"kind": "resource", "digest": member.get("versionDigest"), "ref": member})
-            # The legacy envelope retains its historical ordered-item digest;
-            # the authoritative versionDigest remains in the common library.
-            legacy_digest_items = [{"target_kind": item["kind"], "target_digest": item["digest"],
-                                    "target_ref": item["ref"]} for item in items]
-            serialized_revisions.append({"id": str(version.id), "revision": version.ordinal,
-                "digest": digest(legacy_digest_items), "items": items})
-        legacy_collections.append({"id": str(collection.id), "slug": collection.name,
-            "name": collection.display_name, "description": collection.description,
-            "revisions": serialized_revisions})
 
     package = {
         "apiVersion": "openbinding.dev/package/v1",
@@ -721,7 +627,6 @@ async def export_project_package(
             } for item in sorted(revisions_by_case.get(str(case.id), []), key=lambda value: value.revision)],
         } for case in cases],
         "resources": legacy_resources,
-        "collections": legacy_collections,
         "studies": [{
             "id": str(study.id), "slug": study.slug, "name": study.name,
             "description": study.description, "definition": study.definition, "archived": study.archived,
@@ -742,17 +647,6 @@ async def export_project_package(
                 } for cell in sorted(cells_by_run.get(str(run.id), []), key=lambda value: value.ordinal)],
             } for run in sorted(runs_by_study.get(str(study.id), []), key=lambda value: value.run_number)],
         } for study in studies],
-        "evidenceJobs": [portable_job(job) for job in jobs if job.id in evidence_job_ids],
-        "reports": [{
-            "id": str(report.id), "studyRunId": str(report.study_run_id) if report.study_run_id else None,
-            "slug": report.slug, "title": report.title, "document": report.document,
-            "digest": report.digest, "state": report.state.value,
-            "versionRef": definition_refs.get(report.version_id),
-        } for report in reports],
-        "publications": [{
-            "slug": publication.slug, "reportId": str(publication.report_id), "versionRef": definition_refs[publication.version_id], "withdrawn": publication.withdrawn,
-            "citation": publication.citation, "publishedAt": timestamp(publication.published_at),
-        } for publication in publications],
         "artifacts": [{
             "digest": item.digest, "mediaType": item.media_type, "size": item.size_bytes,
             "public": item.public, "expiresAt": timestamp(item.expires_at),
@@ -851,8 +745,8 @@ async def import_project_package(
 
     counts = {
         "cases": 0, "caseRevisions": 0, "resources": 0, "resourceRevisions": 0,
-        "collections": 0, "collectionRevisions": 0, "studies": 0, "studyRuns": 0,
-        "studyCells": 0, "reports": 0, "publications": 0, "artifacts": 0,
+        "studies": 0, "studyRuns": 0,
+        "studyCells": 0, "artifacts": 0,
     }
     from ..artifacts import case_composition_digest, resolve_version, seal_draft
     from ..models.artifacts import ArtifactRef, DraftContent
@@ -873,10 +767,6 @@ async def import_project_package(
         except HTTPException as exc:
             if exc.status_code != 404:
                 raise
-        for evidence in manifest.get('evidence', []):
-            model = StudyRun if evidence['kind'] == 'StudyRun' else Job
-            if await session.get(model, uuid.UUID(evidence['id'])) is None:
-                return False
         if ref.namespace != str(organization.id):
             raise api_error(409, 'external_namespace_unavailable', 'Resolve external versions from their owning organization before importing; an archive does not grant namespace ownership.')
         document = strict_json_loads(content) if manifest['mediaType'] == 'application/json' else content.decode('utf-8')
@@ -887,16 +777,15 @@ async def import_project_package(
                 if exc.status_code != 404:
                     raise
                 return False
-        if manifest['kind'] in {'Study', 'Collection'}:
+        if manifest['kind'] == 'Study':
             from pydantic import ValidationError
-            from ..models.artifacts import CaseRevisionRef, StudyArtifactContent, CollectionArtifactContent
+            from ..models.artifacts import StudyArtifactContent
             try:
-                targets = (StudyArtifactContent.model_validate(document).cases if manifest['kind'] == 'Study'
-                           else CollectionArtifactContent.model_validate(document).members)
+                targets = StudyArtifactContent.model_validate(document).cases
             except ValidationError as exc:
                 raise api_error(422, 'invalid_artifact_content', str(exc)) from exc
             for target in targets:
-                if isinstance(target, CaseRevisionRef) and await session.get(BindingCaseRevision, target.caseRevisionId) is None:
+                if await session.get(BindingCaseRevision, target.caseRevisionId) is None:
                     return False
         artifact = await session.scalar(select(Artifact).where(Artifact.namespace == ref.namespace, Artifact.name == ref.name))
         if artifact is None:
@@ -999,14 +888,13 @@ async def import_project_package(
             case_revision_map[str(revision_data.get("id"))] = revision
 
     await import_available_library()
-    if any(entry['manifest']['kind'] != 'Report' for entry in pending_library):
+    if pending_library:
         raise api_error(422, 'incomplete_artifact_closure', 'The package is missing exact case revisions or artifact dependencies.')
 
     # The legacy ``resources`` envelope is only an index for clients that have
     # not adopted ``library`` yet. Exact bytes and versions were already
     # imported above; associate their artifact identities instead of creating
     # a second ProjectResource authority.
-    resource_revision_map: dict[str, ArtifactVersion] = {}
     for declaration in package.get("resources", []):
         if not isinstance(declaration, dict) or not all(isinstance(declaration.get(key), str) for key in ("id", "slug", "name")):
             raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_portable_package", "Malformed resource declaration.")
@@ -1018,39 +906,9 @@ async def import_project_package(
                 version = None
             if version is None:
                 raise api_error(422, "incomplete_artifact_closure", "A resource version is missing from the library closure.")
-            resource_revision_map[str(revision_data.get("id"))] = version
             counts["resourceRevisions"] += 1
 
-    def remap_ref(source_ref: dict) -> dict:
-        result = dict(source_ref)
-        for key in ("caseRevisionId", "case_revision_id", "id"):
-            source_id = str(result.get(key, ""))
-            if source_id in case_revision_map:
-                result[key] = str(case_revision_map[source_id].id)
-        for key in ("resourceRevisionId", "resource_revision_id"):
-            source_id = str(result.get(key, ""))
-            if source_id in resource_revision_map:
-                result[key] = str(resource_revision_map[source_id].id)
-        return result
-
-    # Collections follow the same rule: their sealed ArtifactVersion was
-    # imported from ``library``; the old envelope is validated and counted but
-    # never materialized into specialized revision tables.
-    for declaration in package.get("collections", []):
-        if not isinstance(declaration, dict):
-            raise api_error(422, "invalid_portable_package", "Malformed collection declaration.")
-        counts["collections"] += 1
-        for revision_data in declaration.get("revisions", []):
-            try:
-                version = await session.get(ArtifactVersion, uuid.UUID(str(revision_data.get("id"))))
-            except (TypeError, ValueError):
-                version = None
-            if version is None:
-                raise api_error(422, "incomplete_artifact_closure", "A collection version is missing from the library closure.")
-            counts["collectionRevisions"] += 1
-
     study_map: dict[str, Study] = {}
-    run_map: dict[str, StudyRun] = {}
 
     async def imported_configuration(job_data):
         declared = job_data.get('configurationRef')
@@ -1167,28 +1025,7 @@ async def import_project_package(
                         state=RunState(cell_state), metrics=cell_data.get("metrics") or {},
                     ))
                     counts["studyCells"] += 1
-            run_map[str(run_data.get("id"))] = run
 
-    for job_data in _portable_objects(package, 'evidenceJobs', 'package'):
-        configuration_version = await imported_configuration(job_data)
-        identity = uuid.UUID(job_data['id'])
-        existing_job = await session.get(Job, identity)
-        if existing_job is not None:
-            if (existing_job.owner_id != user.id and existing_job.organization_id != organization.id) or any(digest(getattr(existing_job, column)) != digest(job_data.get(key)) for column, key in [('result', 'result'), ('original_request', 'request'), ('provenance', 'provenance')]):
-                raise api_error(409, 'evidence_identity_conflict', 'The imported job evidence collides with inaccessible or different results.')
-            continue
-        if job_data.get('state') not in {'completed', 'failed', 'cancelled'}:
-            raise api_error(422, 'nonterminal_evidence', 'Only terminal job evidence can be imported.')
-        session.add(Job(id=identity, owner_id=user.id, engine_id=job_data['engineId'],
-            configuration_version_id=configuration_version.id if configuration_version else None,
-            engine_job_id='imported-' + str(identity), service_url='package://imported', state=JobState(job_data['state']),
-            original_request=job_data.get('request'), options=job_data.get('options'), result=job_data.get('result'),
-            termination=job_data.get('termination'), provenance=job_data.get('provenance'),
-            organization_id=organization.id, project_id=found_project.id))
-    await session.flush()
-    await import_available_library()
-    if pending_library:
-        raise api_error(422, 'incomplete_evidence_closure', 'Report versions require all their exact terminal sources.')
     for entry in _portable_objects(package, 'projectArtifacts', 'package'):
         artifact, version = await resolve_version(session, ArtifactRef.model_validate(entry), user)
         if artifact.organization_id != organization.id:
@@ -1198,61 +1035,6 @@ async def import_project_package(
         if await session.get(ProjectArtifact, (found_project.id, artifact.id)) is None:
             session.add(ProjectArtifact(project_id=found_project.id, artifact_id=artifact.id))
             await session.flush()
-
-    report_map: dict[str, Report] = {}
-    for declaration in package.get("reports", []):
-        document = declaration.get("document")
-        if not isinstance(document, dict) or declaration.get("digest") != digest(document):
-            raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "checksum_mismatch", "A report digest does not match its document.")
-        report = (await session.execute(select(Report).where(
-            Report.project_id == found_project.id, Report.slug == declaration.get("slug")
-        ))).scalars().first()
-        if report is None:
-            source_run = declaration.get("studyRunId")
-            if declaration.get('state') == 'frozen':
-                artifact, version = await resolve_version(session, ArtifactRef.model_validate(declaration.get('versionRef')), user)
-                if artifact.kind != 'Report' or version.content_digest != declaration['digest']:
-                    raise api_error(422, 'report_version_mismatch', 'The report must match its exact library version.')
-                report = Report(project_id=found_project.id, artifact_id=artifact.id, version=version,
-                    study_run_id=uuid.UUID(source_run) if source_run else None,
-                    slug=declaration['slug'], title=declaration['title'],
-                    state=ReportState.FROZEN, created_by_id=user.id)
-                session.add(report)
-                await session.flush()
-            else:
-                from ..reports import create_report_context
-                report = await create_report_context(session, found_project, user, slug=declaration['slug'],
-                    title=declaration['title'], document=document,
-                    study_run_id=run_map[str(source_run)].id if str(source_run) in run_map else None)
-            counts["reports"] += 1
-        report_map[str(declaration.get("id"))] = report
-
-    for declaration in package.get("publications", []):
-        report = report_map.get(str(declaration.get("reportId")))
-        if report is None or report.state is not ReportState.FROZEN:
-            raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_portable_package", "A publication requires an imported frozen report.")
-        _, publication_version = await resolve_version(session, ArtifactRef.model_validate(declaration.get('versionRef')), user)
-        if publication_version.artifact_id != report.artifact_id:
-            raise api_error(422, 'foreign_report_version', 'A publication must identify a version of its report.')
-        # A portable citation is not authority to expose private library content.
-        # Publication is a separate explicit operation with closure checks.
-        from ..db.models import ArtifactPublication
-        public_version = await session.get(ArtifactPublication, publication_version.id)
-        if public_version is None:
-            raise api_error(409, 'unpublished_import', 'Publish the exact report version before importing its public citation.')
-        if public_version.withdrawn and not declaration.get('withdrawn', False):
-            raise api_error(409, 'publication_withdrawn', 'An import cannot restore a withdrawn publication.')
-        exists = await session.scalar(select(func.count(Publication.id)).where(
-            (Publication.project_id == found_project.id) & (Publication.slug == declaration.get("slug"))
-            | ((Publication.report_id == report.id) & (Publication.version_id == publication_version.id))
-        ))
-        if not exists:
-            session.add(Publication(
-                project_id=found_project.id, report_id=report.id, version_id=publication_version.id,
-                withdrawn=bool(declaration.get("withdrawn", False)), slug=declaration["slug"],
-                citation=declaration.get("citation") or {}, published_by_id=user.id,
-            ))
-            counts["publications"] += 1
 
     for declaration in package.get("artifacts", []):
         try:

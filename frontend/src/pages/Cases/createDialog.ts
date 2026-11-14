@@ -1,11 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-// The pattern of pages/Organization/createDialog.ts for the two creation dialogs of a project: `New problem` over the problem list and
-// `New collection` over the collection list. That file types its kinds as organization and project, and it is not in the scope of the slice that
-// adds these two, so the hook is repeated here; widening `CreateKind` there and importing it from both lists is the follow-up.
+// The pattern of pages/Organization/createDialog.ts for the creation dialog of a project: `New problem` over the problem list. That file
+// types its kinds as organization and project, so the hook is repeated here; widening `CreateKind` there and importing it here is the follow-up.
 
-export type CreateKind = 'problem' | 'collection';
+export type CreateKind = 'problem';
 
 /** The address that opens the creation dialog over the list at `base`. */
 export const createAddress = (base: string, kind: CreateKind): string => `${base}?create=${kind}`;

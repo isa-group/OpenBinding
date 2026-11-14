@@ -6,8 +6,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 /** The registry order of the areas; an area file that is not listed comes after them, by name. */
 const AREA_ORDER = [
-  'public', 'auth', 'verify', 'system', 'language', 'engines', 'account', 'organizations', 'project', 'problems', 'collections', 'runs',
-  'studies', 'admin',
+  'public', 'auth', 'engines', 'account', 'organizations', 'project', 'problems', 'runs', 'studies',
+  'admin',
 ];
 
 const areaRank = (area: string) => {
@@ -27,7 +27,7 @@ export function readAreaSources(): Array<{ area: string; source: string }> {
 
 /**
  * The route pattern without its optional segments (`:section?`), each dropped with its slash, so an example address visits the base
- * address of a screen that takes sections (`/language/:section?/:item?` is visited at `/language`). Fill the other parameters afterwards.
+ * address of a screen that takes sections (`/app/account/:section?` is visited at `/app/account`). Fill the other parameters afterwards.
  * A `?` that starts a query (`/app/:org?create=project`) is not an optional marker: the marker ends the segment.
  */
 export function dropOptionalSegments(path: string): string {
@@ -80,13 +80,10 @@ export const EXAMPLE = {
   draft: 'draft-providers-4',
   version: '3',
   resource: 'latency-probes',
-  collection: 'checkout-references',
   study: 'engines-vs-seeds',
   run: '00000000-0000-4000-8000-000000000101',
   cell: '00000000-0000-4000-8000-000000000202',
   job: '00000000-0000-4000-8000-0000000000a1',
-  report: 'engine-comparison',
-  kind: 'report',
   digest: `sha256-${'e'.repeat(64)}`,
   namespace: 'bim.builtin',
   name: 'random-search',
