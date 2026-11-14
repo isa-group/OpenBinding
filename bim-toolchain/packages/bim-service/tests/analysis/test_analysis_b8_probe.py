@@ -137,6 +137,7 @@ def test_healthz_answers_while_every_slot_holds_a_blocked_operation(make_app, mo
     assert max(latencies) < 0.25, latencies
 
 
+@pytest.mark.runner_timing
 def test_a_shorter_switch_interval_keeps_healthz_fast_under_the_same_cpu_load(make_app, monkeypatch) -> None:
     """The cheap mitigation of the GIL contention below, if processes are not adopted at once.
 
