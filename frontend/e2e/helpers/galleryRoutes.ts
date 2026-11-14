@@ -6,8 +6,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 /** The registry order of the areas; an area file that is not listed comes after them, by name. */
 const AREA_ORDER = [
-  'public', 'auth', 'engines', 'account', 'organizations', 'project', 'problems', 'collections', 'runs',
-  'studies', 'admin',
+  'public', 'auth', 'engines', 'account', 'organizations', 'project', 'problems', 'runs', 'studies',
+  'admin',
 ];
 
 const areaRank = (area: string) => {
@@ -80,7 +80,6 @@ export const EXAMPLE = {
   draft: 'draft-providers-4',
   version: '3',
   resource: 'latency-probes',
-  collection: 'checkout-references',
   study: 'engines-vs-seeds',
   run: '00000000-0000-4000-8000-000000000101',
   cell: '00000000-0000-4000-8000-000000000202',

@@ -50,7 +50,6 @@ export function buildCommands({ organizations = [], projects = [], organization,
     const studies = labEntries(organization, project).find((entry) => entry.id === 'studies');
     const sections: Array<[string, string, string | undefined]> = [
       ['Problems', 'Binding problems and their versions', problems.to],
-      ['Collections', 'Problems grouped into suites', `${root}/collections`],
       ['Studies', 'Problems × engines × parameters × seeds', studies?.to],
       ['Project settings', 'Name, visibility, members and package', `${root}/settings`],
     ];
@@ -60,7 +59,7 @@ export function buildCommands({ organizations = [], projects = [], organization,
     const where = `in ${project.name}`;
     const created = createItems(organization, project);
     const describe: Record<string, string> = {
-      Problem: 'Add a binding problem', Collection: 'Group problems into a suite', Study: 'Compare engines on problems', Run: 'Launch an engine run',
+      Problem: 'Add a binding problem', Study: 'Compare engines on problems', Run: 'Launch an engine run',
     };
     for (const item of created) {
       if (item.to) commands.push(command('Create', `New ${item.label.toLowerCase()}`, `${describe[item.label]} ${where}`, item.to, '+'));

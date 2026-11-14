@@ -166,7 +166,7 @@ async def executable_revision_payload(client, headers):
     return {'document': package.instance(), 'source_snapshot_id': snapshot.json()['id']}
 
 
-async def test_a_study_can_freeze_case_revisions_from_a_collection(
+async def test_a_study_freezes_the_case_revisions_it_selects(
     api_client, db_session, registration, study_gate
 ) -> None:
     headers = await _headers(api_client, registration)
@@ -175,42 +175,31 @@ async def test_a_study_can_freeze_case_revisions_from_a_collection(
     await api_client.post(
         "/v1/organizations",
         headers=headers,
-        json={"slug": "collection-lab", "name": "Collection Lab"},
+        json={"slug": "suite-lab", "name": "Suite Lab"},
     )
     await api_client.post(
-        "/v1/organizations/collection-lab/projects",
+        "/v1/organizations/suite-lab/projects",
         headers=headers,
         json={"slug": "bench", "name": "Benchmark", "visibility": "private"},
     )
     await api_client.post(
-        "/v1/organizations/collection-lab/projects/bench/cases",
+        "/v1/organizations/suite-lab/projects/bench/cases",
         headers=headers,
         json={"slug": "case-a", "name": "Case A"},
     )
     revision = await api_client.post(
-        "/v1/organizations/collection-lab/projects/bench/cases/case-a/revisions",
+        "/v1/organizations/suite-lab/projects/bench/cases/case-a/revisions",
         headers=headers,
         json=await executable_revision_payload(api_client, headers),
     )
-    # The library write routes are removed since M9.6: the collection is sealed by the internal artifact service.
-    import _m96_seed as seed
-    from openbinding_gateway.artifacts import reference
-
-    user_id = profile.json()["id"]
-    organization_id = (await seed.project_by_slugs(db_session, "collection-lab", "bench")).organization_id
-    identity = await seed.library_artifact(db_session, organization_id, user_id, name='suite', display_name='Suite',
-                                           kind='Collection')
-    collection_revision = await seed.seal(db_session, identity, user_id, {
-        'apiVersion': 'openbinding/collection/v1', 'members': [{
-            'caseRevisionId': revision.json()['id'], 'compositionDigest': revision.json()['digest']}]})
     created = await api_client.post(
-        "/v1/organizations/collection-lab/projects/bench/studies",
+        "/v1/organizations/suite-lab/projects/bench/studies",
         headers=headers,
         json={
             "slug": "from-suite",
             "name": "From suite",
             "definition": {
-                "collection_version_id": str(collection_revision.id),
+                "case_revision_ids": [revision.json()["id"]],
                 "engines": [study_engine(engine_ref(routes._manifest("random-search")))],
                 "parameter_sets": [{}],
                 "seeds": [0],
@@ -224,12 +213,8 @@ async def test_a_study_can_freeze_case_revisions_from_a_collection(
     definition_version = created.json()['definition_version_id']
     versions = (await api_client.get(f'/v1/artifacts/{definition_artifact}/versions', headers=headers)).json()
     manifest = next(version for version in versions if version['id'] == definition_version)
-    assert manifest['manifest']['dependencies'] == [reference(identity, collection_revision)]
-    # Editing the collection does not replace the cases already sealed into a study.
-    next_collection = await seed.seal(db_session, identity, user_id,
-        {'apiVersion': 'openbinding/collection/v1', 'members': []}, based_on_id=collection_revision.id)
-    assert next_collection.id != collection_revision.id
-    unchanged = await api_client.get('/v1/organizations/collection-lab/projects/bench/studies', headers=headers)
+    assert manifest['manifest']['dependencies'] == []
+    unchanged = await api_client.get('/v1/organizations/suite-lab/projects/bench/studies', headers=headers)
     assert unchanged.json()[0]['definition_version_id'] == definition_version
     assert unchanged.json()[0]['definition']['case_revision_ids'] == [revision.json()['id']]
 
@@ -246,14 +231,14 @@ async def test_a_study_can_freeze_case_revisions_from_a_collection(
     assert key.status_code == 201, key.text
     key_headers = {"X-API-Key": key.json()["secret"]}
     hidden = await api_client.get(
-        "/v1/organizations/collection-lab/projects/bench/studies", headers=key_headers
+        "/v1/organizations/suite-lab/projects/bench/studies", headers=key_headers
     )
     blocked_run = await api_client.post(
-        "/v1/organizations/collection-lab/projects/bench/studies/from-suite/runs",
+        "/v1/organizations/suite-lab/projects/bench/studies/from-suite/runs",
         headers=key_headers,
     )
     blocked_create = await api_client.post(
-        "/v1/organizations/collection-lab/projects/bench/studies",
+        "/v1/organizations/suite-lab/projects/bench/studies",
         headers=key_headers,
         json={
             "slug": "forbidden-engine",

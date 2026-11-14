@@ -19,7 +19,6 @@ from openbinding_gateway.db.models import Artifact, ArtifactVersion, ApiKey, Eng
 from openbinding_gateway.db.platform_models import (
     Blob,
     AuditEvent,
-    Collection,
     Notification,
     Organization,
     OrganizationMembership,
@@ -32,7 +31,7 @@ from seed_dev import (
     _deterministic_zip,
     clean_existing_data,
     ensure_artifacts,
-    ensure_cases_and_collections,
+    ensure_cases,
     ensure_engine_revisions,
     ensure_notifications_and_audit,
     ensure_organizations,
@@ -104,14 +103,11 @@ async def test_seed_dev_lifecycle(db_session):
     snapshots = await load_and_persist_snapshots(db_session, users["alice"], examples_dir)
 
     qos_proj = projects["score-ai/qos-placement"]
-    case_map = await ensure_cases_and_collections(db_session, qos_proj, users["alice"], snapshots)
+    case_map = await ensure_cases(db_session, qos_proj, users["alice"], snapshots)
     if "simple-seq" in case_map:
         case, rev = case_map["simple-seq"]
         assert case.slug == "simple-seq"
         assert rev.source_snapshot_id is not None
-
-        collections = (await db_session.execute(select(Collection))).scalars().all()
-        assert len(collections) >= 1
 
     # Engine Revisions & Registrations
     engs = await ensure_engine_revisions(db_session, users["admin"])

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CaseContent } from '../Project/projectModel';
 import { CHECKOUT, REVISION_1, REVISION_2, cellsFixture, studyFixture, revisionFixture } from '../../test/fixtures/studies';
 import {
-  MAX_SEEDS, collectionMembers, defaultSelection, definitionGrid, definitionSize, describeParameters, emptyVariant, engineChoices, enginesOf, explainFailure,
+  MAX_SEEDS, defaultSelection, definitionGrid, definitionSize, describeParameters, emptyVariant, engineChoices, enginesOf, explainFailure,
   formatMeasure, formatSeconds, formulaOf, heatLevel, matrixView, measureValue, measuresOf, metricsOf, parametersKey, readSeeds, readVariant, revisionIndex,
   revisionLabel, rivalsOf, seedsOf, studyContentSize, breakdownText, slot, definitionEngines, studyCriteriaCount, studyOptimization,
 } from './studiesModel';
@@ -141,17 +141,15 @@ describe('case revisions', () => {
     expect(revisionLabel(index, 'abcdef0123456789')).toBe('Version from another project');
   });
 
-  it('starts the builder from the case, revision or collection another screen named', () => {
-    expect(defaultSelection({ cases, caseSlug: 'checkout-flow', revision: '1', collectionIds: [] })).toEqual([REVISION_1.id]);
-    expect(defaultSelection({ cases, caseSlug: 'checkout-flow', revision: null, collectionIds: [] })).toEqual([REVISION_2.id]);
-    expect(defaultSelection({ cases, caseSlug: 'checkout-flow', revision: '3', collectionIds: [] })).toEqual([]);
-    expect(defaultSelection({ cases, caseSlug: null, revision: null, collectionIds: [REVISION_1.id, 'elsewhere'] })).toEqual([REVISION_1.id]);
-    expect(defaultSelection({ cases, caseSlug: 'ghost', revision: null, collectionIds: [] })).toEqual([]);
+  it('starts the builder from the case or revision another screen named', () => {
+    expect(defaultSelection({ cases, caseSlug: 'checkout-flow', revision: '1' })).toEqual([REVISION_1.id]);
+    expect(defaultSelection({ cases, caseSlug: 'checkout-flow', revision: null })).toEqual([REVISION_2.id]);
+    expect(defaultSelection({ cases, caseSlug: 'checkout-flow', revision: '3' })).toEqual([]);
+    expect(defaultSelection({ cases, caseSlug: null, revision: null })).toEqual([]);
+    expect(defaultSelection({ cases, caseSlug: 'ghost', revision: null })).toEqual([]);
   });
 
-  it('reads what a sealed collection and a sealed study say about their size', () => {
-    expect(collectionMembers(JSON.stringify({ members: [{ caseRevisionId: 'a' }, { resource: 'x' }, { caseRevisionId: 'b' }] }))).toEqual(['a', 'b']);
-    expect(collectionMembers('not json')).toBeNull();
+  it('reads what a sealed study says about its size', () => {
     expect(studyContentSize(JSON.stringify({ cases: [1, 2], engines: [1], parameter_sets: [{}, {}], seeds: [1, 2, 3] }))).toMatchObject({ cells: 12 });
     expect(studyContentSize('{}')).toBeNull();
   });

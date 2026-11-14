@@ -65,10 +65,9 @@ describe('problemsEntry and labEntries', () => {
 });
 
 describe('createItems', () => {
-  it('offers Problem, Collection, Study and Run in the current project, in this order', () => {
+  it('offers Problem, Study and Run in the current project, in this order', () => {
     expect(createItems(organization, project).map((item) => [item.label, item.to])).toEqual([
       ['Problem', '/app/isa-demo/qos/problems?create=problem'],
-      ['Collection', '/app/isa-demo/qos/collections?create=collection'],
       ['Study', '/app/isa-demo/qos/studies/new'],
       ['Run', '/app/isa-demo/qos/runs/new'],
     ]);
@@ -77,18 +76,17 @@ describe('createItems', () => {
     }
   });
 
-  it('disables the four items with the hint "Needs a project" when no project is current', () => {
+  it('disables the three items with the hint "Needs a project" when no project is current', () => {
     for (const items of [createItems(), createItems(organization)]) {
       expect(items.map((item) => [item.label, item.to, item.hint])).toEqual([
-        ['Problem', undefined, 'Needs a project'], ['Collection', undefined, 'Needs a project'],
-        ['Study', undefined, 'Needs a project'], ['Run', undefined, 'Needs a project'],
+        ['Problem', undefined, 'Needs a project'], ['Study', undefined, 'Needs a project'], ['Run', undefined, 'Needs a project'],
       ]);
     }
   });
 
   it('has none of the former items', () => {
     const labels = createItems(organization, project).map((item) => item.label);
-    for (const former of ['Organization', 'Project', 'Case', 'Job', 'API key', 'Engine']) expect(labels).not.toContain(former);
+    for (const former of ['Organization', 'Project', 'Case', 'Collection', 'Job', 'API key', 'Engine']) expect(labels).not.toContain(former);
   });
 });
 

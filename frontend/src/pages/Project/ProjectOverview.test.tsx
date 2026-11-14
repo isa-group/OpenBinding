@@ -236,7 +236,7 @@ describe('Project overview', () => {
       }
       expect(within(band).getByRole('link', { name: 'Browse problems' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/problems');
       const tabs = within(screen.getByRole('navigation', { name: 'Project sections' }));
-      expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Problems', 'Collections', 'Studies']);
+      expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Problems', 'Studies']);
       expect(tabs.queryByRole('link', { name: 'Published' })).not.toBeInTheDocument();
       expect(tabs.queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
       expect(tabs.queryByRole('link', { name: 'Runs' })).not.toBeInTheDocument();

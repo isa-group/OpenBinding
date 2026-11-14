@@ -92,7 +92,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           const toggle = header.getByRole('button', { name: 'Open menu' });
           await toggle.click();
           const menu = header.getByRole('navigation', { name: 'Mobile navigation' });
-          for (const label of ['Home', 'Problems', 'Runs', 'Studies', 'Generator', 'Engines', 'Problem', 'Collection', 'Study', 'Run']) {
+          for (const label of ['Home', 'Problems', 'Runs', 'Studies', 'Generator', 'Engines', 'Problem', 'Study', 'Run']) {
             await expect(menu.getByRole('link', { name: label, exact: true }).first(), label).toBeVisible();
           }
           for (const label of ['Language', 'Jobs', 'Explore', 'Verifier', 'Engine catalog', 'Organization', 'API key']) {
@@ -144,10 +144,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           await create.focus();
           await page.keyboard.press('Enter');
           await expect(create).toHaveAttribute('aria-expanded', 'true');
-          for (const label of ['Problem', 'Collection', 'Study', 'Run']) {
+          for (const label of ['Problem', 'Study', 'Run']) {
             await expect(header.locator('#app-new-menu').getByRole('link', { name: label, exact: true }), label).toBeVisible();
           }
-          await expect(header.locator('#app-new-menu').getByRole('link')).toHaveCount(4);
+          await expect(header.locator('#app-new-menu').getByRole('link')).toHaveCount(3);
           await shot('menu-new');
           await page.keyboard.press('Escape');
           await expect(create).toHaveAttribute('aria-expanded', 'false');

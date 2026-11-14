@@ -1371,7 +1371,7 @@ def _parse(source: str, which: str):
 # Phase F2. This module's first docstring was written when nothing stored a composition, and it
 # promised that the stored-version diff would be "an addition here, not a rewrite". It is
 # both: the response body of a diff does not change, and the rest of the surface lives
-# under a project, because every other artifact kind does -- a collection, a study, a case.
+# under a project, because every other artifact kind does -- a study, a case.
 # A composition that was the one artifact reachable at the root would have had to
 # reimplement the organization scoping and the role checks that ``require_project`` gives.
 #
@@ -1398,7 +1398,7 @@ async def _project_context(
 
 
 async def _composition(session: AsyncSession, project_id: uuid.UUID, reference: str) -> Artifact:
-    """By id or by slug, like a collection: both are things a caller holds."""
+    """By id or by slug, like a study: both are things a caller holds."""
     try:
         parsed = uuid.UUID(reference)
     except ValueError:
@@ -1414,7 +1414,7 @@ async def _composition(session: AsyncSession, project_id: uuid.UUID, reference: 
 async def _visitor_may_see(session: AsyncSession, project: Project, artifact: Artifact) -> bool:
     """A read-only visitor sees the project's own compositions, and others' only while published.
 
-    The same narrowing the collection routes apply, and for the same reason: a public
+    The same narrowing a public project applies to every linked artifact: a public
     project may link an artifact that belongs to another organization -- a fork's origin,
     for instance -- and a public project is not a way to read one that is not published.
     """
@@ -1503,7 +1503,7 @@ async def _seal_version(
     if existing is not None:
         return _version_view(artifact, existing)
 
-    # Lock the identity before taking an ordinal or a label, as the collection library does:
+    # Lock the identity before taking an ordinal or a label:
     # two writers sealing at once would otherwise agree on the same next ordinal.
     await session.execute(select(Artifact.id).where(Artifact.id == artifact.id).with_for_update())
     ordinal = int(await _latest_ordinal(session, artifact.id) or 0) + 1

@@ -204,26 +204,6 @@ class ProjectResourceRevisionView(BaseModel):
     created_at: datetime
 
 
-class CollectionCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    slug: str = Field(..., pattern=SLUG)
-    name: str = Field(..., min_length=1, max_length=160)
-    description: str = Field(default="", max_length=2000)
-
-
-class CollectionUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    name: Optional[str] = Field(default=None, min_length=1, max_length=160)
-    description: Optional[str] = Field(default=None, max_length=2000)
-
-
-class CollectionView(CollectionCreate):
-    id: uuid.UUID
-    project_id: uuid.UUID
-    created_by_id: uuid.UUID
-    created_at: datetime
-
-
 class CompositionCreate(BaseModel):
     """A composition's identity, which is what a reader cites and a fork takes a copy of."""
 
@@ -248,7 +228,7 @@ class CompositionVersionCreate(BaseModel):
     """One sealed version, from the source the author wrote.
 
     ``version`` is the label a reader cites. Left out, the ordinal is used, which is what
-    the collection library does; given, it has to be free, because a label that already
+    the versioned library does; given, it has to be free, because a label that already
     names different content would make two different compositions answer to one name.
     """
 
@@ -290,34 +270,6 @@ class CompositionVersionView(BaseModel):
     created_at: datetime
 
 
-class CollectionItemInput(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    target_kind: Literal["case", "resource", "result"]
-    target_digest: str = Field(..., pattern=DIGEST)
-    target_ref: dict[str, Any]
-
-
-class CollectionRevisionCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    items: list[CollectionItemInput] = Field(..., max_length=1000)
-
-    @model_validator(mode="after")
-    def unique_targets(self):
-        identities = {(item.target_kind, item.target_digest) for item in self.items}
-        if len(identities) != len(self.items):
-            raise ValueError("a collection revision cannot repeat a target")
-        return self
-
-
-class CollectionRevisionView(BaseModel):
-    id: uuid.UUID
-    collection_id: uuid.UUID
-    revision: int
-    digest: str
-    items: list[CollectionItemInput]
-    created_at: datetime
-
-
 class StudyDefinition(BaseModel):
     """The reproducible Cartesian product behind a comparative study."""
 
@@ -326,12 +278,11 @@ class StudyDefinition(BaseModel):
     engines: list[dict[str, Any]] = Field(..., min_length=1, max_length=50)
     parameter_sets: list[dict[str, Any]] = Field(default_factory=lambda: [{}], min_length=1, max_length=100)
     seeds: list[int] = Field(default_factory=lambda: [0], min_length=1, max_length=100)
-    collection_version_id: Optional[uuid.UUID] = None
 
     @model_validator(mode="after")
     def bounded_matrix(self):
-        if not self.case_revision_ids and self.collection_version_id is None:
-            raise ValueError("provide case_revision_ids or collection_version_id")
+        if not self.case_revision_ids:
+            raise ValueError("provide case_revision_ids")
         if len(set(self.case_revision_ids)) != len(self.case_revision_ids):
             raise ValueError("case_revision_ids contains duplicates")
         if len(set(self.seeds)) != len(self.seeds):

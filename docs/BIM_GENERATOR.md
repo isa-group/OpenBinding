@@ -80,7 +80,7 @@ registra la configuración, semilla y digests devueltos por HTTP para repetir la
 
 | Endpoint | Quién puede llamarlo |
 | --- | --- |
-| `POST /v1/generator/instances`, `/corpus`, `/convert-legacy` | Cualquiera, incluso sin cuenta: son funciones puras de la petición y no tocan estado compartido. Con `persist: true` hace falta cuenta (401), y adjuntar el resultado a un proyecto (`project_id`) exige rol MEMBER o superior en él. |
+| `POST /v1/generator/instances`, `/corpus`, `/convert-legacy` | Cualquiera, incluso sin cuenta: son funciones puras de la petición y no tocan estado compartido. Con `persist: true` hace falta cuenta (401), y adjuntar el resultado a un proyecto (`project_id`, solo en `/instances` y `/convert-legacy`) exige rol MEMBER o superior en él. |
 
 Los tres endpoints son funciones puras de la petición (salvo `persist: true`). La calibración de un modelo compartido y el enrutado automático de motores se retiraron: ya no existe `calibrate-engine` en `routes/generator.py` (solo `/instances`, `/corpus` y `/convert-legacy`) y no hay sustituto.
 

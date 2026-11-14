@@ -243,7 +243,7 @@ describe('Generator lab', () => {
       expect(generator.corpus).not.toHaveBeenCalled();
     });
 
-    it('keeps the batch as a collection of the project', async () => {
+    it('does not save a batch to a project', async () => {
       generator.corpus.mockResolvedValue(corpus(2));
       renderLab();
       fireEvent.click(screen.getByRole('tab', { name: 'Batch' }));
@@ -253,14 +253,9 @@ describe('Generator lab', () => {
 
       await within(keepIt()).findByRole('option', { name: 'QoS Benchmarks · ISA Demo Group' });
       expect(within(keepIt()).queryByRole('button', { name: 'Open in Workbench' })).not.toBeInTheDocument();
-      fireEvent.click(within(keepIt()).getByRole('button', { name: 'Save to project' }));
-
-      expect(await within(keepIt()).findByText('Saved to QoS Benchmarks · ISA Demo Group as a collection of synthetic instances.')).toBeInTheDocument();
-      expect(generator.corpus).toHaveBeenLastCalledWith({
-        count: 2, name: 'generated_qaco', persist: true, project_id: 'project-qos-benchmarks', collection_name: 'generated_qaco',
-        base_config: expect.objectContaining({ tasks: 6 }),
-      });
-      expect(within(keepIt()).getByRole('link', { name: 'See the project’s problems' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/collections');
+      expect(within(keepIt()).getByRole('button', { name: 'Save to project' })).toBeDisabled();
+      expect(within(keepIt()).getByText('A batch is a preview only; generate one instance to save it to a project.')).toBeInTheDocument();
+      expect(generator.corpus).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -365,9 +360,6 @@ describe('Generator lab', () => {
 
     it('says a visitor can generate but not save', async () => {
       renderLab({ user: null });
-      fireEvent.click(screen.getByRole('tab', { name: 'Batch' }));
-      expect(screen.getByText('Keeping a corpus needs an account; without one you only see the preview.')).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('tab', { name: 'One instance' }));
       generate();
       await within(preview()).findByRole('list', { name: /Workflow of/ });
 

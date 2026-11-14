@@ -19,17 +19,12 @@ import { useRouteProject } from '../Project/useRouteProject';
 import { AdoptPanel, CasesField, EnginesField, SettingsField } from './BuilderFields';
 import { StudyFrame } from './parts';
 import {
-  MAX_CASES, MAX_CELLS, MAX_ENGINES, MAX_SETTINGS, collectionMembers, defaultSelection, definitionEngines, emptyVariant, engineChoices, formulaOf,
-  matrixSize, parametersKey, plural, readSeeds, readVariant, revisionsOf, studyContentSize, studyCriteriaCount, type Variant,
+  MAX_CASES, MAX_CELLS, MAX_ENGINES, MAX_SETTINGS, defaultSelection, definitionEngines, emptyVariant, engineChoices, formulaOf,
+  matrixSize, parametersKey, readSeeds, readVariant, revisionsOf, studyContentSize, studyCriteriaCount, type Variant,
 } from './studiesModel';
 import { studyRefusal, type Refusal } from './studyErrors';
 
 type Mode = 'new' | 'adopt';
-
-interface PinnedCollection {
-  name: string;
-  ids: string[];
-}
 
 function BuilderBody({ organization, project, canCreate }: { organization: Organization; project: Project; canCreate: boolean }) {
   const { user } = useAuth();
@@ -37,27 +32,12 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
   const org = organization.slug;
   const slug = project.slug;
   const root = `/app/${org}/${slug}`;
-  const wantedCollection = params.get('collection');
 
   const cases = useResource<CaseContent[]>(`builder-cases:${org}/${slug}`, () => loadCases(org, slug));
   const engines = useResource<EngineCatalogEntry[]>('builder-engines', () => apiClient.getEngines());
   const usage = useResource<UsageView | null>('builder-usage', () => apiClient.getOwnUsage().catch(() => null));
   const pricing = useResource<Record<string, unknown> | null>('builder-pricing', () => apiClient.getPricingCatalog().catch(() => null));
   const library = useResource<Artifact[]>(`builder-library:${org}`, () => libraryApi.list(org, true).catch(() => []));
-  const pinned = useResource<PinnedCollection | null>(`builder-pinned:${org}/${slug}/${wantedCollection ?? ''}`, async () => {
-    if (!wantedCollection) return null;
-    try {
-      const [collection, revisions] = await Promise.all([
-        platformApi.collection(org, slug, wantedCollection),
-        platformApi.collectionRevisions(org, slug, wantedCollection),
-      ]);
-      const latest = revisions.reduce<(typeof revisions)[number] | undefined>((best, item) => (!best || item.revision > best.revision ? item : best), undefined);
-      const ids = (latest?.items ?? []).flatMap((item) => (item.target_kind === 'case' && typeof item.target_ref.caseRevisionId === 'string' ? [item.target_ref.caseRevisionId] : []));
-      return { name: collection.name, ids };
-    } catch {
-      return null;
-    }
-  });
 
   const [mode, setMode] = useState<Mode>('new');
   const [name, setName] = useState('');
@@ -68,8 +48,6 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
   const [variants, setVariants] = useState<Variant[]>([emptyVariant('v1')]);
   const [serial, setSerial] = useState(1);
   const [seedText, setSeedText] = useState('1, 2');
-  const [collectionArtifact, setCollectionArtifact] = useState('');
-  const [collectionVersion, setCollectionVersion] = useState('');
   const [adoptArtifact, setAdoptArtifact] = useState('');
   const [adoptVersion, setAdoptVersion] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -78,19 +56,14 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
 
   const caseList = cases.data ?? cases.stale;
   const defaults = useMemo(
-    () => defaultSelection({ cases: caseList ?? [], caseSlug: params.get('case'), revision: params.get('revision'), collectionIds: pinned.data?.ids ?? [] }),
-    [caseList, params, pinned.data],
+    () => defaultSelection({ cases: caseList ?? [], caseSlug: params.get('case'), revision: params.get('revision') }),
+    [caseList, params],
   );
   const selected = picked ?? defaults;
 
   const artifacts = library.data ?? [];
-  const collections = artifacts.filter((item) => item.kind === 'Collection' && !item.archived);
   const studyArtifacts = artifacts.filter((item) => item.kind === 'Study' && !item.archived);
-  const collectionVersions = useResource<ArtifactVersion[]>(`builder-coll-versions:${collectionArtifact}`, () => (collectionArtifact ? libraryApi.versions(collectionArtifact).catch(() => []) : Promise.resolve([])));
   const adoptVersions = useResource<ArtifactVersion[]>(`builder-adopt-versions:${adoptArtifact}`, () => (adoptArtifact ? libraryApi.versions(adoptArtifact).catch(() => []) : Promise.resolve([])));
-  const members = useResource<string[] | null>(`builder-coll-members:${collectionArtifact}/${collectionVersion}`, () => (
-    collectionArtifact && collectionVersion ? libraryApi.content(collectionArtifact, collectionVersion).then(collectionMembers, () => null) : Promise.resolve(null)
-  ));
   const adoptContent = useResource<ReturnType<typeof studyContentSize>>(`builder-adopt-size:${adoptArtifact}/${adoptVersion}`, () => (
     adoptArtifact && adoptVersion ? libraryApi.content(adoptArtifact, adoptVersion).then(studyContentSize, () => null) : Promise.resolve(null)
   ));
@@ -102,8 +75,7 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
   const settingKeys = settings.map(parametersKey);
   const duplicateSettings = new Set(settingKeys).size !== settingKeys.length;
   const seeds = readSeeds(seedText);
-  const joined = collectionVersion && members.data ? members.data : [];
-  const caseCount = new Set([...selected, ...joined]).size;
+  const caseCount = new Set(selected).size;
   const size = matrixSize({ cases: caseCount, engines: chosen.length, settings: variants.length, seeds: seeds.seeds.length });
   const adoptedSize = adoptContent.data ?? null;
 
@@ -117,7 +89,7 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
   if (!effectiveName.trim()) blockers.push('Give the study a name.');
   else if (!SLUG_PATTERN.test(effectiveAddress)) blockers.push('Give it an address of lowercase letters, numbers and hyphens.');
   if (mode === 'new') {
-    if (caseCount === 0) blockers.push('Choose at least one problem version, or a sealed collection.');
+    if (caseCount === 0) blockers.push('Choose at least one problem version.');
     if (chosen.length === 0) blockers.push('Choose at least one engine mode.');
     if (seeds.error) blockers.push(seeds.error);
     if (readings.some((reading) => reading.error)) blockers.push('Fix the settings marked in red.');
@@ -143,8 +115,7 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
           ...head,
           definition: {
             case_revision_ids: selected,
-            ...(collectionVersion ? { collection_version_id: collectionVersion } : {}),
-            engines: definitionEngines(chosen, studyCriteriaCount(revisionsOf(caseList ?? [], [...selected, ...joined]))),
+            engines: definitionEngines(chosen, studyCriteriaCount(revisionsOf(caseList ?? [], selected))),
             parameter_sets: settings,
             seeds: seeds.seeds,
           },
@@ -158,10 +129,6 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
   };
 
   const loading = cases.status === 'loading' && !caseList;
-  const collectionNote = !collectionVersion ? null
-    : members.status === 'loading' ? 'Reading the collection…'
-      : members.data ? `${plural(members.data.length, 'problem version')} join the study from this collection.`
-        : 'Its problems are counted by the gateway when the study is created.';
 
   return (
     <StudyFrame organization={organization} project={project} trail={[{ label: 'Studies', to: `${root}/studies` }, { label: 'New study' }]}>
@@ -200,13 +167,6 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
             </label>
           </fieldset>
 
-          {pinned.data && (
-            <Notice tone="info">The problems of the collection {pinned.data.name} are chosen below. Add engines, settings and seeds to finish the matrix.</Notice>
-          )}
-          {wantedCollection && pinned.status === 'ready' && !pinned.data && (
-            <Notice tone="warning">The collection “{wantedCollection}” couldn’t be read, so no problems were chosen for you.</Notice>
-          )}
-
           <div className="st-builder">
             <div className="st-builder-main">
               <div className="st-identity">
@@ -234,13 +194,6 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
                     selected={selected}
                     onChange={(ids) => { setPicked(ids); setRefusal(null); }}
                     root={root}
-                    collections={collections}
-                    collectionArtifact={collectionArtifact}
-                    onCollectionArtifact={(id) => { setCollectionArtifact(id); setCollectionVersion(''); }}
-                    collectionVersions={(collectionVersions.data ?? collectionVersions.stale ?? []).filter((item) => !item.withdrawn)}
-                    collectionVersion={collectionVersion}
-                    onCollectionVersion={setCollectionVersion}
-                    collectionNote={collectionNote}
                   />
                   <EnginesField choices={choices} selected={pickedEngines} onChange={(keys) => { setPickedEngines(keys); setRefusal(null); }} failed={engines.status === 'error'} />
                   <SettingsField

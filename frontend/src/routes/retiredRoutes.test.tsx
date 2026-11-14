@@ -132,7 +132,7 @@ describe('the table of retired addresses', () => {
     const encodedQuery = 'org=a%20b&project=p%2Fq&study=s%23t&run=r%3Fx';
     // The address of the encoded sample: the shape the table promises, the screens behind it are the area's business.
     const fixedTarget: Record<number, (route: RetiredRoute) => string> = {
-      3: (route) => (route.id.startsWith('lib-') ? '/app/a%20b' : '/app/a%20b/p%2Fq/collections'),
+      3: () => '/app/a%20b',
       4: () => '/app/a%20b/p%2Fq/workbench?case=c%3Fx',
       5: () => '/app/admin',
     };
@@ -150,34 +150,24 @@ describe('the table of retired addresses', () => {
     }
   });
 
-  it('holds the library catalogue and the project resources as the entries of slice 3, the library artifact before the project routes it ties with', () => {
+  it('holds the library catalogue as the entries of slice 3', () => {
     const slice3 = RETIRED_ROUTES.filter((route) => route.slice === 3);
     expect(slice3.map((route) => [route.id, route.path])).toEqual([
       ['lib-list', '/app/:org/library'],
       ['lib-artifact', '/app/:org/library/:artifact'],
       ['lib-draft', '/app/:org/library/:artifact/drafts/:draft'],
       ['lib-version', '/app/:org/library/:artifact/versions/:version'],
-      ['proj-library', '/app/:org/:project/library'],
-      ['proj-resources', '/app/:org/:project/resources'],
-      ['proj-resource-detail', '/app/:org/:project/resources/:resource'],
     ]);
-    const order = (id: string) => RETIRED_ROUTES.findIndex((route) => route.id === id);
-    for (const later of ['proj-library', 'proj-resources']) expect(order('lib-artifact'), later).toBeLessThan(order(later));
   });
 
-  it.each(RETIRED_ROUTES.filter((route) => route.slice === 3))('sends $path to the organization overview or the collections, whatever the rest', (route) => {
+  it.each(RETIRED_ROUTES.filter((route) => route.slice === 3))('sends $path to the organization overview, whatever the rest', (route) => {
     const to = (query: string, params: Params) => targetOf(route, query, params);
-    const organization = route.id.startsWith('lib-');
 
-    expect(to('', { org: 'acme', project: 'demo', artifact: 'x', draft: 'y', version: 'z', resource: 'r' })).toBe(organization ? '/app/acme' : '/app/acme/demo/collections');
-    expect(to('org=other&project=other&tab=x', { org: 'acme', project: 'demo' })).toBe(organization ? '/app/acme' : '/app/acme/demo/collections');
-    expect(to('', { org: 'a/b', project: 'p q' })).toBe(organization ? '/app/a%2Fb' : '/app/a%2Fb/p%20q/collections');
+    expect(to('', { org: 'acme', project: 'demo', artifact: 'x', draft: 'y', version: 'z', resource: 'r' })).toBe('/app/acme');
+    expect(to('org=other&project=other&tab=x', { org: 'acme', project: 'demo' })).toBe('/app/acme');
+    expect(to('', { org: 'a/b', project: 'p q' })).toBe('/app/a%2Fb');
     expect(to('', {})).toBe('/app');
     expect(to('', { project: 'demo' })).toBe('/app');
-    if (!organization) {
-      expect(to('', { org: 'a' })).toBe('/app');
-      expect(to('', { org: '', project: 'b' })).toBe('/app');
-    }
   });
 
   it('holds the composer as the only entry of slice 4, after the entries of slice 3', () => {
@@ -250,7 +240,7 @@ describe('the redirect of a retired address', () => {
   it.each([
     '/app/isa-demo/library/library',
     '/app/isa-demo/library/resources',
-  ])('sends %s to the organization overview, not to the collections of a project called library', async (old) => {
+  ])('sends %s to the organization overview, not to a project called library', async (old) => {
     renderAt([old]);
 
     await landsOn('/app/isa-demo');
@@ -262,10 +252,6 @@ describe('the redirect of a retired address', () => {
     ['/app/acme/library/a1/drafts/d1?x=1#top', '/app/acme'],
     ['/app/acme/library/a1/versions/v1', '/app/acme'],
     ['/app/a%2Fb/library/a1', '/app/a%2Fb'],
-    ['/app/acme/demo/library', '/app/acme/demo/collections'],
-    ['/app/acme/demo/resources', '/app/acme/demo/collections'],
-    ['/app/acme/demo/resources/r1?x=1#top', '/app/acme/demo/collections'],
-    ['/app/a%2Fb/my%20proj/resources/r%2F1', '/app/a%2Fb/my%20proj/collections'],
   ])('sends the library address %s to %s, without a query or a hash', async (old, expected) => {
     renderAt([old]);
 
@@ -281,7 +267,6 @@ describe('the redirect of a retired address', () => {
     first.unmount();
 
     for (const [old, target] of [
-      ['/app/acme/demo/resources/r1', '/app/acme/demo/collections'],
       ['/app/isa-demo/library/checkout-engines/drafts/d-1', '/app/isa-demo'],
     ]) {
       const signedOut = renderAt([old], null);

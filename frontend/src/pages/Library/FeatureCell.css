@@ -56,3 +56,24 @@
   white-space: normal;
 }
 .fc-confirm-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* The error line and the inputs of a cell (fields.tsx). */
+.lib-cell-error { display: block; margin-top: 2px; color: var(--color-error); font-size: 0.6875rem; }
+
+.lib-input {
+  width: 100%;
+  min-width: 90px;
+  height: 34px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border: 1px solid var(--tp-input-border);
+  border-radius: var(--tp-radius-md);
+  background: var(--tp-input-bg);
+  color: var(--tp-ink);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.lib-input.is-number { width: 100px; min-width: 70px; }
+.lib-input:disabled { background: var(--tp-surface); cursor: not-allowed; }
+.lib-input[aria-invalid='true'] { border-color: var(--tp-severity-error); }

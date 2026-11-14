@@ -86,14 +86,13 @@ describe('a side navigation that becomes a row that scrolls sideways', () => {
 });
 
 describe('ProjectTabs', () => {
-  it('links the seven project tabs', () => {
+  it('links the five project tabs', () => {
     render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
     const nav = screen.getByRole('navigation', { name: 'Project sections' });
     expect(within(nav).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['Overview', '/app/isa-demo/qos'],
       ['Problems', '/app/isa-demo/qos/problems'],
-      ['Collections', '/app/isa-demo/qos/collections'],
       ['Runs', '/app/isa-demo/qos/runs'],
       ['Studies', '/app/isa-demo/qos/studies'],
       ['Settings', '/app/isa-demo/qos/settings'],
@@ -104,16 +103,15 @@ describe('ProjectTabs', () => {
     render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
     const nav = screen.getByRole('navigation', { name: 'Project sections' });
-    for (const former of ['Cases', 'Jobs', 'Publications', 'Published', 'Files', 'Package', 'Reports', 'Library']) {
+    for (const former of ['Cases', 'Jobs', 'Publications', 'Published', 'Files', 'Package', 'Reports', 'Library', 'Collections']) {
       expect(within(nav).queryByRole('link', { name: former }), former).not.toBeInTheDocument();
     }
-    for (const link of within(nav).getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/(reports|library|resources|files|package|publications|published)([/?#]|$)/);
+    for (const link of within(nav).getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/(reports|library|resources|collections|files|package|publications|published)([/?#]|$)/);
   });
 
   it.each([
     ['overview', 'Overview'],
     ['cases', 'Problems'],
-    ['collections', 'Collections'],
     ['jobs', 'Runs'],
     ['studies', 'Studies'],
     ['settings', 'Settings'],
@@ -129,17 +127,17 @@ describe('ProjectTabs', () => {
       render(<MemoryRouter><ProjectTabs orgSlug="open" projectSlug="qos" access="public_read" /></MemoryRouter>);
 
       const nav = screen.getByRole('navigation', { name: 'Project sections' });
-      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Problems', 'Collections', 'Studies']);
+      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Problems', 'Studies']);
       expect(screen.getByRole('note')).toHaveTextContent('You are viewing a public project (read-only).');
     });
 
     it('shows every tab and no strip to a member, or when nothing says otherwise', () => {
       const { rerender } = render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" access="member" /></MemoryRouter>);
-      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(6);
+      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(5);
       expect(screen.queryByRole('note')).not.toBeInTheDocument();
 
       rerender(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
-      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(6);
+      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(5);
     });
   });
 

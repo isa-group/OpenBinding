@@ -81,7 +81,6 @@ describe('why the gateway refuses a study', () => {
     expect(studyRefusal(refused(422, 'study_matrix_too_large'), 'create')).toMatchObject({ kind: 'too-big', title: 'The matrix is too large (422 · study_matrix_too_large)' });
     expect(studyRefusal(refused(422, 'empty_study_cases'), 'create').title).toBe('The study needs a problem (422 · empty_study_cases)');
     expect(studyRefusal(refused(422, 'foreign_case_revision'), 'create').title).toBe('A problem version isn’t in this organization (422 · foreign_case_revision)');
-    expect(studyRefusal(refused(422, 'unavailable_collection'), 'create').title).toBe('That collection isn’t available (422 · unavailable_collection)');
     const mode = studyRefusal(refused(422, 'engine_mode_incompatible', 'MiniZinc has no mode for this goal.'), 'create');
     expect(mode.kind).toBe('incompatible');
     expect(mode.text).toContain('MiniZinc has no mode for this goal.');

@@ -1,4 +1,4 @@
-"""Tests for CRUD extensions on platform elements: cases, resources, collections,
+"""Tests for CRUD extensions on platform elements: cases, resources,
 studies, reports, publications, artifacts, jobs, snapshots, and engine revisions.
 """
 
@@ -91,35 +91,13 @@ async def test_case_patch_and_delete(api_client, registration, platform_gate):
 
 
 @pytest.mark.asyncio
-async def test_collection_and_study_patch_and_delete(api_client, registration, platform_gate):
+async def test_study_patch_and_delete(api_client, registration, platform_gate):
     headers = await _auth_headers(api_client, registration, platform_gate, username=f"user-{uuid.uuid4().hex[:6]}")
     org_slug = f"org-{uuid.uuid4().hex[:6]}"
     proj_slug = "test-proj"
 
     await api_client.post("/v1/organizations", headers=headers, json={"slug": org_slug, "name": "Test Org"})
     await api_client.post(f"/v1/organizations/{org_slug}/projects", headers=headers, json={"slug": proj_slug, "name": "Test Proj", "visibility": "private"})
-
-    # Collection CRUD
-    coll_resp = await api_client.post(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/collections",
-        headers=headers,
-        json={"slug": "coll-a", "name": "Collection Alpha", "description": "Initial"},
-    )
-    assert coll_resp.status_code == 201
-
-    coll_patch = await api_client.patch(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/collections/coll-a",
-        headers=headers,
-        json={"name": "Collection Alpha Updated", "description": "Updated"},
-    )
-    assert coll_patch.status_code == 200
-    assert coll_patch.json()["name"] == "Collection Alpha Updated"
-
-    coll_del = await api_client.delete(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/collections/coll-a",
-        headers=headers,
-    )
-    assert coll_del.status_code == 204
 
     from test_studies_platform import executable_revision_payload
     from openbinding_gateway.routes import v1 as routes

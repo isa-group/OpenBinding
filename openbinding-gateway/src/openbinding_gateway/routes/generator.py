@@ -18,8 +18,6 @@ import uuid
 import zipfile
 from typing import Any, Optional
 
-from bim_core.canonical import digest
-
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,13 +31,9 @@ from ..collaboration import require_role
 from ..db.models import (
     BindingCase,
     BindingCaseRevision,
-    Collection,
-    CollectionItem,
-    CollectionRevision,
     Organization,
     OrganizationRole,
     Project,
-    Study,
     User,
 )
 from ..generator.compatibility import (
@@ -195,9 +189,6 @@ class GenerateCorpusRequest(StrictModel):
     base_config: GenerateInstanceRequest
     name: str = Field(default="corpus", description="Corpus identifier.")
     persist: bool = Field(default=False, description="Whether to persist instances to DB.")
-    project_id: Optional[uuid.UUID] = Field(default=None, description="Project to create Collection and Study in.")
-    collection_name: Optional[str] = Field(default=None, description="Name for the Collection.")
-    create_study: bool = Field(default=False, description="Whether to create a benchmark Study.")
     as_archive: bool = Field(default=False, description="Return instances as a zip archive.")
 
     @model_validator(mode="after")
@@ -207,12 +198,6 @@ class GenerateCorpusRequest(StrictModel):
             raise ValueError(f"base_config.{sorted(ignored)[0]}: corpus controls persistence and names; remove this field from base_config")
         if self.base_config.seed is not None and self.base_config.seed + self.count - 1 > 2**63 - 1:
             raise ValueError("base_config.seed: corpus increment exceeds the supported 64-bit seed range; use a smaller seed")
-        if self.project_id is not None and not self.persist:
-            raise ValueError("project_id: set persist=true or remove project_id")
-        if self.collection_name is not None and (not self.persist or self.project_id is None):
-            raise ValueError("collection_name: set persist=true and project_id, or remove collection_name")
-        if self.create_study and (not self.persist or self.project_id is None):
-            raise ValueError("create_study: set persist=true and project_id, or disable create_study")
         return self
 
 
@@ -220,8 +205,6 @@ class CorpusGeneratedResponse(BaseModel):
     name: str
     count: int
     instances: list[dict[str, Any]]
-    collection_id: Optional[str] = None
-    study_id: Optional[str] = None
 
 
 class ConvertLegacyRequest(BaseModel):
@@ -357,14 +340,13 @@ async def generate_corpus(
     session: AsyncSession = Depends(session_dependency),
     caller: Optional[User] = Depends(get_optional_user),
 ) -> Any:
-    """Generate a corpus of problem instances with optional Collection & Study initialization."""
+    """Generate a corpus of problem instances, optionally persisting their snapshots."""
     # A corpus is ``count`` generations, which only the validated body can say; counted as
     # one it would be a hundred times cheaper than the same instances asked for singly.
     await enforce_work_rate_limit(raw, "compile", caller, units=request.count)
     base = request.base_config
     instances: list[dict[str, Any]] = []
     archives: list[bytes] = []
-    snapshot_ids: list[str] = []
 
     if request.persist and caller is None:
         raise HTTPException(status_code=401, detail="Authentication required to persist corpus")
@@ -413,8 +395,6 @@ async def generate_corpus(
         snap_id: Optional[str] = None
         if request.persist:
             snap_id = await persist_snapshot(compiled, caller, session)
-            if snap_id:
-                snapshot_ids.append(snap_id)
 
         instances.append({
             "name": inst_name,
@@ -424,56 +404,6 @@ async def generate_corpus(
             "snapshot_id": snap_id,
             "actual_constraint_count": len(pkg.json("constraints.json")["spec"]["constraints"]),
         })
-
-    collection_id: Optional[str] = None
-    study_id: Optional[str] = None
-
-    if request.persist and request.project_id is not None:
-        await _verify_project_member(session, request.project_id, caller)
-
-        c_slug = f"col-{uuid.uuid4().hex[:8]}"
-        collection = Collection(
-            project_id=request.project_id,
-            slug=c_slug,
-            name=request.collection_name or f"{request.name}_collection",
-            description=f"Generated corpus of {len(instances)} instances",
-            created_by_id=caller.id,
-        )
-        session.add(collection)
-        await session.flush()
-
-        col_digest = digest({"snapshots": snapshot_ids})
-        col_rev = CollectionRevision(
-            collection_id=collection.id,
-            revision=1,
-            digest=col_digest,
-            created_by_id=caller.id,
-        )
-        session.add(col_rev)
-        await session.flush()
-
-        for ord_idx, s_id in enumerate(snapshot_ids):
-            session.add(
-                CollectionItem(
-                    collection_revision_id=col_rev.id,
-                    target_kind="instance",
-                    target_digest=s_id,
-                    position=ord_idx,
-                )
-            )
-        await session.flush()
-        collection_id = str(collection.id)
-
-        if request.create_study:
-            study = Study(
-                project_id=request.project_id,
-                name=f"{request.name}_study",
-                description=f"Automated benchmark study on {collection.name}",
-                created_by_id=caller.id,
-            )
-            session.add(study)
-            await session.flush()
-            study_id = str(study.id)
 
     if request.as_archive:
         zip_buffer = io.BytesIO()
@@ -490,8 +420,6 @@ async def generate_corpus(
         name=request.name,
         count=len(instances),
         instances=instances,
-        collection_id=collection_id,
-        study_id=study_id,
     )
 
 

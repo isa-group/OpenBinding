@@ -67,7 +67,7 @@ async def project(client, headers, *, visibility="public") -> tuple[str, str]:
     return org_slug, project_slug
 
 
-async def test_packages_round_trip_cases_resources_collections_and_artifacts(
+async def test_packages_round_trip_cases_resources_and_artifacts(
     api_client, registration, platform_gate, monkeypatch, tmp_path, db_session
 ) -> None:
     # The resource is seeded through the internal services, because its write routes are removed
@@ -93,21 +93,7 @@ async def test_packages_round_trip_cases_resources_collections_and_artifacts(
             db_session, source_project, profile["id"], slug="offers", name="Offers", kind="qos-offerings",
             documents=[{"offers": [{"id": "edge-a", "latency": 20}]}],
         )
-        collection = await api_client.post(
-            f"{base}/collections", headers=headers,
-            json={"slug": "benchmark", "name": "Benchmark"},
-        )
-        collection_revision = await api_client.post(
-            f"{base}/collections/benchmark/revisions", headers=headers,
-            json={"items": [{
-                "target_kind": "case",
-                "target_digest": case_revision.json()["digest"],
-                "target_ref": {"caseRevisionId": case_revision.json()["id"]},
-            }]},
-        )
-        assert all(response.status_code == 201 for response in (
-            case, case_revision, collection, collection_revision
-        ))
+        assert all(response.status_code == 201 for response in (case, case_revision))
 
         study = await api_client.post(
             f"{base}/studies", headers=headers,
@@ -137,7 +123,7 @@ async def test_packages_round_trip_cases_resources_collections_and_artifacts(
         assert package_json["resources"][0]["revisions"][0]["digest"] == resource_revision.content_digest
         assert package_json["studies"][0]["definition"]["case_revision_ids"] == [case_revision.json()["id"]]
         assert package_json["artifacts"][0]["contentBase64"]
-        assert not {"reports", "publications", "evidenceJobs"} & set(package_json)
+        assert not {"reports", "publications", "evidenceJobs", "collections"} & set(package_json)
         with zipfile.ZipFile(io.BytesIO(exported.content)) as archive:
             manifest = json.loads(archive.read("package.json"))
             assert archive.read(manifest["artifacts"][0]["path"]) == artifact_body

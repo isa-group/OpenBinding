@@ -35,13 +35,6 @@ function organizationTarget(_query: URLSearchParams, params: RetiredParams): str
   return org ? `/app/${encodeURIComponent(org)}` : '/app';
 }
 
-/** The project library and resources rule: the collections of the project. The resource, the query and the hash are dropped. */
-function collectionsTarget(_query: URLSearchParams, params: RetiredParams): string {
-  const { org, project } = params;
-  if (!org || !project) return '/app';
-  return `/app/${encodeURIComponent(org)}/${encodeURIComponent(project)}/collections`;
-}
-
 /** The composer rule: the workbench of the project, with the case. The opened query and the hash are dropped. */
 function workbenchTarget(_query: URLSearchParams, params: RetiredParams): string {
   const { org, project, case: slug } = params;
@@ -55,8 +48,8 @@ function administrationTarget(): string {
 }
 
 /**
- * The library entries come first: on a tie of rank React Router takes the earlier route, and `/app/<org>/library/library`
- * and `/app/<org>/library/resources` match the library artifact as well as the project library and the project resources. The composer (slice 4) goes after them: it ties with lib-draft and lib-version, which win.
+ * The library entries come first: on a tie of rank React Router takes the earlier route, and the composer (slice 4) ties with
+ * lib-draft and lib-version, which win.
  * The sponsorship screen (slice 5) goes last: it outranks every route that matches the same addresses.
  */
 export const RETIRED_ROUTES: readonly RetiredRoute[] = [
@@ -66,9 +59,6 @@ export const RETIRED_ROUTES: readonly RetiredRoute[] = [
   { id: 'lib-version', path: '/app/:org/library/:artifact/versions/:version', slice: 3, target: organizationTarget },
   { id: 'analysis-sources', path: '/app/analysis', slice: 1, target: decisionSpaceTarget },
   { id: 'analysis-workspace', path: '/app/analysis/workspace', slice: 1, target: decisionSpaceTarget },
-  { id: 'proj-library', path: '/app/:org/:project/library', slice: 3, target: collectionsTarget },
-  { id: 'proj-resources', path: '/app/:org/:project/resources', slice: 3, target: collectionsTarget },
-  { id: 'proj-resource-detail', path: '/app/:org/:project/resources/:resource', slice: 3, target: collectionsTarget },
   { id: 'case-composer', path: '/app/:org/:project/cases/:case/compose', slice: 4, target: workbenchTarget },
   { id: 'admin-sponsor', path: '/app/admin/organizations/:org/sponsor', slice: 5, target: administrationTarget },
 ];

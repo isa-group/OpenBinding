@@ -12,12 +12,6 @@ test.describe('retired library addresses', () => {
     await page.goto('/app/isa-demo/library');
     await expect(page).toHaveURL(/\/app\/isa-demo\/?$/);
   });
-
-  test('/app/:org/:project/resources redirects to the collections of the project', async ({ page }) => {
-    await installMockApi(page, 'admin');
-    await page.goto('/app/isa-demo/qos-benchmarks/resources');
-    await expect(page).toHaveURL(/\/app\/isa-demo\/qos-benchmarks\/collections\/?$/);
-  });
 });
 
 // M2.4 slice 4: the composer is retired too. Its address opens the workbench with the case.

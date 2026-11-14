@@ -107,7 +107,6 @@ class StudyArtifactContent(BaseModel):
     engines: list[dict[str, Any]] = Field(min_length=1, max_length=50)
     parameter_sets: list[dict[str, Any]] = Field(default_factory=lambda: [{}], min_length=1, max_length=100)
     seeds: list[int] = Field(default_factory=lambda: [0], min_length=1, max_length=100)
-    collection: ArtifactRef | None = None
 
     def definition(self):
         if any(not engine.get('mode') or not isinstance(engine.get('optimization'), dict) for engine in self.engines):
@@ -115,9 +114,3 @@ class StudyArtifactContent(BaseModel):
         from .platform import StudyDefinition
         return StudyDefinition(case_revision_ids=[case.caseRevisionId for case in self.cases],
             engines=self.engines, parameter_sets=self.parameter_sets, seeds=self.seeds)
-
-
-class CollectionArtifactContent(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-    apiVersion: Literal['openbinding/collection/v1']
-    members: list[CaseRevisionRef | ArtifactRef] = Field(max_length=1000)

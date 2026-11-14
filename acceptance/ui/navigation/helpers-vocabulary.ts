@@ -51,7 +51,6 @@ export async function mockGateway(page: Page, options: MockOptions = {}): Promis
   await answer(page, API_CASES, [problem]);
   await answer(page, `${API_CASES}/${PROBLEM_SLUG}`, problem);
   await answer(page, API_JOBS, []);
-  await answer(page, '/v1/organizations/acme/projects/demo/collections', []);
   await answer(page, '/v1/organizations/acme/projects/demo/studies', []);
   return { writes, gets };
 }

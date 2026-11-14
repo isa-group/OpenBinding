@@ -13,7 +13,7 @@ import {
 } from '../../src/test/fixtures/engines';
 import { INSTANCE, NEIGHBORHOOD, REGISTRATION, REPORT as JOB_REPORT, SOLUTION, detailOf as jobDetailOf, jobOf } from '../../src/test/fixtures/jobs';
 import {
-  blobOf, caseItem, collectionOf, collectionRevisionOf, resourceItem, resourceOf, resourceRevisionOf,
+  blobOf, resourceOf, resourceRevisionOf,
 } from '../../src/test/fixtures/resources';
 import {
   RANDOM_SEARCH, REVISION_2, VERSION_ID, analyticsFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
@@ -416,22 +416,6 @@ function projectRoutes(request: Request, orgSlug: string, projectSlug: string): 
       return ok(localize(subId === 'notes' ? [] : [
         resourceRevisionOf(found, 2, { title: 'Latency probes', samples: 5 }),
         resourceRevisionOf(found, 1, { title: 'Latency probes', samples: 3 }),
-      ]));
-    }
-    case 'collections': {
-      if (!filled) return ok([]);
-      const references = collectionOf('checkout-references', 'Checkout references', { description: 'What a reviewer needs to reproduce the published comparison.' });
-      const empty = collectionOf('empty-list', 'Empty list', { description: 'A list that has not got its first revision yet.' });
-      const items = (...picked: Array<'c1' | 'c2' | 'w1'>) => picked.map((part) => (part === 'w1'
-        ? resourceItem('latency-probes', '1', caseDigest('a'))
-        : caseItem(`rev-checkout-${part.slice(1)}`, caseDigest(part.slice(1)))));
-      const collections = localize([references, empty]);
-      if (!subId) return ok(collections);
-      const found = collections.find((item) => item.slug === subId);
-      if (!found) return notFound('Collection not found.');
-      if (action !== 'revisions') return ok(found);
-      return ok(localize(subId === 'empty-list' ? [] : [
-        collectionRevisionOf(references, 2, items('c1', 'c2', 'w1')), collectionRevisionOf(references, 1, items('c1', 'w1')),
       ]));
     }
     case 'package':

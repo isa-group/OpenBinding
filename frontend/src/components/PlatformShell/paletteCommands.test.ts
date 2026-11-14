@@ -35,17 +35,13 @@ describe('buildCommands', () => {
     expect(commands.filter((command) => command.label === 'Project settings').map((command) => command.href)).toEqual(['/app/isa-demo/qos-benchmarks/settings']);
   });
 
-  it('offers Collections instead of Library in a project, and no library or resources command anywhere', () => {
+  it('offers no Library or Collections command, and no library, resources or collections command anywhere', () => {
     const inProject = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: true });
     const without = buildCommands({ organizations: [organization], isAdmin: true });
 
-    expect(inProject.filter((command) => command.label === 'Library')).toEqual([]);
-    const collections = inProject.filter((command) => command.label === 'Collections');
-    expect(collections.map((command) => [command.group, command.href])).toEqual([['Project', '/app/isa-demo/qos-benchmarks/collections']]);
-    expect(collections[0]?.desc).toMatch(/^Problems grouped into suites/);
-    expect(collections[0]?.desc).toContain('QoS benchmarks');
+    expect(inProject.filter((command) => ['Library', 'Collections', 'New collection'].includes(command.label))).toEqual([]);
     for (const commands of [inProject, without]) {
-      expect(commands.filter((command) => /\/(library|resources)([/?#]|$)/.test(command.href))).toEqual([]);
+      expect(commands.filter((command) => /\/(library|resources|collections)([/?#]|$)/.test(command.href))).toEqual([]);
     }
   });
 
@@ -76,7 +72,7 @@ describe('buildCommands', () => {
     expect(commands.filter((command) => command.label === 'Problems').map((command) => command.href)).toEqual(['/app/isa-demo/qos-benchmarks/problems']);
   });
 
-  it('offers New problem, collection, study and run in the current project, and none without one', () => {
+  it('offers New problem, study and run in the current project, and none without one', () => {
     const inProject = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: false });
     const without = buildCommands({ organizations: [organization], isAdmin: false });
     const created = (commands: typeof inProject) => commands
@@ -84,7 +80,6 @@ describe('buildCommands', () => {
 
     expect(created(inProject)).toEqual([
       ['New problem', '/app/isa-demo/qos-benchmarks/problems?create=problem'],
-      ['New collection', '/app/isa-demo/qos-benchmarks/collections?create=collection'],
       ['New study', '/app/isa-demo/qos-benchmarks/studies/new'],
       ['New run', '/app/isa-demo/qos-benchmarks/runs/new'],
     ]);

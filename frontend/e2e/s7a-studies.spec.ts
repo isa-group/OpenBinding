@@ -162,7 +162,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
   await page.route(`${API}/v1/engines`, json({ engines: [engineEntry(RANDOM_SEARCH), engineEntry(EVOLUTIONARY)] }));
 
-  // The versions of the library's artifacts: the study definitions that can be reused and the collections.
+  // The versions of the library's artifacts: the study definitions that can be reused.
   await page.route(new RegExp(`^${API}/v1/artifacts/[^/]+/versions(/.*)?(\\?.*)?$`), (route) => {
     const parts = new URL(route.request().url()).pathname.split('/').filter(Boolean);
     const [, , artifactId, , versionId, tail] = parts;
@@ -188,7 +188,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     if (section === 'library') {
       return json([
         artifact('artifact-engines-vs-seeds', 'Study', 'Engines × seeds'),
-        artifact('artifact-core', 'Collection', 'Core checkout set'),
         artifact('artifact-catalog', 'CandidateCatalog', 'Providers'),
       ])(route);
     }

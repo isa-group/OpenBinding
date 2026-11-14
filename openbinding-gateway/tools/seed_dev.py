@@ -2,7 +2,7 @@
 """Populate the OpenBinding database with rich development data.
 
 Seeds users, hierarchical organizations, projects, BIM v1 cases,
-collections, comparative studies with REAL solver jobs executed against
+comparative studies with REAL solver jobs executed against
 available engines (or gracefully handled), API keys, notifications,
 and audit records.
 
@@ -97,9 +97,6 @@ from openbinding_gateway.db.platform_models import (
     AuditEvent,
     BindingCase,
     BindingCaseRevision,
-    Collection,
-    CollectionItem,
-    CollectionRevision,
     Notification,
     Organization,
     OrganizationMembership,
@@ -695,13 +692,13 @@ async def ensure_library_composition(session, project, user, package, prefix):
     return await materialize_case(session, user, organization, package.instance(), uses)
 
 
-async def ensure_cases_and_collections(
+async def ensure_cases(
     session: AsyncSession,
     project: Project,
     user: User,
     snapshots: dict[str, tuple[GeneratedPackage, InstanceSnapshot]],
 ) -> dict[str, tuple[BindingCase, BindingCaseRevision]]:
-    """Create binding cases, revisions, and benchmark collections."""
+    """Create binding cases and their revisions."""
     case_map: dict[str, tuple[BindingCase, BindingCaseRevision]] = {}
 
     case_defs = [
@@ -764,32 +761,6 @@ async def ensure_cases_and_collections(
             logger.info("Created BindingCaseRevision #1 for '%s'", slug)
 
         case_map[slug] = (case, revision)
-
-    # Collection payload and FK consumers use the same exact revision references.
-    if 'simple-seq' in case_map and 'parallel-mesh' in case_map:
-        collection = await session.scalar(select(Collection).where(Collection.project_id == project.id, Collection.slug == 'standard-benchmarks'))
-        if collection is None:
-            collection = Collection(project_id=project.id, slug='standard-benchmarks', name='Standard BIM v1 Benchmark Suite',
-                description='Sequential, parallel and multi-objective experiments.', created_by_id=user.id)
-            session.add(collection)
-            await session.flush()
-        editions = [['simple-seq', 'parallel-mesh']]
-        if 'multi-objective' in case_map:
-            editions.append(['simple-seq', 'multi-objective', 'parallel-mesh'])
-        for _ordinal, keys in enumerate(editions, 1):
-            items = [dict(target_kind='case', target_digest=case_map[key][1].digest,
-                target_ref={'caseRevisionId': str(case_map[key][1].id)}) for key in keys]
-            content_digest = digest(items)
-            revision = await session.scalar(select(CollectionRevision).where(CollectionRevision.collection_id == collection.id,
-                CollectionRevision.digest == content_digest))
-            if revision is None:
-                next_ordinal = int(await session.scalar(select(func.max(CollectionRevision.revision)).where(CollectionRevision.collection_id == collection.id)) or 0) + 1
-                revision = CollectionRevision(collection_id=collection.id, revision=next_ordinal, digest=content_digest, created_by_id=user.id)
-                session.add(revision)
-                await session.flush()
-                for position, item in enumerate(items):
-                    session.add(CollectionItem(collection_revision_id=revision.id, position=position, added_by_id=user.id, **item))
-                await session.flush()
 
     return case_map
 
@@ -1294,7 +1265,6 @@ def print_summary_banner(users: dict[str, User]) -> None:
     print("    - score-ai/qos-placement (Public)")
     print("        ├── Cases: simple-seq, parallel-mesh, multi-objective")
     print("        ├── Resources: standard-candidate-catalog (2 revs), sla-latency-constraints, balanced-cost-latency-weights")
-    print("        ├── Collection: standard-benchmarks")
     print("        ├── Studies: exact-vs-heuristic (Real Runs & Jobs), parallel-scaling-study")
     print("        └── Artifacts: benchmark datasets, execution traces, reproducibility package")
     print("    - score-ai/smart-orchestration (Private)")
@@ -1365,9 +1335,9 @@ async def main() -> int:
             # 4. Snapshots from real BIM packages
             snapshots = await load_and_persist_snapshots(session, user_map["alice"], examples_dir)
 
-            # 5. Cases, Revisions & Collections
+            # 5. Cases & Revisions
             qos_project = project_map["score-ai/qos-placement"]
-            case_map = await ensure_cases_and_collections(session, qos_project, user_map["alice"], snapshots)
+            case_map = await ensure_cases(session, qos_project, user_map["alice"], snapshots)
 
             # 5.1 Reusable Project Resources & Revisions
             await ensure_project_resources(session, project_map, user_map)

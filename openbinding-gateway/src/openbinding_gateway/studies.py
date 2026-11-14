@@ -103,8 +103,8 @@ def aggregate_metrics(metrics: list[dict[str, Any]]) -> dict[str, Any]:
 async def seal_study_definition(session, project, user, name, definition, *, current=None, analysis_fixture=False):
     """Persist the sole authoritative definition in the organization library."""
     import uuid
-    from .artifacts import seal_draft, reference
-    from .db.models import Artifact, ArtifactDraft, ArtifactVersion, BindingCaseRevision, ProjectArtifact
+    from .artifacts import seal_draft
+    from .db.models import Artifact, ArtifactDraft, BindingCaseRevision, ProjectArtifact
     from .models.artifacts import DraftContent
     from .services.engines import engine_mode
     from bim_core.canonical import digest
@@ -130,11 +130,6 @@ async def seal_study_definition(session, project, user, name, definition, *, cur
         content = {'apiVersion': 'openbinding/study/v1', 'cases': cases, 'engines': engines,
                    'parameter_sets': definition.parameter_sets, 'seeds': definition.seeds}
         kind = 'Study'
-        if definition.collection_version_id:
-            collection = await session.get(ArtifactVersion, definition.collection_version_id)
-            source = await session.get(Artifact, collection.artifact_id)
-            content['collection'] = reference(source, collection)
-            dependencies.append(content['collection'])
     if current and current.content_digest == digest(content):
         return current
     artifact = await session.get(Artifact, current.artifact_id) if current else None

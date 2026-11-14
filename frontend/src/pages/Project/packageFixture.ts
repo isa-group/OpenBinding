@@ -45,7 +45,6 @@ export async function samplePackage(options: SampleOptions = {}): Promise<Record
       })),
     }],
     resources: [],
-    collections: [],
     studies: [],
     artifacts: [{
       digest, mediaType: 'text/plain', size: FILE_TEXT.length, public: false, expiresAt: null,

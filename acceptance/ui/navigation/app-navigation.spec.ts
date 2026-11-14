@@ -90,12 +90,11 @@ test('application header has none of the former entries', async ({ page }) => {
   }
 });
 
-test('New menu offers Problem, Collection, Study and Run in the current project', async ({ page }) => {
+test('New menu offers Problem, Study and Run in the current project', async ({ page }) => {
   await signedIn(page, '/app/acme/demo');
   await banner(page).getByRole('button', { name: 'New', exact: true }).click();
   const items: Array<[string, string]> = [
-    ['Problem', `${PROBLEMS}?create=problem`], ['Collection', '/app/acme/demo/collections?create=collection'],
-    ['Study', '/app/acme/demo/studies/new'], ['Run', RUN_NEW],
+    ['Problem', `${PROBLEMS}?create=problem`], ['Study', '/app/acme/demo/studies/new'], ['Run', RUN_NEW],
   ];
   await expectInOrder(items.map(([name]) => entry(menuScope(page), name)));
   for (const [name, href] of items) await expect(entry(menuScope(page), name)).toHaveAttribute('href', href);
@@ -104,7 +103,7 @@ test('New menu offers Problem, Collection, Study and Run in the current project'
 test('New menu items are disabled with a hint without a current project', async ({ page }) => {
   await signedIn(page, '/app', 'user', []);
   await banner(page).getByRole('button', { name: 'New', exact: true }).click();
-  for (const name of ['Problem', 'Collection', 'Study', 'Run']) {
+  for (const name of ['Problem', 'Study', 'Run']) {
     const item = menuScope(page).getByText(name, { exact: true }).last();
     await expect(item).toHaveAttribute('aria-disabled', 'true');
     await expect(item).toHaveAccessibleDescription(/Needs a project/);

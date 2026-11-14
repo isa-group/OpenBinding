@@ -156,8 +156,8 @@ describe('the retired report editor', () => {
   });
 });
 
-// M2.4 slice 3: the library catalogue and the project resources are retired. Their addresses redirect to the organization overview
-// or to the collections of the project.
+// M2.4 slice 3: the library catalogue and the project resources are retired. The library addresses redirect to the organization
+// overview; the project library and resources redirected to the collections, which are gone too, so they no longer redirect.
 describe('the retired library catalogue and project resources', () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -184,11 +184,10 @@ describe('the retired library catalogue and project resources', () => {
     await endsAt('/app/a%2Fb/library/a1/versions/v%231', '/app/a%2Fb');
   });
 
-  it('sends the project library and the project resources to the collections of the project', async () => {
-    await endsAt('/app/acme/atlas/library', '/app/acme/atlas/collections');
-    await endsAt('/app/acme/atlas/resources', '/app/acme/atlas/collections');
-    await endsAt('/app/acme/atlas/resources/r1?x=1', '/app/acme/atlas/collections');
-    await endsAt('/app/a%2Fb/my%20proj/resources/r%2F1', '/app/a%2Fb/my%20proj/collections');
+  it('leaves no redirect for the project library and the project resources, nor a collections screen', () => {
+    expect(RETIRED_ROUTES.map((route) => route.path).filter((path) => /^\/app\/:org\/:project\/(library|resources)(\/|$)/.test(path))).toEqual([]);
+    expect(routeDefinitions.map((definition) => definition.path).filter((path) => /\/collections(\/|$)/.test(path))).toEqual([]);
+    expect(Object.keys(import.meta.glob('../pages/Resources/*.tsx'))).toEqual([]);
   });
 
   it('sends /app/<org>/library/reports and /app/<org>/library/library to the organization overview, not to a project', async () => {
@@ -199,7 +198,7 @@ describe('the retired library catalogue and project resources', () => {
 
   it('leaves a project called library the screens of its sections, which win the tie with the retired library artifact', async () => {
     // Not `/app/acme`, where the retired library artifact would send it: the address stays (or moves on with its section).
-    const address = '/app/acme/library/collections';
+    const address = '/app/acme/library/studies';
     const view = renderAt(address);
     const want = new URL(settled(address), 'http://localhost');
 

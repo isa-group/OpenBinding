@@ -29,7 +29,7 @@ blindly copied from an unmerged branch.
 | Organizations and teams | Extend | Arbitrarily nested organizations, inherited roles, invitations, sponsors and unique-member accounting |
 | Pricings and immutable versions | Adapt (revised) | Immutable BIM/case revisions in the user platform. Pricing lifecycle: not in OpenBinding; it lives in the remote SPHERE/SPACE consoles and is read-only here (see below) |
 | Public/private resources | Adapt | Project, case and artifact visibility |
-| Collections | Redesign | Ordered, versioned curation of immutable references; collections never execute work |
+| Collections | Exclude | Removed in F0a: a study selects its case revisions directly |
 | Configuration-space analysis | Redesign | Feasibility, Pareto, convergence, objectives, runtime, stability and cross-engine comparison |
 | HARVEY assistant | Exclude/replace | Deterministic diagnostic actions and documentation links; no LLM dependency or fabricated result |
 | API keys and entity permissions | Extend | Closed capabilities plus optional method, organization, project, resource slug and exact-engine reductions |
@@ -49,7 +49,7 @@ SPHERE's pricing comparison becomes a **study**: a reproducible Cartesian
 product of case revisions, exact engine revisions, parameter sets and seeds.
 Every cell freezes its inputs, can be retried independently and contributes to
 aggregate analysis only after its canonical result is reevaluated by
-OpenBinding. A collection may seed a study, but does not become one.
+OpenBinding. A study selects its case revisions directly.
 
 SPHERE's version catalogue becomes the provenance spine for BIM resources:
 revisions are immutable and content-addressed, mutable aliases are short-lived,

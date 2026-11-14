@@ -392,7 +392,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(band.getByRole('link', { name: 'New problem' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems');
       await expect(band.getByRole('link', { name: 'Export package' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/settings');
       const tabs = main.getByRole('navigation', { name: 'Project sections' });
-      await expect(tabs.getByRole('link')).toHaveText(['Overview', 'Problems', 'Collections', 'Runs', 'Studies', 'Settings']);
+      await expect(tabs.getByRole('link')).toHaveText(['Overview', 'Problems', 'Runs', 'Studies', 'Settings']);
       await expect(tabs.getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
       await expect(tabs.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/settings');
 
@@ -441,7 +441,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'Open bench' })).toBeVisible();
       await expect(main.getByText('You are viewing a public project (read-only).')).toBeVisible();
       const publicTabs = main.getByRole('navigation', { name: 'Project sections' });
-      await expect(publicTabs.getByRole('link')).toHaveText(['Overview', 'Problems', 'Collections', 'Studies']);
+      await expect(publicTabs.getByRole('link')).toHaveText(['Overview', 'Problems', 'Studies']);
       await expect(band.getByRole('link', { name: 'Browse problems' })).toHaveAttribute('href', '/app/open-lab/open-bench/problems');
       for (const hidden of ['New problem', 'Run', 'New study', 'New report', 'Export package']) await expect(band.getByText(hidden, { exact: true })).toHaveCount(0);
       await expect(main.getByRole('region', { name: 'Recent runs' })).toHaveCount(0);

@@ -221,7 +221,7 @@ export function revisionIndex(cases: readonly CaseContent[]): Map<string, Revisi
   return index;
 }
 
-/** The revisions of the project's cases that have one of the given ids; ids the project doesn't hold (a collection's) are skipped. */
+/** The revisions of the project's cases that have one of the given ids; ids the project doesn't hold (another project's) are skipped. */
 export function revisionsOf(cases: readonly CaseContent[], ids: readonly string[]): CaseRevision[] {
   const wanted = new Set(ids);
   return cases.flatMap((entry) => entry.revisions.filter((revision) => wanted.has(revision.id)));
@@ -258,15 +258,11 @@ interface SelectionInput {
   caseSlug: string | null;
   /** `?revision=` : a revision number or id of that case. */
   revision: string | null;
-  /** `?collection=` : the case revisions a project collection pins. */
-  collectionIds: readonly string[];
 }
 
 /** What the builder starts with when another screen sent the person here ("Add to study", "Start a study from this"). */
-export function defaultSelection({ cases, caseSlug, revision, collectionIds }: SelectionInput): string[] {
+export function defaultSelection({ cases, caseSlug, revision }: SelectionInput): string[] {
   const picked = new Set<string>();
-  const executable = new Set(cases.flatMap((entry) => entry.revisions.filter(isExecutable).map((item) => item.id)));
-  for (const id of collectionIds) if (executable.has(id)) picked.add(id);
   const entry = caseSlug ? cases.find((item) => item.item.slug === caseSlug) : undefined;
   if (entry) {
     const wanted = revision ? entry.revisions.find((item) => String(item.revision) === revision || item.id === revision) : undefined;
@@ -274,17 +270,6 @@ export function defaultSelection({ cases, caseSlug, revision, collectionIds }: S
     if (chosen && isExecutable(chosen)) picked.add(chosen.id);
   }
   return [...picked];
-}
-
-/** The case revisions a sealed Collection version lists (`CollectionArtifactContent.members`); `null` when its content doesn't read as one. */
-export function collectionMembers(content: string): string[] | null {
-  try {
-    const parsed: unknown = JSON.parse(content);
-    if (!isRecord(parsed) || !Array.isArray(parsed.members)) return null;
-    return parsed.members.flatMap((member) => (isRecord(member) && typeof member.caseRevisionId === 'string' ? [member.caseRevisionId] : []));
-  } catch {
-    return null;
-  }
 }
 
 /** The cells a sealed Study version spells out (`StudyArtifactContent`); `null` when its content doesn't read as one. */

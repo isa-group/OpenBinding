@@ -15,7 +15,6 @@ export interface MenuEntry {
   hint?: string;
 }
 
-const COLLECTIONS_SEGMENT = 'collections';
 const STUDIES_SEGMENT = 'studies';
 
 export const NEEDS_PROJECT = 'Needs a project';
@@ -68,12 +67,11 @@ export function labEntries(organization?: Organization, project?: Project): Arra
   ];
 }
 
-/** Entries of the "New" menu: always these four, in the current project. */
+/** Entries of the "New" menu: always these three, in the current project. */
 export function createItems(organization?: Organization, project?: Project): MenuEntry[] {
   const root = projectRoot(organization, project);
   return [
     inProject('Problem', root, `/${PROBLEMS_SEGMENT}?create=problem`),
-    inProject('Collection', root, `/${COLLECTIONS_SEGMENT}?create=collection`),
     inProject('Study', root, `/${STUDIES_SEGMENT}/new`),
     inProject('Run', root, `/${RUNS_SEGMENT}/new`),
   ];

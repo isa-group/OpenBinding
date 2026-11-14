@@ -11,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, get_user_by_identifier, session_dependency
 from ..db.models import (
-    ApiKey, Blob, AuthIdentity, Artifact, ArtifactVersion, ArtifactDraft, ArtifactPublication, BindingCase, BindingCaseRevision, Collection,
-    CollectionItem, CollectionRevision, Job, Organization, OrganizationMembership,
+    ApiKey, Blob, AuthIdentity, Artifact, ArtifactVersion, ArtifactDraft, ArtifactPublication, BindingCase, BindingCaseRevision,
+    Job, Organization, OrganizationMembership,
     OrganizationRole, Project, ProjectResource,
     ProjectResourceRevision, Publication, Report, Study, StudyRun, User, utcnow,
 )
@@ -736,33 +736,6 @@ async def delete_own_account(
     )).all()
     for bcr, org_id in case_revs:
         bcr.created_by_id = await require_org_owner(org_id)
-
-    collections = (await session.execute(
-        select(Collection, Project.organization_id)
-        .join(Project, Project.id == Collection.project_id)
-        .where(Collection.created_by_id == user.id)
-    )).all()
-    for col, org_id in collections:
-        col.created_by_id = await require_org_owner(org_id)
-
-    col_revs = (await session.execute(
-        select(CollectionRevision, Project.organization_id)
-        .join(Collection, Collection.id == CollectionRevision.collection_id)
-        .join(Project, Project.id == Collection.project_id)
-        .where(CollectionRevision.created_by_id == user.id)
-    )).all()
-    for cr, org_id in col_revs:
-        cr.created_by_id = await require_org_owner(org_id)
-
-    col_items = (await session.execute(
-        select(CollectionItem, Project.organization_id)
-        .join(CollectionRevision, CollectionRevision.id == CollectionItem.collection_revision_id)
-        .join(Collection, Collection.id == CollectionRevision.collection_id)
-        .join(Project, Project.id == Collection.project_id)
-        .where(CollectionItem.added_by_id == user.id)
-    )).all()
-    for ci, org_id in col_items:
-        ci.added_by_id = await require_org_owner(org_id)
 
     studies = (await session.execute(
         select(Study, Project.organization_id)

@@ -674,7 +674,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('#platform-main');
       const preview = main.getByRole('region', { name: 'Preview' });
 
-      // A batch repeats the settings; keeping it makes a collection.
+      // A batch repeats the settings; it is a preview and is not saved to a project.
       await main.getByRole('tab', { name: 'Batch' }).click();
       await expect(main.getByText('Same settings as a single instance, repeated as many times as you ask for.')).toBeVisible();
       await main.getByLabel('How many instances').fill('101');
@@ -687,9 +687,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(preview.getByText('Combinations each')).toBeVisible();
       expect(state.sent.corpus).toMatchObject({ count: 3, persist: false, name: 'generated_qaco' });
       await capture(page, testInfo, `lab-${name}-batch`);
-      await main.getByRole('region', { name: 'Keep it' }).getByRole('button', { name: 'Save to project' }).click();
-      await expect(main.getByText('Saved to QoS Benchmarks · ISA Demo Group as a collection of synthetic instances.')).toBeVisible();
-      expect(state.sent.corpus).toMatchObject({ persist: true, project_id: 'project-1', collection_name: 'generated_qaco' });
+      await expect(main.getByRole('region', { name: 'Keep it' }).getByRole('button', { name: 'Save to project' })).toBeDisabled();
+      await expect(main.getByText('A batch is a preview only; generate one instance to save it to a project.')).toBeVisible();
 
       // An old-format instance becomes a package.
       await main.getByRole('tab', { name: 'Convert old format' }).click();

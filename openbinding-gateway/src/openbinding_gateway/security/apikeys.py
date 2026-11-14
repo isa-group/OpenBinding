@@ -233,7 +233,7 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
     aliases = {
         "organizations": ("org", "organization", "organization_id", "org_id"),
         "projects": ("project", "project_id"),
-        "slugs": ("slug", "case", "collection", "study", "resource"),
+        "slugs": ("slug", "case", "study", "resource"),
     }
     for field, names in aliases.items():
         allowed = boundary.get(field)
@@ -251,7 +251,6 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "projects": {"project", "projects"},
             "cases": {"case", "cases"},
             "resources": {"resource", "resources"},
-            "collections": {"collection", "collections"},
             "studies": {"study", "studies"},
             "runs": {"run", "runs"},
             "cells": {"cell", "cells"},

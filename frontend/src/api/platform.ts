@@ -128,31 +128,6 @@ export interface ProjectResourceRevision {
   created_at: string;
 }
 
-export interface CollectionItem {
-  target_kind: 'case' | 'resource' | 'result' | 'report';
-  target_digest: string;
-  target_ref: Record<string, unknown>;
-}
-
-export interface Collection {
-  id: string;
-  project_id: string;
-  slug: string;
-  name: string;
-  description: string;
-  created_by_id: string;
-  created_at: string;
-}
-
-export interface CollectionRevision {
-  id: string;
-  collection_id: string;
-  revision: number;
-  digest: string;
-  items: CollectionItem[];
-  created_at: string;
-}
-
 export interface StoredBlob {
   id: string;
   organization_id: string;
@@ -186,7 +161,6 @@ export interface Study {
   description: string;
   definition: {
     case_revision_ids: string[];
-    collection_version_id?: string;
     engines: StudyEngine[];
     parameter_sets: Array<Record<string, unknown>>;
     seeds: number[];
@@ -460,39 +434,11 @@ export const platformApi = {
     apiClient.request<ProjectResourceRevision[]>(
       `${root(org, project)}/resources/${encodeURIComponent(resource)}/revisions`,
     ),
-  collections: (org: string, project: string) =>
-    apiClient.request<Collection[]>(`${root(org, project)}/collections`),
-  /** One collection by its address. 404 whether it is missing or not in this project. */
-  collection: (org: string, project: string, collection: string) =>
-    apiClient.request<Collection>(`${root(org, project)}/collections/${encodeURIComponent(collection)}`, {}, undefined, true, true),
-  /** Needs MEMBER. 402 when the sponsor has no collection left, 409 `slug_conflict`, 422 for an invalid address or name. */
-  createCollection: (org: string, project: string, value: { slug: string; name: string; description: string }) =>
-    apiClient.request<Collection>(`${root(org, project)}/collections`, {
-      method: 'POST', body: JSON.stringify(value),
-    }, undefined, true, true),
-  /** Needs MEMBER. */
-  updateCollection: (org: string, project: string, collection: string, value: { name?: string; description?: string }) =>
-    apiClient.request<Collection>(`${root(org, project)}/collections/${encodeURIComponent(collection)}`, {
-      method: 'PATCH', body: JSON.stringify(value),
-    }, undefined, true, true),
-  /** Needs ADMIN. Takes the collection out of the project; what it pointed to is untouched. */
-  deleteCollection: (org: string, project: string, collection: string) =>
-    apiClient.request<void>(`${root(org, project)}/collections/${encodeURIComponent(collection)}`, { method: 'DELETE' }, undefined, true, true),
-  collectionRevisions: (org: string, project: string, collection: string) =>
-    apiClient.request<CollectionRevision[]>(`${root(org, project)}/collections/${encodeURIComponent(collection)}/revisions`),
-  /**
-   * Needs MEMBER. Only `case` and `resource` items are accepted. 422 for a repeated target (`a collection revision cannot repeat a target`),
-   * `invalid_collection_target`, `collection_target_mismatch` (the pinned fingerprint is not the target's) and `unsupported_collection_target`.
-   */
-  createCollectionRevision: (org: string, project: string, collection: string, items: CollectionItem[]) =>
-    apiClient.request<CollectionRevision>(`${root(org, project)}/collections/${encodeURIComponent(collection)}/revisions`, {
-      method: 'POST', body: JSON.stringify({ items }),
-    }, undefined, true, true),
   studies: (org: string, project: string, includeArchived = false) =>
     apiClient.request<Study[]>(`${root(org, project)}/studies?include_archived=${includeArchived}`),
   /**
    * Needs MEMBER. 402 `quota_exceeded` when the sponsor has no study definition left, 403 `api_key_engine_forbidden`, 409 `slug_conflict`,
-   * 422 for an empty or foreign selection (`empty_study_cases`, `foreign_case_revision`, `unavailable_collection`) or a matrix over 10,000 cells (`study_matrix_too_large`).
+   * 422 for an empty or foreign selection (`empty_study_cases`, `foreign_case_revision`) or a matrix over 10,000 cells (`study_matrix_too_large`).
    */
   createStudy: (org: string, project: string, value: Pick<Study, 'slug' | 'name' | 'description'> & ({ definition: Study['definition'] } | { definition_version_id: string })) =>
     apiClient.request<Study>(`${root(org, project)}/studies`, {

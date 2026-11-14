@@ -1544,9 +1544,6 @@ export interface GenerateCorpusParams {
   base_config: GenerateInstanceParams;
   name?: string;
   persist?: boolean;
-  project_id?: string | null;
-  collection_name?: string | null;
-  create_study?: boolean;
   as_archive?: boolean;
 }
 
@@ -1562,8 +1559,6 @@ export interface CorpusGeneratedResponse {
     workload_features: Record<string, unknown>;
     actual_constraint_count: number;
   }>;
-  collection_id?: string | null;
-  study_id?: string | null;
 }
 
 export interface ConvertLegacyParams {

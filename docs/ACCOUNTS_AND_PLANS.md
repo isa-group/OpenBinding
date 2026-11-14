@@ -175,7 +175,7 @@ before anything is compiled, reserved or written.
 |---|---|---|
 | Read jobs, studies, runs, cells, artifacts and results of a project | `GET` routes of `/v1/organizations/{org}/projects/{project}/…` | VIEWER (jobs redacted, see below) |
 | Launch a job on a snapshot shared with the organization | `POST /v1/jobs` with `{"snapshot": …}` | MEMBER |
-| Create a study, collection or case | `POST …/studies`, `…/collections`, `…/cases` | MEMBER |
+| Create a study or case | `POST …/studies`, `…/cases` | MEMBER |
 | Run a study, retry a cell, cancel a run | `POST …/studies/{study}/runs`, `…/cells/{cell}/retry`, `…/runs/{run}/cancel` | MEMBER |
 | Retry or cancel a job of an organization | `POST /v1/jobs/{id}/retry`, `POST /v1/jobs/{id}/cancel` | MEMBER (the job must also be the caller's) |
 | Delete a study | `DELETE …/studies/{study}` | ADMIN |

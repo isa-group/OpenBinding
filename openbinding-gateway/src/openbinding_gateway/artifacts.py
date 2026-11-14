@@ -13,10 +13,9 @@ from .collaboration import effective_role, require_role
 from .core.settings import get_settings
 from .db.models import (Artifact, ArtifactDependency, ArtifactDraft, ArtifactPublication,
     ArtifactVersion, AuditEvent, Blob, Organization, OrganizationRole, User)
-from .models.artifacts import ArtifactRef, DraftContent, CaseRevisionRef, StudyArtifactContent, CollectionArtifactContent
+from .models.artifacts import ArtifactRef, DraftContent, StudyArtifactContent
 from .models.errors import api_error
 from .security.apikeys import authenticated_api_key, boundary_of
-from .core.jsonio import strict_json_loads
 from .integrations import bim, packages
 from .integrations.bim_host import (XmlResource, dialect_type_matches, dialect_xml_type_matches,
     resource_schema_diagnostics)
@@ -134,19 +133,14 @@ def validate_content(kind: str, payload: DraftContent) -> tuple[bytes, list[dict
             raise api_error(422, 'invalid_content',
                             'Composition content is Composition2Yaml source text; send it as '
                             'application/yaml, not as JSON.')
-        if kind in {'Dataset', 'Collection', 'Study', 'BindingDecision',
+        if kind in {'Dataset', 'Study', 'BindingDecision',
                     'ExecutionConfiguration', 'AnalysisConfiguration'}:
             if kind != 'Dataset' and not document:
                 raise api_error(422, 'invalid_content', f'{kind} content cannot be empty.')
-            if kind in {'Study', 'Collection'}:
+            if kind == 'Study':
                 from pydantic import ValidationError
                 try:
-                    if kind == 'Study':
-                        StudyArtifactContent.model_validate(document).definition()
-                    else:
-                        collection = CollectionArtifactContent.model_validate(document)
-                        if len({digest(item.model_dump(mode='json')) for item in collection.members}) != len(collection.members):
-                            raise ValueError('Collection members must be unique.')
+                    StudyArtifactContent.model_validate(document).definition()
                 except (ValidationError, ValueError) as exc:
                     raise api_error(422, 'invalid_content', str(exc)) from exc
             if kind == 'ExecutionConfiguration':
@@ -282,15 +276,10 @@ async def seal_draft(session: AsyncSession, artifact: Artifact, draft: ArtifactD
         if dependency.organization_id != artifact.organization_id and not await session.get(ArtifactPublication, version.id):
             raise api_error(422, 'private_dependency', 'Cross-organization dependencies must be public.')
     case_references = []
-    if artifact.kind in {'Study', 'Collection'}:
+    if artifact.kind == 'Study':
         from .db.models import BindingCase, BindingCaseRevision, Project
-        members = (StudyArtifactContent.model_validate(payload.content).cases if artifact.kind == 'Study'
-                   else CollectionArtifactContent.model_validate(payload.content).members)
+        members = StudyArtifactContent.model_validate(payload.content).cases
         for position, member in enumerate(members):
-            if isinstance(member, ArtifactRef):
-                if member not in payload.dependencies:
-                    raise api_error(422, 'missing_dependency', f'Member {position} must also be an exact fixed dependency.')
-                continue
             row = (await session.execute(select(BindingCaseRevision, Project.organization_id)
                 .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
                 .join(Project, Project.id == BindingCase.project_id)
@@ -299,25 +288,15 @@ async def seal_draft(session: AsyncSession, artifact: Artifact, draft: ArtifactD
                 raise api_error(422, 'foreign_case_revision', f'Member {position} must be a case revision in this organization.')
             if row[0].digest != member.compositionDigest:
                 raise api_error(422, 'case_digest_mismatch', f'Member {position} differs from the exact case composition.')
-            if artifact.kind == 'Study' and row[0].source_snapshot_id is None:
+            if row[0].source_snapshot_id is None:
                 raise api_error(422, 'case_not_executable', f'Member {position} has no materialized snapshot.')
             case_references.append((position, member.caseRevisionId))
-        if artifact.kind == 'Study':
-            from .services.engines import engine_mode
-            definition = StudyArtifactContent.model_validate(payload.content)
-            if definition.collection:
-                if definition.collection not in payload.dependencies:
-                    raise api_error(422, 'missing_dependency', 'The source collection must be an exact fixed dependency.')
-                collection_artifact, collection_version = await resolve_version(session, definition.collection, user)
-                if collection_artifact.kind != 'Collection':
-                    raise api_error(422, 'invalid_collection', 'A study collection must reference a Collection version.')
-                collection = CollectionArtifactContent.model_validate(strict_json_loads((await version_content(session, collection_version))[0]))
-                if any(member not in definition.cases for member in collection.members if isinstance(member, CaseRevisionRef)):
-                    raise api_error(422, 'collection_case_mismatch', 'The study must include every exact case from its source collection.')
-            for engine in definition.engines:
-                for parameters in definition.parameter_sets:
-                    await engine_mode(engine['name'], engine.get('mode'), parameters, session,
-                        caller=user, namespace=engine['namespace'], version=engine['version'], manifest_digest=engine['digest'])
+        from .services.engines import engine_mode
+        definition = StudyArtifactContent.model_validate(payload.content)
+        for engine in definition.engines:
+            for parameters in definition.parameter_sets:
+                await engine_mode(engine['name'], engine.get('mode'), parameters, session,
+                    caller=user, namespace=engine['namespace'], version=engine['version'], manifest_digest=engine['digest'])
     if artifact.kind == 'ExecutionConfiguration':
         from .services.engines import engine_mode
         engine = payload.content['engine']

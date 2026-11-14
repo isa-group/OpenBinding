@@ -460,9 +460,9 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     component_schemas.setdefault("Problem", problem_schema)
     document["x-api-key-permissions"] = list(ALL_PERMISSIONS)
     schemas = document["components"]["schemas"]
-    from .models.artifacts import StudyArtifactContent, CollectionArtifactContent
+    from .models.artifacts import StudyArtifactContent
     document['x-artifact-content-schemas'] = {}
-    for kind, model in [('Study', StudyArtifactContent), ('Collection', CollectionArtifactContent)]:
+    for kind, model in [('Study', StudyArtifactContent)]:
         content_schema = model.model_json_schema(ref_template='#/components/schemas/{model}')
         schemas.update(content_schema.pop('$defs', {}))
         schemas[model.__name__] = content_schema

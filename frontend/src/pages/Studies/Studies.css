@@ -144,8 +144,6 @@
 .st-option-text small { color: var(--tp-steel); font-size: 0.75rem; }
 .st-option-line { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .st-tools { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs); }
-.st-collection summary { cursor: pointer; color: var(--tp-primary); font-size: 0.8125rem; font-weight: 500; }
-.st-collection p { margin: 6px 0; }
 .st-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: var(--tp-spacing-sm); }
 .st-pair label, .st-variant-fields label, .st-seeds, .st-more label { display: flex; min-width: 0; flex-direction: column; gap: 6px; color: var(--tp-steel); font-size: 0.75rem; font-weight: 500; }
 .st-variants { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); margin: 0; padding: 0; list-style: none; }

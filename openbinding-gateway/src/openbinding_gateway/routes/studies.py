@@ -1,4 +1,4 @@
-"""Curated collections and comparative studies."""
+"""Comparative studies."""
 
 from __future__ import annotations
 
@@ -7,19 +7,15 @@ import math
 from collections.abc import Mapping
 
 from fastapi import APIRouter, Depends, Response, status
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..access import public_read
 from ..access.dependencies import get_current_user, session_dependency
 from ..collaboration import enforce_sponsor_capacity, organization_by_ref, require_project
 from ..core import revision
 from ..core.settings import get_settings
 from ..domain import usage_counters
 from ..db.models import (
-    Artifact,
-    ArtifactVersion,
-    ProjectArtifact,
     AuditEvent,
     BindingCase,
     BindingCaseRevision,
@@ -40,12 +36,6 @@ from ..db.models import (
 from ..models.errors import ErrorResponse, api_error
 from ..models.platform import (
     AnalyticsView,
-    CollectionCreate,
-    CollectionItemInput,
-    CollectionRevisionCreate,
-    CollectionRevisionView,
-    CollectionUpdate,
-    CollectionView,
     StudyCellResult,
     StudyCellView,
     StudyCreate,
@@ -69,10 +59,7 @@ from ..study_jobs import (
     study_binding_space_refusal,
 )
 from ..studies import aggregate_metrics, expand_study
-from bim_core.canonical import canonical_json, digest
-from ..artifacts import store_blob, version_content
-from ..models.artifacts import CollectionArtifactContent
-import json
+from bim_core.canonical import digest
 
 router = APIRouter(prefix="/v1/organizations/{org}/projects/{project}", tags=["Studies"])
 
@@ -92,301 +79,6 @@ async def _context(
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Organization not found.")
     found_project = await require_project(session, organization, project, user, minimum)
     return organization, found_project
-
-
-async def _collection(session: AsyncSession, project_id: uuid.UUID, reference: str) -> Artifact:
-    try:
-        parsed = uuid.UUID(reference)
-    except ValueError:
-        parsed = None
-    found = (await session.execute(select(Artifact).join(ProjectArtifact).where(
-        ProjectArtifact.project_id == project_id, Artifact.kind == "Collection",
-        Artifact.id == parsed if parsed else Artifact.name == reference))).scalars().first()
-    if found is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Collection not found.")
-    return found
-
-
-async def _visitor_may_see(session: AsyncSession, project: Project, artifact: Artifact) -> bool:
-    """A read-only visitor sees the project's own artifacts, and others' only while published."""
-
-    if not public_read.is_public_read(session):
-        return True
-    from ..artifacts import can_read
-
-    return artifact.organization_id == project.organization_id or await can_read(session, artifact, None)
-
-
-async def _readable_collection(
-    session: AsyncSession, project: Project, reference: str
-) -> Artifact:
-    found = await _collection(session, project.id, reference)
-    if not await _visitor_may_see(session, project, found):
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Collection not found.")
-    return found
-
-
-def _collection_view(value: Artifact, project_id: uuid.UUID) -> CollectionView:
-    return CollectionView(id=value.id, project_id=project_id, slug=value.name,
-        name=value.display_name, description=value.description,
-        created_by_id=value.created_by_id, created_at=value.created_at)
-
-
-async def _validate_collection_item(
-    session: AsyncSession,
-    project_id: uuid.UUID,
-    item: CollectionItemInput,
-) -> None:
-    reference = item.target_ref
-    raw_id = (
-        reference.get("caseRevisionId")
-        or reference.get("resourceRevisionId")
-        or reference.get("jobId")
-        or reference.get("id")
-    )
-    try:
-        target_id = uuid.UUID(str(raw_id))
-    except (TypeError, ValueError):
-        raise api_error(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-            "invalid_collection_target",
-            "Every collection item must identify an immutable target revision.",
-        ) from None
-    actual_digest: str | None = None
-    belongs = False
-    if item.target_kind == "case":
-        row = (
-            await session.execute(
-                select(BindingCaseRevision, BindingCase.project_id)
-                .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
-                .where(BindingCaseRevision.id == target_id)
-            )
-        ).first()
-        if row:
-            actual_digest, belongs = row[0].digest, row[1] == project_id
-    elif item.target_kind == "resource":
-        row = (await session.execute(select(ArtifactVersion, ProjectArtifact.project_id)
-            .join(ProjectArtifact, ProjectArtifact.artifact_id == ArtifactVersion.artifact_id)
-            .where(ArtifactVersion.id == target_id))).first()
-        if row:
-            actual_digest, belongs = row[0].content_digest, row[1] == project_id
-    else:
-        row = await session.get(Job, target_id)
-        if row:
-            actual_digest, belongs = digest(row.result or {}), row.project_id == project_id
-    if not belongs or actual_digest != item.target_digest:
-        raise api_error(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-            "collection_target_mismatch",
-            "The collection target must belong to this project and match its pinned digest.",
-        )
-
-
-@router.get("/collections", response_model=list[CollectionView], operation_id="listCollections")
-async def list_collections(
-    org: str, project: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> list[CollectionView]:
-    _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    rows = (await session.scalars(select(Artifact).join(ProjectArtifact)
-        .where(ProjectArtifact.project_id == found_project.id, Artifact.kind == "Collection")
-        .order_by(Artifact.display_name))).all()
-    return [_collection_view(row, found_project.id) for row in rows
-            if await _visitor_may_see(session, found_project, row)]
-
-
-@router.post("/collections", response_model=CollectionView, status_code=201, operation_id="createCollection")
-async def create_collection(
-    org: str, project: str, payload: CollectionCreate,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> CollectionView:
-    organization, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
-    sponsor = await session.get(User, organization.billing_sponsor_user_id)
-    await enforce_sponsor_capacity(session, sponsor, "collections")
-    duplicate = await session.scalar(select(Artifact.id).where(Artifact.organization_id == organization.id,
-        Artifact.name == payload.slug, Artifact.kind == "Collection"))
-    if duplicate:
-        raise api_error(status.HTTP_409_CONFLICT, "slug_conflict", "That collection slug is in use.")
-    value = Artifact(organization_id=organization.id, namespace=str(organization.id), name=payload.slug,
-        display_name=payload.name, description=payload.description, kind="Collection", created_by_id=user.id)
-    session.add(value)
-    await session.flush()
-    session.add(ProjectArtifact(project_id=found_project.id, artifact_id=value.id))
-    await session.flush()
-    _audit(session, user, "collection.created", value, organization.id)
-    return _collection_view(value, found_project.id)
-
-
-@router.get("/collections/{collection}/revisions", response_model=list[CollectionRevisionView], operation_id="listCollectionRevisions")
-async def list_collection_revisions(
-    org: str, project: str, collection: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> list[CollectionRevisionView]:
-    _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    found = await _readable_collection(session, found_project, collection)
-    revisions = (await session.scalars(select(ArtifactVersion).where(
-        ArtifactVersion.artifact_id == found.id).order_by(ArtifactVersion.ordinal))).all()
-    result = []
-    for version in revisions:
-        content, _ = await version_content(session, version)
-        members = CollectionArtifactContent.model_validate(json.loads(content)).members
-        items = [CollectionItemInput(target_kind="case" if hasattr(item, "caseRevisionId") else "resource",
-            target_digest=(item.compositionDigest if hasattr(item, "compositionDigest") else item.versionDigest),
-            target_ref=(item.model_dump(mode="json"))) for item in members]
-        result.append(CollectionRevisionView(
-            id=version.id, collection_id=found.id, revision=version.ordinal,
-            digest=version.content_digest, items=items,
-            created_at=version.created_at,
-        ))
-    return result
-
-
-@router.get(
-    "/collections/{collection}/revisions/{revision}",
-    response_model=CollectionRevisionView,
-    operation_id="getCollectionRevision",
-)
-async def get_collection_revision(
-    org: str,
-    project: str,
-    collection: str,
-    revision: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> CollectionRevisionView:
-    _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    found = await _readable_collection(session, found_project, collection)
-
-    rev_row = None
-    if revision.isdigit():
-        rev_row = await session.scalar(select(ArtifactVersion).where(
-            ArtifactVersion.artifact_id == found.id, ArtifactVersion.ordinal == int(revision)))
-    if rev_row is None:
-        try:
-            parsed_uuid = uuid.UUID(revision)
-            rev_row = await session.scalar(select(ArtifactVersion).where(
-                ArtifactVersion.artifact_id == found.id, ArtifactVersion.id == parsed_uuid))
-        except ValueError:
-            pass
-    if rev_row is None and revision.startswith("sha256-"):
-        rev_row = await session.scalar(select(ArtifactVersion).where(
-            ArtifactVersion.artifact_id == found.id, ArtifactVersion.content_digest == revision))
-
-    if rev_row is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Collection revision not found.")
-
-    content, _ = await version_content(session, rev_row)
-    members = CollectionArtifactContent.model_validate(json.loads(content)).members
-    items = [CollectionItemInput(target_kind="case" if hasattr(item, "caseRevisionId") else "resource",
-        target_digest=(item.compositionDigest if hasattr(item, "compositionDigest") else item.versionDigest),
-        target_ref=item.model_dump(mode="json")) for item in members]
-
-    return CollectionRevisionView(
-        id=rev_row.id,
-        collection_id=found.id, revision=rev_row.ordinal, digest=rev_row.content_digest, items=items,
-        created_at=rev_row.created_at,
-    )
-
-
-@router.post("/collections/{collection}/revisions", response_model=CollectionRevisionView, status_code=201, operation_id="createCollectionRevision")
-async def create_collection_revision(
-    org: str, project: str, collection: str, payload: CollectionRevisionCreate,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> CollectionRevisionView:
-    organization, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
-    found = await _collection(session, found_project.id, collection)
-    for item in payload.items:
-        await _validate_collection_item(session, found_project.id, item)
-    members = []
-    for item in payload.items:
-        if item.target_kind == "case":
-            members.append({"caseRevisionId": item.target_ref.get("caseRevisionId"), "compositionDigest": item.target_digest})
-        elif item.target_kind == "resource":
-            version = await session.get(ArtifactVersion, uuid.UUID(str(item.target_ref.get("resourceRevisionId") or item.target_ref.get("id"))))
-            artifact = await session.get(Artifact, version.artifact_id) if version else None
-            if artifact is None:
-                raise api_error(422, "invalid_collection_target", "Resource version not found.")
-            members.append({"namespace": artifact.namespace, "name": artifact.name,
-                            "version": version.version, "versionDigest": version.version_digest})
-        else:
-            raise api_error(422, "unsupported_collection_target", "Only case and resource artifact members are supported by the versioned collection library.")
-    document = {"apiVersion": "openbinding/collection/v1", "members": members}
-    revision_digest = digest(document)
-    existing = await session.scalar(select(ArtifactVersion).where(
-        ArtifactVersion.artifact_id == found.id, ArtifactVersion.content_digest == revision_digest))
-    if existing is not None:
-        return CollectionRevisionView(
-            id=existing.id, collection_id=found.id, revision=existing.ordinal, digest=existing.content_digest,
-            items=payload.items,
-            created_at=existing.created_at,
-        )
-    await session.execute(select(Artifact.id).where(Artifact.id == found.id).with_for_update())
-    latest = await session.scalar(select(func.max(ArtifactVersion.ordinal)).where(ArtifactVersion.artifact_id == found.id))
-    content = canonical_json(document)
-    blob = await store_blob(session, found, user, content, "application/json")
-    ordinal = int(latest or 0) + 1
-    manifest = {"apiVersion": "openbinding/artifact/v1", "kind": "Collection",
-        "identity": {"namespace": found.namespace, "name": found.name, "version": str(ordinal)},
-        "contentDigest": revision_digest, "mediaType": "application/json", "contracts": [], "dependencies": []}
-    created = ArtifactVersion(artifact_id=found.id, ordinal=ordinal, version=str(ordinal), blob_id=blob.id,
-        content_digest=revision_digest, version_digest=digest(manifest), manifest=manifest, created_by_id=user.id)
-    session.add(created)
-    await session.flush()
-    _audit(session, user, "collection.revision.created", created, organization.id, digest=revision_digest)
-    return CollectionRevisionView(id=created.id, collection_id=found.id, revision=created.ordinal,
-        digest=created.content_digest, items=payload.items, created_at=created.created_at)
-
-
-@router.get(
-    "/collections/{collection}",
-    response_model=CollectionView,
-    operation_id="getCollection",
-)
-async def get_collection(
-    org: str,
-    project: str,
-    collection: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> CollectionView:
-    _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    found = await _readable_collection(session, found_project, collection)
-    return _collection_view(found, found_project.id)
-
-
-@router.patch("/collections/{collection}", response_model=CollectionView, operation_id="updateCollection")
-async def update_collection(
-    org: str, project: str, collection: str, payload: CollectionUpdate,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> CollectionView:
-    organization, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
-    found = await _collection(session, found_project.id, collection)
-    if payload.name is not None:
-        found.display_name = payload.name
-    if payload.description is not None:
-        found.description = payload.description
-    await session.flush()
-    _audit(session, user, "collection.updated", found, organization.id)
-    return _collection_view(found, found_project.id)
-
-
-@router.delete("/collections/{collection}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteCollection")
-async def delete_collection(
-    org: str, project: str, collection: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> None:
-    organization, found_project = await _context(session, org, project, user, OrganizationRole.ADMIN)
-    found = await _collection(session, found_project.id, collection)
-    _audit(session, user, "collection.deleted", found, organization.id)
-    await session.execute(delete(ProjectArtifact).where(ProjectArtifact.project_id == found_project.id,
-        ProjectArtifact.artifact_id == found.id))
-    await session.flush()
 
 
 def _study_engines_allowed(user: User, definition: Mapping) -> bool:
@@ -480,22 +172,11 @@ async def create_study(
     sponsor = await session.get(User, organization.billing_sponsor_user_id)
     await enforce_sponsor_capacity(session, sponsor, "studies")
     revision_ids = set(payload.definition.case_revision_ids)
-    if payload.definition.collection_version_id is not None:
-        from ..artifacts import can_read, version_content
-        from ..db.models import Artifact, ArtifactVersion
-        from ..models.artifacts import CollectionArtifactContent, CaseRevisionRef
-        from ..core.jsonio import strict_json_loads
-        version = await session.get(ArtifactVersion, payload.definition.collection_version_id)
-        artifact = await session.get(Artifact, version.artifact_id) if version else None
-        if artifact is None or artifact.kind != 'Collection' or not await can_read(session, artifact, user, version):
-            raise api_error(422, 'unavailable_collection', 'Choose an accessible sealed Collection version.')
-        collection = CollectionArtifactContent.model_validate(strict_json_loads((await version_content(session, version))[0]))
-        revision_ids.update(member.caseRevisionId for member in collection.members if isinstance(member, CaseRevisionRef))
     if not revision_ids:
         raise api_error(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             "empty_study_cases",
-            "The study or its collection must contain at least one case revision.",
+            "The study must contain at least one case revision.",
         )
     belonging = set((await session.execute(
         select(BindingCaseRevision.id).join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)

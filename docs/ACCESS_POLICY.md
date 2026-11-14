@@ -58,8 +58,6 @@ field is unchanged. A visitor does not get `created_by_id` (`null`).
 | `` (the project itself) | public metadata; `access: "public_read"` |
 | `/cases`, `/cases/{case}` | binding cases |
 | `/cases/{case}/revisions`, `/cases/{case}/revisions/{revision}` | sealed case revisions (with their source-snapshot digest) |
-| `/collections`, `/collections/{collection}` | collections |
-| `/collections/{collection}/revisions`, `/collections/{collection}/revisions/{revision}` | collection revisions |
 | `/compositions`, `/compositions/{composition}` | compositions |
 | `/compositions/{composition}/versions`, `/compositions/{composition}/versions/{version}/content` | sealed composition versions, and one version's source |
 | `/compositions/{composition}/diff` | the change list between two sealed versions |
@@ -74,7 +72,7 @@ field is unchanged. A visitor does not get `created_by_id` (`null`).
 
 Two precisions. *Resources* are the project's own contents; an artifact of
 **another** organization that the project merely associates (resources,
-collections, library) is shown to visitors only while it is itself published, so
+library) is shown to visitors only while it is itself published, so
 a withdrawn one does not stay reachable through the project. *Snapshots* of case
 revisions are served by `/v1/snapshots/...`, which is not under the project path
 and keeps its own visibility rules; this policy does not widen them.
@@ -85,7 +83,7 @@ and keeps its own visibility rules; this policy does not widen them.
 |---|---|
 | `GET /jobs` | jobs carry members' requests, options, results and history |
 | `GET /package` | a full export, including private files and drafts |
-| every `POST`, `PUT`, `PATCH`, `DELETE` under the project | writes (creating or changing cases, resources, collections, compositions, studies, runs, cells, files, library associations, settings, visibility, package import, deleting the project) |
+| every `POST`, `PUT`, `PATCH`, `DELETE` under the project | writes (creating or changing cases, resources, compositions, studies, runs, cells, files, library associations, settings, visibility, package import, deleting the project) |
 
 Outside the project path nothing changes either: members, invitations,
 organization settings, quota/usage/billing, API keys, library drafts, and the

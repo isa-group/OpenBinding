@@ -33,8 +33,6 @@ from ..db.models import (
     AuditEvent,
     BindingCase,
     BindingCaseRevision,
-    Collection,
-    CollectionRevision,
     InstanceSnapshot,
     Job,
     Organization,
@@ -346,17 +344,6 @@ async def _cascade_delete_project(session: AsyncSession, project: Project) -> No
     # Common library identities outlive a project; only the usage edge is
     # removed when a project is deleted.
     await session.execute(delete(ProjectArtifact).where(ProjectArtifact.project_id == project.id))
-
-    collections = (
-        await session.execute(
-            select(Collection).where(Collection.project_id == project.id)
-        )
-    ).scalars().all()
-    for col in collections:
-        await session.execute(
-            delete(CollectionRevision).where(CollectionRevision.collection_id == col.id)
-        )
-        await session.delete(col)
 
     studies = (
         await session.execute(
@@ -1137,7 +1124,7 @@ async def list_project_resources(
     return [_legacy_resource_view(row, found_project.id) for row in rows
             if row.kind not in {"Application", "CandidateCatalog", "ConstraintSet",
                                 "ExecutionConfiguration", "AnalysisConfiguration",
-                                "Collection", "Study", "BindingDecision"}
+                                "Study", "BindingDecision"}
             and await _visible_resource(session, found_project, row)]
 
 

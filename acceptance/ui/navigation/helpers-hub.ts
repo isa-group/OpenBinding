@@ -58,8 +58,8 @@ export const isCurrent = (group: Locator, name: string): Locator => group
 
 // ---- project --------------------------------------------------------------------------------------------------
 
-export const PROJECT_TABS = ['Overview', 'Problems', 'Collections', 'Runs', 'Studies', 'Settings'];
-export const VISITOR_TABS = ['Overview', 'Problems', 'Collections', 'Studies'];
+export const PROJECT_TABS = ['Overview', 'Problems', 'Runs', 'Studies', 'Settings'];
+export const VISITOR_TABS = ['Overview', 'Problems', 'Studies'];
 
 export interface ProjectMockOptions extends MockOptions {
   /** A signed-in person who only reads the public project `demo` of `acme` (access `public_read`). */
@@ -88,7 +88,7 @@ export async function mockProject(page: Page, options: ProjectMockOptions = {}):
   } else {
     await answer(page, '/v1/organizations/acme/members', orgMembers);
   }
-  for (const list of ['cases', 'jobs', 'collections', 'studies']) {
+  for (const list of ['cases', 'jobs', 'studies']) {
     await answer(page, `/v1/organizations/acme/projects/demo/${list}`, []);
   }
   await page.route(`${ROOT}/package**`, (route) => (route.request().method() === 'POST'

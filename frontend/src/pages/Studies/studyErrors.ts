@@ -194,11 +194,9 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
         };
       }
       case 'empty_study_cases':
-        return { ...base, kind: 'other', title: `The study needs a problem${at}`, text: `Choose at least one problem version, or a sealed collection with problems in it. ${nothing}` };
+        return { ...base, kind: 'other', title: `The study needs a problem${at}`, text: `Choose at least one problem version. ${nothing}` };
       case 'foreign_case_revision':
         return { ...base, kind: 'other', title: `A problem version isn’t in this organization${at}`, text: `Every problem version of a study must belong to this organization. ${nothing}` };
-      case 'unavailable_collection':
-        return { ...base, kind: 'other', title: `That collection isn’t available${at}`, text: `Choose a sealed collection version you can read. ${nothing}` };
       case 'engine_mode_incompatible':
       case 'invalid_engine':
         return { ...base, kind: 'incompatible', title: `An engine can’t run this${at}`, text: `${gateway}Pick another engine or mode. ${nothing}` };

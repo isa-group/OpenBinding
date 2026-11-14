@@ -4,7 +4,7 @@
 > library, its pages and endpoints) retires; the versioned-artifact store described here stays as the
 > repository's internal storage of sealed parts, and sealed problem versions keep their exact references.
 
-The artifact cutover is in progress. The shared library, private sealing, version publication, exact BIM references and case materialization are implemented. Study definitions are stored exclusively in library versions; project study contexts select a version, and each run pins its original definition with a restrictive FK. Library Study and Collection versions validate typed definitions and protect exact case references. Reports and publications were removed in F0a (see below). The specialized Collection routes still use their earlier model. External citation metadata remains a declaration, not proof that an external dataset is available.
+The artifact cutover is in progress. The shared library, private sealing, version publication, exact BIM references and case materialization are implemented. Study definitions are stored exclusively in library versions; project study contexts select a version, and each run pins its original definition with a restrictive FK. Library Study versions validate typed definitions and protect exact case references. Reports, publications and collections were removed in F0a (see below). External citation metadata remains a declaration, not proof that an external dataset is available.
 
 ## Identity and content
 
@@ -12,7 +12,7 @@ The artifact cutover is in progress. The shared library, private sealing, versio
 
 `Blob` replaces the former file-storage meaning of `Artifact`. Project file operations use `/v1/organizations/{org}/projects/{project}/blobs`. They do not create editorial identities. Deduplication of bytes does not confer access or merge artifact identities. Maintenance excludes blobs referenced by versions and retains shared files while any blob row uses them.
 
-`DELETE .../blobs/{digest}` needs ADMIN on the project and is refused with `409 blob_in_use` while the project has sealed or revisioned elements that depend on that digest: sealed library versions (`Collection` ones counted apart), case revisions and their snapshots, historical collection revisions and items, and project-resource revisions. The body lists only kinds and counts, `{"references": [{"type": "case_revision", "count": 2}, ...]}`, never names. The lookup runs on the indexed digest columns (`content_digest`, `digest`, `target_digest`, `package_digest`) of the project's own elements, not over the whole project. Blobs backing a library version are organization-level and cannot be deleted from a project at all.
+`DELETE .../blobs/{digest}` needs ADMIN on the project and is refused with `409 blob_in_use` while the project has sealed or revisioned elements that depend on that digest: sealed library versions, case revisions and their snapshots, and project-resource revisions. The body lists only kinds and counts, `{"references": [{"type": "case_revision", "count": 2}, ...]}`, never names. The lookup runs on the indexed digest columns (`content_digest`, `digest`, `package_digest`) of the project's own elements, not over the whole project. Blobs backing a library version are organization-level and cannot be deleted from a project at all.
 
 The portable resource reference is:
 
@@ -85,14 +85,13 @@ execution jobs can already pin an `ExecutionConfiguration` version explicitly.
 
 Migration `b3c4d5e6f7a8` follows the existing head, renames file storage to `blobs`, adds library tables and changes snapshot uniqueness. Its downgrade deliberately refuses to discard sealed history. SQLite upgrade-chain tests exercise a fresh database. The same migration chain and library/composition/portability checks have also passed against an isolated local PostgreSQL database. Independent PostgreSQL connections verify concurrent idempotent sealing, conflicting version labels and optimistic draft edits.
 
-The project-resource and collection HTTP surfaces now delegate to the common
-artifact identities and sealed versions while retaining their historical response
-envelopes for package clients. New writes no longer create `ProjectResource` or
-`CollectionRevision` rows. The BIM registered-resource registry was removed in F0a:
-an Instance resolves only package files and organization library versions.
+The project-resource HTTP surface now delegates to the common artifact identities
+and sealed versions while retaining its historical response envelope for package
+clients. New writes no longer create `ProjectResource` rows. The BIM registered-resource registry was removed
+in F0a: an Instance resolves only package files and organization library versions.
 Portable imports use the library closure as the source of truth as well: the
-legacy `resources` and `collections` arrays are checked as indexes and never
-materialized into the retired tables.
+legacy `resources` array is checked as an index and never materialized into the
+retired tables. Packages no longer carry collections.
 Open items are limited to migrating old stored rows, extending exact editor
 discovery, recursively closing foreign portable dependencies, and broadening
 seed/E2E coverage. They do not affect the immutability or reproducibility
@@ -107,19 +106,10 @@ Library studies use `apiVersion: "openbinding/study/v1"`, `cases` containing
 engine options, executable case snapshots, case composition hashes and organization
 ownership. Case revisions from different projects in that organization are allowed.
 
-Library collections use `apiVersion: "openbinding/collection/v1"` and an ordered
-`members` array of exact artifact references or `{caseRevisionId, compositionDigest}`.
-Artifact members must also appear in the version's fixed `dependencies`; duplicate
-members are rejected. Case members have immutable FK rows in
-`artifact_case_references`, introduced by migration `c4d5e6f7a8b9`.
-
-Study creation accepts `definition.collection_version_id`, an accessible sealed
-library Collection version. It expands its exact case members, including cases in
-other projects of the same organization, and stores the portable `collection`
-reference in the sealed study content and dependency graph. Additional explicitly
-selected cases are allowed. A later collection version never changes an existing
-study. The old `collection_revision_id` creation parameter has been removed.
-The frontend study builder uses the common version picker for this selection.
+Study case members have immutable FK rows in `artifact_case_references`,
+introduced by migration `c4d5e6f7a8b9`. Study creation takes the exact case
+revisions in `definition.case_revision_ids`; collections, and seeding a study from
+one, were removed in F0a.
 
 Publication requires referenced Engine contracts to be publicly resolvable. It also checks that referenced cases belong to public projects, have closed
 artifact compositions and consume only published resource versions. Making a

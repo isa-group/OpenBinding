@@ -9,11 +9,11 @@ test.use({ viewport: { width: 1440, height: 900 } });
 
 const PROJECT = '/app/acme/demo';
 // Problems and Runs use the interim segments of helpers.ts until the vocabulary slices rename them.
-const TAB_HREFS = [PROJECT, PROBLEMS, `${PROJECT}/collections`, `${PROJECT}/${RUNS_SEGMENT}`, `${PROJECT}/studies`, `${PROJECT}/settings`];
+const TAB_HREFS = [PROJECT, PROBLEMS, `${PROJECT}/${RUNS_SEGMENT}`, `${PROJECT}/studies`, `${PROJECT}/settings`];
 
 // ---- frontend-nav-project-tabs ----------------------------------------------------------------------------------
 
-test('the project tabs of a member read Overview, Problems, Collections, Runs, Studies, Settings', async ({ page }) => {
+test('the project tabs of a member read Overview, Problems, Runs, Studies, Settings', async ({ page }) => {
   await mockProject(page);
   await page.goto(`${PROJECT}/studies`);
   await expect(projectTabs(page).getByRole('link')).toHaveText(PROJECT_TABS);
@@ -36,7 +36,7 @@ test('the tab of the current area carries aria-current page', async ({ page }) =
   await expect(tabs.getByRole('link', { name: 'Overview', exact: true })).not.toHaveAttribute('aria-current', 'page');
 });
 
-test('the project tabs of a public visitor read Overview, Problems, Collections, Studies', async ({ page }) => {
+test('the project tabs of a public visitor read Overview, Problems, Studies', async ({ page }) => {
   await mockProject(page, { visitor: true });
   await page.goto(`${PROJECT}/studies`);
   await expect(projectTabs(page, VISITOR_TABS).getByRole('link')).toHaveText(VISITOR_TABS);

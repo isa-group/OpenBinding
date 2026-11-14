@@ -76,7 +76,7 @@ Replacement: none. Problems are versioned as a whole, and the artifact store sta
 
 ### Project resources
 
-Replacement: none. Problem versions and collections.
+Replacement: none. Problem versions (collections were removed in F0a).
 
 | Method | Path | After removal |
 |---|---|---|

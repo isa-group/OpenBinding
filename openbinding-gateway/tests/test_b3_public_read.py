@@ -126,9 +126,6 @@ async def ctx(api_client, registration, db_session, gate):  # noqa: F811
         db_session, c.project_id, c.user_id, slug="providers", name="Providers", kind="qos-offerings",
         documents=[{"apiVersion": "openbinding.dev/qos-binding/v1", "providers": ["alpha"]}],
     )
-    assert (await api_client.post(
-        f"{c.url}/collections", headers=owner_h, json={"slug": "coll", "name": "Collection"},
-    )).status_code == 201
     octets = {"Content-Type": "application/octet-stream"}
     c.public_blob = (await api_client.post(
         f"{c.url}/blobs?public=true", headers={**owner_h, **octets}, content=b"public bytes"
@@ -308,21 +305,16 @@ async def test_the_allowed_reads_return_the_project_data(ctx):
         revision = await get(c, who, f"{c.url}/cases/{c.case}/revisions/1")
         resources = await get(c, who, f"{c.url}/resources")
         resource_revisions = await get(c, who, f"{c.url}/resources/providers/revisions")
-        collections = await get(c, who, f"{c.url}/collections")
-        collection = await get(c, who, f"{c.url}/collections/coll")
-        collection_revisions = await get(c, who, f"{c.url}/collections/coll/revisions")
         studies = await get(c, who, f"{c.url}/studies")
         missing_run = await get(c, who, f"{c.url}/studies/nope/runs")
 
-        for response in (cases, case, revisions, revision, resources, resource_revisions,
-                         collections, collection, collection_revisions, studies):
+        for response in (cases, case, revisions, revision, resources, resource_revisions, studies):
             assert response.status_code == 200, (who, str(response.url), response.text)
         assert [item["slug"] for item in cases.json()] == [c.case]
         assert revisions.json()[0]["digest"] == c.revision_digest
         assert revision.json()["digest"] == c.revision_digest
         assert "providers" in {item["slug"] for item in resources.json()}
         assert resource_revisions.json()[0]["document"]["providers"] == ["alpha"]
-        assert [item["slug"] for item in collections.json()] == ["coll"]
         assert studies.json() == []
         assert missing_run.status_code == 404 and missing_run.json()["detail"]["code"] == "not_found"
 
@@ -396,7 +388,6 @@ async def counts(c) -> dict[str, int]:
 WRITES = [
     # The resource writes are removed since M9.6 (test_removed_operations.py).
     ("POST", "/cases", {"slug": "intruder", "name": "Intruder"}, True),
-    ("POST", "/collections", {"slug": "intruder", "name": "Intruder"}, True),
     ("PATCH", "", {"name": "Hijacked", "visibility": "private"}, True),
     ("PATCH", "/cases/{case}", {"name": "Hijacked"}, True),
     ("DELETE", "", None, True),

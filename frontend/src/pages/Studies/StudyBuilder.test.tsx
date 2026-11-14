@@ -7,7 +7,7 @@ import { CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, digestOf
 import { StudyBuilder } from './StudyBuilder';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), cases: vi.fn(), revisions: vi.fn(), createStudy: vi.fn(), collection: vi.fn(), collectionRevisions: vi.fn(),
+  project: vi.fn(), cases: vi.fn(), revisions: vi.fn(), createStudy: vi.fn(),
 }));
 const client = vi.hoisted(() => ({ getEngines: vi.fn(), getOwnUsage: vi.fn(), getPricingCatalog: vi.fn() }));
 const library = vi.hoisted(() => ({ libraryApi: { list: vi.fn(), versions: vi.fn(), content: vi.fn() } }));
@@ -82,7 +82,7 @@ describe('A new study', () => {
     expect(create()).toBeDisabled();
     const needed = screen.getByRole('list', { name: 'Still needed' });
     expect(within(needed).getByText('Give the study a name.')).toBeInTheDocument();
-    expect(within(needed).getByText('Choose at least one problem version, or a sealed collection.')).toBeInTheDocument();
+    expect(within(needed).getByText('Choose at least one problem version.')).toBeInTheDocument();
     expect(within(needed).getByText('Choose at least one engine mode.')).toBeInTheDocument();
   });
 
@@ -205,23 +205,6 @@ describe('A new study', () => {
 
     expect(await checkbox(/Checkout flow · version 1/)).toBeChecked();
     expect(await checkbox(/Checkout flow · version 2/)).not.toBeChecked();
-  });
-
-  it('starts from the cases a project collection pins', async () => {
-    platform.collection.mockResolvedValue({ id: 'c1', project_id: qos.id, slug: 'core', name: 'Core set', description: '', created_by_id: 'u', created_at: '2026-08-01T00:00:00Z' });
-    platform.collectionRevisions.mockResolvedValue([
-      { id: 'cr1', collection_id: 'c1', revision: 1, digest: digestOf('x'), created_at: '2026-08-01T00:00:00Z', items: [{ target_kind: 'case', target_digest: digestOf('1'), target_ref: { caseRevisionId: REVISION_1.id } }] },
-      { id: 'cr2', collection_id: 'c1', revision: 2, digest: digestOf('y'), created_at: '2026-08-02T00:00:00Z', items: [
-        { target_kind: 'case', target_digest: digestOf('2'), target_ref: { caseRevisionId: REVISION_2.id } },
-        { target_kind: 'resource', target_digest: digestOf('3'), target_ref: { resourceRevisionId: 'r' } },
-      ] },
-    ]);
-    renderBuilder({ query: '?collection=core' });
-
-    expect(await screen.findByText(/The problems of the collection Core set are chosen below/)).toBeInTheDocument();
-    expect(await checkbox(/Checkout flow · version 2/)).toBeChecked();
-    expect(await checkbox(/Checkout flow · version 1/)).not.toBeChecked();
-    expect(platform.collection).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'core');
   });
 
   it('creates a study from a shared definition of the library', async () => {
