@@ -193,6 +193,24 @@ moved with the `minizinc-csp` manifest (above): they are compared with the secon
   the gateway's golden is the normalized corpus golden of this toolchain (read when this section was revised; the test passed
   in the run recorded in `EXTRACTION_LOG.md`, "Step 6").
 
+## Digests of the 0.2.0 release (2026-11-14)
+
+After the normalization below, and before the tag, `compiler.py` gained linear-time `uniqueItems` and the expansion of
+non-recursive local `$ref` (`CHANGELOG.md`, 0.2.0, "Performance"). That changed `compilerDigest` and with it the builtin
+Profile and Dialect versions and every `irDigest`; no semantic digest, section digest, evaluation, binding space,
+diagnostic, compatibility result or protocol digest moved (82 of 82, `GOLDEN_METADATA.md`). These are the values of the
+released `0.2.0`:
+
+| Value | Prepared (2026-10-14) | Released (0.2.0) |
+| --- | --- | --- |
+| `compilerDigest` | `sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e` | `sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4` |
+| `qos-binding` Profile version | `1.0.0+csdgtbuugavgxg3a7h3w2x6h2ixunyufqwvisq2makw6kv7dehwq` | `1.0.0+n4gbm2ladn7z6cd7oiozzumetkymjgzy5ohqxndspmzluy6w5kjq` |
+| Dialect `qos-binding` | `1.0.0+jdok6lhcwa6wt5c2st5jdppigjh4gwnczpyg77inamuet7qyt7zq` | `1.0.0+cfbmbiwiswh362iuzbiagxiosmokslm4hhxnl523scf4c7y72ttq` |
+| Dialect `bpmn-workflow` | `1.0.0+jmfo6wmfcspi3d7khvjn7sikgmcgwnvxwesfq4xlljcrwotfipya` | `1.0.0+bpw62vdc6ioh4j4ffu36jceczkibx75hgpoj63sgaj3qqzcnhhga` |
+| Dialect `qos-binding-placement` | `1.0.0+yizryf6yoacyp77d3dggiuzsknmlik2gkdbmyavjx3haiq2auhja` | `1.0.0+3y5hj5suhqrirwg6avbbohv24wycslw35my7z6oqns65ejuvkjga` |
+| `irDigest` of the consumer demo package (`tools/consumer_fixtures.py`) | `sha256-0dcc0b0a230d45cf768edef5f0da70f0ca366c8ab29c3e8168c3c16328c22270` | `sha256-e4d09ae27ac4d97447935698fe504c13499e8764ec490014e2f2e23570ef5d40` |
+| `protocolDigest` | `sha256-1de9afb5af0d4ea913c5c0e6e24948cc76a58ebcd7edc54a53e68a5a2f761563` | unchanged |
+
 ## Digests that changed with the normalization of the IR (0.2.0)
 
 `compiler.py` (the order of the sets, integral numbers, `binding_space_cardinality_decimal`), `canonical.py`,

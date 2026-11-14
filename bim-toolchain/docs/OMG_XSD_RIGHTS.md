@@ -113,7 +113,16 @@ repository takes no position and does not decide it. If the owner decides that t
 `pyproject.toml` of `bim-core` (`artifacts`), in the Dockerfiles and in `compilerDigest`'s consumers: `bim_core` would need
 another way to validate BPMN, which is option 3, and every golden would change.
 
-## What would be needed from the holder
+## The decision of the owner on the artifacts (2026-11-14)
 
-A decision among the four options and, for option 1, the written confirmation or the terms read (and who read them), and the
-decision of the owner on shipping the files in artifacts. Until then the state stays NOT DEMONSTRATED (not demonstrated).
+The owner decided on 2026-11-14, before the first release (`v0.2.0`), that **the wheels and sdists of the releases carry the
+five files** as they are built now (option 2 above, with the artifacts unchanged). The releases are GitHub Releases of a
+private repository, with no upload to any package index (`Private :: Do Not Upload` stays). This is a decision of the owner
+about shipping, not a clearance of the rights: `licenses.json` keeps `cleared: false` and `status: not-demonstrated`, and the
+state stays NOT DEMONSTRATED (not demonstrated) until the holder records the evidence of option 1.
+
+## What would still be needed from the holder
+
+For option 1, the written confirmation of OMG or the terms read (and who read them), recorded in `licenses.json`. Until then
+the state stays NOT DEMONSTRATED (not demonstrated), and making the repository or its releases public should be weighed
+against it.

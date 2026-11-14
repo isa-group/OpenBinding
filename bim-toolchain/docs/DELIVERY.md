@@ -1,10 +1,9 @@
 # Delivery
 
-The exact steps to turn `bim-toolchain/` of an OpenBinding clone into its own repository, `javiercavlop/bim-toolchain`, on the
-Mac where `git` and `gh` are installed and `gh` is already authenticated. **Nothing here has been run against GitHub**: the
-export tool was exercised in temporary directories and on this tree (below), and no remote was created, no tag was made
-and nothing was pushed. No secret and no credential is stored in this repository or needed by the tool: publishing uses the
-`gh` session that already exists on the Mac, and it is a separate, deliberate step.
+The exact steps to turn `bim-toolchain/` of an OpenBinding clone into its own repository, `javiercavlop/bim-toolchain`, on a
+machine where `git` and `gh` are installed and `gh` is already authenticated. They were run on 2026-11-14 from OpenBinding
+`2cb8a7a3` (export, section 2 and the values of section 4), in a `python:3.11-slim` container with `uv 0.8.14`. No secret and no credential is stored in this repository or needed by the tool: publishing uses the
+`gh` session that already exists on that machine, and it is a separate, deliberate step.
 
 ## 0. Before starting
 
@@ -20,9 +19,9 @@ and nothing was pushed. No secret and no credential is stored in this repository
   them (`git ls-files` does not list them; `python3 bim-toolchain/tools/xsd_inventory.py --check` fails if it does), and the
   export refuses a committed tree that does and never copies them. Every build downloads them from omg.org over https and
   verifies their SHA-256. The wheels, sdists, SDK and images do carry them; whether they may stay there is a decision of the
-  owner (the rights are not demonstrated). The old switch (`--xsd auto|include|exclude`) no longer exists.
-* **The hashes of the artifacts in section 4 are out of date.** The build hook, `artifacts` and the new text of `NOTICE.md`
-  changed all six files (`compilerDigest` did not). Run `python3 tools/verify_release.py --skip-corpus` and use its hashes.
+  owner, taken on 2026-11-14: they do (the rights are still not demonstrated). The old switch (`--xsd auto|include|exclude`) no longer exists.
+* The hashes of section 4 are those of the export of OpenBinding `2cb8a7a3` (2026-11-14). A different `hatchling` or `uv`
+  may write other bytes: compare `generator` first, and take the hashes from `python3 tools/verify_release.py --skip-corpus`.
 
 ## 1. Export (writes only the output directory)
 
@@ -66,64 +65,66 @@ python3 tools/verify_release.py --skip-corpus --artifacts-out /tmp/bim-release
 
 After the download `git status` does not list the five files (`.gitignore` ignores them) and `git ls-files` never does:
 `python3 tools/xsd_inventory.py --check` fails if that changes. Never `git add --force` them while their rights are not
-demonstrated. `verify_release.py` prints one JSON summary and exits 0 only if everything passed; **its artifact hashes
-replace the table below, which is out of date** (see the note in section 4).
+demonstrated. `verify_release.py` prints one JSON summary and exits 0 only if everything passed; its artifact hashes are
+the ones to compare with section 4.
 
 ## 3. Publish (by hand, after you have looked)
 
 ```sh
 gh auth status
-gh repo create javiercavlop/bim-toolchain --private --description "BIM toolchain: bim-core, bim-service, bim-client"
+gh repo view javiercavlop/bim-toolchain   # created empty and private on 2026-10-14; otherwise:
+# gh repo create javiercavlop/bim-toolchain --private --description "BIM toolchain: bim-core, bim-service, bim-client"
 git remote add origin https://github.com/javiercavlop/bim-toolchain.git
 git push -u origin main
 ```
 
-Then, in the new repository: pin the actions to commit SHAs (the workflows mark each `uses:` `PIN-PENDING`; the list is in
-`licenses.json`, `action_pins`), check the first run of `ci.yml` (it has never run anywhere), and only then tag
-(`RELEASING.md`). Nothing is published to any package index (`Private :: Do Not Upload`).
+The actions of the workflows are already pinned to commit SHAs (`licenses.json`, `action_pins`). Check the first run of
+`ci.yml`, and only then tag (`RELEASING.md`). The repository has no corpus: set the repository variable
+`BIM_CORPUS_OPTIONAL` to `true` (`gh variable set BIM_CORPUS_OPTIONAL --body true`) so that the golden/corpus job says it
+skipped instead of failing; OpenBinding runs the corpus comparison as its consumer contract. Nothing is published to any
+package index (`Private :: Do Not Upload`).
 
 ## 4. Expected values
 
-**Out of date.** The six artifact hashes below were obtained before the OMG XSDs stopped being versioned. `bim-core` now
-has a build hook (`hatch_build.py`, also in its sdist), an `artifacts` entry and a new `NOTICE.md` (copied into the three
-packages), so **all six artifacts changed** (`compilerDigest`, `protocolDigest`, `irDigest` and the goldens did not). Run
-`python3 tools/verify_release.py --skip-corpus` after `python3 tools/xsd_inventory.py --ensure` and take the hashes from its
-summary; they have not been recomputed here.
-
-Obtained by `python tools/verify_release.py` (Python 3.11, `uv build`, hatchling as recorded in `generator`), two builds in two
-directories with `SOURCE_DATE_EPOCH=1767225600`. They held for that content of the packages (sources, readmes, notices,
-`pyproject.toml`) **with the five OMG XSD files in place**; a wheel built without them is another file, and the
-`compilerDigest` differs too. A different `hatchling` or `uv` may write other bytes: compare `generator` first.
+Obtained by `python tools/verify_release.py --skip-corpus` on the export of OpenBinding `2cb8a7a3` (nothing under
+`packages/` changed between that export and the one that carries this table), two builds in two directories with `SOURCE_DATE_EPOCH=1767225600`, the five OMG XSD files
+downloaded and verified. A different `hatchling` or `uv` may write other bytes: compare `generator` first. A wheel built
+without the five files is another file, and the `compilerDigest` differs too.
 
 <!-- delivery-hashes:begin -->
 
-Environment of the run that produced them: Python 3.11.2, `uv 0.8.14`, `hatchling 1.32.4` (the `Generator` of the wheels),
-`SOURCE_DATE_EPOCH=1767225600`. Both builds gave the same bytes for all six artifacts. These values replace the previous ones:
-every wheel and sdist now also carries `LICENSE` (the unchanged CC-BY-4.0 text) and a README that states the license, so all six
-files changed; `compilerDigest` did not.
+Environment of the run (2026-11-14): Python 3.11.18, `uv 0.8.14`, `hatchling 1.33.0` (the `Generator` of the wheels),
+`SOURCE_DATE_EPOCH=1767225600`. Both builds gave the same bytes for all six artifacts. These replace the values of
+2026-10-14 (`hatchling 1.32.4`, `compilerDigest` `sha256-ccc55839…`): since then `bim-core` gained the build hook that
+downloads the OMG XSDs, an `artifacts` entry and a new `NOTICE.md`, and `compiler.py` validates `uniqueItems` in linear time
+and inlines non-recursive local `$ref` (`CHANGELOG.md`), so all six files, `compilerDigest`, the builtin Profile and Dialect
+versions and every `irDigest` changed; the semantic digests, evaluations and diagnostics did not.
 
 | Artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
-| `bim_core-0.2.0-py3-none-any.whl` | 132869 | `80dd58ba38d71cea28ae3ba483609298882feb9c23c61a400ac05c56b44311f0` |
-| `bim_core-0.2.0.tar.gz` | 114061 | `690da1fb26e1bc3ceb5befbc5407cd7fc6c6c4d4c5ae7e726a3752756e8512c8` |
-| `bim_service-0.2.0-py3-none-any.whl` | 61046 | `45ca51bdda278090244c1ba08f9cbdd676582ab3f7cf6c5c07b39dd5f006a2e9` |
-| `bim_service-0.2.0.tar.gz` | 52687 | `e767c77f105909a24f88a745328571cbc0e0a44c395456e23cf2de71ec4177c4` |
-| `bim_client-0.2.0-py3-none-any.whl` | 26817 | `5cff0e6cbc0a134e7f726444240e1046741f411b1a0b362def669cb7065ea4c3` |
-| `bim_client-0.2.0.tar.gz` | 21509 | `725621fc7c21fdc94bc41444c2e6bc2d3242c39483c6fe0b9bb349c9fb4dba5e` |
+| `bim_core-0.2.0-py3-none-any.whl` | 134620 | `a1a125d71b3df0c772b1ec19faae7124aaeb6eb09d7e39a22cb5be32bdf2f0a0` |
+| `bim_core-0.2.0.tar.gz` | 118928 | `ed2e5fceae00526c843eacf67e31ef677870fe752801a302ed688371a259e663` |
+| `bim_service-0.2.0-py3-none-any.whl` | 61098 | `26d23bd28329b38eaaf6941b3a2e911ad1a1d81a65f3cb6ce5ed3c89a605d301` |
+| `bim_service-0.2.0.tar.gz` | 52868 | `e3e1940dbb88b7d7f551521197b508f52946309850b09093d9cc23920ec2ee8c` |
+| `bim_client-0.2.0-py3-none-any.whl` | 26866 | `7d42f43e7e3b3cf40035530d88a23747ee9f96ce6dabaded00bcfad4e0df1ddb` |
+| `bim_client-0.2.0.tar.gz` | 21676 | `9aefec181d3b9acd0499db8d3cd24c91f75f333bf66e5a98925b67c8f4b1e04c` |
 
 | Value | Expected |
 | --- | --- |
-| `compilerDigest` (wheel, source tree, unpacked sdist, installed distribution and service: all five equal) | `sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e` |
+| `compilerDigest` (wheel, source tree, unpacked sdist, installed distribution and service: all five equal) | `sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4` |
 | `protocolDigest` | `sha256-1de9afb5af0d4ea913c5c0e6e24948cc76a58ebcd7edc54a53e68a5a2f761563` |
-| `irDigest` of the example package (`smoke_installed.py`) | `sha256-0dcc0b0a230d45cf768edef5f0da70f0ca366c8ab29c3e8168c3c16328c22270` |
-| `golden/bim_normalized/corpus.json` after the refresh (`GOLDEN_METADATA.md`) | `6f60c4fa83576ae0b5bf2da1437fb32e348deee80b34ee410f8d19a9313c0a07` |
+| `irDigest` of the example package (`smoke_installed.py`) | `sha256-e4d09ae27ac4d97447935698fe504c13499e8764ec490014e2f2e23570ef5d40` |
+| `golden/bim_normalized/corpus.json` (`GOLDEN_METADATA.md`) | `3b9e972cbdcff9594822722014448d6450ca6798e50db55da2b2b8586c7cc259` |
 | `golden/bim_normalized/zip_equivalence.json` (unchanged) | `992b09e934d47e6f0ae346428f211702763a226c836fe3ba6191758a0fbc0305` |
 
 `toolchain.json` is not in the table: it records the versions of Python, `lxml`, `jsonschema` and `pyyaml` in use, and a clean
-venv installs whatever the index offers (the run above installed `lxml 6.1.3.0`, the project's test environment has
-`6.1.1.0`), so its bytes depend on the machine. Everything else in it (`packages`, digests, `profiles`, `dialects`,
-`schemas`, `vendor`) was equal between the installed wheels and the source tree, and `verify_release.py` checks exactly that.
-(SHA-256 of that run's `toolchain.json`: `5af837d8d7a3c9234a70bd86a127eaf0e735507f195c8b7eb7439011e2d67aa4`.)
+venv installs whatever the index offers, so its bytes depend on the machine. Everything else in it (`packages`, digests,
+`profiles`, `dialects`, `schemas`, `vendor`) was equal between the installed wheels and the source tree, and
+`verify_release.py` checks exactly that. (SHA-256 of that run's `toolchain.json`, with `lxml 6.1.3.0`, `jsonschema 4.26.0`,
+`pyyaml 6.0.3`: `f6dee6648521257b54432074041641319b83b13e655d4f7cab553bc985fcc908`.)
+
+The release workflow builds on GitHub with Python 3.12 and the `uv` and `hatchling` of that run; the hashes of a release are
+those of its `SHA256SUMS`, and the release notes say whether they equal the table above.
 
 <!-- delivery-hashes:end -->
 

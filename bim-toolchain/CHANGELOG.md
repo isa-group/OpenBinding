@@ -7,12 +7,38 @@ changes anything else.
 
 ## [Unreleased]
 
-No file under `packages/*/src` changed, so `compilerDigest` is still
-`sha256-ccc55839be2e311d7adfe3c44ee0a70a6e7b19acb28b786f8dee6a8da593418e`, and no semantic digest, evaluation, diagnostic,
-compatibility result or protocol digest moved (`baseline_core.py --check`: 82 packages, 0 differences). Packaging,
-licensing, goldens' metadata, export and verification only.
+## [0.2.0] - 2026-11-14
 
-### Added
+The first release, tagged `v0.2.0` in `javiercavlop/bim-toolchain` and attached to a GitHub Release (wheels, sdists,
+`toolchain.json`, `SHA256SUMS`); nothing is uploaded to any package index. The three distributions go from `0.1.0` (never
+published) to `0.2.0` together. It was prepared on 2026-10-14 (the `semantic-change` and the sections that follow it) and
+completed before the tag with the performance change, the packaging, licensing and export work, and the pinned workflows
+below.
+
+`compilerDigest` is `sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4` (2026-10-14:
+`sha256-ccc55839…`); the builtin Profile and Dialect versions and every `irDigest` move with it. Against the state of
+2026-10-14 no semantic digest, section digest, evaluation, binding space, diagnostic, compatibility result or protocol digest
+moved (82 of 82 corpus packages, `docs/GOLDEN_METADATA.md`). The artifact hashes are in `docs/DELIVERY.md`.
+
+### Performance: schema validation of large catalogs (`compiler.py`)
+
+- `uniqueItems` is validated in linear time (a hashable key that reproduces the JSON equality of `jsonschema`: `1 == 1.0`,
+  `True != 1`, key order ignored) instead of comparing every pair, which dominated the compilation of eligibility lists and
+  demand tables with tens of thousands of candidates. Same outcome and the same error message.
+- Non-recursive local references (`#/$defs/...`) that are the only applicator of their node are expanded before the
+  validator is built, which is equivalent under Draft 2020-12 and avoids a registry lookup per visited node; recursive
+  definitions (the workflow tree) keep their `$ref`.
+
+### Packaging, licensing, export and workflows
+
+- The actions of `ci.yml` and `release.yml` are pinned to the commit SHAs that their major-version tags pointed to on
+  2026-11-14 (`actions/checkout` v4.4.0, `actions/setup-python` v5.6.0, `actions/upload-artifact` v4.6.2,
+  `actions/download-artifact` v4.3.0, `astral-sh/setup-uv` v5.4.2), recorded in `licenses.json` (`action_pins`) and checked by
+  `tools/test_workflows.py`.
+- The decision of the owner on the OMG XSDs (2026-11-14): the release artifacts carry them; their rights stay not demonstrated
+  (`docs/OMG_XSD_RIGHTS.md`).
+
+#### Added
 
 - **License: CC-BY-4.0**, the license of OpenBinding, holder javiercavlop (titular del repositorio OpenBinding; no legal name
   is recorded and none was inferred). `license = "CC-BY-4.0"` (SPDX, PEP 639) in the three `pyproject.toml` (the wheels and
@@ -66,15 +92,15 @@ licensing, goldens' metadata, export and verification only.
   a 40-hex SHA and compares the list with `licenses.json`; the jobs that run the suites leave out the corpus tier and fail on a
   skip; a `verify_release.py --skip-corpus` step in `ci.yml` and `release.yml`.
 
-### Changed
+#### Changed
 
 - **The six artifacts changed** (`bim-core` has a build hook and an `artifacts` entry, `hatch_build.py` is in its sdist, and
-  `NOTICE.md` has a new text in the four places): the hashes of `docs/DELIVERY.md` are out of date; run
-  `python3 tools/verify_release.py --skip-corpus` for the current ones. `compilerDigest`, `protocolDigest`, `irDigest` and the
-  goldens are the same.
+  `NOTICE.md` has a new text in the four places); with the performance change above they are the hashes of
+  `docs/DELIVERY.md`, section 4 (2026-11-14). The packaging change alone moved no digest.
 - `golden/bim_normalized/corpus.json` and `openbinding-gateway/tests/golden/bim_baseline/corpus.json` (same bytes): only
-  their `toolchain` members, `compilerDigest` `sha256-749170b5…` → `sha256-ccc55839…` (the 0.2.0 value) and the 82 `irDigest`;
-  SHA-256 `9322bc09…` → `6f60c4fa…`, 165 lines, same size. `golden/bim_baseline` and `golden/ir_previous` untouched.
+  their `toolchain` members, refreshed twice: `compilerDigest` `sha256-749170b5…` → `sha256-ccc55839…` (2026-10-14) →
+  `sha256-b91fc3a0…` (the performance change) and the 82 `irDigest`; SHA-256 `9322bc09…` → `6f60c4fa…` → `3b9e972c…`, same
+  size. `golden/bim_baseline` and `golden/ir_previous` untouched.
 - The packaging tests no longer skip for lack of `dist/` or `.verify-venv`: they build them on demand (`uv`; a missing `uv` is
   an error) and rebuild when the sources change.
 - `test_boundary.py`, `test_packaging_metadata.py` and `test_built_artifacts.py` assert the license (they used to assert that none
@@ -82,17 +108,13 @@ licensing, goldens' metadata, export and verification only.
 - Three Markdown links that pointed outside the repository (to `docs/qa/…` and `docs/IDEMPOTENCY.md` of OpenBinding) are now
   plain references.
 
-### Not done
+#### Not done
 
 - `packages/*/README.md` (shipped as the long description of the wheels) still say the license is undecided; they were outside
   the files this change could touch.
-- The SHAs of the actions, the first run of the workflows, the Docker image, Python 3.12, `ruff`, the export on macOS and the
-  publication: none was verified or done (`docs/PACKAGING.md`, `docs/DELIVERY.md`).
-
-## [0.2.0] - 2026-10-14
-
-Not released: nothing has been published, tagged or pushed. The three distributions go from `0.1.0` (never
-published) to `0.2.0` together.
+- The Docker image of `bim-service`, `ruff` and the export on macOS were not verified for this release. The actions of the
+  workflows are pinned to commit SHAs (`licenses.json`, `action_pins`); the export, `xsd_inventory.py --check/--ensure` and
+  `verify_release.py --skip-corpus` ran on 2026-11-14 (`docs/DELIVERY.md`).
 
 ### semantic-change: the sets of the IR are listed in one canonical order
 
