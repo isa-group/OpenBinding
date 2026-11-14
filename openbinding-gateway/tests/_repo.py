@@ -22,3 +22,13 @@ def repository_root() -> Path:
 
 
 REPO_ROOT = repository_root()
+
+
+def toolchain_root() -> Path:
+    """The test kit of the pinned bim-toolchain release (``tools/fetch_bim_toolchain.py``): its tools, goldens,
+    contracts and fixtures, without the package sources. ``BIM_TOOLCHAIN_ROOT`` points to another checkout."""
+    configured = os.environ.get("BIM_TOOLCHAIN_ROOT")
+    return Path(configured).resolve() if configured else REPO_ROOT / ".bim-toolchain"
+
+
+TOOLCHAIN_ROOT = toolchain_root()

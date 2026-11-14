@@ -42,13 +42,12 @@ def test_package_discovery_skips_hidden_directories(tmp_path):
 
 def test_the_complete_corpus_still_compiles_with_the_same_package_count():
     tool = load_corpus_tool()
-    # bim-toolchain carries packages of its own (test fixtures); they are not the platform's corpus.
     directories = [
         directory
         for directory in tool.package_directories()
-        if "bim-toolchain" not in directory.relative_to(REPO_ROOT).parts
-        # pytest's tmp_path lives in the QA worktree's hidden TMPDIR and may hold instance.json fixtures.
-        and not any(part.startswith(".") for part in directory.relative_to(REPO_ROOT).parts)
+        # pytest's tmp_path lives in the QA worktree's hidden TMPDIR and may hold instance.json fixtures, and the test
+        # kit of the bim-toolchain release (.bim-toolchain/) carries packages of its own.
+        if not any(part.startswith(".") for part in directory.relative_to(REPO_ROOT).parts)
     ]
     # The hidden-part filter above is kept as a second guard; the tool itself skips hidden directories.
 

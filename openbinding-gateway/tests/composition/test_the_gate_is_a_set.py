@@ -52,9 +52,8 @@ PLACEMENT_PACKAGES = (
 
 #: The one package the walk finds and the golden does not hold. It is the compiler's own
 #: fixture, it is not a composition, and section 11.2 puts it out of scope by name.
-NOT_A_TARGET = "bim-toolchain/packages/bim-core/tests/fixtures/example-package"
 
-NORMALIZED_CORPUS = REPO_ROOT / "bim-toolchain" / "golden" / "bim_normalized" / "corpus.json"
+NORMALIZED_CORPUS = REPO_ROOT / "openbinding-gateway" / "tests" / "golden" / "bim_baseline" / "corpus.json"
 
 #: Packages whose criterion range is not the domain of the property it reads, measured over
 #: the whole walk. All 14 are inside the gate now: seven were the Placement ones, which is
@@ -153,17 +152,14 @@ def test_the_gate_is_the_whole_golden(corpus: dict) -> None:
 
 
 def test_the_walk_and_the_golden_agree_on_one_name(corpus: dict) -> None:
-    """Membership is the golden file; the walk's job is finding packages.
-
-    The existing baseline test asserts the same equality for the toolchain's own walk,
-    which excludes ``bim-toolchain`` wholesale. This one closes that hole: a second package
-    added under ``bim-toolchain`` passes there and fails here.
-    """
+    """Membership is the golden file; the walk's job is finding packages, and they agree exactly:
+    a package added anywhere in the repository (the test kit ``.bim-toolchain/`` is hidden and
+    never walked) is either recorded in the golden or fails here."""
     walked = {
         Path(directory).relative_to(REPO_ROOT).as_posix()
         for directory in _load_tool("check_bim_corpus").package_directories(REPO_ROOT)
     }
-    assert walked - set(corpus["packages"]) == {NOT_A_TARGET}
+    assert walked - set(corpus["packages"]) == set()
     assert not set(corpus["packages"]) - walked
 
 

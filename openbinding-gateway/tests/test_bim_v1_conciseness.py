@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from _repo import REPO_ROOT
+from _repo import REPO_ROOT, TOOLCHAIN_ROOT
 from bim_core import compile_instance, load_package
 from openbinding_gateway.integrations import packages
 
@@ -15,7 +15,7 @@ if not TOOL.is_file():
     TOOL = REPO_ROOT / "repository-tools" / "check_bim_conciseness.py"
 
 #: The evidence that the previous toolchain (IR lists in document order) left, by identifier.
-PREVIOUS_EVIDENCE = REPO_ROOT / "bim-toolchain" / "golden" / "ir_previous" / "evidence.json"
+PREVIOUS_EVIDENCE = TOOLCHAIN_ROOT / "golden" / "ir_previous" / "evidence.json"
 
 
 def _load_tool():
@@ -87,9 +87,9 @@ def test_the_projection_has_the_members_of_the_previous_ir() -> None:
     """The pins of `placement` and `soft-multiobjective` changed because the sets of their IR are listed in order of
     identifier, not because a member changed: with every list's order forgotten, the projection is the previous one."""
     tool = _load_tool()
-    baseline_path = REPO_ROOT / "bim-toolchain" / "tools" / "baseline_core.py"
+    baseline_path = TOOLCHAIN_ROOT / "tools" / "baseline_core.py"
     if not (baseline_path.is_file() and PREVIOUS_EVIDENCE.is_file()):
-        pytest.skip("bim-toolchain is not mounted in this environment")
+        pytest.skip(".bim-toolchain is not checked out (python3 tools/fetch_bim_toolchain.py)")
     spec = importlib.util.spec_from_file_location("baseline_core_conciseness", baseline_path)
     assert spec is not None and spec.loader is not None
     baseline = importlib.util.module_from_spec(spec)

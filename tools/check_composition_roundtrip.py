@@ -6,8 +6,9 @@ For each package ``d`` of the gate,
     ir_digest(compile(emit(import_bim(d)))) == ir_digest(compile(d))
 
 The gate is defined in ``docs/COMPOSITION2YAML.md`` section 11.2: the whole package set of
-the live normalized golden, ``bim-toolchain/golden/bim_normalized/corpus.json``, with no
-exclusions -- the language expresses every package in the corpus. Membership comes from the
+the normalized golden OpenBinding pins for its corpus,
+``openbinding-gateway/tests/golden/bim_baseline/corpus.json`` (a byte copy of the release's
+``golden/bim_normalized/corpus.json``), with no exclusions -- the language expresses every package in the corpus. Membership comes from the
 golden file rather than from the walk, because the walk's membership is whatever is on disk;
 the walk's job is finding the packages, and a package it finds that the golden does not hold
 is reported rather than silently gated or silently skipped.
@@ -56,7 +57,7 @@ def _walk(root: Path) -> set[str]:
 def gate(root: Path) -> tuple[list[str], list[str]]:
     """The gate, and the packages the walk finds that the golden does not hold."""
     corpus = json.loads(
-        (root / "bim-toolchain" / "golden" / "bim_normalized" / "corpus.json").read_text(
+        (root / "openbinding-gateway" / "tests" / "golden" / "bim_baseline" / "corpus.json").read_text(
             encoding="utf-8",
         ),
     )

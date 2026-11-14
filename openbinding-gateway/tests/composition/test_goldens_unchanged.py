@@ -33,7 +33,7 @@ from openbinding_gateway import composition
 #: and never passes. Only its informative ``toolchain`` members are ever refreshed, and
 #: ``test_bim_baseline.py`` pins the gateway's byte copy of this very file, so naming it
 #: here records what the pipeline already enforces instead of adding a second target.
-NORMALIZED_CORPUS = REPO_ROOT / "bim-toolchain" / "golden" / "bim_normalized" / "corpus.json"
+NORMALIZED_CORPUS = REPO_ROOT / "openbinding-gateway" / "tests" / "golden" / "bim_baseline" / "corpus.json"
 
 #: The guiding case, version 1, as the live golden records it.
 FMS_PATH = "examples/demo/13_fms"
@@ -43,11 +43,10 @@ FMS_BINDING_SPACE = {"candidatesPerServiceTask": [2, 2, 2, 2, 2], "cardinality":
 FMS_TASKS = {"service": 5, "total": 6}
 FMS_CANDIDATES = 10
 
-#: Two walks, two numbers. The guard and the corpus check walk the whole repository and
-#: see 83; the toolchain's own baseline also excludes ``bim-toolchain`` and sees 82.
-#: Every one of these is asserted somewhere else too, which is exactly why adding a
-#: package is expensive.
-WALKED_PACKAGES = 83
+#: The guard and the corpus check walk the whole repository and see 82, the packages of the
+#: golden (83 while bim-core's example package lived in this repository). Every one of these
+#: is asserted somewhere else too, which is exactly why adding a package is expensive.
+WALKED_PACKAGES = 82
 GOLDEN_PACKAGES = 82
 
 #: The guiding case aggregates every feature's exclusive with ``weightedSum``, including
