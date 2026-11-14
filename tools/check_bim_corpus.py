@@ -10,7 +10,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DERIVED_ROOTS = {
     ROOT / "experimentation" / "icsoc" / "out" / "bim-v1",
-    ROOT / "datasets",
     # Frontend test fixtures are not part of the checked-in corpus.
     ROOT / "frontend",
 }

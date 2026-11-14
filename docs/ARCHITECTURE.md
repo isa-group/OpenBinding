@@ -44,7 +44,6 @@ flowchart LR
   SPA[(SPACE<br/>space.score.us.es)]
   CAS[(Universidad de Sevilla CAS)]
   FED[(Federated engines)]
-  Z[(Zenodo)]
   R & E & A & P --> W --> G
   R -. API keys, scripts, QACOBench, MCP .-> G
   G -- space-python-client --> SPA
@@ -52,7 +51,6 @@ flowchart LR
   G -- public permanent-link API --> SPH
   G -- CAS 3.0 --> CAS
   G -- bim-engine/v1 --> FED
-  R -. datasets and artifacts .-> Z
 ```
 
 SPHERE and SPACE are separate deployments of the group. The OpenBinding pricing is written and versioned in SPHERE
@@ -594,7 +592,8 @@ The application directories keep their names; the clutter at the root moves:
 | `deploy/kubernetes/` | removed |
 | `nginx/`, `up.sh` | `deploy/` |
 | `pricings/` (FaaS iPricings of CLASP) | `experimentation/clasp/pricings/` |
-| `output/` (Zenodo packaging) | QACOForge (`qacobench/`) |
+| `output/` (Zenodo packaging of QACOBench 1.1.1) | removed (it remains at the tag `pre-redesign`) |
+| `datasets/` (QACOBench sources and transformers) | moved to QACOForge (`datasets/`) |
 | `experimentation/qacobench/`, the generator (`/v1/generator`, `engines/bim-generator`) | removed: extracted to `javiercavlop/QACOForge` (private; QACOBench 1.1.1 reproduces from the tag `pre-redesign`) |
 | — | `acceptance/` (new), `deploy/compose/production/` (new), `docs/pricing/` (OpenBinding's pricing proposals and their rationale; SPHERE holds the published versions) |
 | the `bim-toolchain` directory | removed: extracted to `javiercavlop/bim-toolchain` (private; to the SCORELabUS organization when public), consumed as release wheels pinned in `openbinding-gateway/uv.lock` |

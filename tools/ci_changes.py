@@ -43,7 +43,7 @@ def classify(path: str) -> frozenset[str] | None:
         return frozenset({"e2e"}) if path.startswith("frontend/e2e/") else frozenset({"e2e", "gateway"})
     if path.startswith("engines/") or path.startswith("schemas/bim/") or path == "tools/check_bim_guard.py":
         return frozenset({"engines", "bim", "gateway"})
-    if path.startswith(("schemas/", "examples/", "datasets/", "experimentation/")):
+    if path.startswith(("schemas/", "examples/", "experimentation/")):
         return frozenset({"bim", "gateway"})
     # How CI reads the private bim-toolchain release (wheels and test kit).
     if path.startswith(".github/actions/bim-toolchain-access/"):

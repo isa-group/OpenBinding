@@ -247,15 +247,6 @@ space/space-src/
 /openbinding-gateway/tools/analysis-reseed-verification.json
 /openbinding-gateway/tools/analysis-browser-benchmark.json
 
-# Generated QACOBench instances
-/datasets/01_icws/
-/datasets/02_quantum/
-/datasets/03_hsc_llm/
-/datasets/04_rprsr15/
-/datasets/05_iots/
-/datasets/06_bws_scp/
-/datasets/07_qfbs/
-
 # macOS metadata
 .DS_Store
 
@@ -263,12 +254,5 @@ space/space-src/
 /.bim-toolchain/
 # The wheels of the pinned bim-toolchain release (tools/fetch_bim_toolchain.py --wheels), checked against uv.lock.
 /openbinding-gateway/.bim-wheels/
-
-# Zenodo downloads and generated release bundles stay outside Git history.
-/output/zenodo/*.tar.xz
-/output/zenodo/*.tar.gz
-/output/zenodo/*.zip
-/output/zenodo/*.part*
-/output/zenodo/stage-*/
 
 .claude-work/
