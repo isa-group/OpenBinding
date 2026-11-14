@@ -341,25 +341,6 @@ const PUBLIC_PUBLICATIONS = [
     report: { title: 'Baseline results on the service corpus', digest: `sha256-${'12ab34cd'.repeat(8)}`, version_id: 'version-2' }, project: 'service-corpus', organization: 'partner-lab', publishedAt: '2026-09-12T08:00:00Z',
   },
 ];
-const RESOLVED = {
-  verified: true, kind: 'report', digest: EDITION, canonical_name: 'Engine comparison at checkout', media_type: 'application/json', size_bytes: 20480, created_at: '2026-09-25T11:55:00Z',
-  author: { id: 'author-1', username: 'alex.rivera', email: null },
-  document: { title: 'Engine comparison at checkout', sections: [{ id: 's1' }, { id: 's2' }, { id: 's3' }], schemaVersion: 1, evidence: { runs: 12 } },
-  content_url: `/v1/resolve/report/${EDITION}/content`,
-  locations: [{
-    organization: { id: 'org-isa-demo', slug: 'isa-demo', name: 'ISA Demo Group' },
-    project: { id: 'project-qos-benchmarks', slug: 'qos-benchmarks', name: 'QoS Benchmarks', visibility: 'public' },
-    element_id: 'element-1', slug: 'checkout-engines', version_or_revision: 1, created_at: '2026-09-25T11:55:00Z', web_url: '/app/isa-demo/library',
-  }],
-  pagination: { total: 1, limit: 20, offset: 0, has_more: false },
-  citation: {
-    title: 'Engine comparison at checkout', authors: ['Alex Rivera'], year: 2026, doi: null, venue: 'ISA Demo Group / QoS Benchmarks', url: null,
-    bibtex: '@misc{checkout_engines_2026,\n  title = {Engine comparison at checkout},\n  author = {Rivera, Alex},\n  year = {2026}\n}',
-    markdown_badge: `[![OpenBinding](https://openbinding.example/badge/${EDITION})](https://openbinding.example/resolve/report/${EDITION})`,
-    uri: `https://openbinding.example/resolve/report/${EDITION}`,
-  },
-};
-
 /** A JSON Schema with enough structure to read: nested groups, a list, required fields and allowed values. */
 function schemaOf(kind: string) {
   return {
@@ -643,7 +624,7 @@ function adminRoutes(request: Request): Reply {
 }
 
 /** The first path segments the gateway only answers to a session. */
-const SESSION_ONLY = new Set(['users', 'admin', 'notifications', 'organizations', 'jobs', 'engines', 'engine-registrations', 'artifacts', 'snapshots', 'instances', 'verifier']);
+const SESSION_ONLY = new Set(['users', 'admin', 'notifications', 'organizations', 'jobs', 'engines', 'engine-registrations', 'artifacts', 'snapshots', 'instances']);
 
 function route(request: Request): Reply | null {
   const { method, parts } = request;
@@ -683,15 +664,6 @@ function route(request: Request): Reply | null {
     case 'resources': return ok({ resources: REGISTERED });
     case 'schemas': return ok(schemaOf(decodeURIComponent(second ?? 'Instance')));
     case 'examples': return second ? { status: 200, type: 'application/zip', bytes: request.archive } : ok({ examples: Object.keys(LESSONS) });
-    case 'resolve':
-      if (parts[4] === 'content') return ok(RESOLVED.document);
-      return ok({ ...RESOLVED, kind: second, digest: third });
-    case 'verifier':
-      return ok({
-        status: 'verified', digest: (request.body().digest as string | undefined) ?? EDITION, matches: true, verified_at: NOW,
-        detail: 'Cryptographically verified against 1 registered entity.',
-        entities: [{ entity_type: 'report', id: 'report-1', slug: 'engine-comparison', title_or_name: 'Engine comparison at checkout', organization_slug: 'isa-demo', project_slug: 'qos-benchmarks', created_at: '2026-09-25T09:00:00Z' }],
-      });
     case 'validate':
       return ok({
         valid: true, instanceDigest: caseDigest('a'), packageDigest: caseDigest('b'), irDigest: caseDigest('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],

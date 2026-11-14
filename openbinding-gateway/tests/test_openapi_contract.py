@@ -146,8 +146,6 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/explore/projects", "get"),
         ("/v1/explore/publications", "get"),
         ("/v1/explore/engines", "get"),
-        ("/v1/resolve/{kind}/{digest_value}", "get"),
-        ("/v1/resolve/{kind}/{digest_value}/content", "get"),
         ("/v1/instances/validate", "post"),
         ("/v1/generator/instances", "post"),
         ("/v1/generator/corpus", "post"),

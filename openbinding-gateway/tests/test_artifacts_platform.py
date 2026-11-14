@@ -1,4 +1,4 @@
-"""Portable project packages and immutable public content."""
+"""Portable project packages."""
 
 from __future__ import annotations
 
@@ -145,7 +145,7 @@ async def test_packages_round_trip_cases_resources_collections_and_artifacts(
                 "parameters": {"seed": 7},
             }},
         )
-        frozen_digest, published_version = report.digest, report.version_id
+        published_version = report.version_id
         await seed.report_publication(db_session, report, profile["id"], slug="findings",
                                       citation={"doi": "10.0000/example"})
 
@@ -193,30 +193,6 @@ async def test_packages_round_trip_cases_resources_collections_and_artifacts(
         restored_publications = (await db_session.scalars(
             select(Publication).where(Publication.project_id == restored_project.id))).all()
         assert [row.version_id for row in restored_publications] == [published_version]
-
-        public_case_res = await api_client.get(
-            f"/v1/resolve/case-revision/{case_revision.json()['digest']}"
-        )
-        assert public_case_res.status_code == 200
-        assert public_case_res.json()["verified"] is True
-        assert len(public_case_res.json()["locations"]) >= 1
-
-        public_case = await api_client.get(
-            f"/v1/resolve/case-revision/{case_revision.json()['digest']}/content"
-        )
-        public_resource = await api_client.get(
-            f"/v1/resolve/resource-revision/{resource_revision.content_digest}/content"
-        )
-        public_report = await api_client.get(
-            f"/v1/resolve/report/{frozen_digest}/content"
-        )
-        public_artifact = await api_client.get(
-            f"/v1/resolve/artifact/{artifact.json()['digest']}/content"
-        )
-        for response in (public_case, public_resource, public_report, public_artifact):
-            assert response.status_code == 200, response.text
-            assert response.headers["cache-control"].endswith("immutable")
-            assert response.headers["etag"].startswith('"sha256-')
 
         # A signed package is only a checksum, not permission to publish a new edition.
         next_version = await seed.new_edition(db_session, report, profile["id"])

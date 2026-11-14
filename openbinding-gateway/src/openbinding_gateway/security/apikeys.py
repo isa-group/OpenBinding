@@ -100,7 +100,6 @@ UNCLASSIFIED_ROUTE_PERMISSION = "route:unclassified"
 #: /v1 routes that deliberately need no API-key permission.
 OPEN_V1_PREFIXES = (
     "/v1/auth",
-    "/v1/resolve",
     "/v1/profiles",
     "/v1/schemas",
     "/v1/examples",
@@ -477,11 +476,9 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         if method == "GET" and path in OPEN_V1_GET_PATHS:
             return frozenset()
         # Comparing two compositions derives a view from documents the caller supplies and
-        # persists nothing, which is the verifier's shape rather than the generator's: the
+        # persists nothing, which is a validator's shape rather than the generator's: the
         # read permission, not the write one. A key still needs it, because deny-by-default
         # under /v1 is the rule and "it only computes" is not an exemption.
-        return frozenset({ApiKeyPermission.INSTANCES_READ.value})
-    if path.startswith("/v1/verifier"):
         return frozenset({ApiKeyPermission.INSTANCES_READ.value})
     if path.startswith("/v1/snapshots"):
         return frozenset({ApiKeyPermission.INSTANCES_READ.value})

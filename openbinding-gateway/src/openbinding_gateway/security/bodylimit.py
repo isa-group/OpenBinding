@@ -46,7 +46,6 @@ UPLOAD_ROUTES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("POST", re.compile(r"^/v1/validate/?$")),
     ("POST", re.compile(r"^/v1/jobs/?$")),
     ("POST", re.compile(r"^/v1/resources/?$")),
-    ("POST", re.compile(r"^/v1/verifier/inspect-file/?$")),
     # Not /v1/compositions/import, though it takes a package: the JSON ceiling already equals
     # the toolchain's default compressed limit, and an upload route's ceiling is 512 MiB --
     # buffered whole before the package limit is compared when no Content-Length is sent.

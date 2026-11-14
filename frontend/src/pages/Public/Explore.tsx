@@ -197,7 +197,7 @@ function ExploreTabContent({ tab, data, initialQuery, onShowPublications }: Cont
               </ul>
             </div>
             <aside aria-label="Details" className="explore-details">
-              {!selected && <span className="explore-details-empty">Select an item to see its citation and where to verify it.</span>}
+              {!selected && <span className="explore-details-empty">Select an item to see its details.</span>}
               {selected?.tab === 'publications' && <PublicationDetails item={selected} />}
               {selected?.tab === 'projects' && <ProjectDetails item={selected} signedIn={Boolean(user)} onShowPublications={onShowPublications} />}
               {selected?.tab === 'engines' && <EngineDetails item={selected} />}
@@ -226,10 +226,6 @@ function PublicationDetails({ item }: { item: PublicationItem }) {
         {item.citation}
         <button type="button" onClick={() => void copy(item.citation)}>{status() === 'copied' ? 'Citation copied' : 'Copy citation'}</button>
       </div>
-      <small>BibTeX and a ready-made reference are generated on the verification page.</small>
-      {item.digest
-        ? <Link className="explore-action" to={`/resolve/report/${item.digest}`}>Open verification</Link>
-        : <span className="explore-details-empty">This published result lists no digest, so it cannot be verified from here.</span>}
     </>
   );
 }
@@ -247,7 +243,7 @@ function ProjectDetails({ item, signedIn, onShowPublications }: { item: ProjectI
       </dl>
       <div className="explore-info">
         <Info aria-hidden="true" />
-        <span>Public projects are listed here and their published results verify by digest. Opening the project itself requires membership.</span>
+        <span>Public projects are listed here with their published results. Opening the project itself requires membership.</span>
       </div>
       {signedIn
         ? <Link className="explore-action" to={`/app/${item.organization.slug}/${item.project.slug}`}>Open project</Link>

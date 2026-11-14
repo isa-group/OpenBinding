@@ -77,9 +77,8 @@ Two precisions. *Resources* are the project's own contents; an artifact of
 **another** organization that the project merely associates (resources,
 collections, library) is shown to visitors only while it is itself published, so
 a withdrawn one does not stay reachable through the project. *Snapshots* of case
-revisions are served by `/v1/snapshots/...` and `/v1/resolve/...`, which are not
-under the project path and keep their own visibility rules (see
-`RESOLVER_AND_VERIFIER.md`); this policy does not widen them.
+revisions are served by `/v1/snapshots/...`, which is not under the project path
+and keeps its own visibility rules; this policy does not widen them.
 
 ## Always denied to visitors
 

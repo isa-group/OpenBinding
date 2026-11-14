@@ -180,7 +180,7 @@ Report project contexts contain an artifact identity and draft/version pointers;
 there is no second `reports.document` or `reports.digest` column. `POST .../reports/{report}/drafts`
 creates an editable draft based on the last sealed version. Document edits require
 `draft_revision`; stale edits return 409. Freezing seals a common `ArtifactVersion`.
-The library history and digest resolver continue to expose older accessible versions.
+The library history continues to expose older accessible versions.
 
 Run-linked reports require terminal runs, cells and jobs. Analysis receipts require
 terminal jobs whose result hashes match their original sources. Their typed

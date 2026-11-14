@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
-  PROBLEMS_FINAL, RUNS_ALL_FINAL, RUNS_FINAL, VERIFY_DIGEST, forbiddenText, kindOptionText, mockGateway,
+  PROBLEMS_FINAL, RUNS_ALL_FINAL, RUNS_FINAL, forbiddenText, mockGateway,
 } from './helpers-vocabulary';
 
 test.use({ viewport: { width: 1440, height: 900 } });
@@ -12,12 +12,6 @@ test('the project screens are headed Problems and Runs and the Problems tab offe
   await expect(page.getByRole('button', { name: 'New problem' }).or(page.getByRole('link', { name: 'New problem' })).first()).toBeVisible();
   await page.goto(RUNS_FINAL);
   await expect(page.getByRole('heading', { name: 'Runs', exact: true }).first()).toBeVisible();
-});
-
-test('the Verify kind selector reads Problem version for the kind case-revision', async ({ page }) => {
-  await mockGateway(page, { role: null });
-  await page.goto(`/verify?digest=${VERIFY_DIGEST}`);
-  expect(await kindOptionText(page, 'case-revision')).toBe('Problem version');
 });
 
 const SIGNED_IN_SCREENS = [

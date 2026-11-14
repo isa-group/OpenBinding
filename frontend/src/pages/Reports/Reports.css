@@ -1,4 +1,4 @@
-/* The publications screen, and the rp-* classes that the Verify page shares. The project frame (proj-*), the organization classes (org-*) and the ui-* components are reused. */
+/* The publications screen and its rp-* classes. The project frame (proj-*), the organization classes (org-*) and the ui-* components are reused. */
 
 .rp-body a:not(.ui-action) { color: var(--tp-primary); font-weight: 500; }
 .rp-body a:not(.ui-action):hover { color: var(--tp-primary-deep); text-decoration: underline; }

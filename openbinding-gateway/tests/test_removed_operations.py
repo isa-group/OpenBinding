@@ -107,8 +107,6 @@ KEPT = [
     Kept("K2", "GET", f"{PROJECT}/publications"),
     Kept("K3", "DELETE", f"{PROJECT}/publications/{{publication}}"),
     Kept("K4", "GET", "/v1/explore/publications"),
-    Kept("K5", "GET", "/v1/resolve/{kind}/{digest_value}"),
-    Kept("K5", "GET", "/v1/resolve/{kind}/{digest_value}/content"),
     Kept("sponsor", "PATCH", "/v1/organizations/{org}"),
 ]
 
@@ -354,12 +352,10 @@ async def test_the_kept_operations_answer_a_member_as_before(api_client, area):
     revisions = await api_client.get(f"{base}/resources/r1/revisions", headers=headers)  # B7
     publications = await api_client.get(f"{base}/publications", headers=headers)  # K2
     explore = await api_client.get("/v1/explore/publications")  # K4
-    permanent = await api_client.get(f"/v1/resolve/report/{area.report.digest}", headers=headers)  # K5
-    permanent_content = await api_client.get(f"/v1/resolve/report/{area.report.digest}/content", headers=headers)
     renamed = await api_client.patch("/v1/organizations/isa-demo", headers=headers, json={"name": "ISA demo"})
 
     for response in (reports, library, versions, content, resolved, resources, revisions, publications, explore,
-                     permanent, permanent_content, renamed):
+                     renamed):
         assert response.status_code == 200, (str(response.url), response.text)
     assert [(row["slug"], row["state"]) for row in reports.json()] == [("r1", "frozen")]
     assert "d1" in {row["name"] for row in library.json()}
@@ -371,7 +367,6 @@ async def test_the_kept_operations_answer_a_member_as_before(api_client, area):
     assert [row["digest"] for row in revisions.json()] == [version.content_digest for version in area.revisions]
     assert [(row["slug"], row["withdrawn"]) for row in publications.json()] == [("pub-1", False)]
     assert "pub-1" in {row["slug"] for row in explore.json()}
-    assert permanent_content.json() == REPORT_DOCUMENT
     assert renamed.json()["name"] == "ISA demo"
 
     withdrawn = await api_client.delete(f"{base}/publications/pub-1", headers=headers)  # K3

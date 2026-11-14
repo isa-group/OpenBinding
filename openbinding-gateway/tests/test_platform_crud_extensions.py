@@ -222,7 +222,7 @@ async def test_report_publication_withdrawal_keeps_every_edition(api_client, reg
     project = await seed.project_by_slugs(db_session, org_slug, proj_slug)
     report = await seed.report(db_session, project, user_id, slug="rep-a", title="Draft Report Alpha",
                                document=valid_document, freeze=True)
-    first_version, first_digest, first_document = str(report.version_id), report.digest, report.document
+    first_version = str(report.version_id)
     await seed.report_publication(db_session, report, user_id, slug="pub-a", citation={"authors": ["Alice"]})
 
     # DELETE publication -> 204
@@ -232,7 +232,7 @@ async def test_report_publication_withdrawal_keeps_every_edition(api_client, reg
     )
     assert del_pub.status_code == 204
 
-    corrected = {**first_document, 'correction': 'Updated interpretation, same retained evidence.'}
+    corrected = {**report.document, 'correction': 'Updated interpretation, same retained evidence.'}
     second_version = await seed.new_edition(db_session, report, user_id, corrected)
     assert str(second_version.id) != first_version
     assert second_version.artifact_id == report.artifact_id
@@ -241,16 +241,12 @@ async def test_report_publication_withdrawal_keeps_every_edition(api_client, reg
     assert [(row["slug"], row["state"], row["version_id"]) for row in listed.json()] == [
         ("rep-a", "frozen", str(second_version.id))]
 
-    historical = await api_client.get(f'/v1/resolve/report/{first_digest}/content')
-    assert historical.status_code == 200, historical.text
-    assert historical.json() == first_document
     withdrawn = await api_client.delete(f"/v1/organizations/{org_slug}/projects/{proj_slug}/publications/pub-a", headers=headers)
     assert withdrawn.status_code == 204
     editions = await api_client.get(f"/v1/organizations/{org_slug}/projects/{proj_slug}/publications", headers=headers)
     historical_edition = next(edition for edition in editions.json() if edition['version_id'] == first_version)
     assert historical_edition['withdrawn'] is True
     assert historical_edition['citation']['authors'] == ['Alice']
-    assert (await api_client.get(f'/v1/resolve/report/{first_digest}/content')).json() == first_document
 
 
 

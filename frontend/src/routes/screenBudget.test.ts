@@ -40,17 +40,16 @@ describe('screen budget', () => {
     expect(routeDefinitions.map((definition) => definition.id)).not.toContain('sys-states');
   });
 
-  it('has at most 45 screens', () => {
-    expect(routeDefinitions.length, `${routeDefinitions.length} screens against a ceiling of 45`).toBeLessThanOrEqual(45);
+  it('has at most 44 screens', () => {
+    expect(routeDefinitions.length, `${routeDefinitions.length} screens against a ceiling of 44`).toBeLessThanOrEqual(44);
   });
 
   // `pub-workbench` is registered in the public area (public 5, problems 3).
-  it('has the area sizes of the registry, 45 screens in all', () => {
+  it('has the area sizes of the registry, 44 screens in all', () => {
     const sizes = Object.fromEntries(Object.entries(routesByArea).map(([area, routes]) => [area, routes.length]));
     expect(sizes).toEqual({
       public: 5,
       auth: 5,
-      verify: 1,
       system: 0,
       language: 1,
       engines: 5,
@@ -63,7 +62,7 @@ describe('screen budget', () => {
       studies: 3,
       admin: 8,
     });
-    expect(routeDefinitions).toHaveLength(45);
+    expect(routeDefinitions).toHaveLength(44);
   });
 
   it('keeps no per-domain route file and no mention of routesByDomain under routes/', () => {

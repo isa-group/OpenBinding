@@ -81,9 +81,9 @@ export function createItems(organization?: Organization, project?: Project): Men
 }
 
 /** The first segments under `/app` that name a place of their own, not an organization. */
-const APP_PLACES = new Set(['admin', RUNS_SEGMENT, 'jobs', 'generator', 'engines', 'language', 'account', 'system', 'verifier', 'analysis', 'organizations']);
+const APP_PLACES = new Set(['admin', RUNS_SEGMENT, 'jobs', 'generator', 'engines', 'language', 'account', 'system', 'analysis', 'organizations']);
 /** Of those, the places that belong to no entry of the header. */
-const UNMARKED_PLACES = new Set(['account', 'system', 'verifier', 'analysis']);
+const UNMARKED_PLACES = new Set(['account', 'system', 'analysis']);
 /** `/app/:org/…` screens that belong to the organization, not to one of its projects. */
 const ORGANIZATION_SCREENS = new Set(['settings', 'new-project']);
 

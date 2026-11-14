@@ -120,10 +120,8 @@ These stay, tested, because kept screens use them.
 | GET | `/v1/organizations/{org}/projects/{project}/publications` | publications screen |
 | DELETE | `/v1/organizations/{org}/projects/{project}/publications/{publication}` | withdraw a publication |
 | GET | `/v1/explore/publications` | Explore |
-| GET | `/v1/resolve/{kind}/{digest_value}` | permanent links (and its `/content` sibling) |
 
-Existing publications keep answering at `GET /v1/resolve/{kind}/{digest_value}`, in the project publication list and
-in Explore. No kept operation creates a new publication from a report or makes an artifact version public; package
+Existing publications keep answering in the project publication list and in Explore. No kept operation creates a new publication from a report or makes an artifact version public; package
 import and export (`/package`) are unchanged.
 
 ## Sponsor rule change

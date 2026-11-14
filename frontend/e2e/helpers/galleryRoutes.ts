@@ -6,7 +6,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 /** The registry order of the areas; an area file that is not listed comes after them, by name. */
 const AREA_ORDER = [
-  'public', 'auth', 'verify', 'system', 'language', 'engines', 'account', 'organizations', 'project', 'problems', 'collections', 'runs',
+  'public', 'auth', 'system', 'language', 'engines', 'account', 'organizations', 'project', 'problems', 'collections', 'runs',
   'studies', 'admin',
 ];
 

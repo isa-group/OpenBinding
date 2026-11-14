@@ -150,6 +150,9 @@ async def populate(client, session, registration) -> dict:
         "f1": f1.version.content_digest, "d3": d3_digest, "d2": d2_digest,
         "report:d1": str(d1.id), "artifact:d1": str(d1.artifact_id),
         "report:d3": str(d3.id), "draft:d3": str(d3.draft_id),
+        "content:f1": f"/v1/artifacts/{f1.artifact_id}/versions/{f1.version_id}/content",
+        "content:d3": f"/v1/artifacts/{d3.artifact_id}/versions/{d3.version_id}/content",
+        "content:d2": f"/v1/artifacts/{d2.artifact_id}/versions/{d2.version_id}/content",
     }
 
 
@@ -157,11 +160,10 @@ async def read_everything(client, ids: dict) -> dict:
     """Every answer the requirements compare, as ``{name: body}``; each one must be 200."""
     anonymous, member = {}, ids["headers"]
     calls = {
-        **{f"case:{slug}": (f"/v1/resolve/case-revision/{revision['digest']}", anonymous)
-           for slug, revision in ids["revisions"].items()},
-        "report:f1": (f"/v1/resolve/report/{ids['f1']}", anonymous),
-        "report:d3": (f"/v1/resolve/report/{ids['d3']}", anonymous),
-        "report:d2": (f"/v1/resolve/report/{ids['d2']}", member),
+        **{f"case:{slug}": (f"{BASE}/cases/{slug}/revisions", member) for slug in ids["revisions"]},
+        "report:f1": (ids["content:f1"], member),
+        "report:d3": (ids["content:d3"], member),
+        "report:d2": (ids["content:d2"], member),
         "publications": (f"{BASE}/publications", anonymous),
         "explore": ("/v1/explore/publications", anonymous),
         "resources": (f"{BASE}/resources", member),
@@ -280,7 +282,7 @@ async def test_sealed_and_published_data_answer_the_same_after_the_upgrade(tmp_p
             assert ir_after[slug] == ir_before[slug], slug
         assert ir_before["c1"][0] != ir_before["c2"][0]
         for slug in ids["revisions"]:
-            assert before[f"case:{slug}"]["verified"] is True and after[f"case:{slug}"]["verified"] is True
+            assert ids["revisions"][slug]["digest"] in {row["digest"] for row in before[f"case:{slug}"]}
         # Publications and sealed report versions: the same bodies.
         for name in ("case:c1", "case:c2", "report:f1", "report:d3", "report:d2", "publications", "explore",
                      "resources", "revisions"):

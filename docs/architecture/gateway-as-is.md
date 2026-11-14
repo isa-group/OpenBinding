@@ -375,7 +375,7 @@ BIM is a language and a toolchain: load a package, compile it to a canonical
 `BindingProblem`, evaluate and re-evaluate bindings, validate the Engine
 protocol. The platform is everything around it: accounts, organizations,
 projects, plans, jobs and queues, persistence, the artifact library, studies,
-reports, the resolver and the HTTP routes. The toolchain must not know the
+reports and the HTTP routes. The toolchain must not know the
 platform, and the platform reaches BIM through a small port.
 
 **Current state.** The gateway depends on `bim-core==0.2.0` and

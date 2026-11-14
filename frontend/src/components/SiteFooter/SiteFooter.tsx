@@ -8,7 +8,6 @@ const columns = [
       { label: 'Explore', to: '/explore' },
       { label: 'Engines', to: '/engines' },
       { label: 'Pricing', to: '/pricing' },
-      { label: 'Verify', to: '/verify' },
     ],
   },
   {
@@ -40,7 +39,7 @@ export function SiteFooter() {
           <div className="site-footer-statement">
             <span className="micro-label">OpenBinding</span>
             <strong>Deterministic QoS binding for service compositions</strong>
-            <p>Validate BIM v1 packages, run exact engine revisions and publish evidence anyone can verify by digest.</p>
+            <p>Validate BIM v1 packages, run exact engine revisions and keep the evidence of every run.</p>
           </div>
 
           <nav className="site-footer-nav" aria-label="Footer navigation">

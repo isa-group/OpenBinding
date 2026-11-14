@@ -37,7 +37,6 @@ export function buildCommands({ organizations = [], projects = [], organization,
     command('Go to', 'Engines', 'Engines by exact identity', mainLinks.engines.to),
     command('Go to', 'Language', 'How instances become binding problems', mainLinks.language.to),
     command('Go to', 'Explore', 'Public projects, published results and engines', '/explore'),
-    command('Go to', 'Verify', 'Resolve a digest and check its provenance', '/verify'),
     command('Go to', 'Pricing', 'Plans, limits and add-ons', '/pricing'),
   ];
 

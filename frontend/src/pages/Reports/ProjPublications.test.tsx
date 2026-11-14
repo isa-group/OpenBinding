@@ -2,7 +2,7 @@ import { fireEvent, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { org, project, renderProjectScreen } from '../Project/testKit';
-import { EDITION, FROZEN, publicationOf } from '../../test/fixtures/reports';
+import { FROZEN, publicationOf } from '../../test/fixtures/reports';
 import { ProjPublications } from './ProjPublications';
 
 const platform = vi.hoisted(() => ({ project: vi.fn(), publicProjects: vi.fn(), reports: vi.fn(), publications: vi.fn(), deletePublication: vi.fn() }));
@@ -31,18 +31,16 @@ describe('Publications of a project', () => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockResolvedValue(undefined) }, configurable: true });
   });
 
-  it('shows each public edition with how to cite it, its public link and the way to verify it', async () => {
+  it('shows each public edition with how to cite it', async () => {
     renderPublications();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Published' })).toBeInTheDocument();
-    expect(screen.getByText(/Report editions made public from QoS Benchmarks\. Withdrawing hides one from listings but keeps every link and fingerprint working\./)).toBeInTheDocument();
+    expect(screen.getByText(/Report editions made public from QoS Benchmarks\. Withdrawing hides one from listings but keeps its citation valid\./)).toBeInTheDocument();
     expect(await screen.findByRole('heading', { level: 2, name: 'Engine comparison at checkout' })).toBeInTheDocument();
     expect(within(screen.getByRole('article')).getByText('Published')).toBeInTheDocument();
     expect(screen.getByText('checkout-comparison · published Sep 25, 2026')).toBeInTheDocument();
     expect(screen.getByRole('article').textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
     expect(screen.getByText('Alex Rivera (2026). Engine comparison at checkout. ISA Demo Group / QoS Benchmarks.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Copy public link' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open public verification' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
     expect(within(tabs).getByRole('link', { name: 'Published' })).toHaveAttribute('aria-current', 'page');
     expect(within(tabs).getByRole('link', { name: 'Published' })).toHaveAttribute('href', `${ROOT}/published`);
@@ -64,9 +62,8 @@ describe('Publications of a project', () => {
     expect(within(crumbs).getByText('Published')).toHaveAttribute('aria-current', 'page');
     const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
     expect(hrefs.filter((href) => /\/reports([/?#]|$)/.test(href))).toEqual([]);
-    // Still a publication list: the citation and the public verification stay.
+    // Still a publication list: the citation stays.
     expect(screen.getByText('Alex Rivera (2026). Engine comparison at checkout. ISA Demo Group / QoS Benchmarks.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open public verification' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
   });
 
   it('withdraws a publication after confirming, and then marks it as still reachable by link', async () => {
@@ -76,15 +73,13 @@ describe('Publications of a project', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Withdraw' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Withdraw checkout-comparison?' });
-    expect(within(dialog).getByText(/Its link, citation and fingerprint keep working/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Its citation stays valid/)).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw' }));
 
-    expect(await screen.findByText('Withdrawn. It’s no longer listed in Explore, but its link, citation and fingerprint still work.')).toBeInTheDocument();
+    expect(await screen.findByText('Withdrawn. It’s no longer listed in Explore, and its citation stays valid.')).toBeInTheDocument();
     expect(platform.deletePublication).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'checkout-comparison');
-    expect(await screen.findByText('Withdrawn · still reachable by link')).toBeInTheDocument();
+    expect(await screen.findByText('Withdrawn')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Withdraw' })).not.toBeInTheDocument();
-    // Its link and verification keep working.
-    expect(screen.getByRole('link', { name: 'Open public verification' })).toBeInTheDocument();
   });
 
   it('reports a refusal to withdraw inside the dialog (403)', async () => {
@@ -107,17 +102,7 @@ describe('Publications of a project', () => {
 
     renderPublications('read-lab');
     expect(await screen.findByText('Withdrawing needs ADMIN.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open public verification' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Withdraw' })).not.toBeInTheDocument();
-  });
-
-  it('does not claim a fingerprint for an edition the report has moved past', async () => {
-    platform.publications.mockResolvedValue([publicationOf(FROZEN, { version_id: 'an-earlier-edition' })]);
-    renderPublications();
-
-    expect(await screen.findByText('checkout-comparison · published Sep 25, 2026')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Open public verification' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Open the report' })).not.toBeInTheDocument();
   });
 
   it('says nothing is published yet, with no way on to the retired report list', async () => {

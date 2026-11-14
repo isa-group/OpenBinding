@@ -10,10 +10,10 @@ describe('publications and citations', () => {
   });
 
   it('escapes what BibTeX reads as markup and keeps the DOI bare', () => {
-    const bibtex = citationBibtex(citationFields({ title: 'R&D_100', authors: ['Vega'], year: 2026, doi: 'https://doi.org/10.1000/xyz' }, 't'), 'rd', 'https://x.test/resolve/report/sha256-e');
+    const bibtex = citationBibtex(citationFields({ title: 'R&D_100', authors: ['Vega'], year: 2026, doi: 'https://doi.org/10.1000/xyz' }, 't'), 'rd');
     expect(bibtex).toMatch(/title\s+= \{R\\&D\\_100\}/);
     expect(bibtex).toMatch(/doi\s+= \{10\.1000\/xyz\}/);
-    expect(bibtex).toMatch(/url\s+= \{https:\/\/x\.test\/resolve\/report\/sha256-e\}/);
+    expect(bibtex).not.toMatch(/url\s+=/);
     expect(bibtex.startsWith('@misc{vega2026rd,')).toBe(true);
   });
 });

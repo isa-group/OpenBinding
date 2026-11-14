@@ -27,16 +27,13 @@ function PublicationCard({ publication, report, canWithdraw, onWithdraw }: {
 }) {
   const { copy, status } = useCopy();
   const fields = citationFields(publication.citation, report?.title ?? publication.slug);
-  // The publication does not carry the fingerprint of its edition; the report's is the same one only while that edition is the sealed one.
-  const digest = report && report.version_id === publication.version_id && report.digest ? report.digest : null;
-  const verifyUrl = digest ? `${window.location.origin}/resolve/report/${digest}` : undefined;
   const text = citationText(fields);
   const meta = [publication.slug, `published ${formatDate(publication.published_at) ?? '—'}`].filter(Boolean).join(' · ');
   return (
     <article className="rp-pub">
       <header>
         <h2>{fields.title}</h2>
-        {publication.withdrawn ? <Chip tone="warning">Withdrawn · still reachable by link</Chip> : <Chip tone="success">Published</Chip>}
+        {publication.withdrawn ? <Chip tone="warning">Withdrawn</Chip> : <Chip tone="success">Published</Chip>}
       </header>
       <p className="rp-pub-meta">{meta}</p>
       <div className="rp-cite-box">
@@ -44,16 +41,10 @@ function PublicationCard({ publication, report, canWithdraw, onWithdraw }: {
         <span className="rp-cite">{text}</span>
         <span className="rp-links">
           <button type="button" onClick={() => void copy(text, 'cite')}>{status('cite') === 'copied' ? 'Citation copied' : 'Copy citation'}</button>
-          <button type="button" onClick={() => void copy(citationBibtex(fields, publication.slug, verifyUrl), 'bib')}>{status('bib') === 'copied' ? 'Copied for reference manager' : 'Copy for reference manager'}</button>
+          <button type="button" onClick={() => void copy(citationBibtex(fields, publication.slug), 'bib')}>{status('bib') === 'copied' ? 'Copied for reference manager' : 'Copy for reference manager'}</button>
         </span>
       </div>
-      {verifyUrl && (
-        <span className="rp-links">
-          <button type="button" onClick={() => void copy(verifyUrl, 'link')}>{status('link') === 'copied' ? 'Public link copied' : 'Copy public link'}</button>
-        </span>
-      )}
       <div className="rp-pub-actions">
-        {digest && <Action to={`/resolve/report/${digest}`} variant="secondary">Open public verification</Action>}
         {canWithdraw && !publication.withdrawn && <Action variant="danger-outline" onClick={() => onWithdraw(publication)}>Withdraw</Action>}
       </div>
       {!canWithdraw && !publication.withdrawn && <small className="rp-muted">Withdrawing needs ADMIN.</small>}
@@ -82,7 +73,7 @@ function PublicationsBody({ organization, project, canAdminister }: { organizati
     try {
       await platformApi.deletePublication(org, slug, publication.slug);
       setWithdrawing(null);
-      setDone('Withdrawn. It’s no longer listed in Explore, but its link, citation and fingerprint still work.');
+      setDone('Withdrawn. It’s no longer listed in Explore, and its citation stays valid.');
       content.reload();
     } catch (caught) {
       setRefusal(reportRefusal(caught, 'withdraw'));
@@ -96,7 +87,7 @@ function PublicationsBody({ organization, project, canAdminister }: { organizati
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>Published</h1>
-          <p>Report editions made public from {project.name}. Withdrawing hides one from listings but keeps every link and fingerprint working.</p>
+          <p>Report editions made public from {project.name}. Withdrawing hides one from listings but keeps its citation valid.</p>
         </div>
       </header>
 
@@ -133,7 +124,7 @@ function PublicationsBody({ organization, project, canAdminister }: { organizati
 
       {withdrawing && (
         <Modal title={`Withdraw ${withdrawing.slug}?`} tone="danger" size="md" onClose={() => !busy && setWithdrawing(null)}>
-          <p>It leaves the listings in Explore. Its link, citation and fingerprint keep working, so nobody who cited it is left with a broken reference.</p>
+          <p>It leaves the listings in Explore. Its citation stays valid, so nobody who cited it is left with a broken reference.</p>
           {refusal && <RefusalNotice refusal={refusal} />}
           <div className="ui-modal-actions">
             <Action variant="secondary" onClick={() => setWithdrawing(null)} disabled={busy}>Cancel</Action>

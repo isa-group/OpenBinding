@@ -132,7 +132,7 @@ describe('Home', () => {
       renderHome();
 
       const publicationLink = await screen.findByRole('link', { name: /Engines at checkout/ });
-      expect(publicationLink).toHaveAttribute('href', `/resolve/report/${DIGEST}`);
+      expect(publicationLink).toHaveAttribute('href', '/explore?tab=publications');
       expect(publicationLink).toHaveTextContent('ISA Demo Group / QoS Benchmarks');
       expect(publicationLink).toHaveTextContent('Lucía Vega · 2026');
       expect(screen.getByRole('link', { name: /Reference binding cases/ })).toHaveAttribute('href', '/explore?tab=projects');

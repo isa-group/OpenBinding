@@ -148,9 +148,9 @@ describe('the retired report editor', () => {
     expect(files).toEqual([]);
   });
 
-  // `req~frontend-retire-reports-publications-stay~1` (the publications and the verifier stay routed, and their files exist) is
-  // superseded by m26-navigation (design.md section 7): the Verify page and the Published tab replace those screens. Its tests are
-  // no longer here; each area test (areas/project.test.ts, areas/verify.test.ts) holds what its own screens need.
+  // `req~frontend-retire-reports-publications-stay~1` (the publications stay routed, and their files exist) is superseded by
+  // m26-navigation (design.md section 7): the Published tab replaces those screens. Its tests are no longer here; the area test
+  // (areas/project.test.ts) holds what its own screens need.
 
   it('sends the report list and a report to the published results of their project', async () => {
     await endsAt('/app/acme/atlas/reports', '/app/acme/atlas/published');

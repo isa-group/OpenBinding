@@ -189,10 +189,8 @@ describe('internal links written in the code', () => {
   });
 
   it('resolve to a screen of routes/areas, or to a permanent moved address', () => {
-    // Where one `${…}` stands for more than one segment: the engine slug of a resolved location is `namespace/name`.
-    const composed = new Set(['/engines/${slug}/${location.version_or_revision}']);
     const lost = staticLinks()
-      .filter(({ address }) => !composed.has(address) && !matchRoutes(config, pathOf(address)))
+      .filter(({ address }) => !matchRoutes(config, pathOf(address)))
       .map(({ file, line, address }) => `${file}:${line}: ${address}`);
     expect(lost, 'links to an address that no screen and no permanent moved address answers').toEqual([]);
   });

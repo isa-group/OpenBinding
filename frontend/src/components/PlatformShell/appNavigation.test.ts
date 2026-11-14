@@ -127,7 +127,6 @@ describe('currentSection', () => {
     ['/app/account/usage', null],
     ['/app/system/states', null],
     ['/explore', null],
-    ['/verify', null],
   ] as const)('marks %s as %s', (pathname, expected) => {
     expect(currentSection(pathname)).toBe(expected);
   });

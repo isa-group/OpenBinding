@@ -29,7 +29,7 @@ export function citationText(fields: CitationFields): string {
 const BIBTEX_SPECIALS = /[\\{}&%$#_^~]/g;
 const escapeBibtex = (value: string) => value.replace(BIBTEX_SPECIALS, (character) => `\\${character}`);
 
-export function citationBibtex(fields: CitationFields, slug: string, url?: string): string {
+export function citationBibtex(fields: CitationFields, slug: string): string {
   const key = `${(fields.authors[0] ?? 'openbinding').toLowerCase().replace(/[^a-z0-9]+/g, '')}${fields.year ?? ''}${slug.replace(/[^a-z0-9]+/g, '')}`;
   const lines = [
     `  title        = {${escapeBibtex(fields.title)}}`,
@@ -37,7 +37,6 @@ export function citationBibtex(fields: CitationFields, slug: string, url?: strin
     ...(fields.year === null ? [] : [`  year         = {${fields.year}}`]),
     `  howpublished = {${escapeBibtex(fields.venue ?? 'OpenBinding')}}`,
     ...(fields.doi ? [`  doi          = {${escapeBibtex(fields.doi.replace(/^https?:\/\/(dx\.)?doi\.org\//, ''))}}`] : []),
-    ...(url ? [`  url          = {${url}}`] : []),
   ];
   return `@misc{${key},\n${lines.join(',\n')}\n}`;
 }

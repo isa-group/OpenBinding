@@ -28,7 +28,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     name: 'Instances',
     permissions: [
-      { id: 'instances:read', description: 'Read snapshots and verify' },
+      { id: 'instances:read', description: 'Read snapshots and use the composition tools' },
       { id: 'instances:write', description: 'Create snapshots, generator' },
       { id: 'instances:validate', description: 'Validate packages' },
     ],

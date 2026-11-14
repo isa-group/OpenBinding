@@ -1448,11 +1448,6 @@ def print_summary_banner(users: dict[str, User]) -> None:
     print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/organizations/score-ai/projects/qos-placement/studies")
     print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/organizations/score-ai/projects/qos-placement/blobs")
     print("    curl http://localhost:8000/v1/explore/projects")
-    print("\n  [Universal Cryptographic Resolver & Verifier]")
-    print("    GET /v1/resolve/artifact/{digest}            (Metadata, locations, and provenance)")
-    print("    GET /v1/resolve/artifact/{digest}/content    (Raw payload with immutable/private cache headers)")
-    print("    GET /v1/resolve/case-revision/{digest}       (Binding case revision)")
-    print("    GET /v1/resolve/report/{digest}              (Empirical study reports)")
     print(banner + "\n")
 
 

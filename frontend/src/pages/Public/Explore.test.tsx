@@ -67,7 +67,6 @@ describe('Explore', () => {
     expect(within(details).getByText('Lucía Vega')).toBeInTheDocument();
     expect(within(details).getByText('ISA Demo Group / QoS Benchmarks')).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
-    expect(within(details).getByRole('link', { name: 'Open verification' })).toHaveAttribute('href', `/resolve/report/${DIGEST}`);
   });
 
   it('copies the citation as listed', async () => {
@@ -117,7 +116,7 @@ describe('Explore', () => {
     fireEvent.click(screen.getByRole('button', { name: 'All organizations' }));
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search this tab' }), { target: { value: 'zzz' } });
     expect(screen.getByText('No public projects match “zzz”.')).toBeInTheDocument();
-    expect(screen.getByText('Select an item to see its citation and where to verify it.')).toBeInTheDocument();
+    expect(screen.getByText('Select an item to see its details.')).toBeInTheDocument();
   });
 
   it('shows the engine revision with its modes and option defaults', async () => {

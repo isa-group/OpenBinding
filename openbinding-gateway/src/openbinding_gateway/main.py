@@ -54,7 +54,6 @@ from .models.problem import (
 )
 from .routes.admin import router as admin_router
 from .routes.artifacts import router as artifacts_router
-from .routes.resolve import router as resolve_router
 from .routes.auth import router as auth_router
 from .routes.cas import identity_router, router as cas_router
 from .routes.jobs import router as jobs_router
@@ -66,7 +65,6 @@ from .routes.studies import public_router as public_studies_router
 from .routes.studies import router as studies_router
 from .routes.users import router as users_router
 from .routes.v1 import router as v1_router
-from .routes.verifier import router as verifier_router
 from .routes.generator import router as generator_router
 from .routes.compositions import project_router as compositions_project_router
 from .routes.compositions import router as compositions_router
@@ -379,10 +377,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(public_studies_router)
     app.include_router(library_router)
     app.include_router(artifacts_router)
-    app.include_router(resolve_router)
     app.include_router(jobs_router)
     app.include_router(notifications_router)
-    app.include_router(verifier_router)
     app.include_router(generator_router)
     app.include_router(compositions_router)
     app.include_router(compositions_project_router)

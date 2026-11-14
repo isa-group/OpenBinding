@@ -19,7 +19,7 @@ const member: UserProfile = {
 
 const PUBLIC_LINKS = [
   ['Home', '/'], ['Explore', '/explore'], ['Engines', '/engines'], ['Language', '/language'], ['Pricing', '/pricing'],
-  ['Verify', '/verify'], ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
+  ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
 ] as const;
 
 function renderHeader(path = '/') {

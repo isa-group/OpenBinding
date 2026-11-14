@@ -54,7 +54,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         await expect(header.getByRole('navigation', { name: 'Primary navigation' })).toBeHidden();
         await header.getByRole('button', { name: 'Open menu' }).click();
         const menu = header.getByRole('navigation', { name: 'Mobile navigation' });
-        for (const label of ['Home', 'Explore', 'Engines', 'Language', 'Pricing', 'Verify', 'About', 'Log in', 'Sign up']) {
+        for (const label of ['Home', 'Explore', 'Engines', 'Language', 'Pricing', 'About', 'Log in', 'Sign up']) {
           await expect(menu.getByRole('link', { name: label, exact: true })).toBeVisible();
         }
         await expect(menu.getByRole('link', { name: 'Language', exact: true })).toHaveAttribute('href', '/language');
@@ -68,7 +68,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         await expect(nav.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
         await expect(nav.getByRole('link', { name: 'Language' })).toHaveAttribute('href', '/language');
         await expect(nav.getByRole('link', { name: 'Pricing' })).toHaveAttribute('href', '/pricing');
-        await expect(nav.getByRole('link', { name: 'Verify' })).toHaveAttribute('href', '/verify');
         await expect(nav.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about');
         await expect(header.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login');
         await expect(header.getByRole('link', { name: /Sign up/ })).toHaveAttribute('href', '/register');

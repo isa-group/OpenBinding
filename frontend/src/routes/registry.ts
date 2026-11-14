@@ -11,7 +11,6 @@ import * as publicArea from './areas/public';
 import * as runs from './areas/runs';
 import * as studies from './areas/studies';
 import * as system from './areas/system';
-import * as verify from './areas/verify';
 import type { MovedRoute } from './moved';
 import type { RouteDefinition } from './types';
 
@@ -19,7 +18,6 @@ import type { RouteDefinition } from './types';
 const areas = {
   public: publicArea,
   auth,
-  verify,
   system,
   language,
   engines,

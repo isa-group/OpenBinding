@@ -215,7 +215,6 @@ OpenBinding guarantees strict cryptographic immutability and provenance:
 - **Report editions**: Report drafts and sealed versions share the artifact library. Publications pin an exact version; withdrawal retains its citation and evidence.
 - **Versioned study definitions**: Projects can share an exact library Study version and adopt updates independently. Runs retain their original version and matrix; archive/restore preserves execution history. See the [artifact lifecycle and migration status](docs/VERSIONED_ARTIFACTS.md).
 - **Dedicated Deep-Linked Views**: Full-page inspection and editing for Cases (`/cases/:caseSlug`), Snapshots (`/snapshots/:snapshotId`), Collections (`/collections/:collectionSlug`), Jobs (`/jobs/:jobId`), and Reports (`/reports/:reportSlug`).
-- **Cryptographic Provenance Verifier (`/app/verifier`)**: Audits SHA-256 canonical digests of cases, snapshots, collections, reports, and artifacts via `POST /v1/verifier/inspect`, checking retained content and generating citation metadata. A digest alone does not certify authorship or numerical reproducibility.
 
 ## Repository layout
 

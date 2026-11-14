@@ -1,7 +1,6 @@
 import type { EngineCatalogEntry } from '../../api/client';
 import type { PublicPublication } from '../../api/platform';
 import { formatDate, yearOf } from '../../utils/format';
-import { isDigest } from '../../utils/digest';
 
 export type ExploreTab = 'projects' | 'publications' | 'engines';
 
@@ -43,7 +42,6 @@ export interface PublicationItem extends ItemBase {
   year: number | null;
   published: string | null;
   where: string;
-  digest: string | null;
   citation: string;
 }
 
@@ -122,8 +120,6 @@ export function publicationItems(publications: PublicPublication[], projects: Pu
     const published = text(publication.publishedAt);
     const rawYear = Number(citation.year);
     const year = Number.isInteger(rawYear) && rawYear > 0 ? rawYear : yearOf(published);
-    const digest = text(publication.report?.digest);
-    const validDigest = digest && isDigest(digest) ? digest : null;
     const byline = [authors, year].filter((part) => part !== null).join(' · ');
     const publishedLabel = formatDate(published);
     return {
@@ -140,7 +136,6 @@ export function publicationItems(publications: PublicPublication[], projects: Pu
       year,
       published: publishedLabel,
       where,
-      digest: validDigest,
       citation: `${authors ? `${authors} ` : ''}(${year ?? 'n.d.'}). ${title}. ${where}.`,
     };
   });

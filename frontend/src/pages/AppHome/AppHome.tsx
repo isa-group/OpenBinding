@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
-import { Building2, FilePlus2, Play, Plus, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { Building2, FilePlus2, Play, Plus, type LucideIcon } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import type { JobSummary } from '../../api/client';
 import type { Notification } from '../../api/auth';
@@ -258,7 +258,6 @@ export function AppHome() {
     shortcuts.push({ label: 'New problem', to: problemsPath(`/app/${organization.slug}/${project.slug}`), icon: FilePlus2 });
     shortcuts.push({ label: 'Run', to: `/app/${organization.slug}/${project.slug}/runs/new`, icon: Play });
   }
-  shortcuts.push({ label: 'Verify a digest', to: '/verify', icon: ShieldCheck });
 
   const subtitle = isAdmin
     ? 'You’re a platform administrator. Admin tools are in the header.'

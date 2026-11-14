@@ -227,7 +227,7 @@ function RecentlyPublic() {
           <div className="home-empty">
             <Network aria-hidden="true" />
             <strong>Nothing has been published yet</strong>
-            <span>When a team freezes a report and publishes it, it appears here with its citation and digest. Meanwhile, the language guide explains what a package contains.</span>
+            <span>When a team freezes a report and publishes it, it appears here with its citation. Meanwhile, the language guide explains what a package contains.</span>
             <Link to="/language">Read the language guide</Link>
           </div>
         )}
@@ -235,7 +235,7 @@ function RecentlyPublic() {
           <ul className="home-recent">
             {publicationCards.map((item) => (
               <li key={item.id}>
-                <Link to={item.digest ? `/resolve/report/${item.digest}` : '/explore?tab=publications'} viewTransition className="home-recent-card">
+                <Link to="/explore?tab=publications" viewTransition className="home-recent-card">
                   <span className="home-recent-meta"><span className="home-tile" aria-hidden="true">{item.glyph}</span>{item.meta}</span>
                   <strong>{item.title}</strong>
                   <span className="home-recent-sub">{item.sub}</span>

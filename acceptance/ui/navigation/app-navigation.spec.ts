@@ -5,7 +5,7 @@ test.use({ viewport: { width: 1280, height: 800 } });
 
 const PUBLIC_LINKS: Array<[string, string]> = [
   ['Home', '/'], ['Explore', '/explore'], ['Engines', '/engines'], ['Language', '/language'], ['Pricing', '/pricing'],
-  ['Verify', '/verify'], ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
+  ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
 ];
 
 const banner = (page: Page) => page.getByRole('banner');
@@ -16,7 +16,7 @@ async function signedIn(page: Page, path: string, role: Role = 'user', projects?
   await expect(banner(page)).toBeVisible();
 }
 
-test('public header lists the nine links in order with their addresses and marks the current one', async ({ page }) => {
+test('public header lists the eight links in order with their addresses and marks the current one', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/pricing');
@@ -26,7 +26,7 @@ test('public header lists the nine links in order with their addresses and marks
   await expect(links[4]).toHaveAttribute('aria-current', 'page');
 });
 
-test('phone menu lists the same nine links in the same order', async ({ page }) => {
+test('phone menu lists the same eight links in the same order', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
