@@ -4,11 +4,11 @@
  */
 export const RESERVED_SLUGS = new Set([
   // Fixed screens of the prototype
-  'system', 'generator', 'language', 'organizations', 'invitations', 'jobs', 'runs', 'analysis',
+  'generator', 'language', 'organizations', 'invitations', 'jobs', 'runs', 'analysis',
   'account', 'admin', 'engines', 'workbench',
   // Section names that earlier layouts and links used at this level
   'cases', 'resources', 'collections', 'studies', 'analytics', 'reports', 'artifacts', 'settings',
-  'snapshots', 'library', 'files', 'package', 'publications',
+  'snapshots', 'library', 'files', 'package', 'publications', 'system',
 ]);
 
 /** Second segment of an organization screen that is not a project (`/app/:org/settings`, `/app/:org/new-project`). */

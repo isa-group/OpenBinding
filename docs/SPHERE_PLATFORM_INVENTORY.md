@@ -84,14 +84,12 @@ development service is a different service from the production one, but both sit
 inside the *same organizations*. A shared organization does not isolate
 credentials, so a development key is high-risk (see the README).
 
-**Code that predates this decision.** The gateway still contains modules from
-the earlier pricing-release workflow: `routes/pricing.py` (it imports
-`SpaceDeploymentClient`; its public `GET /v1/pricing` is marked deprecated and
-the admin router exposes at least `POST /v1/admin/pricing/validate`),
-`space_client/deployments.py`, and the contract-renewal and drained-release
-sweeps that `jobs/reconciler.py` calls (`access/contracts.py`). I did not
-trace which of these remain reachable. Removing them is **pending work**, not
-something this document promises.
+**Code that predates this decision.** The earlier pricing-release workflow is
+gone from the gateway: there is no `SpaceDeploymentClient`, no
+`space_client/deployments.py`, no admin pricing route and no `pricing:admin`
+API-key permission, and the deprecated YAML proxy `GET /v1/pricing` was removed.
+`routes/pricing.py` serves only `GET /v1/pricing/catalog` and
+`GET /v1/pricing/current`, which the public Pricing page reads.
 
 SPHERE's static-file route does not authenticate the content URL even when a
 version is private in its catalogue. “Private” therefore means catalogue and

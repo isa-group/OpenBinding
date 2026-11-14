@@ -175,10 +175,9 @@ describe('AppHeader', () => {
     ['/app/isa-demo/qos/studies/engines-vs-seeds', 'Lab'],
     ['/app/generator', 'Lab'],
     ['/app/engines/registrations', 'Engines'],
-    ['/app/admin/audit', 'Admin'],
+    ['/app/admin/moderation', 'Admin'],
     ['/app/isa-demo/qos/published', null],
     ['/app/account/usage', null],
-    ['/app/system/states', null],
   ] as const)('marks one entry of the header for %s: %s', (path, expected) => {
     renderHeader(adminUser, { path });
 

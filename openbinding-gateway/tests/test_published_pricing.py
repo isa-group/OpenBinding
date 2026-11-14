@@ -122,17 +122,8 @@ async def test_current_names_the_version_digest_and_public_url(api_client, spher
     }
 
 
-async def test_the_deprecated_yaml_proxy_serves_the_exact_bytes(api_client, sphere):
-    response = await api_client.get("/v1/pricing")
-
-    assert response.status_code == 200
-    assert response.headers["content-type"].startswith("application/yaml")
-    assert response.content == DOCUMENT
-    assert response.headers["etag"] == f'"sha256-{hashlib.sha256(DOCUMENT).hexdigest()}"'
-
-
 async def test_only_get_requests_ever_reach_sphere(api_client, sphere):
-    for path in ("/v1/pricing/catalog", "/v1/pricing/current", "/v1/pricing"):
+    for path in ("/v1/pricing/catalog", "/v1/pricing/current"):
         assert (await api_client.get(path)).status_code == 200
 
     assert sphere.requests
@@ -150,7 +141,7 @@ async def test_the_version_shown_comes_from_configuration(api_client, sphere):
 
 async def test_without_sphere_the_endpoints_answer_503_pricing_unavailable(api_client):
     # The suite runs with SPHERE disabled; nothing is read from disk or the database instead.
-    for path in ("/v1/pricing/catalog", "/v1/pricing/current", "/v1/pricing"):
+    for path in ("/v1/pricing/catalog", "/v1/pricing/current"):
         response = await api_client.get(path)
         assert response.status_code == 503, path
         assert response.json()["detail"]["code"] == "pricing_unavailable", path

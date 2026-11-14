@@ -328,7 +328,7 @@ async def test_a_bare_string_422_becomes_validation_error():
 
 async def test_an_unreadable_published_pricing_is_a_coded_503_with_the_canonical_keys(api_client):
     # SPHERE is switched off in the suite, so the read-only pricing endpoints refuse.
-    for path in ("/v1/pricing/catalog", "/v1/pricing/current", "/v1/pricing"):
+    for path in ("/v1/pricing/catalog", "/v1/pricing/current"):
         response = await api_client.get(path)
         body = response.json()
         assert response.status_code == 503, path

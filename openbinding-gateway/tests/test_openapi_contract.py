@@ -137,7 +137,6 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/artifacts/resolve", "post"),
         ("/v1/examples", "get"),
         ("/v1/examples/{example_path}", "get"),
-        ("/v1/pricing", "get"),
         ("/v1/pricing/catalog", "get"),
         ("/v1/pricing/current", "get"),
         # The public engine catalogue: a visitor gets the built-in and published Engines.
@@ -284,8 +283,6 @@ def test_engine_registration_contract_describes_private_lifecycle_and_openapi(do
 
 def test_binary_yaml_and_job_inputs_have_their_real_media_types(document):
     paths = document["paths"]
-    pricing = paths["/v1/pricing"]["get"]["responses"]["200"]["content"]
-    assert set(pricing) == {"application/yaml"}
     example = paths["/v1/examples/{example_path}"]["get"]["responses"]["200"]["content"]
     source = paths["/v1/instances/{snapshot_id}/source"]["get"]["responses"]["200"]["content"]
     assert set(example) == set(source) == {"application/vnd.bim+zip"}

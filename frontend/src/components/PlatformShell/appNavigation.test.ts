@@ -120,11 +120,10 @@ describe('currentSection', () => {
     ['/app/engines/registrations', 'engines'],
     ['/language', null],
     ['/app/admin', 'admin'],
-    ['/app/admin/audit', 'admin'],
+    ['/app/admin/users', 'admin'],
     ['/app/isa-demo/qos/published', null],
     ['/app/isa-demo/qos/settings', null],
     ['/app/account/usage', null],
-    ['/app/system/states', null],
     ['/explore', null],
   ] as const)('marks %s as %s', (pathname, expected) => {
     expect(currentSection(pathname)).toBe(expected);

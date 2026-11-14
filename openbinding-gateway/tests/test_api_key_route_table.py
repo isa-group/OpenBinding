@@ -66,6 +66,14 @@ def test_every_v1_route_is_open_by_allowlist_or_needs_a_permission(method, path)
         assert is_open(method, path), f"{method} {path} is open but not in the allowlist"
 
 
+def test_pricing_administration_has_no_permission_and_no_route():
+    assert "pricing:admin" not in ALL_PERMISSIONS
+    assert not [route for route in ROUTES if route[1].startswith("/v1/admin/pricing")]
+    # Every /v1/admin route is an account administration route.
+    assert required_permissions("/v1/admin/pricing/validate", "POST") == frozenset({"admin:accounts:write"})
+    assert ("GET", "/v1/pricing") not in ROUTES
+
+
 def test_explore_is_gone_and_reports_need_no_permission():
     assert not [route for route in ROUTES if route[1].startswith("/v1/explore")]
     assert not {"reports:read", "reports:write"} & set(ALL_PERMISSIONS)

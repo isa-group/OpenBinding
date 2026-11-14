@@ -465,12 +465,6 @@ jobs:
         working-directory: frontend
         run: pnpm build
 
-      # Project `bundle` is out of `pnpm test`: it spawns a real `pnpm build`, so it is minutes long
-      # and wants every core. It runs here, once, with the machine to itself.
-      - name: Check the production bundle
-        working-directory: frontend
-        run: pnpm test:bundle
-
       - name: Install Playwright Chromium
         working-directory: frontend
         run: pnpm exec playwright install --with-deps chromium

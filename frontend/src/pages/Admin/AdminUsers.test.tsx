@@ -53,7 +53,7 @@ describe('admin-users · accounts', () => {
     const nav = screen.getByRole('navigation', { name: 'Administration' });
     expect(within(nav).getByText('Accounts')).toHaveAttribute('aria-current', 'page');
     expect(within(nav).getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '/app/admin');
-    expect(within(nav).getByRole('link', { name: 'Audit' })).toHaveAttribute('href', '/app/admin/audit');
+    expect(within(nav).getByRole('link', { name: 'Audit' })).toHaveAttribute('href', '/app/admin?section=audit');
     expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toBeInTheDocument();
   });
 

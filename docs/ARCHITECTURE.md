@@ -430,8 +430,9 @@ resources and takes no submissions: what it compiles is what the installed `bim-
 
 Today the gateway serves `GET /v1/profiles` and `GET /v1/dialects` (the installed contracts, read by the home page
 and the engine registration form), `/v1/examples` and `/v1/validate`, without `Deprecation` or `Sunset` headers (the
-deprecation middleware was removed in M9.6); only `GET /v1/pricing` is still marked deprecated. The registry routes
-(`POST /v1/dialects`, `/v1/resources`, their approvals), `/v1/schemas/{kind}` and `/v1/catalog` were removed in F0a.
+deprecation middleware was removed in M9.6). The registry routes (`POST /v1/dialects`, `/v1/resources`, their
+approvals), `/v1/schemas/{kind}`, `/v1/catalog` and the deprecated pricing YAML proxy `GET /v1/pricing` were removed in
+F0a.
 
 ### 8.5 Developer kit
 

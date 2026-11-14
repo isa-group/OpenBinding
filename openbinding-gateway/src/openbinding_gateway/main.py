@@ -1048,12 +1048,6 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     paths["/v1/dialects"]["get"]["responses"]["200"] = json_response(
         "DialectList", "Installed BIM Dialects."
     )
-    paths["/v1/pricing"]["get"]["responses"]["200"] = {
-        "description": "Pricing2Yaml contract enforced by this deployment.",
-        "content": {
-            "application/yaml": {"schema": {"type": "string"}}
-        },
-    }
     examples = paths["/v1/examples"]
     examples["get"]["responses"]["200"] = json_response(
         "ExampleList", "Available BIM example package identifiers."

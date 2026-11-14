@@ -35,7 +35,6 @@ const HEADING: Record<string, RegExp> = {
   'auth-reset-request': /Forgot your password\?/,
   'auth-cas-callback': /no code to finish sign-in/,
   'org-invite-accept': /Paste your invitation/,
-  'sys-states': /States and recoverable errors/,
   'pub-pricing': /Plans for every kind of binding work/,
   'acct-profile': /^Account$/,
   'app-home': /Hello, alex\.rivera/,
@@ -62,11 +61,7 @@ const HEADING: Record<string, RegExp> = {
   'admin-overview': /Administration/,
   'admin-users': /Accounts/,
   'admin-user-detail': /sam\.okafor/,
-  'admin-audit': /Audit log/,
-  'admin-errors': /Errors/,
-  'admin-queues': /Queues/,
   'admin-moderation': /Moderation/,
-  'admin-maintenance': /Maintenance/,
 };
 
 const VIEWPORTS = [

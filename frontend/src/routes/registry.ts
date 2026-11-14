@@ -9,7 +9,6 @@ import * as project from './areas/project';
 import * as publicArea from './areas/public';
 import * as runs from './areas/runs';
 import * as studies from './areas/studies';
-import * as system from './areas/system';
 import type { MovedRoute } from './moved';
 import type { RouteDefinition } from './types';
 
@@ -17,7 +16,6 @@ import type { RouteDefinition } from './types';
 const areas = {
   public: publicArea,
   auth,
-  system,
   engines,
   account,
   organizations,
@@ -31,28 +29,12 @@ const areas = {
 
 export type AreaName = keyof typeof areas;
 
-export interface Registry {
-  /** One list of screens per area. */
-  routesByArea: Record<AreaName, RouteDefinition[]>;
-  routeDefinitions: RouteDefinition[];
-}
+/** One list of screens per area. */
+export const routesByArea = Object.fromEntries(
+  Object.entries(areas).map(([name, area]) => [name, area.routes]),
+) as Record<AreaName, RouteDefinition[]>;
 
-/**
- * The registry of a build. A production build leaves out the screens marked `devOnly`; a development build holds them all.
- * Tests build both registries from here instead of mocking the flag.
- */
-export function buildRegistry(development: boolean): Registry {
-  const routesByArea = Object.fromEntries(
-    Object.entries(areas).map(([name, area]) => [name, area.routes.filter((route) => development || !route.devOnly)]),
-  ) as Record<AreaName, RouteDefinition[]>;
-  return { routesByArea, routeDefinitions: Object.values(routesByArea).flat() };
-}
-
-const current = buildRegistry(import.meta.env.DEV);
-
-export const routesByArea = current.routesByArea;
-
-export const routeDefinitions: RouteDefinition[] = current.routeDefinitions;
+export const routeDefinitions: RouteDefinition[] = Object.values(routesByArea).flat();
 
 /** The addresses that moved, from every area. */
 export const movedRoutes: MovedRoute[] = Object.values(areas).flatMap((area) => area.moved);

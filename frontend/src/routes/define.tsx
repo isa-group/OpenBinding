@@ -20,6 +20,5 @@ export function live(id: string, path: string, element: ReactNode, options: Scre
     requireAuth: layout === 'app',
     requireAdmin: options.requireAdmin ?? false,
     sessionHeader: options.sessionHeader ?? false,
-    devOnly: options.devOnly ?? false,
   };
 }

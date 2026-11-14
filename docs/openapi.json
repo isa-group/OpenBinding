@@ -712,7 +712,6 @@
           "artifacts:write",
           "notifications:read",
           "pricing:read",
-          "pricing:admin",
           "admin:accounts:read",
           "admin:accounts:write"
         ],
@@ -23926,31 +23925,6 @@
         ]
       }
     },
-    "/v1/pricing": {
-      "get": {
-        "deprecated": true,
-        "operationId": "getPricingDocument",
-        "responses": {
-          "200": {
-            "content": {
-              "application/yaml": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Pricing2Yaml contract enforced by this deployment."
-          },
-          "503": {
-            "description": "The published pricing cannot be read: SPHERE is not enabled, `SPACE_PRICING_VERSION` is not set, or SPHERE does not serve that public version (`pricing_unavailable`)."
-          }
-        },
-        "summary": "Proxy Current Pricing",
-        "tags": [
-          "Pricing"
-        ]
-      }
-    },
     "/v1/pricing/catalog": {
       "get": {
         "description": "Return the published, digest-verified Pricing2Yaml document unchanged, as JSON.",
@@ -25417,7 +25391,6 @@
     "artifacts:write",
     "notifications:read",
     "pricing:read",
-    "pricing:admin",
     "admin:accounts:read",
     "admin:accounts:write"
   ],

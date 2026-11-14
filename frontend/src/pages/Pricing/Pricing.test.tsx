@@ -217,36 +217,6 @@ describe('Pricing', () => {
     expect(section.getByText(/429/)).toBeInTheDocument();
   });
 
-  describe('link to the states gallery', () => {
-    const link = () => screen.queryByRole('link', { name: 'See every state in the gallery' });
-
-    it('is offered to a signed-in person in development', async () => {
-      renderPricing(person('PRO'));
-      await heading();
-
-      expect(link()).toHaveAttribute('href', '/app/system/states');
-    });
-
-    it('is not offered to a visitor', async () => {
-      renderPricing();
-      await heading();
-
-      expect(link()).not.toBeInTheDocument();
-    });
-
-    it('is not offered in a production build', async () => {
-      vi.stubEnv('DEV', false);
-      try {
-        renderPricing(person('PRO'));
-        await heading();
-
-        expect(link()).not.toBeInTheDocument();
-      } finally {
-        vi.unstubAllEnvs();
-      }
-    });
-  });
-
   it('lists the add-ons as arranged under an agreement', async () => {
     renderPricing();
     await heading();

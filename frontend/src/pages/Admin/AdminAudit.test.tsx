@@ -1,8 +1,9 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AdminAudit } from './AdminAudit';
+import { AdminOverview } from './AdminOverview';
 import type { AdminAuditPage } from '../../api/auth';
 import { ALEX, AUDIT, MARIA, ORG, PRIYA, SAM } from '../../test/fixtures/admin';
+import { overviewSectionPath } from './adminModel';
 import { refusal, renderAdmin } from './adminTestUtils';
 
 const api = vi.hoisted(() => ({ adminAudit: vi.fn() }));
@@ -34,7 +35,10 @@ vi.mock('../../api/client', async () => ({
 
 configure({ asyncUtilTimeout: 5000 });
 
-describe('admin-audit · the platform audit log', () => {
+/** The audit section of admin-overview, where /app/admin?section=audit leads. */
+const renderAudit = (options: Parameters<typeof renderAdmin>[1] = {}) => renderAdmin(<AdminOverview />, { entry: overviewSectionPath('audit'), ...options });
+
+describe('admin-overview, audit section · the platform audit log', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.adminAudit.mockResolvedValue(AUDIT);
@@ -45,7 +49,7 @@ describe('admin-audit · the platform audit log', () => {
   });
 
   it('lists the events newest first, each in a sentence', async () => {
-    renderAdmin(<AdminAudit />);
+    renderAudit();
     expect(screen.getByRole('heading', { level: 1, name: 'Audit log' })).toBeInTheDocument();
     expect(await screen.findByText('2 abandoned runs were reconciled.')).toBeInTheDocument();
     expect(screen.getByText('Pricing live activated: 0.1.0.')).toBeInTheDocument();
@@ -63,7 +67,7 @@ describe('admin-audit · the platform audit log', () => {
     });
 
     it('words each new kind of event for a person', async () => {
-      renderAdmin(<AdminAudit />);
+      renderAudit();
 
       expect(await screen.findByText('A request to become the billing sponsor was sent.')).toBeInTheDocument();
       expect(screen.getByText('Account sam.okafor was updated: role user → admin; status active → inactive.')).toBeInTheDocument();
@@ -75,7 +79,7 @@ describe('admin-audit · the platform audit log', () => {
     });
 
     it('shows the facts of an account action in the detail, never a secret', async () => {
-      renderAdmin(<AdminAudit />);
+      renderAudit();
       await screen.findByText('A request to become the billing sponsor was sent.');
       fireEvent.click(screen.getByRole('button', { name: /admin\.api_key\.revoked/ }));
 
@@ -91,7 +95,7 @@ describe('admin-audit · the platform audit log', () => {
     });
 
     it('names the organization of an event with a chip, and not for a platform event', async () => {
-      renderAdmin(<AdminAudit />);
+      renderAudit();
       await screen.findByText('A request to become the billing sponsor was sent.');
       const timeline = screen.getByRole('list', { name: 'Events, newest first' });
       const items = within(timeline).getAllByRole('listitem');
@@ -104,7 +108,7 @@ describe('admin-audit · the platform audit log', () => {
     });
 
     it('keeps only one organization’s events on request, and drops the filter again', async () => {
-      renderAdmin(<AdminAudit />);
+      renderAudit();
       await screen.findByText('A request to become the billing sponsor was sent.');
 
       fireEvent.click(screen.getByRole('button', { name: 'Only this organization' }));
@@ -116,7 +120,7 @@ describe('admin-audit · the platform audit log', () => {
     });
 
     it('asks for an organization by id and refuses what is not one', async () => {
-      renderAdmin(<AdminAudit />);
+      renderAudit();
       await screen.findByText('A request to become the billing sponsor was sent.');
       const calls = api.adminAudit.mock.calls.length;
 
@@ -132,7 +136,7 @@ describe('admin-audit · the platform audit log', () => {
     });
 
     it('narrows the page to account events or to organization events', async () => {
-      renderAdmin(<AdminAudit />);
+      renderAudit();
       await screen.findByText('A request to become the billing sponsor was sent.');
       const kinds = screen.getByRole('group', { name: 'Kind of event' });
 
@@ -144,7 +148,7 @@ describe('admin-audit · the platform audit log', () => {
   });
 
   it('shows the detail of the event you pick, with what it changed from and to', async () => {
-    renderAdmin(<AdminAudit />);
+    renderAudit();
     await screen.findByText('2 abandoned runs were reconciled.');
     const aside = screen.getByRole('complementary', { name: 'Event detail' });
     expect(within(aside).getByText('maintenance.jobs.reconciled')).toBeInTheDocument();
@@ -163,7 +167,7 @@ describe('admin-audit · the platform audit log', () => {
   });
 
   it('narrows the page by kind of event', async () => {
-    renderAdmin(<AdminAudit />);
+    renderAudit();
     await screen.findByText('2 abandoned runs were reconciled.');
     const kinds = screen.getByRole('group', { name: 'Kind of event' });
     fireEvent.click(within(kinds).getByRole('button', { name: 'Pricing' }));
@@ -176,7 +180,7 @@ describe('admin-audit · the platform audit log', () => {
   });
 
   it('asks the gateway for an exact action, and can drop the filter again', async () => {
-    renderAdmin(<AdminAudit />);
+    renderAudit();
     await screen.findByText('2 abandoned runs were reconciled.');
     fireEvent.change(screen.getByLabelText('Exact action'), { target: { value: 'contract.subscription.changed' } });
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
@@ -187,14 +191,14 @@ describe('admin-audit · the platform audit log', () => {
 
   it('says so when there are no events', async () => {
     api.adminAudit.mockResolvedValue({ events: [], total: 0, offset: 0, limit: 100 });
-    renderAdmin(<AdminAudit />);
+    renderAudit();
     expect(await screen.findByText('No events for this filter')).toBeInTheDocument();
     expect(screen.getByText('Nothing has been recorded yet.')).toBeInTheDocument();
   });
 
   it('pages through the log', async () => {
     api.adminAudit.mockResolvedValue({ ...AUDIT, total: 250 });
-    renderAdmin(<AdminAudit />);
+    renderAudit();
     expect(await screen.findByText('Showing 1–3 of 250 events')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     await waitFor(() => expect(api.adminAudit).toHaveBeenLastCalledWith({ action: undefined, offset: 100, limit: 100 }));
@@ -202,7 +206,7 @@ describe('admin-audit · the platform audit log', () => {
 
   it('keeps a failure apart from an empty log and tries again', async () => {
     api.adminAudit.mockRejectedValueOnce(refusal(503, 'accounts_unavailable'));
-    renderAdmin(<AdminAudit />);
+    renderAudit();
     expect(await screen.findByText('A service isn’t available right now (503 · accounts_unavailable)')).toBeInTheDocument();
     expect(screen.queryByText('No events for this filter')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
@@ -211,12 +215,12 @@ describe('admin-audit · the platform audit log', () => {
 
   it('says when the API key cannot read the log (403)', async () => {
     api.adminAudit.mockRejectedValue(refusal(403, 'insufficient_api_key_permission'));
-    renderAdmin(<AdminAudit />);
+    renderAudit();
     expect(await screen.findByText('This key can’t use administration (403)')).toBeInTheDocument();
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {
-    renderAdmin(<AdminAudit />, { user: MARIA });
+    renderAudit({ user: MARIA });
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Events, newest first' })).not.toBeInTheDocument();
     expect(api.adminAudit).not.toHaveBeenCalled();

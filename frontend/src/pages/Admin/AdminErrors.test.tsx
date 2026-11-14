@@ -1,7 +1,8 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AdminErrors } from './AdminErrors';
+import { AdminOverview } from './AdminOverview';
 import { ERRORS, ERROR_OVERVIEW, MARIA, SAM } from '../../test/fixtures/admin';
+import { overviewSectionPath } from './adminModel';
 import { refusal, renderAdmin } from './adminTestUtils';
 
 const api = vi.hoisted(() => ({
@@ -18,7 +19,10 @@ configure({ asyncUtilTimeout: 5000 });
 
 const none = { items: [], total: 0, limit: 50, offset: 0 };
 
-describe('admin-errors · what is failing on the platform', () => {
+/** The errors section of admin-overview, where /app/admin?section=errors leads. */
+const renderErrors = (options: Parameters<typeof renderAdmin>[1] = {}) => renderAdmin(<AdminOverview />, { entry: overviewSectionPath('errors'), ...options });
+
+describe('admin-overview, errors section · what is failing on the platform', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.adminErrorOverview.mockResolvedValue(ERROR_OVERVIEW);
@@ -30,7 +34,7 @@ describe('admin-errors · what is failing on the platform', () => {
   });
 
   it('summarises the last 24 hours by category, by status and by hour', async () => {
-    renderAdmin(<AdminErrors />);
+    renderErrors();
     expect(screen.getByRole('heading', { level: 1, name: 'Errors' })).toBeInTheDocument();
     expect(await screen.findByText('9 error events')).toBeInTheDocument();
     // The same labels are the options of the category filter.
@@ -42,7 +46,7 @@ describe('admin-errors · what is failing on the platform', () => {
   });
 
   it('names the accounts that keep hitting limits and the endpoints whose solvers fail', async () => {
-    renderAdmin(<AdminErrors />);
+    renderErrors();
     const accounts = await screen.findAllByRole('link', { name: SAM.email });
     expect(accounts[0]).toHaveAttribute('href', `/app/admin/users/${SAM.id}`);
     expect(await screen.findByText('7 refusals')).toBeInTheDocument();
@@ -51,7 +55,7 @@ describe('admin-errors · what is failing on the platform', () => {
   });
 
   it('groups the events of a page by status and code, busiest first', async () => {
-    renderAdmin(<AdminErrors />);
+    renderErrors();
     const groups = await screen.findByRole('list', { name: 'Errors grouped by code' });
     const items = within(groups).getAllByRole('listitem');
     expect(items).toHaveLength(3);
@@ -62,7 +66,7 @@ describe('admin-errors · what is failing on the platform', () => {
   });
 
   it('explains the group you pick: what it means, where, who, and the quota at the time', async () => {
-    renderAdmin(<AdminErrors />);
+    renderErrors();
     const aside = await screen.findByRole('complementary', { name: 'Error detail' });
     expect(within(aside).getByText('402 · quota_exceeded')).toBeInTheDocument();
     expect(within(aside).getByText(/A limit of the plan was reached/)).toBeInTheDocument();
@@ -79,7 +83,7 @@ describe('admin-errors · what is failing on the platform', () => {
   });
 
   it('asks the gateway for the filters you choose', async () => {
-    renderAdmin(<AdminErrors />);
+    renderErrors();
     await screen.findByRole('list', { name: 'Errors grouped by code' });
     fireEvent.change(screen.getByLabelText('Status'), { target: { value: '402' } });
     await waitFor(() => expect(api.adminListErrors).toHaveBeenLastCalledWith(expect.objectContaining({ status_code: 402, limit: 50, offset: 0 })));
@@ -93,7 +97,7 @@ describe('admin-errors · what is failing on the platform', () => {
   });
 
   it('filters by account only once the id is a UUID', async () => {
-    renderAdmin(<AdminErrors />);
+    renderErrors();
     await screen.findByRole('list', { name: 'Errors grouped by code' });
     fireEvent.change(screen.getByLabelText('Account id'), { target: { value: 'sam' } });
     expect(screen.getByText(/An account id is a UUID; the filter waits until it is one/)).toBeInTheDocument();
@@ -105,13 +109,13 @@ describe('admin-errors · what is failing on the platform', () => {
   it('says there is nothing to diagnose when the gateway has recorded no errors', async () => {
     api.adminErrorOverview.mockResolvedValue({ ...ERROR_OVERVIEW, total_errors_24h: 0, by_category_24h: {}, by_status_code_24h: {}, top_users_quota: [], top_solvers_failed: [], timeline: [] });
     api.adminListErrors.mockResolvedValue(none);
-    renderAdmin(<AdminErrors />);
+    renderErrors();
     expect(await screen.findByText('No errors in the retention window')).toBeInTheDocument();
     expect(screen.getAllByText('No errors recorded.').length).toBeGreaterThan(0);
   });
 
   it('says when filters match nothing, and clears them', async () => {
-    renderAdmin(<AdminErrors />);
+    renderErrors();
     await screen.findByRole('list', { name: 'Errors grouped by code' });
     api.adminListErrors.mockResolvedValue(none);
     fireEvent.change(screen.getByLabelText('Status'), { target: { value: '404' } });
@@ -123,20 +127,20 @@ describe('admin-errors · what is failing on the platform', () => {
 
   it('pages through the events', async () => {
     api.adminListErrors.mockResolvedValue({ ...ERRORS, total: 120 });
-    renderAdmin(<AdminErrors />);
+    renderErrors();
     expect(await screen.findByText('Showing 1–4 of 120 events')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     await waitFor(() => expect(api.adminListErrors).toHaveBeenLastCalledWith(expect.objectContaining({ offset: 50 })));
   });
 
   it('says in plain words that the gateway keeps no resolved state for events', async () => {
-    renderAdmin(<AdminErrors />);
+    renderErrors();
     expect(await screen.findByText(/The gateway keeps no “resolved” state for them/)).toBeInTheDocument();
   });
 
   it('keeps one failing part from hiding the rest, and retries it', async () => {
     api.adminErrorOverview.mockRejectedValueOnce(refusal(503, 'pricing_unavailable'));
-    renderAdmin(<AdminErrors />);
+    renderErrors();
     expect(await screen.findByText('A service isn’t available right now (503 · pricing_unavailable)')).toBeInTheDocument();
     expect(await screen.findByRole('list', { name: 'Errors grouped by code' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
@@ -145,7 +149,7 @@ describe('admin-errors · what is failing on the platform', () => {
 
   it('reports events that cannot be read (503) and a key that cannot read them (403)', async () => {
     api.adminListErrors.mockRejectedValueOnce(refusal(503, 'accounts_unavailable'));
-    renderAdmin(<AdminErrors />);
+    renderErrors();
     expect(await screen.findByText('A service isn’t available right now (503 · accounts_unavailable)')).toBeInTheDocument();
     expect(screen.queryByText('No errors in the retention window')).not.toBeInTheDocument();
   });
@@ -153,12 +157,12 @@ describe('admin-errors · what is failing on the platform', () => {
   it('says when the API key cannot use administration (403)', async () => {
     api.adminErrorOverview.mockRejectedValue(refusal(403, 'insufficient_api_key_permission'));
     api.adminListErrors.mockRejectedValue(refusal(403, 'insufficient_api_key_permission'));
-    renderAdmin(<AdminErrors />);
+    renderErrors();
     expect((await screen.findAllByText('This key can’t use administration (403)')).length).toBeGreaterThan(0);
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {
-    renderAdmin(<AdminErrors />, { user: MARIA });
+    renderErrors({ user: MARIA });
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(api.adminErrorOverview).not.toHaveBeenCalled();
     expect(api.adminListErrors).not.toHaveBeenCalled();

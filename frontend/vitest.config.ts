@@ -3,7 +3,7 @@ import { availableParallelism } from 'node:os';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
-// The suite is three projects because its files have three different costs, and a single default
+// The suite is two projects because its files have two different costs, and a single default
 // hid the difference: a whole-corpus scan and a React screen were given the same 15 s budget and
 // the same share of the machine.
 
@@ -23,9 +23,6 @@ const CORPUS = [
   'src/test/vocabulary.urls.test.ts',
 ];
 
-// Spawns a real `pnpm build`, which takes minutes and wants every core it can reach.
-const BUNDLE = ['src/routes/production-bundle.test.ts'];
-
 // Half of the logical CPUs, which is the physical core count on a hyperthreaded machine: the work
 // is CPU-bound, so a hyperthread sibling buys little and costs a whole jsdom. Vitest's own default
 // is `availableParallelism() - 1`, which on a 16-thread laptop starts 15 forks against 8 real
@@ -36,7 +33,7 @@ const WORKERS = Math.max(2, Math.floor(availableParallelism() / 2));
 // A renamed file would drop out of the list above and be picked up by `app` instead, where it would
 // run in a jsdom it does not need, on a budget meant for a screen. The lists are small and the cost
 // of being wrong is a slow return of the flakiness this config removes, so they are checked here.
-for (const path of [...CORPUS, ...BUNDLE]) {
+for (const path of CORPUS) {
   if (!existsSync(new URL(path, import.meta.url))) {
     throw new Error(`vitest.config.ts names a test file that does not exist: ${path}`);
   }
@@ -55,7 +52,7 @@ export default defineConfig({
           setupFiles: ['./src/test/setup.ts'],
           include: ['src/**/*.test.{ts,tsx}'],
           // Anything not named below stays here, so a new test file is picked up without a change.
-          exclude: [...CORPUS, ...BUNDLE],
+          exclude: CORPUS,
           maxWorkers: WORKERS,
           // 15 s was not a generous backstop, it was below the cost of real work: the slowest
           // legitimate test here (`refuses a matrix over 10,000 cells`, 25 synchronous renders of a
@@ -85,18 +82,6 @@ export default defineConfig({
           // is set to be unreachable by load while still catching a hang.
           testTimeout: 120000,
           hookTimeout: 120000,
-        },
-      },
-      {
-        plugins: [react()],
-        test: {
-          name: 'bundle',
-          environment: 'node',
-          include: BUNDLE,
-          // The build is itself parallel, so it gets the machine to itself.
-          maxWorkers: 1,
-          testTimeout: 600000,
-          hookTimeout: 600000,
         },
       },
     ],

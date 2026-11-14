@@ -3,7 +3,8 @@ import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { ALEX, MARIA, PENDING_ENGINE, usageOf } from '../src/test/fixtures/admin';
 
-// S9b · administration, part two: admin-moderation and admin-maintenance (pricing is administered in the native SPACE and SPHERE consoles).
+// S9b · administration, part two: admin-moderation and the maintenance section of admin-overview (pricing is administered in the native
+// SPACE and SPHERE consoles).
 // There is no backend: the API origin is answered by page.route(), and the signed-in account is a platform administrator.
 // Screenshots go to testInfo.outputPath() (test-results/, ignored by git) so they can be looked at after a run.
 // Every test walks a screen through its states on a desktop and on a phone.
@@ -277,10 +278,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('admin-maintenance /app/admin/maintenance · preview, purge with a typed confirmation and reconcile runs, with no contract action', async ({ page }, testInfo) => {
+    test('admin-overview, maintenance section /app/admin?section=maintenance · preview, purge with a typed confirmation and reconcile runs, with no contract action', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto('/app/admin/maintenance');
+      await page.goto('/app/admin?section=maintenance');
       const main = page.locator('#platform-main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Maintenance', exact: true })).toBeVisible();
@@ -338,15 +339,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `maintenance-${name}-done`);
 
       // Nothing left to purge, a dependency down, a key without the permission.
-      await page.goto('/app/admin/maintenance');
+      await page.goto('/app/admin?section=maintenance');
       await expect(main.getByText('Nothing to purge with these retention periods.')).toBeVisible();
       await capture(page, testInfo, `maintenance-${name}-nothing`, { height: tall(1500) });
       state.refuse.preview = detail(503, 'database_unavailable', 'The database did not answer.');
-      await page.goto('/app/admin/maintenance');
+      await page.goto('/app/admin?section=maintenance');
       await expect(main.getByText('A dependency is down (503 · database_unavailable)')).toBeVisible();
       await capture(page, testInfo, `maintenance-${name}-503`, { height: tall(1500) });
       state.refuse.preview = forbidden;
-      await page.goto('/app/admin/maintenance');
+      await page.goto('/app/admin?section=maintenance');
       await expect(main.getByText('This key can’t use administration (403)')).toBeVisible();
       expect(critical).toEqual([]);
     });
@@ -354,7 +355,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test('administration is for administrators: another account is sent away from these screens and sees none of it', async ({ page }) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page, { role: 'user' });
-      for (const path of ['/app/admin/moderation', '/app/admin/maintenance']) {
+      for (const path of ['/app/admin/moderation', '/app/admin?section=maintenance']) {
         await page.goto(path);
         await expect(page).toHaveURL(/\/app\/account$/);
         await expect(page.getByText('Platform admin', { exact: true })).toHaveCount(0);

@@ -2,7 +2,7 @@
 
 No response carries ``Deprecation`` or ``Sunset``, browsers are offered exactly
 six exposed headers, the module is gone, and the OpenAPI document declares
-neither header and marks no operation deprecated outside ``/v1/pricing``.
+neither header and marks no operation deprecated.
 """
 
 from __future__ import annotations
@@ -16,7 +16,6 @@ from openbinding_gateway.core.settings import CORS_EXPOSED_HEADERS
 from openbinding_gateway.main import app
 
 EXPOSED = {"Retry-After", "ETag", "Location", "Content-Disposition", "Digest", "Idempotency-Key"}
-PRICING_PATHS = {"/v1/pricing", "/v1/pricing/catalog", "/v1/pricing/current"}
 RETIREMENT_HEADERS = {"deprecation", "sunset"}
 METHODS = {"get", "put", "post", "delete", "patch", "options", "head", "trace"}
 
@@ -63,9 +62,7 @@ def test_the_document_declares_no_retirement_header_and_no_retired_deprecation()
                 continue
             if operation.get("deprecated"):
                 deprecated.append((method, path))
-            if path in PRICING_PATHS:
-                continue
             for status, response in operation.get("responses", {}).items():
                 headers = {name.lower() for name in response.get("headers", {})}
                 assert not RETIREMENT_HEADERS & headers, (method, path, status)
-    assert {path for _, path in deprecated} <= PRICING_PATHS, deprecated
+    assert deprecated == []

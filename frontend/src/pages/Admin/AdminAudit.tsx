@@ -10,7 +10,7 @@ import { useCopy } from '../../components/ui/useCopy';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { ViewSource } from '../Engines/EngineParts';
-import { AdminFrame, AdminOnly, FailureNotice, Pager, Tag } from './AdminChrome';
+import { AdminFrame, FailureNotice, Pager, Tag } from './AdminChrome';
 import { AUDIT_FAMILIES, auditFamily, describeAdminFailure, describeAuditEvent, shortId, UUID, type AuditEvent, type AuditFamily } from './adminModel';
 
 const PAGE = 100;
@@ -24,7 +24,8 @@ const FAMILY_TONE: Record<AuditFamily, 'dark' | 'info' | 'warning' | 'plain'> = 
   other: 'plain',
 };
 
-function AuditScreen() {
+/** The audit section of admin-overview: the platform’s append-only audit log, newest first, with the detail of the event you pick. */
+export function AuditSection() {
   const [family, setFamily] = useState<AuditFamily | ''>('');
   const [action, setAction] = useState('');
   const [applied, setApplied] = useState('');
@@ -179,9 +180,4 @@ function AuditScreen() {
       )}
     </AdminFrame>
   );
-}
-
-/** admin-audit: the platform’s append-only audit log, newest first, with the detail of the event you pick. */
-export function AdminAudit() {
-  return <AdminOnly><AuditScreen /></AdminOnly>;
 }

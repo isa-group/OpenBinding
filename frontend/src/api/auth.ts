@@ -33,7 +33,6 @@ export type ApiKeyPermission =
   | 'artifacts:write'
   | 'notifications:read'
   | 'pricing:read'
-  | 'pricing:admin'
   | 'admin:accounts:read'
   | 'admin:accounts:write';
 

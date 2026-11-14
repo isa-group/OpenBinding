@@ -11,8 +11,7 @@ The routes are gone, not stubbed. After removal the gateway gives its generic un
   only the kept method.
 
 The retired operations no longer answer `Deprecation` or `Sunset` headers and are not marked `deprecated` in
-[`openapi.json`](openapi.json). The one exception is the pricing document (`getPricingDocument`), which keeps
-`deprecated: true`; it is not part of this removal. QACOBench used none of these operations. The developer tools
+[`openapi.json`](openapi.json); no operation is. QACOBench used none of these operations. The developer tools
 `tools/verify_analysis.py` and `tools/seed_analysis.py`, and the analysis hint of `tools/seed_dev.py`, were removed with
 them. The data they held was exported and dropped, see [the runbook](runbooks/retired-data-export.md).
 

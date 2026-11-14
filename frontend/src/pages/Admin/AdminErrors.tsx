@@ -9,7 +9,7 @@ import { useCopy } from '../../components/ui/useCopy';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { ViewSource } from '../Engines/EngineParts';
-import { AdminFrame, AdminOnly, FailureNotice, Meter, Pager, Tag } from './AdminChrome';
+import { AdminFrame, FailureNotice, Meter, Pager, Tag } from './AdminChrome';
 import { describeAdminFailure, errorMeaning, groupErrors, readErrorEvent, shortId, statusTone, UUID, type ErrorGroup, type ErrorRow } from './adminModel';
 import type { AdminErrorOverview } from './types';
 
@@ -156,7 +156,8 @@ function EventDetail({ group, event }: { group: ErrorGroup; event: ErrorRow }) {
   );
 }
 
-function ErrorsScreen() {
+/** The errors section of admin-overview: what is failing on the platform, grouped by code, with the events behind each group. */
+export function ErrorsSection() {
   const [category, setCategory] = useState('');
   const [status, setStatus] = useState('');
   const [account, setAccount] = useState('');
@@ -325,9 +326,4 @@ function ErrorsScreen() {
       )}
     </AdminFrame>
   );
-}
-
-/** admin-errors: what is failing on the platform, grouped by code, with the events behind each group. */
-export function AdminErrors() {
-  return <AdminOnly><ErrorsScreen /></AdminOnly>;
 }

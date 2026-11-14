@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import type { ComponentType, ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import type { AdminModerationOverview } from '../../api/auth';
 import { apiClient } from '../../api/client';
@@ -9,8 +9,12 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { config } from '../../config';
 import { formatDateTime } from '../../utils/format';
 import { useResource, type Resource } from '../../utils/useResource';
+import { AuditSection } from './AdminAudit';
 import { AdminFrame, AdminOnly, Meter, Tag } from './AdminChrome';
-import { ageLabel, count, describeAdminFailure, shortId, statusTone } from './adminModel';
+import { ErrorsSection } from './AdminErrors';
+import { MaintenanceSection } from './AdminMaintenance';
+import { QueuesSection } from './AdminQueues';
+import { ageLabel, count, describeAdminFailure, overviewSectionOf, overviewSectionPath, shortId, statusTone, type OverviewSection } from './adminModel';
 
 const PLAN_ORDER = ['BASIC', 'ADVANCED', 'RESEARCH', 'PRO'];
 const PLAN_TONES: Array<'muted' | 'info' | 'success' | 'warning'> = ['muted', 'info', 'success', 'warning'];
@@ -96,11 +100,11 @@ function OverviewScreen() {
   const tools: Array<[string, string, string]> = [
     ['Accounts', 'Search accounts, activate or deactivate, change global role.', '/app/admin/users'],
     ['Account agreement', 'Plan, add-ons, plan limits and keys of one account: open it from Accounts.', '/app/admin/users'],
-    ['Audit log', 'Every contract, pricing and maintenance change.', '/app/admin/audit'],
-    ['Errors', 'Error codes, routes and trends, without request bodies.', '/app/admin/errors'],
-    ['Queues', 'Runs by state and the oldest ones waiting.', '/app/admin/queues'],
+    ['Audit log', 'Every contract, pricing and maintenance change.', overviewSectionPath('audit')],
+    ['Errors', 'Error codes, routes and trends, without request bodies.', overviewSectionPath('errors')],
+    ['Queues', 'Runs by state and the oldest ones waiting.', overviewSectionPath('queues')],
     ['Moderation', 'Review engine catalogue requests.', '/app/admin/moderation'],
-    ['Maintenance', 'Preview, then purge expired data or reconcile abandoned runs.', '/app/admin/maintenance'],
+    ['Maintenance', 'Preview, then purge expired data or reconcile abandoned runs.', overviewSectionPath('maintenance')],
   ];
 
   return (
@@ -128,7 +132,7 @@ function OverviewScreen() {
           <span className="adm-muted">{count(counts.apiKeys)} API keys · {count(counts.identities)} linked identities</span>
         </Block>
 
-        <Block title="Run queue" to="/app/admin/queues" resource={queues}>
+        <Block title="Run queue" to={overviewSectionPath('queues')} resource={queues}>
           <div className="adm-queue-bars" role="img" aria-label={QUEUE_STATES.map((state) => `${state.label}: ${queueCounts[state.id] ?? 0}`).join(', ')}>
             {QUEUE_STATES.map((state) => (
               <span key={state.id} className="adm-queue-bar">
@@ -151,7 +155,7 @@ function OverviewScreen() {
           </ul>
         </Block>
 
-        <Block title="Errors, last 24 h" to="/app/admin/errors" linkLabel="Diagnose errors" resource={errors}>
+        <Block title="Errors, last 24 h" to={overviewSectionPath('errors')} linkLabel="Diagnose errors" resource={errors}>
           {byStatus.length === 0 && <span className="adm-muted">No errors recorded in the last 24 hours.</span>}
           {byStatus.map(([code, total]) => (
             <div key={code} className="adm-barrow is-narrow">
@@ -175,7 +179,7 @@ function OverviewScreen() {
           </span>
         </Block>
 
-        <Block title="Recent changes" to="/app/admin/audit" linkLabel="Audit log" resource={overview}>
+        <Block title="Recent changes" to={overviewSectionPath('audit')} linkLabel="Audit log" resource={overview}>
           {(summary?.recentAudit.length ?? 0) === 0 && <span className="adm-muted">No platform events recorded yet.</span>}
           <ul className="adm-recent" aria-label="Recent audit events">
             {summary?.recentAudit.slice(0, 5).map((event) => (
@@ -207,7 +211,20 @@ function OverviewScreen() {
   );
 }
 
-/** admin-overview: how the platform is doing, and a way into every administration screen. */
+const SECTIONS: Record<OverviewSection, ComponentType> = {
+  audit: AuditSection,
+  errors: ErrorsSection,
+  queues: QueuesSection,
+  maintenance: MaintenanceSection,
+};
+
+/**
+ * admin-overview: how the platform is doing, and a way into every administration screen. The audit log, errors,
+ * queues and maintenance are sections of this one screen, picked with `?section=`.
+ */
 export function AdminOverview() {
-  return <AdminOnly><OverviewScreen /></AdminOnly>;
+  const [params] = useSearchParams();
+  const section = overviewSectionOf(params.get('section'));
+  const Section = section ? SECTIONS[section] : OverviewScreen;
+  return <AdminOnly><Section key={section ?? 'overview'} /></AdminOnly>;
 }

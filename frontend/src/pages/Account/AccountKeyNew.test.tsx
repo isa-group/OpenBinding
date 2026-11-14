@@ -99,22 +99,22 @@ describe('New API key', () => {
       renderWizard();
       await nameIt();
 
-      expect(screen.getAllByRole('checkbox')).toHaveLength(26);
-      for (const id of ['engines:moderate', 'pricing:admin', 'admin:accounts:read', 'admin:accounts:write']) {
+      expect(screen.getAllByRole('checkbox')).toHaveLength(25);
+      for (const id of ['engines:moderate', 'admin:accounts:read', 'admin:accounts:write']) {
         expect(permission(id)).toBeDisabled();
       }
       expect(permission('jobs:read')).toBeEnabled();
-      expect(screen.getAllByText('ADMIN')).toHaveLength(4);
-      expect(screen.getAllByText('Only global administrators can grant this.')).toHaveLength(4);
+      expect(screen.getAllByText('ADMIN')).toHaveLength(3);
+      expect(screen.getAllByText('Only global administrators can grant this.')).toHaveLength(3);
       expect(screen.getByText(/Permissions marked ADMIN are only granted to global administrators/)).toBeInTheDocument();
-      expect(permission('pricing:admin')).toHaveAccessibleDescription('Only global administrators can grant this.');
+      expect(permission('engines:moderate')).toHaveAccessibleDescription('Only global administrators can grant this.');
     });
 
     it('unlocks them for a global administrator', async () => {
       renderWizard(person('admin'));
       await nameIt();
 
-      expect(permission('pricing:admin')).toBeEnabled();
+      expect(permission('engines:moderate')).toBeEnabled();
       expect(screen.queryByText(/Permissions marked ADMIN are only granted/)).not.toBeInTheDocument();
     });
 

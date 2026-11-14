@@ -557,7 +557,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         await main.getByLabel('Name').fill('ci-nightly');
         await next();
         await expect(main.getByRole('heading', { name: 'Permissions' })).toBeVisible();
-        await expect(main.getByText('Only global administrators can grant this.')).toHaveCount(4);
+        await expect(main.getByText('Only global administrators can grant this.')).toHaveCount(3);
         await capture(page, testInfo, `keynew-${name}-2-permissions`);
         expect(critical).toEqual([]);
         return;
@@ -569,13 +569,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByLabel('Expires').selectOption('30');
       await next();
 
-      // The four admin-only permissions are locked with a reason, so nothing implies an admin key from the browser.
+      // The three admin-only permissions are locked with a reason, so nothing implies an admin key from the browser.
       await expect(main.getByRole('heading', { name: 'Permissions' })).toBeVisible();
-      await expect(main.getByRole('checkbox')).toHaveCount(28);
-      for (const id of ['engines:moderate', 'pricing:admin', 'admin:accounts:read', 'admin:accounts:write']) {
+      await expect(main.getByRole('checkbox')).toHaveCount(27);
+      for (const id of ['engines:moderate', 'admin:accounts:read', 'admin:accounts:write']) {
         await expect(main.getByRole('checkbox', { name: new RegExp(`^${id}`) })).toBeDisabled();
       }
-      await expect(main.getByText('Only global administrators can grant this.')).toHaveCount(4);
+      await expect(main.getByText('Only global administrators can grant this.')).toHaveCount(3);
       await expect(main.getByText(/Permissions marked ADMIN are only granted to global administrators/)).toBeVisible();
       await next();
       await expect(main.getByRole('alert')).toContainText('Choose at least one permission.');
@@ -660,12 +660,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await main.getByLabel('Name').fill('admin-audit-reader');
       await main.getByRole('button', { name: 'Continue' }).click();
-      await expect(main.getByRole('checkbox')).toHaveCount(28);
-      for (const id of ['engines:moderate', 'pricing:admin', 'admin:accounts:read']) {
+      await expect(main.getByRole('checkbox')).toHaveCount(27);
+      for (const id of ['engines:moderate', 'admin:accounts:read']) {
         await expect(main.getByRole('checkbox', { name: new RegExp(`^${id}`) })).toBeEnabled();
       }
       await expect(main.getByText('Only global administrators can grant this.')).toHaveCount(0);
-      await expect(main.getByText('ADMIN', { exact: true })).toHaveCount(5);
+      await expect(main.getByText('ADMIN', { exact: true })).toHaveCount(4);
       await main.getByRole('checkbox', { name: /^admin:accounts:read/ }).check();
       await capture(page, testInfo, `keynew-${name}-admin`);
     });

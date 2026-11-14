@@ -61,7 +61,6 @@ class ApiKeyPermission(str, Enum):
     ARTIFACTS_WRITE = "artifacts:write"
     NOTIFICATIONS_READ = "notifications:read"
     PRICING_READ = "pricing:read"
-    PRICING_ADMIN = "pricing:admin"
     ADMIN_ACCOUNTS_READ = "admin:accounts:read"
     ADMIN_ACCOUNTS_WRITE = "admin:accounts:write"
 
@@ -72,7 +71,6 @@ ADMIN_PERMISSIONS = frozenset(
         ApiKeyPermission.ENGINES_MODERATE.value,
         ApiKeyPermission.ADMIN_ACCOUNTS_READ.value,
         ApiKeyPermission.ADMIN_ACCOUNTS_WRITE.value,
-        ApiKeyPermission.PRICING_ADMIN.value,
     }
 )
 ENGINE_LIMITED_PERMISSIONS = frozenset(
@@ -374,8 +372,6 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             else {ApiKeyPermission.ACCOUNT_WRITE.value}
         )
     if path.startswith("/v1/admin"):
-        if path.startswith("/v1/admin/pricing"):
-            return frozenset({ApiKeyPermission.PRICING_ADMIN.value})
         return frozenset(
             {ApiKeyPermission.ADMIN_ACCOUNTS_READ.value}
             if method == "GET"
