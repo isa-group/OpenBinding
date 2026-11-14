@@ -299,9 +299,9 @@ def test_the_pinning_assertions_fail_on_mutated_copies():
         check(text)
 
 
-def test_the_standalone_service_document_has_no_kubernetes_and_the_readme_points_to_it():
-    service = REPO_ROOT / "bim-toolchain" / "docs" / "SERVICE.md"
-    assert service.is_file(), "bim-toolchain/docs/SERVICE.md"
-    assert "kubernetes" not in service.read_text(encoding="utf-8").lower()
+def test_the_readme_points_to_the_service_document_of_the_pinned_toolchain_release():
+    # bim-service and its SERVICE.md live in the bim-toolchain repository, not in this one.
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-    assert "[`bim-toolchain/docs/SERVICE.md`](bim-toolchain/docs/SERVICE.md)" in readme
+    url = "https://github.com/javiercavlop/bim-toolchain/blob/v0.2.0/docs/SERVICE.md"
+    assert f"[`SERVICE.md`]({url})" in readme
+    assert "](bim-toolchain/" not in readme

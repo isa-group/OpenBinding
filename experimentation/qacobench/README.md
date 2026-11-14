@@ -25,6 +25,8 @@ experimentation/qacobench/run.sh notebooks
 
 Images are tagged `qacobench/*:qfbs-v3` (`QACOBENCH_REVISION` overrides) and include the code, schemas, scripts and four notebooks. Source transformers are included at `transformations/scripts/` inside the runner; their inputs and output directories are under `/workspace/datasets`. Host mounts contain inputs and outputs. Compose starts PostgreSQL, Redis, the gateway, worker and solvers; account configuration and solver registration are automatic. `run.sh jupyter` opens an optional token-protected server on `127.0.0.1:18888`.
 
+The images (`Dockerfile`, `Gateway.Dockerfile`) install the BIM language from the wheels of release v0.2.0 of [`javiercavlop/bim-toolchain`](https://github.com/javiercavlop/bim-toolchain), listed with their SHA-256 in `experimentation/qacobench/bim-toolchain.txt` and downloaded during the build by `tools/fetch_bim_toolchain.py --wheels` (the release `openbinding-gateway/uv.lock` pins; keep both on the same one). The repository is private for now, so `run.sh build` needs `BIM_TOOLCHAIN_TOKEN` exported, a token that can read it: `compose.yaml` passes it to the builds as the build secret `bim_toolchain_token`.
+
 The gateway registry keeps every engine revision it has seen, keyed by (namespace, name, version). `campaign.py` compares the digest of each registered engine manifest with the checkout's `schemas/bim/v1/manifests/<engine>.json` and refuses to run against a stale registration; `run.sh reset` clears the volumes so that `run.sh build` registers the current manifests. The `minizinc-csp` image pins the official MiniZinc 2.8.7 bundle (Gecode 6.3.0); `run.sh manifest` records `minizinc --version` and the solver list in `.artifacts/qacobench/minizinc_versions.txt` and the manifest digests in `run_manifest.json`.
 
 ### Campaign options
@@ -60,7 +62,7 @@ Evaluation summarizes recorded responses without recompiling instances or re-eva
 
 `run.sh evaluate` produces the primary tables, `run.sh figures` the primary figures and `run.sh analyze` the secondary analyses (`secondary/run_all.py`); the notebook `04_evaluation_and_visualization.ipynb` displays all of them. With `campaign.py --repeats k`, `secondary/repeat_variability.csv` reports the seed-to-seed variability of the heuristics. `secondary/latex/paper_numbers.tex` (step `09_paper_numbers.py`) defines one LaTeX macro per campaign-derived number quoted in the paper, so the manuscript is recompiled rather than retyped after a campaign.
 
-The run manifest records software and image identities, configuration hashes, seeds, budget and host information. Generation and aggregate calculations can be repeated from the fixed inputs. Wall-clock execution and outcomes close to a time limit can vary with host load.
+The run manifest records software and image identities, configuration hashes, seeds, budget and host information. New manifests are schema `qacobench/run-manifest/v3`: `source_tree_sha256` covers `openbinding-gateway/src`, `schemas` and `experimentation/qacobench` (no bim-core sources any more), and `files_sha256` records `bim-toolchain.txt`, which names the toolchain release. Generation and aggregate calculations can be repeated from the fixed inputs. Wall-clock execution and outcomes close to a time limit can vary with host load.
 
 ## Publication
 
@@ -71,6 +73,11 @@ notebooks and provenance of the accepted reference campaign. The 46,350 raw
 records and the 15,450 BIM instance packages are distributed through the
 companion Zenodo records, not through Git. Both archives extract into the
 repository root; the raw results are under `.artifacts/qacobench/`.
+
+QACOBench 1.1.1 was produced while the BIM toolchain still lived in this
+repository. It reproduces from its Zenodo deposit and from the OpenBinding commit
+before the extraction; a `pre-redesign` tag for that commit is planned but does
+not exist yet.
 
 To save local disk space, the BIM dataset can remain compressed as
 `output/zenodo/qacobench-bim-dataset-1.1.1.tar.xz`. Verify its SHA-256 against

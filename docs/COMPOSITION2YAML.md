@@ -422,8 +422,9 @@ from 32 to 64 with no diagnostic at all.
 Ownership is not the discriminator, and this specification already proves it: `C` in the
 worked example is a solver the owner runs, with no competitor, and it is a `fixed` task
 with real values. The corpus agrees. `examples/literature/cremaschi` declares its own
-closing step as a `local` task, and 20 of the 83 packages the walk finds carry a task that
-is not a service task.
+closing step as a `local` task, and 20 of the 83 packages the walk found when this was
+measured carry a task that is not a service task (the 83rd, bim-core's own example package,
+has since left the tree with the toolchain).
 
 **A local task is an assertion, not an abstention.** It is exactly a single-candidate
 service task pinned to the neutral vector: on the guiding case both forms produce the same
@@ -872,7 +873,7 @@ not emitted on a criterion: it belongs to the property.
 
 A goal may **override** that range, as the fourth goal above does, and the corpus forces
 the option: a criterion's `normalize` is an independent number in the IR, and **14 of the
-83 packages** scale a property onto a range that is not its domain -- sometimes narrower
+83 packages** the walk then found scale a property onto a range that is not its domain -- sometimes narrower
 (`cost` over `[0, 200]` where the domain is `[0, 100]`), sometimes a range where the
 property declares no bounds at all. Widening the domain to match is not a way out: the
 domain is in the IR too, so moving it to rescue the criterion moves the digest just the
@@ -1056,7 +1057,8 @@ any of this machinery — it reuses the container's:
 
 Phase F1 must reproduce an existing package exactly, and the repository holds more than
 one answer to "exactly". Decided in review: the **live normalized golden**,
-`bim-toolchain/golden/bim_normalized/corpus.json`.
+[`golden/bim_normalized/corpus.json`](https://github.com/javiercavlop/bim-toolchain/blob/v0.2.0/golden/bim_normalized/corpus.json) of the toolchain release, pinned in this
+repository as the byte copy `openbinding-gateway/tests/golden/bim_baseline/corpus.json`.
 
 Three facts make that choice cheap rather than brave:
 
@@ -1072,7 +1074,7 @@ Three facts make that choice cheap rather than brave:
   with. The three-way choice was a two-way one.
 - **"Live" is not "a moving target."** Only the informative `toolchain` members
   (`compilerDigest`, `irDigest`) are ever refreshed, by
-  `bim-toolchain/tools/regen_normalized_metadata.py`, which refuses to write unless the
+  `tools/regen_normalized_metadata.py` of the toolchain repository, which refuses to write unless the
   semantic digests, the section digests, the evaluations, the binding spaces and
   `zip_equivalence.json` are the recorded ones, and then verifies that every changed line
   holds one of those two members. The baseline comparison strips them before comparing.
@@ -1088,7 +1090,9 @@ frozen baseline is the mistake that looks like a compiler bug and never goes gre
 
 "The demo examples" is not a set, and the phase F1 gate cannot be phrased over it.
 Decided in review: the gate is **the live normalized golden's own package set** -- all 82.
-For every key `d` of `packages` in `bim-toolchain/golden/bim_normalized/corpus.json`,
+For every key `d` of `packages` in the golden (the pinned copy
+`openbinding-gateway/tests/golden/bim_baseline/corpus.json`, which
+`tools/check_composition_roundtrip.py` reads),
 
 ```
 ir_digest(compile(emit(import_bim(d)))) == ir_digest(compile(d))
@@ -1128,19 +1132,19 @@ Four things make this the gate rather than a number:
   target, so this adds no second one. The walk keeps its job -- finding packages -- and a
   package added to the tree surfaces as a walk-versus-golden mismatch that somebody has
   to resolve by putting it in the gate or in the exclusion list. The count is already
-  pinned in fourteen places across three jobs -- four at 83, which is the walk, and ten at
-  82, which is this golden; a gate phrased this way collides with none of them and
-  inherits every one of their tripwires.
+  pinned for the walk (`tools/check_bim_corpus.py --expected 82`, `EXPECTED_PACKAGES = 82`
+  in `tools/check_bim_guard.py`) and for this golden, both at 82; a gate phrased this way
+  collides with none of them and inherits every one of their tripwires.
 - **The arithmetic is auditable.** `len(gate) == packageCount == 82`, and with the
   exclusion list gone there is nothing left to reconcile: the gate is the golden's own
   count. A gate whose size nobody can recompute is a claim, not a gate.
-- **The 83rd walk member is out of scope.** `bim-toolchain/packages/bim-core/tests/fixtures/example-package`
-  is the one package the walk finds and the golden does not hold, and it is also the only
-  package in the tree whose constraint uses a form outside comparison and `and`. It is the
-  compiler's own fixture; it is not a composition and it is not a target.
+- **The walk and the golden hold the same 82.** The walk used to find an 83rd package,
+  bim-core's own fixture `packages/bim-core/tests/fixtures/example-package`, which the
+  golden does not hold; it left this repository with the toolchain. It was never a
+  composition nor a target.
 - **The gate is `ir_digest` equality, so it says nothing about bytes.** Four container
   defaults are therefore not blockers and must not be counted as such: a package's
-  `metadata.annotations` -- 78 of the 83 carry them, and the compiler never copies them
+  `metadata.annotations` -- 78 of the 83 the walk then found carry them, and the compiler never copies them
   into the IR at all -- a feature with no declared `direction` (3 packages), a domain with
   an open end (6), and a feature with no `unit`, which the container defaults to `1` (1
   package, one ICWS instance). Each of those is a field the emitter may write explicitly

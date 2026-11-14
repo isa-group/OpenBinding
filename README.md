@@ -119,9 +119,15 @@ docker compose --profile dev up -d --build     # development
 Production uses the digest-pinned, standalone
 definition in `deploy/compose/production/` and is operated with
 [`docs/runbooks/production.md`](docs/runbooks/production.md); only the owner
-orders a production deployment. The project deploys with Docker Compose only;
-the standalone bim-service container is described in
-[`bim-toolchain/docs/SERVICE.md`](bim-toolchain/docs/SERVICE.md).
+orders a production deployment. The project deploys with Docker Compose only.
+The gateway, the worker and the seed run BIM in process; the standalone
+`bim-service` container is a separate deployable of the BIM toolchain, described in its
+[`SERVICE.md`](https://github.com/javiercavlop/bim-toolchain/blob/v0.2.0/docs/SERVICE.md).
+
+Building the gateway and QACOBench images, or running `uv sync` in
+`openbinding-gateway`, downloads the BIM toolchain wheels from a private GitHub
+repository, so it needs a token that can read it; see
+[BIM toolchain](#bim-toolchain).
 
 `docker-compose.yml` defines the profiles `dev`, `db-tools` (Adminer),
 `federated-example` and `benchmark`. `dev` starts PostgreSQL, Redis,
@@ -218,9 +224,6 @@ OpenBinding guarantees strict cryptographic immutability and provenance:
 - `openbinding-gateway`: secure package handling, BIM compilation, registry,
   provenance, and the OpenBinding `/v1` API.
 - `frontend`: the BIM Instance Workspace.
-- `bim-toolchain`: self-contained directory being extracted into its own
-  private repository (`javiercavlop/bim-toolchain`; the remote has not been
-  created). See [BIM extraction status](#bim-extraction-status).
 - `space`: only the pricing fixture (`space/pricing/openbinding.yml`); SPACE
   itself is remote.
 - `pricings`: third-party FaaS pricing documents (AWS, Azure, Google Cloud)
@@ -230,28 +233,39 @@ OpenBinding guarantees strict cryptographic immutability and provenance:
   `bim-generator`, and the federated `multi-heuristic` example.
 - `examples` and `experimentation`: BIM v1 packages and reproducible generators.
 
-### BIM extraction status
+### BIM toolchain
 
-BIM is being extracted into `bim-toolchain/`, planned as three parts: `bim-core`
-(compilation and evaluation), `bim-service` (an HTTP API under `/bim/v1`) and
-`bim-client` (a `BimPort` with in-process and HTTP implementations). In this
-tree only `bim-toolchain/packages/bim-core` exists (see
-[`bim-toolchain/README.md`](bim-toolchain/README.md)); no `bim-service` or
-`bim-client` directory was found, so they are not described here as available.
-**Transitional state:** until the cut-over, OpenBinding still compiles and
-evaluates with its own copy under `openbinding-gateway/src/openbinding_gateway/v1`
-and does not depend on `bim-toolchain`. See [BIM core](docs/BIM_CORE.md).
+The BIM language (`bim-core`: compilation and evaluation; `bim-client`: the
+`BimPort` with in-process and HTTP implementations; `bim-service`: an HTTP API
+under `/bim/v1`) lives in its own repository,
+[`javiercavlop/bim-toolchain`](https://github.com/javiercavlop/bim-toolchain),
+**private** for now (the owner plans to move it to the SCORELabUS organization
+when it goes public). OpenBinding consumes its release **v0.2.0**:
+`openbinding-gateway/pyproject.toml` pins `bim-core==0.2.0` and
+`bim-client==0.2.0` (and `bim-service==0.2.0` only in the `test` extra) as wheels
+of the GitHub Release: `uv.lock` names them as files of `openbinding-gateway/.bim-wheels/`
+with the SHA-256 of the release assets. The
+`bim-core` wheel carries the five OMG BPMN 2.0.2 XSDs (the owner's decision of
+2026-11-14; their redistribution rights are still not demonstrated, see the
+toolchain's
+[`OMG_XSD_RIGHTS.md`](https://github.com/javiercavlop/bim-toolchain/blob/v0.2.0/docs/OMG_XSD_RIGHTS.md)).
 
-**OMG BPMN XSDs.** The five OMG BPMN 2.0.2 XML Schemas (`BPMN20.xsd`, `Semantic.xsd`, `BPMNDI.xsd`, `DC.xsd`, `DI.xsd`) under
-`bim-toolchain/packages/bim-core/src/bim_core/resources/vendor/omg/bpmn/2.0.2/` are **not versioned in Git** (their
-redistribution is not demonstrated: [`bim-toolchain/docs/OMG_XSD_RIGHTS.md`](bim-toolchain/docs/OMG_XSD_RIGHTS.md)). The system
-behaves as if they were inside: wherever they are missing they are downloaded from omg.org over https and the SHA-256 of
-each is verified (all five or an error; nothing is written otherwise). The build hook of `bim-core`
-(`bim-toolchain/packages/bim-core/hatch_build.py`) does it for `uv sync`, `pip install` and `-e`; the Docker images
-(`openbinding-gateway`, `bim-service`, `experimentation/qacobench`), the CI jobs, the test sessions and the tools do it too.
-Without network the error names the exact command, `python3 bim-toolchain/tools/xsd_inventory.py --ensure` from this directory.
-`python3 bim-toolchain/tools/xsd_inventory.py --check` fails if Git lists the files or does not ignore them. Wheels,
-sdists, the SDK and the images do carry the files; keeping them in the artifacts is a decision of the owner.
+GitHub serves the assets of a private repository only through its API with a token, so
+`python3 tools/fetch_bim_toolchain.py --wheels` downloads them into `.bim-wheels/` and
+keeps a file only if its SHA-256 is the lock's; run it before `uv sync`. The token is
+`BIM_TOOLCHAIN_TOKEN` (a fine-grained token with read-only Contents access to
+`javiercavlop/bim-toolchain`), or else that of `gh auth token`:
+
+- Docker builds run the same tool with the build secret `bim_toolchain_token`, taken
+  from the environment variable `BIM_TOOLCHAIN_TOKEN` (declared in `docker-compose.yml`,
+  `compose.lab*.json` and `experimentation/qacobench/compose.yaml`), so export it
+  before building;
+- CI uses the repository secret `BIM_TOOLCHAIN_TOKEN` through
+  `.github/actions/bim-toolchain-access`.
+
+Upgrading the toolchain is a pull request here that bumps the pin (new wheel files and
+hashes in `uv.lock` and `experimentation/qacobench/bim-toolchain.txt`) and passes
+the consumer contract of the CI job `bim-toolchain`. See [BIM core](docs/BIM_CORE.md).
 
 Start with the [progressive BIM model atlas](docs/models/README.md) for the
 metamodels and concrete instances, continue with the

@@ -4,21 +4,19 @@
 demo on one lab host. It is reached from a Mac through an SSH tunnel; the only
 thing published on the host is `127.0.0.1:18100`.
 
-**Current status (head `31b7de6f2002fb4b5e5f0c549a3bd4a2a2818fa2`, 2026-10-14).** Figures reported by the controller from the real
-Docker laboratory (rootless, 256 MiB for `bim-service`); this document did not re-run them. Functional commits: `80ad32d4`,
+**Last recorded status (head `31b7de6f2002fb4b5e5f0c549a3bd4a2a2818fa2`, 2026-10-14).** Figures reported by the controller from the real
+Docker laboratory (rootless); this document did not re-run them. Functional commits: `80ad32d4`,
 `f5acbd70`, `ea955411`, `59ef9749`, `31b7de6f`. The observations of `c2d46151`, `b2780381` and `5aebc7c8` follow, tied to their
-SHA, as history.
+SHA, as history. **All of these records are about the removed setup in which the lab ran BIM in a separate `bim-service`
+container; this document records no run of the current `compose.lab.json`, which runs BIM in process (see "What runs").**
 
-Demo N1 (`compose.lab-process.json`: 1 process, body 6291456 B, 256 MiB) at `31b7de6f`:
+At `31b7de6f`:
 
 | Item | State | Result |
 |---|---|---|
 | `seed_lab` | **Closed** | Idempotent |
 | `smoke_lab` | **Closed** | **9/9**: `proxy_and_spa`, `login`, `owner_job`, `idempotency`, `authorization` (24 checks), `concurrency_limit`, `cors`, `body_limit`, `login_throttle`. `plan_usage` skipped (SPACE on hold) |
 | Playwright desktop + mobile | **Closed** | **30 passed, 0 failed, 0 skipped**, 0 visual problems (`E2E_SUMMARY passed=30`); screenshots reviewed: 131 images including `screenshots/_summary.png` |
-| `process_probe.py` N1 with the five N1 `--expect` and `--timeout-probe --expect-operation-timeout 3` | **Closed** | exit 0, `ok` true, 6 steps: `capabilities` 16 checks (fit: required 265918873 of 268435456 B, headroom 2516583 B); `valid_operations` 84; `hostile_small` 55; `large_bodies` 13 (6291456 B body => 200 in 30.9 ms; two retained bodies 200 and 200); `saturation` 9 (8 clients: 3 x 200, 5 x 503 `service_busy`); `healthz_under_load` 11 (116 samples, all 200; p50 1.5 ms, p95 1.8 ms, max 2.0 ms); `timeout_replacement` 12 (503 `operation_timeout` at 3.467 s; 35 `/healthz` samples all 200, max 2.4 ms; the next normal request 1.9 ms) |
-| Real timeout and replacement with one slot in N1 | **Closed** (was PENDING in the `c2d46151` status) | the `timeout_replacement` step above |
-| Memory of `bim-service`, demo idle | **Measured** | cgroup 88-95 MiB of 256 MiB, `oom_kill` 0; parent RSS 59.7 MB (peak 59.7), child 53.9 MB (peak 56.8-57.1) |
 | Remote cancellation end to end | **Closed** | `tools/cancel_probe.py` via `lab_compose seed` with `DEMO_SEED_TOOL=cancel_probe.py`: `passed`, `ok` true, 9 checks ok, 0 findings; job `cancelled` about 1.0 s after `POST /v1/jobs/{id}/cancel` ([qa/ENGINE_CANCELLATION_E2E.md](qa/ENGINE_CANCELLATION_E2E.md)) |
 | Snapshot `invalid_instance` of the seed | **Cause found** | the 0.1.x package pins a contract version that 0.2.0 does not install (`contract_not_installed`); kept as evidence, 422 `snapshot_not_recompilable`; revision 2 of `simple-seq` runs ([qa/SNAPSHOT_INVALID_INSTANCE.md](qa/SNAPSHOT_INVALID_INSTANCE.md)) |
 | Two stale snapshots of other owners (`lab-member`, `lab-viewer`) | **Open, residual risk** | status `blocked` (`snapshot_conflict`); not decided to delete |
@@ -27,19 +25,13 @@ Demo N1 (`compose.lab-process.json`: 1 process, body 6291456 B, 256 MiB) at `31b
 | By-eye mobile/desktop check | **Manual**, not recorded as done | the automated visual QA found 0 problems |
 
 Operations: jobs queued before a deployment pin the previous version of the bundled engine registration and fail with
-`registration_changed`; drain the queue or let them finish before `up`. A first `process_probe.py` run without the N1 flags gave
-`ok` false because it expected the N2 values; that was a wrong use of the probe, not a service failure.
+`registration_changed`; drain the queue or let them finish before `up`.
 
-Where the history below says "PENDING" for the N1 timeout, "one old snapshot ... `invalid_instance`" without a cause, or 70
-passed for PostgreSQL, it is **superseded** by the table above.
+Where the history below says "one old snapshot ... `invalid_instance`" without a cause, or 70 passed for PostgreSQL, it is
+**superseded** by the table above.
 
-- The demo runs `bim-service` in **process mode, profile N1** (`compose.lab-process.json`: 1 process, body up to **6 MiB**, the
-  256 MiB container intact). This is the human's decision of 2026-10-14; N2 (`compose.lab-process-n2.json`: 2 workers, 2 MiB) is
-  an alternative and history. Deployed and probed with `process_probe.py` at `c2d46151` (details:
-  [qa/PROCESS_DEPLOYMENT.md](qa/PROCESS_DEPLOYMENT.md), [qa/PROCESS_PROBE.md](qa/PROCESS_PROBE.md)). `compose.lab.json` (thread
-  mode, 16 MiB) is the rollback.
 - Seed at `c2d46151`: idempotent; it created the revision `simple-seq:2`; one old snapshot could not be recompiled under the new
-  IR (`invalid_instance`, in `recompileFailed`). A first smoke/Playwright run in N1 on `bef53047` **failed** (smoke 6/9 with
+  IR (`invalid_instance`, in `recompileFailed`). A first smoke/Playwright run on `bef53047` **failed** (smoke 6/9 with
   `422 contract_not_installed`, Playwright 29 passed / 1 failed) because the seeded snapshots carried compiler 0.1.0 after the IR
   cut-over; fixed by the cut-over change (`9bbc189f`) and re-verified at `c2d46151`.
 - `smoke_lab.py` gives **9/9** steps in 6.0 s at `c2d46151` with `DEMO_SPACE_ENABLED=false`.
@@ -47,10 +39,8 @@ passed for PostgreSQL, it is **superseded** by the table above.
   2026-10-14T13:41:20Z).
 - The PostgreSQL 16 concurrency harness gave **70 passed, 0 skipped** at `bef53047` (67 plus 3 plan-concurrency tests;
   migrations up to `b6c7d8e9f0a1`); it runs separately from the lab, see [PG_HARNESS.md](qa/PG_HARNESS.md).
-- **Pending, no evidence yet** (at `c2d46151`; **superseded**: measured at `31b7de6f`, see the current status): the real
-  timeout and replacement with one slot in the N1 container.
 
-**Observation at `b2780381`, 2026-10-14 (history; the demo then ran N2, which is superseded as the profile in force):** smoke
+**Observation at `b2780381`, 2026-10-14 (history):** smoke
 9/9, Playwright 30 passed / 0 failed / 0 skipped, PostgreSQL 67 passed / 0 skipped.
 
 **Earlier observation, 2026-10-13 at SHA `5aebc7c8` (history):**
@@ -82,31 +72,28 @@ A static check also exists (`lab/tests/test_lab_compose.py`).
 | `engine-many-heuristic` | `engines/many-heuristic/Dockerfile` | 320 MiB | JVM, `-Xmx192m` |
 | `engine-evolutionary-heuristics` | `engines/evolutionary-heuristics/Dockerfile` | 320 MiB | JVM, `-Xmx192m` |
 | `engine-minizinc` | `engines/minizinc-csp/Dockerfile` | 192 MiB | Node, `--max-old-space-size=96` |
-| `bim-service` | `bim-toolchain`, `packages/bim-service/Dockerfile` | 256 MiB | port 8080, `/healthz`, tokens file in a tmpfs |
-| `gateway` | `openbinding-gateway/Dockerfile`, tagged `openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}` (the only build of this image) | 640 MiB | `alembic upgrade head` through the image entrypoint, then uvicorn with `--proxy-headers` |
+| `gateway` | `openbinding-gateway/Dockerfile` (build secret `bim_toolchain_token`), tagged `openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}` (the only build of this image) | 640 MiB | `alembic upgrade head` through the image entrypoint, then uvicorn with `--proxy-headers`; BIM runs in process |
 | `worker` | `image: openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`, no build | 448 MiB | dramatiq, one process, 2 threads, queue `default` only |
 | `web` | `frontend/Dockerfile`, target `lab` (config `frontend/nginx.lab.conf` baked in) | 96 MiB | nginx: production build of the frontend, `/api/` to the gateway without the prefix; **the only published port** |
 | `seed` | `image: openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`, no build | 384 MiB | `profiles: ["seed"]`; not started by `up` |
 | `e2e` | `frontend/Dockerfile.e2e` (`mcr.microsoft.com/playwright:v1.62.1-jammy`, the version `pnpm-lock.yaml` resolves for `@playwright/test`) | 576 MiB | `user: pwuser`, volume `lab-e2e` on `/results`; runs the live specs when `DEMO_E2E=1`, then stays alive; healthy when `/results/done` exists |
 
-**Memory sum of all `mem_limit`: 4032 MiB** (3.9375 GiB; lab ceiling 4096 MiB,
-64 MiB to spare). It was 3456 MiB before `e2e` (576).
+**Memory sum of all `mem_limit`: 3776 MiB** (3.6875 GiB; lab ceiling 4096 MiB,
+320 MiB to spare).
 It includes `seed`, which only runs on demand,
-so the steady state is 3648 MiB. `test_lab_compose.py` and
-`test_container_hardening.py` recompute the sum and fail if it is not 4032 or
+so the steady state is 3392 MiB. `test_lab_compose.py` and
+`test_container_hardening.py` recompute the sum and fail if it is not 3776 or
 if this document does not state it. `mem_limit` bounds the container, not the
 page cache of the named volumes, and image builds are not limited by it.
 
 Optional: the pricing profile `compose.lab-pricing.json` is a 96 MiB one-shot against the remote SPACE, a separate
-project outside this 4032 MiB sum; see [qa/PRICING_PROFILE.md](qa/PRICING_PROFILE.md).
+project outside this 3776 MiB sum; see [qa/PRICING_PROFILE.md](qa/PRICING_PROFILE.md).
 
 **Unprivileged containers.** The gateway image (`gateway`, `worker`, `seed`) runs as
-UID/GID 10001 with no login shell; `bim-service` already did. Root inside a rootless
+UID/GID 10001 with no login shell. Root inside a rootless
 container is not root on the host, but the unprivileged user is still the practice
 that limits a compromised process. Consequences for the lab:
 
-- `/run/bim` is a tmpfs with `mode: 1023` (0o1777) in all three gateway-image services,
-  so UID 10001 can write the token file (still created with `umask 077`).
 - `lab-artifacts-2` is writable by 10001 because `/var/lib/openbinding/artifacts` exists in
   the image owned by 10001 and an empty named volume inherits that owner. The earlier
   `lab-artifacts` volume was created by an image that ran as root and kept root as owner. A
@@ -121,53 +108,19 @@ that limits a compromised process. Consequences for the lab:
   unused. Recreating the database on `lab-pg-3` means it starts empty: run `seed`
   again to populate it. `lab-pg-2` is also kept unused: its initial password was lost
   (the data is synthetic).
-- The gateway `Dockerfile` installs `bim-core`, `bim-client` and `".[test]"` in **one**
-  `uv pip install --system --no-sources` command. With uv pinned to 0.8.22 the resolver does
-  not count an already installed `bim-core` as a candidate, so a separate earlier install
-  made `".[test]"` fail with "bim-core was not found in the package registry ...
-  unsatisfiable". As direct requirements in the same command, the local packages satisfy
-  the `bim-core>=0.2,<0.3` dependency by name. Keep them together
-  (`test_the_local_bim_packages_install_in_the_same_command_as_the_gateway`).
+- The gateway `Dockerfile` installs exactly the lock: `uv export --frozen` of
+  `openbinding-gateway/uv.lock`, then `uv pip install --system --require-hashes`
+  (`test_the_image_installs_exactly_the_lock_with_hashes`). `bim-core` and `bim-client` 0.2.0
+  are the wheels of the GitHub Release `v0.2.0` of
+  [`javiercavlop/bim-toolchain`](https://github.com/javiercavlop/bim-toolchain), pinned in the lock
+  by SHA-256 (the `bim-core` wheel carries the five OMG BPMN XSDs), and downloaded during the
+  build by `tools/fetch_bim_toolchain.py --wheels`. While that repository is private the download
+  needs a token that can read it: `compose.lab.json` declares the build
+  secret `bim_toolchain_token`, taken from the environment variable `BIM_TOOLCHAIN_TOKEN` and
+  mounted only for that `RUN` (it never reaches a layer), so **`BIM_TOOLCHAIN_TOKEN` must be
+  exported when the lab is built** (`lab_compose up`).
   `test_container_hardening.py` requires that no service runs as root, that
   `artifacts-init` does not exist, and that the image directory is owned by 10001.
-- `bim-service` has `cpus: 1.5` and `pids_limit: 256` in addition to `mem_limit`.
-  These are plain Compose service attributes; `mem_limit` is unchanged, so the sum
-  above is too. The controller's validator accepted them: the container runs with 1.5 CPUs and
-  `pids_limit` 256 (6 pids were counted in the N2 container after its probe at `ce7229b2`).
-- **`bim-service` memory (256 MiB, unchanged), thread mode of `compose.lab.json` (the rollback; the demo now runs the
-  process profile N1 described in the next item).** Its environment sets
-  `BIM_SERVICE_MAX_BODY_BYTES=16777216` (16 MiB, not the 32 MiB default),
-  `BIM_SERVICE_MAX_CONCURRENCY=2`, `BIM_SERVICE_MEMORY_BUDGET_BYTES=134217728` (128 MiB)
-  and `BIM_SERVICE_MAX_PENDING_BODY_BYTES=33554432` (32 MiB). Why not 32 MiB: the measured
-  figures (`bim-toolchain/docs/SERVICE.md`, "Memory budget") are 55451648 bytes of resident
-  memory at rest and about 268 MiB for one request of 32 MiB, against a limit of 268435456
-  bytes, so a body of 32 MiB cannot be run in this container and the lab does not advertise
-  it (`GET /bim/v1/capabilities` publishes the 16 MiB). The sizing: a request is charged 8
-  times its body (`BODY_MEMORY_FACTOR`, an **estimate, not a guarantee**: 7.5x to 8.4x was
-  measured), so the 128 MiB budget admits at most 16 MiB of bodies at once, the one request
-  at the limit alone or two smaller ones; a request whose estimate can never fit the budget is
-  refused with 413 `memory_budget_exceeded` before it is read, and one that fits later with
-  429 `memory_budget` (`Retry-After`). The bodies waiting for a slot or running add up to at
-  most 32 MiB; more is refused before the body is read (429 `pending_body_bytes`). Worst
-  case from these numbers: 52.9 MiB at rest + 8.4 x 16 MiB admitted + 2 x 16 MiB waiting
-  (buffered twice while joined) = about 219 MiB, 37 MiB below the limit.
-  `test_bim_service_memory_limits_fit_its_mem_limit` recomputes it. This follows from the
-  measurements and was **not run in a 256 MiB container**; the memory that is not
-  proportional to a request body (a package that inflates to up to
-  `BIM_MAX_EXPANDED_BYTES`, 64 MiB by default) is not covered by the budget. The default
-  `MAX_JSON_BODY_BYTES` of the gateway is also 16 MiB; the size of the requests it sends to
-  `bim-service` was not checked against the new limit.
-- **`bim-service` with worker processes (alternative manifests).** `compose.lab-process-n2.json`
-  and `compose.lab-process.json` run the same service with `BIM_SERVICE_EXECUTOR=process` in the
-  same 256 MiB container (bodies of 2 MiB and 6 MiB, not 16 MiB). They differ from
-  `compose.lab.json` only in the environment of `bim-service`, so the memory sum stays
-  4032 MiB, and `compose.lab.json` is the rollback. Profiles, fit rule, activation with
-  `lab_compose up file=...` and what to verify: [qa/PROCESS_DEPLOYMENT.md](qa/PROCESS_DEPLOYMENT.md).
-  **The demo currently runs `bim-service` in process mode with `compose.lab-process.json`** (N1: 1 process, body up to 6 MiB, so
-  `GET /bim/v1/capabilities` publishes 6 MiB, not 16 MiB), deployed and probed in the real 256 MiB container at `c2d46151`
-  (smoke 9/9, probe exit 0, `oom_kill` 0; see the deployment and probe documents). The sum of `mem_limit` is still 4032 MiB.
-  The 16 MiB / thread description above is `compose.lab.json`, the rollback (`lab_compose up file=compose.lab.json`).
-  `compose.lab-process-n2.json` (N=2, 2 MiB) was deployed earlier (`ce7229b2`) and is now an alternative.
 - The image build and `up` with the new ownership were first covered by static checks only (no Docker in the authoring
   environment). They have been run since by the supervisor's `lab_compose`: the stack was up for the smoke (9/9) and for
   Playwright (30/0/0) at `b2780381`. A separate check of the ownership of `lab-artifacts-2` is not recorded in this document.
@@ -181,14 +134,15 @@ through `/v1/examples`).
 ## Variables
 
 The supervisor supplies these. All values below are **synthetic examples, not
-secrets**; use your own.
+secrets**; use your own. The build also needs `BIM_TOOLCHAIN_TOKEN` (see "Unprivileged
+containers"), a real token, not a service variable: a fine-grained token with read-only
+Contents access to `javiercavlop/bim-toolchain`.
 
 | Variable | Used by | Example |
 | --- | --- | --- |
 | `DEMO_PG_PASSWORD` | postgres, gateway, worker, seed | `lab-example-pg-password` (letters, digits, `-`, `_`, `.` only: it is embedded in a URL) |
 | `DEMO_JWT_SECRET` | gateway **only** (as `GATEWAY_JWT_SECRET`) | `lab-example-jwt-signing-value` (make it long and random) |
 | `DEMO_FERNET_KEY` | gateway, worker, seed (as `FEDERATION_SECRET_KEY`, the name `core/settings.py` reads) | a Fernet key: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
-| `DEMO_BIM_TOKEN` | bim-service, gateway | `lab-example-bim-token-0123456789abcdef` (one line, 32 to 127 printable ASCII characters without spaces: `bim-service` refuses to start otherwise) |
 | `DEMO_SPACE_ENABLED` | gateway, worker, seed (as `SPACE_ENABLED`) | `false` or `true`; see "SPACE status" below. `false` is the functional demo without SPACE plans; `true` needs a SPACE development service and contracts |
 | `DEMO_SPACE_PRICING_VERSION` | gateway, worker, seed (as `SPACE_PRICING_VERSION`); seed also as `SPACE_DEV_PRICING_VERSION` | `0.1.0` (must exist in SPACE/SPHERE) |
 | `DEMO_SPACE_DEFAULT_PLAN` | gateway, worker, seed (as `SPACE_DEFAULT_PLAN`) | `BASIC` (must exist in the pricing) |
@@ -274,19 +228,12 @@ and must be accounted for there. `frontend/nginx.lab.conf` also no longer says
 the compose file drops capabilities: `compose.lab.json` declares no `cap_drop`;
 the lab supervisor drops every capability of its containers.
 
-BIM variables (`BIM_MODE=http`, `BIM_SERVICE_URL=http://bim-service:8080`,
-`BIM_SERVICE_TOKEN_FILE=/run/bim/token`) are defined on the gateway, and its
-start command writes the file from `DEMO_BIM_TOKEN` into a tmpfs
-(`umask 077`). The gateway reads them through `integrations/bim.py`
-(`BIM_MODE=http`).
-
-`BIM_SERVICE_ALLOW_INSECURE_HTTP=true` is set only on `gateway`, `worker` and
-`seed`. The service is reached over plain `http` inside the lab's private Docker
-network with a synthetic token, and `bim_client` refuses a bearer token over
-plain `http` to a non-loopback host unless that is opted into explicitly. The
-gateway logs a warning at startup. Do not copy this to a real deployment: the
-gateway now refuses this flag (and `FEDERATION_REQUIRE_HTTPS=false`) when
-`APP_ENV=prod`; the lab is `dev`.
+BIM runs in process in `gateway`, `worker` and `seed` (`bim_client`'s
+`InProcessBim`, the default): the lab has no `bim-service` container, no `BIM_*`
+variable and no token file (`test_the_lab_runs_bim_in_process` in
+`lab/tests/test_lab_compose.py`). The HTTP `bim-service` is a separate deployable of
+the toolchain repository
+([`SERVICE.md`](https://github.com/javiercavlop/bim-toolchain/blob/v0.2.0/docs/SERVICE.md)).
 
 ## Running it with lab_compose
 
@@ -305,12 +252,13 @@ change and was not re-verified).
    message is the rule to adapt `compose.lab.json` to.
 2. `up`: `docker compose up --detach --build --wait`. The first build compiles
    three Maven projects, installs the frontend with pnpm and several Python
-   images; it needs network access to Maven Central, npm, PyPI and the Debian
-   archive, and takes a long time. `--wait` returns when every healthcheck is
+   images; it needs network access to Maven Central, npm, PyPI, the Debian
+   archive and GitHub (the release wheels of the BIM toolchain, with
+   `BIM_TOOLCHAIN_TOKEN` exported), and takes a long time. `--wait` returns when every healthcheck is
    green; start periods are 60 s for the gateway and the engines.
 3. `seed`: `docker compose run --rm --no-deps seed`. Runs
    `python tools/${DEMO_SEED_TOOL} ${DEMO_SEED_ARGS}` in the gateway image with
-   the gateway's environment (minus the session secret and BIM; see below).
+   the gateway's environment (minus the session secret; see below).
    **`lab_compose seed` uses the environment saved by the last `up`; an
    environment passed to `seed` itself is ignored.** To change `DEMO_SEED_TOOL` or
    `DEMO_SEED_ARGS`, repeat `up` with the new values and then run `seed`.
@@ -335,8 +283,8 @@ read-only to the unprivileged user, so a tool cannot write beside itself
 API. For that reason `seed` does not get `GATEWAY_JWT_SECRET`: a tool that logs
 in over HTTP sends a password and receives a token signed by the gateway, so it
 never needs the secret, and keeping the secret in one service is the point of
-`tests/test_compose_worker_secrets.py`. The seed also gets no BIM variables.
-If a later seed tool needs either, change `SEED_OMITS` in
+`tests/test_compose_worker_secrets.py`.
+If a later seed tool needs it, change `SEED_OMITS` in
 `lab/tests/test_lab_compose.py` together with the compose file.
 
 ## Browser specs and visual QA inside the lab
@@ -487,9 +435,10 @@ already tripped for its probe user, which still counts as a pass. What it does
 not cover (browser, Playwright, the visual mobile/desktop check) is
 left to the live Playwright run.
 
-**Run of 2026-10-13, SHA `5aebc7c8` (thread mode, `DEMO_SPACE_ENABLED=false`, without
-`--with-space`): 9/9 steps passed in 24.4 s.** The later run at `b2780381` (process mode N2) also gave 9/9 (duration not
-recorded in this document), and so did the run at `c2d46151` (process mode N1) in 6.0 s. `plan_usage` needs `--with-space`
+**Run of 2026-10-13, SHA `5aebc7c8` (`DEMO_SPACE_ENABLED=false`, without
+`--with-space`): 9/9 steps passed in 24.4 s.** The later run at `b2780381` also gave 9/9 (duration not
+recorded in this document), and so did the run at `c2d46151` in 6.0 s. All three ran with the removed `bim-service`
+container. `plan_usage` needs `--with-space`
 and was omitted on 2026-10-13 (**not executed**); whether it was run at `b2780381` is not recorded here. Whether it was run at `c2d46151` is not recorded here either.
 
 History: the first complete run passed 8 of 9 steps. The failing one,
@@ -589,14 +538,9 @@ diagnostic guide, not a list of verified results.
    container has no `CAP_CHOWN`). `docker-entrypoint.sh` does no
    `chown`. The seed's `tools/` is part of the image (made
    world-readable by the Dockerfile's `chmod -R a+rX /app`), not a bind.
-4. **Tokens file.** `logs bim-service`: `bearer authentication enabled with 1
-   token(s)`. The tmpfs is created root-owned, mode 1777, and the service runs
-   as uid 10001 (it writes its own file, `umask 077`). An error saying the
-   file cannot be read means the token is empty or shorter than 32 characters
-   (`DEMO_BIM_TOKEN` unset).
-5. **Migrations.** `logs gateway` should show `Applying database migrations...`
+4. **Migrations.** `logs gateway` should show `Applying database migrations...`
    before uvicorn starts; `worker` starts only after the gateway is healthy.
-6. **Memory.** `docker stats --no-stream`: the JVMs at 320 MiB and
+5. **Memory.** `docker stats --no-stream`: the JVMs at 320 MiB and
    `engine-minizinc` at 192 MiB are the likely OOM kills
    (`docker inspect -f '{{.State.OOMKilled}}' <container>`). The JVM options are
    `-Xmx192m -XX:MaxMetaspaceSize=96m` through `JAVA_TOOL_OPTIONS` (the
@@ -626,7 +570,7 @@ diagnostic guide, not a list of verified results.
   possible peers.
 - `engine-minizinc` at 192 MiB runs Node plus MiniZinc and its solver as child
   processes; a large model may not fit. Raising it means lowering something
-  else to stay under 4096 MiB (the current total, 4032 MiB, leaves 64 MiB).
+  else to stay under 4096 MiB (the current total, 3776 MiB, leaves 320 MiB).
 - A single worker serves the `default` queue with two threads; concurrent jobs
   can delay each other.
 - `gateway`, `worker` and `seed` share one image, `openbinding-lab-gateway:${DEMO_LAB_PORT:-18100}`
@@ -637,7 +581,7 @@ diagnostic guide, not a list of verified results.
   (missing new modules and migrations). With the shared tag, every `up` refreshes
   the image the seed runs; `worker` keeps `depends_on: gateway` healthy so the
   image exists before it starts.
-- `Dockerfile` of the gateway installs `uv` from `ghcr.io/astral-sh/uv:latest`
-  and installs packages without the lock file, so the image is not
-  reproducible.
+- The gateway `Dockerfile` pins uv (0.8.22) and installs the lock with hashes, but its base
+  image (`python:3.11-slim`) is a tag and the Debian packages are not pinned, so the image
+  is not byte-for-byte reproducible.
 - No TLS, no backups of the volumes, one host.
