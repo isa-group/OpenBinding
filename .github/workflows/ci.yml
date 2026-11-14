@@ -70,13 +70,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # The five OMG BPMN 2.0.2 XSDs that bim-core validates BPMN with are not versioned in Git. They are
-      # downloaded from omg.org over https and each SHA-256 is verified (all five or an error) before the
-      # editable install below builds bim-core, and Git must neither list nor fail to ignore them.
-      - name: Download the OMG BPMN XSDs, verify them and check that Git does not version them
-        run: |
-          python3 bim-toolchain/tools/xsd_inventory.py --ensure
-          python3 bim-toolchain/tools/xsd_inventory.py --check
+      - name: The wheels of the pinned bim-toolchain release
+        uses: ./.github/actions/bim-toolchain-access
+        with:
+          token: ${{ secrets.BIM_TOOLCHAIN_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -99,7 +96,7 @@ jobs:
         run: uv sync --locked --project openbinding-gateway --no-dev
 
       - name: Compile the complete checked-in BIM corpus
-        run: openbinding-gateway/.venv/bin/python tools/check_bim_corpus.py --expected 83 --jobs 4
+        run: openbinding-gateway/.venv/bin/python tools/check_bim_corpus.py --expected 82 --jobs 4
 
       - name: Check shared example authoring
         run: openbinding-gateway/.venv/bin/python tools/build_shared_examples.py --check
@@ -121,31 +118,31 @@ jobs:
           openbinding-gateway/.venv/bin/python tools/build_bim_packages.py --output "$second" "${packages[@]}"
           diff -qr "$first" "$second"
 
-  # The bim-toolchain package tests and goldens run on every pull request, in the
-  # gateway's locked environment, until the toolchain moves to its own repository.
-  # These are tests, so no step is report-only.
+  # The consumer contract of the bim-toolchain release this repository pins (openbinding-gateway/uv.lock). The
+  # language lives in javiercavlop/bim-toolchain; what must not move for OpenBinding is checked here against this
+  # repository's corpus, with the released wheels installed: the toolchain's corpus tier (-m openbinding_corpus) and
+  # baseline_core.py --check, from the test kit of the pinned tag (its tools, goldens, contracts and fixtures, without
+  # packages/*/src, so that the code under test is always the installed release), and the gateway's own BIM consumer
+  # tests and composition round-trip gate. These are tests, so no step is report-only, and none may skip.
   bim-toolchain:
     needs: changes
     if: needs.changes.outputs.bim == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        package: [bim-core, bim-service, bim-client]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # bim-core validates BPMN with the five OMG BPMN 2.0.2 XSDs, which are not versioned in Git.
-      - name: Download the OMG BPMN XSDs and verify them
-        run: python3 bim-toolchain/tools/xsd_inventory.py --ensure
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: The wheels of the pinned bim-toolchain release
+        uses: ./.github/actions/bim-toolchain-access
+        with:
+          token: ${{ secrets.BIM_TOOLCHAIN_TOKEN }}
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
@@ -157,32 +154,57 @@ jobs:
       - name: Restore the locked gateway environment with test dependencies
         run: uv sync --locked --project openbinding-gateway --extra test
 
-      # Two tests of bim-service are deselected. Both are timing measurements that depend on the shared
-      # runner's CPU, not correctness tests: one asserts a throughput ratio (47.6% against a 50% bound), the
-      # other is a strict xfail on GIL-switching latency that XPASSes on the runner. The toolchain's
-      # own CI keeps running both. Nothing else is deselected:
-      # packages/bim-service/tests/analysis/test_analysis_b8_evidence.py::test_the_throughput_cost_of_a_short_switch_interval
-      # packages/bim-service/tests/analysis/test_analysis_b8_probe.py::test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool[thread]
-      - name: Run the bim-toolchain package tests
-        if: matrix.package != 'bim-service'
-        working-directory: bim-toolchain
-        env:
-          PYTHONPATH: packages/bim-core/src:packages/bim-service/src:packages/bim-client/src
-        run: ../openbinding-gateway/.venv/bin/python -m pytest -p no:cacheprovider --rootdir=. -rs packages/${{ matrix.package }}/tests
+      - name: The tag of the pinned release
+        id: release
+        run: echo "tag=$(python3 tools/fetch_bim_toolchain.py --print | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
 
-      - name: Run the bim-service tests without the two timing tests
-        if: matrix.package == 'bim-service'
-        working-directory: bim-toolchain
-        env:
-          PYTHONPATH: packages/bim-core/src:packages/bim-service/src:packages/bim-client/src
-        run: ../openbinding-gateway/.venv/bin/python -m pytest -p no:cacheprovider --rootdir=. -rs packages/${{ matrix.package }}/tests --deselect packages/bim-service/tests/analysis/test_analysis_b8_evidence.py::test_the_throughput_cost_of_a_short_switch_interval --deselect 'packages/bim-service/tests/analysis/test_analysis_b8_probe.py::test_healthz_stays_fast_while_cpu_bound_operations_fill_the_pool[thread]'
+      - name: Check out the test kit of the pinned release (without the code of the packages)
+        uses: actions/checkout@v4
+        with:
+          repository: javiercavlop/bim-toolchain
+          ref: ${{ steps.release.outputs.tag }}
+          token: ${{ secrets.BIM_TOOLCHAIN_TOKEN }}
+          path: .bim-toolchain
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/packages/*/src/
+            /packages/bim-core/src/bim_core/resources/
 
-      - name: Check the bim-toolchain goldens
-        if: matrix.package == 'bim-core'
-        working-directory: bim-toolchain
+      - name: The corpus tier of the toolchain against this corpus (no test may be skipped)
+        working-directory: .bim-toolchain
         env:
-          PYTHONPATH: packages/bim-core/src:packages/bim-service/src:packages/bim-client/src
+          BIM_CORPUS_ROOT: ${{ github.workspace }}
+          BIM_REQUIRE_CORPUS: "1"
+        run: |
+          ../openbinding-gateway/.venv/bin/python -m pytest -p no:cacheprovider --rootdir=. -m openbinding_corpus -rs \
+            packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests | tee pytest.out
+          if grep -q "SKIPPED" pytest.out; then
+            echo "::error::a test of the corpus tier was SKIPPED; it must run"
+            exit 1
+          fi
+
+      - name: The baseline goldens of the release against this corpus
+        working-directory: .bim-toolchain
+        env:
+          BIM_CORPUS_ROOT: ${{ github.workspace }}
         run: ../openbinding-gateway/.venv/bin/python tools/baseline_core.py --check
+
+      - name: The gateway's BIM consumer tests and the composition round-trip gate (no test may be skipped)
+        working-directory: openbinding-gateway
+        env:
+          OPENBINDING_REPO_ROOT: ${{ github.workspace }}
+          BIM_TOOLCHAIN_ROOT: ${{ github.workspace }}/.bim-toolchain
+        run: |
+          .venv/bin/python -m pytest -p no:cacheprovider -rs \
+            tests/test_bim_baseline.py tests/test_bim_consumer_contract.py tests/test_bim_zip_dir_equivalence.py \
+            tests/test_bim_v1_conciseness.py tests/composition | tee pytest.out
+          if grep -q "SKIPPED" pytest.out; then
+            echo "::error::a BIM consumer test was SKIPPED; it must run"
+            exit 1
+          fi
+          .venv/bin/python ../tools/check_composition_roundtrip.py
 
   # The lab tests live outside openbinding-gateway/tests, so no other job
   # collects them. They run on the locked gateway environment with the test extra.
@@ -198,6 +220,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: The wheels of the pinned bim-toolchain release
+        uses: ./.github/actions/bim-toolchain-access
+        with:
+          token: ${{ secrets.BIM_TOOLCHAIN_TOKEN }}
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
@@ -280,8 +307,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download the OMG BPMN XSDs and verify them
-        run: python3 bim-toolchain/tools/xsd_inventory.py --ensure
+      - name: The wheels of the pinned bim-toolchain release
+        uses: ./.github/actions/bim-toolchain-access
+        with:
+          token: ${{ secrets.BIM_TOOLCHAIN_TOKEN }}
 
       # Same step as in job `test`: change both copies together.
       - name: Materialize the ICSOC source dataset
@@ -329,6 +358,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: The wheels of the pinned bim-toolchain release
+        uses: ./.github/actions/bim-toolchain-access
+        with:
+          token: ${{ secrets.BIM_TOOLCHAIN_TOKEN }}
 
       - name: Prepare environment
         run: |

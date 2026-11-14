@@ -72,7 +72,8 @@ def test_frontend_source_runs_e2e_and_gateway(changes):
 def test_engines_and_bim_paths(changes):
     assert _only(changes.changed_paths(["engines/multi-heuristic/pom.xml"]), "engines", "bim", "gateway")
     assert _only(changes.changed_paths(["schemas/bim/v1/instance.schema.json"]), "engines", "bim", "gateway")
-    assert _only(changes.changed_paths(["bim-toolchain/packages/bim-core/src/x.py"]), "bim", "gateway")
+    assert _only(changes.changed_paths([".github/actions/bim-toolchain-access/action.yml"]), "bim", "gateway")
+    assert _only(changes.changed_paths(["tools/fetch_bim_toolchain.py"]), "bim", "gateway")
     assert _only(changes.changed_paths(["openbinding-gateway/uv.lock"]), "bim", "gateway")
     assert _only(changes.changed_paths(["openbinding-gateway/src/openbinding_gateway/app.py"]), "gateway")
     assert _only(changes.changed_paths(["tools/check_bim_guard.py"]), "engines", "bim", "gateway")
@@ -82,7 +83,8 @@ def test_engines_and_bim_paths(changes):
 
 
 def test_files_the_bim_core_tests_compare_with_the_repository_run_the_bim_area(changes):
-    # test_boundary.py compares the root LICENSE and THIRD_PARTY_NOTICES.md with the bim-toolchain copies.
+    # test_boundary.py (the corpus tier of the pinned bim-toolchain release) compares the root LICENSE and
+    # THIRD_PARTY_NOTICES.md with its own copies.
     assert _only(changes.changed_paths(["LICENSE"]), "bim", "gateway")
     assert _only(changes.changed_paths(["THIRD_PARTY_NOTICES.md"]), "bim", "gateway")
     # ... and the vendored OMG BPMN XSD files with the gateway originals.
@@ -227,17 +229,17 @@ _REPO_NAME = re.compile(r"\b(?:REPO_ROOT|ROOT|REPO)\b")
 # test_no_kubernetes is the only repository-wide one and has its own rule in tools/ci_changes.py; the others stay in
 # directories the area rules classify. A new entry needs its paths justified next to those rules.
 WALKING_TESTS = {
-    "composition/test_goldens_unchanged.py": "bim-toolchain/golden, the corpus walk over examples/, tools/check_bim_*.py",
-    "composition/test_the_gate_is_a_set.py": "bim-toolchain/golden, the corpus walk over examples/ and engines/*/tests/fixtures, tools/check_bim_corpus.py",
-    "composition/test_the_roundtrip_gate.py": "bim-toolchain/golden and every gate package, through tools/check_composition_roundtrip.py",
-    "composition/test_the_text_layer.py": "bim-toolchain/golden and every gate package, through tools/check_composition_roundtrip.py",
-    "composition/test_the_model_diff.py": "bim-toolchain/golden and every gate package, through tools/check_composition_roundtrip.py",
+    "composition/test_goldens_unchanged.py": "the pinned golden (tests/golden/bim_baseline), the corpus walk over examples/, tools/check_bim_*.py",
+    "composition/test_the_gate_is_a_set.py": "the pinned golden (tests/golden/bim_baseline), the corpus walk over examples/ and engines/*/tests/fixtures, tools/check_bim_corpus.py",
+    "composition/test_the_roundtrip_gate.py": "the pinned golden (tests/golden/bim_baseline) and every gate package, through tools/check_composition_roundtrip.py",
+    "composition/test_the_text_layer.py": "the pinned golden (tests/golden/bim_baseline) and every gate package, through tools/check_composition_roundtrip.py",
+    "composition/test_the_model_diff.py": "the pinned golden (tests/golden/bim_baseline) and every gate package, through tools/check_composition_roundtrip.py",
     "integration/test_engine_representation_regression.py": "schemas/bim/v1/manifests, examples/federation",
     "test_b2_resolve_urls.py": "frontend/src/routes",
     "test_b5_corpus.py": "engine manifests",
     "test_b5_open_ranges.py": "engine manifests, examples/federation",
     "test_b8_range_refusal_pointer.py": "engine manifests",
-    "test_bim_consumer_contract.py": "bim-toolchain/contracts/consumers",
+    "test_bim_consumer_contract.py": "contracts/consumers of the toolchain test kit (.bim-toolchain/, BIM_TOOLCHAIN_ROOT)",
     "test_bim_schema_parity.py": "schemas/bim/v1",
     "test_compose_production.py": "a temporary secrets directory, not the repository",
     "test_docker_context.py": "the sources of the Dockerfile COPY lines",
