@@ -13,13 +13,11 @@ import argparse
 import io
 import json
 import re
-import sys
 import zipfile
 from pathlib import Path
 from openpyxl import load_workbook
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "bim-toolchain" / "packages" / "bim-core" / "src"))
 
 from bim_core import InstancePackage, compile_instance
 

@@ -19,7 +19,7 @@ importable; the same operations are taken from ``bim_core`` directly otherwise):
 Run it from the repository root with the gateway environment::
 
     cd openbinding-gateway
-    PYTHONPATH=src:../bim-toolchain/packages/bim-core/src:../bim-toolchain/packages/bim-client/src \\
+    PYTHONPATH=src \\
         uv run python ../engines/e2e/java_engines_ir02.py
 
 Anything it cannot run (no ``java``, no ``target/classes``, no Gson jar in ``~/.m2``) is reported as NOT RUN
