@@ -36,7 +36,7 @@ describe('screen budget', () => {
   });
 
   // `pub-workbench` is registered in the public area (public 4, problems 3).
-  it('has the area sizes of the registry, 35 screens in all', () => {
+  it('has the area sizes of the registry, 34 screens in all', () => {
     const sizes = Object.fromEntries(Object.entries(routesByArea).map(([area, routes]) => [area, routes.length]));
     expect(sizes).toEqual({
       public: 4,
@@ -46,11 +46,11 @@ describe('screen budget', () => {
       organizations: 3,
       project: 2,
       problems: 3,
-      runs: 5,
+      runs: 4,
       studies: 3,
       admin: 4,
     });
-    expect(routeDefinitions).toHaveLength(35);
+    expect(routeDefinitions).toHaveLength(34);
   });
 
   it('keeps no per-domain route file and no mention of routesByDomain under routes/', () => {

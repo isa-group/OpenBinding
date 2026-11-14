@@ -1,5 +1,5 @@
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
-import { failureBody, validationBody } from './helpers/problems';
+import { failureBody } from './helpers/problems';
 import type { BindingCase, CaseRevision } from '../src/api/platform';
 import { irDocument, refOf, revisionDocument } from '../src/pages/Cases/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
@@ -7,7 +7,7 @@ import { digestOf, usageOf } from '../src/test/fixtures/resources';
 import { DEFAULT_FILES } from '../src/pages/Workbench/bimDocuments';
 import { zipStore } from '../src/utils/bimZip';
 
-// S5d · workbench and generator lab: wb-workbench and gen-lab.
+// S5d · workbench: wb-workbench.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
 // so they can be looked at after a run. The desktop walks the states of each screen, the phone gets its layout and its main states.
 
@@ -104,37 +104,7 @@ const completedJob = {
   },
 };
 
-/** The files of the starter package, with the objects as the generator sends them. */
-function generatedFiles(name: string): Record<string, unknown> {
-  const files: Record<string, unknown> = {};
-  for (const [path, text] of Object.entries(DEFAULT_FILES)) files[path] = path.endsWith('.json') ? JSON.parse(text) : text;
-  (files['instance.json'] as { metadata: { name: string } }).metadata.name = name;
-  return files;
-}
-
-const generated = (name = 'generated_qaco') => ({
-  name,
-  package_digest: digestOf('1'),
-  instance_digest: digestOf('2'),
-  ir_digest: digestOf('3'),
-  compilation_digest: digestOf('6'),
-  snapshot_id: null,
-  case_id: null,
-  target_engines: ['evolutionary-heuristics', 'minizinc-csp'],
-  workload_features: {},
-  files: generatedFiles(name),
-  actual_constraint_count: 1,
-});
-
-const corpus = (count: number) => ({
-  name: 'generated_qaco',
-  count,
-  instances: Array.from({ length: count }, (_, index) => ({
-    name: `generated_qaco_${index + 1}`, package_digest: digestOf('4'), ir_digest: digestOf('5'), compilation_digest: digestOf('7'), workload_features: {}, actual_constraint_count: 1,
-  })),
-});
-
-type Overridable = 'validate' | 'snapshot' | 'saveRevision' | 'instance' | 'corpus' | 'convert';
+type Overridable = 'validate' | 'snapshot' | 'saveRevision';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
@@ -191,20 +161,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/v1/jobs/job-1`, json(completedJob));
   // The run's compiled problem: not available here, so RunResult falls back to the ids it has.
   await page.route(`${API}/v1/jobs/job-1/ir`, (route) => route.fulfill({ status: 404, json: { detail: 'not found' } }));
-
-  await page.route(`${API}/v1/generator/instances`, (route) => {
-    // Every body the lab sent for an instance, in order: the preview first, then what was kept.
-    state.sent.instances = [...((state.sent.instances as unknown[] | undefined) ?? []), bodyOf(route)];
-    return (state.refuse.instance ?? json(generated()))(route);
-  });
-  await page.route(`${API}/v1/generator/corpus`, (route) => {
-    state.sent.corpus = bodyOf(route);
-    return (state.refuse.corpus ?? json(corpus(Number((bodyOf(route) as { count: number }).count))))(route);
-  });
-  await page.route(`${API}/v1/generator/convert-legacy`, (route) => {
-    state.sent.convert = bodyOf(route);
-    return (state.refuse.convert ?? json(generated('converted_legacy')))(route);
-  });
 
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
     const url = new URL(route.request().url());
@@ -286,12 +242,11 @@ const viewports = [
 
 const ROOT = '/app/isa-demo/qos-benchmarks';
 const WORKBENCH = `${ROOT}/workbench`;
-const LAB = '/app/generator';
 
 const packageUpload = () => ({ name: 'imported.bim.zip', mimeType: 'application/vnd.bim+zip', buffer: Buffer.from(zipStore(DEFAULT_FILES)) });
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
-  test.describe(`${name} · S5d workbench and generator lab`, () => {
+  test.describe(`${name} · S5d workbench`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
     test('wb-workbench /app/:org/:project/workbench · package, check and result views', async ({ page }, testInfo) => {
@@ -303,7 +258,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Workbench' })).toBeVisible();
       await expect(main.getByText('Check a package, see which engines can run it, then snapshot, run or save it as a problem version.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Generate a synthetic instance' })).toHaveAttribute('href', LAB);
       await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Problems', exact: true })).toHaveAttribute('aria-current', 'page');
       await expect(main.getByRole('tab', { name: 'Problem version' })).toHaveAttribute('aria-selected', 'true');
       await expect(main.getByText(/Nothing validated yet/)).toBeVisible();
@@ -575,135 +529,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto('/app/isa-demo/ghost/workbench');
       await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
       await capture(page, testInfo, `bar-${name}-404`);
-      expect(critical).toEqual([]);
-    });
-
-    test('gen-lab /app/generator · one instance, keeping it and handing it to the workbench', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto(LAB);
-      const main = page.locator('#platform-main');
-      const preview = main.getByRole('region', { name: 'Preview' });
-      const keep = main.getByRole('region', { name: 'Keep it' });
-
-      await expect(main.getByRole('heading', { level: 1, name: 'Generator lab' })).toBeVisible();
-      await expect(main.getByText(/A research tool; results are labelled synthetic\./)).toBeVisible();
-      await expect(main.getByRole('tab')).toHaveText(['One instance', 'Batch', 'Convert old format']);
-      await expect(main.getByLabel('Tasks', { exact: true })).toHaveValue('6');
-      await expect(main.getByLabel('Candidates per task')).toHaveValue('5');
-      await expect(main.getByLabel('Random seed')).toHaveValue('42');
-      await expect(preview).toContainText('Default settings shown. Generate to see the structure.');
-      await expect(keep.getByRole('option')).toHaveText(['QoS Benchmarks · ISA Demo Group', 'Checkout (privado) · ISA Demo Group', 'Bench · Member Lab']);
-      await expect(keep.getByRole('button', { name: 'Save to project' })).toBeDisabled();
-      await capture(page, testInfo, `lab-${name}-default`);
-
-      // The settings that cannot be generated are marked before anything is sent (422).
-      await main.getByLabel('Tasks', { exact: true }).fill('1');
-      await main.getByRole('button', { name: 'Generate instance' }).click();
-      await expect(main.getByRole('alert')).toContainText('Check the highlighted fields (422)');
-      await expect(main.getByLabel('Tasks', { exact: true })).toHaveAttribute('aria-invalid', 'true');
-      await expect(main.getByText('Tasks: a whole number from 2 to 1000.')).toBeVisible();
-      expect(state.sent.instances).toBeUndefined();
-      await capture(page, testInfo, `lab-${name}-422-settings`);
-
-      // The server refuses the combination (422): the field it names is marked.
-      await main.getByLabel('Tasks', { exact: true }).fill('6');
-      state.refuse.instance = json(validationBody('candidates', [{ code: 'value_error', message: 'Too many candidates for these tasks', pointer: '/candidates' }]), 422);
-      await main.getByRole('button', { name: 'Generate instance' }).click();
-      await expect(main.getByRole('alert')).toContainText('These settings can’t be generated (422 · invalid generation config): the server rejected the combination.');
-      await expect(main.getByLabel('Candidates per task')).toHaveAttribute('aria-invalid', 'true');
-      await expect(main.getByText('Too many candidates for these tasks')).toBeVisible();
-      await capture(page, testInfo, `lab-${name}-422-server`);
-
-      // Generating, then the structure with its figures.
-      const generating = held(() => json(generated()));
-      state.refuse.instance = generating.handler;
-      await main.getByLabel('Random seed').fill('7');
-      await main.getByText('Bell curve').click();
-      await main.getByRole('button', { name: 'Generate instance' }).click();
-      await expect(preview.getByText('Generating…')).toBeVisible();
-      await capture(page, testInfo, `lab-${name}-generating`);
-      generating.release();
-      await expect(preview.getByRole('list', { name: 'Workflow of 6 tasks, in sequence' }).getByRole('listitem')).toHaveCount(6);
-      await expect(preview).toContainText('≈ 10^4.2');
-      await expect(preview.getByText('Synthetic', { exact: true })).toBeVisible();
-      await expect(preview).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      const sent = (state.sent.instances as Array<Record<string, unknown>>).at(-1) as { seed: number; features: Array<{ id: string; distribution: { kind: string } }> };
-      expect(sent.seed).toBe(7);
-      expect(sent.features.find((feature) => feature.id === 'latency')?.distribution.kind).toBe('normal');
-      await preview.getByText('View source').click();
-      await expect(preview.getByRole('combobox', { name: 'File' })).toHaveValue('instance.json');
-      await expect(keep.getByRole('button', { name: 'Save to project' })).toBeEnabled();
-      await capture(page, testInfo, `lab-${name}-generated`);
-
-      // Keeping it: the project is gone (404), the account may not add to it (403), then it is kept.
-      state.refuse.instance = detail(404, 'not_found', 'Project not found.');
-      await keep.getByRole('button', { name: 'Save to project' }).click();
-      await expect(keep.getByRole('alert')).toContainText('That project no longer exists or you lost access (404 · not_found).');
-      await capture(page, testInfo, `lab-${name}-404`);
-      state.refuse.instance = detail(403, 'forbidden', 'You cannot add to this project.');
-      await keep.getByRole('button', { name: 'Save to project' }).click();
-      await expect(keep.getByRole('alert')).toContainText('You can generate, but you don’t have permission to add to that project (403 · forbidden).');
-      await capture(page, testInfo, `lab-${name}-403`);
-      state.refuse.instance = undefined;
-      await keep.getByRole('combobox', { name: 'Project' }).selectOption({ label: 'Bench · Member Lab' });
-      await keep.getByRole('button', { name: 'Save to project' }).click();
-      await expect(keep.getByText('Saved to Bench · Member Lab as a synthetic instance.')).toBeVisible();
-      await expect(keep.getByRole('link', { name: 'See the project’s problems' })).toHaveAttribute('href', '/app/member-lab/bench/problems');
-      const saved = (state.sent.instances as Array<Record<string, unknown>>).at(-1) as Record<string, unknown>;
-      expect(saved).toMatchObject({ persist: true, project_id: 'project-4', case_name: 'generated_qaco', seed: 7 });
-      await capture(page, testInfo, `lab-${name}-saved`);
-      if (isMobile) {
-        expect(critical).toEqual([]);
-        return;
-      }
-
-      // The package goes to the workbench of the project as its draft.
-      await keep.getByRole('button', { name: 'Open in Workbench' }).click();
-      await expect(page).toHaveURL(/\/app\/member-lab\/bench\/workbench$/);
-      await main.getByRole('navigation', { name: 'BIM resources' }).getByRole('button', { name: /instance\.json/ }).click();
-      await expect(main.getByLabel('Name', { exact: true })).toHaveValue('generated_qaco');
-      await capture(page, testInfo, `lab-${name}-in-workbench`);
-      expect(critical).toEqual([]);
-    });
-
-    test('gen-lab /app/generator · a batch and a conversion', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto(LAB);
-      const main = page.locator('#platform-main');
-      const preview = main.getByRole('region', { name: 'Preview' });
-
-      // A batch repeats the settings; it is a preview and is not saved to a project.
-      await main.getByRole('tab', { name: 'Batch' }).click();
-      await expect(main.getByText('Same settings as a single instance, repeated as many times as you ask for.')).toBeVisible();
-      await main.getByLabel('How many instances').fill('101');
-      await main.getByRole('button', { name: 'Generate batch' }).click();
-      await expect(main.getByText('How many instances: a whole number from 1 to 100.')).toBeVisible();
-      await capture(page, testInfo, `lab-${name}-batch-422`);
-      await main.getByLabel('How many instances').fill('3');
-      await main.getByRole('button', { name: 'Generate batch' }).click();
-      await expect(preview.getByRole('list', { name: 'Instances of the batch' }).getByRole('listitem')).toHaveCount(3);
-      await expect(preview.getByText('Combinations each')).toBeVisible();
-      expect(state.sent.corpus).toMatchObject({ count: 3, persist: false, name: 'generated_qaco' });
-      await capture(page, testInfo, `lab-${name}-batch`);
-      await expect(main.getByRole('region', { name: 'Keep it' }).getByRole('button', { name: 'Save to project' })).toBeDisabled();
-      await expect(main.getByText('A batch is a preview only; generate one instance to save it to a project.')).toBeVisible();
-
-      // An old-format instance becomes a package.
-      await main.getByRole('tab', { name: 'Convert old format' }).click();
-      await expect(main.getByRole('button', { name: 'Convert to a package' })).toBeDisabled();
-      await main.getByLabel('Or paste its text').fill('TASK 1 CANDIDATES 5\nTASK 2 CANDIDATES 3');
-      await capture(page, testInfo, `lab-${name}-convert`);
-      state.refuse.convert = json(validationBody('raw_text', [{ code: 'value_error', message: 'Not a legacy instance', pointer: '/raw_text' }]), 422);
-      await main.getByRole('button', { name: 'Convert to a package' }).click();
-      await expect(main.getByRole('alert')).toContainText('That text can’t be converted (422 · invalid legacy instance)');
-      await capture(page, testInfo, `lab-${name}-convert-422`);
-      state.refuse.convert = undefined;
-      await main.getByRole('button', { name: 'Convert to a package' }).click();
-      await expect(preview.getByText('Engines it suits')).toBeVisible();
-      expect(state.sent.convert).toMatchObject({ raw_text: 'TASK 1 CANDIDATES 5\nTASK 2 CANDIDATES 3', name: 'converted_legacy', repair_empty_branches: true });
-      await capture(page, testInfo, `lab-${name}-converted`);
       expect(critical).toEqual([]);
     });
   });

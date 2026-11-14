@@ -121,7 +121,7 @@ describe('AppHeader', () => {
     expect(retired).toEqual([]);
   });
 
-  it('opens the Lab menu with Runs, Studies and Generator, and closes it with Escape, returning focus', () => {
+  it('opens the Lab menu with Runs and Studies, and closes it with Escape, returning focus', () => {
     renderHeader(user);
     const toggle = labToggle();
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -130,7 +130,7 @@ describe('AppHeader', () => {
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const menu = document.getElementById('app-lab-menu') as HTMLElement;
-    expect(entriesOf(menu)).toEqual([['Runs', '/app/runs'], ['Studies', '/app/isa-demo/qos/studies'], ['Generator', '/app/generator']]);
+    expect(entriesOf(menu)).toEqual([['Runs', '/app/runs'], ['Studies', '/app/isa-demo/qos/studies']]);
 
     within(menu).getByRole('link', { name: 'Runs' }).focus();
     fireEvent.keyDown(within(menu).getByRole('link', { name: 'Runs' }), { key: 'Escape' });
@@ -139,7 +139,7 @@ describe('AppHeader', () => {
     expect(toggle).toHaveFocus();
   });
 
-  it('disables Problems and Studies with the hint "Needs a project" and keeps Runs and Generator without a project', () => {
+  it('disables Problems and Studies with the hint "Needs a project" and keeps Runs without a project', () => {
     renderHeader(user, { withProject: false });
 
     const problems = within(mainNav()).getByText('Problems');
@@ -155,7 +155,6 @@ describe('AppHeader', () => {
     expect(studies).not.toHaveAttribute('href');
     expect(studies).toHaveAccessibleDescription('Needs a project');
     expect(within(menu).getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/runs');
-    expect(within(menu).getByRole('link', { name: 'Generator' })).toHaveAttribute('href', '/app/generator');
   });
 
   it('shows the organization and project as a context chip that leads to /app', () => {
@@ -173,7 +172,6 @@ describe('AppHeader', () => {
     ['/app/isa-demo/qos/problems', 'Problems'],
     ['/app/isa-demo/qos/runs/job-1', 'Lab'],
     ['/app/isa-demo/qos/studies/engines-vs-seeds', 'Lab'],
-    ['/app/generator', 'Lab'],
     ['/app/engines/registrations', 'Engines'],
     ['/app/admin/moderation', 'Admin'],
     ['/app/isa-demo/qos/published', null],
@@ -310,7 +308,7 @@ describe('AppHeader', () => {
       expect(entriesOf(mobileNav())).toEqual([
         ['ISA Demo Group / QoS Benchmarks', '/app'],
         ['Home', '/app'], ['Problems', '/app/isa-demo/qos/problems'],
-        ['Runs', '/app/runs'], ['Studies', '/app/isa-demo/qos/studies'], ['Generator', '/app/generator'],
+        ['Runs', '/app/runs'], ['Studies', '/app/isa-demo/qos/studies'],
         ['Engines', '/engines'], ['Admin', '/app/admin'],
         ['Problem', '/app/isa-demo/qos/problems?create=problem'],
         ['Study', '/app/isa-demo/qos/studies/new'], ['Run', '/app/isa-demo/qos/runs/new'],

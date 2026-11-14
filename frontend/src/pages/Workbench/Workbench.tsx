@@ -69,9 +69,6 @@ function WorkbenchScreen({ organization, project, canSave }: { organization: Org
           <h1>Workbench</h1>
           <p>Check a package, see which engines can run it, then snapshot, run or save it as a problem version.</p>
         </div>
-        <div className="proj-actions">
-          <Action to="/app/generator" variant="secondary">Generate a synthetic instance</Action>
-        </div>
       </header>
 
       <div className="wb">

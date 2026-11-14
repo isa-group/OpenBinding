@@ -3,20 +3,18 @@ import { live } from '../define';
 import { moved, type MovedRoute } from '../moved';
 import type { RouteDefinition } from '../types';
 
-// Area: runs. Launching and following runs, and the generator lab.
+// Area: runs. Launching and following runs.
 
 const JobLaunch = lazy(() => import('../../pages/Jobs/JobLaunch').then((module) => ({ default: module.JobLaunch })));
 const JobList = lazy(() => import('../../pages/Jobs/JobList').then((module) => ({ default: module.JobList })));
 const JobDetail = lazy(() => import('../../pages/Jobs/JobDetail').then((module) => ({ default: module.JobDetail })));
 const JobHistory = lazy(() => import('../../pages/Jobs/JobHistory').then((module) => ({ default: module.JobHistory })));
-const GeneratorLab = lazy(() => import('../../pages/Generator/GeneratorLab').then((module) => ({ default: module.GeneratorLab })));
 
 export const routes: RouteDefinition[] = [
   live('job-launch', '/app/:org/:project/runs/new', <JobLaunch />),
   live('job-list', '/app/:org/:project/runs', <JobList />),
   live('job-detail', '/app/:org/:project/runs/:job', <JobDetail />),
   live('job-history', '/app/runs', <JobHistory />),
-  live('gen-lab', '/app/generator', <GeneratorLab />),
 ];
 
 const movedAddresses: MovedRoute[] = [

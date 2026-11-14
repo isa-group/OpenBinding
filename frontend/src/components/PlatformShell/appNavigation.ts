@@ -23,7 +23,7 @@ const under = (pathname: string, root: string) => pathname === root || pathname.
 const sameSegment = (segment: string | undefined, ...names: string[]) => segment !== undefined && names.includes(segment);
 
 export type MainSection = 'home' | 'problems' | 'lab' | 'engines' | 'admin' | null;
-export type LabEntryId = 'runs' | 'studies' | 'generator';
+export type LabEntryId = 'runs' | 'studies';
 
 /** The entries of the header that do not depend on the current project. */
 export const mainLinks = {
@@ -34,7 +34,6 @@ export const mainLinks = {
 
 export const labLinks = {
   runs: { to: RUN_HISTORY_PATH, label: 'Runs' },
-  generator: { to: '/app/generator', label: 'Generator' },
 } as const satisfies Record<string, NavLinkItem>;
 
 export const accountLinks: readonly NavLinkItem[] = [
@@ -63,7 +62,6 @@ export function labEntries(organization?: Organization, project?: Project): Arra
   return [
     { id: 'runs', label: labLinks.runs.label, to: labLinks.runs.to },
     { id: 'studies', ...inProject('Studies', projectRoot(organization, project), `/${STUDIES_SEGMENT}`) },
-    { id: 'generator', label: labLinks.generator.label, to: labLinks.generator.to },
   ];
 }
 
@@ -78,7 +76,7 @@ export function createItems(organization?: Organization, project?: Project): Men
 }
 
 /** The first segments under `/app` that name a place of their own, not an organization. */
-const APP_PLACES = new Set(['admin', RUNS_SEGMENT, 'jobs', 'generator', 'engines', 'account', 'analysis', 'organizations']);
+const APP_PLACES = new Set(['admin', RUNS_SEGMENT, 'jobs', 'engines', 'account', 'analysis', 'organizations']);
 /** Of those, the places that belong to no entry of the header. */
 const UNMARKED_PLACES = new Set(['account', 'analysis']);
 /** `/app/:org/…` screens that belong to the organization, not to one of its projects. */
@@ -92,7 +90,6 @@ function projectSegment(pathname: string): string | undefined {
 
 /** Which entry of the Lab menu the address belongs to. */
 export function labEntryOf(pathname: string): LabEntryId | null {
-  if (under(pathname, labLinks.generator.to)) return 'generator';
   if (under(pathname, labLinks.runs.to) || sameSegment(projectSegment(pathname), RUNS_SEGMENT)) return 'runs';
   if (sameSegment(projectSegment(pathname), STUDIES_SEGMENT)) return 'studies';
   return null;
