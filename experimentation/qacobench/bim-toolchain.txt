@@ -1,6 +1,0 @@
-# The BIM language of the QACOBench images: the wheels of release v0.2.0 of javiercavlop/bim-toolchain, as
-# openbinding-gateway/uv.lock pins them (paths relative to the WORKDIR of the image, where
-# tools/fetch_bim_toolchain.py --wheels writes them, each checked against the SHA-256 of that lock).
-# openbinding-gateway/tests/test_docker_context.py fails if this file and uv.lock disagree.
-.bim-wheels/bim_core-0.2.0-py3-none-any.whl --hash=sha256:a1a125d71b3df0c772b1ec19faae7124aaeb6eb09d7e39a22cb5be32bdf2f0a0
-.bim-wheels/bim_client-0.2.0-py3-none-any.whl --hash=sha256:7d42f43e7e3b3cf40035530d88a23747ee9f96ce6dabaded00bcfad4e0df1ddb

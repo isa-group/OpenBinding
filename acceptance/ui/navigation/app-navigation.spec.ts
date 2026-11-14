@@ -56,7 +56,6 @@ test('application header lists its entries with a current project and a Lab menu
   await header.getByRole('button', { name: 'Lab' }).click();
   await expect(entry(menuScope(page), 'Runs')).toHaveAttribute('href', RUNS_ALL);
   await expect(entry(menuScope(page), 'Studies')).toHaveAttribute('href', '/app/acme/demo/studies');
-  await expect(entry(menuScope(page), 'Generator')).toHaveAttribute('href', '/app/generator');
 });
 
 test('Problems and Studies are disabled with a hint without a current project', async ({ page }) => {
@@ -72,7 +71,6 @@ test('Problems and Studies are disabled with a hint without a current project', 
   await expect(studies).not.toHaveAttribute('href', /.*/);
   await expect(studies).toHaveAccessibleDescription(/Needs a project/);
   await expect(entry(menuScope(page), 'Runs')).toHaveAttribute('href', RUNS_ALL);
-  await expect(entry(menuScope(page), 'Generator')).toHaveAttribute('href', '/app/generator');
 });
 
 test('a person whose role is user sees no Admin entry', async ({ page }) => {

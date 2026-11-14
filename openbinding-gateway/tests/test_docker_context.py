@@ -140,23 +140,3 @@ def test_nothing_of_the_bim_toolchain_is_built_from_this_repository() -> None:
     ]
     assert not [line for line in instructions if "bim-toolchain" in line or "bim-service" in line]
     assert not (REPO_ROOT / "bim-toolchain").exists()
-
-
-
-def test_the_qacobench_images_install_the_wheels_uv_lock_pins() -> None:
-    import tomllib
-
-    lock = tomllib.loads((REPO_ROOT / "openbinding-gateway" / "uv.lock").read_text(encoding="utf-8"))
-    pinned = {
-        wheel["filename"]: wheel["hash"]
-        for package in lock["package"]
-        if package["name"] in ("bim-core", "bim-client")
-        for wheel in package["wheels"]
-    }
-    listed = {}
-    for line in (REPO_ROOT / "experimentation" / "qacobench" / "bim-toolchain.txt").read_text(encoding="utf-8").splitlines():
-        if line.strip() and not line.startswith("#"):
-            path, option = line.split()
-            assert path.startswith(".bim-wheels/") and option.startswith("--hash=")
-            listed[path.removeprefix(".bim-wheels/")] = option.removeprefix("--hash=")
-    assert listed == pinned and len(pinned) == 2

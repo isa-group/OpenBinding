@@ -42,7 +42,7 @@ read it:
   read by `tools/fetch_bim_toolchain.py --wheels` before `uv sync`.
 - **Docker builds** take the build secret `bim_toolchain_token` from the
   environment variable `BIM_TOOLCHAIN_TOKEN` (`docker-compose.yml`,
-  `compose.lab*.json` and `experimentation/qacobench/compose.yaml` declare it).
+  and `compose.lab*.json` declare it).
   The gateway Dockerfile runs the same tool with the secret mounted only for that
   `RUN`, then `uv export --frozen` of the lock and installs the result with
   `--require-hashes`.
@@ -51,8 +51,7 @@ read it:
 
 **Upgrading the toolchain** is a pull request in OpenBinding that bumps the pin
 (`tools/fetch_bim_toolchain.py --wheels --bootstrap vX.Y.Z`, the versions and wheel
-files in `pyproject.toml`, `uv lock`, and
-`experimentation/qacobench/bim-toolchain.txt`) and passes the consumer contract
+files in `pyproject.toml` and `uv lock`) and passes the consumer contract
 below.
 
 ## Consumer contract
@@ -173,12 +172,10 @@ toolchain to be recompiled.
 The repository's offline tools use the library in process (`from bim_core import
 compile_instance, load_package`), run with `uv run --project openbinding-gateway`:
 `tools/{build_bim_packages,check_bim_corpus,check_bim_conciseness}.py`,
-`datasets/scripts/transform_*.py` and `experimentation/{qacobench,icws,icsoc}`.
+`datasets/scripts/transform_*.py` and `experimentation/{icws,icsoc}`.
 `tools/bim_baseline.py` only gives the platform's corpus, Engine manifests and
 golden directory to `tools/baseline_core.py` of the test kit (`.bim-toolchain/`
-or `BIM_TOOLCHAIN_ROOT`), which computes the documents. The QACOBench images
-install the same release wheels from `experimentation/qacobench/bim-toolchain.txt`
-(the same files and SHA-256 as the lock) with the same build secret.
+or `BIM_TOOLCHAIN_ROOT`), which computes the documents.
 
 The images are built with the repository root as context. The root `.dockerignore`
 is the only effective ignore file (a `Dockerfile.dockerignore` would take its place

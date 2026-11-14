@@ -110,7 +110,6 @@ from openbinding_gateway.db.platform_models import (
     Visibility,
 )
 from openbinding_gateway.models.platform import StudyDefinition
-from openbinding_gateway.generator.package import GeneratedPackage
 from openbinding_gateway.integrations import bim, packages
 from openbinding_gateway.routes import v1 as routes_v1
 from openbinding_gateway.security.apikeys import ADMIN_PERMISSIONS, ALL_PERMISSIONS, hash_key
@@ -124,6 +123,23 @@ from bim_core.canonical import digest
 logger = logging.getLogger("seed_dev")
 
 DEV_PASSWORD = "devpass123"
+
+
+class SeedPackage:
+    """A package as the seed writes it: file name to bytes."""
+
+    def __init__(self, files: dict[str, bytes]) -> None:
+        self.files = dict(files)
+
+    def json(self, path: str) -> dict:
+        return json.loads(self.files[path])
+
+    def instance(self) -> dict:
+        return self.json('instance.json')
+
+    def to_zip(self) -> bytes:
+        return packages.zip_files(self.files)
+
 
 
 def _deterministic_zip(entries: list[tuple[str, bytes | str]]) -> bytes:
@@ -627,9 +643,9 @@ async def ensure_projects(
 
 async def load_and_persist_snapshots(
     session: AsyncSession, user: User, examples_dir: Path
-) -> dict[str, tuple[GeneratedPackage, InstanceSnapshot]]:
+) -> dict[str, tuple[SeedPackage, InstanceSnapshot]]:
     """Compile BIM v1 packages from examples and persist executable InstanceSnapshots."""
-    results: dict[str, tuple[GeneratedPackage, InstanceSnapshot]] = {}
+    results: dict[str, tuple[SeedPackage, InstanceSnapshot]] = {}
 
     samples = [
         ("01_simple_seq", examples_dir / "demo" / "01_simple_seq"),
@@ -642,7 +658,7 @@ async def load_and_persist_snapshots(
             logger.warning("Example path '%s' does not exist; skipping snapshot compilation", path)
             continue
         try:
-            package = GeneratedPackage(packages.directory_files(path))
+            package = SeedPackage(packages.directory_files(path))
             compilation = await compile_resolved(package.to_zip(), session)
             snapshot_id_str = await persist_snapshot(compilation, user, session)
             if not snapshot_id_str:
@@ -696,7 +712,7 @@ async def ensure_cases(
     session: AsyncSession,
     project: Project,
     user: User,
-    snapshots: dict[str, tuple[GeneratedPackage, InstanceSnapshot]],
+    snapshots: dict[str, tuple[SeedPackage, InstanceSnapshot]],
 ) -> dict[str, tuple[BindingCase, BindingCaseRevision]]:
     """Create binding cases and their revisions."""
     case_map: dict[str, tuple[BindingCase, BindingCaseRevision]] = {}
@@ -772,13 +788,13 @@ async def ensure_project_resources(session, project_map, users):
     from openbinding_gateway.models.artifacts import DraftContent, PublishVersion
     from openbinding_gateway.routes.library import publish_version
     from bim_core.canonical import canonical_json
-    source = GeneratedPackage(packages.directory_files(_find_examples_dir() / 'demo' / '01_simple_seq'))
+    source = SeedPackage(packages.directory_files(_find_examples_dir() / 'demo' / '01_simple_seq'))
     root = source.instance()
     root['spec']['resources']['constraintSet'] = {'constraints': 'constraints.json'}
     constraints = dict(apiVersion='qos-binding/v1', kind='ConstraintSet', metadata={'name': 'shared-latency-bound'},
         spec={'constraints': {'latency-sla': {'assert': 'features.latency <= 1000', 'enforcement': 'hard'}}})
     files = {**source.files, 'instance.json': canonical_json(root), 'constraints.json': canonical_json(constraints)}
-    initial = GeneratedPackage(files)
+    initial = SeedPackage(files)
     first_uses = None
     for index, key in enumerate(('score-ai/qos-placement', 'score-ai/smart-orchestration')):
         project = project_map.get(key)
@@ -788,7 +804,7 @@ async def ensure_project_resources(session, project_map, users):
         if index:
             catalog = initial.json('candidates.json')
             catalog['spec']['candidates']['c1a']['features']['latency'] = 8
-            package = GeneratedPackage({**files, 'candidates.json': canonical_json(catalog)})
+            package = SeedPackage({**files, 'candidates.json': canonical_json(catalog)})
         document, snapshot_id, uses = await ensure_library_composition(session, project, users['alice'], package, '01_simple_seq')
         if first_uses is None:
             first_uses = uses
@@ -952,7 +968,7 @@ async def ensure_standalone_jobs(
     org: Organization,
     project: Project,
     user: User,
-    snapshots: dict[str, tuple[GeneratedPackage, InstanceSnapshot] | InstanceSnapshot] | None = None,
+    snapshots: dict[str, tuple[SeedPackage, InstanceSnapshot] | InstanceSnapshot] | None = None,
     all_states: bool = False,
 ) -> list[Job]:
     """Execute bounded real jobs; unchanged scenarios reuse their persisted outcomes."""

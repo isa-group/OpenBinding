@@ -90,7 +90,6 @@ describe('Workbench', () => {
 
       expect(screen.getByRole('heading', { level: 1, name: 'Workbench' })).toBeInTheDocument();
       expect(screen.getByText('Check a package, see which engines can run it, then snapshot, run or save it as a problem version.')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Generate a synthetic instance' })).toHaveAttribute('href', '/app/generator');
       expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Problems' })).toHaveAttribute('aria-current', 'page');
       expect(within(screen.getByRole('navigation', { name: 'Breadcrumb' })).getByText('Workbench')).toHaveAttribute('aria-current', 'page');
       expect(screen.getAllByRole('tab').slice(0, 3).map((tab) => tab.textContent)).toEqual(['Problem version', 'Upload file', 'Example']);

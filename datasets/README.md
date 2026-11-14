@@ -1,5 +1,10 @@
 # QACOBench datasets
 
+QACOBench (the experiment, its QFBS design and the generator) moved to
+[`javiercavlop/QACOForge`](https://github.com/javiercavlop/QACOForge), where `qacobench/run.sh` builds
+its stack from this repository's tag `pre-redesign`; the `run.sh` commands below are that script. The
+sources and transformers of the recovered suites are still here.
+
 The release corpus has seven consecutive, stable suite IDs and 15,450 instances.
 
 | Directory | Instances | Source/type |
@@ -24,12 +29,12 @@ python datasets/scripts/transform_hsc.py --target datasets/03_hsc_llm --jobs 16
 python datasets/scripts/transform_rprsr15.py --target datasets/04_rprsr15
 python datasets/scripts/transform_iots.py --target datasets/05_iots
 python datasets/scripts/transform_bws_scp.py --target datasets/06_bws_scp
-experimentation/qacobench/run.sh generate
+qacobench/run.sh generate   # in QACOForge
 ```
 
-(`experimentation/qacobench/run.sh transform` runs the three transformers whose encodings changed in the second release — HSC, RPRSR15 and BWS-SCP — inside the runner image, followed by `write_benchmark_metadata.py`.)
+(`qacobench/run.sh transform` in QACOForge runs the three transformers whose encodings changed in the second release — HSC, RPRSR15 and BWS-SCP — inside the runner image, followed by `write_benchmark_metadata.py`.)
 
-`datasets/scripts/write_benchmark_metadata.py` (re)writes `benchmark-metadata.json` in every package of the six recovered suites: suite and instance identity, admission class, the provenance of the source benchmark taken from `recovery_catalogue.json`, the transformer's fidelity annotations, the SHA-256 of each resource and the package digest the campaign records (same recipe as `experimentation/qacobench/_common.py`; the metadata file itself is excluded from that digest). `--check` verifies the files without writing them. QFBS packages are described by `07_qfbs/manifest.jsonl` instead.
+`datasets/scripts/write_benchmark_metadata.py` (re)writes `benchmark-metadata.json` in every package of the six recovered suites: suite and instance identity, admission class, the provenance of the source benchmark taken from `recovery_catalogue.json`, the transformer's fidelity annotations, the SHA-256 of each resource and the package digest the campaign records (same recipe as QACOBench's `_common.py`; the metadata file itself is excluded from that digest). `--check` verifies the files without writing them. QFBS packages are described by `07_qfbs/manifest.jsonl` instead.
 
 Each transformer encodes the *source* objective and constraints, not a convenience approximation, and records in `benchmark-metadata.json` the fidelity facts a reader needs (`source_objective`, `objective_weights`, `attained_extremes`, aggregation and value conventions, reference solutions where the source provides them):
 
@@ -42,7 +47,7 @@ Each transformer encodes the *source* objective and constraints, not a convenien
 - 2,600 feasibility-guaranteed instances: 26 configurations × 100 seeds.
 - 2,600 non-guaranteed instances: the same 26 configurations × 100 seeds, using threshold bands without a satisfiability label.
 
-`experimentation/qacobench/design_matrix.json` fixes every configuration and the base seed. The manifest records each request, response digest, actual counts and observed workflow structure. The campaign requires 15,450 instances before submitting jobs. There is no separate corpus-wide audit or second generation pass.
+QACOBench's `design_matrix.json` (QACOForge, `qacobench/`) fixes every configuration and the base seed. The manifest records each request, response digest, actual counts and observed workflow structure. The campaign requires 15,450 instances before submitting jobs. There is no separate corpus-wide audit or second generation pass.
 
 ## ICSOC placement dataset
 

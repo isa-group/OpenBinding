@@ -17,10 +17,10 @@ from openbinding_gateway.access.work_limits import (
     set_work_limiter,
 )
 from openbinding_gateway.core import ratelimit
-from openbinding_gateway.core.ratelimit import MemoryBackend, RedisBackend, client_bucket
+from openbinding_gateway.core.ratelimit import RedisBackend, client_bucket
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.main import app
-from openbinding_gateway.routes import compositions, generator
+from openbinding_gateway.routes import compositions
 
 ZIP = {"content-type": "application/zip"}
 
@@ -35,30 +35,9 @@ REQUESTS = {
     "/v1/compositions/package": {"json": {}},
     "/v1/compositions/import": {"content": b"", "headers": ZIP},
     "/v1/instances/validate": {"content": b"", "headers": ZIP},
-    "/v1/generator/instances": {"json": {}},
-    "/v1/generator/convert-legacy": {"json": {}},
 }
 
 BIM_ROUTES = {"/v1/compositions/import", "/v1/instances/validate"}
-
-
-def corpus(count: int) -> dict:
-    return {
-        "json": {
-            "count": count,
-            "name": "c",
-            "base_config": {
-                "tasks": 4,
-                "candidates": 2,
-                "constraints": 0,
-                "features": [{
-                    "id": "cost", "unit": "EUR", "direction": "minimize", "scope": "selectedCandidate",
-                    "distribution": {"kind": "uniform", "minimum": 1, "maximum": 10},
-                    "aggregation": {"selection": "sum"},
-                }],
-            },
-        }
-    }
 
 
 @pytest.fixture
@@ -73,16 +52,6 @@ def budgets(monkeypatch):
         monkeypatch.setattr(settings, "work_rate_limit_window_s", window)
 
     return apply
-
-
-@pytest.fixture
-def cheap_generation(monkeypatch):
-    """Generation that fails at once: the charge is made before it, and is what is tested."""
-
-    def refuse(**_: object):
-        raise ValueError("not generating anything in this test")
-
-    monkeypatch.setattr(generator, "generate_instance_package", refuse)
 
 
 def client_at(address: str) -> AsyncClient:
@@ -121,14 +90,14 @@ def test_a_route_added_under_the_open_prefixes_has_to_be_classified():
     """Deny-by-default, as for public reads: a new route fails here until somebody decides."""
     found = {
         path for path in post_routes()
-        if path.startswith(("/v1/compositions/", "/v1/generator/")) or path == "/v1/instances/validate"
+        if path.startswith("/v1/compositions/") or path == "/v1/instances/validate"
     }
     assert found == set(WORK_ROUTES)
 
 
 def test_every_counted_route_is_exercised_below():
     """So an entry added to the table cannot go without proof that its route is limited."""
-    assert set(REQUESTS) | {"/v1/generator/corpus"} == set(WORK_ROUTES)
+    assert set(REQUESTS) == set(WORK_ROUTES)
 
 
 def test_the_two_classes_are_the_ones_the_policy_states():
@@ -190,7 +159,7 @@ async def test_the_compile_class_is_counted_across_its_routes(api_client, budget
     await post(api_client, "/v1/compositions/compile")
     await post(api_client, "/v1/instances/validate")
 
-    assert_refused(await post(api_client, "/v1/generator/instances"))
+    assert_refused(await post(api_client, "/v1/compositions/package"))
 
 
 async def test_spending_one_class_does_not_touch_the_other(api_client, budgets):
@@ -356,34 +325,6 @@ async def test_validating_a_package_still_refuses_no_key_for_its_permissions(
     assert response.status_code not in (401, 403), response.text
 
 
-# ------------------------------------------------------------------- a corpus
-
-async def test_a_corpus_is_charged_per_instance(api_client, budgets, cheap_generation):
-    budgets(compile=5)
-
-    assert (await api_client.post("/v1/generator/corpus", **corpus(3))).status_code == 422
-    assert (await api_client.post("/v1/generator/corpus", **corpus(2))).status_code == 422
-
-    assert_refused(await api_client.post("/v1/generator/corpus", **corpus(1)))
-
-
-async def test_a_corpus_past_the_budget_runs_only_in_an_untouched_window(api_client, budgets, cheap_generation):
-    budgets(compile=3)
-
-    alone = await api_client.post("/v1/generator/corpus", **corpus(50))
-    again = await api_client.post("/v1/generator/corpus", **corpus(50))
-
-    assert alone.status_code == 422  # not refused forever: it ran, and generation failed
-    assert_refused(again)
-
-
-async def test_a_corpus_past_what_is_left_is_refused(api_client, budgets, cheap_generation):
-    budgets(compile=3)
-    await post(api_client, "/v1/compositions/compile")
-
-    assert_refused(await api_client.post("/v1/generator/corpus", **corpus(3)))
-
-
 # ------------------------------------------------------------------- the store
 
 async def test_the_counters_live_in_the_shared_backend(api_client, budgets):
@@ -432,19 +373,6 @@ async def test_redis_failure_degrades_to_process_counters_and_never_switches_the
     now[0] += 16.0  # the retry window passed: Redis is tried (and degraded) again
     await post(api_client, "/v1/compositions/validate")
     assert limiter.degradation.events == 2
-
-
-async def test_a_units_charge_reaches_both_backends():
-    redis = FakeRedis()
-    shared = WorkRateLimiter(primary=RedisBackend(redis))
-    alone = WorkRateLimiter(primary=None, fallback=MemoryBackend(clock=lambda: 0.0))
-
-    await shared.check("compile", "ip:x", budget=10, window_s=60, units=4)
-    await alone.check("compile", "ip:x", budget=10, window_s=60, units=4)
-    await alone.check("compile", "ip:x", budget=10, window_s=60, units=3)
-
-    assert redis.counts == {"workrl:compile:ip:x": 4}
-    assert await alone.fallback.hit("workrl:compile:ip:x", 60) == (8, 60)
 
 
 async def test_a_redis_window_that_is_about_to_end_still_says_wait():

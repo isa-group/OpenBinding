@@ -142,9 +142,6 @@ def test_authentication_and_role_requirements_are_explicit(document):
         # The public engine catalogue: a visitor gets the built-in and published Engines.
         ("/v1/engines", "get"),
         ("/v1/instances/validate", "post"),
-        ("/v1/generator/instances", "post"),
-        ("/v1/generator/corpus", "post"),
-        ("/v1/generator/convert-legacy", "post"),
         # Like /v1/instances/validate: the response is a pure function of the request, so
         # there is nothing an account would protect. An API key still needs
         # instances:read.

@@ -134,7 +134,7 @@ BIM routes (`/v1/validate`, `/v1/instances`, `/v1/jobs`, `/v1/engines`,
 `application/problem+json`, as they always did. `POST /v1/compositions/import`
 is among them, because it is a package upload and answers like the others; the
 rest of `/v1/compositions` does not. The platform routes
-(accounts, organizations, projects, studies, artifacts, pricing, generator, …)
+(accounts, organizations, projects, studies, artifacts, pricing, …)
 keep `application/json`. The body is identical; only the media type differs, and
 the OpenAPI document declares the right one per path. Nothing was changed here
 on purpose: switching the platform routes would be harmless to a JSON client but

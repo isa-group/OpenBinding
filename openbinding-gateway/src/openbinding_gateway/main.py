@@ -64,7 +64,6 @@ from .routes.pricing import public_router as pricing_router
 from .routes.studies import router as studies_router
 from .routes.users import router as users_router
 from .routes.v1 import router as v1_router
-from .routes.generator import router as generator_router
 from .routes.compositions import project_router as compositions_project_router
 from .routes.compositions import router as compositions_router
 from .security.apikeys import (
@@ -373,7 +372,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(artifacts_router)
     app.include_router(jobs_router)
     app.include_router(notifications_router)
-    app.include_router(generator_router)
     app.include_router(compositions_router)
     app.include_router(compositions_project_router)
 

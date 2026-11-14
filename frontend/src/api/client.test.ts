@@ -265,7 +265,7 @@ describe('the canonical problem document', () => {
       type: 'https://openbinding.dev/problems/validation_error', title: 'validation_error', status: 422, code: 'validation_error',
       detail: 'Request validation failed: /tasks: Input should be greater than 0', diagnostics,
     }, 422));
-    const error = await client.request('/v1/generator/instances', { method: 'POST' }).catch((caught: unknown) => caught);
+    const error = await client.request('/v1/jobs', { method: 'POST' }).catch((caught: unknown) => caught);
     expect(error).toMatchObject({ status: 422, code: 'validation_error', diagnostics, message: 'HTTP 422: Request validation failed: /tasks: Input should be greater than 0' });
   });
 

@@ -33,7 +33,6 @@ export function buildCommands({ organizations = [], projects = [], organization,
   const commands: Command[] = [
     command('Go to', 'Home', 'Organizations and recent activity', mainLinks.home.to),
     command('Go to', 'Runs', 'Every run you can see', labLinks.runs.to),
-    command('Go to', 'Generator', 'Generate benchmark instances', labLinks.generator.to),
     command('Go to', 'Engines', 'Engines by exact identity', mainLinks.engines.to),
     command('Go to', 'Pricing', 'Plans, limits and add-ons', '/pricing'),
   ];

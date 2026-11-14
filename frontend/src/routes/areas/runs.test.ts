@@ -11,14 +11,13 @@ const PROTOTYPE: Array<[string, string]> = [
   ['job-list', '/app/:org/:project/runs'],
   ['job-detail', '/app/:org/:project/runs/:job'],
   ['job-history', '/app/runs'],
-  ['gen-lab', '/app/generator'],
 ];
 
 const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
 
 describe('area runs', () => {
-  it('has 5 screens, with the ids and routes of the prototype', () => {
-    expect(routesByArea.runs).toHaveLength(5);
+  it('has 4 screens, with the ids and routes of the prototype', () => {
+    expect(routesByArea.runs).toHaveLength(4);
     expect(routesByArea.runs.map((definition) => [definition.id, definition.path])).toEqual(PROTOTYPE);
   });
 
@@ -26,14 +25,6 @@ describe('area runs', () => {
     expect(routeDefinitions.map((definition) => definition.path).filter((path) => path.split('/').includes('jobs'))).toEqual([]);
     expect(RUNS_SEGMENT).toBe('runs');
     expect(RUN_HISTORY_PATH).toBe('/app/runs');
-  });
-
-  it('keeps the generator lab', () => {
-    expect(routeDefinitions.map((definition) => definition.id)).toContain('gen-lab');
-  });
-
-  it('has the generator lab at the address of the prototype', () => {
-    expect(routeDefinitions.find((definition) => definition.id === 'gen-lab')?.path).toBe('/app/generator');
   });
 
   it('keeps the run screens from being read as an organization or project', () => {
@@ -44,7 +35,6 @@ describe('area runs', () => {
   describe('address resolution', () => {
     it.each([
       ['/app/runs', 'job-history'],
-      ['/app/generator', 'gen-lab'],
       ['/app/acme/atlas/runs', 'job-list'],
       ['/app/acme/atlas/runs/new', 'job-launch'],
       ['/app/acme/atlas/runs/j1', 'job-detail'],

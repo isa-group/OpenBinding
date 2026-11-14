@@ -24,7 +24,6 @@
     <module>random-search</module>
     <module>many-heuristic</module>
     <module>multi-heuristic</module>
-    <module>bim-generator</module>
   </modules>
 
   <profiles>

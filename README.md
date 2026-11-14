@@ -124,13 +124,13 @@ The gateway, the worker and the seed run BIM in process; the standalone
 `bim-service` container is a separate deployable of the BIM toolchain, described in its
 [`SERVICE.md`](https://github.com/javiercavlop/bim-toolchain/blob/v0.2.0/docs/SERVICE.md).
 
-Building the gateway and QACOBench images, or running `uv sync` in
+Building the gateway image, or running `uv sync` in
 `openbinding-gateway`, downloads the BIM toolchain wheels from a private GitHub
 repository, so it needs a token that can read it; see
 [BIM toolchain](#bim-toolchain).
 
-`docker-compose.yml` defines the profiles `dev`, `db-tools` (Adminer),
-`federated-example` and `benchmark`. `dev` starts PostgreSQL, Redis,
+`docker-compose.yml` defines the profiles `dev`, `db-tools` (Adminer) and
+`federated-example`. `dev` starts PostgreSQL, Redis,
 the gateway, the job worker, the four bundled Engines, the frontend and
 nginx. With `APP_ENV=prod` (production only) the gateway refuses to start unless
 `CORS_ALLOW_ORIGINS` names exact origins. Whether the stack, SPACE and SPHERE
@@ -195,7 +195,7 @@ account in an empty database. The `dev` profile publishes the gateway on
 
 
 The gateway exposes `/v1/profiles`, `/v1/dialects`,
-`/v1/engines`, `/v1/instances`, `/v1/jobs`, `/v1/generator`, and
+`/v1/engines`, `/v1/instances`, `/v1/jobs`, and
 `/v1/engine-registrations`. BIM source uploads are complete `.bim.zip`
 packages; JSON requests may refer to immutable snapshots. Jobs always return
 `202`. Results use `OPTIMAL`, `FEASIBLE`, `INFEASIBLE`, or `UNKNOWN`, and
@@ -228,8 +228,13 @@ OpenBinding guarantees strict cryptographic immutability and provenance:
   that BIM experiments analyse. They are **not** OpenBinding plans; see
   [`pricings/README.md`](pricings/README.md).
 - `engines`: MiniZinc, random-search, many-heuristic, evolutionary modes,
-  `bim-generator`, and the federated `multi-heuristic` example.
-- `examples` and `experimentation`: BIM v1 packages and reproducible generators.
+  and the federated `multi-heuristic` example.
+- `examples` and `experimentation`: BIM v1 packages and reproducible experiments.
+
+The QACO problem generator (QACOForge) and the QACOBench benchmark live in their
+own repository, [`javiercavlop/QACOForge`](https://github.com/javiercavlop/QACOForge)
+(private for now). Its packages enter OpenBinding as native BIM problems.
+QACOBench 1.1.1 reproduces from the tag `pre-redesign` of this repository.
 
 ### BIM toolchain
 
@@ -256,19 +261,18 @@ keeps a file only if its SHA-256 is the lock's; run it before `uv sync`. The tok
 
 - Docker builds run the same tool with the build secret `bim_toolchain_token`, taken
   from the environment variable `BIM_TOOLCHAIN_TOKEN` (declared in `docker-compose.yml`,
-  `compose.lab*.json` and `experimentation/qacobench/compose.yaml`), so export it
+  and `compose.lab*.json`), so export it
   before building;
 - CI uses the repository secret `BIM_TOOLCHAIN_TOKEN` through
   `.github/actions/bim-toolchain-access`.
 
 Upgrading the toolchain is a pull request here that bumps the pin (new wheel files and
-hashes in `uv.lock` and `experimentation/qacobench/bim-toolchain.txt`) and passes
+hashes in `uv.lock`) and passes
 the consumer contract of the CI job `bim-toolchain`. See [BIM core](docs/BIM_CORE.md).
 
 Start with the [progressive BIM model atlas](docs/models/README.md) for the
 metamodels and concrete instances, continue with the
-[BIM architecture](docs/BIM_V1.md), explore the
-[BIM generator](docs/BIM_GENERATOR.md), follow the
+[BIM architecture](docs/BIM_V1.md), follow the
 [authoring guide](docs/AUTHORING_GUIDE.md), or read the
 [engine integration guide](docs/ENGINE_INTEGRATION.md).
 

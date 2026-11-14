@@ -92,7 +92,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           const toggle = header.getByRole('button', { name: 'Open menu' });
           await toggle.click();
           const menu = header.getByRole('navigation', { name: 'Mobile navigation' });
-          for (const label of ['Home', 'Problems', 'Runs', 'Studies', 'Generator', 'Engines', 'Problem', 'Study', 'Run']) {
+          for (const label of ['Home', 'Problems', 'Runs', 'Studies', 'Engines', 'Problem', 'Study', 'Run']) {
             await expect(menu.getByRole('link', { name: label, exact: true }).first(), label).toBeVisible();
           }
           for (const label of ['Language', 'Jobs', 'Explore', 'Verifier', 'Engine catalog', 'Organization', 'API key']) {
@@ -133,7 +133,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           const labMenu = header.locator('#app-lab-menu');
           await expect(labMenu.getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/runs');
           await expect(labMenu.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/studies');
-          await expect(labMenu.getByRole('link', { name: 'Generator' })).toHaveAttribute('href', '/app/generator');
           await shot('menu-lab');
           await page.keyboard.press('Escape');
           await expect(lab).toHaveAttribute('aria-expanded', 'false');

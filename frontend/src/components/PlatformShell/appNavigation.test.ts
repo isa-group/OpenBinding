@@ -38,16 +38,16 @@ describe('mainLinks', () => {
       ...addressesOf(createItems(organization, project)),
       ...accountLinks.map((link) => link.to),
     ];
-    expect(addresses.length).toBeGreaterThan(14);
+    expect(addresses.length).toBeGreaterThan(13);
     expect(addresses.filter((address) => /\/(reports|library|resources)([/?#]|$)/.test(address))).toEqual([]);
   });
 });
 
 describe('problemsEntry and labEntries', () => {
-  it('lead into the current project, and Runs and Generator do not need one', () => {
+  it('lead into the current project, and Runs does not need one', () => {
     expect(problemsEntry(organization, project)).toEqual({ label: 'Problems', to: '/app/isa-demo/qos/problems' });
     expect(labEntries(organization, project).map(({ id, label, to }) => [id, label, to])).toEqual([
-      ['runs', 'Runs', '/app/runs'], ['studies', 'Studies', '/app/isa-demo/qos/studies'], ['generator', 'Generator', '/app/generator'],
+      ['runs', 'Runs', '/app/runs'], ['studies', 'Studies', '/app/isa-demo/qos/studies'],
     ]);
     for (const address of [...addressesOf([problemsEntry(organization, project)]), ...addressesOf(labEntries(organization, project))]) {
       expect(matchRoutes(routed, address), address).not.toBeNull();
@@ -59,7 +59,7 @@ describe('problemsEntry and labEntries', () => {
     expect(problemsEntry(organization)).toEqual({ label: 'Problems', hint: 'Needs a project' });
     expect(problemsEntry()).toEqual({ label: 'Problems', hint: 'Needs a project' });
     expect(labEntries(organization).map(({ label, to, hint }) => [label, to, hint])).toEqual([
-      ['Runs', labLinks.runs.to, undefined], ['Studies', undefined, 'Needs a project'], ['Generator', labLinks.generator.to, undefined],
+      ['Runs', labLinks.runs.to, undefined], ['Studies', undefined, 'Needs a project'],
     ]);
   });
 });
@@ -113,7 +113,6 @@ describe('currentSection', () => {
     ['/app/isa-demo/qos/runs/new', 'lab'],
     ['/app/isa-demo/qos/studies', 'lab'],
     ['/app/isa-demo/qos/studies/engines-vs-seeds', 'lab'],
-    ['/app/generator', 'lab'],
     ['/engines', 'engines'],
     ['/app/engines/registrations', 'engines'],
     ['/language', null],
@@ -140,7 +139,6 @@ describe('currentSection', () => {
     expect(currentSection(mainLinks.engines.to)).toBe('engines');
     expect(currentSection(mainLinks.admin.to)).toBe('admin');
     expect(currentSection(labLinks.runs.to)).toBe('lab');
-    expect(currentSection(labLinks.generator.to)).toBe('lab');
   });
 });
 
@@ -149,7 +147,6 @@ describe('labEntryOf', () => {
     expect(labEntryOf('/app/runs')).toBe('runs');
     expect(labEntryOf('/app/isa-demo/qos/runs/job-1')).toBe('runs');
     expect(labEntryOf('/app/isa-demo/qos/studies/s1')).toBe('studies');
-    expect(labEntryOf('/app/generator')).toBe('generator');
     expect(labEntryOf('/app/isa-demo/qos/problems')).toBeNull();
     expect(labEntryOf('/app')).toBeNull();
   });

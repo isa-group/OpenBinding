@@ -3,7 +3,7 @@
 
 The file is informational: the campaign identifies a package by its directory
 and by the digest of its resources, which excludes this file
-(``experimentation/qacobench/_common.py``). It records, for a reader of the
+(QACOBench's ``_common.py``, in QACOForge). It records, for a reader of the
 dataset deposit who does not have the software:
 
 * the suite, the instance identity used in the campaign records and the
@@ -59,7 +59,7 @@ def file_hashes(package_dir: Path) -> dict[str, str]:
 
 
 def package_digest(hashes: dict[str, str]) -> str:
-    # Identical to experimentation/qacobench/_common.py::package_digest_from_dir.
+    # Identical to QACOBench's _common.py::package_digest_from_dir (QACOForge, qacobench/).
     digest = hashlib.sha256()
     for name, value in hashes.items():
         digest.update(f"{name}\0{value}\n".encode())
