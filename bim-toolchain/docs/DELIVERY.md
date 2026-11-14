@@ -36,7 +36,7 @@ nothing**, if any of these fails: the scan for secrets (it reports file, line an
 inventory (`licenses.json` coherent, `present_in_tree` false, `CC-BY-4.0` everywhere, the four `NOTICE.md` equal, `Private :: Do
 Not Upload` kept); the OMG XSDs (the committed tree must not version any of them); no file that is not the holder's own
 (nothing vendored that `licenses.json` does not declare, no binary file); no Markdown link that leaves the repository; and
-self-containment: the tree, copied elsewhere, passes `pytest -m 'not openbinding_corpus'` from scratch with an empty corpus
+self-containment: the tree, copied elsewhere, passes `pytest -m 'not openbinding_corpus and not runner_timing'` from scratch with an empty corpus
 and no skipped test (a few minutes: it builds the wheels and a clean venv). In that copy the OMG files are **downloaded** from
 omg.org with their SHA-256 checked, so this step needs network access. `--skip-self-test` skips only that last check. It prints
 a JSON summary (commit, tree, number of files, source commit, how the OMG files arrive).

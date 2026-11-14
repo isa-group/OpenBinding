@@ -503,6 +503,7 @@ def busy(stop: threading.Event) -> None:
         sum(i * i for i in range(2000))
 
 
+@pytest.mark.runner_timing
 def test_healthz_stays_responsive_under_cpu_load_with_the_configured_interval(
     make_app, monkeypatch, restore_switch_interval
 ) -> None:

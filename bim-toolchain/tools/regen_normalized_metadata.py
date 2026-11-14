@@ -153,7 +153,7 @@ def build_comparison(
         return sum(fresh["packages"][path].get(key) == old["packages"][path].get(key) for path in paths)
 
     differing = len(lines_not_about_the_toolchain(old_bytes, new_bytes))
-    changed_lines = sum(left != right for left, right in zip(old_bytes.decode().splitlines(), new_bytes.decode().splitlines()))
+    changed_lines = sum(left != right for left, right in zip(old_bytes.decode().splitlines(), new_bytes.decode().splitlines(), strict=False))
     return {
         "schema": SCHEMA,
         "note": (

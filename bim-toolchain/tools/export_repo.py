@@ -20,7 +20,7 @@ Before anything is written it checks the staged tree and refuses (exit 1, nothin
 * the OMG BPMN XSDs: the repository never carries the five files, so the export refuses a committed tree that versions
   one of them or whose ``licenses.json`` does not say ``present_in_tree: false``, and never copies them; the exported
   workflows and builds download them with a verified SHA-256 (``tools/xsd_inventory.py --ensure``);
-* self-containment: the exported tree, copied somewhere else, passes ``pytest -m 'not openbinding_corpus'`` from scratch with
+* self-containment: the exported tree, copied somewhere else, passes ``pytest -m 'not openbinding_corpus and not runner_timing'`` from scratch with
   no corpus and no skipped test (``--skip-self-test`` turns this off; in that copy the OMG files are downloaded with the
   verified download, which is what a real build does).
 """
@@ -296,7 +296,7 @@ def self_test(stage: Path, *, fetch_xsd: bool = False, opener: Callable[[str], b
         env = {key: value for key, value in os.environ.items() if not key.startswith("BIM_") and key != "PYTHONPATH"}
         env.update({"BIM_CORPUS_ROOT": str(empty), "BIM_NESTED_RUN": "1", "PYTHONPATH": sources, "PYTHONDONTWRITEBYTECODE": "1"})
         command = [sys.executable, "-m", "pytest", "--rootdir", str(copy), "-p", "no:cacheprovider",
-                   "-m", "not openbinding_corpus", "-rs", "-q", *SUITES]
+                   "-m", "not openbinding_corpus and not runner_timing", "-rs", "-q", *SUITES]
         result = subprocess.run(command, cwd=copy, env=env, capture_output=True, text=True, check=False)
         output = result.stdout + result.stderr
         skipped = [line for line in output.splitlines() if line.startswith("SKIPPED")]

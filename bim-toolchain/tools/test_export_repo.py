@@ -463,7 +463,7 @@ def test_without_network_the_self_test_says_so_and_runs_nothing(tmp_path: Path) 
 
 #: What is copied of this tree: the five XSDs are on disk (a build put them there) but are not part of the repository.
 IGNORED = shutil.ignore_patterns(
-    "dist", ".venv", ".verify-venv", ".pytest_cache", "__pycache__", ".ruff_cache", "*.pyc", "*.egg-info", "*.xsd"
+    ".git", "dist", ".venv", ".verify-venv", ".pytest_cache", "__pycache__", ".ruff_cache", "*.pyc", "*.egg-info", "*.xsd"
 )
 
 

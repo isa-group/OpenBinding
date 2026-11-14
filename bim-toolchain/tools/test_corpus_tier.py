@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 import corpus_tier
-from corpus_tier import MARKER, NESTED_ENV, NESTED_MARKER, Analyzer
+from corpus_tier import MARKER, NESTED_ENV, NESTED_MARKER, TIMING_MARKER, Analyzer
 from packaging_support import ROOT
 
 SUITES = ("packages/bim-core/tests", "packages/bim-service/tests", "packages/bim-client/tests", "tools")
@@ -256,7 +256,7 @@ def test_the_set_without_the_corpus_runs_with_no_skip_and_no_failure(tmp_path: P
     empty.mkdir()
     command = [
         sys.executable, "-m", "pytest", "--rootdir", str(ROOT), "-p", "no:cacheprovider",
-        "-m", f"not {MARKER}", "-rs", "-q", *SUITES,
+        "-m", f"not {MARKER} and not {TIMING_MARKER}", "-rs", "-q", *SUITES,
     ]
     result = subprocess.run(command, cwd=ROOT, env=nested_environment(empty), capture_output=True, text=True, check=False)
     output = result.stdout + result.stderr

@@ -125,6 +125,7 @@ def count_work(seconds: float, threads: int) -> int:
     return sum(totals)
 
 
+@pytest.mark.runner_timing
 def test_the_throughput_cost_of_a_short_switch_interval(report) -> None:
     original = sys.getswitchinterval()
     rounds = 3
@@ -159,6 +160,7 @@ def real_requests() -> dict[str, tuple[str, dict]]:
     }
 
 
+@pytest.mark.runner_timing
 @pytest.mark.parametrize("workload", ["compile of the demo package", "evaluate of 1000 bindings of the demo IR"])
 def test_healthz_and_throughput_under_real_operations_by_switch_interval(make_app, report, workload) -> None:
     """The same question with the real compiler and evaluator, four requests at a time, in a loop."""

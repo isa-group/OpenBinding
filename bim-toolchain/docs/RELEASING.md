@@ -47,7 +47,9 @@ A change to `bim_core/toolchain.py` (the definition of what the digest covers) i
 1. Choose the version. Edit `version` in the three `pyproject.toml` and `__version__` in the three `_version.py`
    (a test fails if they differ). Move `[Unreleased]` in `CHANGELOG.md` to `## [X.Y.Z] - YYYY-MM-DD` and say whether
    the semantic digests, evaluations, diagnostics, OpenAPI or protocol changed.
-2. Tests of all packages and `tools/`. With the corpus (`BIM_CORPUS_ROOT`; set `BIM_REQUIRE_CORPUS=1` so that a missing
+2. Tests of all packages and `tools/`. The bim-service tests marked `runner_timing` measure CPU timing and do not hold on
+   a shared runner: the workflows deselect them; run `python -m pytest -m runner_timing packages/bim-service/tests` on a
+   dedicated machine and say in the release notes whether they passed. With the corpus (`BIM_CORPUS_ROOT`; set `BIM_REQUIRE_CORPUS=1` so that a missing
    corpus fails instead of skipping) the whole suite runs, and `tools/baseline_core.py --check` compares the package compiled
    from its ZIP with the directory the goldens were generated from. Without the corpus, `-m 'not openbinding_corpus'` runs
    everything else with no skip (a guard test proves it) and the golden it compares with is `golden/synthetic/corpus.json`.

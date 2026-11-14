@@ -35,6 +35,11 @@ moved (82 of 82 corpus packages, `docs/GOLDEN_METADATA.md`). The artifact hashes
   2026-11-14 (`actions/checkout` v4.4.0, `actions/setup-python` v5.6.0, `actions/upload-artifact` v4.6.2,
   `actions/download-artifact` v4.3.0, `astral-sh/setup-uv` v5.4.2), recorded in `licenses.json` (`action_pins`) and checked by
   `tools/test_workflows.py`.
+- The four bim-service tests that measure CPU timing (GIL switching, throughput) carry the marker `runner_timing`; the
+  workflows, the corpus guard and the export self-test deselect it, because a shared GitHub runner makes them fail or skip.
+  `ruff` is pinned in the lint job (0.17.5), and `regen_normalized_metadata.py` passes `strict=False` to `zip()`.
+- `test_export_repo.py` leaves `.git` out when it copies this tree into a stand-in OpenBinding clone: in the exported
+  repository the copy became an embedded repository and the export found nothing to archive.
 - The decision of the owner on the OMG XSDs (2026-11-14): the release artifacts carry them; their rights stay not demonstrated
   (`docs/OMG_XSD_RIGHTS.md`).
 

@@ -208,13 +208,13 @@ def test_the_jobs_that_run_the_suites_leave_out_the_corpus_tier_and_refuse_a_ski
     release = (WORKFLOWS / "release.yml").read_text(encoding="utf-8")
     steps = load("ci.yml")["jobs"]["all-packages"]["steps"]
     run = next(step["run"] for step in steps if "run" in step and "packages/bim-service/tests" in step["run"])
-    assert '-m "not openbinding_corpus"' in run and 'grep -q "SKIPPED"' in run and "exit 1" in run
+    assert '-m "not openbinding_corpus and not runner_timing"' in run and 'grep -q "SKIPPED"' in run and "exit 1" in run
     release_run = next(
         step["run"] for step in load("release.yml")["jobs"]["build"]["steps"] if "run" in step and "packages/bim-service/tests" in step["run"]
     )
-    assert '-m "not openbinding_corpus"' in release_run and 'grep -q "SKIPPED"' in release_run
+    assert '-m "not openbinding_corpus and not runner_timing"' in release_run and 'grep -q "SKIPPED"' in release_run
     for text in (ci, release):
-        assert 'tools -rs' in text and text.count('-m "not openbinding_corpus"') >= 2
+        assert 'tools -rs' in text and text.count('-m "not openbinding_corpus') >= 2
         assert "tools/verify_release.py --skip-corpus" in text
 
 

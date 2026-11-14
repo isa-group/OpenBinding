@@ -117,3 +117,12 @@ def app(make_app):
 @pytest.fixture
 def client(app):
     return TestClient(app, base_url=BASE_URL, raise_server_exceptions=False, headers=bearer())
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    # Also registered by tools/corpus_tier.py; repeated here for a session started on this directory alone.
+    config.addinivalue_line(
+        "markers",
+        "runner_timing: the test measures CPU timing (GIL switching, throughput) and needs a dedicated machine; the "
+        "workflows on shared GitHub runners deselect it",
+    )

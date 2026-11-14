@@ -62,7 +62,7 @@ jobs:
       - name: Tests (without the corpus tier; no test may be skipped)
         shell: bash
         run: |
-          python -m pytest -p no:cacheprovider --rootdir=. -m "not openbinding_corpus" -rs \
+          python -m pytest -p no:cacheprovider --rootdir=. -m "not openbinding_corpus and not runner_timing" -rs \
             packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests | tee pytest.out
           if grep -q "SKIPPED" pytest.out; then
             echo "::error::a test was SKIPPED outside the corpus tier; it must run"

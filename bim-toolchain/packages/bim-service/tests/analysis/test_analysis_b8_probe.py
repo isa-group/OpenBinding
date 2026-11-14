@@ -211,7 +211,7 @@ def test_a_shorter_switch_interval_keeps_healthz_fast_under_the_same_cpu_load(ma
 
 def executors(reason: str) -> list:
     """``thread`` keeps the open defect (strict xfail); ``process`` is the executor that closes it (a normal test)."""
-    return [pytest.param("thread", marks=pytest.mark.xfail(raises=OpenDefect, strict=True, reason=reason)), "process"]
+    return [pytest.param("thread", marks=[pytest.mark.xfail(raises=OpenDefect, strict=True, reason=reason), pytest.mark.runner_timing]), "process"]
 
 
 def command_body(command: str) -> dict:

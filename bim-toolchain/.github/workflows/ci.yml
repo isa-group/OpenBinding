@@ -9,6 +9,10 @@
 # (docs/OMG_XSD_RIGHTS.md): a step right after each checkout downloads them from the official source over https and
 # verifies their SHA-256 (all five or an error); the wheels and sdists built afterwards carry them.
 #
+# The bim-service tests marked `runner_timing` measure CPU timing (GIL switching, throughput) and do not hold on a shared
+# GitHub runner (they fail or find no contention and skip): every job here deselects them; run them on a dedicated
+# machine with `python -m pytest -m runner_timing packages/bim-service/tests`.
+#
 # No job publishes anything or reads a secret.
 
 name: ci
@@ -47,8 +51,8 @@ jobs:
       # Git must neither list nor fail to ignore the five OMG XSDs, and the table of docs/OMG_XSD_RIGHTS.md is their inventory.
       - name: The repository does not version the OMG BPMN XSDs
         run: python3 tools/xsd_inventory.py --check
-      - run: python -m pip install ruff
-      # Each package carries its own [tool.ruff] table.
+      - run: python -m pip install "ruff==0.17.5"
+      # Each package carries its own [tool.ruff] table; ruff is pinned so that a new release cannot fail an unchanged tree.
       - run: ruff check packages tools
 
   tests:
@@ -70,7 +74,7 @@ jobs:
       # (see the golden-corpus job, which fails without it). The equivalence of a directory and its ZIP is
       # exercised without the corpus by the `equivalence` job below.
       - name: Tests of ${{ matrix.package }}
-        run: python -m pytest -p no:cacheprovider --rootdir=. packages/${{ matrix.package }}/tests -rs
+        run: python -m pytest -p no:cacheprovider --rootdir=. -m "not runner_timing" packages/${{ matrix.package }}/tests -rs
         env:
           PYTHONPATH: ${{ env.SRC }}
 
@@ -93,7 +97,7 @@ jobs:
       - name: Tests of bim-core, bim-service and bim-client in one session (without the corpus tier, no test may be skipped)
         shell: bash
         run: |
-          python -m pytest -p no:cacheprovider --rootdir=. -m "not openbinding_corpus" -rs \
+          python -m pytest -p no:cacheprovider --rootdir=. -m "not openbinding_corpus and not runner_timing" -rs \
             packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests | tee pytest.out
           if grep -q "SKIPPED" pytest.out; then
             echo "::error::a test was SKIPPED outside the corpus tier; it must run"

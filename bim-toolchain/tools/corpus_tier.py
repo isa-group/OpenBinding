@@ -31,6 +31,7 @@ import pytest
 
 MARKER = "openbinding_corpus"
 NESTED_MARKER = "spawns_suite"
+TIMING_MARKER = "runner_timing"
 NESTED_ENV = "BIM_NESTED_RUN"
 TOOLS_DIR = Path(__file__).resolve().parent
 ROOT = TOOLS_DIR.parent
@@ -213,6 +214,11 @@ def pytest_configure(config: Any) -> None:
     )
     config.addinivalue_line(
         "markers", f"{NESTED_MARKER}: the test starts a pytest session of its own; left out of such sessions"
+    )
+    config.addinivalue_line(
+        "markers",
+        f"{TIMING_MARKER}: the test measures CPU timing (GIL switching, throughput) and needs a dedicated machine; the "
+        "workflows on shared GitHub runners deselect it",
     )
 
 
