@@ -252,7 +252,7 @@ describe('eng-register · the registration wizard', () => {
   });
 
   it('says the plan is full (402) and links to the usage', async () => {
-    api.createEngineRegistration.mockRejectedValueOnce(new QuotaError('quota_exceeded', 'limit', { limit_id: 'federatedEngines', limit: 3, used: 3 }));
+    api.createEngineRegistration.mockRejectedValueOnce(new QuotaError('quota_exceeded', 'limit', { limit_id: 'maxFederatedEngines', limit: 3, used: 3 }));
     renderPage();
     await createEngineRevision();
     await fillDeployment();

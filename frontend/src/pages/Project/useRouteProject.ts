@@ -34,7 +34,6 @@ function visitorOrganization(slug: string, project?: Project): Organization {
     slug,
     name: slug,
     parent_id: null,
-    billing_sponsor_user_id: '',
     effective_role: null,
     created_at: project?.created_at ?? '',
   };

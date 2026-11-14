@@ -46,7 +46,6 @@ const organization = (id: string, slug: string, name: string): Organization => (
   name,
   slug,
   parent_id: null,
-  billing_sponsor_user_id: 'user-1',
   effective_role: 'OWNER',
   created_at: '2026-01-01T00:00:00Z',
 });

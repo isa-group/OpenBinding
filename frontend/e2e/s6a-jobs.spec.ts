@@ -27,13 +27,13 @@ const token = (expiresInSeconds: number) => [
 
 const lucia = {
   id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-03-02T00:00:00Z', cas_verified: true, institutional_branding: true,
+  created_at: '2026-03-02T00:00:00Z', cas_verified: true,
 };
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 
-const org = (id: string, slug: string, name: string, role: Role, sponsor = 'user-1') => ({
-  id, slug, name, parent_id: null, billing_sponsor_user_id: sponsor, effective_role: role, created_at: '2026-03-03T00:00:00Z',
+const org = (id: string, slug: string, name: string, role: Role) => ({
+  id, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z',
 });
 
 const project = (n: number, orgId: string, slug: string, name: string) => ({
@@ -135,7 +135,6 @@ interface State {
   /** The live run has finished: the next time it is asked about it says so. */
   liveDone: boolean;
   /** How many days the plan keeps finished runs; `null` is the gateway not saying. */
-  retention: number | null;
   history: Job[];
 }
 
@@ -148,10 +147,10 @@ const bodyOf = (route: Route) => route.request().postDataJSON() as Record<string
 
 /** Everything these screens read and write, answered; anything else on the API origin is an empty 404. */
 async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
-  const state: State = { refuse: {}, sent: {}, liveDone: false, retention: 180, history: ownRows };
+  const state: State = { refuse: {}, sent: {}, liveDone: false, history: ownRows };
   const organizations = [
     org('org-isa-demo', 'isa-demo', 'ISA Demo Group', options.role ?? 'OWNER'),
-    org('org-4', 'read-lab', 'Read Lab', 'VIEWER', 'user-nora'),
+    org('org-4', 'read-lab', 'Read Lab', 'VIEWER'),
   ];
   await page.addInitScript(() => {
     localStorage.setItem('openbinding-access-token', 's6a-access');
@@ -166,7 +165,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(`${API}/v1/users/me/usage`, json(usageOf({
     plan: 'RESEARCH',
-    capabilities: { maxPayloadBytes: 134_217_728, maxTimeoutSeconds: 60, maxIterations: 1_000_000, maxInstanceComplexityLog10: 20, concurrentJobs: 3 },
+    capabilities: { maxRunMinutes: 1, maxConcurrentRuns: 3 },
   })));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
@@ -176,7 +175,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(new RegExp(`^${API}/v1/users/me/jobs(\\?.*)?$`), (route) => {
     if (state.refuse.history) return state.refuse.history(route);
     const limit = Number(new URL(route.request().url()).searchParams.get('limit') ?? 50);
-    return json({ jobs: state.history.slice(0, limit).map(summaryOf), total: state.history.length, retention_days: state.retention })(route);
+    return json({ jobs: state.history.slice(0, limit).map(summaryOf), total: state.history.length })(route);
   });
 
   await page.route(`${API}/v1/validate`, (route) => (state.refuse.validate ?? json(analysisBody()))(route));
@@ -310,7 +309,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(table.getByText('Owner only')).toHaveCount(1);
       await expect(table.getByText('Another member')).toHaveCount(1);
       await expect(table.getByRole('button', { name: 'Retry' })).toHaveCount(2);
-      await expect(main.getByText('Kept for 180 days on your RESEARCH plan')).toBeVisible();
       await expect(main.getByRole('button', { name: 'All (7)' })).toHaveAttribute('aria-pressed', 'true');
       await capture(page, testInfo, `list-${name}-rows`);
 
@@ -330,7 +328,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(state.sent.retry).toBe('job-failed-4');
       await capture(page, testInfo, `list-${name}-retry`);
       state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', {
-        quota: { limit_id: 'storageBytes', limit: 50, used: 50 },
+        quota: { limit_id: 'maxRepositoryStorage', limit: 50, used: 50 },
       });
       await table.getByRole('button', { name: 'Retry' }).last().click();
       await expect(main.getByText('Retry refused: Out of storage (402 · quota_exceeded)')).toBeVisible();
@@ -470,7 +468,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/runs/job-new-9`);
       expect(state.sent.retry).toBe('job-failed-4');
       await capture(page, testInfo, `detail-${name}-failed-retry`, { height: 1500 });
-      state.refuse.retry = json({ detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 } } }, 429);
+      state.refuse.retry = json({ detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'maxConcurrentRuns', limit: 3, used: 3 } } }, 429);
       await main.getByRole('button', { name: 'Retry' }).click();
       await expect(main.getByText(/Retry refused: All your run slots are busy \(429/)).toBeVisible();
       await capture(page, testInfo, `detail-${name}-429`, { height: 1500 });
@@ -546,7 +544,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { name: 'Before you send' })).toBeVisible();
       await expect(main.getByText('Time budget 60 s (reduced) · Iterations 100,000 iterations')).toBeVisible();
       await expect(main.getByText(/used \+ up to/)).toHaveCount(0);
-      await expect(main.getByText('≈ 10^5.1 of up to 10^20 on your RESEARCH plan')).toBeVisible();
+      await expect(main.getByText('≈ 10^5.1 combinations · this deployment sets the ceiling')).toBeVisible();
       await capture(page, testInfo, `launch-${name}-step4`);
 
       await main.getByRole('button', { name: 'Send run' }).click();
@@ -582,7 +580,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const send = main.getByRole('button', { name: 'Send run' });
 
       // 402: out of an allowance.
-      state.refuse.launch = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'storageBytes', limit: 50, used: 50 } });
+      state.refuse.launch = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'maxRepositoryStorage', limit: 50, used: 50 } });
       await send.click();
       // An error is an alert; a refusal that is about the plan or the credential is a status. Either way it is the one notice on screen.
       const refusal = main.locator('.ui-notice');
@@ -593,16 +591,19 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `launch-${name}-402`);
       expect(state.sent.launch).toMatchObject({ snapshot: 'snapshot-2', engine: ENGINE, mode: 'sampling' });
 
-      // 402: too big for the plan.
-      state.refuse.launch = detail(402, 'instance_complexity_too_large', 'instance binding space exceeds the caller plan limit', { quota: { limit_id: 'maxInstanceComplexityLog10', limit: 9 } });
+      // 422: over the deployment's size limit, whatever the plan.
+      state.refuse.launch = detail(422, 'binding_space_over_technical_limit', 'instance binding space exceeds the deployment limit', {
+        quota: { limit_id: 'MAX_BINDING_SPACE_LOG10', state: 'exhausted', source: 'technical', limit: 20, used: 23 },
+      });
       await send.click();
-      await expect(refusal).toContainText('Too big for your plan (402 · instance_complexity_too_large)');
-      await capture(page, testInfo, `launch-${name}-402-size`);
+      await expect(refusal).toContainText('Over this deployment’s size limit (422 · binding_space_over_technical_limit)');
+      await expect(refusal.getByRole('link', { name: 'Compare plans' })).toHaveCount(0);
+      await capture(page, testInfo, `launch-${name}-422-size`);
 
       // 429: job slots busy, with the time to wait.
       state.refuse.launch = (route) => route.fulfill({
         status: 429, headers: { 'Retry-After': '15' },
-        json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 } } },
+        json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'maxConcurrentRuns', limit: 3, used: 3 } } },
       });
       await send.click();
       await expect(refusal).toContainText('All your run slots are busy (429 · concurrency_limit_exceeded)');
@@ -655,16 +656,18 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('radiogroup', { name: 'Engine' })).toHaveCount(0);
       await capture(page, testInfo, `launch-${name}-snapshot-404`);
 
-      state.refuse.validate = detail(402, 'instance_complexity_too_large', 'instance binding space exceeds the caller plan limit', { quota: { limit_id: 'maxInstanceComplexityLog10', limit: 9 } });
+      state.refuse.validate = detail(422, 'binding_space_over_technical_limit', 'instance binding space exceeds the deployment limit', {
+        quota: { limit_id: 'MAX_BINDING_SPACE_LOG10', state: 'exhausted', source: 'technical', limit: 20, used: 23 },
+      });
       await page.goto(`${ROOT}/runs/new?case=flujo-checkout&revision=2`);
       await main.getByRole('button', { name: 'Continue' }).click();
-      await expect(main.getByRole('alert')).toContainText('Too big for your plan (402 · instance_complexity_too_large)');
+      await expect(main.getByRole('alert')).toContainText('Over this deployment’s size limit (422 · binding_space_over_technical_limit)');
       await expect(main.getByRole('radiogroup', { name: 'Engine' }).getByRole('radio', { name: /^random-search.*Checked when you send/ })).toBeEnabled();
-      await capture(page, testInfo, `launch-${name}-402-analysis`);
+      await capture(page, testInfo, `launch-${name}-422-analysis`);
       expect(critical).toEqual([]);
     });
 
-    test('job-history /app/runs · my jobs across projects, retention, filters and actions', async ({ page }, testInfo) => {
+    test('job-history /app/runs · my jobs across projects, filters and actions', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/runs');
@@ -676,10 +679,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(list.getByRole('listitem')).toHaveCount(8);
       await expect(list.getByRole('link', { name: 'random-search on QoS Benchmarks' }).first()).toHaveAttribute('href', `${ROOT}/runs/job-queued-3`);
       await expect(main.getByText('8 in total')).toBeVisible();
-      const retention = main.getByRole('region', { name: 'How long runs are kept' });
-      await expect(retention.getByText('Finished runs are kept 180 days on your RESEARCH plan')).toBeVisible();
-      await expect(retention.getByText('Longer retention comes with larger plans, arranged by agreement.')).toBeVisible();
-      await expect(retention.getByText('PRO', { exact: true })).toBeVisible();
+      // No plan sets a retention window, so none is announced.
+      await expect(main.getByRole('region', { name: 'How long runs are kept' })).toHaveCount(0);
       await expect(list.getByRole('button', { name: 'Cancel' })).toHaveCount(3);
       await expect(list.getByRole('button', { name: 'Retry' })).toHaveCount(2);
       await expect(list.getByRole('link', { name: 'Analyze' })).toHaveCount(0);
@@ -701,33 +702,25 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await list.getByRole('listitem').filter({ hasText: 'evolutionary' }).first().getByRole('button', { name: 'Retry' }).click();
       await expect(main.getByText('Retry queued.')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/runs/job-new-9`);
-      state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'storageBytes', limit: 10, used: 10 } });
+      state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'maxRepositoryStorage', limit: 10, used: 10 } });
       await list.getByRole('listitem').filter({ hasText: 'random-search' }).getByRole('button', { name: 'Retry' }).first().click();
       await expect(main.getByText('Retry refused: Out of storage (402 · quota_exceeded)')).toBeVisible();
       await capture(page, testInfo, `history-${name}-402`);
       expect(critical).toEqual([]);
     });
 
-    test('job-history /app/runs · empty, retention unknown, a key without access and a page that does not load', async ({ page }, testInfo) => {
+    test('job-history /app/runs · empty, a key without access and a page that does not load', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
       state.history = [];
-      state.retention = 7;
       await page.goto('/app/runs');
-      await expect(main.getByText('Nothing within your retention window')).toBeVisible();
+      await expect(main.getByText('No runs yet')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Start a run' })).toBeVisible();
-      await expect(main.getByText('Finished runs are kept 7 days on your RESEARCH plan')).toBeVisible();
       await capture(page, testInfo, `history-${name}-empty`);
 
       state.history = ownRows;
-      state.retention = null;
-      await page.goto('/app/runs');
-      await expect(main.getByText('Retention can’t be confirmed right now')).toBeVisible();
-      await expect(main.getByText('Your list still loads; only the retention figure is missing.')).toBeVisible();
-      await expect(main.getByRole('list', { name: 'Your runs' }).getByRole('listitem')).toHaveCount(8);
-      await capture(page, testInfo, `history-${name}-retention-503`);
 
       state.refuse.history = detail(403, 'api_key_forbidden', 'The API key does not include jobs:read.');
       await page.goto('/app/runs');
@@ -740,7 +733,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText(/Your runs can’t be loaded right now \(503/)).toBeVisible();
       await capture(page, testInfo, `history-${name}-503`);
       state.refuse.history = undefined;
-      state.retention = 180;
       await main.getByRole('button', { name: 'Try again' }).click();
       await expect(main.getByRole('list', { name: 'Your runs' })).toBeVisible();
       expect(critical).toEqual([]);

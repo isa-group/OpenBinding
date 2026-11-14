@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '509b8acb00a3'
+revision: str = '5e35b10dedca'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -115,6 +115,7 @@ def upgrade() -> None:
     sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('plan_cache', sa.String(length=128), nullable=False),
     sa.Column('contract_pending', sa.Boolean(), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_users'))
@@ -195,17 +196,14 @@ def upgrade() -> None:
     sa.Column('parent_id', sa.Uuid(), nullable=True),
     sa.Column('slug', sa.String(length=64), nullable=False),
     sa.Column('name', sa.String(length=160), nullable=False),
-    sa.Column('billing_sponsor_user_id', sa.Uuid(), nullable=False),
     sa.Column('created_by_id', sa.Uuid(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.CheckConstraint('parent_id IS NULL OR parent_id <> id', name=op.f('ck_organizations_organization_not_own_parent')),
-    sa.ForeignKeyConstraint(['billing_sponsor_user_id'], ['users.id'], name=op.f('fk_organizations_billing_sponsor_user_id_users'), ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_organizations_created_by_id_users'), ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['parent_id'], ['organizations.id'], name=op.f('fk_organizations_parent_id_organizations'), ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_organizations'))
     )
-    op.create_index(op.f('ix_organizations_billing_sponsor_user_id'), 'organizations', ['billing_sponsor_user_id'], unique=False)
     op.create_index(op.f('ix_organizations_parent_id'), 'organizations', ['parent_id'], unique=False)
     op.create_index(op.f('ix_organizations_slug'), 'organizations', ['slug'], unique=True)
     op.create_table('password_reset_tokens',
@@ -252,7 +250,7 @@ def upgrade() -> None:
     sa.Column('state', sa.String(length=32), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['owner_id'], ['users.id'], name=op.f('fk_v1_engine_registration_revisions_owner_id_users'), ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['owner_id'], ['users.id'], name=op.f('fk_v1_engine_registration_revisions_owner_id_users'), ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_v1_engine_registration_revisions')),
     sa.UniqueConstraint('namespace', 'manifest_digest', name='uq_v1_registration_namespace_digest'),
     sa.UniqueConstraint('namespace', 'name', 'version', name='uq_v1_registration_identity')
@@ -272,7 +270,7 @@ def upgrade() -> None:
     sa.Column('document', sa.JSON(), nullable=False),
     sa.Column('state', sa.String(length=32), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['owner_id'], ['users.id'], name=op.f('fk_v1_engine_revisions_owner_id_users'), ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['owner_id'], ['users.id'], name=op.f('fk_v1_engine_revisions_owner_id_users'), ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_v1_engine_revisions')),
     sa.UniqueConstraint('namespace', 'name', 'version', name='uq_v1_engine_identity')
     )
@@ -303,7 +301,7 @@ def upgrade() -> None:
     sa.Column('publisher_id', sa.Uuid(), nullable=False),
     sa.Column('state', sa.String(length=32), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['publisher_id'], ['users.id'], name=op.f('fk_v1_manifest_publications_publisher_id_users'), ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['publisher_id'], ['users.id'], name=op.f('fk_v1_manifest_publications_publisher_id_users'), ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_v1_manifest_publications')),
     sa.UniqueConstraint('resource_kind', 'resource_digest', name='uq_v1_publication_resource')
     )
@@ -658,7 +656,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['configuration_version_id'], ['artifact_versions.id'], name=op.f('fk_jobs_configuration_version_id_artifact_versions'), ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['instance_snapshot_id'], ['v1_instance_snapshots.id'], name=op.f('fk_jobs_instance_snapshot_id_v1_instance_snapshots'), ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_jobs_organization_id_organizations'), ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['owner_id'], ['users.id'], name=op.f('fk_jobs_owner_id_users'), ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['owner_id'], ['users.id'], name=op.f('fk_jobs_owner_id_users'), ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['project_id'], ['projects.id'], name=op.f('fk_jobs_project_id_projects'), ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['retry_of_id'], ['jobs.id'], name=op.f('fk_jobs_retry_of_id_jobs'), ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['study_cell_id'], ['study_cells.id'], name='fk_jobs_study_cell_id', ondelete='SET NULL', use_alter=True),
@@ -904,7 +902,6 @@ def downgrade() -> None:
     op.drop_table('password_reset_tokens')
     op.drop_index(op.f('ix_organizations_slug'), table_name='organizations')
     op.drop_index(op.f('ix_organizations_parent_id'), table_name='organizations')
-    op.drop_index(op.f('ix_organizations_billing_sponsor_user_id'), table_name='organizations')
     op.drop_table('organizations')
     op.drop_index(op.f('ix_notifications_user_id'), table_name='notifications')
     op.drop_index(op.f('ix_notifications_kind'), table_name='notifications')

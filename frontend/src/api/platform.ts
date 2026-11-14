@@ -8,7 +8,6 @@ export interface Organization {
   slug: string;
   name: string;
   parent_id: string | null;
-  billing_sponsor_user_id: string;
   effective_role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' | null;
   created_at: string;
 }
@@ -341,22 +340,18 @@ const root = (org: string, project?: string) =>
   `/v1/organizations/${encodeURIComponent(org)}${project ? `/projects/${encodeURIComponent(project)}` : ''}`;
 
 // The mutations of an organization throw on a 422 (a refused submission) instead of handing its body back as if it were the result.
-// The report editor, the resource writes and the sponsor proposals are not bound since M9.6.
+// The report editor and the resource writes are not bound since M9.6.
 export const platformApi = {
   organizations: () => apiClient.request<Organization[]>('/v1/organizations'),
   /** One organization by slug or id. 403 for an account that is not in it, platform administrators included. */
   organization: (org: string) => apiClient.request<Organization>(root(org)),
-  /** `billing_sponsor_user_id` omitted: the parent's sponsor, or the caller for a top-level organization. */
-  createOrganization: (value: { slug: string; name: string; parent_id?: string | null; billing_sponsor_user_id?: string | null }) =>
+  createOrganization: (value: { slug: string; name: string; parent_id?: string | null }) =>
     apiClient.request<Organization>('/v1/organizations', {
       method: 'POST', body: JSON.stringify(value),
     }, undefined, true, true),
-  /**
-   * Renaming and moving need ADMIN; naming a sponsor needs OWNER, and a user may only name themselves: naming somebody else is a
-   * 422 `sponsor_must_be_caller`. The answer is always the organization (200).
-   */
+  /** Renaming and moving need ADMIN. The answer is always the organization (200). */
   updateOrganization: (org: string, value: {
-    name?: string; parent_id?: string | null; move_to_root?: boolean; billing_sponsor_user_id?: string | null;
+    name?: string; parent_id?: string | null; move_to_root?: boolean;
   }) =>
     apiClient.request<Organization>(root(org), {
       method: 'PATCH', body: JSON.stringify(value),
@@ -400,12 +395,12 @@ export const platformApi = {
   projects: (org: string) => apiClient.request<Project[]>(`${root(org)}/projects`),
   /** One project. 404 whether it does not exist or the account is not in its organization. */
   project: (org: string, project: string) => apiClient.request<Project>(root(org, project)),
-  /** Needs MEMBER. 409 `slug_conflict`, 402 when the sponsor has no (private) project left, 503 when limits can't be checked. */
+  /** Needs MEMBER. 409 `slug_conflict`. */
   createProject: (org: string, value: { slug: string; name: string; description: string; visibility: Visibility }) =>
     apiClient.request<Project>(`${root(org)}/projects`, {
       method: 'POST', body: JSON.stringify(value),
     }, undefined, true, true),
-  /** Needs ADMIN. Making a public project private is a 402 when the sponsor has no private project left. */
+  /** Needs ADMIN. */
   updateProject: (org: string, project: string, value: { name?: string; description?: string; visibility?: Visibility }) =>
     apiClient.request<Project>(root(org, project), {
       method: 'PATCH', body: JSON.stringify(value),
@@ -437,7 +432,7 @@ export const platformApi = {
   studies: (org: string, project: string, includeArchived = false) =>
     apiClient.request<Study[]>(`${root(org, project)}/studies?include_archived=${includeArchived}`),
   /**
-   * Needs MEMBER. 402 `quota_exceeded` when the sponsor has no study definition left, 403 `api_key_engine_forbidden`, 409 `slug_conflict`,
+   * Needs MEMBER. 403 `api_key_engine_forbidden`, 409 `slug_conflict`,
    * 422 for an empty or foreign selection (`empty_study_cases`, `foreign_case_revision`) or a matrix over 10,000 cells (`study_matrix_too_large`).
    */
   createStudy: (org: string, project: string, value: Pick<Study, 'slug' | 'name' | 'description'> & ({ definition: Study['definition'] } | { definition_version_id: string })) =>
@@ -456,8 +451,8 @@ export const platformApi = {
   artifacts: (org: string, project: string) =>
     apiClient.request<StoredBlob[]>(`${root(org, project)}/blobs`),
   /**
-   * Needs MEMBER and, for a key, `artifacts:write`. Uploading the same bytes twice keeps one copy. 402 `storage_quota_exceeded`
-   * when the sponsor's storage would run out, 413 `artifact_too_large` above the actor's per-request ceiling.
+   * Needs MEMBER and, for a key, `artifacts:write`. Uploading the same bytes twice keeps one copy. 402 `quota_exceeded`
+   * (`maxRepositoryStorage`) when the uploader's storage would run out, 413 `artifact_too_large` above the per-request ceiling.
    */
   uploadArtifact: (org: string, project: string, file: File, makePublic: boolean) =>
     apiClient.request<StoredBlob>(`${root(org, project)}/blobs?public=${makePublic}`, {

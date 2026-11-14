@@ -3,7 +3,7 @@
 It is configuration (``MAX_CONCURRENT_JOBS_PER_USER``) and never depends on the
 plan to be applied, and it is enforced inside the transaction that creates the
 job: by ``POST /v1/jobs``, by retry and by study-cell launches. The plan's own
-``concurrentJobs`` lowers it (the lower wins); that is in
+``maxConcurrentRuns`` lowers it (the lower wins); that is in
 ``tests/test_plan_concurrency.py``. That two creations in two transactions cannot
 both take the last slot needs PostgreSQL and lives in
 ``tests/concurrency/test_job_leases_pg.py`` and
@@ -113,7 +113,7 @@ async def test_below_the_limit_nothing_is_refused_and_at_it_the_429_is(db_sessio
     assert (refusal.status, refusal.code) == (429, "concurrency_limit_exceeded")
     assert refusal.extra == {
         "concurrency": {
-            "limit_id": "concurrentJobs", "limit": 1, "used": 1, "active": 1, "unit": "job", "source": "technical",
+            "limit_id": "maxConcurrentRuns", "limit": 1, "used": 1, "active": 1, "unit": "job", "source": "technical",
         }
     }
     assert refusal.headers == {"Retry-After": "15"}
@@ -156,7 +156,7 @@ async def test_creating_a_job_at_the_limit_is_a_429_and_finishing_one_frees_the_
     assert refused.headers["Retry-After"] == "15"
     # Named like a 402 quota (limit_id, limit, used) so the frontend reads it; ``active`` is kept.
     assert refused.json()["concurrency"] == {
-        "limit_id": "concurrentJobs", "limit": 1, "used": 1, "active": 1, "unit": "job", "source": "technical",
+        "limit_id": "maxConcurrentRuns", "limit": 1, "used": 1, "active": 1, "unit": "job", "source": "technical",
     }
     assert await db_session.scalar(select(func.count()).select_from(Job)) == 1
 
@@ -211,13 +211,13 @@ async def test_a_bigger_plan_does_not_raise_the_technical_cap(
     api_client, db_session, registration, no_dispatch, monkeypatch
 ):
     # Replaces ``test_the_limit_does_not_depend_on_the_plan``, which pinned the design where the plan's
-    # ``concurrentJobs`` was ignored. The plan now also bounds the account and the lower limit wins, but the
+    # ``maxConcurrentRuns`` was ignored. The plan now also bounds the account and the lower limit wins, but the
     # deployment's cap still holds whatever the plan says: the largest plan (8) cannot go past a cap of 1.
     set_limit(monkeypatch, 1)
     details = registration()
     headers = await _login(api_client, details)
     user_id = await db_session.scalar(select(User.id).where(User.username == details["username"]))
-    space_client.get_gate().plans[user_id] = largest_plan("concurrentJobs")
+    space_client.get_gate().plans[user_id] = largest_plan("maxConcurrentRuns")
     snapshot = await _snapshot(api_client, headers)
 
     await _post(api_client, headers, _body(snapshot), key="first")

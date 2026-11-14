@@ -14,6 +14,7 @@ import os
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
+import yaml
 from bim_core import BimError
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -39,6 +40,7 @@ from .db.bootstrap import (
     seed_default_administrator,
 )
 from .integrations import bim as bim_integration
+from .modules.plans.application import entitlement_map
 from .core.public_errors import CorrelationIdMiddleware, internal_error_response
 from .models.problem import (
     CORRELATION_ID_KEY,
@@ -120,7 +122,17 @@ async def _lifespan(settings: Settings):
     if settings.database_url:
         db_base.init_engine(settings.database_url)
 
-    space_client.set_gate(space_client.build_gate(settings))
+    gate = space_client.build_gate(settings)
+    space_client.set_gate(gate)
+    try:
+        await check_pricing(settings, gate)
+    except BaseException:
+        if hasattr(gate, "aclose"):
+            await gate.aclose()
+        space_client.set_gate(None)
+        await db_base.dispose_engine()
+        bim_integration.close_bim()
+        raise
 
     if settings.database_url:
         async with db_base.session_factory()() as session:
@@ -152,13 +164,63 @@ async def _lifespan(settings: Settings):
         bim_integration.close_bim()
 
 
+async def check_pricing(settings: Settings, gate) -> None:
+    """The startup check of the pricing this gateway enforces.
+
+    1. The published pricing is read through the gate: from SPACE
+       (``SPACE_PRICING_VERSION``, or the version SPACE assigns to new contracts),
+       or the package copy under the open gate.
+    2. A document that lacks an entitlement id the gateway reads, or declares a
+       limit that is not NUMERIC, stops the start (``RuntimeError``), whatever
+       the environment: every plan decision would read it.
+    3. With SPACE enabled, ``SPACE_ORGANIZATION_ID`` must be set and SPACE must
+       publish the keys of its pricing tokens (``pricing-token-jwks``), so that a
+       SPACE whose tokens cannot be verified shows here and not as a 503 on every
+       plan read.
+    4. A SPACE that cannot be reached, or a failure of step 3, stops the start
+       under ``APP_ENV=prod`` and is a warning elsewhere.
+    """
+    logger = logging.getLogger(__name__)
+    failures: list[str] = []
+    document = None
+    try:
+        text = await gate.pricing_document()
+    except space_client.PricingUnavailable as error:
+        failures.append(f"the published pricing cannot be read ({error})")
+    else:
+        try:
+            document = yaml.safe_load(text)
+        except yaml.YAMLError as error:
+            raise RuntimeError(f"the published pricing is not YAML: {error}") from error
+        version = document.get("version") if isinstance(document, dict) else None
+        missing = entitlement_map.missing_ids(document)
+        if missing:
+            raise RuntimeError(f"pricing {version or '(no version)'} lacks: {', '.join(missing)}")
+    if settings.space_enabled:
+        if not (settings.space_organization_id or "").strip():
+            failures.append("SPACE_ORGANIZATION_ID is not set, so no pricing token can be verified")
+        publishes_keys = getattr(gate, "publishes_token_keys", None)
+        if publishes_keys is None or not await publishes_keys():
+            failures.append("SPACE does not advertise pricing-token-jwks, so its pricing tokens cannot be verified")
+    if failures:
+        message = "Pricing startup check failed: " + "; ".join(failures)
+        if settings.app_env == "prod":
+            raise RuntimeError(message)
+        logger.warning("%s (APP_ENV=%s, so the gateway starts anyway)", message, settings.app_env)
+        return
+    logger.info(
+        "Pricing startup check passed: pricing %s declares every entitlement the gateway reads",
+        document.get("version") if isinstance(document, dict) else "?",
+    )
+
+
 TAGS_METADATA = [
     {"name": "Health", "description": "Whether the gateway is answering."},
     {"name": "BIM v1", "description": "Modular deterministic QoS binding."},
     {"name": "Authentication", "description": "Accounts and sessions."},
     {"name": "Users", "description": "Your account, keys and quotas."},
     {"name": "Administration", "description": "Account administration."},
-    {"name": "Organizations", "description": "Nested organizations, members and sponsors."},
+    {"name": "Organizations", "description": "Nested organizations and their members."},
     {"name": "Projects", "description": "Collaborative projects and immutable binding cases."},
     {"name": "Studies", "description": "Reproducible comparative studies."},
     {"name": "Artifacts", "description": "Content-addressed artifacts and portable packages."},

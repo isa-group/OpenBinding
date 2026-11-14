@@ -86,6 +86,7 @@ def prod(**overrides) -> Settings:
     base = {
         "app_env": "prod",
         "space_enabled": True,
+        "space_organization_id": "org-test",
         "gateway_jwt_secret": "x" * 40,
         "cors_allow_origins": "https://openbinding.example.org",
     }
@@ -170,7 +171,7 @@ def test_a_cors_entry_with_a_trailing_slash_is_refused_and_shown_as_written():
 def test_a_wildcard_inside_a_cors_entry_is_refused_in_every_environment(app_env, value):
     overrides = {"app_env": app_env, "cors_allow_origins": value}
     if app_env == "prod":
-        overrides.update(space_enabled=True, gateway_jwt_secret="x" * 40)
+        overrides.update(space_enabled=True, space_organization_id="org-test", gateway_jwt_secret="x" * 40)
     with pytest.raises(ValidationError) as excinfo:
         settings(**overrides)
     text = str(excinfo.value)

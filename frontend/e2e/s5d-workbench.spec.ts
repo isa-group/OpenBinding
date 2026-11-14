@@ -29,13 +29,13 @@ const token = (expiresInSeconds: number) => [
 
 const lucia = {
   id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-03-02T00:00:00Z', cas_verified: true, institutional_branding: true,
+  created_at: '2026-03-02T00:00:00Z', cas_verified: true,
 };
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 
-const org = (id: string, slug: string, name: string, role: Role, sponsor = 'user-1') => ({
-  id, slug, name, parent_id: null, billing_sponsor_user_id: sponsor, effective_role: role, created_at: '2026-03-03T00:00:00Z',
+const org = (id: string, slug: string, name: string, role: Role) => ({
+  id, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z',
 });
 
 const project = (n: number, orgId: string, slug: string, name: string) => ({
@@ -127,8 +127,8 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   const state: State = { refuse: {}, sent: {} };
   const organizations = [
     org('org-isa-demo', 'isa-demo', 'ISA Demo Group', options.role ?? 'ADMIN'),
-    org('org-3', 'consultora-demo', 'Consultora Demo', 'VIEWER', 'user-nora'),
-    org('org-4', 'member-lab', 'Member Lab', 'MEMBER', 'user-nora'),
+    org('org-3', 'consultora-demo', 'Consultora Demo', 'VIEWER'),
+    org('org-4', 'member-lab', 'Member Lab', 'MEMBER'),
   ];
   await page.addInitScript(() => {
     localStorage.setItem('openbinding-access-token', 's5d-access');
@@ -141,7 +141,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
   await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(options.admin ? { ...lucia, role: 'admin' } : lucia));
-  await page.route(`${API}/v1/users/me/usage`, json(usageOf({ capabilities: { maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: 20, storageBytes: 5_368_709_120 } })));
+  await page.route(`${API}/v1/users/me/usage`, json(usageOf({ capabilities: { maxRunMinutes: 30, maxProblems: null, maxRepositoryStorage: null } })));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
   await page.route(`${API}/v1/profiles`, json({ profiles: [] }));
@@ -277,7 +277,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // A file is read, compiled by the gateway, and replaces the package only when it is accepted.
       await main.getByRole('tab', { name: 'Upload file' }).click();
-      await expect(main.getByText('Up to 128 MiB on your plan (RESEARCH)')).toBeVisible();
+      await expect(main.getByText('The gateway refuses packages larger than this deployment allows')).toBeVisible();
       await expect(main.getByText('Drop a .bim.zip here')).toBeVisible();
       await capture(page, testInfo, `workbench-${name}-upload`);
       const compiling = held(() => json(analysisBody()));
@@ -345,22 +345,21 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('button', { name: 'View source' })).toHaveAttribute('aria-expanded', 'true');
       await capture(page, testInfo, `workbench-${name}-422-source`);
 
-      // 402: too big for the plan, without inventing how far over it is.
-      state.refuse.validate = detail(402, 'instance_complexity_exceeded', 'The compiled problem is larger than the plan allows.', {
-        quota: { limit_id: 'maxInstanceComplexityLog10', limit: 9 },
+      // 422: over the deployment's size limit, which no plan changes: no plan ceiling, no "compare plans".
+      state.refuse.validate = detail(422, 'binding_space_over_technical_limit', 'The binding space is larger than this deployment accepts.', {
+        quota: { limit_id: 'MAX_BINDING_SPACE_LOG10', state: 'exhausted', source: 'technical', limit: 20, used: 23 },
       });
       await validate.click();
-      const tooBig = main.getByRole('alert').filter({ hasText: 'Too big for your plan' });
-      await expect(tooBig).toContainText('Too big for your plan (402 · instance_complexity_exceeded)');
-      await expect(tooBig).toContainText('Your RESEARCH plan allows up to 109 combinations.');
-      await expect(tooBig).toContainText('The server doesn’t report the measured size in this answer, so we can’t show how far over it is.');
-      await expect(tooBig.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
-      await capture(page, testInfo, `workbench-${name}-402`);
+      const capped = main.getByRole('alert').filter({ hasText: 'Over this deployment’s size limit' });
+      await expect(capped).toContainText('Over this deployment’s size limit (422 · binding_space_over_technical_limit)');
+      await expect(capped).toContainText('whatever the plan, so a larger plan won’t change it');
+      await expect(capped.getByRole('link', { name: 'Compare plans' })).toHaveCount(0);
+      await capture(page, testInfo, `workbench-${name}-422-size`);
 
-      // 413: larger than the plan takes in one request.
+      // 413: larger than the deployment takes in one request.
       state.refuse.validate = detail(413, 'payload_too_large', 'The package exceeds the request size limit.');
       await validate.click();
-      await expect(main.getByText('The file is larger than your plan allows per request (128 MiB) · 413.')).toBeVisible();
+      await expect(main.getByText('The package is larger than this deployment allows per request (413 · payload_too_large).')).toBeVisible();
       await capture(page, testInfo, `workbench-${name}-413`);
 
       // 403: the credential cannot validate.

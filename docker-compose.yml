@@ -85,8 +85,11 @@ services:
       - SPACE_URL=${SPACE_URL:-https://space.score.us.es}
       - SPACE_API_KEY=${SPACE_API_KEY:-}
       - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
-      - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
+      - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.2.0}
       - SPACE_DEFAULT_PLAN=${SPACE_DEFAULT_PLAN:-}
+      - SPACE_ORGANIZATION_ID=${SPACE_ORGANIZATION_ID:-}
+      - SPACE_TOKEN_ISSUER=${SPACE_TOKEN_ISSUER:-space}
+      - SPACE_TOKEN_LEEWAY_S=${SPACE_TOKEN_LEEWAY_S:-30}
       - REDIS_URL=redis://redis:6379/0
       - JOB_DISPATCH_MODE=dramatiq
       - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
@@ -158,8 +161,11 @@ services:
       - SPACE_URL=${SPACE_URL:-https://space.score.us.es}
       - SPACE_API_KEY=${SPACE_API_KEY:-}
       - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
-      - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
+      - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.2.0}
       - SPACE_DEFAULT_PLAN=${SPACE_DEFAULT_PLAN:-}
+      - SPACE_ORGANIZATION_ID=${SPACE_ORGANIZATION_ID:-}
+      - SPACE_TOKEN_ISSUER=${SPACE_TOKEN_ISSUER:-space}
+      - SPACE_TOKEN_LEEWAY_S=${SPACE_TOKEN_LEEWAY_S:-30}
       # Comma-separated Fernet keys for stored engine credentials: the first
       # encrypts, all decrypt (rotation). FEDERATION_SECRET_KEY is the legacy
       # single key, still read after them.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatByteSize } from './format';
-import { describeLimit, formatDuration, formatPowerOfTen, limitInfo } from './limits';
+import { describeLimit, formatDuration, formatPowerOfTen, LIMIT, LIMIT_GROUPS, limitInfo } from './limits';
 
 describe('describeLimit', () => {
   it('rounds durations and keeps the exact seconds underneath', () => {
@@ -43,12 +43,24 @@ describe('describeLimit', () => {
 });
 
 describe('limitInfo', () => {
-  it('knows the limits of the OpenBinding pricing', () => {
-    expect(limitInfo('studyRuns')).toMatchObject({ label: 'Study runs', group: 'monthly', kind: 'count' });
-    expect(limitInfo('concurrentJobs')).toMatchObject({ label: 'Concurrent runs', group: 'capacity', kind: 'count' });
-    expect(limitInfo('apiKeys')).toMatchObject({ label: 'API keys', group: 'capacity' });
-    expect(limitInfo('maxPayloadBytes')).toMatchObject({ label: 'Max package size', group: 'ceiling', kind: 'bytes' });
-    expect(limitInfo('storageBytes')).toMatchObject({ label: 'Storage', group: 'sponsored', kind: 'bytes' });
+  it('knows the limits of pricing 0.2.0', () => {
+    expect(limitInfo(LIMIT.solverHours)).toMatchObject({ label: 'Solver hours', group: 'monthly', kind: 'hours' });
+    expect(limitInfo(LIMIT.maxConcurrentRuns)).toMatchObject({ label: 'Concurrent runs', group: 'capacity', kind: 'count' });
+    for (const id of [LIMIT.maxFederatedEngines, LIMIT.maxApiKeys, LIMIT.maxProblems, LIMIT.maxRepositoryStorage]) {
+      expect(limitInfo(id).group).toBe('capacity');
+    }
+    expect(limitInfo(LIMIT.maxRepositoryStorage)).toMatchObject({ label: 'Repository storage', kind: 'megabytes' });
+    expect(limitInfo(LIMIT.maxRunMinutes)).toMatchObject({ label: 'Max time per run', group: 'ceiling', kind: 'minutes' });
+    expect(limitInfo(LIMIT.maxStudyCells)).toMatchObject({ group: 'ceiling', kind: 'count' });
+    expect(LIMIT_GROUPS.map((group) => group.id)).toEqual(['monthly', 'capacity', 'ceiling']);
+  });
+
+  it('words minutes, hours and decimal megabytes', () => {
+    expect(describeLimit('minutes', 5)).toEqual({ text: '5 min', exact: '5 min' });
+    expect(describeLimit('minutes', 1440)).toEqual({ text: '24 h', exact: '1,440 min' });
+    expect(describeLimit('hours', 100)).toEqual({ text: '100 h', exact: '100 h' });
+    expect(describeLimit('megabytes', 500)).toEqual({ text: '500 MB', exact: '500 MB' });
+    expect(describeLimit('megabytes', 2500)).toEqual({ text: '2.5 GB', exact: '2,500 MB' });
   });
 
   it('places a limit it has never seen by its type and unit, so a new one needs no code', () => {

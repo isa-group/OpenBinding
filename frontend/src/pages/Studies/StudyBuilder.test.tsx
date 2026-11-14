@@ -31,7 +31,7 @@ const engineEntry = (ref: typeof RANDOM_SEARCH) => {
 };
 
 const usage = {
-  plan: 'RESEARCH', contract_pending: false, features: {}, capabilities: { maxTimeoutSeconds: 60, studies: 25 },
+  plan: 'RESEARCH', contract_pending: false, features: {}, capabilities: { maxRunMinutes: 1, maxStudyCells: 5000 },
 };
 
 const refusal = (status: number, code: string, message = 'refused') => Object.assign(new HttpError(status, message), { code });
@@ -176,14 +176,14 @@ describe('A new study', () => {
     expect(create()).toBeDisabled();
   });
 
-  it('says what the gateway refused: no study definitions left, a key without the engine, a taken address', async () => {
+  it('says what the gateway refused: an allowance used up, a key without the engine, a taken address', async () => {
     renderBuilder();
     await chooseMatrix();
     fireEvent.change(screen.getByLabelText('Study name'), { target: { value: 'Refused' } });
 
-    platform.createStudy.mockRejectedValueOnce(new QuotaError('quota_exceeded', 'full', { limit_id: 'studies', limit: 25, used: 25 }));
+    platform.createStudy.mockRejectedValueOnce(new QuotaError('quota_exceeded', 'full', { limit_id: 'maxRepositoryStorage', limit: 500, used: 500 }));
     fireEvent.click(create());
-    expect(await screen.findByText('The sponsor has no study definitions left (402 · quota_exceeded)')).toBeInTheDocument();
+    expect(await screen.findByText('Out of storage (402 · quota_exceeded)')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
     expect(create()).toBeEnabled();
 

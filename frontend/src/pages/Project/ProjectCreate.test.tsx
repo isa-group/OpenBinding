@@ -1,6 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { ProjectCreate } from './ProjectCreate';
 import { org, project, renderProjectScreen, usageWithProjects } from './testKit';
@@ -12,7 +11,7 @@ vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof impor
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
-const consultora = org('consultora-demo', { name: 'Consultora Demo', effective_role: 'VIEWER', billing_sponsor_user_id: 'user-nora' });
+const consultora = org('consultora-demo', { name: 'Consultora Demo', effective_role: 'VIEWER' });
 
 const onClose = vi.fn();
 const onCreated = vi.fn();
@@ -87,23 +86,6 @@ describe('New project', () => {
     expect(screen.getByText('15 / 2,000')).toBeInTheDocument();
   });
 
-  it('shows the sponsor’s plan limits, says a private project counts twice, and draws no meter', async () => {
-    renderCreate();
-
-    expect(await screen.findByText('Up to 50')).toBeInTheDocument();
-    expect(screen.getByText('Up to 30')).toBeInTheDocument();
-    expect(screen.queryByRole('meter')).not.toBeInTheDocument();
-    expect(screen.getByText(/A private project counts twice: once as a project, once as private\./)).toBeInTheDocument();
-  });
-
-  it('says whose usage is hidden when someone else sponsors the organization', async () => {
-    platform.members.mockResolvedValue([{ id: 'm', organization_id: group.id, user_id: 'user-nora', username: 'nora', email: 'nora@example.test', role: 'OWNER', created_at: '2026-03-04T00:00:00Z' }]);
-    renderCreate([org('isa-demo', { name: 'ISA Demo Group', billing_sponsor_user_id: 'user-nora' })]);
-
-    expect(await screen.findByText(/nora’s plan is visible only to them/)).toBeInTheDocument();
-    expect(screen.queryByRole('meter')).not.toBeInTheDocument();
-  });
-
   it('creates the project with what was typed, reloads the workspace and hands the project over', async () => {
     const { reload } = renderCreate();
     await screen.findByRole('dialog', { name: 'New project' });
@@ -146,39 +128,6 @@ describe('New project', () => {
 
       expect(await screen.findByRole('alert')).toHaveTextContent('That address is already used in ISA Demo Group (409 · slug_conflict).');
       expect(onCreated).not.toHaveBeenCalled();
-    });
-
-    it('402: no private project left, with the way to make it public instead', async () => {
-      platform.createProject.mockRejectedValue(new QuotaError('sponsor_quota_exceeded', 'full', { limit_id: 'privateProjects', limit: 30, used: 30 }));
-      await submit();
-
-      const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('The sponsor has no private projects left (402 · sponsor_quota_exceeded). 30 of 30 private projects.');
-      expect(within(alert).getByRole('link', { name: 'Your plan' })).toHaveAttribute('href', '/app/account/usage');
-      fireEvent.click(within(alert).getByRole('button', { name: 'Make it public instead' }));
-
-      expect(screen.getByRole('radio', { name: /^Public/ })).toBeChecked();
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    });
-
-    it('402: no project left at all offers no public alternative', async () => {
-      platform.createProject.mockRejectedValue(new QuotaError('sponsor_quota_exceeded', 'full', { limit_id: 'projects', limit: 50, used: 50 }));
-      await submit();
-
-      const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('The sponsor has no projects left');
-      expect(within(alert).queryByRole('button', { name: 'Make it public instead' })).not.toBeInTheDocument();
-    });
-
-    it('503: limits can’t be checked, and it can be tried again', async () => {
-      platform.createProject.mockRejectedValueOnce(new PricingUnavailableError('down'));
-      await submit();
-
-      const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('Limits can’t be checked right now (503 · pricing_unavailable). Nothing was created.');
-      fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
-      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
-      expect(platform.createProject).toHaveBeenCalledTimes(2);
     });
 
     it('403: the role was not enough', async () => {

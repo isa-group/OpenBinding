@@ -409,15 +409,9 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     }
   };
 
-  /** A file the person chose or dropped: refused here when it is bigger than the plan takes in one request, as the gateway would (413). */
-  const importFile = async (file: File, maxBytes: number | null) => {
-    if (maxBytes !== null && file.size > maxBytes) {
-      setStatus('failed');
-      setOrigin('import');
-      setDiagnostics([]);
-      setRefusal({ kind: 'too-large', status: 413, message: 'The file is larger than the plan allows per request.', diagnostics: [] });
-      return;
-    }
+  /** A file the person chose or dropped: refused here when it is bigger than the deployment takes in one request, as the gateway would (413). */
+  // No size check here: the deployment sets the ceiling, and its 413 says so.
+  const importFile = async (file: File) => {
     await importArchive(await file.arrayBuffer(), 'import');
   };
 

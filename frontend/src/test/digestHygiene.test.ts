@@ -60,6 +60,7 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/pages/Pricing/pricingFixture.ts',
   '/src/pages/Project/packageFixture.ts',
   '/src/test/fixtures/admin.ts',
+  '/src/test/fixtures/agreementCatalog.ts',
   '/src/test/fixtures/engines.ts',
   '/src/test/fixtures/jobs.ts',
   '/src/test/fixtures/resources.ts',

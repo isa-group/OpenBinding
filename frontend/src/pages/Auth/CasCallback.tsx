@@ -14,7 +14,8 @@ import { classifyAuthError } from './authErrors';
  * so nothing from the address is ever shown) and some on the code exchange; both end here.
  */
 type CasFailure =
-  | 'code' | 'unavailable' | 'pricing' | 'pricing-down' | 'state' | 'ticket' | 'inactive' | 'error' | 'linked-elsewhere' | 'collision';
+  | 'code' | 'unavailable' | 'pricing' | 'pricing-down' | 'state' | 'ticket' | 'inactive' | 'error' | 'linked-elsewhere' | 'collision'
+  | 'username';
 
 type Phase = { name: 'loading' } | { name: 'empty' } | { name: 'error'; failure: CasFailure } | { name: 'success' };
 
@@ -26,6 +27,7 @@ const REPORTED = new Map<string, CasFailure>([
   ['account_inactive', 'inactive'],
   ['identity_in_use', 'linked-elsewhere'],
   ['account_collision', 'collision'],
+  ['username_unavailable', 'username'],
   ['pricing_unavailable', 'pricing-down'],
   ['institutional_pricing_invalid', 'pricing'],
   ['cas_error', 'error'],
@@ -69,7 +71,7 @@ export function CasCallback() {
     // One-time memory: whatever happens next, the next CAS round trip starts from a clean slate.
     forgetCasFlow();
     if (!code) return;
-    // Linking CAS raises BASIC to RESEARCH at no cost. The exchange says so; the redirect's `plan_changed` is the same news a step earlier.
+    // Linking CAS raises FREE to RESEARCH at no cost. The exchange says so; the redirect's `plan_changed` is the same news a step earlier.
     void exchangeCasOnce(code, () => apiClient.exchangeCasCode(code).then((change) => {
       if (change) notePlanChanged({ from: change.from, to: change.to, extraCost: change.extra_cost });
       else if (announced) notePlanChanged({ to: announced, extraCost: false });
@@ -118,7 +120,7 @@ export function CasCallback() {
         {phase.name === 'error' && (
           <>
             <h1>
-              {phase.failure === 'linked-elsewhere' || phase.failure === 'collision'
+              {phase.failure === 'linked-elsewhere' || phase.failure === 'collision' || phase.failure === 'username'
                 ? 'This identity can’t be used here'
                 : phase.failure === 'inactive' ? 'This account can’t sign in' : 'Sign-in stopped'}
             </h1>
@@ -170,6 +172,11 @@ export function CasCallback() {
             {phase.failure === 'collision' && (
               <Notice tone="warning" title="An account with these details already exists.">
                 Log in to the existing account and link CAS from Account › Identities. Identities are never linked by email automatically.
+              </Notice>
+            )}
+            {phase.failure === 'username' && (
+              <Notice tone="warning" title="Your university username is reserved here (username_unavailable).">
+                An OpenBinding account can’t take this name: it names engines published under it, or belonged to an account that was deleted. Signing in again won’t change that. Create an account with a password and another username, then link CAS from Account › Identities, or contact the administrator.
               </Notice>
             )}
             <div className="auth-card-actions">

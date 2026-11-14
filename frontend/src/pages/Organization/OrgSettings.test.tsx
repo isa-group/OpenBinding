@@ -1,8 +1,8 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PricingUnavailableError, QuotaError } from '../../api/auth';
+import { PricingUnavailableError } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { iker, lucia, member, org, project, renderScreen } from './testKit';
+import { lucia, member, org, project, renderScreen } from './testKit';
 import { OrgSettings } from './OrgSettings';
 
 const api = vi.hoisted(() => ({ adminListUsers: vi.fn() }));
@@ -42,7 +42,6 @@ describe('Organization settings', () => {
     expect(within(nav).getByRole('link', { name: 'Members' })).toHaveAttribute('href', '/app/isa-demo/settings/members');
     expect(within(nav).getByRole('link', { name: 'Audit' })).toHaveAttribute('href', '/app/isa-demo/settings/audit');
     expect(screen.getByText('/app/isa-demo')).toBeInTheDocument();
-    expect(screen.getByText('Current sponsor · RESEARCH plan')).toBeInTheDocument();
   });
 
   it('renames the organization and points to the audit entry', async () => {
@@ -112,7 +111,6 @@ describe('Organization settings', () => {
     it.each([
       ['409 cycle', refusal(409, 'organization_cycle'), 'That move would put the organization inside itself (409 · organization_cycle). Choose another parent.'],
       ['422 ambiguous parent', refusal(422, 'ambiguous_parent'), 'Choose either a new parent or the top level, not both (422 · ambiguous_parent).'],
-      ['503 pricing', new PricingUnavailableError('down'), 'Limits can’t be checked right now (503 · pricing_unavailable). Nothing changed.'],
     ])('explains a refusal: %s', async (_name, error, text) => {
       platform.updateOrganization.mockRejectedValue(error);
       renderSettings();
@@ -123,64 +121,12 @@ describe('Organization settings', () => {
     });
   });
 
-  describe('who sponsors it', () => {
-    const sponsoredByNora = org('isa-demo', { name: 'ISA Demo Group', billing_sponsor_user_id: 'user-nora' });
+  it('has no sponsor section: quotas are per account', async () => {
+    renderSettings();
 
-    beforeEach(() => {
-      platform.members.mockResolvedValue([member('nora', 'OWNER'), member('lucia.vega', 'OWNER', { user_id: lucia.id })]);
-    });
-
-    it('lets an OWNER make themselves the sponsor, with no other account to choose', async () => {
-      const { reload } = renderSettings([sponsoredByNora]);
-      expect(await screen.findByText('nora')).toBeInTheDocument();
-      expect(screen.queryByLabelText('New sponsor')).not.toBeInTheDocument();
-      expect(screen.getByText(/The new sponsor’s limits are checked first/)).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'Make me the sponsor' }));
-
-      await waitFor(() => expect(platform.updateOrganization).toHaveBeenCalledWith('isa-demo', { billing_sponsor_user_id: lucia.id }));
-      expect(await screen.findByText('Sponsor changed. Size limits now come from the new sponsor’s plan.')).toBeInTheDocument();
-      expect(reload).toHaveBeenCalledOnce();
-    });
-
-    it('shows the current sponsor read-only when the account is the sponsor already, and asks for no sponsor request', async () => {
-      renderSettings();
-
-      expect(await screen.findByText('Current sponsor · RESEARCH plan')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Make me the sponsor' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: 'Sponsor requests' })).not.toBeInTheDocument();
-      expect(api.adminListUsers).not.toHaveBeenCalled();
-    });
-
-    it('does not offer other accounts to an administrator either', async () => {
-      api.adminListUsers.mockResolvedValue({ users: [{ id: 'user-pilar', username: 'pilar', plan: 'PRO' }] });
-      renderScreen(<OrgSettings />, { path: '/app/:org/settings/:section?', url: '/app/isa-demo/settings', organizations: [sponsoredByNora], user: iker });
-
-      await screen.findByRole('button', { name: 'Make me the sponsor' });
-      expect(screen.queryByText(/pilar/)).not.toBeInTheDocument();
-      expect(api.adminListUsers).not.toHaveBeenCalled();
-    });
-
-    it.each([
-      ['402 no room', new QuotaError('sponsor_quota_exceeded', 'full', { limit_id: 'members', limit: 15, used: 16 }), 'The new sponsor’s plan has no room for this organization and everything under it (402 · sponsor_quota_exceeded). members: 16 of 15 used. Nothing changed.'],
-      ['422 must be the caller', refusal(422, 'sponsor_must_be_caller'), 'Only you can make yourself the sponsor (422 · sponsor_must_be_caller). Nothing changed.'],
-      ['422 invalid sponsor', refusal(422, 'invalid_sponsor'), 'That account can’t be a sponsor (422 · invalid_sponsor): sponsors must be active accounts.'],
-      ['503 pricing', new PricingUnavailableError('down'), 'Limits can’t be checked right now (503 · pricing_unavailable). Nothing changed. Try again in a moment.'],
-    ])('explains a refusal: %s', async (_name, error, text) => {
-      platform.updateOrganization.mockRejectedValue(error);
-      renderSettings([sponsoredByNora]);
-      fireEvent.click(await screen.findByRole('button', { name: 'Make me the sponsor' }));
-
-      expect(await screen.findByRole('alert')).toHaveTextContent(text);
-    });
-
-    it('is for OWNERs only: an ADMIN can edit the rest but sees why the sponsor is locked', async () => {
-      renderSettings([{ ...sponsoredByNora, effective_role: 'ADMIN' }]);
-
-      expect(await screen.findByText('Needs OWNER. Your role here is ADMIN.')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Make me the sponsor' })).not.toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Save name' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Delete organization' })).toBeInTheDocument();
-    });
+    expect(await screen.findByRole('button', { name: 'Save name' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Sponsor' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Make me the sponsor' })).not.toBeInTheDocument();
   });
 
   it('is read-only below ADMIN: nothing to save, move or delete', async () => {
@@ -191,7 +137,6 @@ describe('Organization settings', () => {
     expect(screen.queryByRole('button', { name: 'Save name' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Move organization' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete organization' })).not.toBeInTheDocument();
-    expect(screen.getByText('Needs OWNER. Your role here is MEMBER.')).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /Top level/ })).toBeDisabled();
     // The audit log is flagged, not hidden.
     expect(within(screen.getByRole('navigation', { name: 'Organization settings' })).getByText('ADMIN')).toHaveAttribute('title', 'Needs ADMIN');

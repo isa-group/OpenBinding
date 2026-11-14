@@ -99,15 +99,14 @@ for (const route of ['/profiles', '/schemas', '/playground', '/team', '/changelo
 async function openProjectFiles(page: Page) {
   const API = 'http://localhost:8000';
   const organization = {
-    id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null,
-    billing_sponsor_user_id: 'resp-user-id', effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
+    id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
   };
   const project = {
     id: 'project-1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: '',
     visibility: 'private', created_by_id: 'resp-user-id', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z',
     access: 'member', effective_role: 'OWNER',
   };
-  const account = { id: 'resp-user-id', username: 'lucia', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'BASIC', created_at: '2026-09-01T00:00:00Z' };
+  const account = { id: 'resp-user-id', username: 'lucia', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'FREE', created_at: '2026-09-01T00:00:00Z' };
   await page.addInitScript(() => localStorage.setItem('openbinding-access-token', 'responsive-token'));
   await page.route(`${API}/**`, (route) => route.fulfill({ status: 404, json: { detail: 'not mocked' } }));
   await page.route(`${API}/v1/users/me`, (route) => route.fulfill({ json: account }));

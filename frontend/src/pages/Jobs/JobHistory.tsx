@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { History } from 'lucide-react';
 import type { JobSummary } from '../../api/client';
-import { apiClient } from '../../api/client';
 import { jobsApi } from '../../api/jobs';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { Action } from '../../components/ui/Action';
@@ -11,12 +10,11 @@ import { FilterPills } from '../../components/ui/FilterPills';
 import { Notice } from '../../components/ui/Notice';
 import { ProjectPicker } from '../../components/ui/ProjectPicker';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { useAuth } from '../../contexts/auth';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import { refusalOf, type Refusal } from './jobErrors';
-import { loadProjectIndex, retentionBars, type ProjectRef } from './jobsData';
+import { loadProjectIndex, type ProjectRef } from './jobsData';
 import { STATUS_FILTERS, canRetryState, formatTook, isActive, normalizeStatus, outcomeOf, secondsBetween, statusCounts, type StatusFilter } from './jobsModel';
 import { AccountFrame, RefusalNotice, StatusChip } from './parts';
 
@@ -27,7 +25,6 @@ type Outcome = { tone: 'success'; text: string; follow?: string } | { tone: 'err
 interface HistoryData {
   jobs: JobSummary[];
   total: number;
-  retention: number | null;
   /** The project each run belongs to, by the run's id; empty when the runs carry none or the projects could not be read. */
   projectOf: Map<string, ProjectRef>;
 }
@@ -43,44 +40,10 @@ async function loadHistory(limit: number): Promise<HistoryData> {
     const project = job.project_id ? index.get(job.project_id) : undefined;
     if (project) projectOf.set(job.id, project);
   }
-  return { jobs: page.jobs, total: page.total, retention: typeof page.retention_days === 'number' ? page.retention_days : null, projectOf };
-}
-
-function Retention({ retention, plan }: { retention: number | null; plan: string | undefined }) {
-  const catalog = useResource('job-history-pricing', () => apiClient.getPricingCatalog().catch(() => null));
-  const bars = retentionBars(catalog.data ?? null);
-  const longest = bars.length ? bars[bars.length - 1].days : null;
-  const tallest = Math.max(1, ...bars.map((bar) => bar.days));
-  const title = retention === null
-    ? 'Retention can’t be confirmed right now'
-    : `Finished runs are kept ${retention.toLocaleString('en-US')} days${plan ? ` on your ${plan} plan` : ''}`;
-  const note = retention === null
-    ? 'Your list still loads; only the retention figure is missing.'
-    : longest !== null && retention >= longest
-      ? 'This is the longest retention available.'
-      : 'Longer retention comes with larger plans, arranged by agreement.';
-  return (
-    <section className={`job-retention-card${retention === null ? ' is-unknown' : ''}`} aria-label="How long runs are kept">
-      <div>
-        <strong>{title}</strong>
-        <span>{note}</span>
-      </div>
-      {bars.length > 0 && (
-        <div className="job-retention-bars" aria-hidden="true">
-          {bars.map((bar) => (
-            <span key={bar.plan}>
-              <i className={bar.days === retention ? 'is-current' : undefined} style={{ height: `${Math.max(4, Math.round((bar.days / tallest) * 44))}px` }} />
-              <small>{bar.short}</small>
-            </span>
-          ))}
-        </div>
-      )}
-    </section>
-  );
+  return { jobs: page.jobs, total: page.total, projectOf };
 }
 
 function HistoryBody() {
-  const { user } = useAuth();
   const context = useOutletContext<PlatformOutletContext | null>();
   const [limit, setLimit] = useState(STEP);
   const history = useResource<HistoryData>(`job-history:${limit}`, () => loadHistory(limit));
@@ -147,7 +110,6 @@ function HistoryBody() {
 
       {!refused && (
         <>
-          {data && <Retention retention={data.retention} plan={user?.plan} />}
           <div className="job-toolbar">
             <FilterPills ariaLabel="Status" value={status} onChange={(id) => setStatus(id as StatusFilter)} options={STATUS_FILTERS.map((filter) => ({ id: filter.id, label: `${filter.label} (${counts[filter.id] ?? 0})` }))} />
             <label className="job-select">
@@ -168,8 +130,8 @@ function HistoryBody() {
           {history.status === 'loading' && !data && <div role="status" aria-busy="true"><span className="sr-only">Loading your runs…</span><Skeleton variant="panel" /></div>}
 
           {data && data.jobs.length === 0 && (
-            <EmptyState icon={<History />} title="Nothing within your retention window" dashed action={<ProjectPicker label="Start a run" variant="primary" destination={(org, project) => `/app/${org}/${project}/runs/new`} />}>
-              No runs within your retention window.
+            <EmptyState icon={<History />} title="No runs yet" dashed action={<ProjectPicker label="Start a run" variant="primary" destination={(org, project) => `/app/${org}/${project}/runs/new`} />}>
+              Runs you start in any project appear here.
             </EmptyState>
           )}
           {data && data.jobs.length > 0 && shown.length === 0 && <EmptyState icon={<History />} title="No runs match these filters">Try another status or engine.</EmptyState>}

@@ -15,6 +15,7 @@ from openbinding_gateway.core.settings import Settings
 PRODUCTION = dict(
     app_env="prod",
     space_enabled=True,
+    space_organization_id="org-test",
     cors_allow_origins="https://openbinding.example.org",
     gateway_jwt_secret="x" * 64,
 )

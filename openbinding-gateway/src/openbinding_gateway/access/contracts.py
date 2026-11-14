@@ -73,5 +73,26 @@ async def settle_pending_contract(user: User, session: AsyncSession) -> None:
         return
 
     user.contract_pending = False
+    await record_assigned_plan(user, gate)
     await session.flush()
     logger.info("Settled the pending contract for %s", user.username)
+
+
+async def record_assigned_plan(user: User, gate) -> None:
+    """Keep in ``plan_cache`` the plan SPACE gave a contract created without one.
+
+    ``SPACE_DEFAULT_PLAN`` may be unset, and then the contract is created with no
+    plan and SPACE assigns its default. The profile shows ``plan_cache`` without
+    asking SPACE, so it has to learn that plan once, right after the contract is
+    created. Best effort: a failed read leaves the cache as it was, which only
+    the display reads.
+    """
+    if user.plan_cache:
+        return
+    try:
+        plan = (await gate.subscription(user.id)).plan
+    except Exception as error:  # noqa: BLE001 - the contract exists; only the display cache is missing
+        logger.debug("Could not read the plan SPACE assigned to %s: %s", user.username, error)
+        return
+    if plan:
+        user.plan_cache = plan

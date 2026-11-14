@@ -72,7 +72,6 @@ export interface UserProfile {
   created_at: string;
   /** Added by the collaborative platform; optional keeps older API fixtures compatible. */
   cas_verified?: boolean;
-  institutional_branding?: boolean;
 }
 
 export interface TokenPair {
@@ -82,7 +81,7 @@ export interface TokenPair {
   expires_in: number;
 }
 
-/** A plan the gateway changed as a side effect of signing in: linking CAS raises BASIC to RESEARCH at no extra cost. */
+/** A plan the gateway changed as a side effect of signing in: linking CAS raises FREE to RESEARCH at no extra cost. */
 export interface PlanChange {
   from: string;
   to: string;

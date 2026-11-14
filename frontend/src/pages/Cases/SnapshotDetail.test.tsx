@@ -142,12 +142,12 @@ describe('Source tab of the problem page', () => {
     expect(screen.getByRole('region', { name: 'Downloads' })).toBeInTheDocument();
   });
 
-  it('reads the figures from the compiled form when the plan will not let the gateway analyse it (402)', async () => {
-    cases.analyseSnapshot.mockRejectedValue(new QuotaError('instance_complexity_too_large', 'too big'));
+  it('reads the figures from the compiled form when the gateway will not analyse it (402)', async () => {
+    cases.analyseSnapshot.mockRejectedValue(new QuotaError('quota_exceeded', 'used up'));
     renderSnapshot();
 
     const section = await screen.findByRole('region', { name: 'What the engines receive' });
-    expect(await within(section).findByText(/bigger than your plan allows you to run/)).toBeInTheDocument();
+    expect(await within(section).findByText(/The gateway’s own analysis isn’t available right now \(402 · quota_exceeded\)/)).toBeInTheDocument();
     const figures = within(section).getByRole('list', { name: 'What the engines receive' });
     expect(within(figures).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
       '6tasks', '24candidates', '2rules', '2goal terms', '10^3.3combinations (up to)',

@@ -4,9 +4,9 @@ import { diagnosticLines } from '../../api/problem';
 import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import { RANGE_CODE } from '../../utils/featureRange';
 import {
-  COMPLEXITY_CODE, USAGE_UNKNOWN_CODE, complexityText, limitProblemOf, noticeOf, slotsText, usageUnknownText,
+  USAGE_UNKNOWN_CODE, limitProblemOf, noticeOf, slotsText, usageUnknownText,
 } from '../../utils/limitRefusals';
-import { limitInfo } from '../../utils/limits';
+import { LIMIT, limitInfo } from '../../utils/limits';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 
 export type JobAction = 'launch' | 'retry' | 'cancel';
@@ -14,8 +14,8 @@ export type JobAction = 'launch' | 'retry' | 'cancel';
 export type RefusalKind =
   | 'quota' | 'too-big' | 'busy' | 'plan' | 'key' | 'incompatible' | 'range' | 'not-found' | 'conflict' | 'terminal'
   | 'pricing' | 'session' | 'too-large' | 'unavailable' | 'other'
-  // A limit that isn't a plan allowance used up (see `utils/limitRefusals`): the plan doesn't say, this deployment caps it, it couldn't be measured, the plan can't be applied.
-  | 'limit-unknown' | 'technical' | 'unmeasured' | 'misconfigured';
+  // A limit that isn't a plan allowance used up (see `utils/limitRefusals`): this deployment caps it, it couldn't be measured, the plan can't be applied.
+  | 'technical' | 'unmeasured' | 'misconfigured';
 
 /** A diagnostic as one line: what it says and, in brackets, where in the package it points. */
 function lineOf(row: unknown): string {
@@ -91,14 +91,6 @@ export function refusalOf(caught: unknown, action: JobAction = 'launch'): Refusa
 
   if (failure.status === 402) {
     const limitId = quota?.limit_id ?? notice?.limit_id;
-    const complexity = failure.code === COMPLEXITY_CODE || limitId === 'maxInstanceComplexityLog10';
-    if (complexity) {
-      return {
-        ...base, kind: 'too-big', limitId, source: notice?.source,
-        title: `Too big for your plan${at}`,
-        text: complexityText(caught, nothing),
-      };
-    }
     const noun = limitId ? inInterfaceWords(limitInfo(limitId).short) : 'allowance';
     const limit = quota?.limit ?? notice?.limit;
     const used = quota?.used ?? notice?.used;
@@ -113,7 +105,7 @@ export function refusalOf(caught: unknown, action: JobAction = 'launch'): Refusa
   if (failure.status === 429) {
     const concurrency = caught instanceof HttpError ? caught.concurrency : undefined;
     return {
-      ...base, kind: 'busy', limitId: concurrency?.limit_id ?? 'concurrentJobs', source: concurrency?.source, retryAfter: failure.retryAfter ?? 15,
+      ...base, kind: 'busy', limitId: concurrency?.limit_id ?? LIMIT.maxConcurrentRuns, source: concurrency?.source, retryAfter: failure.retryAfter ?? 15,
       title: `${retry}All your run slots are busy${at}`,
       text: `${slotsText(concurrency)} Wait for one to finish, then send again. ${nothing}`,
     };
@@ -157,7 +149,7 @@ export function refusalOf(caught: unknown, action: JobAction = 'launch'): Refusa
   }
 
   if (failure.status === 413) {
-    return { ...base, kind: 'too-large', title: `Larger than your plan takes${at}`, text: `The request is bigger than your plan allows per request. ${nothing}` };
+    return { ...base, kind: 'too-large', title: `Larger than this deployment takes${at}`, text: `The request is bigger than this deployment allows per request, whatever the plan. ${nothing}` };
   }
 
   const diagnostics = caught instanceof HttpError ? caught.diagnostics ?? [] : [];

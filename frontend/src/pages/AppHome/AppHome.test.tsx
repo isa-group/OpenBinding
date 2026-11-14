@@ -14,7 +14,7 @@ vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof imp
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const lab = org('qos-lab', { name: 'QoS Lab (sub-organización)', parent_id: group.id });
-const consultora = org('consultora-demo', { name: 'Consultora Demo', billing_sponsor_user_id: 'user-nora', effective_role: 'VIEWER' });
+const consultora = org('consultora-demo', { name: 'Consultora Demo', effective_role: 'VIEWER' });
 
 const job = (over: Record<string, unknown> = {}) => ({
   id: '00000000-0000-0000-0000-0000000000f2', engine_id: 'minizinc', status: 'running', termination: null, solutions: null,
@@ -34,7 +34,7 @@ describe('Home', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.organizations.mockResolvedValue([group, lab, consultora]);
-    api.listOwnJobs.mockResolvedValue({ jobs: [job(), job({ id: '00000000-0000-0000-0000-0000000000f6', status: 'completed', termination: 'INFEASIBLE', finished_at: '2026-10-08T08:00:40Z' })], total: 2, retention_days: 180 });
+    api.listOwnJobs.mockResolvedValue({ jobs: [job(), job({ id: '00000000-0000-0000-0000-0000000000f6', status: 'completed', termination: 'INFEASIBLE', finished_at: '2026-10-08T08:00:40Z' })], total: 2 });
     api.getOwnUsage.mockResolvedValue(researchUsage());
     api.listNotifications.mockResolvedValue([contractNotice]);
     api.markNotificationRead.mockResolvedValue({ ...contractNotice, read_at: '2026-10-09T00:00:00Z' });
@@ -62,10 +62,10 @@ describe('Home', () => {
     expect(within(items[0]).getByText(/consultora-demo · own role/)).toBeInTheDocument();
 
     const root = items.find((item) => item.getAttribute('href') === '/app/isa-demo')!;
-    expect(within(root).getByText(/isa-demo · you sponsor it · own role/)).toBeInTheDocument();
+    expect(within(root).getByText(/isa-demo · own role/)).toBeInTheDocument();
     const child = items.find((item) => item.getAttribute('href') === '/app/qos-lab')!;
     expect(within(child).getByText('OWNER')).toHaveAttribute('title', 'Inherited from ISA Demo Group');
-    expect(within(child).getByText(/qos-lab · you sponsor it · inherited role/)).toBeInTheDocument();
+    expect(within(child).getByText(/qos-lab · inherited role/)).toBeInTheDocument();
     // The child sits inside its parent’s list.
     expect(root.closest('li')).toContainElement(child);
     expect(screen.getByText(/the highest of your own role there and the one inherited from above/)).toBeInTheDocument();
@@ -84,7 +84,7 @@ describe('Home', () => {
 
     const plan = screen.getByRole('region', { name: 'Your plan' });
     expect(await within(plan).findByText('RESEARCH')).toBeInTheDocument();
-    expect(within(plan).getByText('Up to 3')).toBeInTheDocument();
+    expect(within(plan).getByText('Up to 4')).toBeInTheDocument();
     expect(within(plan).queryByRole('meter')).not.toBeInTheDocument();
     expect(within(plan).getByRole('link', { name: 'Plan' })).toHaveAttribute('href', '/app/account/usage');
     expect(within(plan).getByRole('link', { name: 'SPACE' })).toHaveAttribute('href', config.spaceFrontendUrl);
@@ -121,7 +121,7 @@ describe('Home', () => {
     expect(await within(activity).findByRole('alert')).toHaveTextContent('Recent runs couldn’t be loaded (503). The other blocks are unaffected.');
     // The tree and the plan are on the page regardless.
     expect(await screen.findByRole('list', { name: 'Organizations' })).toBeInTheDocument();
-    expect(await screen.findByText('Up to 3')).toBeInTheDocument();
+    expect(await screen.findByText('Up to 4')).toBeInTheDocument();
 
     fireEvent.click(within(activity).getByRole('button', { name: 'Retry' }));
     expect(await within(activity).findByText('Running')).toBeInTheDocument();
@@ -140,7 +140,7 @@ describe('Home', () => {
     api.getOwnUsage.mockResolvedValue({ ...researchUsage(), contract_pending: true });
     fireEvent.click(within(plan).getByRole('button', { name: 'Retry' }));
     expect(await within(plan).findByText(/Your plan is still being settled \(contract pending\)/)).toBeInTheDocument();
-    expect(within(plan).queryByText('Up to 3')).not.toBeInTheDocument();
+    expect(within(plan).queryByText('Up to 4')).not.toBeInTheDocument();
   });
 
   it('says the block is not available when the credential lacks the permission (403)', async () => {
@@ -156,14 +156,13 @@ describe('Home', () => {
 
   it('guides an account without organizations to create the first one', async () => {
     platform.organizations.mockResolvedValue([]);
-    api.listOwnJobs.mockResolvedValue({ jobs: [], total: 0, retention_days: 180 });
+    api.listOwnJobs.mockResolvedValue({ jobs: [], total: 0 });
     renderHome([]);
 
     expect(await screen.findByRole('heading', { name: 'Create your first organization' })).toBeInTheDocument();
     expect(screen.getByText('Let’s set up a place for your work.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Create organization' })).toHaveAttribute('href', '/app?create=organization');
     expect(screen.getByRole('link', { name: 'I have an invitation' })).toHaveAttribute('href', '/invitations/accept');
-    expect(await screen.findByText(/organization limit \(5 on RESEARCH\)/)).toBeInTheDocument();
     expect(screen.getByText('You’re not in any organization yet.')).toBeInTheDocument();
     // With no jobs either, the activity block shows a way to the first run.
     expect(await screen.findByText(/No runs yet/)).toBeInTheDocument();

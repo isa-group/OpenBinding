@@ -144,14 +144,14 @@ describe('Home', () => {
   });
 
   describe('plans and links', () => {
-    it('summarises the four plans and points to the live pricing', () => {
+    it('summarises the three plans and points to the live pricing', () => {
       renderHome();
 
-      for (const name of ['Basic', 'Research', 'Advanced', 'Pro']) expect(screen.getByText(name, { selector: '.home-kicker' })).toBeInTheDocument();
+      for (const name of ['Free', 'Research', 'Lab']) expect(screen.getByText(name, { selector: '.home-kicker' })).toBeInTheDocument();
       expect(screen.getByText('1 concurrent run')).toBeInTheDocument();
-      expect(screen.getByText('Unlimited API keys')).toBeInTheDocument();
+      expect(screen.getByText('200 API keys')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
-      expect(screen.getByText(/Headline limits from pricing 0\.1\.0/)).toBeInTheDocument();
+      expect(screen.getByText(/Headline limits from pricing 0\.2\.0/)).toBeInTheDocument();
     });
 
     it('links only to routes that exist', async () => {

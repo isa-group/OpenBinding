@@ -16,7 +16,7 @@ import { MaintenanceSection } from './AdminMaintenance';
 import { QueuesSection } from './AdminQueues';
 import { ageLabel, count, describeAdminFailure, overviewSectionOf, overviewSectionPath, shortId, statusTone, type OverviewSection } from './adminModel';
 
-const PLAN_ORDER = ['BASIC', 'ADVANCED', 'RESEARCH', 'PRO'];
+const PLAN_ORDER = ['FREE', 'RESEARCH', 'LAB'];
 const PLAN_TONES: Array<'muted' | 'info' | 'success' | 'warning'> = ['muted', 'info', 'success', 'warning'];
 
 const QUEUE_STATES = [

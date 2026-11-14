@@ -39,8 +39,8 @@ Volumes: `pgdata`, `redisdata`, `artifacts`, `frontend_dist`. One network, `open
 `172.29.40.0/24`; the gateway believes `X-Forwarded-For` only from that subnet (`FORWARDED_ALLOW_IPS`).
 
 Site variables, required by `compose.yaml` with `${VAR:?}` (no default): `PUBLIC_ORIGIN`, `OPENBINDING_SECRETS_DIR`,
-`OPENBINDING_BACKUP_DIR`, `BACKUP_RETENTION_DAYS`, `NGINX_SSL_DIR` and `SPACE_URL`. `ci.env` holds placeholders for
-them. Image variables, also required: the nine `*_IMAGE` names of the table.
+`OPENBINDING_BACKUP_DIR`, `BACKUP_RETENTION_DAYS`, `NGINX_SSL_DIR`, `SPACE_URL` and `SPACE_ORGANIZATION_ID`. `ci.env`
+holds placeholders for them. Image variables, also required: the nine `*_IMAGE` names of the table.
 
 Every service has `mem_limit`, `cpus`, `no-new-privileges` and rotated `json-file` logs; every service except
 `migrate` has a health check and `restart: unless-stopped`.
@@ -106,6 +106,8 @@ OPENBINDING_BACKUP_DIR=/srv/openbinding/backups
 BACKUP_RETENTION_DAYS=14
 NGINX_SSL_DIR=/srv/openbinding/tls
 SPACE_URL=https://space.score.us.es
+# the SPACE organization that issues the pricing tokens (see "Remote SPACE"):
+SPACE_ORGANIZATION_ID=
 # the first administrator, see "First install":
 BOOTSTRAP_ADMIN_USERNAME=
 BOOTSTRAP_ADMIN_EMAIL=
@@ -903,6 +905,13 @@ Production and the laboratory use the remote SPACE, `https://space.score.us.es`.
 through `SPACE_URL` (required, set in `site.env`; the value is `https://space.score.us.es`) and the secret file `space_api_key`. The key never goes into
 the repository, an image, the logs or the browser. `SPACE_ENABLED` switches the integration, and `APP_ENV=prod` refuses
 the open gate (`SPACE_ENABLED=false`). Plans stay blocked only until the key and the URL are supplied.
+
+The gateway and the workers read pricing `0.2.0` (`SPACE_PRICING_VERSION`, `0.2.0` unless `site.env` sets another
+version that declares the same ids): at startup the gateway refuses a published pricing that lacks one of the ids it
+enforces. It verifies every pricing token against the keys SPACE publishes (JWKS) for the organization in
+`SPACE_ORGANIZATION_ID` (required, set in `site.env`; the gateway refuses to start in production without it, or when
+SPACE does not publish its keys). `SPACE_TOKEN_ISSUER` (`space`) and `SPACE_TOKEN_LEEWAY_S` (`30`) only need setting
+when SPACE issues its tokens differently. With `SPACE_DEFAULT_PLAN` unset, SPACE assigns the plan of a new contract.
 
 Production runs no local SPACE: this stack deploys and backs up no SPACE, and `compose.yaml` has no SPACE or SPHERE
 service, network or volume, so there is nothing of SPACE to restore. `tests/test_no_local_space.py` in

@@ -10,6 +10,7 @@ import { formatDate } from '../../utils/format';
 import { parseBindingSpace } from '../../components/BindingSpaceBadge/bindingSpace';
 import { optionFacts } from '../Engines/enginesModel';
 import type { ForecastBar } from './jobsModel';
+import { LIMIT } from '../../utils/limits';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -177,11 +178,16 @@ export function ceilingOf(usage: UsageView | null, catalog: Record<string, unkno
   return planLimit(catalog, usage?.plan ?? plan, id);
 }
 
+/**
+ * The plan sets the time of a run (`maxRunMinutes`); the iterations and the problem size are bounded by the deployment
+ * (`MAX_ITERATIONS`, `MAX_BINDING_SPACE_LOG10`), which the interface does not know: the gateway's answer says so.
+ */
 export function planCeilingsOf(usage: UsageView | null, catalog: Record<string, unknown> | null, plan: string | undefined): PlanCeilings {
+  const minutes = ceilingOf(usage, catalog, plan, LIMIT.maxRunMinutes);
   return {
-    seconds: ceilingOf(usage, catalog, plan, 'maxTimeoutSeconds'),
-    iterations: ceilingOf(usage, catalog, plan, 'maxIterations'),
-    complexity: ceilingOf(usage, catalog, plan, 'maxInstanceComplexityLog10'),
+    seconds: minutes === null ? null : minutes * 60,
+    iterations: null,
+    complexity: null,
   };
 }
 
@@ -284,7 +290,9 @@ export function forecastOf({ ceilings, bindingSpace, plan }: ForecastInput): For
     over: size !== null && ceilings.complexity !== null && size > ceilings.complexity,
     text: size === null
       ? 'The size of this problem isn’t known yet'
-      : `≈ 10^${Math.round(size * 10) / 10} of up to ${ceilings.complexity !== null ? `10^${ceilings.complexity}` : 'no ceiling'}${plan ? ` on your ${plan} plan` : ''}`,
+      : ceilings.complexity !== null
+        ? `≈ 10^${Math.round(size * 10) / 10} of up to 10^${ceilings.complexity}${plan ? ` on your ${plan} plan` : ''}`
+        : `≈ 10^${Math.round(size * 10) / 10} combinations · this deployment sets the ceiling`,
   };
   return [sizeBar];
 }

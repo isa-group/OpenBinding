@@ -10,29 +10,24 @@ vi.mock('../../contexts/auth', () => ({ useAuth: () => auth }));
 
 const base: UserProfile = {
   id: 'user-id', username: 'someone', email: 'someone@example.com', role: 'user', is_active: true,
-  plan: 'PRO', created_at: '2026-09-01T00:00:00Z',
+  plan: 'LAB', created_at: '2026-09-01T00:00:00Z',
 };
 
 describe('isInstitutionalAccount', () => {
-  it('grants the mark to RESEARCH accounts without the flag', () => {
+  it('grants the mark to RESEARCH accounts, from the plan alone', () => {
     expect(isInstitutionalAccount({ ...base, plan: 'RESEARCH' })).toBe(true);
-    expect(isInstitutionalAccount({ ...base, plan: 'RESEARCH', institutional_branding: false })).toBe(true);
-  });
-
-  it('grants the mark to flagged accounts without the RESEARCH plan', () => {
-    expect(isInstitutionalAccount({ ...base, plan: 'PRO', institutional_branding: true })).toBe(true);
   });
 
   it('does not grant the mark to ordinary accounts or guests', () => {
-    expect(isInstitutionalAccount({ ...base, plan: 'PRO' })).toBe(false);
-    expect(isInstitutionalAccount({ ...base, plan: 'PRO', institutional_branding: false })).toBe(false);
+    expect(isInstitutionalAccount({ ...base, plan: 'LAB' })).toBe(false);
+    expect(isInstitutionalAccount({ ...base, plan: 'FREE' })).toBe(false);
     expect(isInstitutionalAccount(null)).toBe(false);
     expect(isInstitutionalAccount(undefined)).toBe(false);
   });
 
   it('never infers the mark from the e-mail address', () => {
     const researcher: UserProfile = { ...base, email: 'researcher@us.es' };
-    const student: UserProfile = { ...base, email: 'student@alum.us.es', institutional_branding: false };
+    const student: UserProfile = { ...base, email: 'student@alum.us.es' };
     expect(isInstitutionalAccount(researcher)).toBe(false);
     expect(isInstitutionalAccount(student)).toBe(false);
   });

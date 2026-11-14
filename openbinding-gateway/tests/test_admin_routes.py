@@ -22,7 +22,8 @@ from openbinding_gateway.db.models import (
     User,
     UserRole,
 )
-from _pricing import caps_for, fake_pricing_gate, largest_plan, pricing_catalog
+from _fake_space import FakePricingGate
+from _pricing import caps_for, catalog_with_add_ons, fake_pricing_gate, largest_plan, pricing_catalog
 
 CATALOG = pricing_catalog()
 DEFAULT_PLAN = CATALOG.default_plan
@@ -297,16 +298,18 @@ async def test_subscription_changes_plan_add_ons_and_notifies_only_on_a_real_cha
 ):
     from sqlalchemy import func, select
 
+    catalog = catalog_with_add_ons()
+    space_client.set_gate(FakePricingGate(catalog))
     profile, _ = await account(api_client, registration)
     _, admin = await account(api_client, registration, db_session, admin=True)
     target_plan = next(
         plan
-        for plan in CATALOG.plans
-        if sum(plan in add_on.available_for for add_on in CATALOG.add_ons.values()) >= 2
+        for plan in catalog.plans
+        if sum(plan in add_on.available_for for add_on in catalog.add_ons.values()) >= 2
     )
     target_add_ons = {
         name: add_on.minimum
-        for name, add_on in CATALOG.add_ons.items()
+        for name, add_on in catalog.add_ons.items()
         if target_plan in add_on.available_for
     }
     target_add_ons = dict(list(target_add_ons.items())[:2])
@@ -347,6 +350,8 @@ async def test_subscription_changes_plan_add_ons_and_notifies_only_on_a_real_cha
 async def test_research_requires_verified_us_cas_and_never_accepts_add_ons(
     api_client, registration, gate, db_session
 ):
+    catalog = catalog_with_add_ons()
+    space_client.set_gate(FakePricingGate(catalog))
     profile, _ = await account(api_client, registration)
     _, admin = await account(api_client, registration, db_session, admin=True)
     endpoint = f"/v1/admin/users/{profile['id']}/subscription"
@@ -366,7 +371,7 @@ async def test_research_requires_verified_us_cas_and_never_accepts_add_ons(
     await db_session.flush()
     unavailable_add_on = next(
         name
-        for name, add_on in CATALOG.add_ons.items()
+        for name, add_on in catalog.add_ons.items()
         if INSTITUTIONAL_PLAN not in add_on.available_for
     )
     invalid_add_on = await api_client.post(
@@ -427,8 +432,8 @@ async def test_an_administrator_change_pins_the_configured_pricing_version(
     )
 
     assert response.status_code == 200, response.text
-    assert response.json()["subscription"]["pricing_version"] == "0.1.0"
-    assert gate.versions[user_id] == "0.1.0"
+    assert response.json()["subscription"]["pricing_version"] == CATALOG.version == "0.2.0"
+    assert gate.versions[user_id] == "0.2.0"
 
 
 # -- Concurrent changes -----------------------------------------------------

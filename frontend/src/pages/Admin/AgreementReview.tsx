@@ -15,7 +15,7 @@ const ChangeReview = PricingChangeReview as ForwardRefExoticComponent<
 
 /**
  * The Upgrade/Downgrade badge reads the order in which the document declares its plans as a ladder, and OpenBinding's plans are
- * not one: RESEARCH is free and is declared after ADVANCED.
+ * not one: RESEARCH is free and is declared between FREE and LAB.
  */
 const HIDDEN_SECTIONS = ['relation'] as const;
 

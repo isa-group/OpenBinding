@@ -147,7 +147,8 @@ def test_production_refuses_to_start_without_space():
 
 def test_production_starts_with_space_and_development_may_run_without_it():
     prod = settings(
-        app_env="prod", space_enabled=True, cors_allow_origins="https://openbinding.example.org"
+        app_env="prod", space_enabled=True, space_organization_id="org-test",
+        cors_allow_origins="https://openbinding.example.org",
     )
     assert prod.space_enabled is True
     for environment in ("dev", "test"):

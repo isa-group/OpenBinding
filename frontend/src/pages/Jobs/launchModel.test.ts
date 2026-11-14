@@ -19,7 +19,7 @@ const revision = (n: number, over: Partial<CaseRevision> = {}): CaseRevision => 
 const cases = [{ item: { id: 'case-1', project_id: 'p', slug: 'flujo', name: 'Flujo de checkout', description: '', created_by_id: 'u', created_at: '2026-08-01T00:00:00Z' }, revisions: [revision(1), revision(2)] }];
 
 const usage = (over: Partial<UsageView> = {}): UsageView => ({
-  plan: 'BASIC', contract_pending: false, features: {}, capabilities: { maxTimeoutSeconds: 60, maxIterations: 10_000, maxInstanceComplexityLog10: 9 }, ...over,
+  plan: 'FREE', contract_pending: false, features: {}, capabilities: { maxRunMinutes: 1 }, ...over,
 });
 
 const mode = (id: string, properties: Record<string, Record<string, unknown>>): EngineMode => ({
@@ -139,22 +139,23 @@ describe('engines', () => {
 
 describe('settings against the plan', () => {
   it('prefers what the account reports, then the pricing document', () => {
-    expect(ceilingOf(usage(), null, 'BASIC', 'maxTimeoutSeconds')).toBe(60);
-    expect(ceilingOf(null, { plans: { BASIC: { usageLimits: { maxTimeoutSeconds: { value: 45 } } } } }, 'BASIC', 'maxTimeoutSeconds')).toBe(45);
-    expect(ceilingOf(null, null, 'BASIC', 'maxTimeoutSeconds')).toBeNull();
-    expect(planCeilingsOf(usage(), null, 'BASIC')).toEqual({ seconds: 60, iterations: 10_000, complexity: 9 });
+    expect(ceilingOf(usage(), null, 'FREE', 'maxRunMinutes')).toBe(1);
+    expect(ceilingOf(null, { plans: { FREE: { usageLimits: { maxRunMinutes: { value: 5 } } } } }, 'FREE', 'maxRunMinutes')).toBe(5);
+    expect(ceilingOf(null, null, 'FREE', 'maxRunMinutes')).toBeNull();
+    // The plan sets the time of a run; the iterations and the problem size are the deployment's, which the interface does not know.
+    expect(planCeilingsOf(usage(), null, 'FREE')).toEqual({ seconds: 60, iterations: null, complexity: null });
   });
 
   it('asks for the numbers a mode declares, with seconds for time', () => {
-    const inputs = optionInputs(modeOfCatalog(catalog, modeChoices(null, catalog)[0]), planCeilingsOf(usage(), null, 'BASIC'));
+    const inputs = optionInputs(modeOfCatalog(catalog, modeChoices(null, catalog)[0]), planCeilingsOf(usage(), null, 'FREE'));
     expect(inputs.map((input) => [input.name, input.unit, input.default, input.ceiling])).toEqual([
       ['time_budget_ms', 's', 30, 60],
-      ['iterations', 'iterations', 100000, 10_000],
+      ['iterations', 'iterations', 100000, null],
     ]);
   });
 
   it('reduces what is above the ceiling and says so, without calling it an error', () => {
-    const inputs = optionInputs(modeOfCatalog(catalog, modeChoices(null, catalog)[0]), planCeilingsOf(usage(), null, 'BASIC'));
+    const inputs = optionInputs(modeOfCatalog(catalog, modeChoices(null, catalog)[0]), planCeilingsOf(usage(), null, 'FREE'));
     const plans = planOptions(inputs, { time_budget_ms: '600', iterations: '5,000' });
     expect(plans.map((plan) => [plan.asked, plan.effective, plan.reduced, plan.invalid])).toEqual([[600, 60, true, false], [5000, 5000, false, false]]);
     // The request carries what was asked, in milliseconds; the gateway reduces it and records that.
@@ -162,7 +163,7 @@ describe('settings against the plan', () => {
   });
 
   it('marks a field that is not a positive number, and leaves an empty one to the engine', () => {
-    const inputs = optionInputs(modeOfCatalog(catalog, modeChoices(null, catalog)[0]), planCeilingsOf(usage(), null, 'BASIC'));
+    const inputs = optionInputs(modeOfCatalog(catalog, modeChoices(null, catalog)[0]), planCeilingsOf(usage(), null, 'FREE'));
     const plans = planOptions(inputs, { time_budget_ms: 'soon', iterations: '' });
     expect(plans.map((plan) => [plan.invalid, plan.asked])).toEqual([[true, null], [false, null]]);
     expect(requestOptions(plans)).toEqual({});
@@ -174,7 +175,7 @@ describe('settings against the plan', () => {
   it('accepts 0 for an option that is not a budget, such as a seed, and keeps refusing it for a budget', () => {
     const seeded = optionInputs(
       modeOfCatalog([{ ...catalog[0], modes: [mode('sampling', { seed: { type: 'integer', default: 0 }, iterations: { type: 'integer', default: 100 }, temperature: { type: 'number', default: 0.5 } })] }], modeChoices(null, catalog)[0]),
-      planCeilingsOf(usage(), null, 'BASIC'),
+      planCeilingsOf(usage(), null, 'FREE'),
     );
     // The defaults the manifest declares are sendable as they are.
     const defaults = planOptions(seeded, {});

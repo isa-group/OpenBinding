@@ -25,13 +25,13 @@ const token = (expiresInSeconds: number) => [
 
 const lucia = {
   id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-03-02T00:00:00Z', cas_verified: true, institutional_branding: true,
+  created_at: '2026-03-02T00:00:00Z', cas_verified: true,
 };
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 
-const org = (id: string, slug: string, name: string, role: Role, sponsor = 'user-1') => ({
-  id, slug, name, parent_id: null, billing_sponsor_user_id: sponsor, effective_role: role, created_at: '2026-03-03T00:00:00Z',
+const org = (id: string, slug: string, name: string, role: Role) => ({
+  id, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z',
 });
 
 const project = (n: number, orgId: string, slug: string, name: string) => ({
@@ -57,7 +57,7 @@ interface MockOptions {
 async function mockApi(page: Page, options: MockOptions = {}): Promise<void> {
   const organizations = [
     org('org-isa-demo', 'isa-demo', 'ISA Demo Group', options.role ?? 'OWNER'),
-    org('org-4', 'read-lab', 'Read Lab', 'VIEWER', 'user-nora'),
+    org('org-4', 'read-lab', 'Read Lab', 'VIEWER'),
   ];
   await page.addInitScript(() => {
     localStorage.setItem('openbinding-access-token', 's7b-access');

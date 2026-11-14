@@ -2,7 +2,6 @@ import copy
 import json
 import math
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
@@ -10,13 +9,12 @@ from sqlalchemy import select
 
 from _repo import REPO_ROOT
 
-from openbinding_gateway import space_client
+from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import EngineRegistrationRevision, User, UserRole
 from openbinding_gateway.integrations import bim, packages
 from openbinding_gateway.main import app
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services import engines as engine_service
-from openbinding_gateway.space_client import PlanCaps
 import bim_core
 from bim_core import ir_features, mode_compatibility
 from bim_core.canonical import digest
@@ -937,24 +935,22 @@ def test_binding_space_properties_on_binding_problem() -> None:
 
 
 @pytest.mark.asyncio
-async def test_validate_and_solve_refuse_instance_exceeding_plan_complexity(
+async def test_validate_and_solve_refuse_instance_exceeding_the_size_limit(
     api_client,
     registration,
     monkeypatch,
 ) -> None:
     headers = await _account_headers(api_client, registration())
     package = load_package(EXAMPLE)
-    low_caps = PlanCaps(plan="micro", features={}, limits={"maxPayloadBytes": 10_000_000, "maxInstanceComplexityLog10": 0.1})
-    gate = space_client.get_gate()
-    monkeypatch.setattr(gate, "caps", AsyncMock(return_value=low_caps))
+    monkeypatch.setattr(get_settings(), "max_binding_space_log10", 0.1)
 
     validate_resp = await api_client.post(
         "/v1/validate",
         content=package.to_zip(),
         headers={**headers, "Content-Type": "application/vnd.bim+zip"},
     )
-    assert validate_resp.status_code == 402, validate_resp.text
-    assert validate_resp.json()["title"] == "instance_complexity_too_large"
+    assert validate_resp.status_code == 422, validate_resp.text
+    assert validate_resp.json()["title"] == "binding_space_over_technical_limit"
 
     # Jobs run from a snapshot: multipart/ZIP uploads cannot carry the execution `optimization`.
     snapshot = await api_client.post(
@@ -973,5 +969,5 @@ async def test_validate_and_solve_refuse_instance_exceeding_plan_complexity(
         },
         headers=headers,
     )
-    assert job_resp.status_code == 402, job_resp.text
-    assert job_resp.json()["title"] == "instance_complexity_too_large"
+    assert job_resp.status_code == 422, job_resp.text
+    assert job_resp.json()["title"] == "binding_space_over_technical_limit"

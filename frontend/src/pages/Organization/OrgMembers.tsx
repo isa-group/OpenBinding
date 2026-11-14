@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, TriangleAlert, UserRoundPlus } from 'lucide-react';
-import { apiClient } from '../../api/client';
 import { MEMBER_BATCH_LIMIT, platformApi } from '../../api/platform';
 import type { MemberChange, Organization, OrganizationInvitation, OrganizationMember, OrganizationRole } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
@@ -16,8 +15,8 @@ import { problemField } from '../../api/problem';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { personInitials } from '../../utils/initials';
 import { useResource } from '../../utils/useResource';
-import { ancestorsOf, atLeast, canGrantOwner, higherRole, OWNER_CHANGE_NOTE, OWNER_ROLE_NOTE, rankOf, ROLE_SUMMARY, ROLES, sponsorName } from './orgModel';
-import { classifyAuthError, generalFailure, isForbidden, marker, quotaOf, type AuthFailure } from './orgErrors';
+import { ancestorsOf, atLeast, canGrantOwner, higherRole, OWNER_CHANGE_NOTE, OWNER_ROLE_NOTE, rankOf, ROLE_SUMMARY, ROLES } from './orgModel';
+import { classifyAuthError, generalFailure, isForbidden, marker, type AuthFailure } from './orgErrors';
 import { NeutralGate, PageSkeleton, RoleChip, SelectField } from './parts';
 import { OrgSettingsLayout } from './OrgSettingsLayout';
 import { useRouteOrganization } from './useRouteOrganization';
@@ -43,8 +42,6 @@ interface Snapshot {
   direct: OrganizationMember[];
   /** The direct members of each visible ancestor: the roles that reach this organization from above. */
   above: Array<{ organization: Organization; members: OrganizationMember[] }>;
-  /** `null`: the sponsor’s own usage is not visible, or could not be read. */
-  seats: { limit: number } | null;
 }
 
 interface PendingInvitation {
@@ -96,22 +93,16 @@ function effectiveOf(row: Row): { role: OrganizationRole | null; source: string 
 }
 
 /** The words for each way the gateway can refuse a batch. `who` names the first change it rejected, when it says which. */
-function batchRefusal(failure: AuthFailure, quota: ReturnType<typeof quotaOf>, who?: string): string {
+function batchRefusal(failure: AuthFailure, who?: string): string {
   switch (failure.code) {
     case 'owner_role_requires_owner':
       return `${OWNER_ROLE_NOTE} ${who ? `The change for ${who} was refused${marker(failure)}` : `A change in this batch was refused${marker(failure)}`}, so nothing changed: a batch applies together or not at all. Undo that change, or ask an owner.`;
     case 'last_owner':
       return `At least one OWNER must remain${marker(failure)}. Keep someone as OWNER, or make another person OWNER in the same batch.`;
-    case 'sponsor_quota_exceeded':
-      return `The sponsor has no member seats left${marker(failure)}${quota ? `: ${quota.used ?? '?'} of ${quota.limit} used` : ''}. Nothing changed.`;
     case 'member_mismatch':
       return `One of these people isn’t a member of this organization${marker(failure)}. Refresh and try again.`;
     case 'organization_forbidden':
       return `You need ADMIN here to change members${marker(failure)}. Nothing changed.`;
-    case 'invalid_sponsor':
-      return `The organization’s sponsor isn’t active${marker(failure)}, so members can’t change. Nothing changed.`;
-    case 'pricing_unavailable':
-      return `Limits can’t be checked right now${marker(failure)}. Nothing changed; try again in a moment.`;
     default:
       if (failure.kind === 'not-found') return `One of these people no longer exists or isn’t a member${marker(failure)}. Refresh and try again; nothing changed.`;
       if (failure.kind === 'invalid') return `The same person appears twice, or a change is malformed${marker(failure)}. Each person can have one change.`;
@@ -121,9 +112,8 @@ function batchRefusal(failure: AuthFailure, quota: ReturnType<typeof quotaOf>, w
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-function InviteDialog({ organization, sponsor, canOwner, onClose, onInvited }: {
+function InviteDialog({ organization, canOwner, onClose, onInvited }: {
   organization: Organization;
-  sponsor: string;
   /** Inviting someone as OWNER is granting OWNER: only an owner can. */
   canOwner: boolean;
   onClose: () => void;
@@ -168,7 +158,7 @@ function InviteDialog({ organization, sponsor, canOwner, onClose, onInvited }: {
           </Notice>
           <CopyField value={created.token} label="invitation code" />
           <span className="org-muted">
-            They paste it on the <Link to="/invitations/accept">accept invitation</Link> page. As {created.role}, they count as a member of {sponsor}’s organizations once they accept.
+            They paste it on the <Link to="/invitations/accept">accept invitation</Link> page. They join as {created.role}.
           </span>
           <div className="ui-modal-actions">
             <Action variant="primary" onClick={onClose} data-autofocus>I’ve saved it</Action>
@@ -194,7 +184,7 @@ function InviteDialog({ organization, sponsor, canOwner, onClose, onInvited }: {
             <option key={item} value={item} disabled={item === 'OWNER' && !canOwner}>{item} · {ROLE_SUMMARY[item]}</option>
           ))}
         </SelectField>
-        <span className="org-muted">The invitation lasts 7 days. They count as a member of {sponsor}’s organizations once they accept.</span>
+        <span className="org-muted">The invitation lasts 7 days.</span>
         <div aria-live="assertive">
           {error && <div className="org-dialog-error" role="alert"><TriangleAlert aria-hidden="true" />{error}</div>}
         </div>
@@ -215,8 +205,6 @@ function MembersBody({ organization }: { organization: Organization }) {
   const canWrite = atLeast(role, 'ADMIN');
   // Granting OWNER, and changing or removing an OWNER, are for owners; an ADMIN sees those controls out of reach.
   const canOwner = canGrantOwner(role, isAdmin);
-  const sponsorIsMe = user?.id === organization.billing_sponsor_user_id;
-  const me = user ? { id: user.id, username: user.username } : null;
 
   const snapshot = useResource<Snapshot>(`members:${slug}`, async () => {
     const above = ancestorsOf(organization, context.organizations);
@@ -224,20 +212,14 @@ function MembersBody({ organization }: { organization: Organization }) {
       platformApi.members(slug),
       ...above.map((item) => platformApi.members(item.slug).then((members) => ({ organization: item, members })).catch(() => null)),
     ]);
-    let seats: Snapshot['seats'] = null;
-    if (sponsorIsMe) {
-      const usage = await apiClient.getOwnUsage().catch(() => null);
-      const limit = usage?.capabilities.members;
-      if (typeof limit === 'number' && Number.isFinite(limit)) seats = { limit };
-    }
-    return { direct, above: levels.filter((level): level is NonNullable<typeof level> => level !== null), seats };
+    return { direct, above: levels.filter((level): level is NonNullable<typeof level> => level !== null) };
   });
 
   const [applied, setApplied] = useState<OrganizationMember[] | null>(null);
   const [changes, setChanges] = useState<Record<string, OrganizationRole | null>>({});
   const [applying, setApplying] = useState(false);
   const [toast, setToast] = useState('');
-  const [refusal, setRefusal] = useState<{ text: string; quota: boolean } | null>(null);
+  const [refusal, setRefusal] = useState<string | null>(null);
   /** The person whose change the gateway rejected first; the batch is atomic, so the others were not applied either. */
   const [rejected, setRejected] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
@@ -246,7 +228,6 @@ function MembersBody({ organization }: { organization: Organization }) {
   const failure = snapshot.status === 'error' ? classifyAuthError(snapshot.error) : null;
   const direct = applied ?? snapshot.data?.direct ?? [];
   const rows = snapshot.data ? buildRows(direct, snapshot.data.above) : [];
-  const sponsor = sponsorName(organization, direct, me);
   const staged = Object.entries(changes);
   const queueFull = staged.length >= MEMBER_BATCH_LIMIT;
 
@@ -293,13 +274,12 @@ function MembersBody({ organization }: { organization: Organization }) {
       const at = problemField(caught, 'index');
       const culprit = typeof named === 'string' ? named : typeof at === 'number' ? batch[at]?.user_id : undefined;
       if (refused.code === 'owner_role_requires_owner' && culprit) setRejected(culprit);
-      setRefusal({ text: batchRefusal(refused, quotaOf(caught), culprit ? nameOf(culprit) : undefined), quota: refused.code === 'sponsor_quota_exceeded' });
+      setRefusal(batchRefusal(refused, culprit ? nameOf(culprit) : undefined));
     } finally {
       setApplying(false);
     }
   };
 
-  const seats = snapshot.data?.seats;
 
   return (
     <OrgSettingsLayout
@@ -356,28 +336,7 @@ function MembersBody({ organization }: { organization: Organization }) {
         </div>
       )}
 
-      {refusal && (
-        <Notice
-          tone="error"
-          action={refusal.quota ? (
-            <span className="org-notice-links">
-              <Link to="/app/account/usage">See your plan</Link>
-              <Link to={`/app/${slug}/settings`}>Change sponsor</Link>
-            </span>
-          ) : undefined}
-        >
-          {refusal.text}
-        </Notice>
-      )}
-
-      {seats && (
-        <div className="org-seats">
-          <span>
-            Your plan allows up to <strong>{seats.limit}</strong> unique members across everything you sponsor.
-            {' '}Someone in two of those organizations counts once.
-          </span>
-        </div>
-      )}
+      {refusal && <Notice tone="error">{refusal}</Notice>}
 
       {snapshot.status === 'loading' && (
         <div aria-busy="true" role="status"><span className="sr-only">Loading members…</span><Skeleton variant="panel" /></div>
@@ -504,7 +463,6 @@ function MembersBody({ organization }: { organization: Organization }) {
       {inviting && (
         <InviteDialog
           organization={organization}
-          sponsor={sponsor}
           canOwner={canOwner}
           onClose={() => setInviting(false)}
           onInvited={(invitation) => setInvited((current) => [...current, { id: invitation.id, email: invitation.email, role: invitation.role, expiresAt: invitation.expires_at }])}

@@ -95,15 +95,14 @@ SEED_OMITS = {
 }
 # Every lab manifest at the root of the repository (the process, engines, pricing and pgreset ones included).
 LAB_MANIFESTS = sorted(ROOT.glob("compose.lab*.json"))
-# Variables only the seed gets (tools/remote_probe.py exits without SPACE_ORGANIZATION_ID;
-# tools/seed_lab.py --space-contracts requires the three SPACE_DEV_* ones).
+# Variables only the seed gets (tools/seed_lab.py --space-contracts requires the three SPACE_DEV_* ones).
 SPACE_SERVICE_REFERENCE = "${DEMO_SPACE_DEV_SERVICE}"
 SPACE_DEV_VARIABLES = {
     "SPACE_DEV_SERVICE_NAME": SPACE_SERVICE_REFERENCE,
     "SPACE_DEV_PLAN": "${DEMO_SPACE_DEV_PLAN}",
     "SPACE_DEV_PRICING_VERSION": "${DEMO_SPACE_PRICING_VERSION}",
 }
-SEED_EXTRAS = {"SPACE_ORGANIZATION_ID", "DEMO_SEED_PASSWORD", "SMOKE_BASE_URL", *SPACE_DEV_VARIABLES}
+SEED_EXTRAS = {"DEMO_SEED_PASSWORD", "SMOKE_BASE_URL", *SPACE_DEV_VARIABLES}
 
 
 @pytest.fixture(scope="module")
@@ -630,11 +629,12 @@ def test_seed_environment_is_the_gateways_minus_the_documented_omissions(service
         assert seed[key] == gateway[key], key
 
 
-def test_space_organization_id_is_only_in_the_seed_as_a_bare_reference(services):
-    # tools/remote_probe.py requires it; nothing else reads it.
-    holders = [name for name, s in services.items() if "SPACE_ORGANIZATION_ID" in _env(s)]
-    assert holders == ["seed"]
-    assert _env(services["seed"])["SPACE_ORGANIZATION_ID"] == "${SPACE_ORGANIZATION_ID}"
+def test_space_organization_id_is_a_bare_reference_in_the_gateway_services_and_the_seed(services):
+    # The gateway and the worker verify pricing tokens for it; tools/remote_probe.py requires it too.
+    holders = sorted(name for name, s in services.items() if "SPACE_ORGANIZATION_ID" in _env(s))
+    assert holders == ["gateway", "seed", "worker"]
+    for name in holders:
+        assert _env(services[name])["SPACE_ORGANIZATION_ID"] == "${SPACE_ORGANIZATION_ID}", name
 
 
 def test_seed_password_is_a_bare_reference_only_in_the_seed_and_the_e2e_and_the_smoke_targets_web(services):

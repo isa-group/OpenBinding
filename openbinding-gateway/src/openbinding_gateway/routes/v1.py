@@ -39,6 +39,7 @@ from ..v1.remote import fetch_remote_document, solve_remote, validate_endpoint
 from ..v1.remote import RemoteEngineError as RemoteEngineError  # re-exported for the tests
 from ..services import discovery, engine_registry, instances
 from ..services.entitlements import EntitlementsUnavailable, entitlement_service
+from ..modules.plans.application import entitlement_map as ids
 from ..services.engine_registry import RegistrationKey
 from ..services.engines import owned_job
 from ..services.engines import protocol_digest as protocol_digest  # re-exported for the tests
@@ -376,9 +377,9 @@ async def _change_registration(
 ):
     max_active = None
     if action == "activate":
-        # The plan's numeric ``federatedEngines``: an absent value is zero (fail closed), unlimited is ``None``.
+        # The plan's ``maxFederatedEngines``: an absent value is zero (fail closed), unlimited is ``None``.
         try:
-            max_active = (await entitlement_service.caps_for(caller.id)).limit("federatedEngines")
+            max_active = (await entitlement_service.caps_for(caller.id)).limit(ids.MAX_FEDERATED_ENGINES)
         except EntitlementsUnavailable as exc:
             return _problem(exc.status, exc.code, str(exc))
     try:

@@ -455,7 +455,7 @@ async def test_a_bad_credential_is_still_a_401_on_a_public_read(ctx):
 # --- abuse limits -----------------------------------------------------------------------
 
 
-async def test_reads_are_limited_per_caller_and_never_touch_the_sponsor(ctx, monkeypatch):
+async def test_reads_are_limited_per_caller_and_start_no_job(ctx, monkeypatch):
     c = ctx
     monkeypatch.setattr(get_settings(), "public_read_rate_per_minute", 3)
     jobs = int(await c.db.scalar(select(func.count()).select_from(Job)))

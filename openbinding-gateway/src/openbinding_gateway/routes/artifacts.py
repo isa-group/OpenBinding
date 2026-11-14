@@ -33,7 +33,6 @@ from ..db.models import (
     InstanceResource, InstanceSnapshot, BindingIRSnapshot, Artifact, ArtifactVersion, ArtifactDraft, ArtifactDependency, CaseArtifact, ProjectArtifact,
     Job,
     JobState,
-    Organization,
     OrganizationRole,
     ProjectResource,
     ProjectResourceRevision,
@@ -146,22 +145,25 @@ def _safe_filename(digest_value: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "_", digest_value) or "blob"
 
 
-async def _storage_limit(session: AsyncSession, organization: Organization, incoming: int) -> None:
-    sponsor = await session.get(User, organization.billing_sponsor_user_id)
-    await session.execute(select(User.id).where(User.id == sponsor.id).with_for_update())
+async def _storage_limit(session: AsyncSession, user: User, incoming: int) -> None:
+    """Refuse storing ``incoming`` more bytes past the uploader's ``maxRepositoryStorage``.
+
+    Counted per account, over the blobs the account created, under the account's
+    row lock. An interim count: problems charge per revision from the problems API on.
+    """
+    await session.execute(select(User.id).where(User.id == user.id).with_for_update())
+
     async def stored_bytes() -> int:
         return int(await session.scalar(
-            select(func.coalesce(func.sum(Blob.size_bytes), 0))
-            .join(Organization, Organization.id == Blob.organization_id)
-            .where(Organization.billing_sponsor_user_id == sponsor.id)
+            select(func.coalesce(func.sum(Blob.size_bytes), 0)).where(Blob.created_by_id == user.id)
         ) or 0)
 
-    await entitlement_service.enforce_storage_quota(sponsor.id, incoming, stored_bytes)
+    await entitlement_service.enforce_storage_quota(user.id, incoming, stored_bytes)
 
 
-async def _payload_limit(user: User) -> int:
-    """Return the actor's per-request ceiling, capped by the platform maximum."""
-    return await entitlement_service.upload_limit(user.id)
+def _payload_limit() -> int:
+    """The per-request ceiling (``MAX_PACKAGE_BYTES``), capped by the platform maximum."""
+    return entitlement_service.upload_limit()
 
 
 @router.get("/blobs", response_model=list[BlobView], operation_id="listBlobs")
@@ -199,14 +201,14 @@ async def upload_artifact(
         ) from None
     if declared < 0:
         raise api_error(status.HTTP_400_BAD_REQUEST, "invalid_content_length", "Content-Length cannot be negative.")
-    payload_limit = await _payload_limit(user)
+    payload_limit = _payload_limit()
     if declared > payload_limit:
         raise api_error(
             status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             "artifact_too_large",
-            "The artifact exceeds this account's per-request payload limit.",
+            "The artifact exceeds the per-request payload limit.",
         )
-    await _storage_limit(session, organization, declared)
+    await _storage_limit(session, user, declared)
     root = Path(settings.artifact_root)
     root.mkdir(parents=True, exist_ok=True)
     hasher = hashlib.sha256()
@@ -221,11 +223,11 @@ async def upload_artifact(
                     raise api_error(
                         status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                         "artifact_too_large",
-                        "The artifact exceeds this account's per-request payload limit.",
+                        "The artifact exceeds the per-request payload limit.",
                     )
                 hasher.update(chunk)
                 handle.write(chunk)
-        await _storage_limit(session, organization, size)
+        await _storage_limit(session, user, size)
         digest_value = f"sha256-{hasher.hexdigest()}"
         destination = _artifact_path(settings, digest_value)
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -1053,7 +1055,7 @@ async def import_project_package(
         ))).scalars().first()
         if existing is not None:
             continue
-        await _storage_limit(session, organization, len(content))
+        await _storage_limit(session, user, len(content))
         destination = _artifact_path(settings, artifact_digest)
         destination.parent.mkdir(parents=True, exist_ok=True)
         if not destination.exists():

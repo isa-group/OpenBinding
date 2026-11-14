@@ -27,7 +27,6 @@ from .db.models import (
     User,
     utcnow,
 )
-from .domain import usage_counters
 from .domain.entitlements import Refusal
 from .jobs import lifecycle
 from .jobs.leases import aware
@@ -35,7 +34,6 @@ from .security.roles import require_work_role
 from .services.engines import engine_mode, manifest_async
 from .services.entitlements import entitlement_service
 from .services.snapshots import persist_snapshot, snapshot_ir
-from .space_client import PlanCaps
 from .studies import aggregate_metrics
 
 
@@ -211,12 +209,12 @@ def _response_payload(response: Any) -> dict[str, Any]:
 
 
 async def study_binding_space_refusal(
-    session: AsyncSession, revision_ids: Iterable[uuid.UUID], caps: PlanCaps
+    session: AsyncSession, revision_ids: Iterable[uuid.UUID]
 ) -> Refusal | None:
     """The first refusal among the distinct cases of a study run, decided before the run exists.
 
     Each case is read from its stored IR (nothing is compiled or written) and held
-    against the plan's binding-space limit and the deployment's safeguard, so a run
+    against the deployment's binding-space limit (``MAX_BINDING_SPACE_LOG10``), so a run
     whose cases are too large is refused whole instead of being accepted and then
     failing cell by cell. A case whose snapshot cannot be read is left to the
     launch of its cells, which reports it as it always did; launch applies the
@@ -237,7 +235,7 @@ async def study_binding_space_refusal(
             compilation = await snapshot_ir(source, session)
         except (HTTPException, PackageError, RuntimeError):
             continue
-        refusal = entitlement_service.binding_space_refusal(compilation.binding_space, caps)
+        refusal = entitlement_service.binding_space_refusal(compilation.binding_space)
         if refusal is not None:
             return refusal
     return None
@@ -419,7 +417,7 @@ async def commit_launched(session: AsyncSession) -> None:
 
 
 #: Launch failures that say "not now" rather than "never": the cell stays queued.
-RETRYABLE_LAUNCH_CODES = frozenset({"concurrency_limit_exceeded", "pricing_unavailable", usage_counters.UNKNOWN_CODE})
+RETRYABLE_LAUNCH_CODES = frozenset({"concurrency_limit_exceeded", "pricing_unavailable"})
 
 
 #: Stable code of a cell left unlaunched because its run's owner lost the work role.

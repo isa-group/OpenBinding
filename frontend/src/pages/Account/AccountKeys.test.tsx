@@ -35,8 +35,8 @@ const runner: ApiKeySummary = {
   boundary: {},
 };
 
-const usageWith = (apiKeys: number | null) => ({
-  plan: 'PRO', contract_pending: false, features: {}, capabilities: { apiKeys },
+const usageWith = (maxApiKeys: number | null) => ({
+  plan: 'LAB', contract_pending: false, features: {}, capabilities: { maxApiKeys },
 });
 
 /** The address the router holds, as the browser would show it. */

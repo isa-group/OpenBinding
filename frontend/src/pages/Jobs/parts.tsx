@@ -91,9 +91,9 @@ export function RefusalNotice({ refusal, action, usageTo, extra }: {
           <Action to="/engines" variant="link" size="sm">Engines</Action>
         </span>
       )}
-      {/* A larger plan helps with an allowance, a size limit of the plan, or a job limit of the plan - not with a limit this
-          deployment sets whatever the plan, nor with one the plan doesn't state or can't apply (`limit-unknown`, `misconfigured`). */}
-      {usageTo && (refusal.kind === 'quota' || refusal.kind === 'too-big' || (refusal.kind === 'busy' && refusal.source !== 'technical') || refusal.kind === 'plan') && (
+      {/* A larger plan helps with an allowance or a job limit of the plan - not with a limit this deployment sets whatever
+          the plan (the problem size, the study matrix), nor with one the plan can't apply (`misconfigured`). */}
+      {usageTo && (refusal.kind === 'quota' || (refusal.kind === 'busy' && refusal.source !== 'technical') || refusal.kind === 'plan') && (
         <span className="job-refusal-links">
           <Action to="/app/account/usage" variant="link" size="sm">See your plan</Action>
           <Action to="/pricing" variant="link" size="sm">Compare plans</Action>

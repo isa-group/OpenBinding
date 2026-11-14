@@ -25,8 +25,8 @@ SUITE_VALUES = {
     "JOB_DISPATCH_MODE": "inline",
     "BIM_MODE": "inproc",
     "SPHERE_ENABLED": "false",
-    "SPACE_PRICING_VERSION": "0.1.0",
-    "SPACE_DEFAULT_PLAN": "BASIC",
+    "SPACE_PRICING_VERSION": "0.2.0",
+    "SPACE_DEFAULT_PLAN": "FREE",
     "GATEWAY_JWT_SECRET": None,
     "SCHEMAS_DIR": None,
 }

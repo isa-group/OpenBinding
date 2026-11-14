@@ -99,7 +99,7 @@ SYNTHETIC_USERS: tuple[tuple[str, UserRole, Mapping[str, OrganizationRole]], ...
     ("lab-viewer", UserRole.USER, {"lab-main": OrganizationRole.VIEWER}),
     ("lab-outsider", UserRole.USER, {"lab-other": OrganizationRole.OWNER}),
 )
-#: (slug, name, sponsor/creator username)
+#: (slug, name, creator username)
 ORGANIZATIONS = (
     ("lab-main", "Lab Main Organization", "lab-owner"),
     ("lab-other", "Lab Other Organization", "lab-outsider"),
@@ -171,7 +171,7 @@ async def ensure_users(session: AsyncSession, password: str, plan: str, created:
 
 async def ensure_organizations(session: AsyncSession, users: dict[str, User], created: list[str]) -> dict[str, Organization]:
     organizations: dict[str, Organization] = {}
-    for slug, name, sponsor in ORGANIZATIONS:
+    for slug, name, creator in ORGANIZATIONS:
         organization = await session.scalar(select(Organization).where(Organization.slug == slug))
         if organization is None:
             organization = Organization(
@@ -179,8 +179,7 @@ async def ensure_organizations(session: AsyncSession, users: dict[str, User], cr
                 slug=slug,
                 name=name,
                 parent_id=None,
-                billing_sponsor_user_id=users[sponsor].id,
-                created_by_id=users[sponsor].id,
+                created_by_id=users[creator].id,
             )
             session.add(organization)
             await session.flush()
@@ -349,10 +348,10 @@ async def count_rows(session: AsyncSession, users: dict[str, User], organization
     }
 
 
-async def seed(session: AsyncSession, password: str, examples_dir: Path, *, plan: str = "BASIC") -> dict[str, Any]:
+async def seed(session: AsyncSession, password: str, examples_dir: Path, *, plan: str = "FREE") -> dict[str, Any]:
     """Create what is missing; return what was created (empty on a repeated run) and the row counts."""
     created: list[str] = []
-    # Storing library content consults the pricing gate for the sponsor's storage allowance. The lab
+    # Storing library content consults the pricing gate for the uploader's storage allowance. The lab
     # data is local and synthetic and the synthetic users have no SPACE contract, so the seed uses the
     # open gate (no plan, no counters) whatever SPACE_ENABLED says, and restores what was installed.
     try:
@@ -491,7 +490,7 @@ async def _run(args: argparse.Namespace, environ: Mapping[str, str], password: s
     db_base.init_engine(database_url)
     try:
         async with db_base.session_factory()() as session:
-            result = await seed(session, password, examples_dir, plan=dev_plan or "BASIC")
+            result = await seed(session, password, examples_dir, plan=dev_plan or "FREE")
         users = result.pop("users")
         report: dict[str, Any] = {"tool": "seed_lab", **result}
         for failure in result["recompileFailed"]:

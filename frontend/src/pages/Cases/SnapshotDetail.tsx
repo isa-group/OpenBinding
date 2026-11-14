@@ -141,9 +141,7 @@ function Summary({ analysis, model }: { analysis: Analysis | undefined; model: B
     <>
       {analysis.state === 'failed' && (
         <Notice tone="warning">
-          {analysis.failure.kind === 'quota'
-            ? `This snapshot is bigger than your plan allows you to run${marker(analysis.failure)}. The figures below are read from the compiled form.`
-            : `The gateway’s own analysis isn’t available right now${marker(analysis.failure)}. The figures below are read from the compiled form.`}
+          {`The gateway’s own analysis isn’t available right now${marker(analysis.failure)}. The figures below are read from the compiled form.`}
         </Notice>
       )}
       {figures.length === 0 && <p className="org-muted">There is no compiled form to summarize for this snapshot.</p>}

@@ -47,8 +47,6 @@ export interface JobSummary {
 export interface JobHistory {
   jobs: JobSummary[];
   total: number;
-  /** How far back this contract keeps them: jobHistoryDays. */
-  retention_days: number;
 }
 
 export interface BimResourceRef {
@@ -1058,7 +1056,7 @@ export class ApiClient {
 
   /**
    * Trade the one-time code of the CAS redirect for a session. Answers the plan change that signing in caused (linking CAS raises
-   * BASIC to RESEARCH, at no extra cost), or `null` when the plan did not change.
+   * FREE to RESEARCH, at no extra cost), or `null` when the plan did not change.
    */
   async exchangeCasCode(code: string): Promise<PlanChange | null> {
     const session = await this.request<CasSession>('/v1/auth/cas/exchange', {

@@ -89,6 +89,21 @@ function renderPricing(user: UserProfile | null = null, token?: string) {
   return render(wrap(<Pricing />));
 }
 
+/** The published document has no add-ons; two synthetic ones show how the screen lists them. */
+const withAddOns = {
+  ...catalogFixture,
+  addOns: {
+    STORAGE_PACK: {
+      description: 'Adds 5 GB of repository storage.', availableFor: ['LAB'], unit: 'pack/month',
+      subscriptionConstraints: { minQuantity: 1, maxQuantity: 20 }, usageLimitsExtensions: { maxRepositoryStorage: { value: 5000 } },
+    },
+    CAMPAIGN_ARCHIVE: {
+      description: 'Keeps the archive of every campaign.', availableFor: ['RESEARCH', 'LAB'], unit: 'archive/account',
+      subscriptionConstraints: { minQuantity: 1, maxQuantity: 1 },
+    },
+  },
+};
+
 const heading = () => screen.findByRole('heading', { level: 1, name: 'Plans for every kind of binding work' });
 
 describe('Pricing', () => {
@@ -114,12 +129,12 @@ describe('Pricing', () => {
     renderPricing();
     await heading();
 
-    expect(await screen.findByText(/Pricing version/)).toHaveTextContent('Pricing version 0.1.0');
-    expect(screen.getByText('Published Sep 1, 2026')).toBeInTheDocument();
+    expect(await screen.findByText(/Pricing version/)).toHaveTextContent('Pricing version 0.2.0');
+    expect(screen.getByText('Published Oct 22, 2026')).toBeInTheDocument();
     expect(screen.getByText('EUR · monthly periods')).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/sha256-|\b[0-9a-f]{12}/);
     expect(screen.getByText('Development pricing.')).toBeInTheDocument();
-    expect(screen.getByText(/0\.1\.0 development copy and aren’t verified against the live pricing/)).toBeInTheDocument();
+    expect(screen.getByText(/0\.2\.0 development copy and aren’t verified against the live pricing/)).toBeInTheDocument();
   });
 
   it('offers no price and no checkout: paid plans say Contact us, free ones Free', async () => {
@@ -127,8 +142,8 @@ describe('Pricing', () => {
     await heading();
     const plans = within(await screen.findByRole('list', { name: 'Plans' }));
 
-    expect(plans.getAllByText('Contact us')).toHaveLength(2 + 2);
-    expect(plans.getAllByText('institutional agreement')).toHaveLength(2);
+    expect(plans.getAllByText('Contact us')).toHaveLength(1 + 1);
+    expect(plans.getAllByText('institutional agreement')).toHaveLength(1);
     expect(plans.getAllByText('Free')).toHaveLength(2);
     expect(plans.getByText('with verified CAS')).toBeInTheDocument();
     expect(screen.getByText(/there’s no checkout/)).toBeInTheDocument();
@@ -151,11 +166,13 @@ describe('Pricing', () => {
     await heading();
     const monthly = within(await screen.findByRole('table', { name: 'Monthly: Renew each month' }));
 
-    const studyRuns = monthly.getByRole('row', { name: /Study runs/ });
-    expect(within(studyRuns).getByText('3')).toBeInTheDocument();
-    expect(within(studyRuns).getByText('1,000')).toBeInTheDocument();
-    expect(within(studyRuns).queryByText('To confirm')).not.toBeInTheDocument();
-    expect(within(studyRuns).getByText('Applies to')).toBeInTheDocument();
+    const solverHours = within(monthly.getByRole('row', { name: /Solver hours/ }));
+    expect(solverHours.getAllByText('10,000 h')).toHaveLength(2);
+    expect(solverHours.getByText('Applies to')).toBeInTheDocument();
+    expect(solverHours.getByText('Studies')).toBeInTheDocument();
+    const generated = within(monthly.getByRole('row', { name: /Generated instances/ }));
+    expect(generated.getByText('1,000')).toBeInTheDocument();
+    expect(generated.getByText('1,000,000')).toBeInTheDocument();
   });
 
   it('opens and closes the groups of rows', async () => {
@@ -168,11 +185,10 @@ describe('Pricing', () => {
     fireEvent.click(perRequest);
     const table = within(screen.getByRole('table', { name: 'Per request: Ceilings for each run' }));
     const timeout = within(table.getByRole('row', { name: /Max time per run/ }));
-    expect(timeout.getByText('15 min')).toBeInTheDocument();
-    expect(timeout.getByText('900 s')).toBeInTheDocument();
-    expect(table.getByText('8 MiB')).toBeInTheDocument();
-    expect(table.getByText('8,388,608 bytes')).toBeInTheDocument();
-    expect(table.getAllByText('Unlimited')).toHaveLength(1);
+    expect(timeout.getByText('24 h')).toBeInTheDocument();
+    expect(timeout.getByText('1,440 min')).toBeInTheDocument();
+    expect(table.getByText('500,000')).toBeInTheDocument();
+    expect(table.getAllByText('Unlimited')).toHaveLength(2);
 
     fireEvent.click(screen.getByRole('button', { name: /Monthly/ }));
     expect(screen.queryByRole('table', { name: /Monthly/ })).not.toBeInTheDocument();
@@ -181,27 +197,28 @@ describe('Pricing', () => {
   it('highlights one plan, or compares them all', async () => {
     renderPricing();
     await heading();
-    const pro = await screen.findByRole('button', { name: 'PRO' });
+    const lab = await screen.findByRole('button', { name: 'LAB' });
     expect(screen.getByRole('button', { name: 'Compare all' })).toHaveAttribute('aria-pressed', 'true');
 
-    fireEvent.click(pro);
+    fireEvent.click(lab);
 
-    expect(pro).toHaveAttribute('aria-pressed', 'true');
+    expect(lab).toHaveAttribute('aria-pressed', 'true');
     expect(document.querySelectorAll('td.is-picked').length).toBeGreaterThan(0);
     expect(document.querySelectorAll('.pricing-plan-tile.is-picked')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Compare all' }));
     expect(document.querySelectorAll('td.is-picked')).toHaveLength(0);
   });
 
-  it('explains what has to have room before a solve, a federated solve and a study run', async () => {
+  it('explains what has to have room before a run, a study run and a generation', async () => {
     renderPricing();
     await heading();
 
     expect(await screen.findByRole('heading', { name: 'What has to have room before you start' })).toBeInTheDocument();
     expect(screen.getByText(/Three features also check your limits/)).toBeInTheDocument();
-    const solve = screen.getByText('Start a solve').closest('.pricing-gate') as HTMLElement;
-    expect(within(solve).getByText('A free run slot')).toBeInTheDocument();
-    expect(within(screen.getByText('Start a study run').closest('.pricing-gate') as HTMLElement).getByText('Study runs left this month')).toBeInTheDocument();
+    const run = screen.getByText('Start a run').closest('.pricing-gate') as HTMLElement;
+    expect(within(run).getByText('Solver hours left this month')).toBeInTheDocument();
+    expect(within(screen.getByText('Start a study run').closest('.pricing-gate') as HTMLElement).getByText('Solver hours left this month')).toBeInTheDocument();
+    expect(within(screen.getByText('Start a generation').closest('.pricing-gate') as HTMLElement).getByText('Generated instances left this month')).toBeInTheDocument();
   });
 
   it('explains the three outcomes of reaching a limit', async () => {
@@ -217,17 +234,26 @@ describe('Pricing', () => {
     expect(section.getByText(/429/)).toBeInTheDocument();
   });
 
-  it('lists the add-ons as arranged under an agreement', async () => {
+  it('lists no add-ons for a pricing without them', async () => {
     renderPricing();
     await heading();
 
-    expect(await screen.findByText('COLLABORATION_PACK')).toBeInTheDocument();
-    expect(screen.getByText(/BASIC and RESEARCH have no add-ons\./)).toBeInTheDocument();
-    expect(screen.getAllByText('Contact us').length).toBeGreaterThanOrEqual(5);
-    // The collaboration pack is 1–10 a month; storage goes to 20.
-    expect(screen.getByText('For ADVANCED, PRO · 1–10 packs · per month')).toBeInTheDocument();
-    expect(screen.getByText('For ADVANCED, PRO · 1–20 packs · per month')).toBeInTheDocument();
-    expect(screen.getByText('For ADVANCED · 1 per account · per account')).toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'What happens when you reach a limit' });
+    expect(screen.queryByRole('heading', { name: 'Add-ons' })).not.toBeInTheDocument();
+  });
+
+  it('lists the add-ons as arranged under an agreement', async () => {
+    api.getPricingCatalog.mockResolvedValue(withAddOns);
+    renderPricing(person('FREE'));
+    await heading();
+
+    expect(await screen.findByText('STORAGE_PACK')).toBeInTheDocument();
+    expect(screen.getByText(/FREE has no add-ons\./)).toBeInTheDocument();
+    expect(screen.getAllByText('Contact us').length).toBeGreaterThanOrEqual(4);
+    expect(screen.getByText('For LAB · 1–20 packs · per month')).toBeInTheDocument();
+    expect(screen.getByText('For RESEARCH, LAB · 1 per archive · per account')).toBeInTheDocument();
+    // A free plan has none of them, and each card says so.
+    expect(screen.getAllByText('Not available on your plan')).toHaveLength(2);
   });
 
   it('opens a contact dialog that sends nothing, and gives focus back when it closes', async () => {
@@ -237,7 +263,7 @@ describe('Pricing', () => {
     contact.focus();
 
     fireEvent.click(contact);
-    const dialog = screen.getByRole('dialog', { name: 'Ask about ADVANCED' });
+    const dialog = screen.getByRole('dialog', { name: 'Ask about LAB' });
     expect(within(dialog).getByText(/This page doesn’t send anything/)).toBeInTheDocument();
     expect(within(dialog).queryByRole('textbox')).not.toBeInTheDocument();
 
@@ -283,15 +309,13 @@ describe('Pricing', () => {
   });
 
   it('marks the current plan of a signed-in account and offers CAS linking to the others', async () => {
-    renderPricing(person('BASIC'));
+    renderPricing(person('FREE'));
     await heading();
 
     expect(await screen.findByText('Your current plan')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Sign up' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Link CAS identity' })).toHaveAttribute('href', '/app/account/identities');
     expect(screen.getByRole('link', { name: 'Manage identities' })).toHaveAttribute('href', '/app/account/identities');
-    // A free plan has none of the add-ons, and each card says so.
-    expect(screen.getAllByText('Not available on your plan')).toHaveLength(5);
   });
 
   it('offers no CAS link to an account that is on RESEARCH already', async () => {
@@ -303,19 +327,19 @@ describe('Pricing', () => {
   });
 
   it('evaluates the signed features as Enabled or Not enabled from the SPACE token', async () => {
-    const token = makeToken({ 'openbinding-authoring': { eval: true }, 'openbinding-solve': { eval: false } });
+    const token = makeToken({ 'openbinding-runs': { eval: true }, 'openbinding-studies': { eval: false } });
     stored.token = token;
-    renderPricing(person('ADVANCED'), token);
+    renderPricing(person('LAB'), token);
 
     expect(await screen.findByText('Available to your account')).toBeInTheDocument();
     await waitFor(() => expect(screen.getAllByText('Enabled').length).toBeGreaterThanOrEqual(1));
     await waitFor(() => expect(screen.getAllByText('Not enabled').length).toBeGreaterThanOrEqual(1));
-    expect(screen.getByText('Read from your signed pricing token for the ADVANCED plan.')).toBeInTheDocument();
+    expect(screen.getByText('Read from your signed pricing token for the LAB plan.')).toBeInTheDocument();
     expect(document.body.textContent).not.toContain(token);
   });
 
   it('says it cannot confirm the features when there is no token, instead of guessing', async () => {
-    renderPricing(person('BASIC'));
+    renderPricing(person('FREE'));
 
     expect(await screen.findByText('Available to your account')).toBeInTheDocument();
     await waitFor(() => expect(screen.getAllByText('Can’t confirm').length).toBeGreaterThanOrEqual(1));
@@ -342,38 +366,38 @@ describe('Pricing', () => {
     const actions = await documentActions();
 
     expect(Object.fromEntries(Object.entries(actions).map(([plan, slot]) => [plan, slot.textContent]))).toEqual({
-      BASIC: 'Sign up', ADVANCED: 'Contact us', RESEARCH: 'Log in with CAS', PRO: 'Contact us',
+      FREE: 'Sign up', RESEARCH: 'Log in with CAS', LAB: 'Contact us',
     });
-    expect(within(actions.BASIC).getByRole('link', { name: 'Sign up' })).toHaveAttribute('href', '/register');
+    expect(within(actions.FREE).getByRole('link', { name: 'Sign up' })).toHaveAttribute('href', '/register');
     expect(screen.getByTestId('summary-actions')).toBeEmptyDOMElement();
     expect(renderer.props).toMatchObject({ hideSections: ['hero'], theme: 'light', currentSelection: undefined });
     expect(renderer.props).not.toHaveProperty('pricingPath');
 
-    fireEvent.click(within(actions.PRO).getByRole('button', { name: 'Contact us' }));
-    expect(await screen.findByRole('dialog', { name: 'Ask about PRO' })).toBeInTheDocument();
+    fireEvent.click(within(actions.LAB).getByRole('button', { name: 'Contact us' }));
+    expect(await screen.findByRole('dialog', { name: 'Ask about LAB' })).toBeInTheDocument();
   });
 
   it('marks in the full document the plan and add-ons of the account, and offers nothing on its own plan', async () => {
     const token = makeToken({}, {
       subscription: {
-        contractedServices: { openbinding: '0.1.0' },
-        subscriptionPlans: { openbinding: 'PRO' },
+        contractedServices: { openbinding: '0.2.0' },
+        subscriptionPlans: { openbinding: 'LAB' },
         subscriptionAddOns: { openbinding: { STORAGE_PACK: 2 } },
         contractVersion: '4',
       },
     });
     stored.token = token;
-    renderPricing(person('PRO'), token);
+    api.getPricingCatalog.mockResolvedValue(withAddOns);
+    renderPricing(person('LAB'), token);
     await heading();
     const actions = await documentActions();
 
-    const mine = { planId: 'PRO', addOns: { STORAGE_PACK: { selected: true, quantity: 2 } } };
+    const mine = { planId: 'LAB', addOns: { STORAGE_PACK: { selected: true, quantity: 2 } } };
     await waitFor(() => expect(renderer.props?.currentSelection).toEqual(mine));
     expect(renderer.props?.defaultSelection).toEqual(mine);
-    expect(actions.PRO).toBeEmptyDOMElement();
-    expect(within(actions.ADVANCED).getByRole('button', { name: 'Contact us' })).toBeInTheDocument();
+    expect(actions.LAB).toBeEmptyDOMElement();
     expect(within(actions.RESEARCH).getByRole('link', { name: 'Link CAS identity' })).toHaveAttribute('href', '/app/account/identities');
-    expect(actions.BASIC).toBeEmptyDOMElement();
+    expect(actions.FREE).toBeEmptyDOMElement();
   });
 
   it('draws no link to SPHERE when the address from the gateway is not a web address', async () => {

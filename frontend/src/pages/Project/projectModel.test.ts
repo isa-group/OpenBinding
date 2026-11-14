@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import {
   accessIn, canOpenSection, canRead, canWrite, levelOf, cellBreakdown, countWord, GATEWAY_PACKAGE_LIMIT, importCeiling, integrityOf, jobStatus, latestRun, planLimit,
   sealedShare, visibilityEffects,
 } from './projectModel';
 import { createRefusal, deleteRefusal, exportFailure, importRefusal, updateRefusal } from './projectErrors';
-import { caseOf, org, revisionOf, runOf, studyOf, usageWithProjects } from './testKit';
+import { caseOf, org, revisionOf, runOf, studyOf } from './testKit';
 
 describe('who can do what in a project', () => {
   it('reads it from the role in the organization', () => {
@@ -115,29 +114,22 @@ describe('jobs and visibility in words', () => {
 
   it('words what a visibility change does', () => {
     expect(visibilityEffects('public').changes).toContain('Anybody can read it, without changing anything');
-    expect(visibilityEffects('private').changes).toContain('It counts as a private project for the sponsor');
+    expect(visibilityEffects('private').changes).toContain('Only its members can read it');
     expect(visibilityEffects('private').stays).toHaveLength(1);
   });
 });
 
 describe('the import ceiling', () => {
-  it('takes the plan’s value from the account’s own usage', () => {
-    expect(importCeiling(usageWithProjects(), null, 'RESEARCH')).toEqual({ plan: 134_217_728, effective: 134_217_728, clamped: false });
+  it('is the gateway’s own, whatever the plan', () => {
+    expect(importCeiling()).toEqual({ effective: GATEWAY_PACKAGE_LIMIT });
   });
 
-  it('falls back to the pricing document, with the plan’s own value over the default', () => {
-    const catalog = { usageLimits: { maxPayloadBytes: { defaultValue: 8_388_608 } }, plans: { BASIC: {}, ADVANCED: { usageLimits: { maxPayloadBytes: { value: 67_108_864 } } } } };
-    expect(planLimit(catalog, 'ADVANCED', 'maxPayloadBytes')).toBe(67_108_864);
-    expect(planLimit(catalog, 'BASIC', 'maxPayloadBytes')).toBe(8_388_608);
-    expect(planLimit(catalog, 'NOPE', 'maxPayloadBytes')).toBe(8_388_608);
-    expect(planLimit(null, 'BASIC', 'maxPayloadBytes')).toBeNull();
-    expect(importCeiling(null, catalog, 'BASIC')).toEqual({ plan: 8_388_608, effective: 8_388_608, clamped: false });
-  });
-
-  it('never promises more than the gateway takes', () => {
-    const catalog = { plans: { PRO: { usageLimits: { maxPayloadBytes: { value: 536_870_912 } } } } };
-    expect(importCeiling(null, catalog, 'PRO')).toEqual({ plan: 536_870_912, effective: GATEWAY_PACKAGE_LIMIT, clamped: true });
-    expect(importCeiling(null, null, 'PRO')).toEqual({ plan: null, effective: GATEWAY_PACKAGE_LIMIT, clamped: false });
+  it('reads a plan value from the pricing document, the plan’s own value over the default', () => {
+    const catalog = { usageLimits: { maxProblems: { defaultValue: 25 } }, plans: { FREE: {}, LAB: { usageLimits: { maxProblems: { value: 900 } } } } };
+    expect(planLimit(catalog, 'LAB', 'maxProblems')).toBe(900);
+    expect(planLimit(catalog, 'FREE', 'maxProblems')).toBe(25);
+    expect(planLimit(catalog, 'NOPE', 'maxProblems')).toBe(25);
+    expect(planLimit(null, 'FREE', 'maxProblems')).toBeNull();
   });
 });
 
@@ -145,12 +137,8 @@ describe('the gateway’s refusals in words', () => {
   const refusal = (status: number, code: string, message = 'refused') => Object.assign(new HttpError(status, message), { code });
 
   it('creating', () => {
-    const context = { organization: 'ISA', isPrivate: true };
+    const context = { organization: 'ISA' };
     expect(createRefusal(refusal(409, 'slug_conflict'), context)).toMatchObject({ kind: 'slug', text: 'That address is already used in ISA (409 · slug_conflict).' });
-    expect(createRefusal(new QuotaError('sponsor_quota_exceeded', 'x', { limit_id: 'privateProjects', limit: 30, used: 30 }), context))
-      .toMatchObject({ kind: 'quota', limitId: 'privateProjects' });
-    expect(createRefusal(new QuotaError('sponsor_quota_exceeded', 'x'), { ...context, isPrivate: false })).toMatchObject({ kind: 'quota', limitId: 'projects' });
-    expect(createRefusal(new PricingUnavailableError('x'), context).kind).toBe('pricing');
     expect(createRefusal(refusal(403, 'organization_forbidden'), context).kind).toBe('forbidden');
     expect(createRefusal(refusal(404, 'not_found'), context).kind).toBe('gone');
     expect(createRefusal(refusal(422, 'invalid'), context).kind).toBe('invalid');
@@ -158,8 +146,6 @@ describe('the gateway’s refusals in words', () => {
   });
 
   it('updating', () => {
-    expect(updateRefusal(new QuotaError('sponsor_quota_exceeded', 'x'), 'visibility').text).toContain('Nothing changed.');
-    expect(updateRefusal(new PricingUnavailableError('x'), 'details').kind).toBe('pricing');
     expect(updateRefusal(refusal(403, 'forbidden'), 'details').kind).toBe('forbidden');
     expect(updateRefusal(refusal(422, 'invalid'), 'visibility').text).toContain('visibility');
   });

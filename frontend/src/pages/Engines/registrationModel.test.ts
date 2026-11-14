@@ -102,7 +102,7 @@ describe('failures in words', () => {
   });
 
   it('tells the plan limit from other refusals (402) and uses the counts the gateway sent', () => {
-    const failure = describeFailure(new QuotaError('quota_exceeded', 'limit', { limit_id: 'federatedEngines', limit: 5, used: 5 }));
+    const failure = describeFailure(new QuotaError('quota_exceeded', 'limit', { limit_id: 'maxFederatedEngines', limit: 5, used: 5 }));
     expect(failure.status).toBe(402);
     expect(failure.title).toBe('Engine limit reached (402)');
     expect(failure.text).toMatch(/You’ve used 5 of 5/);

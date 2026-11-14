@@ -2,7 +2,7 @@ import type { PricingSelection } from 'pricing-renderer';
 import { selectionFromContract, type SpaceContractLike } from 'pricing-renderer/space';
 import type { PricingCatalog } from '../../api/auth';
 import { inInterfaceWords } from '../../components/ui/interfaceWords';
-import { describeLimit, limitInfo, LIMIT_GROUPS, type LimitGroup } from '../../utils/limits';
+import { describeLimit, FEATURE, LIMIT, limitInfo, LIMIT_GROUPS, type LimitGroup } from '../../utils/limits';
 
 /**
  * The pricing document, read for display.
@@ -104,8 +104,7 @@ function sentence(value: unknown): string {
 }
 
 const DISPLAY_NAMES: Record<string, string> = {
-  apiAccess: 'API access',
-  institutionalBranding: 'Institutional identity',
+  [FEATURE.apiAccess]: 'API access',
 };
 
 function humanize(id: string): string {
@@ -157,16 +156,17 @@ function gateNeeds(expression: string, limits: Dict): string[] {
   return ids.map((id) => {
     const definition = dictOf(limits[id]);
     const info = limitInfo(id, definition);
-    if (id === 'concurrentJobs') return 'A free run slot';
+    if (id === LIMIT.maxConcurrentRuns) return 'A free run slot';
     if (definition.type === 'RENEWABLE') return `${info.label} left this month`;
     return `Room in ${info.label.toLowerCase()}`;
   });
 }
 
 const STARTS: Record<string, string> = {
-  solve: 'a solve',
-  federatedEngines: 'a federated solve',
-  studies: 'a study run',
+  [FEATURE.runs]: 'a run',
+  [FEATURE.federatedEngines]: 'a federated run',
+  [FEATURE.studies]: 'a study run',
+  generator: 'a generation',
 };
 
 /** `null` when the document is not a pricing at all (no plans), so the screen can say so. */

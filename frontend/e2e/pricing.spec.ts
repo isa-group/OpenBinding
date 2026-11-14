@@ -1,6 +1,7 @@
 import { expect as baseExpect, test, type Page, type Request, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
+import { agreementCatalogFixture } from '../src/test/fixtures/agreementCatalog';
 
 // S3 · pub-pricing /pricing, with the API answered by page.route() (there is no backend).
 // Screenshots go to testInfo.outputPath() (test-results/, ignored by git) so they can be looked at after a run.
@@ -19,7 +20,7 @@ const token = (expiresInSeconds: number, claims: Record<string, unknown> = {}) =
   Buffer.from(JSON.stringify({
     sub: 'user-1',
     exp: Math.floor(Date.now() / 1000) + expiresInSeconds,
-    features: { 'openbinding-authoring': { eval: true }, 'openbinding-solve': { eval: false } },
+    features: { 'openbinding-runs': { eval: true }, 'openbinding-studies': { eval: false } },
     ...claims,
   })).toString('base64'),
   'signature',
@@ -27,7 +28,7 @@ const token = (expiresInSeconds: number, claims: Record<string, unknown> = {}) =
 
 const account = (plan: string) => ({
   id: 'user-1', username: 'lucia', email: 'lucia@example.org', role: 'user', is_active: true, plan,
-  created_at: '2026-03-02T00:00:00Z', cas_verified: plan === 'RESEARCH', institutional_branding: plan === 'RESEARCH',
+  created_at: '2026-03-02T00:00:00Z', cas_verified: plan === 'RESEARCH',
 });
 
 interface Mocks {
@@ -91,25 +92,25 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(page.locator('header.site-header')).toBeVisible();
       await expect(main.getByRole('heading', { level: 1, name: 'Plans for every kind of binding work' })).toBeVisible();
-      await expect(main.getByText(/Pricing version\s+0\.1\.0/)).toBeVisible();
-      await expect(main.getByText('Published Sep 1, 2026')).toBeVisible();
+      await expect(main.getByText(/Pricing version\s+0\.2\.0/)).toBeVisible();
+      await expect(main.getByText('Published Oct 22, 2026')).toBeVisible();
       await expect(main.getByText('EUR · monthly periods')).toBeVisible();
       await expect(main).not.toContainText(/fingerprint|sha256-|[0-9a-f]{12}/i);
       await expect(main.getByText('Development pricing.')).toBeVisible();
 
-      // Four plans in the order of the document; the paid ones are an agreement, never a price.
+      // Three plans in the order of the document; the paid one is an agreement, never a price.
       const plans = main.getByRole('list', { name: 'Plans' });
-      await expect(plans.getByRole('listitem')).toHaveCount(4);
-      await expect(plans.getByText('Contact us', { exact: true })).toHaveCount(4);
-      await expect(plans.getByText('institutional agreement')).toHaveCount(2);
+      await expect(plans.getByRole('listitem')).toHaveCount(3);
+      await expect(plans.getByText('Contact us', { exact: true })).toHaveCount(2);
+      await expect(plans.getByText('institutional agreement')).toHaveCount(1);
       await expect(main.getByRole('link', { name: 'Sign up' })).toHaveAttribute('href', '/register');
       await expect(main.getByRole('link', { name: 'Log in with CAS' }).first()).toHaveAttribute('href', '/login');
       expect(await main.innerText()).not.toMatch(/[€$]\s?\d/);
 
       // Monthly limits are open: the rounded figure with the exact one underneath.
       const monthly = main.getByRole('table', { name: 'Monthly: Renew each month' });
-      await expect(monthly.getByRole('row', { name: /Study runs/ })).toContainText('1,000');
-      await expect(monthly.getByRole('row', { name: /Study runs/ })).not.toContainText('To confirm');
+      await expect(monthly.getByRole('row', { name: /Generated instances/ })).toContainText('1,000');
+      await expect(monthly.getByRole('row', { name: /Solver hours/ })).toContainText('10,000 h');
       await capture(page, testInfo, `pricing-${name}-visitor`);
       if (isMobile) {
         // The plans stack instead of scrolling: the page is as wide as the device, the matrix has nothing to scroll, and no plan is cut off.
@@ -127,23 +128,23 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         expect(fit.scroller, 'the matrix should not scroll sideways').toBeLessThanOrEqual(1);
         expect(fit.tiles, 'no plan tile should be cut off on the right').toBeLessThanOrEqual(0);
         expect(fit.cells, 'no value should be cut off on the right').toBeLessThanOrEqual(0);
-        await expect(plans.getByRole('listitem')).toHaveCount(4);
+        await expect(plans.getByRole('listitem')).toHaveCount(3);
         expect(critical).toEqual([]);
         return;
       }
 
       await main.getByRole('button', { name: /Per request/ }).click();
       const perRequest = main.getByRole('table', { name: 'Per request: Ceilings for each run' });
-      await expect(perRequest.getByText('8 MiB', { exact: true })).toBeVisible();
-      await expect(perRequest.getByText('8,388,608 bytes', { exact: true })).toBeVisible();
-      await main.getByRole('button', { name: 'PRO', exact: true }).click();
-      await expect(main.getByRole('button', { name: 'PRO', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await expect(perRequest.getByText('24 h', { exact: true })).toBeVisible();
+      await expect(perRequest.getByText('1,440 min', { exact: true })).toBeVisible();
+      await main.getByRole('button', { name: 'LAB', exact: true }).click();
+      await expect(main.getByRole('button', { name: 'LAB', exact: true })).toHaveAttribute('aria-pressed', 'true');
       await expect(page.locator('.pricing-plan-tile.is-picked')).toHaveCount(1);
 
       await main.getByRole('heading', { name: 'What has to have room before you start' }).scrollIntoViewIfNeeded();
-      await expect(main.getByText('Start a federated solve')).toBeVisible();
-      await expect(main.getByText('Study runs left this month').first()).toBeVisible();
-      await expect(main.getByText('BASIC and RESEARCH have no add-ons.')).toBeVisible();
+      await expect(main.getByText('Start a run', { exact: true })).toBeVisible();
+      await expect(main.getByText('Solver hours left this month').first()).toBeVisible();
+      await expect(main.getByRole('heading', { name: 'Add-ons' })).toHaveCount(0);
       for (const outcome of ['Reduced', 'Wait', 'Rejected']) await expect(main.getByText(outcome, { exact: true })).toBeVisible();
 
       // The deprecated YAML endpoint is not used; the catalog and the release are.
@@ -162,7 +163,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const contact = page.getByRole('button', { name: 'Contact us' }).first();
       await contact.focus();
       await contact.click();
-      const dialog = page.getByRole('dialog', { name: 'Ask about ADVANCED' });
+      const dialog = page.getByRole('dialog', { name: 'Ask about LAB' });
       await expect(dialog).toBeVisible();
       await expect(dialog.getByText(/This page doesn’t send anything/)).toBeVisible();
       await capture(page, testInfo, `pricing-${name}-contact`);
@@ -230,8 +231,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(mine).toBeVisible();
       await expect(mine.getByText('Read from your signed pricing token for the RESEARCH plan.')).toBeVisible();
       await expect(mine.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
-      await expect(mine.getByText('Authoring', { exact: true }).locator('..')).toContainText('Enabled');
-      await expect(mine.getByText('Solve', { exact: true }).locator('..')).toContainText('Not enabled');
+      await expect(mine.getByText('Runs', { exact: true }).locator('..')).toContainText('Enabled');
+      await expect(mine.getByText('Studies', { exact: true }).locator('..')).toContainText('Not enabled');
       expect(await page.content()).not.toContain(signed);
       await mine.scrollIntoViewIfNeeded();
       await capture(page, testInfo, `pricing-${name}-research`);
@@ -247,19 +248,29 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const shell = page.locator('.pricing-renderer-shell');
       const renderer = shell.locator('pricing-renderer[data-pr-root]');
       await expect(renderer).toBeVisible();
-      await expect(shell).toContainText('BASIC');
-      await expect(shell).toContainText('PRO');
+      await expect(shell).toContainText('FREE');
+      await expect(shell).toContainText('LAB');
       await expect(page.getByRole('link', { name: 'SPHERE' })).toHaveAttribute('href', CURRENT_FIXTURE.url);
 
       // The page's title stands for the document's, and every plan offers what the comparison offers for it.
       await expect(renderer.locator('[data-pr-part="hero"]')).toHaveCount(0);
-      await expect(renderer.locator('[data-pr-slot="plan-cta"]')).toHaveText(['Sign up', 'Contact us', 'Log in with CAS', 'Contact us']);
+      await expect(renderer.locator('[data-pr-slot="plan-cta"]')).toHaveText(['Sign up', 'Log in with CAS', 'Contact us']);
       await expect(renderer.locator('[data-pr-part="cta"]')).toHaveCount(0);
-      await renderer.locator('[data-pr-slot="plan-cta"]').nth(3).getByRole('button', { name: 'Contact us' }).click();
-      await expect(page.getByRole('dialog', { name: 'Ask about PRO' })).toBeVisible();
+      await renderer.locator('[data-pr-slot="plan-cta"]').nth(2).getByRole('button', { name: 'Contact us' }).click();
+      await expect(page.getByRole('dialog', { name: 'Ask about LAB' })).toBeVisible();
       await page.getByRole('button', { name: 'Got it' }).click();
+    });
 
-      // A change of plan that drops an add-on asks first, in a dialog centred on the viewport, not on the section.
+    test('in the long form, a change of plan that drops an add-on asks first', async ({ page }) => {
+      test.skip(isMobile, 'A behaviour of the page, not of its layout: the desktop run covers it.');
+      // The published pricing has no add-ons; the synthetic agreement catalog has four plans and add-ons to drop.
+      await mockApi(page, { catalog: json(agreementCatalogFixture) });
+      await page.goto('/pricing');
+      await page.getByRole('button', { name: 'Show the full pricing document' }).click();
+      const renderer = page.locator('.pricing-renderer-shell pricing-renderer[data-pr-root]');
+      await expect(renderer).toBeVisible();
+
+      // The confirmation is a dialog centred on the viewport, not on the section.
       const cards = renderer.locator('[data-pr-part="plan-card"]');
       await cards.nth(3).locator('[data-pr-part="selection-control"]').click();
       await renderer.locator('[data-pr-part="add-on-card"]').filter({ hasText: /federation/i }).locator('[data-pr-part="selection-control"]').click();
@@ -279,7 +290,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         subscriptionAddOns: { openbinding: { STORAGE_PACK: 2 } },
         contractVersion: '4',
       };
-      await mockApi(page, { plan: 'PRO', pricingToken: token(3600, { subscription }) });
+      // The published pricing has no add-ons; the synthetic agreement catalog has them.
+      await mockApi(page, { plan: 'PRO', pricingToken: token(3600, { subscription }), catalog: json(agreementCatalogFixture) });
       await page.goto('/pricing');
 
       await page.getByRole('button', { name: 'Show the full pricing document' }).click();

@@ -1,6 +1,6 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
+import { AGREEMENT_CURRENT_FIXTURE as CURRENT_FIXTURE, agreementCatalogFixture as catalogFixture } from '../src/test/fixtures/agreementCatalog';
 import { ALEX, MARIA, PENDING_ENGINE, usageOf } from '../src/test/fixtures/admin';
 
 // S9b · administration, part two: admin-moderation and the maintenance section of admin-overview (pricing is administered in the native
@@ -73,7 +73,7 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
     purgeable: 14,
     sent: { approved: [], rejected: [], previewDays: [], purge: [], jobs: 0 },
   };
-  const me = options.role === 'user' ? { ...MARIA, role: 'user' } : { ...ALEX, institutional_branding: false };
+  const me = options.role === 'user' ? { ...MARIA, role: 'user' } : ALEX;
   const answer = (key: Key, body: unknown | (() => unknown)): Handler => (route) => (
     state.refuse[key] ? state.refuse[key](route) : json(typeof body === 'function' ? (body as () => unknown)() : body)(route)
   );

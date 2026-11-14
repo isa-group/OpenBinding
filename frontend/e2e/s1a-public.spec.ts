@@ -124,7 +124,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // Plans.
       const plans = main.getByRole('region', { name: 'Free to start, institutional when you scale' });
-      for (const plan of ['Basic', 'Research', 'Advanced', 'Pro']) await expect(plans.getByText(plan, { exact: true })).toBeVisible();
+      for (const plan of ['Free', 'Research', 'Lab']) await expect(plans.locator('.home-kicker').getByText(plan, { exact: true })).toBeVisible();
       await expect(plans.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
 
       await expectNoHorizontalOverflow(page);

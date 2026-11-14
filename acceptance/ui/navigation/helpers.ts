@@ -31,7 +31,7 @@ const account = (role: Role) => ({
 });
 
 export const organization = (slug: string, name: string) => ({
-  id: `org-${slug}`, slug, name, parent_id: null, billing_sponsor_user_id: 'user-1', effective_role: 'OWNER', created_at: NOW,
+  id: `org-${slug}`, slug, name, parent_id: null, effective_role: 'OWNER', created_at: NOW,
 });
 
 export const project = (slug: string, name: string) => ({

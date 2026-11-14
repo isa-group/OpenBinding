@@ -6,20 +6,17 @@ import uuid
 from typing import Iterable
 
 from fastapi import status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .db.models import (
-    Blob,
     Organization,
     OrganizationMembership,
     OrganizationRole,
     Project,
-    Study,
     User,
 )
 from .models.errors import api_error
-from .services.entitlements import entitlement_service
 
 ROLE_STRENGTH = {
     OrganizationRole.VIEWER: 1,
@@ -170,126 +167,6 @@ async def require_project(
     if project is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Project not found.")
     return project
-
-
-async def organization_usage(
-    session: AsyncSession, organization_ids: Iterable[uuid.UUID]
-) -> dict[str, int]:
-    """Structural usage for an exact set of sponsored organizations."""
-
-    ids = tuple(set(organization_ids))
-    if not ids:
-        return {
-            "organizations": 0,
-            "members": 0,
-            "projects": 0,
-            "privateProjects": 0,
-            "studies": 0,
-            "storageBytes": 0,
-        }
-    organizations = len(ids)
-    members = int(
-        await session.scalar(
-            select(func.count(func.distinct(OrganizationMembership.user_id))).where(
-                OrganizationMembership.organization_id.in_(ids)
-            )
-        )
-        or 0
-    )
-    projects = int(
-        await session.scalar(select(func.count(Project.id)).where(Project.organization_id.in_(ids)))
-        or 0
-    )
-    private_projects = int(
-        await session.scalar(
-            select(func.count(Project.id)).where(
-                Project.organization_id.in_(ids), Project.visibility == "private"
-            )
-        )
-        or 0
-    )
-    project_ids = select(Project.id).where(Project.organization_id.in_(ids))
-    studies = int(
-        await session.scalar(select(func.count(Study.id)).where(Study.project_id.in_(project_ids)))
-        or 0
-    )
-    storage_bytes = int(
-        await session.scalar(
-            select(func.coalesce(func.sum(Blob.size_bytes), 0)).where(
-                Blob.organization_id.in_(ids)
-            )
-        )
-        or 0
-    )
-    return {
-        "organizations": organizations,
-        "members": members,
-        "projects": projects,
-        "privateProjects": private_projects,
-        "studies": studies,
-        "storageBytes": storage_bytes,
-    }
-
-
-async def sponsor_organization_ids(
-    session: AsyncSession, sponsor_user_id: uuid.UUID
-) -> list[uuid.UUID]:
-    return list(
-        (
-            await session.execute(
-                select(Organization.id).where(
-                    Organization.billing_sponsor_user_id == sponsor_user_id
-                )
-            )
-        ).scalars()
-    )
-
-
-async def sponsor_usage(session: AsyncSession, sponsor_user_id: uuid.UUID) -> dict[str, int]:
-    return await organization_usage(
-        session, await sponsor_organization_ids(session, sponsor_user_id)
-    )
-
-
-async def sponsor_has_member(
-    session: AsyncSession, sponsor_user_id: uuid.UUID, user_id: uuid.UUID
-) -> bool:
-    return bool(
-        await session.scalar(
-            select(func.count(OrganizationMembership.id))
-            .join(Organization, Organization.id == OrganizationMembership.organization_id)
-            .where(
-                Organization.billing_sponsor_user_id == sponsor_user_id,
-                OrganizationMembership.user_id == user_id,
-            )
-        )
-    )
-
-
-async def enforce_sponsor_usage(
-    session: AsyncSession, sponsor: User, usage: dict[str, int]
-) -> None:
-    """Validate a complete hypothetical sponsor total in one contract read."""
-
-    await entitlement_service.enforce_sponsor_usage(sponsor.id, usage)
-
-
-async def enforce_sponsor_capacity(
-    session: AsyncSession,
-    sponsor: User,
-    dimension: str,
-    *,
-    increment: int = 1,
-) -> None:
-    # Every structural quota mutation for one sponsor serializes on the same
-    # row.  Without this lock two concurrent creates can both observe one free
-    # slot and commit past the contract limit.
-    await session.execute(
-        select(User.id).where(User.id == sponsor.id).with_for_update()
-    )
-    usage = await sponsor_usage(session, sponsor.id)
-    usage[dimension] += increment
-    await enforce_sponsor_usage(session, sponsor, {dimension: usage[dimension]})
 
 
 def strongest(roles: Iterable[OrganizationRole]) -> OrganizationRole | None:

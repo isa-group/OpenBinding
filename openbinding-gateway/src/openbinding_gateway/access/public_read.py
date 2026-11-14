@@ -19,8 +19,7 @@ in ``PUBLIC_READ_ALLOWED``. The rest of the project API stays deny-by-default:
   ``is_public_read(session)`` and narrow what they return.
 
 Reads are counted against the *caller* (the account, or the client address when
-anonymous) and never against the sponsor of the project: nothing here touches
-the sponsor's quota.
+anonymous): nothing here touches anybody's plan.
 """
 
 from __future__ import annotations

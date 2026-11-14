@@ -138,18 +138,16 @@ the OpenAPI document declares the right one per path. Nothing was changed here
 on purpose: switching the platform routes would be harmless to a JSON client but
 is not needed.
 
-## Sponsorship
-
-`PATCH /v1/organizations/{org}` with `billing_sponsor_user_id`:
+## Accounts and plans
 
 | `code` | Status | Meaning |
 |---|---|---|
-| `sponsor_must_be_caller` | 422 | an OWNER named somebody other than themselves (and other than the current sponsor) as billing sponsor. Only the caller can become sponsor; the check runs before the person is looked up, so existence and activity are not revealed, and nothing in the request is applied |
+| `quota_exceeded` | 402 | a per-account limit of the plan would be passed: `maxApiKeys`, `maxFederatedEngines`, `maxRepositoryStorage` (and `maxProblems` from the problems API on). `quota` names `limit_id`, `limit` and `used` |
+| `username_unavailable` | 409 | registration or a first CAS sign-in asked for a reserved username: one that names engines or engine registrations already (engine namespaces are usernames baked into immutable manifests, and they outlive a deleted account), or one starting with `deleted-`, the pseudonyms of deleted accounts |
+| `last_owner` | 409 | `DELETE /v1/users/me`: the account is the last OWNER of an organization |
 
-The sponsor-proposal codes (`sponsor_proposal_pending`, `sponsor_proposal_expired`,
-`sponsor_proposal_not_pending`, `sponsor_proposal_forbidden`) no longer exist:
-M9.6 removed the proposal routes. A request that still sends
-`replace_pending_proposal` is refused with `validation_error`.
+Quotas are per account: there are no billing sponsors. Deleting an account pseudonymises it
+([ACCOUNTS_AND_PLANS.md](ACCOUNTS_AND_PLANS.md)).
 
 ## Conditional writes (`If-Match`)
 
@@ -179,14 +177,14 @@ revision, `409 contract_changed` otherwise. Nothing was written either way
 
 | `code` | Status | Meaning |
 |---|---|---|
-| `precondition_failed` | 412 | `If-Match` did not match the resource's current `ETag`: somebody changed it since you read it, or (for `*` or a tag) it has no current state yet, such as an engine credential never set. The response carries the **current** `ETag` header (none when the resource has no current state). **Nothing in the request was applied**: no field, no audit event, no side effect (no sponsorship transfer, no registration reset). Re-read the resource, merge, and retry with the new tag |
+| `precondition_failed` | 412 | `If-Match` did not match the resource's current `ETag`: somebody changed it since you read it, or (for `*` or a tag) it has no current state yet, such as an engine credential never set. The response carries the **current** `ETag` header (none when the resource has no current state). **Nothing in the request was applied**: no field, no audit event, no side effect (no registration reset). Re-read the resource, merge, and retry with the new tag |
 | `invalid_if_match` | 400 | `If-Match` is present but is neither `*` nor a comma-separated list of quoted entity tags (`"abc"`, `W/"abc"`), or it is longer than 2048 characters. Examples: an unquoted value, `*` mixed with tags, a missing comma, an empty value. Nothing was applied. Of repeated `If-Match` header fields only the first is read |
 
 Weak tags (`W/"…"`) are well-formed but never match, because `If-Match` uses strong comparison (RFC 9110 §13.1.1).
 `*` matches whenever the resource exists. Authentication (`401`), not-found (`404`) and permission (`403`) refusals
-(for an organization update, also the OWNER check when naming a sponsor and the authorisation on a new parent)
+(for an organization update, also the authorisation on a new parent)
 come first, so a caller who may not read the resource never sees its `ETag`. `412` comes before the refusals that
-depend on stored state or on the stored tree (`402`, `409` and `422` such as `sponsor_must_be_caller`,
+depend on stored state or on the stored tree (`402`, `409` and `422` such as
 `ambiguous_parent` or `already_registered`). A request
 body the framework refuses is still `422 validation_error`.
 

@@ -31,7 +31,7 @@ const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3_600_000).toI
 
 const lucia = {
   id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-03-02T00:00:00Z', cas_verified: true, institutional_branding: true,
+  created_at: '2026-03-02T00:00:00Z', cas_verified: true,
 };
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
@@ -41,20 +41,19 @@ interface Org {
   slug: string;
   name: string;
   parent_id: string | null;
-  billing_sponsor_user_id: string;
   effective_role: Role;
   created_at: string;
 }
 
 const org = (n: number, slug: string, name: string, role: Role, over: Partial<Org> = {}): Org => ({
-  id: `org-${n}`, slug, name, parent_id: null, billing_sponsor_user_id: 'user-1', effective_role: role, created_at: '2026-03-03T00:00:00Z', ...over,
+  id: `org-${n}`, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z', ...over,
 });
 
 const isaDemo = org(1, 'isa-demo', 'ISA Demo Group', 'OWNER');
 const qosLab = org(2, 'qos-lab', 'QoS Lab (sub-organización)', 'OWNER', { parent_id: 'org-1', created_at: '2026-03-10T00:00:00Z' });
-const consultora = org(3, 'consultora-demo', 'Consultora Demo', 'VIEWER', { billing_sponsor_user_id: 'user-nora', created_at: '2026-05-01T00:00:00Z' });
-const researchHub = org(4, 'research-hub', 'Research Hub', 'ADMIN', { billing_sponsor_user_id: 'user-nora', created_at: '2026-06-01T00:00:00Z' });
-const partnerLab = org(5, 'partner-lab', 'Partner Lab', 'OWNER', { billing_sponsor_user_id: 'user-nora', created_at: '2026-07-01T00:00:00Z' });
+const consultora = org(3, 'consultora-demo', 'Consultora Demo', 'VIEWER', { created_at: '2026-05-01T00:00:00Z' });
+const researchHub = org(4, 'research-hub', 'Research Hub', 'ADMIN', { created_at: '2026-06-01T00:00:00Z' });
+const partnerLab = org(5, 'partner-lab', 'Partner Lab', 'OWNER', { created_at: '2026-07-01T00:00:00Z' });
 
 interface Member {
   id: string;
@@ -110,14 +109,12 @@ const auditEvents = [
   },
 ];
 
-/** What the gateway reports for the RESEARCH plan of the pricing 0.1.0: the plan and its limits, with no consumption. */
+/** What the gateway reports for the RESEARCH plan of the pricing 0.2.0: the plan and its limits, with no consumption. */
 const researchUsage = () => ({
   plan: 'RESEARCH',
   contract_pending: false,
-  features: { collaboration: true, solve: true },
-  capabilities: {
-    concurrentJobs: 3, organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120,
-  },
+  features: { collaboration: true, runs: true },
+  capabilities: { maxConcurrentRuns: 4, maxPrivateProjects: 10, maxProblems: null, maxRepositoryStorage: null },
 });
 
 const jobs = () => ({
@@ -127,12 +124,11 @@ const jobs = () => ({
     { id: '00000000-0000-0000-0000-0000000000f1', engine_id: 'evolutionary', status: 'completed', termination: 'FEASIBLE', solutions: 3, created_at: '2026-09-30T09:00:00Z', finished_at: '2026-09-30T09:01:05Z' },
   ],
   total: 3,
-  retention_days: 180,
 });
 
 const notifications = () => [{
-  id: 'n1', kind: 'contract.changed', subject: 'Your OpenBinding agreement changed', body: 'Plan: BASIC → RESEARCH.',
-  payload: { reason: 'institutional_agreement', previous: { plan: 'BASIC', addOns: {} }, current: { plan: 'RESEARCH', addOns: {} }, pricingVersion: '0.1.0' },
+  id: 'n1', kind: 'contract.changed', subject: 'Your OpenBinding agreement changed', body: 'Plan: FREE → RESEARCH.',
+  payload: { reason: 'institutional_agreement', previous: { plan: 'FREE', addOns: {} }, current: { plan: 'RESEARCH', addOns: {} }, pricingVersion: '0.2.0' },
   read_at: null as string | null, created_at: hoursAgo(5),
 }];
 
@@ -188,9 +184,9 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
   await page.route(`${API}/v1/organizations`, async (route) => {
     if (methodOf(route) === 'POST') {
       if (state.refuse.create) return state.refuse.create(route);
-      const body = route.request().postDataJSON() as { slug: string; name: string; parent_id: string | null; billing_sponsor_user_id: string | null };
+      const body = route.request().postDataJSON() as { slug: string; name: string; parent_id: string | null };
       const created = org(state.organizations.length + 1, body.slug, body.name, 'OWNER', {
-        parent_id: body.parent_id, billing_sponsor_user_id: body.billing_sponsor_user_id ?? 'user-1', created_at: new Date().toISOString(),
+        parent_id: body.parent_id, created_at: new Date().toISOString(),
       });
       state.organizations = [...state.organizations, created];
       state.members[created.slug] = [person(created, 'lucia.vega', 'user-1', 'OWNER')];
@@ -204,16 +200,11 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     const found = state.organizations.find((item) => item.slug === slug);
     if (methodOf(route) === 'PATCH') {
       if (state.refuse.patch) return state.refuse.patch(route);
-      const body = route.request().postDataJSON() as { name?: string; parent_id?: string; move_to_root?: boolean; billing_sponsor_user_id?: string };
-      // A user may only name themselves as the sponsor.
-      if (found && body.billing_sponsor_user_id && body.billing_sponsor_user_id !== 'user-1') {
-        return detail(422, 'sponsor_must_be_caller', 'The billing sponsor must be the caller.')(route);
-      }
+      const body = route.request().postDataJSON() as { name?: string; parent_id?: string; move_to_root?: boolean };
       state.organizations = state.organizations.map((item) => (item.slug === slug ? {
         ...item,
         ...(body.name ? { name: body.name } : {}),
         ...(body.move_to_root ? { parent_id: null } : body.parent_id ? { parent_id: body.parent_id } : {}),
-        ...(body.billing_sponsor_user_id ? { billing_sponsor_user_id: body.billing_sponsor_user_id } : {}),
       } : item));
       return json(state.organizations.find((item) => item.slug === slug))(route);
     }
@@ -315,8 +306,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const tree = main.getByRole('list', { name: 'Organizations' });
       await expect(tree.getByRole('link')).toHaveCount(5);
       await expect(tree.getByRole('link', { name: /Consultora Demo/ }).getByText('VIEWER')).toBeVisible();
-      await expect(tree.getByText('isa-demo · you sponsor it · own role')).toBeVisible();
-      await expect(tree.getByText('qos-lab · you sponsor it · inherited role')).toBeVisible();
+      await expect(tree.getByText('isa-demo · own role')).toBeVisible();
+      await expect(tree.getByText('qos-lab · inherited role')).toBeVisible();
       await expect(tree.getByRole('link', { name: /QoS Lab/ }).getByText('OWNER')).toHaveAttribute('title', 'Inherited from ISA Demo Group');
 
       const activity = main.getByRole('region', { name: 'Recent activity' });
@@ -325,7 +316,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(activity.getByRole('link', { name: 'All runs' })).toHaveAttribute('href', '/app/runs');
       const plan = main.getByRole('region', { name: 'Your plan' });
       await expect(plan.getByText('RESEARCH', { exact: true })).toBeVisible();
-      await expect(plan.getByText('Up to 3')).toBeVisible();
+      await expect(plan.getByText('Up to 4')).toBeVisible();
       await expect(plan.getByRole('link', { name: 'SPACE' })).toHaveAttribute('href', 'https://space.score.us.es');
       await expect(plan.getByRole('link', { name: 'SPHERE' })).toHaveAttribute('href', 'https://sphere.score.us.es');
       await expect(main.getByRole('meter')).toHaveCount(0);
@@ -362,12 +353,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // No organizations: the first-organization guide, with the way to the wizard and to an invitation.
       state.organizations = [];
-      state.jobs = { jobs: [], total: 0, retention_days: 180 };
+      state.jobs = { jobs: [], total: 0 };
       await page.reload();
       await expect(main.getByRole('heading', { name: 'Create your first organization' })).toBeVisible();
       await expect(main.getByRole('link', { name: 'Create organization' })).toHaveAttribute('href', '/app?create=organization');
       await expect(main.getByRole('link', { name: 'I have an invitation' })).toHaveAttribute('href', '/invitations/accept');
-      await expect(main.getByText(/organization limit \(5 on RESEARCH\)/)).toBeVisible();
       await expect(main.getByText('You’re not in any organization yet.')).toBeVisible();
       await expect(main.getByText(/No runs yet/)).toBeVisible();
       await capture(page, testInfo, `home-${name}-first-organization`);
@@ -398,42 +388,28 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const preview = dialog.getByRole('list', { name: 'Organization tree preview' });
       await expect(preview.getByRole('listitem')).toHaveCount(2);
       await expect(preview.getByText('NEW', { exact: true })).toBeVisible();
-      await expect(dialog.getByText('Up to 5', { exact: true })).toBeVisible();
+      // Quotas are per account: there is no sponsor to choose and no room to show.
+      await expect(dialog.getByRole('group', { name: 'Sponsor' })).toHaveCount(0);
       await expect(dialog.getByRole('meter')).toHaveCount(0);
-      await expect(dialog.getByRole('radio', { name: /You \(lucia\.vega\)/ })).toBeChecked();
-      await expect(dialog.getByText('Counts against your RESEARCH plan')).toBeVisible();
       await capture(page, testInfo, `create-${name}-dialog`);
       if (isMobile) {
         expect(critical).toEqual([]);
         return;
       }
 
-      // The gateway's refusals, one by one: 409, 402, 503.
+      // The gateway's refusal of a taken address.
       const create = dialog.getByRole('button', { name: 'Create organization' });
       state.refuse.create = detail(409, 'slug_conflict', 'That organization slug is in use.');
       await create.click();
       await expect(dialog.getByRole('alert')).toContainText('That address is taken (409 · slug_conflict). Another organization already uses /app/distributed-systems-lab.');
       await capture(page, testInfo, `create-${name}-409`);
 
-      state.refuse.create = detail(402, 'sponsor_quota_exceeded', 'The sponsor contract allows 5 organizations.', { quota: { limit_id: 'organizations', limit: 5, used: 5 } });
-      await create.click();
-      const full = dialog.getByRole('alert');
-      await expect(full).toContainText('The sponsor has no organizations left (402 · sponsor_quota_exceeded). You already sponsor 5 of 5 organizations.');
-      await expect(full.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
-      await expect(full.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
-      await capture(page, testInfo, `create-${name}-402`);
-
-      state.refuse.create = detail(503, 'pricing_unavailable', 'The pricing service is not reachable.');
-      await create.click();
-      await expect(dialog.getByRole('alert')).toContainText('The sponsor’s limits can’t be checked right now (503 · pricing_unavailable), so nothing was created.');
-      await capture(page, testInfo, `create-${name}-503`);
-
-      // Created: the payload carries the parent and the sponsor, the dialog closes and the organization opens.
+      // Created: the payload carries the parent, the dialog closes and the organization opens.
       state.refuse.create = undefined;
       const posted = request(page, 'POST', '/v1/organizations');
-      await dialog.getByRole('alert').getByRole('button', { name: 'Try again' }).click();
+      await create.click();
       expect((await posted).postDataJSON()).toEqual({
-        name: 'Distributed Systems Lab', slug: 'distributed-systems-lab', parent_id: 'org-1', billing_sponsor_user_id: 'user-1',
+        name: 'Distributed Systems Lab', slug: 'distributed-systems-lab', parent_id: 'org-1',
       });
       await expect(dialog).toHaveCount(0);
       await expect(page).toHaveURL(/\/app\/distributed-systems-lab$/);
@@ -452,7 +428,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const hero = title.locator('xpath=ancestor::header[1]');
       await expect(hero.getByText('/app/isa-demo')).toBeVisible();
       await expect(hero.getByText('OWNER')).toBeVisible();
-      await expect(hero.getByText('lucia.vega (you)')).toBeVisible();
       await expect(hero.getByRole('button', { name: 'New project' })).toBeVisible();
       await expect(hero.getByRole('link', { name: 'Members' })).toHaveAttribute('href', '/app/isa-demo/settings/members');
       await expect(hero.getByRole('link', { name: 'Audit' })).toHaveAttribute('href', '/app/isa-demo/settings/audit');
@@ -465,10 +440,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const subs = main.getByRole('heading', { name: 'Sub-organizations' }).locator('xpath=ancestor::section[1]');
       await expect(subs.getByRole('link', { name: /QoS Lab/ })).toHaveAttribute('href', '/app/qos-lab');
       await expect(subs.getByText('Inherited from ISA Demo Group')).toBeVisible();
-      const room = main.getByRole('heading', { name: 'Sponsor’s room' }).locator('xpath=ancestor::section[1]');
-      await expect(room.getByText('Up to 5', { exact: true })).toBeVisible();
-      await expect(room.getByRole('meter')).toHaveCount(0);
-      await expect(room.getByText('Counted across every organization you sponsor.')).toBeVisible();
+      await expect(main.getByRole('heading', { name: 'Sponsor’s room' })).toHaveCount(0);
+      await expect(hero.getByText(/sponsor/i)).toHaveCount(0);
       await capture(page, testInfo, `overview-${name}-success`);
 
       // A VIEWER sees the organization, has no button to create, and is told why.
@@ -479,7 +452,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: 'New project' })).toHaveCount(0);
       await expect(main.getByRole('link', { name: 'Create the first project' })).toHaveCount(0);
       await expect(main.getByRole('link', { name: 'Audit' })).toHaveCount(0);
-      await expect(main.getByText(/nora’s plan is visible only to them/)).toBeVisible();
       await capture(page, testInfo, `overview-${name}-viewer-empty`);
 
       // The same neutral message for an organization that does not exist and one the account is not in.
@@ -497,9 +469,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // own banner appears too; that is what a real outage looks like.
       state.refuse.projects = unavailable;
       await page.goto('/app/isa-demo');
-      await expect(main.getByText('Projects couldn’t be loaded (503). Sub-organizations and usage are unaffected.')).toBeVisible();
+      await expect(main.getByText('Projects couldn’t be loaded (503). Sub-organizations are unaffected.')).toBeVisible();
       await expect(main.getByRole('heading', { name: 'Sub-organizations' })).toBeVisible();
-      await expect(main.getByText('Up to 5', { exact: true })).toBeVisible();
       await capture(page, testInfo, `overview-${name}-projects-503`);
       state.refuse.projects = undefined;
       await main.getByRole('button', { name: 'Retry' }).click();
@@ -527,7 +498,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expectSettingsNav(main, 'isa-demo', 'General');
       await expect(main.getByLabel('Name', { exact: true })).toHaveValue('ISA Demo Group');
       await expect(main.getByText('/app/isa-demo', { exact: true })).toBeVisible();
-      await expect(main.getByText('Current sponsor · RESEARCH plan')).toBeVisible();
+      await expect(main.getByText(/sponsor/i)).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'Save name' })).toBeDisabled();
       const impact = main.getByLabel('What deleting removes');
       await expect(impact).toContainText('projects2');
@@ -541,7 +512,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByLabel('Name', { exact: true })).toBeDisabled();
       await expect(main.getByRole('button', { name: 'Save name' })).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'Delete organization' })).toHaveCount(0);
-      await expect(main.getByText('Needs OWNER. Your role here is VIEWER.')).toBeVisible();
       await expect(main.getByRole('navigation', { name: 'Organization settings' }).getByText('ADMIN')).toBeVisible();
       await capture(page, testInfo, `settings-${name}-read-only`);
       if (isMobile) {
@@ -583,29 +553,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect((await moved).postDataJSON()).toEqual({ parent_id: 'org-4' });
       await expect(main.getByText('Moved ISA Research Group inside Research Hub.')).toBeVisible();
 
-      // Sponsor: only an OWNER changes it, and only to themselves; the gateway checks the new sponsor's room first.
-      await page.goto('/app/partner-lab/settings');
-      await expect(main.getByText('nora', { exact: true })).toBeVisible();
-      await expect(main.getByLabel('New sponsor')).toHaveCount(0);
-      state.refuse.patch = detail(402, 'sponsor_quota_exceeded', 'The sponsor contract allows 15 members.', { quota: { limit_id: 'members', limit: 15, used: 16 } });
-      await main.getByRole('button', { name: 'Make me the sponsor' }).click();
-      await expect(main.getByRole('alert')).toContainText('The new sponsor’s plan has no room for this organization and everything under it (402 · sponsor_quota_exceeded). members: 16 of 15 used. Nothing changed.');
-      await capture(page, testInfo, `settings-${name}-sponsor-402`);
-      state.refuse.patch = detail(422, 'sponsor_must_be_caller', 'The billing sponsor must be the caller.');
-      await main.getByRole('button', { name: 'Make me the sponsor' }).click();
-      await expect(main.getByRole('alert')).toContainText('Only you can make yourself the sponsor (422 · sponsor_must_be_caller). Nothing changed.');
-      state.refuse.patch = detail(503, 'pricing_unavailable', 'Limits cannot be checked.');
-      await main.getByRole('button', { name: 'Make me the sponsor' }).click();
-      await expect(main.getByRole('alert')).toContainText('Limits can’t be checked right now (503 · pricing_unavailable). Nothing changed. Try again in a moment.');
-      state.refuse.patch = undefined;
-      const sponsored = request(page, 'PATCH', '/v1/organizations/partner-lab');
-      await main.getByRole('button', { name: 'Make me the sponsor' }).click();
-      expect((await sponsored).postDataJSON()).toEqual({ billing_sponsor_user_id: 'user-1' });
-      await expect(main.getByText('Sponsor changed. Size limits now come from the new sponsor’s plan.')).toBeVisible();
-
-      // An ADMIN can edit, but the sponsor stays locked.
+      // There is no sponsor to change: quotas are per account. An ADMIN can edit.
       await page.goto('/app/research-hub/settings');
-      await expect(main.getByText('Needs OWNER. Your role here is ADMIN.')).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Make me the sponsor' })).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'Save name' })).toBeVisible();
       expect(critical).toEqual([]);
     });
@@ -652,9 +602,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(table.getByRole('row', { name: /lucia\.vega@example\.org/ }).getByText('(you)')).toBeVisible();
       await expect(main.getByLabel('Role for marco')).toHaveValue('MEMBER');
       await expect(table.getByRole('row', { name: /marco@example\.org/ }).getByText('Apr 12, 2026')).toBeVisible();
-      // The gateway reports the plan's ceiling and no consumption, so the screen says what the plan allows and no "n of 15".
-      await expect(main.getByText(/unique members across everything you sponsor/)).toContainText('Your plan allows up to 15 unique members');
-      await expect(main.getByText(/\b\d+ of 15\b/)).toHaveCount(0);
+      // Members are not a plan limit: the screen states no allowance.
+      await expect(main.getByText(/unique members/)).toHaveCount(0);
       await expect(main.getByText('To confirm')).toHaveCount(0);
       await capture(page, testInfo, `members-${name}-success`);
 
@@ -688,25 +637,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await queue.getByRole('button', { name: 'Undo change for sofia' }).click();
       await expect(queue.getByRole('button', { name: 'Apply 1 change' })).toBeEnabled();
 
-      // The gateway's refusals, one by one: 409 last owner, 402 seats, 422 mismatch, 503 pricing.
+      // The gateway's refusals, one by one: 409 last owner, 422 mismatch.
       await main.getByLabel('Role for lucia.vega').selectOption('VIEWER');
       state.refuse.batch = detail(409, 'last_owner', 'The last owner cannot be removed.');
       await queue.getByRole('button', { name: 'Apply 2 changes' }).click();
       await expect(main.getByRole('alert')).toContainText('At least one OWNER must remain (409 · last_owner). Keep someone as OWNER, or make another person OWNER in the same batch.');
       await capture(page, testInfo, `members-${name}-409`);
-      state.refuse.batch = detail(402, 'sponsor_quota_exceeded', 'The sponsor contract allows 15 members.', { quota: { limit_id: 'members', limit: 15, used: 15 } });
-      await queue.getByRole('button', { name: 'Apply 2 changes' }).click();
-      const seats = main.getByRole('alert');
-      await expect(seats).toContainText('The sponsor has no member seats left (402 · sponsor_quota_exceeded): 15 of 15 used. Nothing changed.');
-      await expect(seats.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
-      await expect(seats.getByRole('link', { name: 'Change sponsor' })).toHaveAttribute('href', '/app/isa-demo/settings');
-      await capture(page, testInfo, `members-${name}-402`);
       state.refuse.batch = detail(422, 'member_mismatch', 'Path and payload user differ.');
       await queue.getByRole('button', { name: 'Apply 2 changes' }).click();
       await expect(main.getByRole('alert')).toContainText('One of these people isn’t a member of this organization (422 · member_mismatch).');
-      state.refuse.batch = detail(503, 'pricing_unavailable', 'Limits cannot be checked.');
-      await queue.getByRole('button', { name: 'Apply 2 changes' }).click();
-      await expect(main.getByRole('alert')).toContainText('Limits can’t be checked right now (503 · pricing_unavailable). Nothing changed; try again in a moment.');
       // Granting OWNER is for owners: if the gateway still refuses, the row it names is marked and the whole queue stays.
       state.refuse.batch = detail(403, 'owner_role_requires_owner', 'Only an owner can grant the owner role.', { index: 0, user_id: 'user-marco' });
       await queue.getByRole('button', { name: 'Apply 2 changes' }).click();

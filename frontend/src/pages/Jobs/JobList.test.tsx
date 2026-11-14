@@ -40,10 +40,10 @@ describe('Jobs of a project', () => {
     platform.project.mockResolvedValue(qos);
     platform.projectJobs.mockResolvedValue(rows);
     jobsApi.mine.mockResolvedValue([rows[0], rows[2], rows[3]]);
-    jobsApi.history.mockResolvedValue({ jobs: [], total: 3, retention_days: 180 });
+    jobsApi.history.mockResolvedValue({ jobs: [], total: 3 });
   });
 
-  it('lists every run with its state, engine, outcome and time, and says how long they are kept', async () => {
+  it('lists every run with its state, engine, outcome and time', async () => {
     renderList();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Runs' })).toBeInTheDocument();
@@ -56,7 +56,7 @@ describe('Jobs of a project', () => {
     expect(within(done).getByText('1 min 5 s')).toBeInTheDocument();
     expect(within(done).getByText('You')).toBeInTheDocument();
     expect(within(table).getByRole('row', { name: /minizinc.*No feasible binding/ })).toBeInTheDocument();
-    expect(screen.getByText('Kept for 180 days on your RESEARCH plan')).toBeInTheDocument();
+    expect(screen.queryByText(/Kept for/)).not.toBeInTheDocument();
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
     expect(within(tabs).getByRole('link', { name: 'Runs' })).toHaveAttribute('aria-current', 'page');
     expect(platform.projectJobs).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks');

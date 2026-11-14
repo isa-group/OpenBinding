@@ -30,8 +30,7 @@ const adminUser: UserProfile = { ...user, role: 'admin' };
 const researchUser: UserProfile = { ...user, plan: 'RESEARCH' };
 
 const organization: Organization = {
-  id: 'org-1', name: 'ISA Demo Group', slug: 'isa-demo', parent_id: null,
-  billing_sponsor_user_id: 'user-1', effective_role: 'OWNER', created_at: '2026-01-01T00:00:00Z',
+  id: 'org-1', name: 'ISA Demo Group', slug: 'isa-demo', parent_id: null, effective_role: 'OWNER', created_at: '2026-01-01T00:00:00Z',
 };
 const project: Project = {
   id: 'project-1', organization_id: 'org-1', slug: 'qos', name: 'QoS Benchmarks', description: '',

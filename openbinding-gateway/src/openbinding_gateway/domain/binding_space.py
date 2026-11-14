@@ -16,17 +16,9 @@ an ``int`` of more than ``sys.get_int_max_str_digits()`` digits (4300 by default
 into text, so nothing here calls ``int(text)`` or ``str(int)`` on a cardinality
 without a guard.
 
-Which limit applies to a request (the rules, in order):
-
-1. ``maxInstanceComplexityLog10`` of the plan, as SPACE delivers it. A finite
-   value is a ceiling in log10 units; an infinite one (SPACE's ``null``) means the
-   plan sets none; an absent, negative or non-numeric one means the gateway does
-   **not know** the limit.
-2. ``MAX_BINDING_SPACE_LOG10``, a technical safeguard of this deployment (off by
-   default). It always applies on top of the plan, and it stands in for a limit
-   the plan does not declare.
-3. An unknown limit with no technical safeguard refuses the instance. Unknown is
-   never read as unlimited, and never as a quota that happens to be available.
+Which limit applies: ``MAX_BINDING_SPACE_LOG10``, a setting of the deployment
+(20 by default). Pricing 0.2.0 declares no size limit, so no plan raises or
+lowers it, and a larger plan never helps.
 
 Nothing is charged or reserved here: this module only decides, before the caller
 has written anything.
@@ -36,28 +28,21 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Mapping, Optional
+from typing import Any, Mapping, Optional
 
 from .entitlements import Refusal
 
-if TYPE_CHECKING:
-    from ..space_client import PlanCaps
-
-#: The identifier SPACE knows the plan's ceiling by.
-LIMIT_ID = "maxInstanceComplexityLog10"
+#: The name the refusals give the limit: the setting that sets it.
+LIMIT_ID = "MAX_BINDING_SPACE_LOG10"
 UNIT = "log10 combinations"
 
-#: Over the ceiling the plan declares (402, the status this refusal has always had; nothing is billed).
-EXCEEDED = "instance_complexity_too_large"
-#: Over the technical safeguard of this deployment (422): a larger plan would not help.
+#: Over the ceiling of this deployment (422): a larger plan would not help.
 OVER_TECHNICAL = "binding_space_over_technical_limit"
-#: The plan declares no usable ceiling and no technical safeguard stands in for it (403).
-LIMIT_UNKNOWN = "binding_space_limit_unknown"
-#: A ceiling applies but the analysis carries no readable size (422).
+#: The analysis carries no readable size (422).
 UNMEASURED = "binding_space_unmeasured"
 
 #: Every code a binding-space refusal can carry.
-REFUSAL_CODES = frozenset({EXCEEDED, OVER_TECHNICAL, LIMIT_UNKNOWN, UNMEASURED})
+REFUSAL_CODES = frozenset({OVER_TECHNICAL, UNMEASURED})
 
 #: A cardinality longer than this is reported by its digit count and log10 only.
 REPORTED_DIGITS = 40
@@ -184,79 +169,28 @@ class BindingSpace:
         }
 
 
-def _plan_ceiling(caps: "PlanCaps") -> tuple[str, Optional[float]]:
-    """``("declared", ceiling)``, ``("unlimited", None)`` or ``("unknown", None)`` for the plan's limit."""
-    if LIMIT_ID not in caps.limits:
-        return "unknown", None
-    try:
-        value = float(caps.limits[LIMIT_ID])
-    except (TypeError, ValueError):
-        return "unknown", None
-    if math.isnan(value) or value < 0:
-        return "unknown", None
-    if math.isinf(value):
-        return "unlimited", None
-    return "declared", value
-
-
-def _quota(state: str, ceiling: Optional[float], source: str, space: Optional[BindingSpace]) -> dict[str, Any]:
-    """The ``quota`` member of a refusal: the shape the frontend already reads for a 402 (``limit_id``, ``limit``, ``used``)."""
-    quota: dict[str, Any] = {"limit_id": LIMIT_ID, "state": state, "unit": UNIT, "source": source}
-    if ceiling is not None:
-        quota["limit"] = ceiling
+def _quota(state: str, ceiling: float, space: Optional[BindingSpace]) -> dict[str, Any]:
+    """The ``quota`` member of a refusal: the shape the frontend already reads (``limit_id``, ``limit``, ``used``)."""
+    quota: dict[str, Any] = {"limit_id": LIMIT_ID, "state": state, "unit": UNIT, "source": "technical", "limit": ceiling}
     if space is not None and space.log10_estimate is not None:
         quota["used"] = round(space.log10_estimate, 6)
     return quota
 
 
-def check(
-    space: BindingSpace,
-    caps: "PlanCaps",
-    *,
-    technical_log10: Optional[float] = None,
-) -> Optional[Refusal]:
-    """The refusal for ``space`` under ``caps`` and the deployment's safeguard, or ``None`` to go on.
-
-    ``technical_log10`` is ``MAX_BINDING_SPACE_LOG10`` (``None`` when unset).
-    """
-    technical = (
-        technical_log10
-        if technical_log10 is not None and math.isfinite(technical_log10) and technical_log10 >= 0
-        else None
-    )
-    state, declared = _plan_ceiling(caps)
-    if declared is not None:
-        if technical is not None and technical < declared:
-            ceiling, source = technical, "technical"
-        else:
-            ceiling, source = declared, "plan"
-    elif technical is not None:
-        ceiling, source = technical, "technical"
-    elif state == "unlimited":
-        return None
-    else:
-        return Refusal(
-            403,
-            LIMIT_UNKNOWN,
-            "The plan does not declare a limit for the size of the binding space, so this instance cannot be accepted.",
-            extra={"quota": _quota("unknown", None, "none", space if space.measured else None)},
-        )
-
+def check(space: BindingSpace, *, technical_log10: float) -> Optional[Refusal]:
+    """The refusal for ``space`` under ``MAX_BINDING_SPACE_LOG10`` (``technical_log10``), or ``None`` to go on."""
     if not space.measured:
         return Refusal(
             422,
             UNMEASURED,
             "The size of the binding space could not be measured, so it cannot be checked against the limit.",
-            extra={"quota": _quota("unmeasured", ceiling, source, None)},
+            extra={"quota": _quota("unmeasured", technical_log10, None)},
         )
-    if not space.exceeds(ceiling):
+    if not space.exceeds(technical_log10):
         return None
-    extra = {"quota": _quota("exhausted", ceiling, source, space), "binding_space": space.as_report()}
-    if source == "technical":
-        return Refusal(
-            422,
-            OVER_TECHNICAL,
-            "instance binding space exceeds the limit of this deployment",
-            extra=extra,
-        )
-    return Refusal(402, EXCEEDED, "instance binding space exceeds the caller plan limit", extra=extra)
+    return Refusal(
+        422,
+        OVER_TECHNICAL,
+        "instance binding space exceeds the limit of this deployment",
+        extra={"quota": _quota("exhausted", technical_log10, space), "binding_space": space.as_report()},
+    )

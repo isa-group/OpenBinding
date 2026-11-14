@@ -1,4 +1,4 @@
-"""The plan's ``concurrentJobs`` bounds simultaneous jobs, together with the deployment's cap.
+"""The plan's ``maxConcurrentRuns`` bounds simultaneous jobs, together with the deployment's cap.
 
 The effective limit is the lower of the two. A plan that declares nothing usable leaves
 the cap alone: an unknown limit is neither "no limit" nor "slots that happen to be free".
@@ -33,7 +33,7 @@ from openbinding_gateway.routes import jobs as job_routes
 from openbinding_gateway.routes import v1
 from openbinding_gateway.space_client import PlanCaps
 
-LIMIT = "concurrentJobs"
+LIMIT = "maxConcurrentRuns"
 
 
 @pytest.fixture
@@ -95,7 +95,7 @@ async def test_the_refusal_names_the_plan_as_the_source_of_the_limit(db_session)
     assert (refusal.status, refusal.code) == (429, "concurrency_limit_exceeded")
     assert refusal.extra == {
         "concurrency": {
-            "limit_id": "concurrentJobs", "limit": 2, "used": 2, "active": 2, "unit": "job", "source": "plan",
+            "limit_id": "maxConcurrentRuns", "limit": 2, "used": 2, "active": 2, "unit": "job", "source": "plan",
         }
     }
     assert refusal.headers == {"Retry-After": "15"}
@@ -161,7 +161,7 @@ async def test_a_plan_limit_below_the_cap_refuses_the_next_job_and_a_finished_on
     assert refused.json()["code"] == "concurrency_limit_exceeded"
     assert refused.headers["Retry-After"] == "15"
     assert refused.json()["concurrency"] == {
-        "limit_id": "concurrentJobs", "limit": 1, "used": 1, "active": 1, "unit": "job", "source": "plan",
+        "limit_id": "maxConcurrentRuns", "limit": 1, "used": 1, "active": 1, "unit": "job", "source": "plan",
     }
     assert await jobs_in_the_database(db_session) == 1
 

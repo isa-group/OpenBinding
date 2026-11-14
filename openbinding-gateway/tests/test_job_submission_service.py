@@ -163,7 +163,7 @@ def hide_lookups(monkeypatch, hidden: int) -> None:
 
 async def test_losing_the_insert_race_to_a_committed_winner_replays_it(db_session, user, snapshot_id, monkeypatch):
     # About the INSERT race, which a second job must reach: the default plan allows one job at a time and
-    # that limit now applies (plan ``concurrentJobs``), so the account gets a roomier plan.
+    # that limit now applies (plan ``maxConcurrentRuns``), so the account gets a roomier plan.
     space_client.get_gate().plans[user.id] = roomy_plan()
     winner = await submit(db_session, user, request_for(snapshot_id))
 
@@ -246,7 +246,7 @@ async def test_the_concurrency_limit_is_a_retryable_429_with_its_headers(
     assert (refused.kind, refused.status) == ("problem", 429)
     assert refused.body["code"] == "concurrency_limit_exceeded"
     assert refused.body["concurrency"] == {
-        "limit_id": "concurrentJobs", "limit": 1, "used": 1, "active": 1, "unit": "job", "source": "technical",
+        "limit_id": "maxConcurrentRuns", "limit": 1, "used": 1, "active": 1, "unit": "job", "source": "technical",
     }
     assert refused.headers == {"Retry-After": "15"}
     assert refused.body["code"] in study_jobs.RETRYABLE_LAUNCH_CODES

@@ -1,7 +1,6 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Link, useOutletContext, useParams } from 'react-router-dom';
 import { Globe2, Lock } from 'lucide-react';
-import { apiClient } from '../../api/client';
 import { platformApi } from '../../api/platform';
 import type { Project, Visibility } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
@@ -10,20 +9,14 @@ import { FormField } from '../../components/ui/FormField';
 import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { useAuth } from '../../contexts/auth';
-import { useResource } from '../../utils/useResource';
-import { sponsorName } from '../Organization/orgModel';
 import { NeutralGate, PageSkeleton, RoleChip } from '../Organization/parts';
-import { RoomBars } from '../Organization/room';
-import { roomFromUsage } from '../Organization/roomModel';
 import { createRefusal, type ProjectRefusal } from './projectErrors';
 import { accessIn, DESCRIPTION_MAX, NAME_MAX, SLUG_PATTERN, slugFromName } from './projectModel';
 import { VisibilityChip } from './parts';
 import './Project.css';
 
-const ROOM_FOR_PROJECT = ['projects', 'privateProjects'] as const;
-
 const CHOICES: ReadonlyArray<{ value: Visibility; label: string; icon: typeof Lock; points: ReadonlyArray<[string, string]> }> = [
-  { value: 'private', label: 'Private', icon: Lock, points: [['✓', 'Only members of the organization see it'], ['✓', 'Counts as a private project for the sponsor'], ['–', 'Visitors can’t read it']] },
+  { value: 'private', label: 'Private', icon: Lock, points: [['✓', 'Only members of the organization see it'], ['–', 'Visitors can’t read it']] },
   { value: 'public', label: 'Public', icon: Globe2, points: [['✓', 'Anybody can read its problems and studies'], ['✓', 'Visitors can’t change anything'], ['–', 'Runs and the settings still need membership to open']] },
 ];
 
@@ -38,7 +31,7 @@ interface ProjectCreateProps {
 export function ProjectCreate({ onClose, onCreated }: ProjectCreateProps) {
   const context = useOutletContext<PlatformOutletContext>();
   const { org: orgSlug = '' } = useParams();
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const slugId = useId();
   const descriptionId = useId();
   const organization = context.organizations.find((item) => item.slug === orgSlug);
@@ -51,9 +44,6 @@ export function ProjectCreate({ onClose, onCreated }: ProjectCreateProps) {
   const [creating, setCreating] = useState(false);
   const [refusal, setRefusal] = useState<ProjectRefusal | null>(null);
 
-  const sponsorIsMe = Boolean(organization && user && user.id === organization.billing_sponsor_user_id);
-  const usage = useResource(`new-project-usage:${orgSlug}:${sponsorIsMe}`, () => (sponsorIsMe ? apiClient.getOwnUsage().catch(() => null) : Promise.resolve(null)));
-  const people = useResource(`new-project-people:${orgSlug}`, () => (organization ? platformApi.members(orgSlug).catch(() => []) : Promise.resolve([])));
 
   if (!organization) {
     return <Modal title="New project" size="lg" onClose={onClose}>{context.loading ? <PageSkeleton /> : <NeutralGate />}</Modal>;
@@ -61,9 +51,6 @@ export function ProjectCreate({ onClose, onCreated }: ProjectCreateProps) {
 
   const access = accessIn(organization, isAdmin);
   const viewerOnly = !access.canCreate;
-  const isPrivate = visibility === 'private';
-  const me = user ? { id: user.id, username: user.username } : null;
-  const sponsor = sponsorName(organization, people.data ?? [], me);
 
   const slugValid = SLUG_PATTERN.test(slug);
   const slugTaken = context.projects.some((item) => item.slug === slug);
@@ -74,8 +61,6 @@ export function ProjectCreate({ onClose, onCreated }: ProjectCreateProps) {
       ? 'Use lowercase letters, numbers and hyphens; start and end with a letter or number.'
       : slugTaken ? 'Already used in this organization.' : 'Looks good · can’t be changed later.';
   const valid = name.trim().length > 0 && slugValid && !slugTaken && !viewerOnly;
-
-  const room = usage.data ? roomFromUsage(usage.data, ROOM_FOR_PROJECT, { projects: 1, privateProjects: isPrivate ? 1 : 0 }) : [];
 
   const typeName = (value: string) => {
     setName(value);
@@ -91,7 +76,7 @@ export function ProjectCreate({ onClose, onCreated }: ProjectCreateProps) {
       await context.reload();
       onCreated(project);
     } catch (caught) {
-      setRefusal(createRefusal(caught, { organization: organization.name, isPrivate }));
+      setRefusal(createRefusal(caught, { organization: organization.name }));
     } finally {
       setCreating(false);
     }
@@ -183,22 +168,6 @@ export function ProjectCreate({ onClose, onCreated }: ProjectCreateProps) {
         </div>
 
         <aside className="proj-create-aside">
-          <section className="proj-card is-compact" aria-labelledby="pc-room">
-            <span id="pc-room" className="org-eyebrow">Sponsor’s room · {sponsor}</span>
-            {room.length > 0 ? (
-              <>
-                <RoomBars rows={room} />
-                <span className="org-muted">The sponsor’s plan limits. A private project counts twice: once as a project, once as private.</span>
-              </>
-            ) : (
-              <span className="org-muted">
-                {sponsorIsMe
-                  ? 'Your limits can’t be read right now. Creating checks them again.'
-                  : `${sponsor}’s plan is visible only to them. The server checks their limits and answers 402 if there’s no room.`}
-              </span>
-            )}
-          </section>
-
           <section className="proj-card is-compact" aria-labelledby="pc-summary">
             <span id="pc-summary" className="org-eyebrow">Summary</span>
             <strong className="proj-summary-name">{name.trim() || 'Untitled project'}</strong>
@@ -207,19 +176,6 @@ export function ProjectCreate({ onClose, onCreated }: ProjectCreateProps) {
             {refusal && (
               <Notice tone="error">
                 <span>{refusal.text}</span>
-                {refusal.kind === 'quota' && (
-                  <span className="org-notice-links">
-                    {isPrivate && refusal.limitId === 'privateProjects' && (
-                      <button type="button" className="org-link-button" onClick={() => { setVisibility('public'); setRefusal(null); }}>Make it public instead</button>
-                    )}
-                    <Link to="/app/account/usage">Your plan</Link>
-                  </span>
-                )}
-                {refusal.kind === 'pricing' && (
-                  <span className="org-notice-links">
-                    <button type="button" className="org-link-button" onClick={() => void create()}>Try again</button>
-                  </span>
-                )}
               </Notice>
             )}
             {creating && <div role="status" className="org-creating"><span className="org-spinner" aria-hidden="true" />Creating…</div>}

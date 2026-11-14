@@ -16,14 +16,10 @@ from ..collaboration import (
     assert_acyclic_move,
     descendant_ids,
     effective_role,
-    enforce_sponsor_capacity,
-    enforce_sponsor_usage,
     organization_by_ref,
     project_by_ref,
     require_project,
     require_role,
-    sponsor_has_member,
-    sponsor_organization_ids,
 )
 from ..db.models import (
     Artifact,
@@ -75,7 +71,6 @@ from ..models.platform import (
     ProjectResourceRevisionView,
     ProjectResourceView,
 )
-from .. import sponsorship
 from ..access import public_read
 from ..repositories import jobs as job_repository
 from ..repositories import organizations as organization_repository
@@ -149,7 +144,6 @@ async def _org_view(session: AsyncSession, organization: Organization, user: Use
         slug=organization.slug,
         name=organization.name,
         parent_id=organization.parent_id,
-        billing_sponsor_user_id=organization.billing_sponsor_user_id,
         effective_role=role.value if role else None,
         created_at=organization.created_at,
     )
@@ -183,22 +177,10 @@ async def create_organization(
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Parent organization not found.")
     if parent is not None:
         await require_role(session, parent, user, OrganizationRole.ADMIN)
-    sponsor_id = payload.billing_sponsor_user_id or (
-        parent.billing_sponsor_user_id if parent is not None else user.id
-    )
-    sponsor = await session.get(User, sponsor_id)
-    if sponsor is None or not sponsor.is_active:
-        raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_sponsor", "Sponsor must be an active user.")
-    if sponsor.id != user.id and not user.is_admin and (parent is None or sponsor.id != parent.billing_sponsor_user_id):
-        raise api_error(status.HTTP_403_FORBIDDEN, "invalid_sponsor", "Only an administrator may assign another sponsor.")
-    await enforce_sponsor_capacity(session, sponsor, "organizations")
-    if not await sponsor_has_member(session, sponsor.id, user.id):
-        await enforce_sponsor_capacity(session, sponsor, "members")
     organization = Organization(
         parent_id=parent.id if parent else None,
         slug=payload.slug,
         name=payload.name,
-        billing_sponsor_user_id=sponsor.id,
         created_by_id=user.id,
     )
     session.add(organization)
@@ -233,14 +215,7 @@ async def get_organization(
     operation_id="updateOrganization",
     responses={
         **revision.EDIT_RESPONSES,
-        402: {"model": ErrorResponse, "description": "Naming oneself: the caller's plan cannot take the subtree (`sponsor_quota_exceeded`)."},
-        422: {
-            "description": (
-                "`billing_sponsor_user_id` named somebody other than the caller and the current "
-                "sponsor (`sponsor_must_be_caller`): nothing in the request was applied. Also "
-                "`ambiguous_parent` and request validation errors."
-            ),
-        },
+        422: {"description": "`ambiguous_parent` and request validation errors."},
     },
 )
 async def update_organization(
@@ -253,15 +228,6 @@ async def update_organization(
 ) -> OrganizationView:
     organization = await _required_org(session, org)
     await require_role(session, organization, user, OrganizationRole.ADMIN)
-    # Nobody can make another person pay: only the caller can become the
-    # sponsor.  Checked before anything is applied, and before the named
-    # account is looked up, so the answer says nothing about that account.
-    sponsor_named = (
-        payload.billing_sponsor_user_id is not None
-        and payload.billing_sponsor_user_id != organization.billing_sponsor_user_id
-    )
-    if sponsor_named:
-        await require_role(session, organization, user, OrganizationRole.OWNER)
     # The target parent is an authorisation question too, so it is settled
     # before the revision is checked; validation comes after it.
     new_parent = None
@@ -271,13 +237,6 @@ async def update_organization(
             raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "New parent not found.")
         await require_role(session, new_parent, user, OrganizationRole.ADMIN)
     await revision.guard(session, organization, if_match)
-    if sponsor_named:
-        if payload.billing_sponsor_user_id != user.id:
-            raise api_error(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "sponsor_must_be_caller",
-                "Only you can make yourself the billing sponsor of this organization.",
-            )
     if payload.name is not None:
         organization.name = payload.name
     if payload.move_to_root and payload.parent_id is not None:
@@ -286,18 +245,8 @@ async def update_organization(
         new_parent_id = None if payload.move_to_root else payload.parent_id
         await assert_acyclic_move(session, organization.id, new_parent_id)
         organization.parent_id = new_parent_id
-    sponsor_change: dict[str, str] = {}
-    if sponsor_named:
-        # Taking the sponsorship yourself needs nobody's consent but your own
-        # contract's limits (402 ``sponsor_quota_exceeded``).
-        previous = await sponsorship.transfer_sponsorship(session, organization, user)
-        sponsor_change = {
-            "previous_sponsor_user_id": str(previous),
-            "new_sponsor_user_id": str(user.id),
-        }
-    _audit(session, user, "organization.updated", organization, organization.id, **sponsor_change)
+    _audit(session, user, "organization.updated", organization, organization.id)
     await session.flush()
-    # A sponsor transfer bumps updated_at with a bulk UPDATE the object never saw.
     await session.refresh(organization, ["updated_at"])
     revision.set_etag(response, organization)
     return await _org_view(session, organization, user)
@@ -491,17 +440,10 @@ async def update_members_batch(
 
     organization = await _required_org(session, org)
     actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
-    sponsor = await session.get(User, organization.billing_sponsor_user_id)
-    if sponsor is None or not sponsor.is_active:
-        raise api_error(
-            status.HTTP_409_CONFLICT,
-            "invalid_sponsor",
-            "The organization sponsor is not active.",
-        )
 
-    # Serialize all structural mutations for this sponsor and lock the direct
+    # Serialize the member batches of this organization and lock the direct
     # membership rows that this batch will replace.
-    await session.execute(select(User.id).where(User.id == sponsor.id).with_for_update())
+    await session.execute(select(Organization.id).where(Organization.id == organization.id).with_for_update())
     existing_rows = await organization_repository.lock_members(session, organization.id)
     existing = {row.user_id: row for row in existing_rows}
     final_roles = {member_id: row.role for member_id, row in existing.items()}
@@ -546,24 +488,6 @@ async def update_members_batch(
             "last_owner",
             "The last owner cannot be removed.",
         )
-
-    sponsored_ids = await sponsor_organization_ids(session, sponsor.id)
-    sponsored_memberships = (
-        await session.execute(
-            select(
-                OrganizationMembership.organization_id,
-                OrganizationMembership.user_id,
-            ).where(OrganizationMembership.organization_id.in_(sponsored_ids))
-        )
-    ).all()
-    hypothetical_members = {
-        member_id
-        for organization_id, member_id in sponsored_memberships
-        if organization_id != organization.id
-    } | set(final_roles)
-    await enforce_sponsor_usage(
-        session, sponsor, {"members": len(hypothetical_members)}
-    )
 
     removed_ids: set[uuid.UUID] = set()
     for change in payload.changes:
@@ -617,9 +541,6 @@ async def upsert_member(
     if _touches_owner(existing, payload.role) and not _may_manage_owners(actor_role, user):
         raise _owner_role_refusal(user_id=str(member_id))
     if existing is None:
-        sponsor = await session.get(User, organization.billing_sponsor_user_id)
-        if not await sponsor_has_member(session, sponsor.id, member_id):
-            await enforce_sponsor_capacity(session, sponsor, "members")
         existing = OrganizationMembership(organization_id=organization.id, user_id=member_id)
         session.add(existing)
     elif existing.role is OrganizationRole.OWNER and payload.role != OrganizationRole.OWNER.value:
@@ -724,9 +645,6 @@ async def accept_invitation(
     organization = await session.get(Organization, invitation.organization_id)
     membership = await organization_repository.get_membership(session, organization.id, user.id)
     if membership is None:
-        sponsor = await session.get(User, organization.billing_sponsor_user_id)
-        if not await sponsor_has_member(session, sponsor.id, user.id):
-            await enforce_sponsor_capacity(session, sponsor, "members")
         membership = OrganizationMembership(
             organization_id=organization.id, user_id=user.id, role=invitation.role
         )
@@ -776,10 +694,6 @@ async def create_project(
 ) -> ProjectView:
     organization = await _required_org(session, org)
     role = await require_role(session, organization, user, OrganizationRole.MEMBER)
-    sponsor = await session.get(User, organization.billing_sponsor_user_id)
-    await enforce_sponsor_capacity(session, sponsor, "projects")
-    if payload.visibility == "private":
-        await enforce_sponsor_capacity(session, sponsor, "privateProjects")
     if await organization_repository.project_slug_in_use(session, organization.id, payload.slug):
         raise api_error(status.HTTP_409_CONFLICT, "slug_conflict", "That project slug is in use.")
     project = Project(
@@ -833,9 +747,6 @@ async def update_project(
     if payload.description is not None:
         found.description = payload.description
     if payload.visibility is not None and payload.visibility != found.visibility.value:
-        if payload.visibility == "private":
-            sponsor = await session.get(User, organization.billing_sponsor_user_id)
-            await enforce_sponsor_capacity(session, sponsor, "privateProjects")
         found.visibility = Visibility(payload.visibility)
     _audit(session, user, "project.updated", found, organization.id)
     await session.flush()

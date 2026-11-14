@@ -35,7 +35,7 @@ export const ROLE_SUMMARY: Record<OrganizationRole, string> = {
   VIEWER: 'can look',
   MEMBER: 'can create and edit',
   ADMIN: 'can manage members and settings',
-  OWNER: 'everything, including sponsor',
+  OWNER: 'everything, including owners',
 };
 
 /** Slugs the gateway accepts (`OrganizationCreate.slug`). */
@@ -162,13 +162,6 @@ export function personName(userId: string | null | undefined, people: readonly P
   if (me && me.id === userId) return me.username;
   const found = people.find((item) => item.user_id === userId);
   return found?.username ?? found?.email ?? fallback;
-}
-
-/** The sponsor of an organization. The API names only the account id, so the name comes from whoever is listed. */
-export function sponsorName(organization: Organization, people: readonly Person[], me: { id: string; username: string } | null): string {
-  const name = personName(organization.billing_sponsor_user_id, people, me, '');
-  if (!name) return 'Another account';
-  return me && me.id === organization.billing_sponsor_user_id ? `${name} (you)` : name;
 }
 
 /** Where `organization` sits: the visible ancestors from the top, then itself. */

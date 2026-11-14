@@ -11,7 +11,6 @@ from .gate import (
     PricingUnavailable,
     SubscriptionRejected,
     SubscriptionSnapshot,
-    feature_id,
 )
 from .open import OpenCaps, OpenGate
 from .space import SpacePricingGate
@@ -70,7 +69,6 @@ __all__ = [
     "SubscriptionRejected",
     "SubscriptionSnapshot",
     "build_gate",
-    "feature_id",
     "get_gate",
     "set_gate",
 ]

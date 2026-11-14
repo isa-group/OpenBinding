@@ -100,7 +100,7 @@ function Hero({ signedIn, name, plan, runtime }: { signedIn: boolean; name: stri
           <Link to="/register" viewTransition className="home-card is-accent">
             <span className="home-card-top"><span className="home-card-icon"><User aria-hidden="true" /></span><span className="home-card-go is-filled" aria-hidden="true">↗</span></span>
             <strong>Create an account</strong>
-            <span>Start on BASIC: compose problems, run engines and compare them in studies. Verified Universidad de Sevilla accounts can get RESEARCH.</span>
+            <span>Start on FREE: compose problems, run engines and compare them in studies. Verified Universidad de Sevilla accounts can get RESEARCH.</span>
           </Link>
         )}
       </div>

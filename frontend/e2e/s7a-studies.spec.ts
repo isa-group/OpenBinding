@@ -30,13 +30,13 @@ const token = (expiresInSeconds: number) => [
 
 const lucia = {
   id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-03-02T00:00:00Z', cas_verified: true, institutional_branding: true,
+  created_at: '2026-03-02T00:00:00Z', cas_verified: true,
 };
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 
-const org = (id: string, slug: string, name: string, role: Role, sponsor = 'user-1') => ({
-  id, slug, name, parent_id: null, billing_sponsor_user_id: sponsor, effective_role: role, created_at: '2026-03-03T00:00:00Z',
+const org = (id: string, slug: string, name: string, role: Role) => ({
+  id, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z',
 });
 
 const project = (n: number, orgId: string, slug: string, name: string) => ({
@@ -141,7 +141,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   };
   const organizations = [
     org('org-isa-demo', 'isa-demo', 'ISA Demo Group', options.role ?? 'OWNER'),
-    org('org-4', 'read-lab', 'Read Lab', 'VIEWER', 'user-nora'),
+    org('org-4', 'read-lab', 'Read Lab', 'VIEWER'),
   ];
   await page.addInitScript(() => {
     localStorage.setItem('openbinding-access-token', 's7a-access');
@@ -156,7 +156,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(`${API}/v1/users/me/usage`, json(usageOf({
     plan: 'RESEARCH',
-    capabilities: { maxPayloadBytes: 134_217_728, maxTimeoutSeconds: 60, maxIterations: 1_000_000, studies: 25, concurrentJobs: 3 },
+    capabilities: { maxRunMinutes: 1, maxStudyCells: 5000, maxConcurrentRuns: 3 },
   })));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
@@ -538,9 +538,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(create).toBeEnabled();
       const side = main.getByRole('complementary', { name: 'Matrix and plan' });
 
-      state.refuse.create = detail(402, 'quota_exceeded', 'Study quota exhausted.', { quota: { limit_id: 'studies', limit: 25, used: 25 } });
+      state.refuse.create = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'maxRepositoryStorage', limit: 500, used: 500 } });
       await create.click();
-      await expect(side.getByText('The sponsor has no study definitions left (402 · quota_exceeded)')).toBeVisible();
+      await expect(side.getByText('Out of storage (402 · quota_exceeded)')).toBeVisible();
       await expect(side.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
       await capture(page, testInfo, `builder-${name}-402`, { area: side });
 
@@ -622,14 +622,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `detail-${name}-run-accepted`);
 
       // Every way the gateway refuses to start one.
-      state.refuse.run = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'storageBytes', limit: 100, used: 100 } });
+      state.refuse.run = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'maxRepositoryStorage', limit: 100, used: 100 } });
       await main.getByRole('button', { name: 'Run study' }).click();
       await expect(main.getByText('Out of storage (402 · quota_exceeded)')).toBeVisible();
       await expect(main.getByText('You’ve used 100 of 100 storage. Nothing was started.')).toBeVisible();
       await capture(page, testInfo, `detail-${name}-402`, { height: 1300 });
       state.refuse.run = (route) => route.fulfill({
         status: 429, headers: { 'Retry-After': '15' },
-        json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 } } },
+        json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'maxConcurrentRuns', limit: 3, used: 3 } } },
       });
       await main.getByRole('button', { name: 'Run study' }).click();
       await expect(main.getByText('All your run slots are busy (429 · concurrency_limit_exceeded)')).toBeVisible();
@@ -854,13 +854,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('Failed: The engine deployment didn’t answer in time.')).toBeVisible();
       await expect(main.getByText(/Code engine_unreachable · timeout\./)).toBeVisible();
       await capture(page, testInfo, `cell-${name}-failed`, { height: 1500 });
-      state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'storageBytes', limit: 50, used: 50 } });
+      state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'maxRepositoryStorage', limit: 50, used: 50 } });
       await main.getByRole('button', { name: 'Retry this cell' }).click();
       await expect(main.getByText('Out of storage (402 · quota_exceeded)')).toBeVisible();
       await capture(page, testInfo, `cell-${name}-402`, { height: 1500 });
       state.refuse.retry = (route) => route.fulfill({
         status: 429, headers: { 'Retry-After': '15' },
-        json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 } } },
+        json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'maxConcurrentRuns', limit: 3, used: 3 } } },
       });
       await main.getByRole('button', { name: 'Retry this cell' }).click();
       await expect(main.getByText('All your run slots are busy (429 · concurrency_limit_exceeded)')).toBeVisible();

@@ -193,7 +193,7 @@ async def test_admin_cannot_download_private_artifacts(
 
 
 @pytest.mark.asyncio
-async def test_account_deletion_reassigns_to_tenant_owner_not_admin(
+async def test_account_deletion_keeps_authorship_on_the_pseudonymised_account_not_an_admin(
     api_client, registration, gate, db_session
 ):
     owner1, owner1_headers = await create_account(api_client, registration, db_session)
@@ -252,10 +252,13 @@ async def test_account_deletion_reassigns_to_tenant_owner_not_admin(
     )
     assert del_res.status_code == 204
 
-    # Verify Owner1 is deleted
-    assert await db_session.get(User, owner1_id) is None
+    # Owner1's row stays, pseudonymised: nothing that names the person, and no way to sign in.
+    db_session.expire_all()
+    deleted = await db_session.get(User, owner1_id)
+    assert deleted is not None and deleted.deleted_at is not None
+    assert deleted.username == f"deleted-{owner1_id.hex[:12]}" and deleted.is_active is False
 
-    # Verify project and case were reassigned to Owner2, NOT to admin
+    # What owner1 created still names owner1, never owner2 or the administrator.
     proj = (
         await db_session.execute(
             select(Project).where(
@@ -263,8 +266,8 @@ async def test_account_deletion_reassigns_to_tenant_owner_not_admin(
             )
         )
     ).scalars().one()
-    assert proj.created_by_id == owner2_id
-    assert proj.created_by_id != admin_id
+    assert proj.created_by_id == owner1_id
+    assert proj.created_by_id not in (owner2_id, admin_id)
 
     case = (
         await db_session.execute(
@@ -273,44 +276,7 @@ async def test_account_deletion_reassigns_to_tenant_owner_not_admin(
             )
         )
     ).scalars().one()
-    assert case.created_by_id == owner2_id
-    assert case.created_by_id != admin_id
-
-
-@pytest.mark.asyncio
-async def test_admin_cannot_transfer_an_organization_sponsor(
-    api_client, registration, gate, db_session
-):
-    sponsor1, sponsor1_headers = await create_account(api_client, registration, db_session)
-    sponsor2, _ = await create_account(api_client, registration, db_session)
-    admin, admin_headers = await create_account(
-        api_client, registration, db_session, admin=True
-    )
-
-    s1_id = uuid.UUID(sponsor1["id"])
-    s2_id = uuid.UUID(sponsor2["id"])
-    gate.plans[s1_id] = largest_plan()
-    gate.plans[s2_id] = largest_plan()
-
-    org_slug = f"sponsored-{uuid.uuid4().hex[:8]}"
-    org_res = await api_client.post(
-        "/v1/organizations",
-        headers=sponsor1_headers,
-        json={"slug": org_slug, "name": "Sponsored Lab"},
-    )
-    assert org_res.status_code == 201
-    org_id = org_res.json()["id"]
-
-    # The administrator transfer route is gone (M9.6): nobody can make another person pay.
-    for body in ({"billing_sponsor_user_id": str(s2_id)}, {"billing_sponsor_user_id": admin["id"]}):
-        transfer_res = await api_client.post(
-            f"/v1/admin/organizations/{org_id}/sponsor", headers=admin_headers, json=body
-        )
-        assert transfer_res.status_code == 404, transfer_res.text
-
-    db_session.expire_all()
-    org = await db_session.get(Organization, uuid.UUID(org_id))
-    assert org.billing_sponsor_user_id == s1_id
+    assert case.created_by_id == owner1_id
 
 
 @pytest.mark.asyncio
@@ -525,58 +491,6 @@ async def test_admin_invited_as_viewer_cannot_escalate_privileges(
 
 
 @pytest.mark.asyncio
-async def test_tenant_owner_transfers_sponsor_via_patch_while_admin_role_enforces_owner(
-    api_client, registration, gate, db_session
-):
-    owner, owner_headers = await create_account(api_client, registration, db_session)
-    admin_member, admin_member_headers = await create_account(
-        api_client, registration, db_session
-    )
-    sponsor2, sponsor2_headers = await create_account(api_client, registration, db_session)
-
-    owner_id = uuid.UUID(owner["id"])
-    sponsor2_id = uuid.UUID(sponsor2["id"])
-    gate.plans[owner_id] = largest_plan()
-    gate.plans[sponsor2_id] = largest_plan()
-
-    org_slug = f"transfer-org-{uuid.uuid4().hex[:8]}"
-    org_res = await api_client.post(
-        "/v1/organizations",
-        headers=owner_headers,
-        json={"slug": org_slug, "name": "Transfer Org"},
-    )
-    assert org_res.status_code == 201
-
-    # Add admin_member as ADMIN (not OWNER) of the organization
-    await api_client.put(
-        f"/v1/organizations/{org_slug}/members/{admin_member['id']}",
-        headers=owner_headers,
-        json={"user_id": admin_member["id"], "role": "ADMIN"},
-    )
-
-    # Org ADMIN (non-owner) attempting to transfer sponsorship via PATCH is refused
-    refused_transfer = await api_client.patch(
-        f"/v1/organizations/{org_slug}",
-        headers=admin_member_headers,
-        json={"billing_sponsor_user_id": str(sponsor2_id)},
-    )
-    assert refused_transfer.status_code == 403
-    assert refused_transfer.json()["detail"]["code"] == "organization_forbidden"
-
-    # Org OWNER without platform admin role cannot name somebody else either: only the
-    # caller can become the sponsor (M9.6), and the sponsor is unchanged.
-    refused_other = await api_client.patch(
-        f"/v1/organizations/{org_slug}",
-        headers=owner_headers,
-        json={"billing_sponsor_user_id": str(sponsor2_id)},
-    )
-    assert refused_other.status_code == 422
-    assert refused_other.json()["code"] == "sponsor_must_be_caller"
-    still_owner = await api_client.get(f"/v1/organizations/{org_slug}", headers=owner_headers)
-    assert still_owner.json()["billing_sponsor_user_id"] == str(owner_id)
-
-
-@pytest.mark.asyncio
 async def test_an_administrator_is_deleted_without_any_pricing_authorship_rule(
     api_client, registration, gate, db_session
 ):
@@ -595,5 +509,6 @@ async def test_an_administrator_is_deleted_without_any_pricing_authorship_rule(
     )
 
     assert del_res.status_code == 204, del_res.text
-    assert await db_session.get(User, admin_id) is None
+    db_session.expire_all()
+    assert (await db_session.get(User, admin_id)).deleted_at is not None
     assert admin_id not in gate.contracts

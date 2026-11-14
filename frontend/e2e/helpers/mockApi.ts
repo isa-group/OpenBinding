@@ -59,7 +59,7 @@ function localize<T>(value: T): T {
 const ME_ID = '00000000-0000-4000-8000-000000000005';
 const ME = {
   id: ME_ID, username: 'alex.rivera', email: 'alex.rivera@example.org', role: 'admin', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-01-10T00:00:00Z', cas_verified: true, institutional_branding: true,
+  created_at: '2026-01-10T00:00:00Z', cas_verified: true,
 };
 
 /** The accounts of the administration screens: the ids the audit and overview fixtures point at, on example.org like the rest of the gallery. */
@@ -69,13 +69,13 @@ const ACCOUNTS: AdminUserView[] = USERS.map((user) => ({
 const accountOf = (id: string) => ACCOUNTS.find((account) => account.id === id);
 
 const org = (id: string, slug: string, name: string, role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER', over: Record<string, unknown> = {}) => ({
-  id, slug, name, parent_id: null, billing_sponsor_user_id: ME_ID, effective_role: role, created_at: '2026-03-03T00:00:00Z', ...over,
+  id, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z', ...over,
 });
 const ORGANIZATIONS = [
   org('org-isa-demo', 'isa-demo', 'ISA Demo Group', 'OWNER'),
   org('org-qos-lab', 'qos-lab', 'QoS Lab', 'OWNER', { parent_id: 'org-isa-demo', created_at: '2026-03-10T00:00:00Z' }),
-  org('org-partner-lab', 'partner-lab', 'Partner Lab', 'ADMIN', { billing_sponsor_user_id: '00000000-0000-4000-8000-000000000004', created_at: '2026-07-01T00:00:00Z' }),
-  org('org-read-lab', 'read-lab', 'Read Lab', 'VIEWER', { billing_sponsor_user_id: '00000000-0000-4000-8000-000000000004', created_at: '2026-05-01T00:00:00Z' }),
+  org('org-partner-lab', 'partner-lab', 'Partner Lab', 'ADMIN', { created_at: '2026-07-01T00:00:00Z' }),
+  org('org-read-lab', 'read-lab', 'Read Lab', 'VIEWER', { created_at: '2026-05-01T00:00:00Z' }),
 ];
 
 /** A `ProjectView`: the caller reaches every project of the gallery as a member (`access`), with the role of the organization. */
@@ -118,18 +118,17 @@ const ORG_AUDIT = [
 const USAGE = {
   plan: 'RESEARCH',
   contract_pending: false,
-  features: { authoring: true, solve: true, federatedEngines: true, apiAccess: true, collaboration: true, studies: true, advancedAnalytics: true, reproducibleExport: true, publishing: true, reproducibilityArchive: false, institutionalBranding: true },
+  features: { repository: true, runs: true, studies: true, generator: true, federatedEngines: true, collaboration: true, apiAccess: true },
   capabilities: {
-    concurrentJobs: 3, federatedEngines: 5, apiKeys: 25,
-    maxTimeoutSeconds: 900, maxIterations: 1_000_000, maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: 20, jobHistoryDays: 180,
-    organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120,
+    maxProblems: null, maxCollections: null, maxRepositoryStorage: null, solverHours: 100, maxRunMinutes: 30, maxConcurrentRuns: 4,
+    maxStudyCells: 5000, generatedInstances: 100_000, maxInstancesPerGeneration: 10_000, maxFederatedEngines: 3, maxPrivateProjects: 10, maxApiKeys: 10,
   },
 };
 
 const NOTIFICATIONS = [
   {
-    id: 'n1', kind: 'contract.changed', subject: 'Your OpenBinding agreement changed', body: 'Plan: BASIC → RESEARCH. Add-ons: {} → {}. Reason: institutional_agreement.',
-    payload: { reason: 'institutional_agreement', previous: { plan: 'BASIC', addOns: {} }, current: { plan: 'RESEARCH', addOns: {} }, pricingVersion: '0.1.0' },
+    id: 'n1', kind: 'contract.changed', subject: 'Your OpenBinding agreement changed', body: 'Plan: FREE → RESEARCH. Add-ons: {} → {}. Reason: institutional_agreement.',
+    payload: { reason: 'institutional_agreement', previous: { plan: 'FREE', addOns: {} }, current: { plan: 'RESEARCH', addOns: {} }, pricingVersion: '0.2.0' },
     read_at: null as string | null, created_at: hoursAgo(5),
   },
   { id: 'n2', kind: 'job.finished', subject: 'Job completed', body: 'Job 0000…a1 finished with FEASIBLE.', payload: {}, read_at: hoursAgo(20), created_at: hoursAgo(26) },
@@ -330,7 +329,7 @@ const EXAMPLE_PATHS = ['demo/01_simple_seq', 'demo/02_parallel', 'demo/03_xor_ch
 const ADMIN_OVERVIEW = {
   ...OVERVIEW,
   counts: { users: ACCOUNTS.length, apiKeys: 9, identities: 3, organizations: ORGANIZATIONS.length, projects: 4, cases: 2, studies: 2, studyRuns: 1, artifacts: 12 },
-  contracts: { BASIC: 3, ADVANCED: 1, RESEARCH: 2 },
+  contracts: { FREE: 3, RESEARCH: 2, LAB: 1 },
 };
 const PENDING_REGISTRATION = { ...SOLVER_IN_REVIEW, namespace: 'sam.okafor' };
 const emailOfAccount = (id: string | null | undefined) => (id ? `${(accountOf(id)?.username ?? 'sam.okafor').replace('.', '-')}@example.org` : null);
@@ -482,7 +481,7 @@ function userRoutes(request: Request): Reply {
   switch (sub) {
     case 'pricing-token': return ok({ pricing_token: PRICING_TOKEN });
     case 'usage': return ok(USAGE);
-    case 'jobs': return ok({ jobs: OWN_JOBS.map(summaryOf), total: OWN_JOBS.length, retention_days: 180 });
+    case 'jobs': return ok({ jobs: OWN_JOBS.map(summaryOf), total: OWN_JOBS.length });
     case 'api-keys': return subId ? { status: 204 } : ok({ api_keys: API_KEYS });
     case 'identities': return ok([{ id: 'i1', provider: 'us-cas', subject: 'arivera1', verifiedAt: '2026-09-01T00:00:00Z' }]);
     default: return method === 'GET' ? notFound() : { status: 204 };

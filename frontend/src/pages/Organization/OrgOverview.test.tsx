@@ -28,7 +28,7 @@ describe('Organization overview', () => {
     api.getOwnUsage.mockResolvedValue(researchUsage());
   });
 
-  it('introduces the organization: address, role and where it comes from, sponsor and creation date', async () => {
+  it('introduces the organization: address, role and where it comes from, and creation date', async () => {
     renderOverview();
 
     const title = await screen.findByRole('heading', { level: 1, name: 'ISA Demo Group' });
@@ -36,8 +36,8 @@ describe('Organization overview', () => {
     expect(within(hero).getByText('/app/isa-demo')).toBeInTheDocument();
     expect(within(hero).getByText('OWNER')).toBeInTheDocument();
     expect(within(hero).getByText('Your own role', { selector: 'small' })).toBeInTheDocument();
-    expect(within(hero).getByText('lucia.vega (you)')).toBeInTheDocument();
-    expect(within(hero).getByText(/created Mar 3, 2026/)).toBeInTheDocument();
+    expect(within(hero).getByText(/Created Mar 3, 2026/)).toBeInTheDocument();
+    expect(within(hero).queryByText(/sponsor/i)).not.toBeInTheDocument();
   });
 
   it('offers the actions that the role allows: an OWNER sees all of them', async () => {
@@ -141,9 +141,8 @@ describe('Organization overview', () => {
     platform.projects.mockRejectedValueOnce(new HttpError(500, 'boom'));
     renderOverview();
 
-    expect(await screen.findByText('Projects couldn’t be loaded (500). Sub-organizations and usage are unaffected.')).toBeInTheDocument();
+    expect(await screen.findByText('Projects couldn’t be loaded (500). Sub-organizations are unaffected.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Sub-organizations' })).toBeInTheDocument();
-    expect(await screen.findByText('Up to 5')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByRole('link', { name: /QoS Benchmarks/ })).toBeInTheDocument();
@@ -172,25 +171,6 @@ describe('Organization overview', () => {
     fireEvent.change(await screen.findByLabelText('Switch organization'), { target: { value: 'qos-lab' } });
 
     expect(await screen.findByRole('heading', { level: 1, name: /QoS Lab/ })).toBeInTheDocument();
-  });
-
-  it('shows what the sponsor’s plan allows, from the sponsor’s own plan, without inventing a count', async () => {
-    renderOverview();
-
-    const room = (await screen.findByRole('heading', { name: 'Sponsor’s room' })).closest('section')!;
-    expect(await within(room).findByText('Up to 5')).toBeInTheDocument();
-    expect(within(room).queryByRole('meter')).not.toBeInTheDocument();
-    expect(within(room).getByText('Up to 5 GiB')).toBeInTheDocument();
-    expect(within(room).getByText('Counted across every organization you sponsor.')).toBeInTheDocument();
-  });
-
-  it('does not pretend to know the room of a sponsor who is someone else', async () => {
-    platform.members.mockResolvedValue([member('nora', 'OWNER')]);
-    renderOverview([{ ...group, billing_sponsor_user_id: 'user-nora' }]);
-
-    expect(await screen.findByText(/nora’s plan is visible only to them/)).toBeInTheDocument();
-    expect(screen.getByText('nora')).toBeInTheDocument();
-    expect(screen.queryByRole('meter')).not.toBeInTheDocument();
   });
 
   it('answers the same neutral message whether the organization does not exist or the account is not in it', async () => {

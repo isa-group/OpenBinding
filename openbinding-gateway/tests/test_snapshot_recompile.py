@@ -60,7 +60,7 @@ async def stale_pinned(session, owner: User, *, archive: bytes | None = None) ->
     if archive is not None:
         (await session.get(InstanceSnapshot, uuid.UUID(stored))).source_archive = archive
     slug = f"org-{uuid.uuid4().hex[:8]}"
-    organization = Organization(slug=slug, name=slug, parent_id=None, billing_sponsor_user_id=owner.id, created_by_id=owner.id)
+    organization = Organization(slug=slug, name=slug, parent_id=None, created_by_id=owner.id)
     session.add(organization)
     await session.flush()
     project = Project(

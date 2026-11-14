@@ -48,10 +48,10 @@ export function usageOf(plan: string): UsageView {
   return {
     plan,
     contract_pending: false,
-    features: { solve: true, advancedAnalytics: !basic, reproducibilityArchive: false },
+    features: { runs: true, advancedAnalytics: !basic, reproducibilityArchive: false },
     capabilities: {
-      concurrentJobs: basic ? 1 : 3,
-      maxTimeoutSeconds: basic ? 60 : 900,
+      maxConcurrentRuns: basic ? 1 : 3,
+      maxRunMinutes: basic ? 1 : 15,
       organizations: basic ? 1 : 5,
       members: basic ? 2 : 15,
       projects: basic ? 3 : 50,
@@ -109,7 +109,7 @@ export const EMPTY_QUEUES: AdminQueueStatus = {
 export const OVERVIEW: AdminOverview = {
   counts: { users: 7, apiKeys: 9, identities: 3, organizations: 3, projects: 5, cases: 4, studies: 2, studyRuns: 3, artifacts: 12 },
   jobs: { queued: 1, running: 1, completed: 2, failed: 1, cancelled: 1 },
-  contracts: { BASIC: 3, ADVANCED: 1, RESEARCH: 1, PRO: 2 },
+  contracts: { FREE: 3, RESEARCH: 2, LAB: 2 },
   recentAudit: [
     { id: id(403), action: 'maintenance.jobs.reconciled', targetType: 'JobQueue', targetId: null, actorId: ALEX.id, createdAt: '2026-10-08T09:00:00Z' },
     { id: id(401), action: 'contract.subscription.changed', targetType: 'User', targetId: MARIA.id, actorId: ALEX.id, createdAt: '2026-09-01T09:00:00Z' },
@@ -162,7 +162,7 @@ const event = (n: number, statusCode: number, category: ApiErrorEventItem['categ
 
 export const ERROR_EVENTS: ApiErrorEventItem[] = [
   event(1, 402, 'pricing_quota', 'quota_exceeded', '/v1/jobs', SAM, '2026-10-09T07:40:00Z', {
-    quota: { limit_id: 'apiKeys', used: 10, limit: 10, unit: 'key' },
+    quota: { limit_id: 'maxApiKeys', used: 10, limit: 10, unit: 'key' },
   }),
   event(2, 402, 'pricing_quota', 'quota_exceeded', '/v1/jobs', SAM, '2026-10-09T06:10:00Z'),
   event(3, 429, 'concurrency', 'concurrency_limit_exceeded', '/v1/jobs', SAM, '2026-10-08T18:20:00Z'),
@@ -173,8 +173,8 @@ export const ERRORS: AdminErrorListResponse = { items: ERROR_EVENTS, total: ERRO
 
 /** An organization the signed-in administrator belongs to, with one below it. */
 export const ORG: Organization = {
-  id: id(950), slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, billing_sponsor_user_id: MARIA.id, effective_role: 'OWNER', created_at: '2026-03-03T00:00:00Z',
+  id: id(950), slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'OWNER', created_at: '2026-03-03T00:00:00Z',
 };
 export const SUB_ORG: Organization = {
-  id: id(951), slug: 'qos-lab', name: 'QoS Lab (sub-organization)', parent_id: ORG.id, billing_sponsor_user_id: MARIA.id, effective_role: 'OWNER', created_at: '2026-03-04T00:00:00Z',
+  id: id(951), slug: 'qos-lab', name: 'QoS Lab (sub-organization)', parent_id: ORG.id, effective_role: 'OWNER', created_at: '2026-03-04T00:00:00Z',
 };

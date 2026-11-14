@@ -30,7 +30,7 @@ const token = (expiresInSeconds: number) => [
 
 const alex = {
   id: 'user-1', username: 'alex.rivera', email: 'alex-rivera@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-03-02T00:00:00Z', cas_verified: true, institutional_branding: true,
+  created_at: '2026-03-02T00:00:00Z', cas_verified: true,
 };
 
 type Key =
@@ -100,7 +100,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), (route) => {
     const parts = new URL(route.request().url()).pathname.split('/').filter(Boolean);
     if (parts.length === 2) {
-      return json([{ id: 'org-isa-demo', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, billing_sponsor_user_id: 'user-1', effective_role: 'OWNER', created_at: '2026-03-03T00:00:00Z' }])(route);
+      return json([{ id: 'org-isa-demo', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'OWNER', created_at: '2026-03-03T00:00:00Z' }])(route);
     }
     if (parts[3] === 'projects' && parts.length === 4) {
       return json([{ id: 'project-1', organization_id: 'org-isa-demo', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: '', visibility: 'private', created_by_id: 'user-1', created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z', access: 'member', effective_role: 'OWNER' }])(route);
@@ -376,7 +376,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('button', { name: 'Create registration' })).toBeEnabled();
 
       // 402: the plan has no room for another federated engine.
-      state.refuse.createRegistration = json({ detail: { code: 'quota_exceeded', error: 'Federated engines limit reached', quota: { limit_id: 'federatedEngines', limit: 3, used: 3 } } }, 402);
+      state.refuse.createRegistration = json({ detail: { code: 'quota_exceeded', error: 'Federated engines limit reached', quota: { limit_id: 'maxFederatedEngines', limit: 3, used: 3 } } }, 402);
       await main.getByRole('button', { name: 'Create registration' }).click();
       await expect(main.getByText('Engine limit reached (402)')).toBeVisible();
       await expect(main.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');

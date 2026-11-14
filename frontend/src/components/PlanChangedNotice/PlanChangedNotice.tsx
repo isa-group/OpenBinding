@@ -3,7 +3,7 @@ import { Action } from '../ui/Action';
 import { Notice } from '../ui/Notice';
 import { forgetPlanChanged, peekPlanChanged, type PlanChangeNote } from '../../utils/authFlow';
 
-/** The sentence for a plan the sign-in changed. Linking CAS raises BASIC to RESEARCH, and it costs nothing. */
+/** The sentence for a plan the sign-in changed. Linking CAS raises FREE to RESEARCH, and it costs nothing. */
 function planChangedText(change: PlanChangeNote): string {
   const free = change.extraCost !== true;
   return `Your account is now on the ${change.to} plan.${free ? ' There is no extra cost.' : ''}`;

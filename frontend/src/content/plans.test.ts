@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { catalogFixture } from '../pages/Pricing/pricingFixture';
+import { LIMIT } from '../utils/limits';
 import { PRICING_VERSION, planSummaries } from './plans';
 
-// The home page's plan strip is typed by hand. This keeps it honest: it is read against the synthetic pricing fixture it was copied from.
+// The home page's plan strip is typed by hand. This keeps it honest: it is read against the pricing 0.2.0 fixture it was copied from.
 
 const pricing = catalogFixture as unknown as {
   version: string;
@@ -30,8 +31,8 @@ describe('the plan summaries of the home page', () => {
 
   it.each(planSummaries.map((plan) => [plan.name, plan] as const))('%s repeats the limits and the price of the document', (_name, plan) => {
     const id = plan.name.toUpperCase();
-    const keys = limitOf(id, 'apiKeys');
-    const jobs = limitOf(id, 'concurrentJobs') ?? 0;
+    const keys = limitOf(id, LIMIT.maxApiKeys);
+    const jobs = limitOf(id, LIMIT.maxConcurrentRuns) ?? 0;
 
     expect(plan.chips).toEqual([
       keys === null ? 'Unlimited API keys' : plural(keys, 'API key'),

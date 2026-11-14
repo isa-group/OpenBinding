@@ -28,30 +28,29 @@ const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3_600_000).toI
 
 const lucia = {
   id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-03-02T00:00:00Z', cas_verified: true, institutional_branding: true,
+  created_at: '2026-03-02T00:00:00Z', cas_verified: true,
 };
-const marco = { ...lucia, username: 'marco.diaz', email: 'marco@example.org', plan: 'BASIC', cas_verified: false, institutional_branding: false };
-const iker = { ...marco, username: 'iker.mora', email: 'iker@example.org', role: 'admin', plan: 'PRO' };
+const marco = { ...lucia, username: 'marco.diaz', email: 'marco@example.org', plan: 'FREE', cas_verified: false };
+const iker = { ...marco, username: 'iker.mora', email: 'iker@example.org', role: 'admin', plan: 'LAB' };
 type Account = typeof lucia;
 
-/** What the gateway reports for the RESEARCH plan of the pricing 0.1.0: the plan, its features and its limits, with no consumption. */
+/** What the gateway reports for the RESEARCH plan of the pricing 0.2.0: the plan, its features and its limits, with no consumption. */
 const researchUsage = () => ({
   plan: 'RESEARCH',
   contract_pending: false,
-  features: { authoring: true, solve: true, federatedEngines: true, apiAccess: true, collaboration: true, studies: true, advancedAnalytics: true, reproducibleExport: true, publishing: true, reproducibilityArchive: false, institutionalBranding: true },
+  features: { repository: true, runs: true, studies: true, generator: false, federatedEngines: true, collaboration: true, apiAccess: true },
   capabilities: {
-    concurrentJobs: 3, federatedEngines: 5, apiKeys: 25,
-    maxTimeoutSeconds: 900, maxIterations: 1_000_000, maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: 20, jobHistoryDays: 180,
-    organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120,
+    maxProblems: null, maxCollections: null, maxRepositoryStorage: null, solverHours: 100, maxRunMinutes: 30, maxConcurrentRuns: 4,
+    maxStudyCells: 5000, generatedInstances: 100_000, maxInstancesPerGeneration: 10_000, maxFederatedEngines: 3, maxPrivateProjects: 10, maxApiKeys: 10,
   },
 });
 
-/** BASIC, with the only API key allowed. */
-const basicUsage = () => ({
-  plan: 'BASIC',
+/** FREE, as the pricing 0.2.0 sizes it. */
+const freeUsage = () => ({
+  plan: 'FREE',
   contract_pending: false,
-  features: { authoring: true, solve: true, advancedAnalytics: false, institutionalBranding: false },
-  capabilities: { concurrentJobs: 1, apiKeys: 1, maxTimeoutSeconds: 60, maxPayloadBytes: 8_388_608, maxInstanceComplexityLog10: 9, jobHistoryDays: 7 },
+  features: { repository: true, runs: true, studies: true, federatedEngines: true, apiAccess: true },
+  capabilities: { maxProblems: 25, maxRepositoryStorage: 500, maxRunMinutes: 5, maxConcurrentRuns: 1, maxStudyCells: 500, maxFederatedEngines: 1, maxApiKeys: 2 },
 });
 
 const DIGEST = `sha256-${'b2c3d4e5'.repeat(8)}`;
@@ -81,8 +80,8 @@ interface Notice {
 
 const notifications = (): Notice[] => [
   {
-    id: 'n1', kind: 'contract.changed', subject: 'Your OpenBinding agreement changed', body: 'Plan: BASIC → RESEARCH. Add-ons: {} → {}. Reason: institutional_agreement.',
-    payload: { reason: 'institutional_agreement', previous: { plan: 'BASIC', addOns: {} }, current: { plan: 'RESEARCH', addOns: {} }, pricingVersion: '0.1.0' },
+    id: 'n1', kind: 'contract.changed', subject: 'Your OpenBinding agreement changed', body: 'Plan: FREE → RESEARCH. Add-ons: {} → {}. Reason: institutional_agreement.',
+    payload: { reason: 'institutional_agreement', previous: { plan: 'FREE', addOns: {} }, current: { plan: 'RESEARCH', addOns: {} }, pricingVersion: '0.2.0' },
     read_at: null, created_at: hoursAgo(5),
   },
   { id: 'n2', kind: 'job.finished', subject: 'Job completed', body: 'Job 0000…f1 finished with FEASIBLE.', payload: {}, read_at: hoursAgo(20), created_at: hoursAgo(26) },
@@ -129,7 +128,7 @@ async function mockApi(page: Page, account: Account, overrides: Partial<State> =
   await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
   await page.route(`${API}/v1/engines`, json({ engines: [engine] }));
   await page.route(`${API}/v1/organizations`, json([{
-    id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, billing_sponsor_user_id: 'user-1', effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
+    id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
   }]));
   await page.route(`${API}/v1/organizations/isa-demo/projects`, json([{
     id: 'project-1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: '', visibility: 'private',
@@ -184,7 +183,7 @@ async function mockApi(page: Page, account: Account, overrides: Partial<State> =
     if (state.refuse.unlink) return state.refuse.unlink(route);
     state.identities = [];
     // Unlinking a RESEARCH account moves the plan back to the default one, and with it the institutional mark.
-    state.account = { ...state.account, plan: 'BASIC', cas_verified: false, institutional_branding: false };
+    state.account = { ...state.account, plan: 'FREE', cas_verified: false };
     return noContent(route);
   });
   await page.route(`${API}/v1/auth/cas/link-intent`, async (route) => {
@@ -353,7 +352,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     });
 
     test('acct-profile: logging out, a pending contract and a refused read', async ({ page }, testInfo) => {
-      const state = await mockApi(page, marco, { usage: json({ ...basicUsage(), contract_pending: true }) });
+      const state = await mockApi(page, marco, { usage: json({ ...freeUsage(), contract_pending: true }) });
       await page.goto('/app/account');
       const main = page.locator('#platform-main');
 
@@ -384,7 +383,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const plan = main.getByRole('region', { name: 'Your plan' });
       await expect(plan.getByText('RESEARCH', { exact: true })).toBeVisible();
       await expect(plan.getByText('Free with verified CAS')).toBeVisible();
-      await expect(plan.getByText(/Published pricing 0\.1\.0 · A new pricing version applies when your contract is renewed in SPACE/)).toBeVisible();
+      await expect(plan.getByText(/Published pricing 0\.2\.0 · A new pricing version applies when your contract is renewed in SPACE/)).toBeVisible();
       await expect(plan.getByRole('link', { name: 'See plans' })).toHaveAttribute('href', '/pricing');
 
       // Prices, versions and contracts are managed in the native consoles; this page only links to them.
@@ -393,17 +392,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('meter')).toHaveCount(0);
       await expect(main.getByRole('heading', { name: 'This month' })).toHaveCount(0);
       const allowances = main.getByRole('heading', { name: 'What your plan allows' }).locator('xpath=ancestor::section[1]');
-      await expect(allowances.getByText('25', { exact: true })).toBeVisible();
+      await expect(allowances.getByText('10', { exact: true })).toBeVisible();
       await expect(allowances.getByRole('link', { name: 'Manage keys' })).toHaveAttribute('href', '/app/account/keys');
       const ceilings = main.getByRole('region', { name: 'Ceilings table' });
-      await expect(ceilings.getByRole('row', { name: /Max time per run/ })).toContainText('15 min');
-      await expect(ceilings.getByRole('row', { name: /Max time per run/ })).toContainText('900 s');
-      await expect(ceilings.getByRole('row', { name: /Max problem size/ })).toContainText('10²⁰');
-      await expect(main.getByRole('link', { name: 'Open run history' })).toHaveAttribute('href', '/app/runs');
-      await expect(main.getByRole('heading', { name: 'Organizations you sponsor' })).toBeVisible();
+      await expect(ceilings.getByRole('row', { name: /Max time per run/ })).toContainText('30 min');
+      await expect(ceilings.getByRole('row', { name: /Cells per study run/ })).toContainText('5,000');
+      await expect(main.getByRole('heading', { name: 'Organizations you sponsor' })).toHaveCount(0);
       await expect(main.getByText('Confirmed by your plan check')).toBeVisible();
-      await expect(main.getByText('Authoring', { exact: true }).locator('..')).toContainText('Enabled');
-      await expect(main.getByText('Reproducibility archive', { exact: true }).locator('..')).toContainText('Not in plan');
+      await expect(main.getByText('Repository', { exact: true }).locator('..')).toContainText('Enabled');
+      await expect(main.getByText('Generator', { exact: true }).locator('..')).toContainText('Not in plan');
       await capture(page, testInfo, `usage-${name}-research`);
       if (isMobile) {
         expect(critical).toEqual([]);
@@ -416,7 +413,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.reload();
       await expect(main.getByText('Plan check expired · can’t confirm')).toBeVisible();
       await expect(main.getByText(/Your plan check has expired, so features can’t be confirmed/)).toBeVisible();
-      await expect(main.getByText('Authoring', { exact: true }).locator('..')).toContainText('Can’t confirm');
+      await expect(main.getByText('Repository', { exact: true }).locator('..')).toContainText('Can’t confirm');
       expect(await page.content()).not.toContain(expired);
       await capture(page, testInfo, `usage-${name}-token-stale`);
 
@@ -430,13 +427,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await refresh();
       await expect(main.getByText('Your contract is pending.')).toBeVisible();
       await expect(main.getByRole('heading', { name: 'What your plan allows' })).toHaveCount(0);
-      state.usage = json(basicUsage());
+      state.usage = json(freeUsage());
       await refresh();
       await expect(main.getByRole('heading', { name: 'What your plan allows' })).toBeVisible();
-      await expect(main.getByText('BASIC', { exact: true })).toBeVisible();
-      await capture(page, testInfo, `usage-${name}-basic`);
+      await expect(main.getByText('FREE', { exact: true })).toBeVisible();
+      await capture(page, testInfo, `usage-${name}-free`);
 
-      state.usage = json({ ...basicUsage(), capabilities: {} });
+      state.usage = json({ ...freeUsage(), capabilities: {} });
       await refresh();
       await expect(main.getByText('Your plan declares no limits.')).toBeVisible();
       state.usage = detail(503, 'pricing_unavailable', 'The plan cannot be read right now.');
@@ -464,7 +461,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'API keys' })).toBeVisible();
       await expectAccountNav(main, 'API keys');
       await expect(main.getByRole('link', { name: 'New key' })).toHaveAttribute('href', '/app/account/keys?create=key');
-      await expect(main.getByText('2 of 25 keys')).toBeVisible();
+      await expect(main.getByText('2 of 10 keys')).toBeVisible();
       const first = main.getByRole('article', { name: 'ci-lectura-resultados' });
       await expect(first.getByText('obk_demo0001…')).toBeVisible();
       await expect(first.getByText('created Sep 1, 2026')).toBeVisible();
@@ -510,7 +507,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await revoked;
       await expect(main.getByText('“ci-lectura-resultados” was revoked.')).toBeVisible();
       await expect(main.getByRole('article', { name: 'ci-lectura-resultados' })).toHaveCount(0);
-      await expect(main.getByText('1 of 25 keys')).toBeVisible();
+      await expect(main.getByText('1 of 10 keys')).toBeVisible();
       // A key that is gone already (404) is reported, and the list is refreshed.
       state.refuse.revoke = detail(404, 'not_found', 'Key not found.');
       await main.getByRole('button', { name: 'Revoke ejecucion-engine-fijo' }).click();
@@ -519,7 +516,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The plan's limit is a warning here and a 402 in the wizard.
       state.keys = [reader, runner];
-      state.usage = json({ ...researchUsage(), capabilities: { ...researchUsage().capabilities, apiKeys: 2 } });
+      state.usage = json({ ...researchUsage(), capabilities: { ...researchUsage().capabilities, maxApiKeys: 2 } });
       await page.reload();
       await expect(main.getByText(/You’ve reached your plan’s API key limit \(2\)\./)).toBeVisible();
       await expect(main.getByRole('meter', { name: 'Active keys' })).toHaveAttribute('aria-valuenow', '2');
@@ -688,7 +685,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `identities-${name}-linked`);
       if (isMobile) {
         await main.getByRole('button', { name: 'Unlink' }).click();
-        await expect(page.getByRole('dialog', { name: 'Unlink your Universidad de Sevilla identity?' }).getByLabel('Plan change')).toContainText('3 concurrent runs');
+        await expect(page.getByRole('dialog', { name: 'Unlink your Universidad de Sevilla identity?' }).getByLabel('Plan change')).toContainText('4 concurrent runs');
         await capture(page, testInfo, `identities-${name}-unlink-dialog`);
         expect(critical).toEqual([]);
         return;
@@ -697,7 +694,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // Leaving RESEARCH is typed: the dialog says what changes and refuses anything but the exact phrase.
       await main.getByRole('button', { name: 'Unlink' }).click();
       const dialog = page.getByRole('dialog', { name: 'Unlink your Universidad de Sevilla identity?' });
-      await expect(dialog.getByLabel('Plan change')).toContainText('3 concurrent runs');
+      await expect(dialog.getByLabel('Plan change')).toContainText('4 concurrent runs');
       await expect(dialog.getByLabel('Plan change')).toContainText('1 concurrent run');
       const unlink = dialog.getByRole('button', { name: 'Unlink' });
       await expect(unlink).toBeDisabled();
@@ -716,7 +713,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const removed = page.waitForRequest((request) => request.method() === 'DELETE' && request.url().startsWith(`${API}/v1/users/me/identities/i1`));
       await unlink.click();
       expect(new URL((await removed).url()).searchParams.get('confirmation')).toBe('DOWNGRADE RESEARCH');
-      await expect(main.getByText('Identity unlinked. Your plan is now BASIC.')).toBeVisible();
+      await expect(main.getByText('Identity unlinked. Your plan is now FREE.')).toBeVisible();
       await expect(main.getByText('Not linked', { exact: true })).toBeVisible();
       // The plan and the institutional mark follow without a reload.
       await expect(header.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveCount(0);
@@ -778,9 +775,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // A contract change opens to what it was before and after.
       await list.getByRole('button', { name: /Your OpenBinding agreement changed/ }).click();
       const change = main.getByRole('group', { name: 'Before and after' });
-      await expect(change).toContainText('BASIC');
+      await expect(change).toContainText('FREE');
       await expect(change).toContainText('RESEARCH');
-      await expect(main.getByText('Reason: institutional agreement · pricing version 0.1.0')).toBeVisible();
+      await expect(main.getByText('Reason: institutional agreement · pricing version 0.2.0')).toBeVisible();
       await expect(main.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
       await capture(page, testInfo, `notifications-${name}-contract-change`);
 

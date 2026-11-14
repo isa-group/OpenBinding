@@ -9,7 +9,7 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { config } from '../../config';
 import { useAuth } from '../../contexts/auth';
-import { describeLimit, formatCount, type LimitDefinition } from '../../utils/limits';
+import { describeLimit, formatCount, LIMIT, type LimitDefinition } from '../../utils/limits';
 import { usePricingTokenStatus, type PricingTokenStatus } from '../../utils/pricingToken';
 import { useResource } from '../../utils/useResource';
 import { featureName, readCatalog, type PricingView } from '../Pricing/pricingModel';
@@ -19,9 +19,11 @@ import { NO_LIMIT_TEXT, exactValueText, usageRows, type UsageRow } from './usage
 import './AccountUsage.css';
 
 const ALLOWANCE_NOTES: Record<string, { note: string; link?: { to: string; label: string } }> = {
-  concurrentJobs: { note: 'Runs that may run at once' },
-  federatedEngines: { note: 'Engine revisions you may register', link: { to: '/app/engines/registrations', label: 'My engines' } },
-  apiKeys: { note: 'Active keys', link: { to: '/app/account/keys', label: 'Manage keys' } },
+  [LIMIT.maxConcurrentRuns]: { note: 'Runs that may run at once' },
+  [LIMIT.maxFederatedEngines]: { note: 'Federated engines you may have active', link: { to: '/app/engines/registrations', label: 'My engines' } },
+  [LIMIT.maxApiKeys]: { note: 'Active keys', link: { to: '/app/account/keys', label: 'Manage keys' } },
+  [LIMIT.maxProblems]: { note: 'Problems you own' },
+  [LIMIT.maxRepositoryStorage]: { note: 'Stored size of your problem revisions' },
 };
 
 const TOKEN_CHIP: Record<PricingTokenStatus, string> = {
@@ -83,8 +85,6 @@ function UsageBody({ usage, catalog, release, token }: {
   const inGroup = (...groups: Array<UsageRow['info']['group']>) => rows.filter((row) => groups.includes(row.info.group));
   const allowances = inGroup('monthly', 'capacity');
   const ceilings = inGroup('ceiling');
-  const sponsored = inGroup('sponsored');
-  const retention = ceilings.find((row) => row.id === 'jobHistoryDays');
   const pending = usage.contract_pending;
   const view = catalog ? readCatalog(catalog) : null;
   const price = priceLine(usage.plan, view);
@@ -203,32 +203,6 @@ function UsageBody({ usage, catalog, release, token }: {
               ))}
             </tbody>
           </DataTable>
-          {retention && retention.limit !== null && (
-            <p className="usage-retention">
-              Finished runs are kept for {valueText(retention)}. <Link to="/app/runs" viewTransition>Open run history</Link>
-            </p>
-          )}
-        </section>
-      )}
-
-      {!pending && sponsored.length > 0 && (
-        <section className="acct-section" aria-labelledby="usage-sponsored">
-          <div>
-            <h2 id="usage-sponsored">Organizations you sponsor</h2>
-            <p className="acct-muted">
-              Limits across every organization you sponsor. Sponsoring pays for the plan only; it doesn’t give you any role in those organizations.
-            </p>
-          </div>
-          <div className="usage-grid">
-            {sponsored.map((row) => (
-              <div key={row.id} className="usage-card usage-card-small">
-                <div className="usage-card-head">
-                  <span>{row.info.label}</span>
-                  <span>Up to {valueText(row)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
         </section>
       )}
 

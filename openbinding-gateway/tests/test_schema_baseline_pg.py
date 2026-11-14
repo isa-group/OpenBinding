@@ -81,8 +81,7 @@ async def test_an_update_of_a_case_revision_is_refused(pg) -> None:
         user = User(username=f"u{suffix}", email=f"u{suffix}@example.com", password_hash="x", plan_cache="free")
         session.add(user)
         await session.flush()
-        organization = Organization(slug=f"o{suffix}", name="Org", billing_sponsor_user_id=user.id,
-                                    created_by_id=user.id)
+        organization = Organization(slug=f"o{suffix}", name="Org", created_by_id=user.id)
         session.add(organization)
         await session.flush()
         project = Project(organization_id=organization.id, slug="p", name="P", created_by_id=user.id)

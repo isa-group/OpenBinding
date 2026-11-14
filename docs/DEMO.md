@@ -148,8 +148,8 @@ Contents access to `javiercavlop/bim-toolchain`.
 | `DEMO_JWT_SECRET` | gateway **only** (as `GATEWAY_JWT_SECRET`) | `lab-example-jwt-signing-value` (make it long and random) |
 | `DEMO_FERNET_KEY` | gateway, worker, seed (as `FEDERATION_SECRET_KEY`, the name `core/settings.py` reads) | a Fernet key: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
 | `DEMO_SPACE_ENABLED` | gateway, worker, seed (as `SPACE_ENABLED`) | `false` or `true`; see "SPACE status" below. `false` is the functional demo without SPACE plans; `true` needs a SPACE development service and contracts |
-| `DEMO_SPACE_PRICING_VERSION` | gateway, worker, seed (as `SPACE_PRICING_VERSION`); seed also as `SPACE_DEV_PRICING_VERSION` | `0.1.0` (must exist in SPACE/SPHERE) |
-| `DEMO_SPACE_DEFAULT_PLAN` | gateway, worker, seed (as `SPACE_DEFAULT_PLAN`) | `BASIC` (must exist in the pricing) |
+| `DEMO_SPACE_PRICING_VERSION` | gateway, worker, seed (as `SPACE_PRICING_VERSION`); seed also as `SPACE_DEV_PRICING_VERSION` | `0.2.0` (must exist in SPACE/SPHERE; the gateway refuses a pricing that lacks an entitlement it reads) |
+| `DEMO_SPACE_DEFAULT_PLAN` | gateway, worker, seed (as `SPACE_DEFAULT_PLAN`) | `FREE` (must exist in the pricing) |
 | `DEMO_SPACE_DEV_SERVICE` | gateway, worker and seed (as `SPACE_SERVICE_NAME`); seed also as `SPACE_DEV_SERVICE_NAME` | the name of a SPACE *development* service that exists in SPACE (for example `openbinding-dev`); the gateway and worker read and write contracts only on it, and `seed_lab.py --space-contracts` refuses `openbinding` (and any production name) and requires it to equal `SPACE_SERVICE_NAME` |
 | `DEMO_SPACE_DEV_PLAN` | seed **only** (as `SPACE_DEV_PLAN`) | a plan of that service's pricing version, for the contracts of the synthetic users |
 | `DEMO_SEED_TOOL` | seed | `seed_lab.py`, or `smoke_lab.py` for the API smoke (a file of `openbinding-gateway/tools/`; `seed_dev.py` also exists; `cancel_probe.py` and `diagnose_snapshots.py` were run the same way, see [qa/ENGINE_CANCELLATION_E2E.md](qa/ENGINE_CANCELLATION_E2E.md) and [qa/SNAPSHOT_INVALID_INSTANCE.md](qa/SNAPSHOT_INVALID_INSTANCE.md)) |
@@ -176,7 +176,9 @@ gateway refuses to start with.
 Private, supplied by the supervisor and only referenced as `${NAME}` (the file
 holds no value and no default): `SPACE_URL`, `SPACE_API_KEY`, `SPHERE_URL`,
 `SPHERE_API_KEY`, `SPHERE_ORGANIZATION_ID`, `SPACE_ORGANIZATION_ID`. The last
-one is passed only to `seed`: `core/settings.py` does not read it, but
+one goes to `gateway`, `worker` and `seed`: the gateway verifies every pricing
+token against SPACE's published keys for that organization (with SPACE enabled
+it warns at startup without it, and `APP_ENV=prod` refuses to start), and
 `tools/remote_probe.py` exits with "SPACE_ORGANIZATION_ID is not set" without
 it. The retired
 destructive SPACE key is not used anywhere, and no `VITE_*` variable carries a
@@ -378,7 +380,7 @@ least 10 characters). It is not documented here and has no default. Emails are
 | `lab-viewer` | `USER` | `VIEWER` of `lab-main` |
 | `lab-outsider` | `USER` | `OWNER` of `lab-other` (no access to `lab-main`) |
 
-Data: organizations `lab-main` (sponsor `lab-owner`) and `lab-other`; project
+Data: organizations `lab-main` (created by `lab-owner`) and `lab-other`; project
 `lab-main/bim-demo` (private) with case `simple-seq`, built from
 `examples/demo/01_simple_seq`. The seed launches no jobs. Observed with
 `seed_lab.py --verbose`: 6 users, 2 organizations, 1 project, 1 case with 3

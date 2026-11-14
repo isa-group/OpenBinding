@@ -127,7 +127,7 @@ async def stale_snapshot_id(db_session, user) -> str:
 async def pinned_revision(db_session, user, stale_snapshot_id) -> BindingCaseRevision:
     """A case revision that pins the stale snapshot."""
     organization = Organization(
-        slug="cutover", name="Cut-over", parent_id=None, billing_sponsor_user_id=user.id, created_by_id=user.id
+        slug="cutover", name="Cut-over", parent_id=None, created_by_id=user.id
     )
     db_session.add(organization)
     await db_session.flush()

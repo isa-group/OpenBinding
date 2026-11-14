@@ -1,13 +1,11 @@
 /**
  * The words for a request refused over a limit that isn't a plain "you used it all".
  *
- * The gateway tells apart four things the interface used to run together, and each calls for a different
+ * The gateway tells apart three things the interface used to run together, and each calls for a different
  * sentence and a different way forward:
  *
- * - `403 binding_space_limit_unknown`: the plan doesn't say how large a problem may be. It is not a
- *   permission and not a key, and a larger plan doesn't help: the information is missing.
- * - `422 binding_space_over_technical_limit`: this deployment caps the problem size whatever the plan, so
- *   a larger plan changes nothing; reducing the candidates does.
+ * - `422 binding_space_over_technical_limit`: this deployment caps the problem size (`MAX_BINDING_SPACE_LOG10`)
+ *   whatever the plan, so a larger plan changes nothing; reducing the candidates does. No plan limits the size.
  * - `422 binding_space_unmeasured`: the gateway couldn't work out the size. A fault on its side.
  * - `503 pricing_misconfigured`: a limit of the plan can't be applied. Also not the person's doing.
  *
@@ -21,17 +19,17 @@ import { HttpError } from '../api/client';
 import type { BindingSpaceReport, LimitNotice } from '../api/limitNotice';
 import { formatPowerOfTen } from './limits';
 
-export const LIMIT_UNKNOWN_CODE = 'binding_space_limit_unknown';
+/** The setting of the deployment that caps the size of a problem: the limit the binding-space refusals name. */
+export const BINDING_SPACE_LIMIT_ID = 'MAX_BINDING_SPACE_LOG10';
 export const OVER_TECHNICAL_CODE = 'binding_space_over_technical_limit';
 export const UNMEASURED_CODE = 'binding_space_unmeasured';
-export const COMPLEXITY_CODE = 'instance_complexity_too_large';
 export const MISCONFIGURED_CODE = 'pricing_misconfigured';
 /** A period counter of the pricing service is spent (402) or couldn't be read (503). */
 export const USAGE_EXHAUSTED_CODE = 'usage_limit_exceeded';
 export const USAGE_UNKNOWN_CODE = 'usage_limit_unknown';
 export const CELLS_CODE = 'study_run_too_large';
 
-export type LimitProblemKind = 'limit-unknown' | 'technical' | 'unmeasured' | 'misconfigured';
+export type LimitProblemKind = 'technical' | 'unmeasured' | 'misconfigured';
 
 export interface LimitProblem {
   kind: LimitProblemKind;
@@ -68,43 +66,23 @@ export function sizeOf(space?: BindingSpaceReport, notice?: LimitNotice): string
   return null;
 }
 
-/** The sentence for a 402 over the plan's size limit: how big the problem is and what the plan allows. */
-export function complexityText(caught: unknown, nothing: string): string {
-  const notice = noticeOf(caught);
-  const quota = caught instanceof QuotaError ? caught.quota : undefined;
-  const size = sizeOf(bindingSpaceOf(caught), notice);
-  const ceiling = notice?.limit ?? quota?.limit;
-  let said: string;
-  if (size && ceiling !== undefined) said = `This problem has ${size}; your plan allows up to ${combinations(ceiling)} combinations.`;
-  else if (size) said = `This problem has ${size}, more than your plan allows.`;
-  else if (ceiling !== undefined) said = `This problem has more combinations than your plan allows (up to ${combinations(ceiling)}).`;
-  else said = 'This problem has more combinations than your plan allows.';
-  return `${said} Reduce the candidates or ask about a larger plan. ${nothing}`;
-}
-
-/** The refusals about a limit that is unknown, unmeasurable, technical or unappliable; `null` for any other answer. */
+/** The refusals about a limit that is unmeasurable, technical or unappliable; `null` for any other answer. */
 export function limitProblemOf(caught: unknown, nothing: string, at: string): LimitProblem | null {
   const code = caught instanceof QuotaError || caught instanceof HttpError ? caught.code : undefined;
   const notice = noticeOf(caught);
   switch (code) {
-    case LIMIT_UNKNOWN_CODE:
-      return {
-        kind: 'limit-unknown', limitId: notice?.limit_id ?? 'maxInstanceComplexityLog10', source: 'none',
-        title: `Your plan doesn’t set a problem-size limit${at}`,
-        text: `Your plan doesn’t say how large a problem may be, so this one can’t be accepted. A larger plan won’t fix it: the plan is missing that information. Contact the administrator. ${nothing}`,
-      };
     case OVER_TECHNICAL_CODE: {
       const size = sizeOf(bindingSpaceOf(caught), notice);
       const ceiling = notice?.limit;
       return {
-        kind: 'technical', limitId: notice?.limit_id ?? 'maxInstanceComplexityLog10', source: 'technical',
+        kind: 'technical', limitId: notice?.limit_id ?? BINDING_SPACE_LIMIT_ID, source: 'technical',
         title: `Over this deployment’s size limit${at}`,
         text: `This deployment limits how large a problem can be${ceiling !== undefined ? ` (up to ${combinations(ceiling)} combinations)` : ''}, whatever the plan, so a larger plan won’t change it.${size ? ` This problem has ${size}.` : ''} Reduce the candidates. ${nothing}`,
       };
     }
     case UNMEASURED_CODE:
       return {
-        kind: 'unmeasured', limitId: notice?.limit_id ?? 'maxInstanceComplexityLog10',
+        kind: 'unmeasured', limitId: notice?.limit_id ?? BINDING_SPACE_LIMIT_ID,
         title: `The problem’s size couldn’t be measured${at}`,
         text: `OpenBinding couldn’t work out how large this problem is, so it can’t check it against the limit. This is a fault on the service’s side, not a mistake in your package. Try again; if it keeps happening, report it with the code shown. ${nothing}`,
       };

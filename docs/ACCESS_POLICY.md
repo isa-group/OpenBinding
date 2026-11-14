@@ -42,8 +42,7 @@ field is unchanged. A visitor does not get `created_by_id` (`null`).
    sliding one-minute window of `PUBLIC_READ_RATE_PER_MINUTE` (default 240, `0`
    switches it off). Beyond it: `429 rate_limit_exceeded` with `Retry-After`.
    Members are not limited by this, a refused request is not counted, and nothing
-   a visitor does is ever charged to the project's sponsor or consumes the
-   project's quota (a read meters nothing).
+   a visitor does is ever charged to anybody's plan (a read meters nothing).
 6. **Implementation.** One central layer, not per-endpoint exceptions:
    `openbinding_gateway/access/public_read.py` holds the matrix and the limiter;
    `get_current_user` binds eligibility to the request; `collaboration.require_project`

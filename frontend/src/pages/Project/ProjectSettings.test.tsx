@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PricingUnavailableError, QuotaError } from '../../api/auth';
+import { PricingUnavailableError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { ProjectSettings } from './ProjectSettings';
 import { caseOf, org, project, renderProjectScreen, revisionOf, usageWithProjects } from './testKit';
@@ -92,13 +92,15 @@ describe('Project settings', () => {
     await waitFor(() => expect(platform.updateProject).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', { description: 'Only this' }));
   });
 
-  it('503: says nothing changed when pricing is down', async () => {
+  it('503: says nothing changed when a service is down', async () => {
     platform.updateProject.mockRejectedValue(new PricingUnavailableError('down'));
     renderSettings();
     fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Another' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Limits can’t be checked right now (503 · pricing_unavailable). Nothing changed.');
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('(503 · pricing_unavailable)');
+    expect(alert).toHaveTextContent(/nothing changed/i);
     expect(screen.queryByText('Saved. An audit entry was recorded.')).not.toBeInTheDocument();
   });
 
@@ -117,21 +119,6 @@ describe('Project settings', () => {
       expect(await screen.findByText('Visibility changed to public. An audit entry was recorded.')).toBeInTheDocument();
     });
 
-    it('shows the sponsor’s private-project limit after making a public project private, and the 402 when there is no room', async () => {
-      platform.project.mockResolvedValue({ ...qos, visibility: 'public' });
-      platform.updateProject.mockRejectedValue(new QuotaError('sponsor_quota_exceeded', 'full', { limit_id: 'privateProjects', limit: 30, used: 30 }));
-      renderSettings();
-      fireEvent.click(await screen.findByRole('radio', { name: 'Private' }));
-
-      expect(await screen.findByText('Up to 30')).toBeInTheDocument();
-      expect(screen.queryByRole('meter')).not.toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'Change visibility' }));
-
-      const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('The sponsor has no private projects left (402 · sponsor_quota_exceeded). 30 of 30 private projects.');
-      expect(alert).toHaveTextContent('Nothing changed.');
-      expect(within(alert).getByRole('link', { name: 'Your plan' })).toHaveAttribute('href', '/app/account/usage');
-    });
   });
 
   describe('sections', () => {

@@ -113,7 +113,7 @@ describe('One cell of a run, inside the Results tab', () => {
   });
 
   it.each([
-    ['402', new QuotaError('quota_exceeded', 'full', { limit_id: 'studies', limit: 50, used: 50 }), /The sponsor has no study definitions left \(402 · quota_exceeded\)/],
+    ['402', new QuotaError('quota_exceeded', 'full', { limit_id: 'maxRepositoryStorage', limit: 50, used: 50 }), /Out of storage \(402 · quota_exceeded\)/],
     ['429', refusal(429, 'concurrency_limit_exceeded', 'busy'), /All your run slots are busy \(429 · concurrency_limit_exceeded\)/],
     ['409', refusal(409, 'cell_not_retryable'), /This cell can’t be retried \(409 · cell_not_retryable\)/],
   ])('says why a retry was refused: %s', async (_name, failure, expected) => {

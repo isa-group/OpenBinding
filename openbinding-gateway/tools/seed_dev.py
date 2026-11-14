@@ -155,13 +155,13 @@ def _deterministic_zip(entries: list[tuple[str, bytes | str]]) -> bytes:
 
 # Seed users definition
 SEED_USERS = [
-    {"username": "admin", "email": "admin@example.org", "role": UserRole.ADMIN, "plan": "PRO", "key_suffix": "admin0001"},
+    {"username": "admin", "email": "admin@example.org", "role": UserRole.ADMIN, "plan": "LAB", "key_suffix": "admin0001"},
     {"username": "alice", "email": "alice@example.org", "role": UserRole.USER, "plan": "RESEARCH", "key_suffix": "alice0001"},
-    {"username": "bob", "email": "bob@example.org", "role": UserRole.USER, "plan": "PRO", "key_suffix": "bob000001"},
-    {"username": "carol", "email": "carol@example.org", "role": UserRole.USER, "plan": "BASIC", "key_suffix": "carol0001"},
+    {"username": "bob", "email": "bob@example.org", "role": UserRole.USER, "plan": "LAB", "key_suffix": "bob000001"},
+    {"username": "carol", "email": "carol@example.org", "role": UserRole.USER, "plan": "FREE", "key_suffix": "carol0001"},
     {"username": "david", "email": "david@example.org", "role": UserRole.USER, "plan": "RESEARCH", "key_suffix": "david0001"},
-    {"username": "elena", "email": "elena@example.org", "role": UserRole.USER, "plan": "ADVANCED", "key_suffix": "elena0001"},
-    {"username": "frank", "email": "frank@example.org", "role": UserRole.USER, "plan": "BASIC", "key_suffix": "frank0001"},
+    {"username": "elena", "email": "elena@example.org", "role": UserRole.USER, "plan": "RESEARCH", "key_suffix": "elena0001"},
+    {"username": "frank", "email": "frank@example.org", "role": UserRole.USER, "plan": "FREE", "key_suffix": "frank0001"},
 ]
 
 # API key mapping
@@ -217,7 +217,7 @@ async def ensure_users(session: AsyncSession) -> dict[str, User]:
             await session.execute(select(User).where(User.username == username))
         ).scalars().first()
 
-        plan = entry.get("plan", "BASIC")
+        plan = entry.get("plan", "FREE")
         if user is None:
             user = User(
                 username=username,
@@ -301,7 +301,7 @@ async def ensure_space_contracts(session: AsyncSession, users: dict[str, User]) 
         user = users.get(username)
         if not user:
             continue
-        plan = entry.get("plan", "BASIC")
+        plan = entry.get("plan", "FREE")
         try:
             try:
                 sub = await gate.subscription(user.id)
@@ -455,7 +455,6 @@ async def ensure_organizations(session: AsyncSession, users: dict[str, User]) ->
             slug="score-group",
             name="SCORE Research Group",
             parent_id=None,
-            billing_sponsor_user_id=alice.id,
             created_by_id=alice.id,
         )
         session.add(score_group)
@@ -472,7 +471,6 @@ async def ensure_organizations(session: AsyncSession, users: dict[str, User]) ->
             slug="score-ai",
             name="SCORE AI & Optimization Lab",
             parent_id=score_group.id,
-            billing_sponsor_user_id=alice.id,
             created_by_id=alice.id,
         )
         session.add(score_ai)
@@ -489,7 +487,6 @@ async def ensure_organizations(session: AsyncSession, users: dict[str, User]) ->
             slug="score-edge",
             name="SCORE Edge & Fog Systems",
             parent_id=score_group.id,
-            billing_sponsor_user_id=alice.id,
             created_by_id=alice.id,
         )
         session.add(score_edge)
@@ -506,7 +503,6 @@ async def ensure_organizations(session: AsyncSession, users: dict[str, User]) ->
             slug="acme-corp",
             name="Acme Corporation",
             parent_id=None,
-            billing_sponsor_user_id=bob.id,
             created_by_id=bob.id,
         )
         session.add(acme_corp)
@@ -523,7 +519,6 @@ async def ensure_organizations(session: AsyncSession, users: dict[str, User]) ->
             slug="acme-cloud",
             name="Acme Cloud Infrastructure",
             parent_id=acme_corp.id,
-            billing_sponsor_user_id=bob.id,
             created_by_id=bob.id,
         )
         session.add(acme_cloud)
@@ -1277,7 +1272,7 @@ def print_summary_banner(users: dict[str, User]) -> None:
     for u_spec in SEED_USERS:
         uname = u_spec["username"]
         role = u_spec["role"].value
-        plan = u_spec.get("plan", "BASIC")
+        plan = u_spec.get("plan", "FREE")
         full_key, prefix, _ = dev_api_key(uname, u_spec["key_suffix"])
         print(f"    - {uname:<8} ({role:<5}, plan: {plan:<8}) | API Key: {full_key}")
 

@@ -1,4 +1,4 @@
-"""Two concurrent creations cannot both take the last slot of the plan's ``concurrentJobs``.
+"""Two concurrent creations cannot both take the last slot of the plan's ``maxConcurrentRuns``.
 
 The deployment's cap is eight here and the plan declares one (or two), so the slot they race
 for is the plan's. Needs PostgreSQL (``TEST_DATABASE_URL``): the
@@ -50,7 +50,7 @@ async def create(session, owner: User, caps: PlanCaps):
 async def test_two_concurrent_creations_cannot_pass_the_last_slot_of_the_plan(two_sessions):
     first, second = two_sessions
     owner = await an_account(first)
-    caps = PlanCaps(plan="TEST", limits={"concurrentJobs": 1.0})
+    caps = PlanCaps(plan="TEST", limits={"maxConcurrentRuns": 1.0})
 
     refusals = await asyncio.gather(create(first, owner, caps), create(second, owner, caps))
 
@@ -64,7 +64,7 @@ async def test_two_concurrent_creations_cannot_pass_the_last_slot_of_the_plan(tw
 async def test_with_one_slot_left_in_the_plan_exactly_one_of_two_creations_takes_it(two_sessions):
     first, second = two_sessions
     owner = await an_account(first)
-    caps = PlanCaps(plan="TEST", limits={"concurrentJobs": 2.0})
+    caps = PlanCaps(plan="TEST", limits={"maxConcurrentRuns": 2.0})
     assert await create(first, owner, caps) is None  # one of the plan's two slots is taken
 
     refusals = await asyncio.gather(create(first, owner, caps), create(second, owner, caps))

@@ -70,7 +70,7 @@ async def stale_snapshot(session, owner: User, archive: bytes | None = None) -> 
 
 async def pin(session, owner: User, snapshot_id: str, slug: str = "cutover") -> BindingCaseRevision:
     organization = Organization(
-        slug=slug, name=slug.title(), parent_id=None, billing_sponsor_user_id=owner.id, created_by_id=owner.id
+        slug=slug, name=slug.title(), parent_id=None, created_by_id=owner.id
     )
     session.add(organization)
     await session.flush()

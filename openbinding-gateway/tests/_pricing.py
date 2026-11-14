@@ -1,8 +1,9 @@
-"""Pricing test helpers, built from the synthetic ``fixtures/pricing_test.yml``.
+"""Pricing test helpers, built from the published pricing 0.2.0.
 
-The fixture is a minimal stand-in for a SPACE pricing (functional limits only,
-no consumption counters, version 0.1.0). The real pricings are administered in
-SPHERE and SPACE, never in this repository.
+``fixtures/pricing/openbinding-0.2.0.yml`` is a byte copy of
+``docs/pricing/openbinding-0.2.0.yml`` (plans FREE, RESEARCH and LAB). The fake
+gate resolves its plans the way SPACE would; the real pricings are administered
+in SPHERE and SPACE, never in this repository.
 """
 
 from functools import lru_cache
@@ -11,10 +12,10 @@ from pathlib import Path
 from _fake_space import FakePricingGate, PricingCatalog
 from openbinding_gateway.space_client import PlanCaps
 
-PRICING_YAML = Path(__file__).resolve().parent / "fixtures" / "pricing_test.yml"
+PRICING_YAML = Path(__file__).resolve().parent / "fixtures" / "pricing" / "openbinding-0.2.0.yml"
 
 #: The version the fixture declares; conftest points ``SPACE_PRICING_VERSION`` at it.
-FIXTURE_VERSION = "0.1.0"
+FIXTURE_VERSION = "0.2.0"
 
 
 @lru_cache(maxsize=1)
@@ -38,13 +39,41 @@ def roomy_plan() -> str:
     For tests about something other than concurrency that need a second job in
     flight: the default plan allows one at a time, and its limit now applies.
     """
-    return largest_plan("concurrentJobs")
+    return largest_plan("maxConcurrentRuns")
 
 
-def largest_plan(limit_id: str = "maxPayloadBytes") -> str:
+def largest_plan(limit_id: str = "maxRunMinutes") -> str:
     """Pick a high-capacity fixture plan, without naming one in code.
 
-    By a functional limit: the plan that allows the largest packages.
+    By a functional limit: the plan that allows the longest runs.
     """
     catalog = pricing_catalog()
     return max(catalog.plans, key=lambda plan: catalog.entitlements(plan)[1][limit_id])
+
+
+#: Two add-ons the published 0.2.0 does not have, for the tests of add-on novations.
+TEST_ADD_ONS = {
+    "EXTRA_ENGINES": {
+        "availableFor": ["FREE", "LAB"],
+        "price": 0,
+        "unit": "pack/month",
+        "subscriptionConstraints": {"minQuantity": 1, "maxQuantity": 5, "quantityStep": 1},
+        "usageLimitsExtensions": {"maxFederatedEngines": {"value": 1}},
+    },
+    "EXTRA_KEYS": {
+        "availableFor": ["FREE", "LAB"],
+        "price": 0,
+        "unit": "pack/month",
+        "subscriptionConstraints": {"minQuantity": 1, "maxQuantity": 5, "quantityStep": 1},
+        "usageLimitsExtensions": {"maxApiKeys": {"value": 2}},
+    },
+}
+
+
+def catalog_with_add_ons() -> PricingCatalog:
+    """The fixture pricing plus ``TEST_ADD_ONS`` (available to FREE and LAB, never to RESEARCH)."""
+    import yaml
+
+    document = yaml.safe_load(PRICING_YAML.read_bytes())
+    document["addOns"] = TEST_ADD_ONS
+    return PricingCatalog.parse(yaml.safe_dump(document).encode())

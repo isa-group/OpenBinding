@@ -238,6 +238,7 @@ WALKING_TESTS = {
     "test_bim_schema_parity.py": "schemas/bim/v1",
     "test_compose_production.py": "a temporary secrets directory, not the repository",
     "test_docker_context.py": "the sources of the Dockerfile COPY lines",
+    "test_entitlement_map.py": "the gateway sources (and docs/pricing/openbinding-0.2.0.yml, read by name)",
     "test_no_file_relative_repo_paths.py": "the tests directory itself",
     "test_no_kubernetes.py": "the whole repository: the kustomization rule of ci_changes.changed_paths",
     "test_no_local_pricing.py": "space/, pricings/, experimentation/",

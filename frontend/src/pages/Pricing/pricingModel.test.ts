@@ -6,13 +6,28 @@ import { currentSelectionOf, readCatalog, withInfiniteLimits } from './pricingMo
 const view = readCatalog(catalogFixture)!;
 const row = (id: string) => view.groups.flatMap((group) => group.rows).find((item) => item.id === id)!;
 
+/** The published document has no add-ons; two synthetic ones show how the screen reads them. */
+const withAddOns = {
+  ...catalogFixture,
+  addOns: {
+    STORAGE_PACK: {
+      description: 'Adds 5 GB of repository storage.', availableFor: ['LAB'], unit: 'pack/month',
+      subscriptionConstraints: { minQuantity: 1, maxQuantity: 20 }, usageLimitsExtensions: { maxRepositoryStorage: { value: 5000 } },
+    },
+    ENGINE_PACK: {
+      description: 'Lets one more federated engine run problems.', availableFor: ['FREE'], unit: 'pack/account',
+      subscriptionConstraints: { minQuantity: 1, maxQuantity: 1 }, features: { apiAccess: { value: true } },
+    },
+  },
+};
+
 describe('the catalog fixture', () => {
-  it('is a synthetic pricing whose plans all carry the same functional limits', () => {
+  it('is pricing 0.2.0, whose plans all carry every limit and every limit the interface names', () => {
     const fixture = catalogFixture as { plans: Record<string, { usageLimits: Record<string, unknown> }>; usageLimits: Record<string, unknown> };
     const limitIds = Object.keys(fixture.usageLimits);
 
-    expect(Object.keys(fixture.plans)).toEqual(['BASIC', 'ADVANCED', 'RESEARCH', 'PRO']);
-    expect(limitIds.every((id) => LIMIT_ORDER.includes(id))).toBe(true);
+    expect(Object.keys(fixture.plans)).toEqual(['FREE', 'RESEARCH', 'LAB']);
+    expect(LIMIT_ORDER.every((id) => limitIds.includes(id))).toBe(true);
     for (const [plan, definition] of Object.entries(fixture.plans)) {
       expect(Object.keys(definition.usageLimits), plan).toEqual(limitIds);
     }
@@ -22,14 +37,13 @@ describe('the catalog fixture', () => {
 describe('readCatalog', () => {
   it('reads the plans in the order of the document, with no price anywhere', () => {
     expect(view.plans.map((plan) => [plan.id, plan.priceLabel, plan.unitLabel])).toEqual([
-      ['BASIC', 'Free', 'default plan'],
-      ['ADVANCED', 'Contact us', 'institutional agreement'],
+      ['FREE', 'Free', 'default plan'],
       ['RESEARCH', 'Free', 'with verified CAS'],
-      ['PRO', 'Contact us', 'institutional agreement'],
+      ['LAB', 'Contact us', 'institutional agreement'],
     ]);
-    expect(view.plans[1].description).toBe('Advanced analytics and larger capacity');
+    expect(view.plans[2].description).toBe('By agreement, for groups that run benchmark campaigns or operate engines. Campaign-scale solver time, concurrency and generation');
     expect(view.plans[0].byAgreement).toBe(false);
-    expect(view.plans[3].byAgreement).toBe(true);
+    expect(view.plans[2].byAgreement).toBe(true);
   });
 
   it('turns any numeric price into an agreement instead of showing it', () => {
@@ -40,60 +54,68 @@ describe('readCatalog', () => {
 
   it('groups features by the tags of the document and limits by what they measure', () => {
     expect(view.groups.map((group) => group.title)).toEqual([
-      'Authoring', 'Solving', 'Analysis', 'Collaboration', 'Federation', 'Reproducibility', 'Institutional',
-      'Monthly', 'Capacity', 'Per request', 'Sponsored',
+      'Repository', 'Laboratory', 'Engines', 'Collaboration', 'Monthly', 'Capacity', 'Per request',
     ]);
-    expect(view.groups.find((group) => group.title === 'Analysis')?.note).toBe('Features');
-    expect(view.groups.find((group) => group.title === 'Solving')?.note).toBe('Feature');
-    expect(view.groups.find((group) => group.title === 'Monthly')?.rows.map((item) => item.name)).toEqual(['Study runs']);
+    expect(view.groups.find((group) => group.title === 'Laboratory')?.note).toBe('Features');
+    expect(view.groups.find((group) => group.title === 'Engines')?.note).toBe('Feature');
+    expect(view.groups.find((group) => group.title === 'Monthly')?.rows.map((item) => item.name)).toEqual(['Solver hours', 'Generated instances']);
     expect(view.groups.find((group) => group.title === 'Capacity')?.rows.map((item) => item.name)).toEqual([
-      'Concurrent runs', 'Federated engines', 'API keys',
+      'Problems', 'Repository storage', 'Concurrent runs', 'Federated engines', 'API keys',
+    ]);
+    expect(view.groups.find((group) => group.title === 'Per request')?.rows.map((item) => item.name)).toEqual([
+      'Max collections', 'Max time per run', 'Cells per study run', 'Max instances per generation', 'Max private projects',
     ]);
   });
 
   it('shows what each plan gets for a feature: included, not included, or only with an add-on', () => {
-    expect(row('advancedAnalytics').cells.map((cell) => cell.kind)).toEqual(['no', 'yes', 'yes', 'yes']);
-    expect(row('reproducibilityArchive').cells.map((cell) => cell.kind)).toEqual(['no', 'addon', 'no', 'yes']);
-    expect(row('institutionalBranding').cells.map((cell) => cell.kind)).toEqual(['no', 'no', 'yes', 'no']);
-    expect(row('institutionalBranding').name).toBe('Institutional identity');
+    expect(row('runs').cells.map((cell) => cell.kind)).toEqual(['yes', 'yes', 'yes']);
     expect(row('apiAccess').name).toBe('API access');
+    expect(row('federatedEngines').name).toBe('Federated engines');
+
+    const without = readCatalog({
+      ...withAddOns,
+      plans: { ...catalogFixture.plans as object, FREE: { features: { apiAccess: { value: false }, studies: { value: false } } } },
+    })!;
+    const cells = (id: string) => without.groups.flatMap((group) => group.rows).find((item) => item.id === id)!.cells.map((cell) => cell.kind);
+    expect(cells('apiAccess')).toEqual(['addon', 'yes', 'yes']);
+    expect(cells('studies')).toEqual(['no', 'yes', 'yes']);
   });
 
   it('words the limits, keeping the exact value under the rounded one', () => {
-    expect(row('maxTimeoutSeconds').cells).toEqual([
-      { kind: 'value', text: '1 min', exact: '60 s' },
-      { kind: 'value', text: '10 min', exact: '600 s' },
-      { kind: 'value', text: '15 min', exact: '900 s' },
-      { kind: 'value', text: '30 min', exact: '1,800 s' },
+    expect(row('maxRunMinutes').cells).toEqual([
+      { kind: 'value', text: '5 min', exact: '5 min' },
+      { kind: 'value', text: '30 min', exact: '30 min' },
+      { kind: 'value', text: '24 h', exact: '1,440 min' },
     ]);
-    expect(row('apiKeys').cells.map((cell) => (cell.kind === 'value' ? cell.text : cell.kind))).toEqual(['1', '10', '25', 'Unlimited']);
-    expect(row('maxInstanceComplexityLog10').cells.map((cell) => (cell.kind === 'value' ? cell.text : cell.kind))).toEqual(['10⁹', '10¹⁵', '10²⁰', 'Unlimited']);
-    expect(row('storageBytes').cells[2]).toEqual({ kind: 'value', text: '5 GiB', exact: '5,368,709,120 bytes' });
+    expect(row('maxApiKeys').cells.map((cell) => (cell.kind === 'value' ? cell.text : cell.kind))).toEqual(['2', '10', '200']);
+    expect(row('maxProblems').cells.map((cell) => (cell.kind === 'value' ? cell.text : cell.kind))).toEqual(['25', 'Unlimited', 'Unlimited']);
+    expect(row('maxRepositoryStorage').cells[0]).toEqual({ kind: 'value', text: '500 MB', exact: '500 MB' });
+    expect(row('solverHours').cells[2]).toEqual({ kind: 'value', text: '10,000 h', exact: '10,000 h' });
   });
 
   it('says which features a limit applies to', () => {
-    expect(row('concurrentJobs').appliesTo).toEqual(['Solve', 'Federated engines', 'Studies']);
-    expect(row('maxPayloadBytes').appliesTo).toEqual(['Authoring', 'Solve']);
+    expect(row('maxConcurrentRuns').appliesTo).toEqual(['Runs', 'Studies', 'Generator', 'Federated engines']);
+    expect(row('maxRepositoryStorage').appliesTo).toEqual(['Repository']);
   });
 
   it('derives what must have room before something starts from the expressions of the document', () => {
     expect(view.gates).toEqual([
-      { starts: 'a solve', needs: ['A free run slot'] },
-      { starts: 'a federated solve', needs: ['A free run slot'] },
-      { starts: 'a study run', needs: ['Study runs left this month'] },
+      { starts: 'a run', needs: ['Solver hours left this month'] },
+      { starts: 'a study run', needs: ['Solver hours left this month'] },
+      { starts: 'a generation', needs: ['Generated instances left this month'] },
     ]);
   });
 
   it('describes the add-ons: who can have them and in what quantity', () => {
-    expect(view.addOns.map((addOn) => addOn.id)).toEqual([
-      'COLLABORATION_PACK', 'STORAGE_PACK', 'FEDERATION_PACK', 'CONCURRENCY_PACK', 'REPRODUCIBILITY_ARCHIVE',
-    ]);
-    expect(view.addOns[0]).toMatchObject({ initial: 'C', plans: ['ADVANCED', 'PRO'], quantity: '1–10 packs', per: 'month' });
-    expect(view.addOns[4]).toMatchObject({ plans: ['ADVANCED'], quantity: '1 per account', per: 'account' });
+    expect(view.addOns).toEqual([]);
+    const offered = readCatalog(withAddOns)!;
+    expect(offered.addOns.map((addOn) => addOn.id)).toEqual(['STORAGE_PACK', 'ENGINE_PACK']);
+    expect(offered.addOns[0]).toMatchObject({ initial: 'S', effect: 'Adds 5 GB of repository storage', plans: ['LAB'], quantity: '1–20 packs', per: 'month' });
+    expect(offered.addOns[1]).toMatchObject({ plans: ['FREE'], quantity: '1 per pack', per: 'account' });
   });
 
   it('calls a pre-1.0 pricing a development copy, and reads the release facts', () => {
-    expect(view).toMatchObject({ version: '0.1.0', createdAt: '2026-09-01', currency: 'EUR', periods: 'monthly periods', developmentCopy: true });
+    expect(view).toMatchObject({ version: '0.2.0', createdAt: '2026-10-22', currency: 'EUR', periods: 'monthly periods', developmentCopy: true });
     expect(readCatalog({ ...catalogFixture, version: '1.2.0' })?.developmentCopy).toBe(false);
   });
 
@@ -118,39 +140,39 @@ describe('readCatalog', () => {
 
 describe('helpers', () => {
   it('gives the renderer the number an unlimited allowance stands for', () => {
-    const pricing = withInfiniteLimits({ plans: { PRO: { usageLimits: { apiKeys: { value: null } } } }, custom: null }) as {
-      plans: { PRO: { usageLimits: { apiKeys: { value: number } } } };
+    const pricing = withInfiniteLimits({ plans: { LAB: { usageLimits: { maxApiKeys: { value: null } } } }, custom: null }) as {
+      plans: { LAB: { usageLimits: { maxApiKeys: { value: number } } } };
       custom: null;
     };
-    expect(pricing.plans.PRO.usageLimits.apiKeys.value).toBe(Number.POSITIVE_INFINITY);
+    expect(pricing.plans.LAB.usageLimits.maxApiKeys.value).toBe(Number.POSITIVE_INFINITY);
     expect(pricing.custom).toBeNull();
   });
 });
 
 describe('currentSelectionOf', () => {
   const claim = (plan: string, addOns: Record<string, number>, service = 'openbinding') => ({
-    contractedServices: { [service]: '0.1.0' },
+    contractedServices: { [service]: '0.2.0' },
     subscriptionPlans: { [service]: plan },
     subscriptionAddOns: { [service]: addOns },
   });
 
   it('marks nothing for a visitor who is not signed in', () => {
-    expect(currentSelectionOf(null, claim('PRO', { STORAGE_PACK: 2 }), 'openbinding')).toBeUndefined();
+    expect(currentSelectionOf(null, claim('LAB', { STORAGE_PACK: 2 }), 'openbinding')).toBeUndefined();
   });
 
   it('marks the plan of the profile when the token carries no subscription', () => {
-    expect(currentSelectionOf('BASIC', null, 'openbinding')).toEqual({ planId: 'BASIC' });
+    expect(currentSelectionOf('FREE', null, 'openbinding')).toEqual({ planId: 'FREE' });
   });
 
   it('adds the contracted add-ons of the token when it names the same plan', () => {
-    expect(currentSelectionOf('PRO', claim('PRO', { STORAGE_PACK: 2, COLLABORATION_PACK: 0 }), 'openbinding')).toEqual({
-      planId: 'PRO',
+    expect(currentSelectionOf('LAB', claim('LAB', { STORAGE_PACK: 2, ENGINE_PACK: 0 }), 'openbinding')).toEqual({
+      planId: 'LAB',
       addOns: { STORAGE_PACK: { selected: true, quantity: 2 } },
     });
   });
 
   it('keeps to the plan of the profile when the token names another plan or another service', () => {
-    expect(currentSelectionOf('ADVANCED', claim('PRO', { STORAGE_PACK: 2 }), 'openbinding')).toEqual({ planId: 'ADVANCED' });
-    expect(currentSelectionOf('PRO', claim('PRO', { STORAGE_PACK: 2 }, 'another'), 'openbinding')).toEqual({ planId: 'PRO' });
+    expect(currentSelectionOf('RESEARCH', claim('LAB', { STORAGE_PACK: 2 }), 'openbinding')).toEqual({ planId: 'RESEARCH' });
+    expect(currentSelectionOf('LAB', claim('LAB', { STORAGE_PACK: 2 }, 'another'), 'openbinding')).toEqual({ planId: 'LAB' });
   });
 });

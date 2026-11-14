@@ -48,7 +48,7 @@ describe('Project overview', () => {
     platform.cases.mockResolvedValue([checkout]);
     platform.revisions.mockResolvedValue([revisionOf(checkout, 1), revisionOf(checkout, 2)]);
     platform.projectJobs.mockResolvedValue(jobs);
-    api.listOwnJobs.mockResolvedValue({ jobs: [{ id: 'job-1' }, { id: 'job-3' }], total: 2, retention_days: 180 });
+    api.listOwnJobs.mockResolvedValue({ jobs: [{ id: 'job-1' }, { id: 'job-3' }], total: 2 });
     platform.studies.mockResolvedValue([study]);
     platform.studyRuns.mockResolvedValue([runOf(study, 1)]);
     platform.studyCells.mockResolvedValue([...[1, 2, 3, 4, 5, 6].map((n) => cell(n, 'completed')), cell(7, 'failed'), cell(8, 'cancelled')]);

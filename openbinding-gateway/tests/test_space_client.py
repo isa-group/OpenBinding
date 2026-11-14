@@ -20,8 +20,9 @@ import uuid
 import pytest
 
 from _fake_space import FakePricingGate
-from _pricing import largest_plan, pricing_catalog
+from _pricing import catalog_with_add_ons, largest_plan, pricing_catalog
 from space_client import SpaceError
+from _space_tokens import ORGANIZATION, trusted_payload
 from openbinding_gateway.core.settings import Settings
 from openbinding_gateway.space_client import (
     OpenGate,
@@ -34,9 +35,9 @@ from openbinding_gateway.space_client import (
 CATALOG = pricing_catalog()
 DEFAULT_PLAN = CATALOG.default_plan
 LARGER_PLAN = largest_plan()
-API_KEYS = "apiKeys"
-MAX_TIMEOUT = "maxTimeoutSeconds"
-MAX_PAYLOAD = "maxPayloadBytes"
+API_KEYS = "maxApiKeys"
+MAX_TIMEOUT = "maxRunMinutes"
+MAX_STORAGE = "maxRepositoryStorage"
 MISSING = object()
 
 
@@ -94,10 +95,15 @@ class Recorder:
     class _Features:
         def __init__(self, outer):
             self._outer = outer
+            self._user = None
 
         def generate_user_pricing_token(self, user_id):
             self._outer._record("token", user_id)
+            self._user = user_id
             return self._outer._token
+
+        def verify_pricing_token(self, token, organization_id=None, issuer=None, leeway=None):
+            return trusted_payload(token, self._user)
 
     class _Contracts:
         def __init__(self, outer):
@@ -142,7 +148,7 @@ def a_pristine_environment(monkeypatch):
 
 
 def gate_over(recorder: Recorder, **settings) -> SpacePricingGate:
-    return SpacePricingGate(Settings(_env_file=None, **settings), client=recorder)
+    return SpacePricingGate(Settings(_env_file=None, space_organization_id=ORGANIZATION, **settings), client=recorder)
 
 
 @pytest.fixture
@@ -167,21 +173,21 @@ async def test_ceilings_come_from_the_pricing_token(user_id):
     # A contract records consumption only; the allowance lives in the pricing,
     # and the token is where the two meet.
     recorder = Recorder(
-        token=a_token(limits={MAX_TIMEOUT: 1800, MAX_PAYLOAD: 512 * 1024 * 1024})
+        token=a_token(limits={MAX_TIMEOUT: 30, MAX_STORAGE: 500})
     )
 
     caps = await gate_over(recorder).caps(user_id)
 
-    assert caps.limit("maxTimeoutSeconds") == 1800
-    assert caps.limit("maxPayloadBytes") == 512 * 1024 * 1024
+    assert caps.limit(MAX_TIMEOUT) == 30
+    assert caps.limit(MAX_STORAGE) == 500
 
 
 async def test_features_come_from_the_pricing_token(user_id):
-    recorder = Recorder(token=a_token(features={"solve": True, "studies": False}))
+    recorder = Recorder(token=a_token(features={"runs": True, "studies": False}))
 
     caps = await gate_over(recorder).caps(user_id)
 
-    assert caps.allows("solve") is True
+    assert caps.allows("runs") is True
     assert caps.allows("studies") is False
     assert caps.allows("federatedEngines") is False  # absent fails closed
 
@@ -191,8 +197,8 @@ async def test_missing_ceilings_fail_closed(user_id):
 
     caps = await gate_over(recorder).caps(user_id)
 
-    assert caps.limit("maxTimeoutSeconds") == 0
-    assert caps.limit("maxIterations") == 0
+    assert caps.limit(MAX_TIMEOUT) == 0
+    assert caps.limit(MAX_STORAGE) == 0
 
 
 async def test_api_key_cap_is_one_on_basic_and_unlimited_on_pro(user_id):
@@ -202,12 +208,12 @@ async def test_api_key_cap_is_one_on_basic_and_unlimited_on_pro(user_id):
         contract=contract_for(LARGER_PLAN),
     )
 
-    assert (await gate_over(basic).caps(user_id)).limit("apiKeys") == 1
-    assert (await gate_over(pro).caps(user_id)).limit("apiKeys") is None
+    assert (await gate_over(basic).caps(user_id)).limit(API_KEYS) == 1
+    assert (await gate_over(pro).caps(user_id)).limit(API_KEYS) is None
 
 
 async def test_an_account_with_no_token_is_pricing_unavailable(user_id):
-    with pytest.raises(PricingUnavailable, match="entitlements"):
+    with pytest.raises(PricingUnavailable, match="pricing token"):
         await gate_over(Recorder(token=None)).caps(user_id)
 
 
@@ -315,7 +321,7 @@ async def test_a_plan_change_keeps_the_version_the_contract_is_pinned_to(user_id
 
 
 async def test_a_plan_change_keeps_the_add_ons_and_follows_the_configured_version(user_id):
-    add_on_name, add_on = next(iter(CATALOG.add_ons.items()))
+    add_on_name, add_on = next(iter(catalog_with_add_ons().add_ons.items()))
     plan = next(iter(add_on.available_for))
     selected = {add_on_name: add_on.minimum}
     recorder = Recorder(contract=contract_for(plan, version="previous-version", add_ons=selected))

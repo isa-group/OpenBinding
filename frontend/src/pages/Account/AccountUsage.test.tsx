@@ -18,17 +18,16 @@ vi.mock('../../api/client', async () => ({
 }));
 
 const lucia: UserProfile = {
-  id: 'user-id', username: 'lucia', email: 'lucia@example.test', role: 'user', is_active: true, plan: 'BASIC', created_at: '2026-03-02T00:00:00Z',
+  id: 'user-id', username: 'lucia', email: 'lucia@example.test', role: 'user', is_active: true, plan: 'FREE', created_at: '2026-03-02T00:00:00Z',
 };
 
 const basicUsage = (): UsageView => ({
-  plan: 'BASIC',
+  plan: 'FREE',
   contract_pending: false,
-  features: { authoring: true, solve: true, advancedAnalytics: false, institutionalBranding: false },
+  features: { repository: true, runs: true, studies: true, generator: false, federatedEngines: true, collaboration: true, apiAccess: true },
   capabilities: {
-    concurrentJobs: 1, federatedEngines: 1, apiKeys: 1,
-    maxTimeoutSeconds: 60, maxIterations: 10_000, maxPayloadBytes: 8_388_608, maxInstanceComplexityLog10: 9, jobHistoryDays: 7,
-    organizations: 1, storageBytes: 104_857_600,
+    maxProblems: 25, maxRepositoryStorage: 500, maxConcurrentRuns: 1, maxFederatedEngines: 1, maxApiKeys: 2,
+    maxRunMinutes: 5, maxStudyCells: 500,
   },
 });
 
@@ -60,9 +59,9 @@ describe('Plan & permissions', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Plan & permissions' })).toBeInTheDocument();
     const plan = within(await screen.findByRole('region', { name: 'Your plan' }));
-    expect(plan.getByText('BASIC')).toBeInTheDocument();
+    expect(plan.getByText('FREE')).toBeInTheDocument();
     expect(await plan.findByText('Free')).toBeInTheDocument();
-    expect(await plan.findByText(/Published pricing 0\.1\.0 · A new pricing version applies when your contract is renewed in SPACE/)).toBeInTheDocument();
+    expect(await plan.findByText(/Published pricing 0\.2\.0 · A new pricing version applies when your contract is renewed in SPACE/)).toBeInTheDocument();
     expect(plan.getByRole('link', { name: 'See plans' })).toHaveAttribute('href', '/pricing');
     expect(screen.getByRole('link', { name: 'Plan' })).toHaveAttribute('aria-current', 'page');
   });
@@ -80,8 +79,8 @@ describe('Plan & permissions', () => {
     renderPlan();
 
     const section = (await screen.findByRole('region', { name: 'Your plan' }));
-    expect(await within(section).findByText('BASIC')).toBeInTheDocument();
-    expect(section.querySelector('.usage-plan-tile')).toHaveTextContent('B');
+    expect(await within(section).findByText('FREE')).toBeInTheDocument();
+    expect(section.querySelector('.usage-plan-tile')).toHaveTextContent('F');
   });
 
   it('links to the native SPACE and SPHERE consoles and manages no price, version or contract itself', async () => {
@@ -122,36 +121,33 @@ describe('Plan & permissions', () => {
     const section = within((await screen.findByRole('heading', { name: 'What your plan allows' })).closest('section') as HTMLElement);
 
     const keys = section.getByText('API keys').closest('.usage-card') as HTMLElement;
-    expect(within(keys).getByText('1')).toBeInTheDocument();
+    expect(within(keys).getByText('2')).toBeInTheDocument();
     expect(within(keys).getByRole('link', { name: 'Manage keys' })).toHaveAttribute('href', '/app/account/keys');
     expect(section.getByRole('link', { name: 'My engines' })).toHaveAttribute('href', '/app/engines/registrations');
     expect(section.getByText('Runs that may run at once')).toBeInTheDocument();
     expect(section.queryByText('Jobs that may run at once')).not.toBeInTheDocument();
   });
 
-  it('lists the per-request ceilings with their exact values, and links to the job history', async () => {
+  it('lists the per-request ceilings with their exact values', async () => {
     renderPlan();
     const table = within(await screen.findByRole('region', { name: 'Ceilings table' }));
 
-    expect(within(table.getByRole('row', { name: /Max time per run/ })).getByText('1 min')).toBeInTheDocument();
-    expect(within(table.getByRole('row', { name: /Max time per run/ })).getByText('60 s')).toBeInTheDocument();
-    expect(within(table.getByRole('row', { name: /Max package size/ })).getByText('8,388,608 bytes')).toBeInTheDocument();
-    expect(within(table.getByRole('row', { name: /Max problem size/ })).getByText('10⁹')).toBeInTheDocument();
-    expect(screen.getByText(/Finished runs are kept for 7 days\./)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open run history' })).toHaveAttribute('href', '/app/runs');
+    expect(within(table.getByRole('row', { name: /Max time per run/ })).getAllByText('5 min')).toHaveLength(2);
+    expect(within(table.getByRole('row', { name: /Cells per study run/ })).getAllByText('500')).toHaveLength(2);
+    expect(screen.queryByText(/Finished runs are kept/)).not.toBeInTheDocument();
   });
 
   it('says "No limit" for the exact value of an unlimited ceiling, and never shows the YAML artefact `.inf`', async () => {
     const usage = basicUsage();
-    usage.plan = 'PRO';
-    usage.capabilities.maxTimeoutSeconds = null;
-    usage.capabilities.maxPayloadBytes = null;
-    usage.capabilities.apiKeys = null;
+    usage.plan = 'LAB';
+    usage.capabilities.maxRunMinutes = null;
+    usage.capabilities.maxStudyCells = null;
+    usage.capabilities.maxApiKeys = null;
     api.getOwnUsage.mockResolvedValue(usage);
     renderPlan();
     const table = within(await screen.findByRole('region', { name: 'Ceilings table' }));
 
-    for (const name of [/Max time per run/, /Max package size/]) {
+    for (const name of [/Max time per run/, /Cells per study run/]) {
       const row = within(table.getByRole('row', { name }));
       expect(row.getByText('Unlimited')).toBeInTheDocument();
       expect(row.getByText('No limit')).toBeInTheDocument();
@@ -159,9 +155,9 @@ describe('Plan & permissions', () => {
     // The technical list shows the same words for the same limit, finite ones as plain figures.
     fireEvent.click(screen.getByText('All entitlement values'));
     const value = (id: string) => screen.getByText(id).closest('div')?.querySelector('dd')?.textContent;
-    expect(value('apiKeys')).toBe('No limit');
-    expect(value('maxTimeoutSeconds')).toBe('No limit');
-    expect(value('maxIterations')).toBe('10,000');
+    expect(value('maxApiKeys')).toBe('No limit');
+    expect(value('maxRunMinutes')).toBe('No limit');
+    expect(value('maxProblems')).toBe('25');
     expect(document.body.textContent).not.toMatch(/\.inf|Infinity/);
   });
 
@@ -172,19 +168,18 @@ describe('Plan & permissions', () => {
     expect(region).toHaveClass('ui-table-wrap');
   });
 
-  it('shows the limits across the sponsored organizations and says sponsoring is not a role', async () => {
+  it('shows no sponsored organizations: quotas are per account', async () => {
     renderPlan();
-    const section = within((await screen.findByRole('heading', { name: 'Organizations you sponsor' })).closest('section') as HTMLElement);
+    await screen.findByRole('heading', { name: 'What your plan allows' });
 
-    expect(section.getByText(/it doesn’t give you any role in those organizations/)).toBeInTheDocument();
-    expect(section.getByText('Storage')).toBeInTheDocument();
-    expect(section.getByText('Up to 100 MiB')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Organizations you sponsor' })).not.toBeInTheDocument();
+    expect(screen.getByText('Repository storage')).toBeInTheDocument();
   });
 
   it('reads an unlimited allowance as Unlimited', async () => {
     const usage = basicUsage();
-    usage.plan = 'PRO';
-    usage.capabilities.apiKeys = null;
+    usage.plan = 'LAB';
+    usage.capabilities.maxApiKeys = null;
     api.getOwnUsage.mockResolvedValue(usage);
     renderPlan();
 
@@ -196,7 +191,7 @@ describe('Plan & permissions', () => {
   it('keeps every entitlement value reachable', async () => {
     renderPlan();
     fireEvent.click(await screen.findByText('All entitlement values'));
-    expect(screen.getByText('storageBytes')).toBeInTheDocument();
+    expect(screen.getByText('maxRepositoryStorage')).toBeInTheDocument();
   });
 
   describe('features and the pricing token', () => {
@@ -205,8 +200,8 @@ describe('Plan & permissions', () => {
       const section = within((await screen.findByRole('heading', { name: 'Features' })).closest('section') as HTMLElement);
 
       expect(section.getByText('Confirmed by your plan check')).toBeInTheDocument();
-      expect(section.getByText('Authoring').closest('li')).toHaveTextContent('Enabled');
-      expect(section.getByText('Advanced analytics').closest('li')).toHaveTextContent('Not in plan');
+      expect(section.getByText('Repository').closest('li')).toHaveTextContent('Enabled');
+      expect(section.getByText('Generator').closest('li')).toHaveTextContent('Not in plan');
       expect(section.queryByRole('status')).not.toBeInTheDocument();
     });
 
@@ -217,7 +212,7 @@ describe('Plan & permissions', () => {
 
       expect(section.getByText('Plan check expired · can’t confirm')).toBeInTheDocument();
       expect(section.getByRole('status')).toHaveTextContent('Your plan check has expired, so features can’t be confirmed from it right now');
-      expect(section.getByText('Authoring').closest('li')).toHaveTextContent('Can’t confirm');
+      expect(section.getByText('Repository').closest('li')).toHaveTextContent('Can’t confirm');
       expect(document.body.textContent).not.toContain(stored.token);
       expect(document.body.textContent).not.toMatch(/\bsignature\b/);
     });
@@ -229,7 +224,7 @@ describe('Plan & permissions', () => {
 
       expect(section.getByText('Can’t confirm features')).toBeInTheDocument();
       expect(section.getByRole('status')).toHaveTextContent('No plan check is available yet');
-      expect(section.getByText('Solve').closest('li')).toHaveTextContent('Can’t confirm');
+      expect(section.getByText('Runs').closest('li')).toHaveTextContent('Can’t confirm');
     });
 
     it('says the contract is pending and shows nothing as allowed or blocked', async () => {
@@ -240,7 +235,7 @@ describe('Plan & permissions', () => {
 
       expect(await screen.findByText('Your contract is pending.')).toBeInTheDocument();
       expect(screen.getByText('Contract pending')).toBeInTheDocument();
-      expect(screen.getByText('Authoring').closest('li')).toHaveTextContent('Can’t confirm');
+      expect(screen.getByText('Repository').closest('li')).toHaveTextContent('Can’t confirm');
       expect(screen.queryByRole('heading', { name: 'What your plan allows' })).not.toBeInTheDocument();
     });
   });
@@ -252,7 +247,7 @@ describe('Plan & permissions', () => {
   });
 
   it('reads an answer that carries no limits at all, as the gateway sends it when there are none', async () => {
-    api.getOwnUsage.mockResolvedValue({ plan: 'BASIC', contract_pending: false, features: {} });
+    api.getOwnUsage.mockResolvedValue({ plan: 'FREE', contract_pending: false, features: {} });
     renderPlan();
     expect(await screen.findByText('Your plan declares no limits.')).toBeInTheDocument();
   });
@@ -291,7 +286,7 @@ describe('Plan & permissions', () => {
     renderPlan();
 
     expect(await screen.findByRole('heading', { name: 'What your plan allows' })).toBeInTheDocument();
-    expect(screen.getByText('Authoring')).toBeInTheDocument();
+    expect(screen.getByText('Repository')).toBeInTheDocument();
     expect(screen.queryByText('Free')).not.toBeInTheDocument();
   });
 });

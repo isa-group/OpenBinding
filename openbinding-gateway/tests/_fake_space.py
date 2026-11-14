@@ -1,9 +1,9 @@
-"""A SPACE substitute for the tests, driven by the synthetic ``fixtures/pricing_test.yml``.
+"""A SPACE substitute for the tests, driven by the pricing 0.2.0 fixture (``fixtures/pricing``).
 
 Production code holds no pricing and evaluates no plan: SPACE does. The tests
 still need plans with different limits to exercise how the gateway reacts to
-them, so this module reads the synthetic fixture and answers the way SPACE
-would. Nothing here is imported by ``src``.
+them, so this module reads the fixture and answers the way SPACE would.
+Nothing here is imported by ``src``.
 """
 
 from __future__ import annotations
@@ -98,6 +98,7 @@ class PricingCatalog:
     plans: dict[str, PlanDefinition]
     add_ons: dict[str, AddOnDefinition]
     document: dict[str, Any]
+    text: str = ""
 
     @classmethod
     def parse(cls, content: bytes) -> "PricingCatalog":
@@ -156,6 +157,7 @@ class PricingCatalog:
             plans=plans,
             add_ons=add_ons,
             document=dict(root),
+            text=content.decode("utf-8"),
         )
 
     @property
@@ -255,6 +257,11 @@ class FakePricingGate:
         self._check_available()
         features, limits = self._entitlements(user_id)
         return PlanCaps(plan=self.plan_of(user_id), features=features, limits=limits)
+
+    async def pricing_document(self) -> str:
+        """The YAML text the catalog was parsed from, as SPACE serves it."""
+        catalog = self._check_available()
+        return catalog.text
 
     async def create_contract(
         self,

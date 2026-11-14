@@ -54,7 +54,7 @@ async def _seed(session, prepare=None, owner_role=OrganizationRole.OWNER):
     user = User(username=f"u{suffix}", email=f"u{suffix}@example.com", password_hash="x", plan_cache="free")
     session.add(user)
     await session.flush()
-    organization = Organization(slug=f"o{suffix}", name="Org", billing_sponsor_user_id=user.id, created_by_id=user.id)
+    organization = Organization(slug=f"o{suffix}", name="Org", created_by_id=user.id)
     session.add(organization)
     await session.flush()
     # The creator of an organization is always a member; ``study_jobs._sync`` stops launching

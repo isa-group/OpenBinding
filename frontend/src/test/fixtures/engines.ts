@@ -150,7 +150,7 @@ export function usageOf(plan = 'RESEARCH', limit: number | null = 5): UsageView 
     plan,
     contract_pending: false,
     features: { federatedEngines: true },
-    capabilities: { federatedEngines: limit },
+    capabilities: { maxFederatedEngines: limit },
   };
 }
 

@@ -22,7 +22,7 @@ function failed(diagnostics: Diagnostic[], openDiagnostic: (item: Diagnostic) =>
 function show(wb: Workbench) {
   return render(
     <MemoryRouter>
-      <CheckResult wb={wb} plan={{ name: null, ceiling: null, maxLabel: null }} pricingHref="/pricing" />
+      <CheckResult wb={wb} />
     </MemoryRouter>,
   );
 }

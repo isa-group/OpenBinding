@@ -115,10 +115,10 @@ describe('Export package and Import package in the General section of the projec
   });
 
   describe('import', () => {
-    it('states the ceiling of the plan', async () => {
+    it('states the ceiling of the gateway', async () => {
       renderSettings();
 
-      expect(await screen.findByText('ZIP, JSON or YAML package · up to 128 MiB on your plan')).toBeInTheDocument();
+      expect(await screen.findByText('ZIP, JSON or YAML package · up to 128 MiB for the gateway')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Choose package' })).toBeEnabled();
     });
 

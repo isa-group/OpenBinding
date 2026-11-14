@@ -113,7 +113,7 @@ has the one-shot `pricing-bootstrap`, a separate compose project that prepares t
 | `execution` | runs: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood | `EngineTransport`, `BimPort`, `PlanPort` | `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py`, job routes |
 | `laboratory` | studies, study runs, cells, protocol metrics, trade-offs across engines | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py`; the generator moved to QACOForge; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
 | `publishing` | published results (a frozen study run), citations, Zenodo-ready export | application APIs of `repository` and `laboratory` | none: the reports, their publications and Explore were removed in F0a |
-| `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH through CAS) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`; local metering (`domain/usage_counters.py`) retires; sponsor proposals (`sponsor_proposals.py`) were removed by M9.6, and only the caller can become billing sponsor |
+| `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH through CAS) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `modules/plans` (entitlement map, per-account quotas, the package copy of the pricing; F0b); `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`. Local metering and billing sponsorship were removed in F0b |
 | `administration` | users, queues and engine health, storage and retention, audit, moderation of public content | application APIs of the other modules | `routes/admin.py`, `telemetry.py` |
 | `shared` (kernel) | settings, logging, problem+json errors, pagination, digests, clock, ids, mail | — | `core/*`, `mailer.py`, `security/bodylimit.py` |
 
@@ -471,8 +471,14 @@ flowchart LR
 - `modules/plans` implements `PlanPort` with `space-python-client` 1.x (asynchronous transport, Redis cache provider)
   and a MANAGEMENT-scoped key; `OpenGate` remains for development and tests and is refused with `APP_ENV=prod`.
 - The **entitlement map** (operation → SPACE feature id `openbinding-<name>` and limits) lives in
-  `modules/plans/domain`. At start-up and on `pricing_activated`, the gateway checks that every feature and limit it
-  references exists in the active pricing and fails closed otherwise.
+  `modules/plans/domain/entitlement_map.py`, the only place the ids are spelled. **Delivered (F0b):** at start-up
+  (`main.check_pricing`) the gateway reads the published pricing (from SPACE, or a package-data byte copy under the
+  open gate), refuses to start when a feature or limit it references is missing or not `NUMERIC`, and, with SPACE
+  enabled, requires `SPACE_ORGANIZATION_ID` and the `pricing-token-jwks` capability (fatal under `APP_ENV=prod`, a
+  warning elsewhere). Pricing tokens are verified against SPACE's JWKS and matched to the account with
+  `pricing_token_user_id`; there is no unverified fallback. The same check on `pricing_activated` moves to F3/F8,
+  with the `PricingSource` port and the SPACE ledger.
+- Quotas are per account (`modules/plans/domain/quotas.py`); organizations carry no billing sponsor.
 - Pricing 0.2.0 (`docs/pricing/`) declares seven features and twelve limits. SPACE tracks two usage levels, both
   renewable and monthly: `solverHours` and `generatedInstances`. A run on a built-in engine, a study cell or the
   solver part of a solver-aware generation is admitted while the month's hours are not exhausted and then consumes

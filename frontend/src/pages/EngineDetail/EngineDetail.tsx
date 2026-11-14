@@ -192,7 +192,7 @@ export function EngineDetail() {
   const ceilings: PlanCeilings | null = pricing.data ?? null;
   const planNames = ceilings?.plans.map((item) => item.plan) ?? [];
   const userPlan = user?.plan && planNames.includes(user.plan) ? user.plan : '';
-  const plan = planNames.includes(planChoice) ? planChoice : userPlan || (planNames.includes('BASIC') ? 'BASIC' : planNames[0] ?? '');
+  const plan = planNames.includes(planChoice) ? planChoice : userPlan || (planNames.includes('FREE') ? 'FREE' : planNames[0] ?? '');
   const limits = ceilings?.plans.find((item) => item.plan === plan) ?? null;
   const own = (registrations.data ?? []).filter((item) => item.namespace === entry.namespace && item.name === entry.name && item.version === entry.version);
 
@@ -353,13 +353,12 @@ function Breadcrumb({ namespace, name }: { namespace: string; name: string }) {
 
 function PlanNote({ ceilings, plan, signedIn }: { ceilings: PlanCeilings | null; plan: string; signedIn: boolean }) {
   const source = ceilings ? `Figures from pricing ${ceilings.version ?? 'as served by the gateway'}.` : 'The pricing document couldn’t be read.';
-  const row = ceilings?.plans.find((item) => item.plan === (signedIn ? plan : 'BASIC'));
+  const row = ceilings?.plans.find((item) => item.plan === (signedIn ? plan : 'FREE'));
   if (!ceilings || !row) return <p>{signedIn ? `${plan}: ceilings unavailable.` : 'Ceilings depend on your plan.'} {source}</p>;
-  const timeout = row.maxTimeoutSeconds === null ? 'not mapped' : `${row.maxTimeoutSeconds.toLocaleString('en-US')} s`;
-  const iterations = row.maxIterations === null ? 'not mapped' : row.maxIterations.toLocaleString('en-US');
+  const timeout = row.maxRunMinutes === null ? 'no plan limit' : `${row.maxRunMinutes.toLocaleString('en-US')} min`;
   return signedIn
-    ? <p>{row.plan}: max timeout {timeout}, max {iterations} iterations per request. {source}</p>
-    : <p>Ceilings depend on your plan. {row.plan} allows {timeout} and {iterations} iterations per request. {source}</p>;
+    ? <p>{row.plan}: max {timeout} per run. {source}</p>
+    : <p>Ceilings depend on your plan. {row.plan} allows {timeout} per run. {source}</p>;
 }
 
 interface ModePanelProps {

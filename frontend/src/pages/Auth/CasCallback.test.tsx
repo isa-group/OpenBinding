@@ -91,6 +91,7 @@ describe('CasCallback', () => {
     ['account_inactive', 'This account is deactivated (account_inactive).', false],
     ['identity_in_use', 'This identity is already linked to another account.', false],
     ['account_collision', 'An account with these details already exists.', false],
+    ['username_unavailable', 'Your university username is reserved here (username_unavailable).', false],
     ['pricing_unavailable', 'The pricing service didn’t answer (503 · pricing_unavailable).', true],
     ['institutional_pricing_invalid', 'Institutional sign-in is paused (503 · institutional_pricing_invalid).', false],
     ['cas_error', 'The sign-in couldn’t be finished (cas_error).', true],

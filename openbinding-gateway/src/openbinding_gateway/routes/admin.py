@@ -151,8 +151,9 @@ async def _maintenance_preview(session: AsyncSession, retention_days: int) -> di
 
 
 async def _user_or_404(session: AsyncSession, user_id: uuid.UUID) -> User:
+    """The account, or 404; a deleted (pseudonymised) account is no longer an account to administer."""
     user = await session.get(User, user_id)
-    if user is None:
+    if user is None or user.deleted_at is not None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "No such account.")
     return user
 
@@ -199,9 +200,10 @@ async def list_users(
     The plan shown is the cached one rather than the contract, so that
     rendering a page of fifty does not mean fifty calls to the pricing
     service. ``GET /v1/admin/users/{id}/usage`` reads the contract itself when
-    an exact answer is wanted.
+    an exact answer is wanted. Deleted accounts, whose rows stay pseudonymised,
+    are not listed.
     """
-    conditions = []
+    conditions = [User.deleted_at.is_(None)]
     if search:
         pattern = like_contains(search.strip().lower())
         conditions.append(
@@ -676,7 +678,7 @@ async def platform_overview(
         select(Job.state, func.count(Job.id)).group_by(Job.state)
     )).all())
     plans = dict((await session.execute(
-        select(User.plan_cache, func.count(User.id)).group_by(User.plan_cache)
+        select(User.plan_cache, func.count(User.id)).where(User.deleted_at.is_(None)).group_by(User.plan_cache)
     )).all())
     latest_audit = (await session.execute(
         select(AuditEvent)
@@ -743,7 +745,7 @@ async def list_audit_events(
 ) -> AdminAuditPage:
     """Every audit event, newest first: platform actions and organization events.
 
-    Organization events (for example a sponsorship transfer) carry
+    Organization events (for example a member change) carry
     ``organizationId`` and ``organizationSlug``; platform events carry null.
     Members of an organization still read only their own organization's log
     through ``GET /v1/organizations/{org}/audit``; that view is unchanged.

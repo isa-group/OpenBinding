@@ -190,13 +190,12 @@ def validate_content(kind: str, payload: DraftContent) -> tuple[bytes, list[dict
 async def store_blob(session: AsyncSession, artifact: Artifact, user: User, content: bytes, media_type: str) -> Blob:
     from .routes.artifacts import _artifact_path, _storage_limit
     hash_value = digest_bytes(content)
-    organization = await session.get(Organization, artifact.organization_id)
-    await session.execute(select(User.id).where(User.id == organization.billing_sponsor_user_id).with_for_update())
+    await session.execute(select(User.id).where(User.id == user.id).with_for_update())
     row = await session.scalar(select(Blob).where(Blob.organization_id == artifact.organization_id,
         Blob.project_id.is_(None), Blob.digest == hash_value))
     if row:
         return row
-    await _storage_limit(session, organization, len(content))
+    await _storage_limit(session, user, len(content))
     destination = _artifact_path(get_settings(), hash_value)
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists():

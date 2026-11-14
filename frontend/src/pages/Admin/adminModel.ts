@@ -4,7 +4,6 @@ import type { AdminAuditPage, PricingCatalog } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { diagnosticsOf } from '../../api/problem';
 import { inInterfaceWords } from '../../components/ui/interfaceWords';
-import { formatDate } from '../../utils/format';
 import { describeLimit, LIMIT_ORDER, limitInfo, type LimitText } from '../../utils/limits';
 import type { ApiErrorEventItem } from './types';
 
@@ -180,8 +179,8 @@ export type ChipTone = 'plain' | 'info' | 'success' | 'warning' | 'error' | 'dar
 
 export function planTone(plan: string): ChipTone {
   switch (plan) {
-    case 'PRO': return 'dark';
-    case 'ADVANCED': case 'RESEARCH': return 'info';
+    case 'LAB': return 'dark';
+    case 'RESEARCH': return 'info';
     default: return 'plain';
   }
 }
@@ -504,37 +503,9 @@ export function describeAuditEvent(event: AuditEvent): AuditView {
         before: from || null, after: to || null, facts,
       };
     }
-    case 'organization.sponsor_transferred':
-    case 'organization.updated': {
-      const previous = textOf(detail.previous_sponsor_user_id);
-      const next = textOf(detail.new_sponsor_user_id);
-      const facts: Array<[string, string]> = [];
-      if (previous) facts.push(['Previous sponsor', shortId(previous)]);
-      if (next) facts.push(['New sponsor', shortId(next)]);
-      return {
-        text: event.action === 'organization.sponsor_transferred' || next ? 'The organization’s billing sponsor was changed.' : 'The organization’s settings were updated.',
-        before: null, after: null, facts,
-      };
-    }
+    case 'organization.updated':
+      return { text: 'The organization’s settings were updated.', before: null, after: null, facts: [] };
     default: {
-      if (event.action.startsWith('organization.sponsor.')) {
-        const step = event.action.slice('organization.sponsor.'.length);
-        const phrase: Record<string, string> = {
-          proposed: 'A request to become the billing sponsor was sent',
-          accepted: 'A request to become the billing sponsor was accepted',
-          declined: 'A request to become the billing sponsor was declined',
-          cancelled: 'A request to become the billing sponsor was cancelled',
-          expired: 'A request to become the billing sponsor expired',
-        };
-        const facts: Array<[string, string]> = [];
-        if (textOf(detail.proposed_user_id)) facts.push(['Asked to sponsor', shortId(textOf(detail.proposed_user_id))]);
-        if (textOf(detail.proposed_by_user_id)) facts.push(['Sent by', shortId(textOf(detail.proposed_by_user_id))]);
-        if (textOf(detail.expires_at)) facts.push(['Expires', formatDate(textOf(detail.expires_at)) ?? textOf(detail.expires_at)]);
-        if (textOf(detail.previous_sponsor_user_id)) facts.push(['Previous sponsor', shortId(textOf(detail.previous_sponsor_user_id))]);
-        if (textOf(detail.new_sponsor_user_id)) facts.push(['New sponsor', shortId(textOf(detail.new_sponsor_user_id))]);
-        if (textOf(detail.reason)) facts.push(['Reason', humanize(textOf(detail.reason))]);
-        return { text: `${phrase[step] ?? humanize(event.action.replace(/\./g, ' '))}.`, before: null, after: null, facts };
-      }
       if (event.action.startsWith('pricing.')) {
         const version = textOf(detail.version) || textOf(detail.pricingVersion) || (event.targetId ?? '');
         const verb = event.action.slice('pricing.'.length).replace(/[._]/g, ' ');
@@ -609,8 +580,6 @@ export function groupErrors(rows: ErrorRow[]): ErrorGroup[] {
 
 const MEANINGS: Record<string, string> = {
   quota_exceeded: 'A limit of the plan was reached. Expected: the account frees something, or asks for a larger agreement.',
-  instance_complexity_too_large: 'The problem is bigger than the plan allows. The answer carries the estimated size and the plan’s limit when it could be measured.',
-  binding_space_limit_unknown: 'The plan declares no limit for the problem size, so the request was refused. A fault in the plan’s configuration, not something the user did; a larger plan doesn’t fix it.',
   binding_space_over_technical_limit: 'The problem is bigger than this deployment accepts, whatever the plan. A larger plan doesn’t help; the user has to reduce the candidates.',
   binding_space_unmeasured: 'The size of the problem could not be measured, so it could not be checked against the limit. Worth a look: it is a fault of the service, not of the user.',
   pricing_misconfigured: 'A limit of the plan is missing or exceeds what the deployment can honour, so the request was refused. A fault in the plan’s configuration.',

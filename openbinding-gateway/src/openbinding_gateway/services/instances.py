@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.jsonio import strict_json_loads
 from ..db.models import BindingIRSnapshot, InstanceSnapshot, User
 from .engines import compatible_modes
-from .entitlements import EntitlementsUnavailable, entitlement_service
+from .entitlements import entitlement_service
 from .snapshots import Compilation, compile_resolved, owned_snapshot, package_file_digests
 
 BIM_ZIP_TYPES = frozenset({"application/zip", "application/octet-stream", "application/vnd.bim+zip", "application/x-bim+zip"})
@@ -179,18 +179,14 @@ async def validate_package(
     *,
     compiler: Compiler = compile_resolved,
 ) -> dict[str, Any]:
-    """Validate an upload or a snapshot of the caller, within the caller's plan, and name the engines that fit."""
+    """Validate an upload or a snapshot of the caller, within the deployment's size limit, and name the engines that fit."""
     try:
         archive = await _validation_archive(request, caller, session)
         compilation = await compile_upload(archive, session, caller, compiler=compiler)
     except PackageError as exc:
         raise InstanceProblem(422, "invalid_request", str(exc)) from exc
     if caller is not None:
-        try:
-            caps = await entitlement_service.caps_for(caller.id)
-        except EntitlementsUnavailable as exc:
-            raise InstanceProblem(exc.status, exc.code, str(exc)) from exc
-        refusal = entitlement_service.binding_space_refusal(compilation.binding_space, caps)
+        refusal = entitlement_service.binding_space_refusal(compilation.binding_space)
         if refusal is not None:
             raise InstanceProblem(refusal.status, refusal.code, refusal.detail, extra=refusal.extra)
     spec = compilation.spec

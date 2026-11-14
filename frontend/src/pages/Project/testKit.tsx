@@ -56,7 +56,7 @@ export function usageWithProjects(): UsageView {
     plan: 'RESEARCH',
     contract_pending: false,
     features: {},
-    capabilities: { projects: 50, privateProjects: 30, maxPayloadBytes: 134_217_728 },
+    capabilities: { maxProblems: null, maxRepositoryStorage: null, maxRunMinutes: 30, maxConcurrentRuns: 4 },
   };
 }
 

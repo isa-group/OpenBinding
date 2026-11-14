@@ -1,15 +1,12 @@
 import { useRef, useState, type DragEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Upload } from 'lucide-react';
-import { apiClient } from '../../api/client';
 import { platformApi } from '../../api/platform';
 import type { Organization, PackageFormat, Project } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
-import { useAuth } from '../../contexts/auth';
 import { formatByteSize, formatBytes } from '../../utils/format';
-import { useResource } from '../../utils/useResource';
 import { SelectField } from '../Organization/parts';
 import { saveBytes } from './download';
 import { loadCases } from './projectData';
@@ -89,17 +86,13 @@ export function ExportPackage({ organization, project }: { organization: Organiz
 
 /** The section `Import package` of the project settings: the fingerprints are checked on this device before anything is sent. */
 export function ImportPackage({ organization, project, canImport }: { organization: Organization; project: Project; canImport: boolean }) {
-  const { user } = useAuth();
   const picker = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>({ name: 'idle' });
   const [dragging, setDragging] = useState(false);
   const [refused, setRefused] = useState(false);
   const org = organization.slug;
 
-  const usage = useResource('package-usage', () => apiClient.getOwnUsage().catch(() => null));
-  const catalog = useResource('package-catalog', () => apiClient.getPricingCatalog().catch(() => null));
-  const ceiling = importCeiling(usage.data, catalog.data, user?.plan);
-  const planKnown = ceiling.plan !== null;
+  const ceiling = importCeiling();
   const allowed = canImport && !refused;
 
   const choose = async (file: File | undefined) => {
@@ -108,7 +101,7 @@ export function ImportPackage({ organization, project, canImport }: { organizati
       setPhase({
         name: 'problem',
         title: 'Package too large',
-        text: `This package is ${formatBytes(file.size)}, bigger than the ${formatByteSize(ceiling.effective)} ${ceiling.clamped ? 'the gateway accepts' : 'your plan allows'} per request (the gateway answers 413). Nothing was sent.`,
+        text: `This package is ${formatBytes(file.size)}, bigger than the ${formatByteSize(ceiling.effective)} the gateway accepts per request (the gateway answers 413). Nothing was sent.`,
       });
       return;
     }
@@ -176,8 +169,7 @@ export function ImportPackage({ organization, project, canImport }: { organizati
         >
           <Upload aria-hidden="true" />
           <strong>Drop a package here</strong>
-          <span>ZIP, JSON or YAML package · up to {formatByteSize(ceiling.effective)}{planKnown ? ' on your plan' : ' for the gateway'}</span>
-          {ceiling.clamped && <small>Your plan allows {formatByteSize(ceiling.plan!)}, but the gateway never takes more than {formatByteSize(ceiling.effective)} compressed.</small>}
+          <span>ZIP, JSON or YAML package · up to {formatByteSize(ceiling.effective)} for the gateway</span>
           <input ref={picker} type="file" className="sr-only" tabIndex={-1} accept=".zip,.json,.yaml,.yml,application/zip,application/json" aria-label="Package file" onChange={(event) => { void choose(event.target.files?.[0]); event.target.value = ''; }} />
           <Action variant="secondary" onClick={() => picker.current?.click()} disabled={!allowed}>Choose package</Action>
         </div>

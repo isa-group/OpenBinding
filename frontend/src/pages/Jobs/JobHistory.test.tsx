@@ -42,7 +42,7 @@ function renderHistory() {
 describe('My jobs', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    jobsApi.history.mockResolvedValue({ jobs: history, total: 5, retention_days: 180 });
+    jobsApi.history.mockResolvedValue({ jobs: history, total: 5 });
     // Every run but one belongs to a project; the loose one was started straight from a snapshot.
     jobsApi.mine.mockResolvedValue([
       ...history.slice(0, 4).map((row) => jobOf(row.id, row.engine_id, row.status, row.termination, row.created_at, row.finished_at ?? null)),
@@ -79,23 +79,12 @@ describe('My jobs', () => {
     expect(within(loose).queryByRole('link', { name: /minizinc/ })).not.toBeInTheDocument();
   });
 
-  it('says how long finished runs are kept and compares it with the plans', async () => {
+  it('says nothing about a retention window: no plan sets one', async () => {
     renderHistory();
 
-    const card = await screen.findByRole('region', { name: 'How long runs are kept' });
-    expect(within(card).getByText('Finished runs are kept 180 days on your RESEARCH plan')).toBeInTheDocument();
-    expect(within(card).getByText('Longer retention comes with larger plans, arranged by agreement.')).toBeInTheDocument();
-    expect(await within(card).findByText('PRO')).toBeInTheDocument();
-    expect(within(card).getByText('BAS')).toBeInTheDocument();
-  });
-
-  it('still lists the runs when the retention cannot be confirmed', async () => {
-    jobsApi.history.mockResolvedValue({ jobs: history, total: 5, retention_days: null });
-    renderHistory();
-
-    expect(await screen.findByText('Retention can’t be confirmed right now')).toBeInTheDocument();
-    expect(screen.getByText('Your list still loads; only the retention figure is missing.')).toBeInTheDocument();
-    expect(await screen.findAllByRole('listitem')).not.toHaveLength(0);
+    await screen.findByRole('list', { name: 'Your runs' });
+    expect(screen.queryByRole('region', { name: 'How long runs are kept' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/retention/i)).not.toBeInTheDocument();
   });
 
   it('narrows by status and by engine', async () => {
@@ -146,7 +135,7 @@ describe('My jobs', () => {
   });
 
   it('refuses a retry when an allowance is used up and says so (402)', async () => {
-    jobsApi.retry.mockRejectedValue(new QuotaError('quota_exceeded', 'API keys exhausted.', { limit_id: 'apiKeys', limit: 10, used: 10 }));
+    jobsApi.retry.mockRejectedValue(new QuotaError('quota_exceeded', 'API keys exhausted.', { limit_id: 'maxApiKeys', limit: 10, used: 10 }));
     renderHistory();
 
     const list = await screen.findByRole('list', { name: 'Your runs' });
@@ -155,17 +144,17 @@ describe('My jobs', () => {
     expect(screen.getByText(/You’ve used 10 of 10 API keys\./)).toBeInTheDocument();
   });
 
-  it('starts a run from nothing when there is nothing within the retention window', async () => {
-    jobsApi.history.mockResolvedValue({ jobs: [], total: 0, retention_days: 7 });
+  it('starts a run from nothing when there is no run yet', async () => {
+    jobsApi.history.mockResolvedValue({ jobs: [], total: 0 });
     renderHistory();
 
-    expect(await screen.findByText('Nothing within your retention window')).toBeInTheDocument();
-    expect(screen.getByText('No runs within your retention window.')).toBeInTheDocument();
+    expect(await screen.findByText('No runs yet')).toBeInTheDocument();
+    expect(screen.getByText('Runs you start in any project appear here.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start a run' })).toBeInTheDocument();
   });
 
   it('asks for more when the account has more runs than the page', async () => {
-    jobsApi.history.mockResolvedValue({ jobs: history, total: 120, retention_days: 180 });
+    jobsApi.history.mockResolvedValue({ jobs: history, total: 120 });
     renderHistory();
 
     expect(await screen.findByText('Showing 5 of 120')).toBeInTheDocument();
@@ -190,7 +179,7 @@ describe('My jobs', () => {
     renderHistory();
 
     expect(await screen.findByText(/Your runs can’t be loaded right now \(503/)).toBeInTheDocument();
-    expect(screen.queryByText('Nothing within your retention window')).not.toBeInTheDocument();
+    expect(screen.queryByText('No runs yet')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByRole('list', { name: 'Your runs' })).toBeInTheDocument();
   });

@@ -31,7 +31,7 @@ const refusal = (status: number, code: string) => {
   return error;
 };
 
-function renderIdentities(plan = 'BASIC') {
+function renderIdentities(plan = 'FREE') {
   const auth = { user: person(plan), loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn().mockResolvedValue(undefined), isAdmin: false };
   render(
     <MemoryRouter>
@@ -71,7 +71,7 @@ describe('Identities', () => {
     });
 
     it('tells once, when the person is back from linking, that their plan is now RESEARCH at no extra cost', async () => {
-      notePlanChanged({ from: 'BASIC', to: 'RESEARCH', extraCost: false });
+      notePlanChanged({ from: 'FREE', to: 'RESEARCH', extraCost: false });
       const { unmount } = render(
         <MemoryRouter>
           <AuthContext.Provider value={{ user: person('RESEARCH'), loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: false }}>
@@ -118,7 +118,7 @@ describe('Identities', () => {
     });
 
     it('shows it as verified, without the institutional mark that belongs to the plan', async () => {
-      renderIdentities('BASIC');
+      renderIdentities('FREE');
 
       expect(await screen.findByText('Verified · linked Sep 1, 2026 · lvega1')).toBeInTheDocument();
       expect(screen.getByText('Verified', { selector: '.ui-chip' })).toBeInTheDocument();
@@ -126,7 +126,7 @@ describe('Identities', () => {
     });
 
     it('unlinks without a typed confirmation, because the plan does not change', async () => {
-      const auth = renderIdentities('BASIC');
+      const auth = renderIdentities('FREE');
       fireEvent.click(await screen.findByRole('button', { name: 'Unlink' }));
 
       const dialog = within(await unlinkDialog());
@@ -141,7 +141,7 @@ describe('Identities', () => {
     });
 
     it('does nothing when the dialog is cancelled', async () => {
-      renderIdentities('BASIC');
+      renderIdentities('FREE');
       fireEvent.click(await screen.findByRole('button', { name: 'Unlink' }));
       fireEvent.click(within(await unlinkDialog()).getByRole('button', { name: 'Cancel' }));
 
@@ -169,10 +169,10 @@ describe('Identities', () => {
 
       const dialog = within(await unlinkDialog());
       const change = within(dialog.getByLabelText('Plan change'));
-      expect(await change.findByText('3 concurrent runs')).toBeInTheDocument();
+      expect(await change.findByText('4 concurrent runs')).toBeInTheDocument();
       expect(change.getByText('1 concurrent run')).toBeInTheDocument();
       expect(change.getByText('RESEARCH')).toBeInTheDocument();
-      expect(change.getByText('BASIC')).toBeInTheDocument();
+      expect(change.getByText('FREE')).toBeInTheDocument();
 
       const unlink = dialog.getByRole('button', { name: 'Unlink' });
       expect(unlink).toBeDisabled();
@@ -189,12 +189,12 @@ describe('Identities', () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Unlink' }));
 
       const dialog = within(await unlinkDialog());
-      await dialog.findByText('3 concurrent runs');
+      await dialog.findByText('4 concurrent runs');
       fireEvent.change(dialog.getByLabelText('Type DOWNGRADE RESEARCH to confirm'), { target: { value: 'DOWNGRADE RESEARCH' } });
       fireEvent.click(dialog.getByRole('button', { name: 'Unlink' }));
 
       await waitFor(() => expect(api.unlinkOwnIdentity).toHaveBeenCalledWith('i1', 'DOWNGRADE RESEARCH'));
-      expect(await screen.findByText('Identity unlinked. Your plan is now BASIC.')).toBeInTheDocument();
+      expect(await screen.findByText('Identity unlinked. Your plan is now FREE.')).toBeInTheDocument();
       await waitFor(() => expect(auth.refresh).toHaveBeenCalled());
     });
 

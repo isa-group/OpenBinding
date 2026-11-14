@@ -91,11 +91,11 @@ os.environ["GATEWAY_JWT_SECRET"] = "test-secret-not-used-anywhere-real"
 # Jobs run in the request that creates them; there is no worker to claim a queued one.
 os.environ["JOB_DISPATCH_MODE"] = "inline"
 os.environ["SPHERE_ENABLED"] = "false"
-# The fake gate installed below is built from tests/fixtures/pricing_test.yml
-# (version 0.1.0, default plan BASIC); the gateway names that version and plan
-# when it creates contracts.
-os.environ["SPACE_PRICING_VERSION"] = "0.1.0"
-os.environ["SPACE_DEFAULT_PLAN"] = "BASIC"
+# The fake gate installed below is built from tests/fixtures/pricing/openbinding-0.2.0.yml
+# (the published pricing 0.2.0: plans FREE, RESEARCH and LAB, default FREE); the gateway names
+# that version and plan when it creates contracts.
+os.environ["SPACE_PRICING_VERSION"] = "0.2.0"
+os.environ["SPACE_DEFAULT_PLAN"] = "FREE"
 # The suite always uses the toolchain installed beside the gateway: a ``BIM_MODE=http`` left in the environment
 # would point every test at a service that is not there.
 os.environ["BIM_MODE"] = "inproc"
@@ -225,7 +225,7 @@ def fresh_bim_port():
 
 @pytest.fixture(autouse=True)
 def pricing_catalog_gate():
-    """Every test gets a SPACE substitute built from the synthetic pricing fixture."""
+    """Every test gets a SPACE substitute built from the pricing 0.2.0 fixture."""
     if not GATEWAY_INSTALLED:
         yield
         return

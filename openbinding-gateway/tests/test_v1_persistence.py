@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from _repo import REPO_ROOT
 
+from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import InstanceResource
 from openbinding_gateway.main import app
 from openbinding_gateway.routes import v1 as routes
@@ -238,6 +239,7 @@ async def test_v1_plan_limits_are_persisted_in_options_and_provenance(
         }
 
     monkeypatch.setattr(execution, "solve_remote", solve)
+    monkeypatch.setattr(get_settings(), "max_iterations", 10_000)
     headers = await _register_and_login(api_client, registration())
     package = load_package(EXAMPLE)
     created = await api_client.post(
@@ -268,7 +270,7 @@ async def test_v1_plan_limits_are_persisted_in_options_and_provenance(
             "code": "OPTION_CLAMPED",
             "message": (
                 "'max_evaluations' was reduced from 50000 to 10000 iterations, "
-                "which is what this plan allows."
+                "which is what this deployment allows."
             ),
             "details": {
                 "option": "max_evaluations",

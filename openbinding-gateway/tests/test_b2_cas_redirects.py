@@ -484,7 +484,10 @@ async def test_an_account_already_on_research_gets_no_plan_changed(
     api_client, registration, cas_environment, monkeypatch, db_session
 ):
     profile, headers = await account(api_client, registration)
+    # As an administrator's change leaves it: the contract and the plan the profile shows.
     cas_environment.plans[uuid.UUID(profile["id"])] = "RESEARCH"
+    (await db_session.get(User, uuid.UUID(profile["id"]))).plan_cache = "RESEARCH"
+    await db_session.flush()
 
     response = await link(api_client, headers, monkeypatch, "uvus-already")
     session = await exchange(api_client, response)

@@ -36,9 +36,9 @@ async def _user(session) -> User:
     return user
 
 
-async def _organization(session, sponsor: User, slug: str, name: str = "Org", parent=None) -> Organization:
+async def _organization(session, creator: User, slug: str, name: str = "Org", parent=None) -> Organization:
     organization = Organization(
-        slug=slug, name=name, billing_sponsor_user_id=sponsor.id, created_by_id=sponsor.id,
+        slug=slug, name=name, created_by_id=creator.id,
         parent_id=parent.id if parent else None,
     )
     session.add(organization)

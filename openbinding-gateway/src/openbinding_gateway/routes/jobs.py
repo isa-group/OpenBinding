@@ -28,7 +28,7 @@ from ..job_dispatch import dispatch_persisted_job
 from ..jobs import clock as job_clock
 from ..jobs import evidence as job_evidence
 from ..jobs import lifecycle
-from ..domain import usage_counters
+from ..modules.plans.application import entitlement_map as ids
 from ..domain.binding_space import BindingSpace, parse_cardinality
 from ..jobs import limits as job_limits
 from ..models.errors import (
@@ -143,17 +143,14 @@ async def retry_job(
         and registration.get("namespace") != "bim.builtin"
     )
     caps = await plans.caps_or_503(user.id)
-    refusal = plans.feature_refusal(caps, "federatedEngines" if federated else "solve")
+    refusal = plans.feature_refusal(caps, ids.FEDERATED_ENGINES if federated else ids.RUNS)
     recorded = (original.instance_complexity or {}).get("bindingSpace")
     if refusal is None and recorded is not None:
-        # The size recorded when the original was accepted, held against today's plan. A job from
+        # The size recorded when the original was accepted, held against today's limit. A job from
         # before the size was recorded is not measured again: its instance cannot be read from here.
-        refusal = plans.binding_space_refusal(BindingSpace(parse_cardinality(recorded), None), caps)
+        refusal = plans.binding_space_refusal(BindingSpace(parse_cardinality(recorded), None))
     if refusal is None:
         refusal = await job_limits.enforce_concurrency_limit(session, user.id, caps=caps)
-    if refusal is None:
-        # A retry is a new start (the replay of one was answered above, before any question).
-        refusal = await usage_counters.job_start_refusal(user.id, federated=federated)
     if refusal is not None:
         raise api_error(
             refusal.status,

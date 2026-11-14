@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
+import secrets
 import uuid
-from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Request, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, get_user_by_identifier, session_dependency
 from ..db.models import (
-    ApiKey, Blob, AuthIdentity, Artifact, ArtifactVersion, ArtifactDraft, ArtifactPublication, BindingCase, BindingCaseRevision,
-    Job, Organization, OrganizationMembership,
-    OrganizationRole, Project, ProjectResource,
-    ProjectResourceRevision, Study, StudyRun, User, utcnow,
+    ApiKey, AuditEvent, AuthIdentity, Job, Notification, OrganizationInvitation, OrganizationMembership,
+    OrganizationRole, PasswordResetToken, RefreshToken, User, UserRole, utcnow,
 )
 from ..models.accounts import (
     ApiKeyList,
@@ -34,12 +32,14 @@ from ..models.accounts import (
 )
 from ..models.errors import (
     CONFLICT_RESPONSE,
+    ErrorResponse,
     NOT_FOUND_RESPONSE,
     QUOTA_RESPONSE,
     UNAUTHORIZED_RESPONSE,
     UNAVAILABLE_RESPONSE,
     api_error,
 )
+from ..modules.plans.application import entitlement_map as entitlement_ids
 from ..security.apikeys import (
     ADMIN_PERMISSIONS,
     allows_engine,
@@ -54,6 +54,7 @@ from ..security.apikeys import (
 from ..security.passwords import hash_password, password_complaint, verify_password
 from ..core import revision
 from ..core.public_errors import pricing_unavailable_error
+from ..services import engine_registry
 from ..services.entitlements import entitlement_service
 from ..space_client import PricingUnavailable, get_gate
 
@@ -94,19 +95,17 @@ async def cas_verified_ids(session: AsyncSession, user_ids) -> set[uuid.UUID]:
 
 
 async def profile_of(session: AsyncSession, user: User) -> UserProfile:
+    """The profile of ``user``, from the database alone: reading it never needs SPACE."""
     cas_verified = user.id in await cas_verified_ids(session, [user.id])
-    caps = await _caps_for(user)
-    institutional_branding = cas_verified and caps.allows("institutionalBranding")
     return UserProfile(
         id=user.id,
         username=user.username,
         email=user.email,
         role=user.role.value,
         is_active=user.is_active,
-        plan=caps.plan,
+        plan=user.plan_cache,
         created_at=user.created_at,
         cas_verified=cas_verified,
-        institutional_branding=institutional_branding,
     )
 
 
@@ -115,7 +114,7 @@ async def profile_of(session: AsyncSession, user: User) -> UserProfile:
     response_model=UserProfile,
     operation_id="getOwnProfile",
     summary="The signed-in account",
-    responses={**revision.ETAG_RESPONSE, 401: UNAUTHORIZED_RESPONSE, 503: UNAVAILABLE_RESPONSE},
+    responses={**revision.ETAG_RESPONSE, 401: UNAUTHORIZED_RESPONSE},
 )
 async def read_own_profile(
     response: Response,
@@ -136,7 +135,6 @@ async def read_own_profile(
         401: UNAUTHORIZED_RESPONSE,
         409: CONFLICT_RESPONSE,
         422: {"description": "The new password is not acceptable."},
-        503: UNAVAILABLE_RESPONSE,
     },
 )
 async def update_own_profile(
@@ -264,6 +262,7 @@ async def list_own_api_keys(
     responses={
         401: UNAUTHORIZED_RESPONSE,
         402: QUOTA_RESPONSE,
+        403: {"model": ErrorResponse, "description": "The plan does not include API access (`feature_not_entitled`), or the key would escalate."},
         503: UNAVAILABLE_RESPONSE,
     },
 )
@@ -326,7 +325,10 @@ async def create_api_key(
             )
 
     caps = await _caps_for(user)
-    api_keys_limit = caps.limit("apiKeys")
+    entitlement_service.require_feature(
+        caps, entitlement_ids.API_ACCESS, detail="The current plan does not entitle API keys."
+    )
+    api_keys_limit = caps.limit(entitlement_ids.MAX_API_KEYS)
     if api_keys_limit is not None:
         # Serialize this user's count-and-insert on PostgreSQL. Without the
         # row lock, concurrent requests could both observe nine live keys and
@@ -341,7 +343,7 @@ async def create_api_key(
                 f"{'' if api_keys_limit == 1 else 's'}, and you have {live}. "
                 f"Revoke one, or move to a plan that allows more.",
                 quota={
-                    "limit_id": "apiKeys",
+                    "limit_id": entitlement_ids.MAX_API_KEYS,
                     "limit": api_keys_limit,
                     "used": live,
                     "renews_at": None,
@@ -442,7 +444,7 @@ async def revoke_api_key(
     response_model=JobHistory,
     operation_id="listOwnJobs",
     summary="Solves you have asked for",
-    responses={401: UNAUTHORIZED_RESPONSE, 503: UNAVAILABLE_RESPONSE},
+    responses={401: UNAUTHORIZED_RESPONSE},
 )
 async def list_own_jobs(
     limit: int = 50,
@@ -450,28 +452,12 @@ async def list_own_jobs(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> JobHistory:
-    """Your own solves, newest first, as far back as your plan keeps them.
-
-    The retention window comes from SPACE under the canonical ``jobHistoryDays``
-    identifier. It
-    was carried all the way to ``GET /v1/users/me/usage`` and displayed there
-    while nothing applied it, because there was no endpoint for it to bound.
-    This is that endpoint, and the cutoff is applied here rather than by
-    deleting rows: a job that has aged out of somebody's history is still the
-    row the reconciler and any audit need.
+    """Your own solves, newest first.
 
     Summaries only. A result can be hundreds of megabytes, and a history is for
     finding the one you want; ``GET /v1/jobs/{id}`` returns the answer itself.
     """
-    caps = await _caps_for(user)
-    retention_days = caps.limit("jobHistoryDays")
-
-    visible = (
-        select(Job)
-        .where(Job.owner_id == user.id)
-    )
-    if retention_days is not None:
-        visible = visible.where(Job.created_at >= utcnow() - timedelta(days=retention_days))
+    visible = select(Job).where(Job.owner_id == user.id)
 
     if authenticated_api_key(user) is None:
         total = await session.scalar(select(func.count()).select_from(visible.subquery()))
@@ -509,7 +495,6 @@ async def list_own_jobs(
     return JobHistory(
         jobs=[_job_summary(row) for row in rows],
         total=int(total or 0),
-        retention_days=retention_days,
     )
 
 
@@ -597,13 +582,33 @@ async def read_own_pricing_token(user: User = Depends(get_current_user)) -> Pric
     "/me",
     status_code=status.HTTP_204_NO_CONTENT,
     operation_id="deleteOwnAccount",
-    summary="Delete the account and revoke every credential",
+    summary="Delete the account: revoke every credential and pseudonymise what stays",
+    responses={
+        401: UNAUTHORIZED_RESPONSE,
+        409: {
+            "model": ErrorResponse,
+            "description": "The account is the last OWNER of an organization (`last_owner`).",
+        },
+        422: {"description": "The confirmation is not the username (`confirmation_mismatch`)."},
+        503: {**UNAVAILABLE_RESPONSE, "description": "The contract could not be removed; nothing was changed."},
+    },
 )
 async def delete_own_account(
     payload: AccountDeleteRequest,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> None:
+    """Delete the account.
+
+    The user row stays, so that the runs, revisions and engines it created keep
+    naming somebody, but nothing in it identifies a person any more: the
+    username and email are replaced, the password is unusable, the preferences
+    are emptied and ``deleted_at`` is set. Every credential, membership,
+    identity, notification and invitation of the account is deleted, its
+    federated engines are deactivated and an administrator becomes an ordinary
+    (inactive) user. The SPACE contract is removed last, before the commit; if
+    that fails, nothing is changed (503).
+    """
     if payload.confirmation != user.username:
         raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "confirmation_mismatch", "Type the exact username to delete the account.")
     if user.password_enabled and (
@@ -626,139 +631,60 @@ async def delete_own_account(
                 "Transfer or delete every organization for which this is the last owner.",
             )
 
-    org_owners: dict[uuid.UUID, uuid.UUID] = {}
-
-    async def get_org_owner(org_id: uuid.UUID) -> uuid.UUID | None:
-        if org_id not in org_owners:
-            owner = (await session.execute(
-                select(OrganizationMembership.user_id)
-                .where(
-                    OrganizationMembership.organization_id == org_id,
-                    OrganizationMembership.user_id != user.id,
-                    OrganizationMembership.role == OrganizationRole.OWNER,
-                )
-                .order_by(OrganizationMembership.created_at)
-            )).scalars().first()
-            if owner is not None:
-                org_owners[org_id] = owner
-        return org_owners.get(org_id)
-
-    async def require_org_owner(org_id: uuid.UUID) -> uuid.UUID:
-        owner = await get_org_owner(org_id)
-        if owner is None:
-            raise api_error(
-                status.HTTP_409_CONFLICT,
-                "organization_owner_required",
-                "Cannot delete account because one or more shared resources belong to an organization without another active OWNER.",
-            )
-        return owner
-
-    sponsored = (await session.execute(select(Organization).where(
-        Organization.billing_sponsor_user_id == user.id
-    ))).scalars().all()
-    for organization in sponsored:
-        next_owner = await get_org_owner(organization.id)
-        if next_owner is None:
-            raise api_error(
-                status.HTTP_409_CONFLICT,
-                "sponsor_transfer_required",
-                "Make another member an OWNER of the organization so the sponsorship can move to them, "
-                "or delete the organization, before deleting this account.",
-            )
-        organization.billing_sponsor_user_id = next_owner
-
-    # Reassign collaborative resources strictly to the corresponding organization's OWNER.
-    # Platform administrators never inherit private tenant resources unless they are legitimate owners.
-    orgs = (await session.execute(select(Organization).where(Organization.created_by_id == user.id))).scalars().all()
-    for org in orgs:
-        org.created_by_id = await require_org_owner(org.id)
-
-    projects = (await session.execute(select(Project).where(Project.created_by_id == user.id))).scalars().all()
-    for p in projects:
-        p.created_by_id = await require_org_owner(p.organization_id)
-
-    artifacts = (await session.execute(select(Blob).where(Blob.created_by_id == user.id))).scalars().all()
-    for a in artifacts:
-        a.created_by_id = await require_org_owner(a.organization_id)
-
-    library_artifacts = (await session.execute(select(Artifact, Organization.id)
-        .join(Organization, Organization.id == Artifact.organization_id)
-        .where(Artifact.created_by_id == user.id))).all()
-    for artifact, org_id in library_artifacts:
-        artifact.created_by_id = await require_org_owner(org_id)
-    library_versions = (await session.execute(select(ArtifactVersion, Artifact.organization_id)
-        .join(Artifact, Artifact.id == ArtifactVersion.artifact_id)
-        .where(ArtifactVersion.created_by_id == user.id))).all()
-    for version, org_id in library_versions:
-        version.created_by_id = await require_org_owner(org_id)
-    library_drafts = (await session.execute(select(ArtifactDraft, Artifact.organization_id)
-        .join(Artifact, Artifact.id == ArtifactDraft.artifact_id)
-        .where(ArtifactDraft.created_by_id == user.id))).all()
-    for draft, org_id in library_drafts:
-        draft.created_by_id = await require_org_owner(org_id)
-    publications = (await session.execute(select(ArtifactPublication, Artifact.organization_id)
-        .join(ArtifactVersion, ArtifactVersion.id == ArtifactPublication.version_id)
-        .join(Artifact, Artifact.id == ArtifactVersion.artifact_id)
-        .where(ArtifactPublication.published_by_id == user.id))).all()
-    for publication, org_id in publications:
-        publication.published_by_id = await require_org_owner(org_id)
-
-    proj_resources = (await session.execute(
-        select(ProjectResource, Project.organization_id)
-        .join(Project, Project.id == ProjectResource.project_id)
-        .where(ProjectResource.created_by_id == user.id)
-    )).all()
-    for pr, org_id in proj_resources:
-        pr.created_by_id = await require_org_owner(org_id)
-
-    resource_revs = (await session.execute(
-        select(ProjectResourceRevision, Project.organization_id)
-        .join(ProjectResource, ProjectResource.id == ProjectResourceRevision.project_resource_id)
-        .join(Project, Project.id == ProjectResource.project_id)
-        .where(ProjectResourceRevision.created_by_id == user.id)
-    )).all()
-    for prr, org_id in resource_revs:
-        prr.created_by_id = await require_org_owner(org_id)
-
-    binding_cases = (await session.execute(
-        select(BindingCase, Project.organization_id)
-        .join(Project, Project.id == BindingCase.project_id)
-        .where(BindingCase.created_by_id == user.id)
-    )).all()
-    for bc, org_id in binding_cases:
-        bc.created_by_id = await require_org_owner(org_id)
-
-    case_revs = (await session.execute(
-        select(BindingCaseRevision, Project.organization_id)
-        .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
-        .join(Project, Project.id == BindingCase.project_id)
-        .where(BindingCaseRevision.created_by_id == user.id)
-    )).all()
-    for bcr, org_id in case_revs:
-        bcr.created_by_id = await require_org_owner(org_id)
-
-    studies = (await session.execute(
-        select(Study, Project.organization_id)
-        .join(Project, Project.id == Study.project_id)
-        .where(Study.created_by_id == user.id)
-    )).all()
-    for st, org_id in studies:
-        st.created_by_id = await require_org_owner(org_id)
-
-    study_runs = (await session.execute(
-        select(StudyRun, Project.organization_id)
-        .join(Study, Study.id == StudyRun.study_id)
-        .join(Project, Project.id == Study.project_id)
-        .where(StudyRun.created_by_id == user.id)
-    )).all()
-    for sr, org_id in study_runs:
-        sr.created_by_id = await require_org_owner(org_id)
-
+    # Pseudonymised and flushed first, so that a database refusal (a taken
+    # pseudonym, a RESTRICT) stops the deletion while the contract still exists;
+    # a contract that cannot be removed then rolls the whole request back.
+    await pseudonymise(session, user)
     try:
-        remove_contract = getattr(get_gate(), "remove_contract", None)
-        if remove_contract is not None:
-            await remove_contract(user.id)
+        await get_gate().remove_contract(user.id)
     except PricingUnavailable as exc:
         raise pricing_unavailable_error(exc, where="contract removal") from exc
-    await session.delete(user)
+
+
+#: The prefix of the username a deleted account is given. Registration and CAS refuse
+#: every name that starts with it (``routes/auth.py``, ``username_reserved``), so a
+#: deletion never finds its pseudonym taken.
+PSEUDONYM_PREFIX = "deleted-"
+
+
+async def pseudonymise(session: AsyncSession, user: User) -> None:
+    """Replace what identifies ``user`` and delete what belongs to them alone, in the caller's transaction."""
+    email = user.email
+    user.username = f"{PSEUDONYM_PREFIX}{user.id.hex[:12]}"
+    user.email = f"deleted+{user.id.hex}@users.invalid"
+    user.password_hash = hash_password(secrets.token_urlsafe(48))
+    user.password_enabled = False
+    user.preferences = {}
+    user.plan_cache = ""
+    user.contract_pending = False
+    user.is_active = False
+    # A deleted administrator is no administrator: the bootstrap counts them.
+    user.role = UserRole.USER
+    user.deleted_at = utcnow()
+
+    for model, column in (
+        (ApiKey, ApiKey.user_id),
+        (RefreshToken, RefreshToken.user_id),
+        (PasswordResetToken, PasswordResetToken.user_id),
+        (AuthIdentity, AuthIdentity.user_id),
+        (Notification, Notification.user_id),
+        (OrganizationMembership, OrganizationMembership.user_id),
+    ):
+        await session.execute(delete(model).where(column == user.id))
+    await session.execute(delete(OrganizationInvitation).where(or_(
+        OrganizationInvitation.invited_by_id == user.id,
+        OrganizationInvitation.accepted_by_id == user.id,
+        func.lower(OrganizationInvitation.email) == email.lower(),
+    )))
+    # After the username is replaced, so the administrators' notice names nobody.
+    deactivated = await engine_registry.deactivate_owned_registrations(session, user)
+    session.add(AuditEvent(
+        actor_id=user.id,
+        action="account.deleted",
+        target_type="User",
+        target_id=user.id,
+        detail={"engine_registrations_deactivated": deactivated},
+    ))
     await session.flush()
+    # The bulk deletes bypassed the session; forget the collections it may hold.
+    session.expire(user, ["api_keys", "refresh_tokens"])

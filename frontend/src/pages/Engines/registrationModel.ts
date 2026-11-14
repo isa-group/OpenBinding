@@ -2,6 +2,7 @@ import { bimResourceKey, HttpError } from '../../api/client';
 import type { BimResourceRef, EngineRegistrationRevision, EngineRegistrationState } from '../../api/client';
 import { QuotaError } from '../../api/auth';
 import type { UsageView } from '../../api/auth';
+import { LIMIT } from '../../utils/limits';
 
 export type ChipTone = 'plain' | 'info' | 'success' | 'warning' | 'error';
 
@@ -350,7 +351,7 @@ export interface Allowance {
 /** How many federated engines the plan allows and how many are in use, from the usage view; `null` when it says nothing. */
 export function allowanceOf(usage: UsageView | null | undefined, ownCount: number): Allowance | null {
   if (!usage) return null;
-  const capability = usage.capabilities?.federatedEngines;
+  const capability = usage.capabilities?.[LIMIT.maxFederatedEngines];
   if (capability === undefined) return null;
   return { plan: usage.plan, used: ownCount, limit: capability };
 }

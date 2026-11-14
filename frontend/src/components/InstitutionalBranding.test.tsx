@@ -19,7 +19,7 @@ vi.mock('../api/platform', () => ({ platformApi: platform }));
 
 const researchUser: UserProfile = {
   id: 'user-id', username: 'researcher', email: 'researcher@us.es', role: 'user', is_active: true,
-  plan: 'RESEARCH', created_at: '2026-09-01T00:00:00Z', cas_verified: true, institutional_branding: true,
+  plan: 'RESEARCH', created_at: '2026-09-01T00:00:00Z', cas_verified: true,
 };
 
 const markName = { name: 'Universidad de Sevilla' };
@@ -59,22 +59,15 @@ describe('Universidad de Sevilla institutional branding', () => {
     expect(within(wide).getByRole('img', markName)).toHaveAttribute('src', '/brands/universidad-sevilla.svg');
   });
 
-  it('shows the mark for RESEARCH accounts even when the flag is omitted', () => {
-    auth.user = { ...researchUser, plan: 'RESEARCH', institutional_branding: false };
+  it('shows the mark for RESEARCH accounts', () => {
+    auth.user = { ...researchUser, plan: 'RESEARCH' };
     render(<MemoryRouter><Navigation /></MemoryRouter>);
 
     expect(screen.getByRole('img', markName)).toBeInTheDocument();
   });
 
-  it('shows the mark for flagged accounts that are not on the RESEARCH plan', () => {
-    auth.user = { ...researchUser, plan: 'PRO', institutional_branding: true };
-    render(<MemoryRouter><Navigation /></MemoryRouter>);
-
-    expect(screen.getByRole('img', markName)).toBeInTheDocument();
-  });
-
-  it('does not show any mark when the contract does not grant it', () => {
-    auth.user = { ...researchUser, plan: 'PRO', institutional_branding: false };
+  it('does not show any mark on another plan', () => {
+    auth.user = { ...researchUser, plan: 'LAB' };
     render(<MemoryRouter><Navigation /></MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
     expect(screen.queryByRole('img', markName)).not.toBeInTheDocument();
@@ -86,7 +79,7 @@ describe('Universidad de Sevilla institutional branding', () => {
   });
 
   it('never infers institutional status from a @us.es address', () => {
-    auth.user = { ...researchUser, plan: 'FREE', institutional_branding: false, email: 'someone@us.es' };
+    auth.user = { ...researchUser, plan: 'FREE', email: 'someone@us.es' };
     render(<MemoryRouter><Navigation /><SiteFooter /></MemoryRouter>);
 
     expect(screen.queryByRole('img', markName)).not.toBeInTheDocument();
@@ -120,7 +113,7 @@ describe('Universidad de Sevilla institutional branding', () => {
   });
 
   it('keeps the platform shell free of marks for ordinary accounts', async () => {
-    auth.user = { ...researchUser, plan: 'PRO', institutional_branding: false };
+    auth.user = { ...researchUser, plan: 'LAB' };
     render(<MemoryRouter initialEntries={['/app']}><PlatformShell /></MemoryRouter>);
 
     await waitFor(() => expect(platform.organizations).toHaveBeenCalledOnce());

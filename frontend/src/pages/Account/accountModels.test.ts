@@ -57,27 +57,27 @@ describe('plan rows', () => {
   const usage: UsageView = {
     plan: 'PRO',
     contract_pending: false,
-    features: { solve: true },
-    capabilities: { federatedEngines: null, apiKeys: 25, maxTimeoutSeconds: 1800, organizations: 10, newThing: 5 },
+    features: { runs: true },
+    capabilities: { maxFederatedEngines: null, maxApiKeys: 25, maxRunMinutes: 30, newThing: 5 },
   };
   const rows = usageRows(usage);
   const row = (id: string) => rows.find((item) => item.id === id)!;
 
   it('lists what the plan allows, in a stable order, with the unknown ones last', () => {
-    expect(rows.map((item) => item.id)).toEqual(['federatedEngines', 'apiKeys', 'maxTimeoutSeconds', 'organizations', 'newThing']);
-    expect(row('apiKeys')).toMatchObject({ limit: 25 });
-    expect(row('maxTimeoutSeconds')).toMatchObject({ limit: 1800 });
+    expect(rows.map((item) => item.id)).toEqual(['maxFederatedEngines', 'maxApiKeys', 'maxRunMinutes', 'newThing']);
+    expect(row('maxApiKeys')).toMatchObject({ limit: 25 });
+    expect(row('maxRunMinutes')).toMatchObject({ limit: 30 });
   });
 
   it('reads a null capability as no limit', () => {
-    expect(row('federatedEngines')).toMatchObject({ limit: null });
+    expect(row('maxFederatedEngines')).toMatchObject({ limit: null });
   });
 
   it('words the exact value: a figure when there is a ceiling, "No limit" (never `.inf`) when there is none', () => {
-    expect(exactValueText(row('maxTimeoutSeconds'))).toBe('1,800 s');
-    expect(exactValueText(row('apiKeys'))).toBe('25');
-    expect(exactValueText(row('federatedEngines'))).toBe('No limit');
-    expect(exactValueText({ ...row('apiKeys'), limit: Number.POSITIVE_INFINITY })).toBe('No limit');
+    expect(exactValueText(row('maxRunMinutes'))).toBe('30 min');
+    expect(exactValueText(row('maxApiKeys'))).toBe('25');
+    expect(exactValueText(row('maxFederatedEngines'))).toBe('No limit');
+    expect(exactValueText({ ...row('maxApiKeys'), limit: Number.POSITIVE_INFINITY })).toBe('No limit');
     for (const item of rows) expect(exactValueText(item)).not.toMatch(/\.inf|Infinity|null/);
   });
 

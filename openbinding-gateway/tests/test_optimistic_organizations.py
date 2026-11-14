@@ -203,22 +203,6 @@ async def test_a_stranger_gets_404_for_an_organization_that_does_not_exist(api_c
     assert "ETag" not in refused.headers
 
 
-async def test_an_admin_who_is_not_the_owner_is_refused_the_sponsor_before_the_tag(api_client, resources) -> None:
-    resource, admin = resources["org"], resources["admin"]
-    stale = await moved_on(api_client, resource, resources["headers"])
-
-    refused = await api_client.patch(
-        resource["url"], headers={**admin, "If-Match": stale}, json={"billing_sponsor_user_id": resources["admin_id"]}
-    )
-    renamed = await api_client.patch(resource["url"], headers={**admin, "If-Match": stale}, json={"name": "Admin"})
-
-    assert refused.status_code == 403, refused.text
-    assert refused.json()["detail"]["code"] == "organization_forbidden"
-    assert "ETag" not in refused.headers
-    # The same admin and tag are fine for the edits an admin may make: only the sponsor is the owner's.
-    assert renamed.status_code == 412, renamed.text
-
-
 @pytest.mark.parametrize("kind", KINDS)
 async def test_missing_resource_is_404_not_412(api_client, resources, kind) -> None:
     resource = resources[kind]
@@ -260,34 +244,6 @@ async def test_stale_tag_beats_business_validation(api_client, resources) -> Non
     assert stale.status_code == 412, stale.text
     assert invalid.status_code == 422, invalid.text
     assert invalid.json()["code"] == "ambiguous_parent"
-
-
-async def test_sponsor_rule_still_runs_after_authorisation(api_client, registration, resources) -> None:
-    resource, headers = resources["org"], resources["headers"]
-    other, _ = await account(api_client, registration)
-    tag = await current_tag(api_client, resource, headers)
-
-    refused = await api_client.patch(
-        resource["url"], headers={**headers, "If-Match": tag}, json={"billing_sponsor_user_id": other["id"]}
-    )
-
-    assert refused.status_code == 422, refused.text
-    assert refused.json()["code"] == "sponsor_must_be_caller"
-
-
-async def test_a_stale_tag_beats_the_sponsor_rule(api_client, resources) -> None:
-    resource, headers = resources["org"], resources["headers"]
-    stale = await moved_on(api_client, resource, headers)
-    body = {"billing_sponsor_user_id": resources["admin_id"]}
-
-    refused = await api_client.patch(resource["url"], headers={**headers, "If-Match": stale}, json=body)
-    retried = await api_client.patch(
-        resource["url"], headers={**headers, "If-Match": refused.headers["ETag"]}, json=body
-    )
-
-    assert refused.status_code == 412, refused.text
-    assert retried.status_code == 422, retried.text
-    assert retried.json()["code"] == "sponsor_must_be_caller"
 
 
 async def test_a_stale_tag_beats_an_acyclic_move_refusal(api_client, resources) -> None:
@@ -402,7 +358,7 @@ async def test_stale_tag_is_reported_on_project_and_case_whatever_the_edit(api_c
     await api_client.patch(project["url"], headers=headers, json={"description": "Moved on"})
     await api_client.patch(case["url"], headers=headers, json={"description": "Moved on"})
 
-    # Going private is the edit that is checked against the sponsor's allowance.
+    # Going private is a change of visibility, the edit of a project with the widest effect.
     project_refusal = await api_client.patch(
         project["url"], headers={**headers, "If-Match": stale_project}, json={"visibility": "private"}
     )
@@ -576,32 +532,8 @@ async def test_a_refused_precondition_changes_nothing(api_client, resources, kin
 
     assert refused.status_code == (412 if header == '"stale"' else 400), refused.text
     after = await api_client.get(resource["url"], headers=headers)
-    # The view carries the sponsor and the parent of an organization, the owning organization of the rest.
+    # The view carries the parent of an organization, the owning organization of the rest.
     assert after.json() == before.json()
-    assert after.headers["ETag"] == before.headers["ETag"]
-    assert await audit_events(db_session) == events
-
-
-@pytest.mark.parametrize("header", ['"stale"', "not a tag"], ids=["412", "400"])
-async def test_a_refused_precondition_leaves_the_sponsor_alone(
-    api_client, registration, resources, header, db_session
-) -> None:
-    resource, headers = resources["org"], resources["headers"]
-    second, second_headers = await account(api_client, registration)
-    promoted = await api_client.put(
-        f"{resource['url']}/members/{second['id']}", headers=headers, json={"user_id": second["id"], "role": "OWNER"}
-    )
-    assert promoted.status_code == 200, promoted.text
-    before = await api_client.get(resource["url"], headers=headers)
-    events = await audit_events(db_session)
-
-    refused = await api_client.patch(
-        resource["url"], headers={**second_headers, "If-Match": header}, json={"billing_sponsor_user_id": second["id"]}
-    )
-
-    assert refused.status_code == (412 if header == '"stale"' else 400), refused.text
-    after = await api_client.get(resource["url"], headers=headers)
-    assert after.json()["billing_sponsor_user_id"] == before.json()["billing_sponsor_user_id"] == resources["owner_id"]
     assert after.headers["ETag"] == before.headers["ETag"]
     assert await audit_events(db_session) == events
 
@@ -690,7 +622,7 @@ async def test_a_refusal_after_the_claim_leaves_the_etag_unchanged(api_client, r
     )
     assert child.status_code == 201, child.text
     refusals = [
-        ({"billing_sponsor_user_id": resources["admin_id"]}, 422),
+        ({"move_to_root": True, "parent_id": child.json()["id"]}, 422),
         ({"parent_id": child.json()["id"]}, 409),
     ]
 

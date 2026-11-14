@@ -3,9 +3,9 @@ import { HttpError } from '../../api/client';
 import { diagnosticLines, problemField } from '../../api/problem';
 import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import {
-  CELLS_CODE, COMPLEXITY_CODE, USAGE_UNKNOWN_CODE, complexityText, limitProblemOf, noticeOf, slotsText, usageUnknownText,
+  CELLS_CODE, USAGE_UNKNOWN_CODE, limitProblemOf, noticeOf, slotsText, usageUnknownText,
 } from '../../utils/limitRefusals';
-import { limitInfo } from '../../utils/limits';
+import { LIMIT, limitInfo } from '../../utils/limits';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import type { Refusal } from '../Jobs/jobErrors';
 
@@ -78,27 +78,11 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
   if (limited) return { ...base, ...limited };
 
   if (failure.status === 402) {
-    const limitId = quota?.limit_id ?? notice?.limit_id ?? 'studies';
+    const limitId = quota?.limit_id ?? notice?.limit_id ?? '';
     const info = limitInfo(limitId);
     const noun = inInterfaceWords(info.short);
     const limit = quota?.limit ?? notice?.limit;
     const spentCount = quota?.used ?? notice?.used;
-    const used = limit !== undefined ? ` ${(spentCount ?? limit).toLocaleString('en-US')} of ${limit.toLocaleString('en-US')} used.` : '';
-    if (failure.code === COMPLEXITY_CODE || limitId === 'maxInstanceComplexityLog10') {
-      // A run is refused whole, before any cell exists, when one of its cases is over the plan's size limit.
-      return {
-        ...base, kind: 'too-big', limitId, source: notice?.source,
-        title: `A problem is too big for your plan${at}`,
-        text: complexityText(caught, nothing),
-      };
-    }
-    if (limitId === 'studies') {
-      return {
-        ...base, kind: 'quota', limitId,
-        title: `The sponsor has no study definitions left${at}`,
-        text: `Studies are counted across the sponsor’s organizations and don’t renew.${used} Archive or delete one you no longer need, or ask about a larger plan. ${nothing}`,
-      };
-    }
     return {
       ...base, kind: 'quota', limitId, source: notice?.source,
       title: `Out of ${noun}${at}`,
@@ -109,7 +93,7 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
   if (failure.status === 429) {
     const concurrency = caught instanceof HttpError ? caught.concurrency : undefined;
     return {
-      ...base, kind: 'busy', limitId: concurrency?.limit_id ?? 'concurrentJobs', source: concurrency?.source, retryAfter: failure.retryAfter ?? 15,
+      ...base, kind: 'busy', limitId: concurrency?.limit_id ?? LIMIT.maxConcurrentRuns, source: concurrency?.source, retryAfter: failure.retryAfter ?? 15,
       title: `All your run slots are busy${at}`,
       text: `${slotsText(concurrency)} Try again in about ${failure.retryAfter ?? 15} s. ${nothing}`,
     };

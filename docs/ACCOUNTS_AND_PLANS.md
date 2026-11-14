@@ -1,7 +1,7 @@
 # Accounts, plans and limits
 
-> As implemented today (pricing 0.1.x, sponsorship, local usage counters). The target is
-> `docs/ARCHITECTURE.md` §9 and the pricing proposal 0.2.0 in [`docs/pricing/`](pricing/README.md).
+> As implemented today: pricing 0.2.0 ([`docs/pricing/`](pricing/README.md)) enforced per
+> account, with no billing sponsors and no subtree quotas. The target is `docs/ARCHITECTURE.md` §9.
 
 The OpenBinding `/v1` gateway separates public validation from authenticated
 job ownership: every `/v1/jobs` request resolves to an account (`401`
@@ -25,10 +25,10 @@ SPACE client (`MANAGEMENT`-scoped key, `space_client/space.py`). It has no
 local SPACE stack, no pricing editor and no contract lifecycle of its own.
 
 **Nothing is metered or charged.** There are no credits, compute units or
-consumption counters. The plan decides *what* an account may do (features) and
-*how big* a request may be (ceilings); the only limit on *how much at once* is
-a technical concurrency cap that does not depend on the plan
-([below](#how-a-limit-behaves)).
+consumption counters. The plan decides *what* an account may do (features),
+*how big* a request may be (ceilings) and *how many* things the account may
+hold at once (per-account quotas); concurrency is the lower of the plan's
+`maxConcurrentRuns` and a technical cap ([below](#how-a-limit-behaves)).
 
 > **Retired.** The earlier consumption accounting (credits and capacity units,
 > reservations, settlement, usage resynchronisation) and the automatic Engine
@@ -91,9 +91,10 @@ like any job read. Keys that hold `engines:execute` keep working: it still
 guards kept operations. The `reports:read` and `reports:write` permissions were
 removed in F0a with the reports; no route needs them.
 
-The number of active keys is the plan's `apiKeys` limit, read from the
-contract (`routes/users.py`); exceeding it is `402 quota_exceeded`. Revoked keys
-do not count. The gateway locks the account row so the count-and-create of
+Minting a key needs the plan's `apiAccess` feature (`403 feature_not_entitled`
+otherwise), and the number of active keys is the plan's `maxApiKeys` limit, read
+from the contract (`routes/users.py`); exceeding it is `402 quota_exceeded`.
+Revoked keys do not count. The gateway locks the account row so the count-and-create of
 concurrent requests cannot step past the limit (the row lock is effective on
 PostgreSQL; SQLite ignores it, see [IDEMPOTENCY.md](IDEMPOTENCY.md)).
 
@@ -312,53 +313,69 @@ Events never carry a secret: for a key only its id, name and public prefix are
 written, never the value or the stored hash.
 
 `GET /v1/admin/audit` returns **platform and organization events together**:
-organization events (a sponsorship transfer, member changes, …) carry
-`organizationId` and `organizationSlug`, platform events carry `null`. Filter
-with `?action=` and `?organization_id=<uuid>`. Members of an organization still
-read only their own organization's log, at `GET /v1/organizations/{org}/audit`,
-which is unchanged and never shows platform events. A sponsor change that a
-person makes for **themselves** through `PATCH /v1/organizations/{org}` is
-recorded as `organization.updated` with `previous_sponsor_user_id` /
-`new_sponsor_user_id`. The administrator route that produced
-`organization.sponsor_transferred`, and the `organization.sponsor.*` events of the
-proposals, were removed by M9.6; the events already written stay in the log.
+organization events (member changes, edits, …) carry `organizationId` and
+`organizationSlug`, platform events carry `null`. Filter with `?action=` and
+`?organization_id=<uuid>`. Members of an organization still read only their own
+organization's log, at `GET /v1/organizations/{org}/audit`, which never shows
+platform events.
 
-## Only the caller can become billing sponsor
+## Quotas are per account
 
-The sponsor of an organization (`billing_sponsor_user_id`) is the account whose
-plan limits (organizations, members, projects, studies, storage, …) the
-organization **and its whole subtree** count against
-(`collaboration.enforce_sponsor_capacity`). No money changes hands. Nobody can
-be made to carry someone else's organization, so the only way to change the
-sponsor is to name **yourself**. (Until M9.6 naming another person created a
-sponsor proposal that the person had to accept; the proposals and their routes
-were removed.)
+Every plan limit is counted for the account that does the work, never for an
+organization or the person who created it: organizations carry no billing
+sponsor, and there are no subtree quotas. Creating organizations, adding
+members, creating projects and changing their visibility are not limited by the
+plan (`maxCollections` and `maxPrivateProjects` are in the published 0.2.0 YAML
+but not enforced until 0.3.0, see [pricing/README.md](pricing/README.md)).
 
-`PATCH /v1/organizations/{org}` with `billing_sponsor_user_id`:
+The per-account quotas are pure checks in `modules/plans/domain/quotas.py`
+(`problems_quota`, `storage_quota`); the caller counts inside the transaction
+that holds the account's row lock and asks whether one more fits. A refusal is
+`402 quota_exceeded` with `quota: {limit_id, limit, used, unit, source}`.
+`maxRepositoryStorage` is in MB of 10^6 bytes. Until the problems API arrives,
+storage is the sum of the blobs the account uploaded (an interim count); then it
+becomes the sum of the account's problem revisions.
 
-| Caller | Named | Answer |
-|---|---|---|
-| not OWNER (ADMIN) | anyone different from the current sponsor | `403`, as for any owner-only change |
-| OWNER | the current sponsor | `200`, no sponsor change |
-| OWNER | the caller | `200` + the organization. The caller becomes sponsor of the organization and its subtree, subject to *their own* plan limits (`402 sponsor_quota_exceeded`). The audit event `organization.updated` carries `previous_sponsor_user_id` and `new_sponsor_user_id` |
-| OWNER | anyone else, existing or not, active or not | `422 sponsor_must_be_caller` ([ERRORS.md](ERRORS.md)); nothing in the request is applied. The check runs before the person is looked up, so the answer does not reveal whether the account exists |
+## Deleting an account pseudonymises it
 
-The request field `replace_pending_proposal` no longer exists; a client that
-still sends it gets `422 validation_error`. `POST /v1/admin/organizations/{id}/sponsor`
-was removed too: a platform administrator does not move a sponsorship.
+`DELETE /v1/users/me` needs the exact username as confirmation and, for a
+password account, the current password; the last OWNER of an organization is
+refused with `409 last_owner`. Then, in one transaction (`routes/users.py`,
+`pseudonymise`), with the SPACE contract removed last, just before the commit:
+if the removal fails (`503 pricing_unavailable`), or the database refuses any
+step, nothing is changed and the contract stays.
 
-Existing sponsors do not change. Deactivating an account (`PATCH
-/v1/admin/users/{id}`) and deleting it no longer touch sponsor proposals.
-Account deletion still hands the organizations a deleted sponsor paid for to the
-next OWNER, as it always did. Past notifications of kinds `organization.sponsor.*`
-and audit events about a `SponsorProposal` stay as history.
+- the user row **stays**, so the runs, revisions and engines the account created
+  keep naming somebody; its username becomes `deleted-<12 hex>`, its email
+  `deleted+<id>@users.invalid`, its password an unusable hash, `preferences`
+  empty, `plan_cache` empty, `role` USER, `is_active` false and `deleted_at`
+  set (so a deleted administrator no longer counts as one, and the bootstrap
+  administrator is seeded again when it was the last);
+- its API keys, refresh tokens, password-reset tokens, linked identities,
+  notifications, memberships and the invitations it sent or received are
+  deleted;
+- each of its active federated engine registrations is deactivated, as the
+  `deactivate` route does, so no new run selects it; the engine and registration
+  revisions stay, because past runs name them in their provenance;
+- `account.deleted` is audited with no personal data.
+
+Nothing is reassigned to another person. The foreign keys that history holds on
+an account (`jobs.owner_id`, engine revisions, registration revisions, manifest
+publications) are `RESTRICT`, so a stray hard delete fails instead of destroying
+shared history. Administration no longer lists or acts on a deleted account.
+
+A username that names engine revisions or engine registration revisions stays
+reserved: engine namespaces are the username baked into immutable manifests, so
+registration and a first CAS sign-in refuse it with `409 username_unavailable`.
+So is every username that starts with `deleted-`, the pseudonyms of deleted
+accounts.
 
 ## Public projects are readable without membership
 
 See [`ACCESS_POLICY.md`](ACCESS_POLICY.md): a non-member (even anonymous) can read
 a *public* project through a deny-by-default matrix of GET routes
 (`access: "public_read"`), limited per caller by `PUBLIC_READ_RATE_PER_MINUTE`
-(default 240; `0` disables) and never counted against the project's sponsor.
+(default 240; `0` disables) and never counted against anybody's plan.
 
 ## Signing in with Universidad de Sevilla CAS
 
@@ -380,14 +397,13 @@ configuration only; nothing in the request can change the destination):
 | `account_inactive` | the account being signed in or linked is deactivated or gone |
 | `identity_in_use` | that UVUS identity is already linked to another account |
 | `account_collision` | a local account with the same username or email exists; sign in to it and link CAS explicitly (accounts are never linked by email) |
+| `username_unavailable` | the UVUS is a reserved username: it names published engines, or is the pseudonym of a deleted account |
 | `pricing_unavailable` | the pricing service could not be reached |
 | `institutional_pricing_invalid` | the live pricing declares no `RESEARCH` plan |
 | `cas_error` | anything else (the detail stays in the server log) |
 
-The frontend today understands `identity_in_use`, `account_collision`,
-`institutional_pricing_invalid`, `pricing_unavailable` and `cas_unavailable`;
-the other four fall back to its generic "this code can't be used" message until
-the interface is adapted to them.
+The frontend has its own words for every code of this list; anything else falls
+back to its generic "this code can't be used" message.
 
 ### Linking CAS raises the plan to RESEARCH — automatically, at no cost
 
@@ -424,11 +440,13 @@ counter.
 
 | Kind | Example | What happens | Code |
 |---|---|---|---|
-| A budget you asked for | `time_budget_ms`, `iterations`, `max_evaluations` (ceilings `maxTimeoutSeconds`, `maxIterations`) | **Reduced** to what the plan allows, with an `OPTION_CLAMPED` warning alongside the result | `access/policy.py` |
-| An unentitled capability | `solve`, `federatedEngines`, `studies` | **Refused** with `403` (`feature_not_entitled`), because retrying without a plan change will never succeed | `domain/entitlements.py` |
-| A fact about the work | instance complexity (`maxInstanceComplexityLog10` against log10 of the Binding Space size) | **Refused** with `402` (`instance_complexity_too_large`): there is no smaller version of the instance to run | `access/policy.py` |
-| A size or count allowance in the plan | `apiKeys`, `maxPayloadBytes`, `storageBytes`, organization/member/project counts of the sponsor | **Refused**: `402 quota_exceeded` / `storage_quota_exceeded` / `sponsor_quota_exceeded`, or a payload ceiling | `access/policy.py` (rules) through `services/entitlements.py`; `apiKeys` is still counted in `routes/users.py` |
-| Technical concurrency | queued plus running jobs of one account | **Throttled** with `429 concurrency_limit_exceeded`, `Retry-After: 15` and a `concurrency: {limit, active}` object | `jobs/limits.py` |
+| A budget you asked for | `time_budget_ms` (ceiling: the plan's `maxRunMinutes` × 60 000, never above `ENGINE_SOLVE_TIMEOUT_S`), `iterations`, `max_evaluations` (ceiling: the setting `MAX_ITERATIONS`) | **Reduced** to what is allowed, with an `OPTION_CLAMPED` warning alongside the result | `access/policy.py` |
+| An unentitled capability | `runs`, `federatedEngines`, `studies`, `apiAccess` | **Refused** with `403` (`feature_not_entitled`), because retrying without a plan change will never succeed | `domain/entitlements.py` |
+| A fact about the work | the binding-space size against the setting `MAX_BINDING_SPACE_LOG10` (default 20) | **Refused** with `422` (`binding_space_over_technical_limit`): there is no smaller version of the instance to run, and no plan raises it | `domain/binding_space.py` |
+| A package that is too large | the setting `MAX_PACKAGE_BYTES` | **Refused** with `413 payload_too_large` | `access/policy.py` |
+| A count allowance in the plan | `maxApiKeys`, `maxFederatedEngines`, `maxRepositoryStorage` (and `maxProblems` from the problems API on) | **Refused**: `402 quota_exceeded` | `modules/plans/domain/quotas.py`; keys and engines are counted in their routes |
+| Cells of a study run | the lower of the plan's `maxStudyCells` and the setting `MAX_CELLS_PER_STUDY_RUN` | **Refused** whole with `422 study_run_too_large`, `quota.source` saying which limit applied | `routes/studies.py` |
+| Concurrency | queued plus running jobs of one account, the lower of the plan's `maxConcurrentRuns` and `MAX_CONCURRENT_JOBS_PER_USER` | **Throttled** with `429 concurrency_limit_exceeded`, `Retry-After: 15` and a `concurrency: {limit_id, limit, used, source}` object | `jobs/limits.py` |
 
 ### One reader of the plan
 
@@ -437,14 +455,17 @@ exactly one place: `services/entitlements.py` (`EntitlementService`). It is the 
 `get_gate().caps(...)` (enforced by `tests/test_architecture_layers.py`). The rules
 stay in `access/policy.py` and `domain/entitlements.py`; the service names them
 (`require_feature`, `payload_ceiling`, `solve_timeout`, `clamp_options`,
-`complexity_too_large`, `enforce_sponsor_usage`, `enforce_storage_quota`). When the
+`binding_space_refusal`, `enforce_storage_quota`). When the
 pricing service cannot be read the answer is always `503 pricing_unavailable`
 (never a refusal, never a grant); code running outside a request gets the
 `EntitlementsUnavailable` exception instead, and a study cell launch treats it as
 retryable: if the plan becomes unreadable after the run was accepted, the run
 still answers `202` and the cell waits (an unreadable plan at the very start of
-`POST .../studies/{study}/runs` is the `503`, as before). `GET /v1/users/me` and `/me/usage` keep their own wording, prefixed with
-"Entitlements cannot be read right now:".
+`POST .../studies/{study}/runs` is the `503`, as before). `GET /v1/users/me/usage` keeps its own wording, prefixed with
+"Entitlements cannot be read right now:". `GET /v1/users/me` never asks SPACE: the
+plan it shows is the one recorded on the account (`plan_cache`). When a contract
+is created without a plan (`SPACE_DEFAULT_PLAN` unset), the gateway reads the plan
+SPACE assigned right after creating it and records it there.
 
 Clamping rather than refusing matters more than it sounds: defaults are applied
 before plan ceilings, so refusing an otherwise valid default could make a new
@@ -452,14 +473,28 @@ account's first request fail. Every reduction is reported, because a solve that
 quietly did a tenth of the work asked for would produce a worse answer with no
 explanation.
 
-Not every plan limit in the published pricing is read by this code. The ones
-read at the time of writing are the identifiers found by searching the gateway
-for `caps.limit(...)` and `feature_refusal(...)`: `apiKeys`, `jobHistoryDays`,
-`maxTimeoutSeconds`, `maxIterations`, `maxPayloadBytes`, `storageBytes`,
-`maxInstanceComplexityLog10`, the sponsor structure limits passed to
-`enforce_sponsor_usage`, and the features `solve`, `federatedEngines`,
-`studies` and `institutionalBranding`. Other identifiers in the pricing
-fixture (`tests/fixtures/pricing_test.yml`) may be unused by the gateway.
+Every entitlement id the gateway reads is spelled in one place,
+`modules/plans/domain/entitlement_map.py`: the features `runs`,
+`federatedEngines`, `studies`, `repository` and `apiAccess`, and the limits
+`maxRunMinutes`, `maxConcurrentRuns`, `maxStudyCells`, `maxFederatedEngines`,
+`maxApiKeys`, `maxProblems` and `maxRepositoryStorage` (all `NUMERIC`).
+`tests/test_entitlement_map.py` fails on a string id passed to `caps.limit`,
+`caps.allows` or `feature_refusal` anywhere else. The other ids of the published
+pricing (`solverHours`, `generator`, `generatedInstances`,
+`maxInstancesPerGeneration`, `collaboration`, `maxCollections`,
+`maxPrivateProjects`) are not read.
+
+### The startup check
+
+The lifespan (`main.check_pricing`) reads the published pricing through the gate
+right after installing it: from SPACE (`SPACE_PRICING_VERSION`, or the version
+SPACE assigns to new contracts), or the package copy
+`modules/plans/pricing/openbinding-0.2.0.yml` under the open gate. A document that
+lacks one of the ids above, or declares one of the limits as anything but
+`NUMERIC`, stops the start (`RuntimeError: pricing <v> lacks: …`). With SPACE
+enabled, `SPACE_ORGANIZATION_ID` must be set and SPACE must advertise
+`pricing-token-jwks`; their absence, or a SPACE that cannot be reached, stops the
+start under `APP_ENV=prod` and is a warning elsewhere.
 
 ## The technical concurrency limit
 
@@ -511,50 +546,51 @@ healthy job may be put back in the queue once and its late answer is discarded.
 
 ## When SPACE is unreachable
 
-`SPACE_FAIL_MODE` is declared in `core/settings.py` (`closed` by default;
-`.env.example` sets `open` for development). SPACE being unreachable surfaces as
-`PricingUnavailable` (`space_client/gate.py`), deliberately distinct from a
-refusal: "your plan does not include this" and "I could not find out what your
-plan includes" call for different answers. I did not trace every call site of
-`SPACE_FAIL_MODE` for this document, so the exact per-endpoint behaviour is not
-described here; entitlement lookups fail closed (`PlanCaps.allows` is `False` for
-an unknown identifier).
+SPACE being unreachable surfaces as `PricingUnavailable` (`space_client/gate.py`),
+deliberately distinct from a refusal: "your plan does not include this" and "I
+could not find out what your plan includes" call for different answers. Every
+plan read fails closed with `503 pricing_unavailable`; there is no fail-open
+switch.
+
+### Pricing tokens are verified
+
+The plan of an account comes from its pricing token, and the token is believed
+only once it is verified (`space_client/space.py`, `_verified_claims`):
+`features.verify_pricing_token` checks the ES256 signature against the keys SPACE
+publishes (JWKS), `exp` (with `SPACE_TOKEN_LEEWAY_S`), `iss`
+(`SPACE_TOKEN_ISSUER`) and `aud`/`organizationId` (`SPACE_ORGANIZATION_ID`);
+then the gateway requires `pricing_token_user_id(payload)` to be the account (the
+client does not check the user, and `sub` may be an opaque URN). A token that
+fails any check, or a SPACE that does not publish its keys, is
+`PricingUnavailable`: there is no unverified fallback. The token handed to the
+browser (`GET /v1/users/me/pricing-token`) is verified the same way. The plan is
+the token's own `subscription` claim; only a SPACE that sends none is asked for
+the contract.
 
 ### What the open gate grants (`SPACE_ENABLED=false`)
 
 `SPACE_ENABLED=false` installs the stateless `OpenGate` (`space_client/open.py`),
 for development and QacoBench only (`APP_ENV=prod` refuses to start with it). It
 has no plans, contracts or counters, and its `caps()` is a regular `PlanCaps`
-(`plan=""`, a `features` map and a `limits` map):
+(`plan=""`, a `features` map and a `limits` map) generated from the entitlement
+map: every feature the gateway reads is granted (and `allows()` is `True` for any
+identifier), and every limit it reads is unbounded (`inf`, read as `None` by
+`PlanCaps.limit`, the same encoding as an unlimited real plan). Only the
+deployment's technical ceilings apply: a time budget above
+`ENGINE_SOLVE_TIMEOUT_S` is clamped with an `OPTION_CLAMPED` warning, and the
+concurrency limit is `MAX_CONCURRENT_JOBS_PER_USER`.
 
-* **Features:** every identifier is allowed (`allows()` is always `True`), and the
-  ones the gateway and interface evaluate are listed in `features`.
-* **Allowances with a technical ceiling are finite and never above it.**
-  `access.policy` fails closed when an entitlement exceeds the ceiling (below), so
-  the open gate grants the ceiling itself: `maxTimeoutSeconds` =
-  `ENGINE_SOLVE_TIMEOUT_S` and `maxPayloadBytes` = the smaller of
-  `MAX_REQUEST_BODY_BYTES` and the 512 MiB request ceiling the routes pass to the
-  policy. A time budget above the timeout is therefore clamped (with an
-  `OPTION_CLAMPED` warning), as on any plan. `concurrentJobs` reports
-  `MAX_CONCURRENT_JOBS_PER_USER`; the enforced concurrency limit is that setting,
-  independent of the plan.
-* **Allowances with no technical ceiling are unbounded** (`inf`, read as `None`
-  by `PlanCaps.limit`, the same encoding as an unlimited real plan): `maxIterations`,
-  `maxInstanceComplexityLog10` (no 402), `apiKeys`, `jobHistoryDays`, `storageBytes`,
-  `federatedEngines` and the sponsor structure (`organizations`, `members`, `projects`,
-  `privateProjects`, `collections`, `studies`).
+### A plan that grants more than the deployment, or declares nothing
 
-### A plan above a technical ceiling
+A plan whose `maxRunMinutes` is above `ENGINE_SOLVE_TIMEOUT_S` (LAB grants a day)
+runs as long as the deployment waits: the time budget is clamped to the ceiling
+and the warning says it is the deployment's. A plan that does not declare
+`maxRunMinutes` at all is a pricing configuration error, answered with `503`
+`pricing_misconfigured` rather than a zero-second run.
 
-A real SPACE plan whose `maxTimeoutSeconds` or `maxPayloadBytes` is unlimited or
-above the technical ceiling is a pricing configuration error. The gateway does not
-clip it silently: `solve_timeout_s` and `payload_ceiling_bytes` deny the request
-with `503` `pricing_misconfigured` (a problem, not an unhandled 500). The fix
-belongs in the pricing, or in the technical setting if the plan is right.
+### The package ceiling and a chunked upload
 
-### The payload ceiling and a chunked upload
-
-`maxPayloadBytes` applies to a job submission whatever way the body arrives. A
+`MAX_PACKAGE_BYTES` applies to a job submission whatever way the body arrives. A
 `.bim.zip` sent with `Transfer-Encoding: chunked` has no `Content-Length`, so the
 declared size is 0; the submission then measures the bytes actually read and
 refuses an archive above the ceiling with `413 payload_too_large`, exactly as it
@@ -568,9 +604,14 @@ does for a declared size.
 | `GATEWAY_JWT_SECRET` | Signs session tokens. No default on purpose — a well-known signing key is worse than a missing one. |
 | `SPACE_ENABLED`, `SPACE_URL`, `SPACE_API_KEY`, `SPACE_TIMEOUT_MS` | The remote SPACE (`https://space.score.us.es`). The key must be a `MANAGEMENT`-scoped key created in the SPACE console. A development key lives in the same organizations as production ones and is high-risk: a shared organization does not isolate credentials. |
 | `SPACE_SERVICE_NAME` | The SPACE service the gateway reads and writes contracts on, plan names, add-ons and feature identifiers included (default `openbinding`, the production service; shape `[a-z0-9][a-z0-9_-]{1,62}`, anything else stops the start). A development deployment sets its own service (for example `openbinding-dev`) so it never touches production contracts: the target is explicit per environment, because the organization does not isolate credentials. Not restricted by `APP_ENV`. The effective name (never a key) is logged at start-up. `tools/seed_lab.py --space-contracts` requires `SPACE_DEV_SERVICE_NAME` to equal it. |
+| `SPACE_PRICING_VERSION`, `SPACE_DEFAULT_PLAN` | The pricing version new contracts are pinned to and the startup check reads (`0.2.0`), and the plan a sign-up starts on (`FREE`). |
+| `SPACE_ORGANIZATION_ID`, `SPACE_TOKEN_ISSUER`, `SPACE_TOKEN_LEEWAY_S` | What a pricing token is verified against: its `aud`/`organizationId` (required with SPACE enabled; `APP_ENV=prod` refuses to start without it), its `iss` (default `space`) and the tolerance for its `exp` (default 30 s). |
 | `SPHERE_ENABLED`, `SPHERE_URL`, `SPHERE_API_KEY`, `SPHERE_ORGANIZATION_ID` | The remote SPHERE, from which the published pricing is read. |
-| `SPACE_FAIL_MODE` | `closed` or `open`, above. |
-| `MAX_CONCURRENT_JOBS_PER_USER` | Technical cap on queued plus running jobs per account (default 8). |
+| `MAX_CONCURRENT_JOBS_PER_USER` | Technical cap on queued plus running jobs per account (default 8); the plan's `maxConcurrentRuns` may lower it. |
+| `MAX_PACKAGE_BYTES` | Largest BIM package of one request (default 128 MiB, never above `MAX_REQUEST_BODY_BYTES`). |
+| `MAX_ITERATIONS` | Ceiling on `iterations` and `max_evaluations` (default 1 000 000). |
+| `MAX_BINDING_SPACE_LOG10` | Ceiling on the binding-space size, in log10 combinations (default 20). |
+| `MAX_CELLS_PER_STUDY_RUN` | Technical ceiling on the cells of one study run (unset: none); the plan's `maxStudyCells` applies too. |
 | `JOB_DISPATCH_MODE` | `inline` (tests, single-process development) or `dramatiq` (Redis-backed queue). |
 | `BOOTSTRAP_ADMIN_*` | The first administrator, above. |
 | `SEED_DEFAULT_ADMIN` | Opt-in `admin` account for an empty database; needs `BOOTSTRAP_ADMIN_PASSWORD`. |

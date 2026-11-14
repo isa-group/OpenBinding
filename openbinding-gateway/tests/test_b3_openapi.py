@@ -1,4 +1,4 @@
-"""B3: the OpenAPI document has no sponsor proposals (removed in M9.6), and the snapshot agrees.
+"""B3: the OpenAPI document has no billing sponsor anywhere, and the snapshot agrees.
 
 ``tools/dump_openapi.py --check`` only says "out of date". The semantic comparison
 below names the first differing paths, which is what a reviewer needs.
@@ -47,21 +47,22 @@ def test_the_snapshot_is_semantically_current(document):
     assert not found, "snapshot differs from the code:\n" + "\n".join(found)
 
 
-def test_sponsor_proposals_are_not_in_the_contract(document):
+def test_no_sponsor_is_in_the_contract(document):
     paths = document["paths"]
-    for path in (
-        "/v1/sponsor-proposals/{proposal_id}",
-        "/v1/sponsor-proposals/{proposal_id}/accept",
-        "/v1/sponsor-proposals/{proposal_id}/decline",
-        "/v1/sponsor-proposals/{proposal_id}/cancel",
-        "/v1/users/me/sponsor-proposals",
-        "/v1/organizations/{org}/sponsor-proposals",
-        "/v1/admin/organizations/{organization_id}/sponsor",
-    ):
-        assert path not in paths, path
+    assert not [path for path in paths if "sponsor" in path]
     responses = paths["/v1/organizations/{org}"]["patch"]["responses"]
-    assert "202" not in responses and "409" not in responses
-    assert "402" in responses and "sponsor_must_be_caller" in responses["422"]["description"]
-    assert "SponsorProposalView" not in document["components"]["schemas"]
-    body = document["components"]["schemas"]["OrganizationUpdate"]["properties"]
-    assert "replace_pending_proposal" not in body
+    assert "202" not in responses and "402" not in responses
+    schemas = document["components"]["schemas"]
+    for name in ("OrganizationCreate", "OrganizationUpdate", "OrganizationView"):
+        assert "billing_sponsor_user_id" not in schemas[name]["properties"], name
+    assert "sponsor" not in json.dumps(document).casefold()
+
+
+def test_the_profile_needs_no_pricing_service(document):
+    me = document["paths"]["/v1/users/me"]
+    # Only the 503 every signed-in route has (no account database); none for the pricing service.
+    for method in ("get", "patch"):
+        assert me[method]["responses"]["503"]["description"] == (
+            "Account authentication is not configured on this deployment."
+        ), method
+    assert "institutional_branding" not in document["components"]["schemas"]["UserProfile"]["properties"]

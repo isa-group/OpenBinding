@@ -19,10 +19,10 @@ const person = (overrides: Record<string, unknown> = {}) => ({
   created_at: '2026-09-01T00:00:00Z', ...overrides,
 });
 
-const researcher = person({ username: 'lucia', email: 'lucia@example.org', plan: 'RESEARCH', cas_verified: true, institutional_branding: true });
+const researcher = person({ username: 'lucia', email: 'lucia@example.org', plan: 'RESEARCH', cas_verified: true });
 
 const isaDemo = {
-  id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, billing_sponsor_user_id: 'sponsor-1',
+  id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null,
   effective_role: 'MEMBER', created_at: '2026-09-01T00:00:00Z',
 };
 
@@ -397,7 +397,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: 'Try again' })).toHaveCount(0);
 
       // Linking CAS raised the plan to RESEARCH at no cost: the exchange says so, and the screen the person lands on tells them once.
-      await page.route(`${API}/v1/auth/cas/exchange`, json({ ...tokens, plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false } }));
+      await page.route(`${API}/v1/auth/cas/exchange`, json({ ...tokens, plan_changed: { from: 'FREE', to: 'RESEARCH', extra_cost: false } }));
       await page.evaluate(() => sessionStorage.setItem('openbinding-cas-flow', JSON.stringify({ mode: 'login', returnTo: '/app', at: Date.now() })));
       await page.goto(`/auth/cas/callback?code=${CAS_CODE}&plan_changed=RESEARCH`);
       await expect(main.getByRole('heading', { name: 'You’re signed in' })).toBeVisible();
@@ -474,14 +474,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('alert')).toContainText('This invitation can’t be used.');
       await expect(main.getByRole('alert')).toContainText('different email address than sofia@example.org');
       await capture(page, testInfo, `invite-${name}-invalid`);
-
-      await page.route(`${API}/v1/invitations/accept`, json({
-        detail: { code: 'sponsor_quota_exceeded', error: 'The sponsor contract allows 15 members.', quota: { limit_id: 'members', limit: 15, used: 16 } },
-      }, 402));
-      await main.getByRole('button', { name: 'Accept invitation' }).click();
-      await expect(main.getByRole('alert')).toContainText('402 · sponsor_quota_exceeded');
-      await expect(main.getByRole('alert')).toContainText('your invitation stays valid until it expires');
-      await capture(page, testInfo, `invite-${name}-402`);
 
       // The account already belongs to the organization by now.
       await page.route(`${API}/v1/invitations/accept`, json(membership));

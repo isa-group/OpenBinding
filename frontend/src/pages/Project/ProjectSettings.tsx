@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { CheckCircle2, Lock, TriangleAlert } from 'lucide-react';
-import { apiClient } from '../../api/client';
 import { platformApi } from '../../api/platform';
 import type { Organization, Project, Visibility } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
@@ -12,8 +11,6 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
 import { useResource } from '../../utils/useResource';
 import { Gate } from '../Organization/parts';
-import { RoomBars } from '../Organization/room';
-import { roomFromUsage } from '../Organization/roomModel';
 import { NotFoundScreen } from '../../routes/NotFoundScreen';
 import { loadCases, loadStudies } from './projectData';
 import { deleteRefusal, updateRefusal, type ProjectRefusal } from './projectErrors';
@@ -77,10 +74,9 @@ function DeleteDialog({ organization, project, onClose, onDeleted }: {
 function SettingsBody({ organization, project, canEdit, canImport, reloadProject, reloadWorkspace }: {
   organization: Organization; project: Project; canEdit: boolean; canImport: boolean; reloadProject: () => void; reloadWorkspace: () => Promise<void>;
 }) {
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const org = organization.slug;
   const role = organization.effective_role ?? (isAdmin ? 'PLATFORM ADMIN' as const : null);
-  const sponsorIsMe = user?.id === organization.billing_sponsor_user_id;
 
   const [draftName, setDraftName] = useState<string | null>(null);
   const [draftDescription, setDraftDescription] = useState<string | null>(null);
@@ -99,16 +95,13 @@ function SettingsBody({ organization, project, canEdit, canImport, reloadProject
       return null;
     }
   });
-  const usage = useResource(`settings-usage:${org}:${sponsorIsMe}`, () => (sponsorIsMe ? apiClient.getOwnUsage().catch(() => null) : Promise.resolve(null)));
 
   const name = draftName ?? project.name;
   const description = draftDescription ?? project.description;
   const visibility = draftVisibility ?? project.visibility;
   const detailsUnchanged = (name.trim() === project.name && description.trim() === project.description) || !name.trim();
   const visibilityUnchanged = visibility === project.visibility;
-  const toPrivate = visibility === 'private' && project.visibility === 'public';
   const effects = visibilityEffects(visibility);
-  const room = toPrivate && usage.data ? roomFromUsage(usage.data, ['privateProjects'], { privateProjects: 1 }) : [];
 
   const sealedItems = history.data?.items ?? [];
   const sealed = sealedItems.length > 0;
@@ -238,15 +231,7 @@ function SettingsBody({ organization, project, canEdit, canImport, reloadProject
               <ul>{effects.stays.map((item) => <li key={item}><span aria-hidden="true">–</span> {item}</li>)}</ul>
             </div>
           </div>
-          {toPrivate && (room.length > 0
-            ? <div><RoomBars rows={room} /><span className="org-muted">The sponsor’s plan limit. This project counts as private once you change it.</span></div>
-            : <span className="org-muted">The sponsor’s private-project count is checked when you change it; if there’s no room the answer is 402.</span>)}
-          {errors.visibility && (
-            <Notice tone="error">
-              <span>{errors.visibility.text}</span>
-              {errors.visibility.kind === 'quota' && <span className="org-notice-links"><Link to="/app/account/usage">Your plan</Link></span>}
-            </Notice>
-          )}
+          {errors.visibility && <Notice tone="error">{errors.visibility.text}</Notice>}
           {canEdit && <Action variant="secondary" onClick={() => void saveVisibility()} disabled={visibilityUnchanged} busy={busy === 'visibility'}>Change visibility</Action>}
         </div>
       </section>

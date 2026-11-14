@@ -1,4 +1,7 @@
-"""Module skeleton: the empty ``app``, ``shared`` and ``modules`` packages and their import contracts.
+"""Module skeleton: the ``app``, ``shared`` and ``modules`` packages and their import contracts.
+
+``app`` and ``shared`` are still empty; ``modules`` holds the modules of ARCHITECTURE §4.2 as they arrive
+(``plans`` first, F0b), and the legacy layers reach a module through its ``application`` package only.
 
 import-linter lives in the ``lint`` dependency group only, so the static tests read the configuration files;
 the teeth test runs ``lint-imports`` on a copy of the source with one planted violation per contract.
@@ -93,10 +96,16 @@ def _offenders(root: Path) -> list[str]:
 
 
 def test_new_packages_exist_with_docstring_only_init() -> None:
+    module_names = {name.strip("()") for layer in MODULE_ORDER for name in layer.split(" | ")}
     for name in NEW_PACKAGES:
         directory = SOURCE / name
         entries = sorted(p.name for p in directory.iterdir() if p.name != "__pycache__")
-        assert entries == ["__init__.py"], f"{directory} must hold exactly __init__.py, found {entries}"
+        if name == "modules":
+            assert entries[0] == "__init__.py" and set(entries[1:]) <= module_names, (
+                f"{directory} must hold __init__.py and modules of ARCHITECTURE §4.2 only, found {entries}"
+            )
+        else:
+            assert entries == ["__init__.py"], f"{directory} must hold exactly __init__.py, found {entries}"
         init = directory / "__init__.py"
         assert init.is_file(), f"{init} is missing"
         body = ast.parse(init.read_text(encoding="utf-8")).body
@@ -120,8 +129,15 @@ def test_composition_root_keeps_its_entry_point() -> None:
     assert Path(new_app.__file__).parent.name == "app"
 
 
-def test_nothing_outside_the_new_packages_imports_them() -> None:
-    offenders = _offenders(SOURCE)
+def _through_application(entry: str) -> bool:
+    """Whether an offender line imports a module through its ``application`` package (the one way allowed)."""
+    module = entry.split(": ", 1)[1]
+    parts = module.split(".")
+    return parts[:2] == [PACKAGE, "modules"] and len(parts) >= 4 and parts[3] == "application"
+
+
+def test_nothing_outside_the_new_packages_imports_them_but_a_modules_application() -> None:
+    offenders = [entry for entry in _offenders(SOURCE) if not _through_application(entry)]
     assert not offenders, offenders
 
 

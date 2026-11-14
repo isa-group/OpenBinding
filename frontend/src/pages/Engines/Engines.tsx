@@ -149,7 +149,7 @@ export function Engines() {
         {status === 'ready' && data && data.engines.length === 0 && (
           <EmptyState icon={<Monitor />} title="No engines visible to you">
             Private engines need an account, and you only see the ones you own or that were published. You can register a federated
-            engine if your plan allows it (BASIC: 1 engine).
+            engine if your plan allows it (FREE: 1 engine).
           </EmptyState>
         )}
 

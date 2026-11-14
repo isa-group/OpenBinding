@@ -112,8 +112,12 @@ services:
       SPACE_URL: ${SPACE_URL:?set SPACE_URL in site.env}
       SPACE_API_KEY_FILE: /run/secrets/space_api_key
       SPACE_TIMEOUT_MS: ${SPACE_TIMEOUT_MS:-5000}
-      SPACE_PRICING_VERSION: ${SPACE_PRICING_VERSION:-0.1.0}
+      SPACE_PRICING_VERSION: ${SPACE_PRICING_VERSION:-0.2.0}
       SPACE_DEFAULT_PLAN: ${SPACE_DEFAULT_PLAN:-}
+      # Pricing tokens are verified against SPACE's published keys for this organization (aud and organizationId).
+      SPACE_ORGANIZATION_ID: ${SPACE_ORGANIZATION_ID:?set SPACE_ORGANIZATION_ID in site.env}
+      SPACE_TOKEN_ISSUER: ${SPACE_TOKEN_ISSUER:-space}
+      SPACE_TOKEN_LEEWAY_S: ${SPACE_TOKEN_LEEWAY_S:-30}
       REDIS_URL: redis://redis:6379/0
       JOB_DISPATCH_MODE: dramatiq
       ARTIFACT_ROOT: /var/lib/openbinding/artifacts
@@ -188,8 +192,12 @@ services:
       SPACE_URL: ${SPACE_URL:?set SPACE_URL in site.env}
       SPACE_API_KEY_FILE: /run/secrets/space_api_key
       SPACE_TIMEOUT_MS: ${SPACE_TIMEOUT_MS:-5000}
-      SPACE_PRICING_VERSION: ${SPACE_PRICING_VERSION:-0.1.0}
+      SPACE_PRICING_VERSION: ${SPACE_PRICING_VERSION:-0.2.0}
       SPACE_DEFAULT_PLAN: ${SPACE_DEFAULT_PLAN:-}
+      # Pricing tokens are verified against SPACE's published keys for this organization (aud and organizationId).
+      SPACE_ORGANIZATION_ID: ${SPACE_ORGANIZATION_ID:?set SPACE_ORGANIZATION_ID in site.env}
+      SPACE_TOKEN_ISSUER: ${SPACE_TOKEN_ISSUER:-space}
+      SPACE_TOKEN_LEEWAY_S: ${SPACE_TOKEN_LEEWAY_S:-30}
       SECRETS_FERNET_KEYS_FILE: /run/secrets/secrets_fernet_keys
       FEDERATION_REQUIRE_HTTPS: "true"
       ENGINE_MINIZINC_URL: http://engine-minizinc:3000

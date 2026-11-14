@@ -39,7 +39,8 @@ from ..db.models import (
     Project,
     User,
 )
-from ..domain import idempotency, usage_counters
+from ..domain import idempotency
+from ..modules.plans.application import entitlement_map as ids
 from ..integrations import bim
 from ..jobs import limits as job_limits
 from ..models.artifacts import ArtifactRef
@@ -516,11 +517,11 @@ class JobSubmission:
             size = request.body_size
             if not size and request.archive is not None:
                 size = len(request.archive)
-            if size and size > entitlement_service.payload_ceiling(caps, 512 * 1024 * 1024):
-                raise _Finished(problem(413, "payload_too_large", "BIM package exceeds the caller plan limit"))
+            if size and size > entitlement_service.payload_ceiling(512 * 1024 * 1024):
+                raise _Finished(problem(413, "payload_too_large", "BIM package exceeds the package size limit"))
             # Before the account row is locked, the snapshot stored or the job inserted: a refusal
             # here holds no slot and leaves no row.
-            refusal = entitlement_service.binding_space_refusal(source.compilation.binding_space, caps)
+            refusal = entitlement_service.binding_space_refusal(source.compilation.binding_space)
             if refusal is not None:
                 raise _Finished(problem(refusal.status, refusal.code, refusal.detail, extra=refusal.extra or None))
             clamped = entitlement_service.clamp_options(options, caps)
@@ -649,10 +650,6 @@ class JobSubmission:
         federated = not (
             isinstance(registration.document, dict) and is_installed_builtin_registration(registration.document)
         )
-        # What SPACE says about the account's period counters is asked before the row is locked (the
-        # question may wait on the network) and applied only after a raced replay has been ruled out.
-        # Without an installed source nothing is asked (see ``domain.usage_counters``).
-        usage_refusal = await usage_counters.job_start_refusal(caller.id, federated=federated)
         # Lock the account row first: a request that waited behind the one that
         # created this job now sees it, and two creations cannot both take the
         # last slot.
@@ -661,11 +658,9 @@ class JobSubmission:
             raced = await _raced_idempotent_outcome(session, caller.id, key, fingerprint)
             if raced is not None:
                 return raced
-        refusal = entitlement_service.feature_refusal(terms.caps, "federatedEngines" if federated else "solve")
+        refusal = entitlement_service.feature_refusal(terms.caps, ids.FEDERATED_ENGINES if federated else ids.RUNS)
         if refusal is None:
             refusal = await job_limits.enforce_concurrency_limit(session, caller.id, caps=terms.caps)
-        if refusal is None:
-            refusal = usage_refusal
         if refusal is not None:
             return problem(
                 refusal.status,

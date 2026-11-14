@@ -73,7 +73,7 @@ describe('Workbench', () => {
     platform.caseRevisions.mockResolvedValue([r1, r2]);
     client.getBimExamples.mockResolvedValue(['demo/01_simple_seq']);
     client.getOwnUsage.mockResolvedValue({
-      plan: 'RESEARCH', capabilities: { maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: 20 }, features: {}, contract_pending: false,
+      plan: 'RESEARCH', capabilities: { maxRepositoryStorage: 500 }, features: {}, contract_pending: false,
     });
     client.getPricingCatalog.mockResolvedValue(null);
     client.createBimJob.mockResolvedValue({ id: 'job-1', status: 'queued', irDigest: 'sha256-ir' });
@@ -116,7 +116,7 @@ describe('Workbench', () => {
       expect(importInput).toHaveClass('sr-only');
       importInput.focus();
       expect(importInput).toHaveFocus();
-      expect(await screen.findByText('Up to 128 MiB on your plan (RESEARCH)')).toBeInTheDocument();
+      expect(await screen.findByText('The gateway refuses packages larger than this deployment allows')).toBeInTheDocument();
     });
 
     it('says a project it cannot reach is not found', async () => {
@@ -270,42 +270,21 @@ describe('Workbench', () => {
       expect(source.value).toContain('service-a');
     });
 
-    it('says a package is too big for the plan (402) without inventing how far over it is', async () => {
-      workbench.validate.mockRejectedValue(new QuotaError('instance_complexity', 'too complex', { limit_id: 'maxInstanceComplexityLog10', limit: 9 }));
+    it('says an allowance of the plan is used up (402), and shows no plan ceiling for the size of a problem', async () => {
+      workbench.validate.mockRejectedValue(new QuotaError('quota_exceeded', 'used up', { limit_id: 'maxRepositoryStorage', limit: 500, used: 500 }));
       await openWorkbench();
       validate();
 
-      const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('Too big for your plan (402 · instance_complexity)');
-      expect(alert).toHaveTextContent('Your RESEARCH plan allows up to');
-      expect(alert.querySelector('sup')).toHaveTextContent('9');
-      expect(alert).toHaveTextContent('The server doesn’t report the measured size in this answer, so we can’t show how far over it is.');
-      expect(within(alert).getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
-
-      fireEvent.click(within(alert).getByRole('button', { name: 'Reduce candidates' }));
-      const index = screen.getByRole('navigation', { name: 'BIM resources' });
-      expect(within(index).getByRole('button', { name: /candidates\.json/ })).toHaveAttribute('aria-current', 'true');
-    });
-
-    it('tells a plan that sets no size limit (403) from a credential without permission, and sends nobody to compare plans', async () => {
-      workbench.validate.mockRejectedValue(Object.assign(refusal(403, 'binding_space_limit_unknown'), {
-        notice: { limit_id: 'maxInstanceComplexityLog10', state: 'unknown', source: 'none', unit: 'log10 combinations' },
-      }));
-      await openWorkbench();
-      validate();
-
-      const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('Your plan doesn’t set a problem-size limit (403 · binding_space_limit_unknown)');
-      expect(alert).toHaveTextContent('A larger plan won’t fix it');
-      expect(alert).toHaveTextContent('Contact the administrator.');
-      expect(alert).not.toHaveTextContent(/credential|permission|API key/i);
-      expect(within(alert).queryByRole('link', { name: 'Compare plans' })).not.toBeInTheDocument();
+      const notice = await screen.findByText('Out of an allowance of your plan (402 · quota_exceeded)');
+      const box = notice.closest('.ui-notice') as HTMLElement;
+      expect(box).toHaveTextContent('Your plan’s storage is used up (402 · quota_exceeded), so nothing was checked.');
+      expect(box).not.toHaveTextContent(/combinations|Too big/);
       expect(screen.queryByText(/Not valid/)).not.toBeInTheDocument();
     });
 
     it('says the deployment caps the size whatever the plan (422), and a measuring failure is not the package’s fault', async () => {
       workbench.validate.mockRejectedValueOnce(Object.assign(refusal(422, 'binding_space_over_technical_limit'), {
-        notice: { limit_id: 'maxInstanceComplexityLog10', state: 'exhausted', source: 'technical', limit: 6, used: 9 },
+        notice: { limit_id: 'MAX_BINDING_SPACE_LOG10', state: 'exhausted', source: 'technical', limit: 6, used: 9 },
         bindingSpace: { log10: 9, digits: 10 },
       }));
       await openWorkbench();
@@ -318,7 +297,7 @@ describe('Workbench', () => {
       expect(screen.queryByText(/Not valid/)).not.toBeInTheDocument();
 
       workbench.validate.mockRejectedValueOnce(Object.assign(refusal(422, 'binding_space_unmeasured'), {
-        notice: { limit_id: 'maxInstanceComplexityLog10', state: 'unmeasured', source: 'plan', limit: 9 },
+        notice: { limit_id: 'MAX_BINDING_SPACE_LOG10', state: 'unmeasured', source: 'technical', limit: 20 },
       }));
       validate();
       await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('The problem’s size couldn’t be measured (422 · binding_space_unmeasured)'));
@@ -326,35 +305,11 @@ describe('Workbench', () => {
       expect(within(screen.getByRole('alert')).getByRole('button', { name: 'Check again' })).toBeInTheDocument();
     });
 
-    it('shows how big the package is when the 402 measured it', async () => {
-      workbench.validate.mockRejectedValue(Object.assign(
-        new QuotaError('instance_complexity_too_large', 'too complex', { limit_id: 'maxInstanceComplexityLog10', limit: 9, used: 12.5 }),
-        { notice: { limit_id: 'maxInstanceComplexityLog10', state: 'exhausted', source: 'plan', limit: 9, used: 12.5 }, bindingSpace: { log10: 12.5, digits: 13 } },
-      ));
-      await openWorkbench();
-      validate();
-
-      const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('This package has about 10^12.5 combinations.');
-      expect(alert).not.toHaveTextContent('The server doesn’t report the measured size');
-    });
-
-    it('says a package is larger than the plan takes in one request (413), from the gateway and before sending', async () => {
+    it('says a package is larger than the deployment takes in one request (413)', async () => {
       workbench.validate.mockRejectedValue(refusal(413));
       await openWorkbench();
       validate();
-      expect(await screen.findByText('The file is larger than your plan allows per request (128 MiB) · 413.')).toBeInTheDocument();
-    });
-
-    it('does not send a file that is over the plan’s ceiling', async () => {
-      client.getOwnUsage.mockResolvedValue({ plan: 'RESEARCH', capabilities: { maxPayloadBytes: 100 }, features: {}, contract_pending: false });
-      await openWorkbench();
-      fireEvent.click(screen.getByRole('tab', { name: 'Upload file' }));
-      expect(await screen.findByText('Up to 100 bytes on your plan (RESEARCH)')).toBeInTheDocument();
-
-      fireEvent.change(screen.getByLabelText('Import .bim.zip'), { target: { files: [packageFile('too-big')] } });
-      expect(await screen.findByText('The file is larger than your plan allows per request (100 bytes) · 413.')).toBeInTheDocument();
-      expect(workbench.validate).not.toHaveBeenCalled();
+      expect(await screen.findByText('The package is larger than this deployment allows per request (413).')).toBeInTheDocument();
     });
 
     it('asks to log in again when there is no session (401) and names a credential that cannot validate (403)', async () => {
@@ -531,7 +486,7 @@ describe('Workbench', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Create snapshot' }));
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('The snapshot couldn’t be made');
-      expect(alert).toHaveTextContent('This package is larger than your plan allows per request (413), so no snapshot was made.');
+      expect(alert).toHaveTextContent('This package is larger than this deployment allows per request (413), so no snapshot was made.');
     });
 
     it('opens the snapshot on the Source tab of the problem version that was sealed from it', async () => {

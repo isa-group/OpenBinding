@@ -50,8 +50,7 @@ const account = (role: 'user' | 'admin') => ({
 });
 
 const organization = {
-  id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null,
-  billing_sponsor_user_id: 'smoke-user-id', effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
+  id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
 };
 
 const project = {

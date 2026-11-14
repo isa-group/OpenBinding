@@ -20,7 +20,7 @@ lifespan (or by a test) is always the one consulted.
 
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable, Dict, Mapping, Optional
+from typing import Any, Awaitable, Callable, Dict, Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -33,6 +33,8 @@ from ..core.settings import get_settings
 from ..domain import binding_space
 from ..domain import entitlements as refusals
 from ..models.errors import api_error
+from ..modules.plans.application import entitlement_map as ids
+from ..modules.plans.application import quotas
 from ..space_client import PlanCaps, PricingUnavailable
 
 #: Problem code (503) when the plan of an account cannot be read.
@@ -109,8 +111,9 @@ class EntitlementService:
     # -- ceilings and clamps (rules live in access.policy) -----------------
 
     @staticmethod
-    def payload_ceiling(caps: PlanCaps, gateway_ceiling: int) -> int:
-        return policy.payload_ceiling_bytes(caps, gateway_ceiling)
+    def payload_ceiling(gateway_ceiling: int) -> int:
+        """``MAX_PACKAGE_BYTES``, never above ``gateway_ceiling`` (a setting, not a plan limit)."""
+        return policy.payload_ceiling_bytes(gateway_ceiling)
 
     @staticmethod
     def solve_timeout(caps: PlanCaps, gateway_ceiling: float) -> float:
@@ -121,63 +124,38 @@ class EntitlementService:
         return policy.clamp_options(options, caps)
 
     @staticmethod
-    def complexity_too_large(log10_cardinality: Optional[float], caps: PlanCaps) -> bool:
-        """The plan-only float test (``access.policy``); the submission paths use ``binding_space_refusal``."""
-        return policy.instance_complexity_too_large(log10_cardinality, caps)
+    def binding_space_refusal(space: binding_space.BindingSpace) -> Optional[refusals.Refusal]:
+        """The refusal for a binding space above ``MAX_BINDING_SPACE_LOG10``, or ``None``.
+
+        Exact on the cardinality (``domain.binding_space``). Decided before
+        anything is written: a refused request holds no slot and leaves no row.
+        """
+        return binding_space.check(space, technical_log10=get_settings().max_binding_space_log10)
 
     @staticmethod
-    def binding_space_refusal(
-        space: binding_space.BindingSpace, caps: PlanCaps
-    ) -> Optional[refusals.Refusal]:
-        """The refusal for a binding space above the plan's limit or the deployment's safeguard, or ``None``.
+    def upload_limit() -> int:
+        """The per-request upload ceiling: ``MAX_PACKAGE_BYTES``, capped by the platform maximum."""
+        return policy.payload_ceiling_bytes(UPLOAD_CEILING_BYTES)
 
-        Exact on the cardinality, and an unknown limit is refused, not allowed
-        (``domain.binding_space``). Decided before anything is written: a refused
-        request holds no slot and leaves no row.
-        """
-        return binding_space.check(space, caps, technical_log10=get_settings().max_binding_space_log10)
-
-    async def upload_limit(self, user_id: UUID) -> int:
-        """The per-request upload ceiling of ``user_id``, capped by the platform maximum (503 if unreadable)."""
-        caps = await self.caps_or_503(user_id)
-        limit = caps.limit("maxPayloadBytes")
-        return UPLOAD_CEILING_BYTES if limit is None else min(UPLOAD_CEILING_BYTES, int(limit))
-
-    # -- sponsor quotas ----------------------------------------------------
-
-    async def enforce_sponsor_usage(self, sponsor_id: UUID, usage: Mapping[str, int]) -> None:
-        """Refuse (402 ``sponsor_quota_exceeded``) a complete hypothetical sponsor total above the contract."""
-        caps = await self.caps_or_503(sponsor_id)
-        breach = policy.sponsor_quota_breach(caps, usage)
-        if breach is not None:
-            raise api_error(
-                status.HTTP_402_PAYMENT_REQUIRED,
-                "sponsor_quota_exceeded",
-                f"The sponsor contract allows {breach.limit} {breach.limit_id}; this operation would exceed it.",
-                quota={"limit_id": breach.limit_id, "limit": breach.limit, "used": breach.used},
-            )
+    # -- per-account quotas (rules live in modules.plans.domain.quotas) -----
 
     async def enforce_storage_quota(
         self,
-        sponsor_id: UUID,
+        user_id: UUID,
         incoming: int,
         stored_bytes: Callable[[], Awaitable[int]],
     ) -> None:
-        """Refuse (402 ``storage_quota_exceeded``) storing ``incoming`` bytes past the sponsor's allowance.
+        """Refuse (402 ``quota_exceeded``, ``maxRepositoryStorage``) storing ``incoming`` bytes past the account's allowance.
 
-        ``stored_bytes`` is only awaited when the plan limits storage at all.
+        The caller holds the account's row lock; ``stored_bytes`` is only
+        awaited when the plan limits storage at all.
         """
-        caps = await self.caps_or_503(sponsor_id)
-        if caps.limit("storageBytes") is None:
+        caps = await self.caps_or_503(user_id)
+        if caps.limit(ids.MAX_REPOSITORY_STORAGE) is None:
             return
-        breach = policy.storage_quota_breach(caps, await stored_bytes(), incoming)
-        if breach is not None:
-            raise api_error(
-                status.HTTP_402_PAYMENT_REQUIRED,
-                "storage_quota_exceeded",
-                "The sponsor storage allowance would be exceeded.",
-                quota={"limit_id": breach.limit_id, "limit": breach.limit, "used": breach.used},
-            )
+        refusal = quotas.storage_quota(await stored_bytes(), incoming, caps)
+        if refusal is not None:
+            raise api_error(refusal.status, refusal.code, refusal.detail, **refusal.extra)
 
 
 #: The process-wide service.  It holds no state: the gate is resolved per call.

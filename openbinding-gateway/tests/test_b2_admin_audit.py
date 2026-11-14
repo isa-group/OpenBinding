@@ -404,7 +404,7 @@ async def organization_with_two_users(
         gate.plans[uuid.UUID(profile["id"])] = largest_plan()
     slug = f"org-{uuid.uuid4().hex[:8]}"
     created = await api_client.post(
-        "/v1/organizations", headers=alice_headers, json={"slug": slug, "name": "Sponsored Org"}
+        "/v1/organizations", headers=alice_headers, json={"slug": slug, "name": "Shared Org"}
     )
     assert created.status_code == 201, created.text
     if bob_headers:
@@ -412,7 +412,7 @@ async def organization_with_two_users(
     return alice, alice_headers, bob, created.json()
 
 
-async def test_an_owner_taking_the_sponsorship_appears_in_the_platform_audit(
+async def test_an_owner_editing_the_organization_appears_in_the_platform_audit(
     api_client, registration, gate, db_session
 ):
     alice, alice_headers, bob, organization, bob_auth = await organization_with_two_users(
@@ -426,23 +426,12 @@ async def test_an_owner_taking_the_sponsorship_appears_in_the_platform_audit(
     )
     assert added.status_code == 200, added.text
 
-    # Naming somebody else is refused and leaves nothing in the audit (M9.6).
-    refused = await api_client.patch(
-        f"/v1/organizations/{organization['slug']}",
-        headers=alice_headers,
-        json={"billing_sponsor_user_id": bob["id"]},
-    )
-    assert refused.status_code == 422, refused.text
-    assert refused.json()["code"] == "sponsor_must_be_caller"
-
-    # Bob takes the sponsorship himself: immediate, with the detail the audit always had.
-    taken = await api_client.patch(
+    renamed = await api_client.patch(
         f"/v1/organizations/{organization['slug']}",
         headers=bob_auth,
-        json={"billing_sponsor_user_id": bob["id"]},
+        json={"name": "Renamed by Bob"},
     )
-    assert taken.status_code == 200, taken.text
-    assert taken.json()["billing_sponsor_user_id"] == bob["id"]
+    assert renamed.status_code == 200, renamed.text
     listing = await api_client.get(
         f"/v1/admin/audit?organization_id={organization['id']}&action=organization.updated",
         headers=admin,
@@ -452,10 +441,7 @@ async def test_an_owner_taking_the_sponsorship_appears_in_the_platform_audit(
     item = listing.json()["events"][0]
     assert item["organizationSlug"] == organization["slug"]
     assert item["actorId"] == bob["id"]
-    assert item["detail"] == {
-        "previous_sponsor_user_id": alice["id"],
-        "new_sponsor_user_id": bob["id"],
-    }
+    assert item["detail"] == {}
 
 
 async def test_the_audit_can_be_filtered_by_organization(

@@ -1,9 +1,9 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import type { AdminAuditPage, AdminUserView } from '../src/api/auth';
-import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
+import { AGREEMENT_CURRENT_FIXTURE as CURRENT_FIXTURE, agreementCatalogFixture as catalogFixture } from '../src/test/fixtures/agreementCatalog';
 import {
-  ALEX, AUDIT, EMPTY_QUEUES, ERROR_EVENTS, ERROR_OVERVIEW, MARIA, MODERATION, ORG, OVERVIEW, PRIYA, SAM, SUB_ORG, USERS,
+  ALEX, AUDIT, EMPTY_QUEUES, ERROR_EVENTS, ERROR_OVERVIEW, MARIA, MODERATION, ORG, OVERVIEW, SAM, SUB_ORG, USERS,
   queuesAt, subscriptionOf, usageOf, userPage,
 } from '../src/test/fixtures/admin';
 
@@ -68,7 +68,7 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
     extraAudit: [],
     sent: { patch: [], subscription: [], plan: [], revoked: [], auditQueries: [] },
   };
-  const me = options.role === 'user' ? { ...MARIA, role: 'user' } : { ...ALEX, institutional_branding: false };
+  const me = options.role === 'user' ? { ...MARIA, role: 'user' } : ALEX;
   const answer = (key: Key, body: unknown): Handler => (route) => (state.refuse[key] ? state.refuse[key](route) : json(body)(route));
   const etagOf = (id: string) => `"contract-${state.revisions[id] ?? 1}"`;
   const moved = (id: string) => { state.revisions[id] = (state.revisions[id] ?? 1) + 1; };
@@ -260,7 +260,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('navigation', { name: 'Administration', exact: true }).getByText('Overview', { exact: true })).toHaveAttribute('aria-current', 'page');
       const accounts = main.getByRole('region', { name: 'Accounts', exact: true });
       await expect(accounts.getByText('7', { exact: true })).toBeVisible();
-      await expect(accounts.getByText('3 BASIC', { exact: true })).toBeVisible();
+      await expect(accounts.getByText('3 FREE', { exact: true })).toBeVisible();
       await expect(main.getByRole('region', { name: 'Run queue', exact: true }).getByText(/Oldest waiting: minizinc run, running for about 1 day/)).toBeVisible();
       await expect(main.getByRole('region', { name: 'Moderation', exact: true }).getByText('Engine catalogue requests')).toBeVisible();
       await expect(main.getByRole('region', { name: 'Errors, last 24 h', exact: true }).getByText('9 events in total')).toBeVisible();
@@ -543,14 +543,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         detail: eventDetail, createdAt: `2026-10-0${id}T09:00:00Z`, ...over,
       });
       state.extraAudit = [
-        recorded(7, 'organization.sponsor.proposed', { proposal_id: 'prop-1', proposed_user_id: PRIYA.id, proposed_by_user_id: ALEX.id, expires_at: '2026-10-23T12:00:00Z' },
+        recorded(7, 'organization.updated', { name: 'ISA Demo' },
           { organizationId: ORG.id, organizationSlug: 'isa-demo', targetType: 'Organization', targetId: ORG.id }),
         recorded(6, 'admin.user.updated', { username: 'sam.okafor', changes: { is_active: { from: true, to: false } } }),
         recorded(5, 'admin.api_key.revoked', { user_id: SAM.id, key: { id: 'key-1', name: 'ci pipeline', prefix: 'obk_ab12' } }, { targetType: 'ApiKey', targetId: 'key-1' }),
         recorded(4, 'account.cas.linked', { provider: 'us-cas', plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false } }),
       ];
       await page.goto('/app/admin?section=audit');
-      await expect(main.getByText('A request to become the billing sponsor was sent.')).toBeVisible();
+      await expect(main.getByText('The organization’s settings were updated.')).toBeVisible();
       await expect(main.getByText('Account sam.okafor was updated: status active → inactive.')).toBeVisible();
       await expect(main.getByText('API key “ci pipeline” (obk_ab12…) was revoked.')).toBeVisible();
       await expect(main.getByText('An institutional identity was linked and the plan went from BASIC to RESEARCH at no extra cost.')).toBeVisible();

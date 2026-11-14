@@ -1,10 +1,8 @@
-"""POST /v1/jobs under ``SPACE_ENABLED=false`` (the open gate) and under a plan that exceeds a technical ceiling.
+"""POST /v1/jobs under ``SPACE_ENABLED=false`` (the open gate) and under a plan that misses a limit.
 
-The open gate used to grant unbounded timeout and payload allowances, which
-``access.policy`` refuses on purpose (a real plan above the technical ceiling
-fails closed), so every job launch answered an unhandled 500. The open gate now
-grants the ceilings themselves; a real plan above them still fails closed, now
-as a 503 ``pricing_misconfigured`` problem.
+The open gate grants every limit unbounded, so only the deployment's technical
+ceilings apply. A real plan that does not declare ``maxRunMinutes`` fails
+closed, as a 503 ``pricing_misconfigured`` problem rather than a zero-second run.
 """
 
 from __future__ import annotations
@@ -23,13 +21,13 @@ EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
 
 
-class UnboundedPlanGate(OpenGate):
-    """A real-looking plan whose payload allowance is unlimited, above any technical ceiling."""
+class NoRunMinutesGate(OpenGate):
+    """A real-looking plan that does not declare ``maxRunMinutes``."""
 
     async def caps(self, user_id):
         limits = dict(OpenCaps().limits)
-        limits["maxPayloadBytes"] = float("inf")
-        return PlanCaps(plan="REAL", features={"solve": True}, limits=limits)
+        del limits["maxRunMinutes"]
+        return PlanCaps(plan="REAL", features={"runs": True}, limits=limits)
 
 
 @pytest.fixture
@@ -92,10 +90,10 @@ async def test_the_open_gate_still_clamps_a_time_budget_beyond_the_technical_tim
     assert launched.status_code == 202, launched.text
 
 
-async def test_a_real_plan_above_the_technical_ceiling_fails_closed_with_a_controlled_problem(
+async def test_a_real_plan_without_run_minutes_fails_closed_with_a_controlled_problem(
     api_client, registration, no_dispatch
 ):
-    space_client.set_gate(UnboundedPlanGate())
+    space_client.set_gate(NoRunMinutesGate())
     headers, snapshot = await _account_and_snapshot(api_client, registration)
 
     launched = await api_client.post("/v1/jobs", headers=headers, json=_job(snapshot))

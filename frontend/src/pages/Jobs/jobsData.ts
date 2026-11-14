@@ -1,7 +1,5 @@
-import type { PricingCatalog } from '../../api/auth';
 import { platformApi } from '../../api/platform';
 import { loadCases } from '../Project/projectData';
-import { planLimit } from '../Project/projectModel';
 import type { Origin } from './JobResult';
 
 export interface ProjectRef {
@@ -39,20 +37,4 @@ export async function findOrigin(org: string, project: string, snapshotId: strin
     /* the case list is a convenience here, never a reason to hide the run */
   }
   return null;
-}
-
-export interface RetentionBar {
-  plan: string;
-  /** Three letters for the axis. */
-  short: string;
-  days: number;
-}
-
-/** How long each plan keeps finished runs, read from the pricing document (`jobHistoryDays`). */
-export function retentionBars(catalog: PricingCatalog | null): RetentionBar[] {
-  const plans = catalog && typeof catalog.plans === 'object' && catalog.plans !== null ? Object.keys(catalog.plans) : [];
-  return plans
-    .map((plan) => ({ plan, short: plan.slice(0, 3).toUpperCase(), days: planLimit(catalog, plan, 'jobHistoryDays') }))
-    .filter((bar): bar is RetentionBar => bar.days !== null && bar.days > 0)
-    .sort((a, b) => a.days - b.days);
 }

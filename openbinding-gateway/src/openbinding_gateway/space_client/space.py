@@ -10,8 +10,13 @@ errors and awaited close lifecycle; no worker-thread compatibility wrapper is
 kept.
 
 Plan *ceilings* are recovered from the pricing token: the allowance lives in the
-pricing, resolved against the subscribed plan, and the token carries both the
-feature flags and the per-request limits.
+pricing, resolved against the subscribed plan, and the token carries the feature
+flags, the limits and the subscription. The token is believed only once it is
+verified against the keys SPACE publishes (JWKS, capability
+``pricing-token-jwks``): an ES256 signature, ``exp``, ``iss``, ``aud`` and
+``organizationId``, and then the account it was issued for
+(``pricing_token_user_id``). There is no unverified fallback; the startup check
+(``main.py``) refuses a SPACE that does not publish its keys.
 
 A novation is guarded against concurrent edits when SPACE can guard it (it
 advertises ``novation-preview`` and ``contract-version`` in
@@ -25,10 +30,7 @@ SPACE to reject private plans, since administrators may assign them.
 
 from __future__ import annotations
 
-import base64
-import binascii
 import inspect
-import json
 import logging
 import uuid
 from collections.abc import Callable
@@ -59,6 +61,8 @@ _REJECTION_STATUSES = frozenset({400, 404, 409, 422})
 _GUARDED_NOVATION = ("novation-preview", "contract-version")
 # A novation that keeps the current billing period instead of restarting it.
 _KEEP_BILLING_PERIOD = "keep-billing-period"
+# SPACE publishes the keys of its pricing tokens, so they can be verified.
+PRICING_TOKEN_JWKS = "pricing-token-jwks"
 
 
 class SpacePricingGate:
@@ -143,18 +147,48 @@ class SpacePricingGate:
 
     # -- Reading the contract --------------------------------------------
 
-    async def _entitlements(self, user_id: uuid.UUID) -> Optional[dict]:
-        """Allowances, consumption and feature flags, from the pricing token.
+    async def publishes_token_keys(self) -> bool:
+        """Whether SPACE advertises ``pricing-token-jwks``, without which no pricing token can be verified."""
+        return await self._supports(PRICING_TOKEN_JWKS)
 
-        The token is decoded without verifying its signature, deliberately: it
-        was just fetched over an authenticated channel from SPACE itself, and
-        the signing key is SPACE's. Verification is what the *browser* needs,
-        because the token reaches it second-hand.
-        """
+    async def _token(self, user_id: uuid.UUID) -> str:
         token = await self._call(
             lambda: self._client.features.generate_user_pricing_token(str(user_id))
         )
-        return _decode_claims(str(token)) if token else None
+        if not token:
+            raise PricingUnavailable("SPACE did not return a pricing token.")
+        return str(token)
+
+    async def _verified_claims(self, user_id: uuid.UUID) -> tuple[str, Any]:
+        """A pricing token of ``user_id`` and its verified payload.
+
+        The signature, ``exp``, ``iss`` and ``aud``/``organizationId`` are
+        checked by the client against SPACE's JWKS; the account is checked here,
+        because the client does not: ``pricing_token_user_id`` (never ``sub``,
+        which may be an opaque URN, and never ``userId`` read directly) must be
+        ``user_id``. Any failure is ``PricingUnavailable``: an unverifiable token
+        says nothing about the plan.
+        """
+        from space_client.types.pricing_token import pricing_token_user_id
+
+        if not (self._settings.space_organization_id or "").strip():
+            raise PricingUnavailable("SPACE_ORGANIZATION_ID is not set, so no pricing token can be verified.")
+        token = await self._token(user_id)
+        payload = await self._call(
+            lambda: self._client.features.verify_pricing_token(
+                token,
+                organization_id=self._settings.space_organization_id,
+                issuer=self._settings.space_token_issuer,
+                leeway=self._settings.space_token_leeway_s,
+            )
+        )
+        try:
+            subject = pricing_token_user_id(payload)
+        except (TypeError, ValueError) as error:
+            raise PricingUnavailable("SPACE returned a pricing token without a usable userId.") from error
+        if subject != str(user_id):
+            raise PricingUnavailable("SPACE returned a pricing token issued for another account.")
+        return token, payload
 
     async def _contract(self, user_id: uuid.UUID) -> Optional[Any]:
         return await self._call(lambda: self._client.contracts.get_contract(str(user_id)))
@@ -164,16 +198,17 @@ class SpacePricingGate:
         return pricing_version or self._settings.space_pricing_version or None
 
     async def caps(self, user_id: uuid.UUID) -> PlanCaps:
-        claims = await self._entitlements(user_id)
-        if claims is None:
-            raise PricingUnavailable("SPACE did not return pricing entitlements.")
-
-        # Entitlement values come only from SPACE's token.
-        contract = await self._contract(user_id)
-        if contract is None:
-            raise PricingUnavailable("SPACE has no contract for this account.")
-        plan = _plan_name(contract, self._service)
-        pricing_context = claims.get("pricingContext")
+        _, payload = await self._verified_claims(user_id)
+        # The plan is the token's own subscription claim; a SPACE that sends none is asked for the contract.
+        subscription = payload.subscription
+        if subscription is not None:
+            plan = str((subscription.subscription_plans or {}).get(self._service) or "")
+        else:
+            contract = await self._contract(user_id)
+            if contract is None:
+                raise PricingUnavailable("SPACE has no contract for this account.")
+            plan = _plan_name(contract, self._service)
+        pricing_context = payload.pricing_context
         if not isinstance(pricing_context, dict):
             raise PricingUnavailable("SPACE returned malformed pricing entitlements.")
         raw_features = _scoped(pricing_context.get("features") or {}, self._service)
@@ -394,12 +429,27 @@ class SpacePricingGate:
         return await self._call(put)
 
     async def pricing_token(self, user_id: uuid.UUID) -> str:
-        token = await self._call(
-            lambda: self._client.features.generate_user_pricing_token(str(user_id))
-        )
-        if not token:
-            raise PricingUnavailable("SPACE did not return a pricing token.")
-        return str(token)
+        """A verified pricing token of ``user_id``: the browser is never handed one the gateway would not believe."""
+        token, _ = await self._verified_claims(user_id)
+        return token
+
+    async def pricing_document(self) -> str:
+        """The Pricing2Yaml text SPACE holds for the version this gateway contracts.
+
+        ``SPACE_PRICING_VERSION``, or else the version SPACE assigns to new
+        contracts of the service.
+        """
+        version = self._settings.space_pricing_version
+        if not version:
+            assigned = await self._call(lambda: self._client.services.get_new_contracts_pricing(self._service))
+            version = str(getattr(assigned, "version", "") or "")
+        if not version:
+            raise PricingUnavailable("SPACE did not say which pricing version new contracts use.")
+        document = await self._call(lambda: self._client.pricings.get_yaml(self._service, version))
+        text = getattr(document, "yaml", None)
+        if not text:
+            raise PricingUnavailable(f"SPACE did not return the YAML of pricing {version}.")
+        return str(text)
 
     async def remove_contract(self, user_id: uuid.UUID) -> None:
         await self._call(lambda: self._client.contracts.remove_contract(str(user_id)))
@@ -423,16 +473,6 @@ def _scoped(entries: object, service: str) -> Dict[str, Any]:
         elif "-" not in name:
             scoped[name] = value
     return scoped
-
-
-def _decode_claims(token: str) -> Optional[dict]:
-    try:
-        payload = token.split(".")[1]
-        payload += "=" * (-len(payload) % 4)
-        claims = json.loads(base64.urlsafe_b64decode(payload))
-        return claims if isinstance(claims, dict) else None
-    except (IndexError, UnicodeDecodeError, ValueError, binascii.Error):
-        return None
 
 
 async def _awaited(value: Any) -> Any:

@@ -1,4 +1,4 @@
-import type { PricingCatalog, UsageView } from '../../api/auth';
+import type { PricingCatalog } from '../../api/auth';
 import type { BindingCase, CaseRevision, Organization, OrganizationRole, ProjectAccessKind, Study, StudyCell, StudyRun, Visibility } from '../../api/platform';
 import { canWrite, levelOf, type AccessLevel } from './accessLevel';
 
@@ -47,8 +47,8 @@ export function visibilityLabel(visibility: Visibility): string {
 export function visibilityEffects(next: Visibility): { changes: string[]; stays: string[] } {
   return {
     changes: next === 'public'
-      ? ['Anybody can read it, without changing anything', 'It stops counting as a private project for the sponsor']
-      : ['Only its members can read it', 'It counts as a private project for the sponsor'],
+      ? ['Anybody can read it, without changing anything']
+      : ['Only its members can read it'],
     stays: [
       'Runs and the settings still need membership to open',
     ],
@@ -156,17 +156,10 @@ export function planLimit(catalog: PricingCatalog | null | undefined, plan: stri
 }
 
 export interface ImportCeiling {
-  /** The plan's `maxPayloadBytes`, when it is known. */
-  plan: number | null;
-  /** What the gateway really accepts: the plan's ceiling, never above its own 128 MiB. */
+  /** What the gateway accepts: its own 128 MiB, whatever the plan (no plan limits a package). */
   effective: number;
-  /** The plan allows more than the gateway takes. */
-  clamped: boolean;
 }
 
-export function importCeiling(usage: UsageView | null | undefined, catalog: PricingCatalog | null | undefined, plan: string | undefined): ImportCeiling {
-  const fromUsage = usage?.capabilities?.maxPayloadBytes;
-  const planValue = typeof fromUsage === 'number' && Number.isFinite(fromUsage) ? fromUsage : planLimit(catalog, plan, 'maxPayloadBytes');
-  const effective = planValue === null ? GATEWAY_PACKAGE_LIMIT : Math.min(planValue, GATEWAY_PACKAGE_LIMIT);
-  return { plan: planValue, effective, clamped: planValue !== null && planValue > GATEWAY_PACKAGE_LIMIT };
+export function importCeiling(): ImportCeiling {
+  return { effective: GATEWAY_PACKAGE_LIMIT };
 }

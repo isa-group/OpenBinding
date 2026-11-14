@@ -8,7 +8,7 @@ from datetime import timedelta
 import pytest_asyncio
 from sqlalchemy import select
 
-from _pricing import fake_pricing_gate, pricing_catalog
+from _pricing import caps_for, fake_pricing_gate, pricing_catalog
 from _repo import REPO_ROOT
 from test_api_keys import key_payload
 from openbinding_gateway import space_client
@@ -72,10 +72,12 @@ def _job_request(snapshot_id):
 
 
 async def _exceed_the_api_key_allowance(client, headers):
-    """A 402 ``quota_exceeded``: the plan's structural allowance of API keys is spent."""
-    first = await client.post("/v1/users/me/api-keys", headers=headers, json=key_payload("first"))
-    assert first.status_code == 201, first.text
-    return await client.post("/v1/users/me/api-keys", headers=headers, json=key_payload("second"))
+    """A 402 ``quota_exceeded``: the plan's allowance of API keys (``maxApiKeys``) is spent."""
+    allowance = int(caps_for(pricing_catalog().default_plan).limit("maxApiKeys"))
+    for n in range(allowance):
+        minted = await client.post("/v1/users/me/api-keys", headers=headers, json=key_payload(f"key {n}"))
+        assert minted.status_code == 201, minted.text
+    return await client.post("/v1/users/me/api-keys", headers=headers, json=key_payload("one too many"))
 
 
 async def test_the_api_key_allowance_returns_402_quota_exceeded(api_client, db_session, registration, gate):
@@ -87,7 +89,7 @@ async def test_the_api_key_allowance_returns_402_quota_exceeded(api_client, db_s
     assert response.status_code == 402, response.text
     detail = response.json()["detail"]
     assert detail["code"] == "quota_exceeded"
-    assert detail["quota"]["limit_id"] == "apiKeys"
+    assert detail["quota"]["limit_id"] == "maxApiKeys"
     assert "Retry-After" not in response.headers
 
 

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Check } from 'lucide-react';
 import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
-import { QuotaError } from '../../api/auth';
 import { platformApi } from '../../api/platform';
 import type { Organization, OrganizationMember, OrganizationRole } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
@@ -26,7 +25,6 @@ const ROLE_COPY: Record<OrganizationRole, string> = {
 
 type Failure =
   | { kind: 'refused' }
-  | { kind: 'sponsor'; limit?: number }
   | { kind: 'malformed' }
   | { kind: 'unavailable' }
   | { kind: 'network' }
@@ -105,9 +103,7 @@ export function AcceptInvitation() {
       void platform?.reload();
     } catch (caught) {
       const result = classifyAuthError(caught);
-      if (caught instanceof QuotaError || result.kind === 'quota') {
-        setFailure({ kind: 'sponsor', limit: caught instanceof QuotaError ? caught.quota?.limit : undefined });
-      } else if (result.kind === 'not-found') {
+      if (result.kind === 'not-found') {
         setFailure({ kind: 'refused' });
       } else if (result.kind === 'invalid') {
         setFailure({ kind: 'malformed' });
@@ -220,12 +216,6 @@ export function AcceptInvitation() {
                 It’s invalid, expired or was already used, or it was sent to a different email address than {user.email}: the gateway
                 doesn’t say which. Log in with the account that received it, or ask the person who invited you for a new one.{' '}
                 <button type="button" className="invite-inline" onClick={() => void signOut()}>Log out</button>
-              </Notice>
-            )}
-            {failure?.kind === 'sponsor' && (
-              <Notice tone="error" title="The organization can’t add more members right now (402 · sponsor_quota_exceeded).">
-                Its sponsor has reached the unique-member limit of their plan{failure.limit !== undefined ? ` (${failure.limit.toLocaleString('en-US')})` : ''}.
-                Let the inviter know; your invitation stays valid until it expires.
               </Notice>
             )}
             {failure?.kind === 'unavailable' && (

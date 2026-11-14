@@ -1,26 +1,22 @@
 import { useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { apiClient } from '../../api/client';
 import { platformApi, type CaseRevision, type Organization, type Project } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
 import { problemsPath } from '../../routes/paths/problems';
-import { formatByteSize } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { newestFirst } from '../Cases/casesModel';
 import { ProjectFrame, ProjectGate, ProjectSkeleton } from '../Project/parts';
-import { planLimit } from '../Project/projectModel';
 import { useRouteProject } from '../Project/useRouteProject';
-import { uploadCeiling } from './uploadCeiling';
 import { ActionBar } from './ActionBar';
 import { CheckResult } from './CheckResult';
 import { PackageEditor } from './PackageEditor';
 import { PackageSource } from './PackageSource';
 import { RunPanel } from './RunPanel';
 import { useWorkbench } from './useWorkbench';
-import { complexityCeiling, loadRefusalText } from './workbenchModel';
+import { loadRefusalText } from './workbenchModel';
 import './Workbench.css';
 
 const EMPTY_REVISIONS: CaseRevision[] = [];
@@ -44,17 +40,8 @@ function WorkbenchScreen({ organization, project, canSave }: { organization: Org
     `wb-revisions:${organization.slug}/${project.slug}/${pickedCase}`,
     () => (pickedCase ? platformApi.caseRevisions(organization.slug, project.slug, pickedCase) : Promise.resolve(EMPTY_REVISIONS)),
   );
-  const usage = useResource('wb-usage', () => apiClient.getOwnUsage().catch(() => null));
-  const catalog = useResource('wb-catalog', () => apiClient.getPricingCatalog().catch(() => null));
-
-  const planName = usage.data?.plan ?? user?.plan ?? null;
-  const upload = uploadCeiling(usage.data, catalog.data, planName ?? undefined);
-  const capability = usage.data?.capabilities && 'maxInstanceComplexityLog10' in usage.data.capabilities ? usage.data.capabilities.maxInstanceComplexityLog10 : undefined;
-  const plan = {
-    name: planName,
-    ceiling: complexityCeiling(capability, planLimit(catalog.data, planName ?? undefined, 'maxInstanceComplexityLog10')),
-    maxLabel: upload.plan !== null ? formatByteSize(upload.plan) : null,
-  };
+  // No plan limits the package or the problem size: the deployment does, and its refusals (413, the binding-space
+  // refusal) say so when they happen.
   const caseList = cases.data ?? [];
   const revisionList = revisions.data ? newestFirst(revisions.data) : EMPTY_REVISIONS;
 
@@ -75,9 +62,6 @@ function WorkbenchScreen({ organization, project, canSave }: { organization: Org
         <PackageSource
           wb={wb}
           requestedExample={Boolean(requestedExample)}
-          maxBytes={upload.plan}
-          maxLabel={plan.maxLabel}
-          planName={planName}
           casesHref={problemsPath(root)}
           choices={{
             cases: caseList,
@@ -106,7 +90,7 @@ function WorkbenchScreen({ organization, project, canSave }: { organization: Org
           </div>
         ) : (
           <>
-            <CheckResult wb={wb} plan={plan} pricingHref="/pricing" />
+            <CheckResult wb={wb} />
             <PackageEditor wb={wb} />
             <RunPanel wb={wb} orgSlug={organization.slug} jobsHref={`${root}/runs`} />
             <ActionBar

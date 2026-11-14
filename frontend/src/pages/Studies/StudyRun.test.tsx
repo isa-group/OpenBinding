@@ -234,7 +234,7 @@ describe('One run of a study, in the Progress tab', () => {
   });
 
   it('keeps the quota in the words of a retry that is refused for a plan limit', async () => {
-    platform.retryStudyCell.mockRejectedValue(new QuotaError('quota_exceeded', 'full', { limit_id: 'storageBytes', limit: 50, used: 50 }));
+    platform.retryStudyCell.mockRejectedValue(new QuotaError('quota_exceeded', 'full', { limit_id: 'maxRepositoryStorage', limit: 50, used: 50 }));
     renderRun();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Retry cell 1' }));

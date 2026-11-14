@@ -12,6 +12,7 @@ import uuid
 
 import pytest
 
+from _space_tokens import ORGANIZATION, trusted_payload
 from openbinding_gateway.core.settings import Settings
 from openbinding_gateway.services.entitlements import EntitlementService, EntitlementsUnavailable
 from openbinding_gateway.space_client import (
@@ -50,7 +51,11 @@ class Recorder:
 
         def generate_user_pricing_token(self, user_id):
             self._outer.calls.append("token")
+            self._user = user_id
             return "header.e30.signature"
+
+        def verify_pricing_token(self, token, organization_id=None, issuer=None, leeway=None):
+            return trusted_payload(token, self._user)
 
     class _Contracts:
         def __init__(self, outer):
@@ -79,7 +84,9 @@ class Recorder:
 
 
 def gate_over(recorder: Recorder) -> SpacePricingGate:
-    return SpacePricingGate(Settings(_env_file=None, space_pricing_version=VERSION), client=recorder)
+    return SpacePricingGate(
+        Settings(_env_file=None, space_pricing_version=VERSION, space_organization_id=ORGANIZATION), client=recorder
+    )
 
 
 async def outcome(awaitable) -> BaseException | None:

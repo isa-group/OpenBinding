@@ -32,15 +32,11 @@ interface PackageSourceProps {
   wb: Workbench;
   choices: CaseChoices;
   requestedExample: boolean;
-  /** The plan's request ceiling in bytes, when it is known, and how it reads. */
-  maxBytes: number | null;
-  maxLabel: string | null;
-  planName: string | null;
   casesHref: string;
 }
 
 /** Where the package comes from: a version of a problem, a file from the computer, or one of the examples. */
-export function PackageSource({ wb, choices, requestedExample, maxBytes, maxLabel, planName, casesHref }: PackageSourceProps) {
+export function PackageSource({ wb, choices, requestedExample, casesHref }: PackageSourceProps) {
   const [tab, setTab] = useState<SourceTab>(requestedExample ? 'example' : 'case');
   const [dragging, setDragging] = useState(false);
   const validating = wb.status === 'validating';
@@ -51,7 +47,7 @@ export function PackageSource({ wb, choices, requestedExample, maxBytes, maxLabe
     event.preventDefault();
     setDragging(false);
     const file = event.dataTransfer.files[0];
-    if (file) void wb.importFile(file, maxBytes);
+    if (file) void wb.importFile(file);
   };
 
   return (
@@ -107,7 +103,7 @@ export function PackageSource({ wb, choices, requestedExample, maxBytes, maxLabe
             >
               <FileArchive aria-hidden="true" />
               <strong>Drop a .bim.zip here</strong>
-              <span className="wb-muted">{maxLabel ? `Up to ${maxLabel} on your plan${planName ? ` (${planName})` : ''}` : 'The gateway refuses packages larger than your plan allows'}</span>
+              <span className="wb-muted">The gateway refuses packages larger than this deployment allows</span>
               <span className="ui-action is-secondary is-md">
                 <span>Import .bim.zip</span>
                 <input
@@ -117,7 +113,7 @@ export function PackageSource({ wb, choices, requestedExample, maxBytes, maxLabe
                   accept=".zip,.bim.zip,application/zip,application/vnd.bim+zip"
                   onChange={(event) => {
                     const file = event.target.files?.[0];
-                    if (file) void wb.importFile(file, maxBytes);
+                    if (file) void wb.importFile(file);
                     event.currentTarget.value = '';
                   }}
                 />

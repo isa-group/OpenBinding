@@ -226,17 +226,12 @@
             "title": "Id",
             "type": "string"
           },
-          "institutional_branding": {
-            "default": false,
-            "title": "Institutional Branding",
-            "type": "boolean"
-          },
           "is_active": {
             "title": "Is Active",
             "type": "boolean"
           },
           "plan": {
-            "description": "Plan last seen on the SPACE contract. The contract itself decides what a request is allowed to do; this is what the interface displays. Empty when the account has no plan (the stateless open gate, or SPACE has not assigned one).",
+            "description": "Plan last recorded for the SPACE contract (read from the database, so reading the profile never needs SPACE). The contract itself decides what a request is allowed to do; this is what the interface displays. Empty when the account has no plan (the stateless open gate, or SPACE has not assigned one).",
             "maxLength": 128,
             "title": "Plan",
             "type": "string"
@@ -5047,18 +5042,6 @@
             "title": "Jobs",
             "type": "array"
           },
-          "retention_days": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "How far back this plan keeps them. Jobs older than this are not returned, as reported by SPACE for the canonical jobHistoryDays limit.",
-            "title": "Retention Days"
-          },
           "total": {
             "description": "How many are visible in total.",
             "title": "Total",
@@ -5067,8 +5050,7 @@
         },
         "required": [
           "jobs",
-          "total",
-          "retention_days"
+          "total"
         ],
         "title": "JobHistory",
         "type": "object"
@@ -5788,18 +5770,6 @@
       "OrganizationCreate": {
         "additionalProperties": false,
         "properties": {
-          "billing_sponsor_user_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Billing Sponsor User Id"
-          },
           "name": {
             "maxLength": 160,
             "minLength": 1,
@@ -5834,19 +5804,6 @@
       "OrganizationUpdate": {
         "additionalProperties": false,
         "properties": {
-          "billing_sponsor_user_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Make yourself the billing sponsor of the organization and its subtree (OWNER only); the change is immediate when your plan can take them. Naming the current sponsor changes nothing; naming anybody else is refused with 422 `sponsor_must_be_caller`.",
-            "title": "Billing Sponsor User Id"
-          },
           "move_to_root": {
             "default": false,
             "title": "Move To Root",
@@ -5883,11 +5840,6 @@
       },
       "OrganizationView": {
         "properties": {
-          "billing_sponsor_user_id": {
-            "format": "uuid",
-            "title": "Billing Sponsor User Id",
-            "type": "string"
-          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -5941,7 +5893,6 @@
           "slug",
           "name",
           "parent_id",
-          "billing_sponsor_user_id",
           "created_at"
         ],
         "title": "OrganizationView",
@@ -7662,17 +7613,12 @@
             "title": "Id",
             "type": "string"
           },
-          "institutional_branding": {
-            "default": false,
-            "title": "Institutional Branding",
-            "type": "boolean"
-          },
           "is_active": {
             "title": "Is Active",
             "type": "boolean"
           },
           "plan": {
-            "description": "Plan last seen on the SPACE contract. The contract itself decides what a request is allowed to do; this is what the interface displays. Empty when the account has no plan (the stateless open gate, or SPACE has not assigned one).",
+            "description": "Plan last recorded for the SPACE contract (read from the database, so reading the profile never needs SPACE). The contract itself decides what a request is allowed to do; this is what the interface displays. Empty when the account has no plan (the stateless open gate, or SPACE has not assigned one).",
             "maxLength": 128,
             "title": "Plan",
             "type": "string"
@@ -7848,7 +7794,7 @@
     },
     "/v1/admin/audit": {
       "get": {
-        "description": "Every audit event, newest first: platform actions and organization events.\n\nOrganization events (for example a sponsorship transfer) carry\n``organizationId`` and ``organizationSlug``; platform events carry null.\nMembers of an organization still read only their own organization's log\nthrough ``GET /v1/organizations/{org}/audit``; that view is unchanged.",
+        "description": "Every audit event, newest first: platform actions and organization events.\n\nOrganization events (for example a member change) carry\n``organizationId`` and ``organizationSlug``; platform events carry null.\nMembers of an organization still read only their own organization's log\nthrough ``GET /v1/organizations/{org}/audit``; that view is unchanged.",
         "operationId": "adminListAuditEvents",
         "parameters": [
           {
@@ -8681,7 +8627,7 @@
     },
     "/v1/admin/users": {
       "get": {
-        "description": "A page of accounts, with what each one costs.\n\nThe plan shown is the cached one rather than the contract, so that\nrendering a page of fifty does not mean fifty calls to the pricing\nservice. ``GET /v1/admin/users/{id}/usage`` reads the contract itself when\nan exact answer is wanted.",
+        "description": "A page of accounts, with what each one costs.\n\nThe plan shown is the cached one rather than the contract, so that\nrendering a page of fifty does not mean fifty calls to the pricing\nservice. ``GET /v1/admin/users/{id}/usage`` reads the contract itself when\nan exact answer is wanted. Deleted accounts, whose rows stay pseudonymised,\nare not listed.",
         "operationId": "adminListUsers",
         "parameters": [
           {
@@ -9727,7 +9673,7 @@
         ],
         "responses": {
           "303": {
-            "description": "Always a redirect to `{FRONTEND_URL}/auth/cas/callback`. On success the query carries `code` (one-time, exchange it at `POST /v1/auth/cas/exchange`) and, when linking CAS raised the account's plan, `plan_changed=<new plan>` (e.g. `RESEARCH`; the full `{from, to, extra_cost}` is in the exchange response). On failure the query carries `error=<code>` instead, where code is one of: `cas_unavailable`, `cas_state_invalid`, `cas_ticket_invalid`, `account_inactive`, `identity_in_use`, `account_collision`, `pricing_unavailable`, `institutional_pricing_invalid`, `cas_error`. The destination comes from configuration only, never from the request.",
+            "description": "Always a redirect to `{FRONTEND_URL}/auth/cas/callback`. On success the query carries `code` (one-time, exchange it at `POST /v1/auth/cas/exchange`) and, when linking CAS raised the account's plan, `plan_changed=<new plan>` (e.g. `RESEARCH`; the full `{from, to, extra_cost}` is in the exchange response). On failure the query carries `error=<code>` instead, where code is one of: `cas_unavailable`, `cas_state_invalid`, `cas_ticket_invalid`, `account_inactive`, `identity_in_use`, `account_collision`, `username_unavailable`, `pricing_unavailable`, `institutional_pricing_invalid`, `cas_error`. The destination comes from configuration only, never from the request.",
             "headers": {
               "Location": {
                 "description": "Frontend CAS callback URL.",
@@ -14788,16 +14734,6 @@
             },
             "description": "Missing or invalid account credential."
           },
-          "402": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Naming oneself: the caller's plan cannot take the subtree (`sponsor_quota_exceeded`)."
-          },
           "403": {
             "content": {
               "application/problem+json": {
@@ -14834,7 +14770,7 @@
                 }
               }
             },
-            "description": "`billing_sponsor_user_id` named somebody other than the caller and the current sponsor (`sponsor_must_be_caller`): nothing in the request was applied. Also `ambiguous_parent` and request validation errors."
+            "description": "`ambiguous_parent` and request validation errors."
           },
           "503": {
             "content": {
@@ -19590,6 +19526,7 @@
     },
     "/v1/users/me": {
       "delete": {
+        "description": "Delete the account.\n\nThe user row stays, so that the runs, revisions and engines it created keep\nnaming somebody, but nothing in it identifies a person any more: the\nusername and email are replaced, the password is unusable, the preferences\nare emptied and ``deleted_at`` is set. Every credential, membership,\nidentity, notification and invitation of the account is deleted, its\nfederated engines are deactivated and an administrator becomes an ordinary\n(inactive) user. The SPACE contract is removed last, before the commit; if\nthat fails, nothing is changed (503).",
         "operationId": "deleteOwnAccount",
         "requestBody": {
           "content": {
@@ -19607,13 +19544,13 @@
           },
           "401": {
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Problem"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "Missing or invalid account credential."
+            "description": "No usable credential was supplied."
           },
           "403": {
             "content": {
@@ -19625,6 +19562,16 @@
             },
             "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The account is the last OWNER of an organization (`last_owner`)."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -19633,17 +19580,17 @@
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "The confirmation is not the username (`confirmation_mismatch`)."
           },
           "503": {
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Problem"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "Account authentication is not configured on this deployment."
+            "description": "The contract could not be removed; nothing was changed."
           }
         },
         "security": [
@@ -19654,7 +19601,7 @@
             "ApiKeyAuth": []
           }
         ],
-        "summary": "Delete the account and revoke every credential",
+        "summary": "Delete the account: revoke every credential and pseudonymise what stays",
         "tags": [
           "Users"
         ],
@@ -19705,13 +19652,13 @@
           },
           "503": {
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             },
-            "description": "A service the gateway depends on is not reachable."
+            "description": "Account authentication is not configured on this deployment."
           }
         },
         "security": [
@@ -19852,13 +19799,13 @@
           },
           "503": {
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             },
-            "description": "A service the gateway depends on is not reachable."
+            "description": "Account authentication is not configured on this deployment."
           }
         },
         "security": [
@@ -19986,13 +19933,13 @@
           },
           "403": {
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Problem"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The plan does not include API access (`feature_not_entitled`), or the key would escalate."
           },
           "422": {
             "content": {
@@ -20378,7 +20325,7 @@
     },
     "/v1/users/me/jobs": {
       "get": {
-        "description": "Your own solves, newest first, as far back as your plan keeps them.\n\nThe retention window comes from SPACE under the canonical ``jobHistoryDays``\nidentifier. It\nwas carried all the way to ``GET /v1/users/me/usage`` and displayed there\nwhile nothing applied it, because there was no endpoint for it to bound.\nThis is that endpoint, and the cutoff is applied here rather than by\ndeleting rows: a job that has aged out of somebody's history is still the\nrow the reconciler and any audit need.\n\nSummaries only. A result can be hundreds of megabytes, and a history is for\nfinding the one you want; ``GET /v1/jobs/{id}`` returns the answer itself.",
+        "description": "Your own solves, newest first.\n\nSummaries only. A result can be hundreds of megabytes, and a history is for\nfinding the one you want; ``GET /v1/jobs/{id}`` returns the answer itself.",
         "operationId": "listOwnJobs",
         "parameters": [
           {
@@ -20445,13 +20392,13 @@
           },
           "503": {
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             },
-            "description": "A service the gateway depends on is not reachable."
+            "description": "Account authentication is not configured on this deployment."
           }
         },
         "security": [
@@ -20759,7 +20706,7 @@
       "name": "Administration"
     },
     {
-      "description": "Nested organizations, members and sponsors.",
+      "description": "Nested organizations and their members.",
       "name": "Organizations"
     },
     {

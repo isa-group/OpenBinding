@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { QuotaError } from '../api/auth';
 import { HttpError } from '../api/client';
 import { bindingSpaceFrom, limitNoticeFrom } from '../api/limitNotice';
-import { combinations, complexityText, limitProblemOf, sizeOf, slotsText, usageUnknownText } from './limitRefusals';
+import { BINDING_SPACE_LIMIT_ID, combinations, limitProblemOf, sizeOf, slotsText, usageUnknownText } from './limitRefusals';
 
 describe('reading what a refusal says about its limit', () => {
   it('keeps the fields the screens show and nothing else', () => {
@@ -44,11 +44,12 @@ describe('the size of a problem in words', () => {
 });
 
 describe('the sentences about a limit', () => {
-  it('only the four limit problems are recognised, by code', () => {
-    const at = ' (403 · x)';
-    const codes = ['binding_space_limit_unknown', 'binding_space_over_technical_limit', 'binding_space_unmeasured', 'pricing_misconfigured'];
-    expect(codes.map((code) => limitProblemOf(Object.assign(new HttpError(403, 'x'), { code }), 'N.', at)?.kind)).toEqual(['limit-unknown', 'technical', 'unmeasured', 'misconfigured']);
-    for (const code of ['instance_complexity_too_large', 'feature_not_entitled', 'forbidden', undefined]) {
+  it('only the three limit problems are recognised, by code', () => {
+    const at = ' (422 · x)';
+    const codes = ['binding_space_over_technical_limit', 'binding_space_unmeasured', 'pricing_misconfigured'];
+    expect(codes.map((code) => limitProblemOf(Object.assign(new HttpError(422, 'x'), { code }), 'N.', at)?.kind)).toEqual(['technical', 'unmeasured', 'misconfigured']);
+    // No plan limits the size of a problem any more: the plan-size codes of pricing 0.1.0 are not limit problems.
+    for (const code of ['binding_space_limit_unknown', 'instance_complexity_too_large', 'feature_not_entitled', 'forbidden', undefined]) {
       expect(limitProblemOf(Object.assign(new HttpError(403, 'x'), { code }), 'N.', at)).toBeNull();
     }
     expect(limitProblemOf(new Error('x'), 'N.', at)).toBeNull();
@@ -56,9 +57,15 @@ describe('the sentences about a limit', () => {
   });
 
   it('puts the marker of the answer in the title and what was left undone at the end of the text', () => {
-    const problem = limitProblemOf(Object.assign(new HttpError(403, 'x'), { code: 'binding_space_limit_unknown' }), 'Nothing was started.', ' (403 · binding_space_limit_unknown)');
-    expect(problem?.title.endsWith('(403 · binding_space_limit_unknown)')).toBe(true);
+    const problem = limitProblemOf(Object.assign(new HttpError(422, 'x'), { code: 'binding_space_over_technical_limit' }), 'Nothing was started.', ' (422 · binding_space_over_technical_limit)');
+    expect(problem?.title.endsWith('(422 · binding_space_over_technical_limit)')).toBe(true);
     expect(problem?.text.endsWith('Nothing was started.')).toBe(true);
+  });
+
+  it('names the deployment setting when the answer names no limit', () => {
+    const problem = limitProblemOf(Object.assign(new HttpError(422, 'x'), { code: 'binding_space_unmeasured' }), 'N.', '');
+    expect(problem).toMatchObject({ kind: 'unmeasured', limitId: BINDING_SPACE_LIMIT_ID });
+    expect(BINDING_SPACE_LIMIT_ID).toBe('MAX_BINDING_SPACE_LOG10');
   });
 
   it('says whose limit a job limit is', () => {
@@ -70,7 +77,7 @@ describe('the sentences about a limit', () => {
 
   it('never talks about money, a balance or capacity units', () => {
     const texts = [
-      complexityText(new QuotaError('instance_complexity_too_large', 'x'), 'N.'),
+      limitProblemOf(Object.assign(new HttpError(422, 'x'), { code: 'binding_space_over_technical_limit' }), 'N.', '')?.text ?? '',
       usageUnknownText('N.'),
       slotsText({ limit: 1, source: 'plan' }),
       slotsText({ limit: 1, source: 'technical' }),

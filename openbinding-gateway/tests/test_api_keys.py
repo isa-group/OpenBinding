@@ -18,7 +18,10 @@ from openbinding_gateway.security import apikeys
 from openbinding_gateway.db.models import ApiKey, utcnow
 
 from _repo import REPO_ROOT
-from _pricing import largest_plan
+from _pricing import caps_for, largest_plan, pricing_catalog
+
+#: How many keys the default plan allows.
+ALLOWANCE = int(caps_for(pricing_catalog().default_plan).limit("maxApiKeys"))
 
 
 async def account(client, registration) -> tuple[dict, str]:
@@ -259,7 +262,8 @@ async def gate():
 async def test_the_plan_bounds_how_many_keys_you_may_hold(api_client, registration, gate):
     """The active SPACE entitlement bounds active keys."""
     _, token = await account(api_client, registration)
-    await mint_key(api_client, token, "only BASIC key")
+    for n in range(ALLOWANCE):
+        await mint_key(api_client, token, f"allowed key {n}")
 
     refused = await api_client.post(
         "/v1/users/me/api-keys",
@@ -270,14 +274,35 @@ async def test_the_plan_bounds_how_many_keys_you_may_hold(api_client, registrati
     assert refused.status_code == 402
     detail = refused.json()["detail"]
     assert detail["code"] == "quota_exceeded"
-    assert detail["quota"]["limit_id"] == "apiKeys"
-    assert detail["quota"]["limit"] == 1
+    assert detail["quota"]["limit_id"] == "maxApiKeys"
+    assert detail["quota"]["limit"] == ALLOWANCE
+
+
+async def test_a_plan_without_api_access_mints_no_key(api_client, registration, gate):
+    profile, token = await account(api_client, registration)
+    caps = caps_for(pricing_catalog().default_plan)
+    without = {**caps.features, "apiAccess": False}
+
+    async def no_api_access(user_id):
+        return type(caps)(plan=caps.plan, features=without, limits=dict(caps.limits))
+
+    gate.caps = no_api_access
+    refused = await api_client.post(
+        "/v1/users/me/api-keys",
+        headers={"Authorization": f"Bearer {token}"},
+        json=key_payload("not entitled"),
+    )
+
+    assert refused.status_code == 403, refused.text
+    assert refused.json()["detail"]["code"] == "feature_not_entitled"
 
 
 async def test_revoking_one_frees_the_allowance(api_client, registration, gate):
     # The count is of *live* keys, so a revoked one is not held against you.
     _, token = await account(api_client, registration)
     first = await mint_key(api_client, token, "one")
+    for n in range(1, ALLOWANCE):
+        await mint_key(api_client, token, f"more {n}")
 
     await api_client.delete(
         f"/v1/users/me/api-keys/{first['id']}",

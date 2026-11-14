@@ -30,19 +30,19 @@ const token = (expiresInSeconds: number) => [
 
 const lucia = {
   id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-03-02T00:00:00Z', cas_verified: true, institutional_branding: true,
+  created_at: '2026-03-02T00:00:00Z', cas_verified: true,
 };
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 
-const org = (n: number, slug: string, name: string, role: Role, sponsor = 'user-1') => ({
-  id: `org-${n}`, slug, name, parent_id: null, billing_sponsor_user_id: sponsor, effective_role: role, created_at: '2026-03-03T00:00:00Z',
+const org = (n: number, slug: string, name: string, role: Role) => ({
+  id: `org-${n}`, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z',
 });
 
 const organizations = [
   org(1, 'isa-demo', 'ISA Demo Group', 'ADMIN'),
-  org(3, 'consultora-demo', 'Consultora Demo', 'VIEWER', 'user-nora'),
-  org(4, 'member-lab', 'Member Lab', 'MEMBER', 'user-nora'),
+  org(3, 'consultora-demo', 'Consultora Demo', 'VIEWER'),
+  org(4, 'member-lab', 'Member Lab', 'MEMBER'),
 ];
 
 const project = (n: number, orgId: string, slug: string, name: string, visibility: 'public' | 'private' = 'private') => ({
@@ -123,18 +123,17 @@ const snapshotView = (id: string, pay: number) => ({
 });
 const SNAPSHOTS: Record<string, number> = { [S1]: 5, [S2]: 8, [S3]: 8 };
 
-const researchUsage = (ceiling: number | null = 20) => ({
+const researchUsage = () => ({
   plan: 'RESEARCH',
   contract_pending: false,
-  features: { collaboration: true, solve: true },
-  capabilities: { concurrentJobs: 3, projects: 50, privateProjects: 30, maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: ceiling },
+  features: { collaboration: true, runs: true },
+  capabilities: { maxConcurrentRuns: 4, maxPrivateProjects: 10, maxProblems: null, maxRepositoryStorage: null },
 });
 
 type Refusable = 'cases' | 'createCase' | 'patchCase' | 'deleteCase' | 'revision' | 'snapshot' | 'resolve' | 'validate' | 'archive';
 
 interface State {
   cases: Record<string, CaseRow[]>;
-  ceiling: number | null;
   /** A refusal for one call; unset means it succeeds. */
   refuse: Partial<Record<Refusable, Handler>>;
   /** The last body each write carried, to check what was sent. */
@@ -146,7 +145,7 @@ const bodyOf = (route: Route) => route.request().postDataJSON() as Record<string
 
 /** Everything these screens read and write, answered; anything else on the API origin is an empty 404. */
 async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<State> {
-  const state: State = { cases: seedCases(), ceiling: 20, refuse: {}, sent: {}, ...overrides };
+  const state: State = { cases: seedCases(), refuse: {}, sent: {}, ...overrides };
   const zip = await new JSZip().file('instance.json', '{"apiVersion":"bim/v1","kind":"Instance"}').file('application.json', '{"kind":"Application"}').generateAsync({ type: 'nodebuffer' });
   await page.addInitScript(() => {
     localStorage.setItem('openbinding-access-token', 's5a-access');
@@ -160,7 +159,7 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
   await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
-  await page.route(`${API}/v1/users/me/usage`, (route) => route.fulfill({ json: researchUsage(state.ceiling) }));
+  await page.route(`${API}/v1/users/me/usage`, (route) => route.fulfill({ json: researchUsage() }));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
   await page.route(`${API}/v1/profiles`, json({ profiles: [{ id: 'qos-binding/v1', digest: digestOf('a'), metadata: { name: 'qos-binding', version: '1.0.0' } }] }));
 

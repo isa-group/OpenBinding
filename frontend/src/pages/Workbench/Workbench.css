@@ -135,20 +135,6 @@
 
 .wb-gate svg { width: 18px; height: 18px; flex: none; margin-top: 2px; color: var(--color-warning); }
 
-.wb-too-big {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  border: 1px solid var(--tp-severity-error-border);
-  border-radius: var(--tp-radius-lg);
-  background: var(--tp-severity-error-bg);
-}
-
-.wb-limit-bar { position: relative; height: 12px; border-radius: 9999px; background: var(--tp-hairline-soft); }
-.wb-limit-bar i { display: block; height: 100%; border-radius: 9999px; background: repeating-linear-gradient(45deg, var(--tp-severity-error) 0 6px, var(--tp-severity-error-border) 6px 12px); }
-.wb-limit-bar b { position: absolute; top: -4px; width: 2px; height: 20px; background: var(--tp-ink); }
-
 .wb-diags { display: flex; flex-direction: column; gap: var(--tp-spacing-xs); margin: 0; padding: 0; list-style: none; }
 .wb-diag { overflow: hidden; border: 1px solid var(--tp-severity-error-border); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); }
 .wb-diag-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 14px; background: var(--tp-severity-error-bg); font-size: 0.8125rem; }

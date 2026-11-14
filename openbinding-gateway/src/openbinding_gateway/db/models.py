@@ -91,6 +91,9 @@ class User(Base):
     #: Display cache of the SPACE contract; see the module docstring.
     plan_cache: Mapped[str] = mapped_column(String(128), nullable=False)
     contract_pending: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: When the account was deleted. The row stays, pseudonymised, so that what the
+    #: account created keeps naming somebody (``routes/users.py``, ``pseudonymise``).
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
@@ -197,7 +200,7 @@ class Job(Base):
     #: Null for jobs created before accounts existed, or while running without
     #: a database. A job with no owner is nobody's to read.
     owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=True, index=True
     )
 
     engine_id: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -363,7 +366,7 @@ class EngineRevision(Base):
     __table_args__ = (UniqueConstraint("namespace", "name", "version", name="uq_v1_engine_identity"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
     namespace: Mapped[str] = mapped_column(String(128), nullable=False)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     version: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -381,7 +384,7 @@ class EngineRegistrationRevision(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
     namespace: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     version: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -425,7 +428,7 @@ class ManifestPublication(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     resource_kind: Mapped[str] = mapped_column(String(32), nullable=False)
     resource_digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
-    publisher_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    publisher_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     state: Mapped[str] = mapped_column(String(32), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
 

@@ -11,10 +11,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, session_dependency
-from ..collaboration import enforce_sponsor_capacity, organization_by_ref, require_project
+from ..collaboration import organization_by_ref, require_project
 from ..core import revision
 from ..core.settings import get_settings
-from ..domain import usage_counters
+from ..modules.plans.application import entitlement_map as ids
 from ..db.models import (
     AuditEvent,
     BindingCase,
@@ -79,6 +79,21 @@ async def _context(
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Organization not found.")
     found_project = await require_project(session, organization, project, user, minimum)
     return organization, found_project
+
+
+def _study_cell_limit(caps) -> tuple[int, str] | None:
+    """The cells one study run may expand to, and which limit sets it (``plan`` or ``technical``).
+
+    The lower of the plan's ``maxStudyCells`` and ``MAX_CELLS_PER_STUDY_RUN``; the
+    technical cap wins a tie. ``None`` when neither limits it.
+    """
+    plan = caps.limit(ids.MAX_STUDY_CELLS)
+    technical = get_settings().max_cells_per_study_run
+    if plan is not None and (technical is None or int(plan) < technical):
+        return int(plan), "plan"
+    if technical is not None:
+        return technical, "technical"
+    return None
 
 
 def _study_engines_allowed(user: User, definition: Mapping) -> bool:
@@ -149,8 +164,6 @@ async def create_study(
             raise api_error(422, 'invalid_study_version', 'Select an executable Study definition.')
         if not _study_engines_allowed(user, definition_from_version(version)):
             raise api_error(403, 'api_key_engine_forbidden', 'This key does not grant the Engines pinned by the selected version.')
-        sponsor = await session.get(User, organization.billing_sponsor_user_id)
-        await enforce_sponsor_capacity(session, sponsor, 'studies')
         if await session.scalar(select(Study.id).where(Study.project_id == found_project.id, Study.slug == payload.slug)):
             raise api_error(409, 'slug_conflict', 'That study slug is in use.')
         value = Study(project_id=found_project.id, slug=payload.slug, name=payload.name,
@@ -169,8 +182,6 @@ async def create_study(
             "api_key_engine_forbidden",
             "This API key does not grant every exact Engine revision requested by the study.",
         )
-    sponsor = await session.get(User, organization.billing_sponsor_user_id)
-    await enforce_sponsor_capacity(session, sponsor, "studies")
     revision_ids = set(payload.definition.case_revision_ids)
     if not revision_ids:
         raise api_error(
@@ -305,31 +316,34 @@ async def run_study(
     if not _study_engines_allowed(user, definition_from_version(selected_version)):
         raise api_error(403, 'api_key_engine_forbidden', 'This key does not grant the Engines pinned by the selected version.')
     caps = await plans.caps_or_503(user.id)
-    plans.require_feature(caps, "studies", detail="The current plan does not entitle studies.")
+    plans.require_feature(caps, ids.STUDIES, detail="The current plan does not entitle studies.")
     if selected_version.manifest['kind'] != 'Study':
         raise api_error(409, 'evidence_only_study', 'This gallery contains stored evidence and is not an executable study definition.')
     definition = StudyCreate(
         slug=found.slug, name=found.name, description=found.description, definition=definition_from_version(selected_version)
     ).definition
     expanded = expand_study(definition)
-    # Before the run, its cells or any job exist: a run past the cell cap or with a case above the
-    # size limit is refused whole, and so is one whose period counter SPACE reports spent or unknown.
-    max_cells = get_settings().max_cells_per_study_run
-    if max_cells is not None and len(expanded) > max_cells:
+    # Before the run, its cells or any job exist: a run past the cell limit or with a case above the
+    # size limit is refused whole.
+    cell_limit = _study_cell_limit(caps)
+    if cell_limit is not None and len(expanded) > cell_limit[0]:
+        limit, source = cell_limit
         raise api_error(
             422,
             "study_run_too_large",
-            "This deployment limits how many cells one study run may expand to; reduce the matrix.",
+            (
+                "Your plan limits how many cells one study run may expand to; reduce the matrix."
+                if source == "plan"
+                else "This deployment limits how many cells one study run may expand to; reduce the matrix."
+            ),
             quota={
-                "limit_id": "maxCellsPerRun", "state": "exhausted", "unit": "cell",
-                "source": "technical", "limit": max_cells, "used": len(expanded),
+                "limit_id": ids.MAX_STUDY_CELLS, "state": "exhausted", "unit": "cell",
+                "source": source, "limit": limit, "used": len(expanded),
             },
         )
     refusal = await study_binding_space_refusal(
-        session, {uuid.UUID(cell["caseRevisionId"]) for cell in expanded}, caps
+        session, {uuid.UUID(cell["caseRevisionId"]) for cell in expanded}
     )
-    if refusal is None:
-        refusal = await usage_counters.usage_refusal(user.id, "studyRuns")
     if refusal is not None:
         raise api_error(refusal.status, refusal.code, refusal.detail, headers=refusal.headers or None, **refusal.extra)
     await session.execute(select(Study.id).where(Study.id == found.id).with_for_update())

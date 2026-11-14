@@ -1,6 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import type { OrganizationMember } from '../../api/platform';
 import { iker, member, org, renderScreen, researchUsage } from './testKit';
@@ -53,7 +52,6 @@ describe('Members', () => {
     expect(within(own).getByText('Mar 4, 2026')).toBeInTheDocument();
     expect(roleSelect('marco')).toHaveValue('MEMBER');
     expect(screen.getByRole('navigation', { name: 'Organization settings' })).toBeInTheDocument();
-    expect(screen.getByText(/unique members across everything you sponsor/)).toHaveTextContent('Your plan allows up to 15 unique members');
   });
 
   it('tells apart the role someone holds here from the one that reaches them from a parent', async () => {
@@ -143,16 +141,6 @@ describe('Members', () => {
       expect(screen.getByRole('button', { name: 'Apply 1 change' })).toBeEnabled();
     });
 
-    it('402: the sponsor has no seats left, with the ways out', async () => {
-      platform.updateMembersBatch.mockRejectedValue(new QuotaError('sponsor_quota_exceeded', 'full', { limit_id: 'members', limit: 15, used: 15 }));
-      await stage();
-
-      const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('The sponsor has no member seats left (402 · sponsor_quota_exceeded): 15 of 15 used. Nothing changed.');
-      expect(within(alert).getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
-      expect(within(alert).getByRole('link', { name: 'Change sponsor' })).toHaveAttribute('href', '/app/isa-demo/settings');
-    });
-
     it('422: someone in the batch is not a member', async () => {
       platform.updateMembersBatch.mockRejectedValue(refusal(422, 'member_mismatch'));
       await stage();
@@ -160,12 +148,6 @@ describe('Members', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent('One of these people isn’t a member of this organization (422 · member_mismatch). Refresh and try again.');
     });
 
-    it('503: pricing cannot be checked, nothing changed', async () => {
-      platform.updateMembersBatch.mockRejectedValue(new PricingUnavailableError('down'));
-      await stage();
-
-      expect(await screen.findByRole('alert')).toHaveTextContent('Limits can’t be checked right now (503 · pricing_unavailable). Nothing changed; try again in a moment.');
-    });
   });
 
   describe('inviting', () => {

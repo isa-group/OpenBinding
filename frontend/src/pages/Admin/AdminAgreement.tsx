@@ -425,10 +425,7 @@ export function UsageCard({ userId, catalog, version }: UsageProps) {
   const failure = usage.status === 'error' ? describeAdminFailure(usage.error, 'The plan limits couldn’t be read') : null;
 
   const limits = Object.entries(view?.capabilities ?? {}).map(([limitId, limit]) => ({ limitId, limit }));
-  const groupOf = (limitId: string) => limitInfo(limitId, catalog?.limitDefinitions[limitId]).group;
-  // Sponsored limits cap everything under the organizations an account sponsors.
-  const sponsored = limits.filter(({ limitId }) => groupOf(limitId) === 'sponsored');
-  const allowances = limits.filter(({ limitId }) => groupOf(limitId) !== 'sponsored' && !isCeiling(limitId, catalog?.limitDefinitions[limitId]));
+  const allowances = limits.filter(({ limitId }) => !isCeiling(limitId, catalog?.limitDefinitions[limitId]));
   const ceilings = limits.filter(({ limitId }) => isCeiling(limitId, catalog?.limitDefinitions[limitId]));
   const features = Object.entries(view?.features ?? {});
   const listOf = (rows: typeof limits) => rows.map(({ limitId, limit }) => {
@@ -459,13 +456,6 @@ export function UsageCard({ userId, catalog, version }: UsageProps) {
         <div className="adm-ceilings" role="group" aria-label="Ceilings for each request">
           <span className="adm-label">Ceilings for each request</span>
           <ul>{listOf(ceilings)}</ul>
-        </div>
-      )}
-
-      {sponsored.length > 0 && (
-        <div className="adm-ceilings" role="group" aria-label="Limits across sponsored organizations">
-          <span className="adm-label">Limits across the organizations this account sponsors</span>
-          <ul>{listOf(sponsored)}</ul>
         </div>
       )}
 

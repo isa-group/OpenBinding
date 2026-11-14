@@ -82,7 +82,8 @@ def test_production_refuses_an_empty_list(origins):
 
 def test_production_accepts_an_explicit_closed_list():
     configured = settings(
-        app_env="prod", space_enabled=True, cors_allow_origins="https://openbinding.example.org"
+        app_env="prod", space_enabled=True, space_organization_id="org-test",
+        cors_allow_origins="https://openbinding.example.org",
     )
 
     assert configured.cors_origin_list == ["https://openbinding.example.org"]

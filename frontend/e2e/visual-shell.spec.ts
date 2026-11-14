@@ -5,13 +5,12 @@ import { expect, test, type Page } from '@playwright/test';
 const API = 'http://localhost:8000';
 
 const personas = {
-  user: { id: 'shell-user-id', username: 'lucia', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'BASIC', created_at: '2026-09-01T00:00:00Z' },
+  user: { id: 'shell-user-id', username: 'lucia', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'FREE', created_at: '2026-09-01T00:00:00Z' },
   research: { id: 'shell-research-id', username: 'ana', email: 'ana@example.org', role: 'user', is_active: true, plan: 'RESEARCH', created_at: '2026-09-01T00:00:00Z' },
 } as const;
 
 const organization = {
-  id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null,
-  billing_sponsor_user_id: 'shell-user-id', effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
+  id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
 };
 
 const project = {
@@ -22,7 +21,7 @@ const project = {
 
 const notifications = [
   {
-    id: 'n1', kind: 'agreement', subject: 'Your OpenBinding agreement changed', body: 'Plan: BASIC → RESEARCH. Reason: institutional_agreement.',
+    id: 'n1', kind: 'agreement', subject: 'Your OpenBinding agreement changed', body: 'Plan: FREE → RESEARCH. Reason: institutional_agreement.',
     payload: {}, read_at: null, created_at: new Date().toISOString(),
   },
   {

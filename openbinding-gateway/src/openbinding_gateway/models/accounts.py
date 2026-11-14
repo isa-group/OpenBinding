@@ -88,14 +88,14 @@ class UserProfile(BaseModel):
         ...,
         max_length=128,
         description=(
-            "Plan last seen on the SPACE contract. The contract itself decides what a "
-            "request is allowed to do; this is what the interface displays. Empty when "
-            "the account has no plan (the stateless open gate, or SPACE has not assigned one)."
+            "Plan last recorded for the SPACE contract (read from the database, so reading the "
+            "profile never needs SPACE). The contract itself decides what a request is allowed "
+            "to do; this is what the interface displays. Empty when the account has no plan "
+            "(the stateless open gate, or SPACE has not assigned one)."
         ),
     )
     created_at: datetime
     cas_verified: bool = False
-    institutional_branding: bool = False
 
 
 class PasswordResetRequest(BaseModel):
@@ -279,13 +279,6 @@ class JobHistory(BaseModel):
 
     jobs: List[JobSummary]
     total: int = Field(..., description="How many are visible in total.")
-    retention_days: Optional[float] = Field(
-        ...,
-        description=(
-            "How far back this plan keeps them. Jobs older than this are not "
-            "returned, as reported by SPACE for the canonical jobHistoryDays limit."
-        ),
-    )
 
 
 class UsageView(BaseModel):

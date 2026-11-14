@@ -1,35 +1,20 @@
-import { classifyAuthError, generalFailure, marker, quotaOf, type AuthFailure } from '../Organization/orgErrors';
+import { classifyAuthError, generalFailure, marker, type AuthFailure } from '../Organization/orgErrors';
 
 export { classifyAuthError, generalFailure, marker };
 export type { AuthFailure };
 
-export type ProjectRefusalKind = 'slug' | 'quota' | 'pricing' | 'forbidden' | 'gone' | 'invalid' | 'other';
+export type ProjectRefusalKind = 'slug' | 'forbidden' | 'gone' | 'invalid' | 'other';
 
 export interface ProjectRefusal {
   kind: ProjectRefusalKind;
   text: string;
-  /** The allowance a 402 names (`projects`, `privateProjects`). */
-  limitId?: string;
-}
-
-function quotaText(caught: unknown, fallback: string): string {
-  const quota = quotaOf(caught);
-  return quota ? ` ${quota.used ?? quota.limit} of ${quota.limit} ${fallback}.` : '';
 }
 
 /** The words for each way the gateway can refuse a new project. */
-export function createRefusal(caught: unknown, context: { organization: string; isPrivate: boolean }): ProjectRefusal {
+export function createRefusal(caught: unknown, context: { organization: string }): ProjectRefusal {
   const failure = classifyAuthError(caught);
   if (failure.status === 409) {
     return { kind: 'slug', text: `That address is already used in ${context.organization}${marker(failure)}.` };
-  }
-  if (failure.status === 402) {
-    const limitId = quotaOf(caught)?.limit_id ?? (context.isPrivate ? 'privateProjects' : 'projects');
-    const what = limitId === 'privateProjects' ? 'private projects' : 'projects';
-    return { kind: 'quota', limitId, text: `The sponsor has no ${what} left${marker(failure)}.${quotaText(caught, what)}` };
-  }
-  if (failure.status === 503 && failure.code === 'pricing_unavailable') {
-    return { kind: 'pricing', text: `Limits can’t be checked right now${marker(failure)}. Nothing was created.` };
   }
   if (failure.status === 403) {
     return { kind: 'forbidden', text: `You need MEMBER in ${context.organization} to create a project${marker(failure)}. Nothing was created.` };
@@ -46,17 +31,6 @@ export function createRefusal(caught: unknown, context: { organization: string; 
 /** Saving the name and description, or changing the visibility. */
 export function updateRefusal(caught: unknown, change: 'details' | 'visibility'): ProjectRefusal {
   const failure = classifyAuthError(caught);
-  if (failure.status === 402) {
-    const limitId = quotaOf(caught)?.limit_id ?? 'privateProjects';
-    return {
-      kind: 'quota',
-      limitId,
-      text: `The sponsor has no private projects left${marker(failure)}.${quotaText(caught, 'private projects')} Make another project public or ask the sponsor to free one, or keep this one public. Nothing changed.`,
-    };
-  }
-  if (failure.status === 503 && failure.code === 'pricing_unavailable') {
-    return { kind: 'pricing', text: `Limits can’t be checked right now${marker(failure)}. Nothing changed.` };
-  }
   if (failure.status === 403) {
     return { kind: 'forbidden', text: `You need ADMIN in the organization to change this${marker(failure)}. Nothing changed.` };
   }
@@ -84,9 +58,6 @@ export function deleteRefusal(caught: unknown): ProjectRefusal {
   if (failure.kind === 'not-found') {
     return { kind: 'gone', text: `The project no longer exists${marker(failure)}.` };
   }
-  if (failure.status === 503 && failure.code === 'pricing_unavailable') {
-    return { kind: 'pricing', text: `Limits can’t be checked right now${marker(failure)}. Nothing was deleted.` };
-  }
   return { kind: 'other', text: generalFailure(failure, 'nothing was deleted') };
 }
 
@@ -107,7 +78,7 @@ export function importRefusal(caught: unknown): ImportRefusal {
   const code = failure.code ?? '';
   const gateway = failure.message ? ` ${failure.message}` : '';
   if (failure.status === 413) {
-    return { kind: 'too-large', title: `Package too large${marker(failure)}`, text: 'This package is bigger than your plan allows per request. Nothing was imported.' };
+    return { kind: 'too-large', title: `Package too large${marker(failure)}`, text: 'This package is bigger than the gateway accepts per request. Nothing was imported.' };
   }
   if (failure.status === 403) {
     return {

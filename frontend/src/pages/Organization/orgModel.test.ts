@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { catalogFixture } from '../Pricing/pricingFixture';
 import {
-  TILE_COLOURS, ancestorsOf, atLeast, buildForest, canGrantOwner, descendantsOf, flatten, initialsOf, pathOf, roleSource, slugFromName, sponsorName, tileColour,
+  TILE_COLOURS, ancestorsOf, atLeast, buildForest, canGrantOwner, descendantsOf, flatten, initialsOf, pathOf, roleSource, slugFromName, tileColour,
 } from './orgModel';
-import { roomFromCatalog, roomFromUsage, roomText, roomTone } from './roomModel';
 import { auditFixture } from './auditFixture';
 import { changesOf, describeEvent, kindOf, toCsv } from './auditModel';
-import { lucia, member, org, researchUsage } from './testKit';
+import { org } from './testKit';
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const lab = org('qos-lab', { name: 'QoS Lab (sub-organización)', parent_id: group.id, effective_role: 'OWNER' });
@@ -73,38 +71,6 @@ describe('names', () => {
     const used = new Set(['isa-demo', 'qos-lab', 'partner-lab', 'read-lab', 'a', 'b', 'c', 'd', 'e'].map(tileColour));
     expect([...used].every((colour) => (TILE_COLOURS as readonly string[]).includes(colour))).toBe(true);
     expect(TILE_COLOURS).not.toContain('var(--tp-sunshine-800)');
-  });
-
-  it('names the sponsor from the account, then from a member list', () => {
-    const me = { id: lucia.id, username: lucia.username };
-    expect(sponsorName(group, [], me)).toBe('lucia.vega (you)');
-    const other = org('x', { billing_sponsor_user_id: 'user-nora' });
-    expect(sponsorName(other, [member('nora', 'OWNER')], me)).toBe('nora');
-    expect(sponsorName(other, [], me)).toBe('Another account');
-  });
-});
-
-describe('the sponsor’s room', () => {
-  it('reads the limits from the sponsor’s own plan, marks what a change adds and counts nothing', () => {
-    const rows = roomFromUsage(researchUsage(), ['organizations', 'members', 'projects'], { organizations: 1, members: 1 });
-    expect(rows.map((row) => [row.label, row.used, row.limit, row.added])).toEqual([
-      ['Organizations', null, 5, 1], ['Unique members', null, 15, 1], ['Projects', null, 50, 0],
-    ]);
-    expect(roomText(rows[0])).toBe('Up to 5');
-    expect(roomTone(rows[0])).toBe('ok');
-  });
-
-  it('reads an unlimited allowance as unlimited and leaves out what the plan does not name', () => {
-    const usage = { ...researchUsage(), capabilities: { organizations: null } };
-    const rows = roomFromUsage(usage, ['organizations', 'members']);
-    expect(rows.map((row) => [row.id, row.limit])).toEqual([['organizations', null]]);
-    expect(roomText(rows[0])).toBe('Unlimited');
-  });
-
-  it('falls back to the plan ceilings of the catalog when the usage of the sponsor is not visible', () => {
-    const rows = roomFromCatalog(catalogFixture, 'PRO', ['organizations', 'members']);
-    expect(rows.map((row) => [row.id, row.limit, row.used])).toEqual([['organizations', 10, null], ['members', 100, null]]);
-    expect(roomText(rows[0])).toBe('Up to 10');
   });
 });
 

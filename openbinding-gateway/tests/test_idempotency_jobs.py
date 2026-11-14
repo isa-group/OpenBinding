@@ -223,7 +223,7 @@ async def test_losing_the_job_insert_race_returns_a_replay(
 ):
     headers, snapshot = account
     # This test is about the INSERT race, which a second job must reach. The default plan allows one job
-    # at a time and that limit now applies (plan ``concurrentJobs``), so the account gets a roomier plan.
+    # at a time and that limit now applies (plan ``maxConcurrentRuns``), so the account gets a roomier plan.
     space_client.get_gate().plans[await db_session.scalar(select(User.id))] = roomy_plan()
     first = await _post(api_client, headers, _body(snapshot))
     assert first.status_code == 202, first.text

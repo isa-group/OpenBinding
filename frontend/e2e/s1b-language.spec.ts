@@ -224,7 +224,7 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
     }));
     await page.route(`${API}/v1/engine-registrations`, json({ registrations: [registration] }));
     await page.route(`${API}/v1/engine-registrations/edge-solver/report**`, json(edgeReport));
-    await page.route(`${API}/v1/organizations`, json([{ id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, billing_sponsor_user_id: lucia.id, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z' }]));
+    await page.route(`${API}/v1/organizations`, json([{ id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z' }]));
     await page.route(`${API}/v1/organizations/isa-demo/projects`, json([{ id: 'p1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: '', visibility: 'private', created_by_id: lucia.id, created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z', access: 'member', effective_role: 'OWNER' }]));
   }
   // EngineDetail reads the live catalog (the deprecated YAML at /v1/pricing is no longer requested).
@@ -351,11 +351,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await expect(main.getByRole('link', { name: 'Log in to run' })).toHaveAttribute('href', '/login');
       const options = main.getByRole('region', { name: 'Options of mode sampling' });
-      await expect(main.getByLabel('Plan to preview')).toHaveValue('BASIC');
-      await expect(options.getByRole('row', { name: /iterations/ })).toContainText('OPTION_CLAMPED → 10,000');
-      await expect(options.getByRole('row', { name: /time_budget_ms/ })).toContainText('60,000 ms (60 s)');
+      await expect(main.getByLabel('Plan to preview')).toHaveValue('FREE');
+      await expect(options.getByRole('row', { name: /iterations/ })).toContainText('Set by the deployment');
+      await expect(options.getByRole('row', { name: /time_budget_ms/ })).toContainText('300,000 ms (5 min)');
       await expect(options.getByRole('row', { name: /time_budget_ms/ })).toContainText('Within the ceiling');
-      await expect(main.getByText(/BASIC allows 60 s and 10,000 iterations per request\. Figures from pricing 0\.1\.0\./)).toBeVisible();
+      await expect(main.getByText(/FREE allows 5 min per run\. Figures from pricing 0\.2\.0\./)).toBeVisible();
       await expect(main.getByRole('region', { name: 'Mode contract' })).toContainText('Heuristic mode');
       await expect(main.getByRole('region', { name: 'How a run can end' })).toContainText('Declared by this mode');
       await ready(page);
@@ -364,7 +364,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // The same engine under a larger plan: nothing is reduced.
       await main.getByLabel('Plan to preview').selectOption('RESEARCH');
       await expect(options.getByText(/OPTION_CLAMPED/)).toHaveCount(0);
-      await expect(options.getByRole('row', { name: /iterations/ })).toContainText('1,000,000 iterations');
+      await expect(options.getByRole('row', { name: /iterations/ })).toContainText('Not reduced by plan');
 
       await main.getByRole('tab', { name: /Capabilities/ }).click();
       await expect(page).toHaveURL(/\/engines\/bim\.builtin\/random-search\/1\.0\.0\?tab=caps$/);

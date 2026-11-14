@@ -1,18 +1,18 @@
 import type { OptionFact } from '../Engines/enginesModel';
 import { formatDefault } from '../Engines/enginesModel';
+import { LIMIT } from '../../utils/limits';
 
 /**
  * What a plan allows one job, read from the pricing document the gateway serves.
  *
- * The gateway lowers a request to these two limits and no others (access/policy.py): `time_budget_ms` to
- * `maxTimeoutSeconds`, and `iterations` / `max_evaluations` to `maxIterations`. Anything else a mode declares
- * reaches the engine as asked, so it has no plan ceiling to preview.
+ * The gateway lowers `time_budget_ms` to the plan's `maxRunMinutes` (access/policy.py), never above its own wait.
+ * `iterations` / `max_evaluations` are brought within a ceiling of the deployment (`MAX_ITERATIONS`), which no plan
+ * sets. Anything else a mode declares reaches the engine as asked.
  */
 export interface PlanLimits {
   plan: string;
-  /** `null` when the pricing document does not define the limit for this plan. */
-  maxTimeoutSeconds: number | null;
-  maxIterations: number | null;
+  /** `null` when the pricing document does not define the limit for this plan, or sets none. */
+  maxRunMinutes: number | null;
 }
 
 export interface PlanCeilings {
@@ -49,8 +49,7 @@ export function planCeilings(pricing: unknown): PlanCeilings {
     version: typeof pricing.version === 'string' ? pricing.version : null,
     plans: Object.entries(plans).filter((entry): entry is [string, Record<string, unknown>] => isRecord(entry[1])).map(([plan, value]) => ({
       plan,
-      maxTimeoutSeconds: limitOf(pricing, value, 'maxTimeoutSeconds'),
-      maxIterations: limitOf(pricing, value, 'maxIterations'),
+      maxRunMinutes: limitOf(pricing, value, LIMIT.maxRunMinutes),
     })),
   };
 }
@@ -94,13 +93,14 @@ export function previewOption(fact: OptionFact, limits: PlanLimits | null): Opti
   if (kind === 'unmapped-by-plan') {
     return { ...base, ceiling: 'Not reduced by plan', outcome: { kind: 'none', text: 'Applies as requested' } };
   }
-  const ceiling = limits === null ? null : kind === 'time'
-    ? (limits.maxTimeoutSeconds === null ? null : limits.maxTimeoutSeconds * 1000)
-    : limits.maxIterations;
+  if (kind === 'effort') {
+    return { ...base, ceiling: 'Set by the deployment', outcome: { kind: 'none', text: 'Not reduced by plan' } };
+  }
+  const ceiling = limits === null || limits.maxRunMinutes === null ? null : limits.maxRunMinutes * 60_000;
   if (ceiling === null) {
     return { ...base, ceiling: 'Not mapped', outcome: { kind: 'none', text: 'The pricing document has no ceiling for it' } };
   }
-  const words = kind === 'time' ? `${whole(ceiling)} ms (${whole(ceiling / 1000)} s)` : `${whole(ceiling)} iterations`;
+  const words = `${whole(ceiling)} ms (${whole(ceiling / 60_000)} min)`;
   if (typeof fact.default !== 'number') return { ...base, ceiling: words, outcome: { kind: 'none', text: 'No default to compare' } };
   if (fact.default > ceiling) return { ...base, ceiling: words, outcome: { kind: 'clamped', applied: whole(ceiling) } };
   return { ...base, ceiling: words, outcome: { kind: 'fits', text: 'Within the ceiling' } };

@@ -147,6 +147,6 @@ The compilation pipeline calculates $|S|$ and $\log_{10}(|S|)$ directly in the
 gateway compiler (`compiler.py`). Solvers and engines receive the compiled canonical
 IR without wire-format alterations. To preserve exact precision regardless of scale,
 $|S|$ is always represented and transmitted as a numeric decimal string (e.g. `"8640000"`).
-In addition, $\log_{10}(|S|)$ is evaluated against subscription tier complexity quotas
-(`maxInstanceComplexityLog10`), rejecting oversized instances early with HTTP 402
-(`instance_complexity_too_large`).
+In addition, $|S|$ is held against the deployment's ceiling `MAX_BINDING_SPACE_LOG10`
+(default 20, in log10 units), rejecting oversized instances early with HTTP 422
+(`binding_space_over_technical_limit`); no plan raises or lowers it.

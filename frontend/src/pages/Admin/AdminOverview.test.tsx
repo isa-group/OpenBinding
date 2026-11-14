@@ -26,7 +26,7 @@ configure({ asyncUtilTimeout: 5000 });
 const OVERVIEW: OverviewAnswer = {
   counts: { users: 7, apiKeys: 9, identities: 3, organizations: 3, projects: 5, cases: 4, studies: 2, studyRuns: 3, artifacts: 12 },
   jobs: { queued: 1, running: 1, completed: 2, failed: 1, cancelled: 1 },
-  contracts: { BASIC: 3, ADVANCED: 1, RESEARCH: 1, PRO: 2 },
+  contracts: { FREE: 3, RESEARCH: 2, LAB: 2 },
   recentAudit: [
     { id: 'a1', action: 'contract.subscription.changed', targetType: 'User', targetId: MARIA.id, actorId: ALEX.id, createdAt: '2026-09-01T09:00:00Z' },
   ],
@@ -55,9 +55,9 @@ describe('admin-overview · how the platform is doing', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Administration' })).toBeInTheDocument();
     const accounts = block('Accounts');
     expect(await within(accounts).findByText('7')).toBeInTheDocument();
-    expect(within(accounts).getByText('3 BASIC')).toBeInTheDocument();
-    expect(within(accounts).getByText('2 PRO')).toBeInTheDocument();
-    expect(within(accounts).getByRole('img', { name: 'Accounts by plan: BASIC 3, ADVANCED 1, RESEARCH 1, PRO 2' })).toBeInTheDocument();
+    expect(within(accounts).getByText('3 FREE')).toBeInTheDocument();
+    expect(within(accounts).getByText('2 LAB')).toBeInTheDocument();
+    expect(within(accounts).getByRole('img', { name: 'Accounts by plan: FREE 3, RESEARCH 2, LAB 2' })).toBeInTheDocument();
     expect(within(accounts).getByText('9 API keys · 3 linked identities')).toBeInTheDocument();
     expect(within(accounts).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/admin/users');
   });

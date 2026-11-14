@@ -88,7 +88,7 @@ describe('Start a run', () => {
     platform.revisions.mockResolvedValue([revisionOf(flujo, 1, { source_snapshot_id: 'snap-1' }), revisionOf(flujo, 2, { source_snapshot_id: 'snap-2' })]);
     client.getOwnUsage.mockResolvedValue(usageOf({
       plan: 'RESEARCH',
-      capabilities: { maxTimeoutSeconds: 60, maxIterations: 1_000_000, maxInstanceComplexityLog10: 20, concurrentJobs: 3 },
+      capabilities: { maxRunMinutes: 1, maxConcurrentRuns: 3 },
     }));
     client.getPricingCatalog.mockResolvedValue({});
     client.getEngines.mockResolvedValue(engines);
@@ -252,7 +252,6 @@ describe('Start a run', () => {
     expect(within(table).getByText('default 30 s')).toBeInTheDocument();
     expect(within(table).getByText('60 s')).toBeInTheDocument();
     expect(within(table).getByLabelText('Iterations')).toHaveValue('100000');
-    expect(within(table).getByText('1,000,000 iterations')).toBeInTheDocument();
 
     fireEvent.change(within(table).getByLabelText('Time budget'), { target: { value: '600' } });
     expect(within(table).getByText('60 s (reduced)')).toBeInTheDocument();
@@ -272,7 +271,7 @@ describe('Start a run', () => {
     expect(within(review).getByText('random-search 1.0.0 · mode sampling')).toBeInTheDocument();
     expect(within(review).getByText('Time budget 30 s · Iterations 100,000 iterations')).toBeInTheDocument();
     expect(screen.queryByText(/used \+ up to/)).not.toBeInTheDocument();
-    expect(screen.getByText('≈ 10^5.1 of up to 10^20 on your RESEARCH plan')).toBeInTheDocument();
+    expect(screen.getByText('≈ 10^5.1 combinations · this deployment sets the ceiling')).toBeInTheDocument();
     expect(screen.getByText('Sending twice by accident won’t start two runs: each send carries a one-time key.')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
@@ -394,14 +393,16 @@ describe('Start a run', () => {
     expect(screen.queryByRole('radiogroup', { name: 'Engine' })).not.toBeInTheDocument();
   });
 
-  it('says so when the problem is too big for the plan (402) and offers the catalog unchecked', async () => {
-    casesApi.analyseSnapshot.mockRejectedValue(new QuotaError('instance_complexity_too_large', 'too big', { limit_id: 'maxInstanceComplexityLog10', limit: 9 }));
+  it('says so when the problem is over the deployment’s size limit (422) and offers the catalog unchecked', async () => {
+    casesApi.analyseSnapshot.mockRejectedValue(refused(422, 'binding_space_over_technical_limit', {
+      notice: { limit_id: 'MAX_BINDING_SPACE_LOG10', state: 'exhausted', source: 'technical', limit: 20, used: 23 },
+    }));
     renderLaunch();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Too big for your plan (402 · instance_complexity_too_large)');
-    expect(within(alert).getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
+    expect(alert).toHaveTextContent('Over this deployment’s size limit (422 · binding_space_over_technical_limit)');
+    expect(within(alert).queryByRole('link', { name: 'Compare plans' })).not.toBeInTheDocument();
     const picker = screen.getByRole('radiogroup', { name: 'Engine' });
     expect(within(picker).getAllByRole('radio')).toHaveLength(2);
     expect(within(picker).getByRole('radio', { name: /^random-search.*Checked when you send/ })).toBeEnabled();
@@ -423,7 +424,7 @@ describe('Start a run', () => {
     }
 
     it('402 out of an allowance: what the plan allows and where to look', async () => {
-      jobsApi.launch.mockRejectedValue(new QuotaError('quota_exceeded', 'Storage exhausted.', { limit_id: 'storageBytes', limit: 50, used: 50 }));
+      jobsApi.launch.mockRejectedValue(new QuotaError('quota_exceeded', 'Storage exhausted.', { limit_id: 'maxRepositoryStorage', limit: 50, used: 50 }));
       await send();
 
       const alert = await screen.findByRole('alert');
@@ -434,14 +435,18 @@ describe('Start a run', () => {
       expect(screen.getByRole('button', { name: 'Send run' })).toBeEnabled();
     });
 
-    it('402 too big for the plan', async () => {
-      jobsApi.launch.mockRejectedValue(new QuotaError('instance_complexity_too_large', 'too big', { limit_id: 'maxInstanceComplexityLog10', limit: 9 }));
+    it('422 over the deployment’s size limit, which no plan changes', async () => {
+      jobsApi.launch.mockRejectedValue(refused(422, 'binding_space_over_technical_limit', {
+        notice: { limit_id: 'MAX_BINDING_SPACE_LOG10', state: 'exhausted', source: 'technical', limit: 20, used: 23 },
+      }));
       await send();
-      expect(await screen.findByText('Too big for your plan (402 · instance_complexity_too_large)')).toBeInTheDocument();
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent('Over this deployment’s size limit (422 · binding_space_over_technical_limit)');
+      expect(within(alert).queryByRole('link', { name: 'Compare plans' })).not.toBeInTheDocument();
     });
 
     it('429 job slots busy, counting down', async () => {
-      jobsApi.launch.mockRejectedValue(refused(429, 'concurrency_limit_exceeded', { retryAfter: 15, concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 } }));
+      jobsApi.launch.mockRejectedValue(refused(429, 'concurrency_limit_exceeded', { retryAfter: 15, concurrency: { limit_id: 'maxConcurrentRuns', limit: 3, used: 3 } }));
       await send();
 
       const alert = await screen.findByRole('alert');

@@ -93,7 +93,7 @@ async def test_list_for_project_with_and_without_job_id(db_session):
     owner = await _user(db_session)
     organization = Organization(
         slug=f"org-{uuid.uuid4().hex[:8]}", name="Org",
-        billing_sponsor_user_id=owner.id, created_by_id=owner.id,
+        created_by_id=owner.id,
     )
     db_session.add(organization)
     await db_session.flush()

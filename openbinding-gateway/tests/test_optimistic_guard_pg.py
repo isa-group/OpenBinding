@@ -11,7 +11,7 @@ can only be shown to be the compare-and-swap it is claimed to be on a real serve
 * the ETag of a timestamp read back from PostgreSQL (aware, microseconds) equals the one computed right after the write;
 * over HTTP, two concurrent PATCHes of one project with the same ETag give one 200 and one 412, and the stored name is
   the winner's;
-* over HTTP, a PATCH with the current tag that is refused after its claim (422 ``sponsor_must_be_caller``) leaves the
+* over HTTP, a PATCH with the current tag that is refused after its claim (422 ``ambiguous_parent``) leaves the
   ETag of the next GET unchanged: the request transaction rolled the claim back.
 
 Needs ``TEST_DATABASE_URL`` (the ``pg`` fixture skips without it); synthetic data, no network.
@@ -38,7 +38,7 @@ async def a_project(pg) -> tuple[uuid.UUID, str]:
         user = User(username=f"u{suffix}", email=f"u{suffix}@example.com", password_hash="x", plan_cache="free")
         session.add(user)
         await session.flush()
-        organization = Organization(slug=f"o{suffix}", name="Org", billing_sponsor_user_id=user.id, created_by_id=user.id)
+        organization = Organization(slug=f"o{suffix}", name="Org", created_by_id=user.id)
         session.add(organization)
         await session.flush()
         project = Project(organization_id=organization.id, slug="p", name="P", created_by_id=user.id)
@@ -247,14 +247,14 @@ async def test_over_http_a_patch_refused_after_its_claim_leaves_the_etag_unchang
         assert read.status_code == 200, read.text
         tag = read.headers["ETag"]
 
-        # Past the guard (the claim bumped updated_at in this transaction), then refused: nobody else may be made sponsor.
+        # Past the guard (the claim bumped updated_at in this transaction), then refused: a parent and the root at once.
         refused = await client.patch(
             url,
             headers={**headers, "If-Match": tag},
-            json={"name": "Renamed", "billing_sponsor_user_id": str(uuid.uuid4())},
+            json={"name": "Renamed", "move_to_root": True, "parent_id": str(uuid.uuid4())},
         )
         assert refused.status_code == 422, refused.text
-        assert refused.json()["code"] == "sponsor_must_be_caller"
+        assert refused.json()["code"] == "ambiguous_parent"
 
         after = await client.get(url, headers=headers)
         assert after.headers["ETag"] == tag  # the claim was not committed with the refused request

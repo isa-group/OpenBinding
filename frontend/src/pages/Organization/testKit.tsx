@@ -13,11 +13,11 @@ export const lucia: UserProfile = {
   id: 'user-lucia', username: 'lucia.vega', email: 'lucia@example.test', role: 'user', is_active: true, plan: 'RESEARCH', created_at: '2026-03-01T00:00:00Z',
 };
 
-export const iker: UserProfile = { ...lucia, id: 'user-iker', username: 'iker.mora', email: 'iker@example.test', role: 'admin', plan: 'PRO' };
+export const iker: UserProfile = { ...lucia, id: 'user-iker', username: 'iker.mora', email: 'iker@example.test', role: 'admin', plan: 'LAB' };
 
 export function org(slug: string, over: Partial<Organization> = {}): Organization {
   return {
-    id: `org-${slug}`, slug, name: slug.toUpperCase(), parent_id: null, billing_sponsor_user_id: lucia.id, effective_role: 'OWNER', created_at: '2026-03-03T00:00:00Z',
+    id: `org-${slug}`, slug, name: slug.toUpperCase(), parent_id: null, effective_role: 'OWNER', created_at: '2026-03-03T00:00:00Z',
     ...over,
   };
 }
@@ -36,13 +36,16 @@ export function project(slug: string, over: Partial<Project> = {}): Project {
   };
 }
 
-/** The RESEARCH plan of pricing 0.1.0. */
+/** The RESEARCH plan of pricing 0.2.0. */
 export function researchUsage(): UsageView {
   return {
     plan: 'RESEARCH',
     contract_pending: false,
     features: {},
-    capabilities: { organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120, concurrentJobs: 3 },
+    capabilities: {
+      maxProblems: null, maxRepositoryStorage: null, maxRunMinutes: 30, maxConcurrentRuns: 4, maxStudyCells: 5000,
+      maxFederatedEngines: 3, maxApiKeys: 10,
+    },
   };
 }
 

@@ -3,7 +3,7 @@ import type { Organization, Project } from '../../api/platform';
 import { buildCommands } from './paletteCommands';
 
 const organization: Organization = {
-  id: 'org-1', slug: 'isa-demo', name: 'ISA demo', parent_id: null, billing_sponsor_user_id: 'user-1',
+  id: 'org-1', slug: 'isa-demo', name: 'ISA demo', parent_id: null,
   effective_role: 'OWNER', created_at: '2026-01-01T00:00:00Z',
 };
 const project: Project = {

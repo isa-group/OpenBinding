@@ -27,7 +27,6 @@ class OrganizationCreate(BaseModel):
     slug: str = Field(..., pattern=SLUG)
     name: str = Field(..., min_length=1, max_length=160)
     parent_id: Optional[uuid.UUID] = None
-    billing_sponsor_user_id: Optional[uuid.UUID] = None
 
 
 class OrganizationUpdate(BaseModel):
@@ -35,14 +34,6 @@ class OrganizationUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=160)
     parent_id: Optional[uuid.UUID] = None
     move_to_root: bool = False
-    billing_sponsor_user_id: Optional[uuid.UUID] = Field(
-        default=None,
-        description=(
-            "Make yourself the billing sponsor of the organization and its subtree (OWNER only); "
-            "the change is immediate when your plan can take them. Naming the current sponsor "
-            "changes nothing; naming anybody else is refused with 422 `sponsor_must_be_caller`."
-        ),
-    )
 
 
 class OrganizationView(BaseModel):
@@ -50,7 +41,6 @@ class OrganizationView(BaseModel):
     slug: str
     name: str
     parent_id: Optional[uuid.UUID]
-    billing_sponsor_user_id: uuid.UUID
     effective_role: Optional[Literal["OWNER", "ADMIN", "MEMBER", "VIEWER"]] = None
     created_at: datetime
 

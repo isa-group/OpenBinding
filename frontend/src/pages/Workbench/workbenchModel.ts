@@ -3,7 +3,9 @@ import { HttpError } from '../../api/client';
 import type { CaseRevision } from '../../api/platform';
 import { problemPath, problemsPath } from '../../routes/paths/problems';
 import { RANGE_CODE, RANGE_REFUSAL } from '../../utils/featureRange';
-import { limitProblemOf, sizeOf } from '../../utils/limitRefusals';
+import { inInterfaceWords } from '../../components/ui/interfaceWords';
+import { limitProblemOf } from '../../utils/limitRefusals';
+import { limitInfo } from '../../utils/limits';
 import type { WorkspaceFiles } from '../../utils/workspaceDraft';
 import { isRecord, parseJson, type BimDocument, type CompatibleMode, type Diagnostic, type ResourceEntry } from './bimDocuments';
 
@@ -12,12 +14,13 @@ import { isRecord, parseJson, type BimDocument, type CompatibleMode, type Diagno
 // --- what the gateway can refuse
 
 export type RefusalKind =
-  | 'invalid' | 'too-big' | 'too-large' | 'session' | 'key' | 'unsupported' | 'busy' | 'unavailable' | 'other'
-  // A size limit that isn't "your plan's, exceeded": the plan doesn't state it, this deployment caps it, it couldn't be measured, or the plan can't be applied.
-  | 'limit-unknown' | 'technical' | 'unmeasured' | 'misconfigured';
+  // `quota`: an allowance of the plan is used up (402), such as its repository storage.
+  | 'invalid' | 'quota' | 'too-large' | 'session' | 'key' | 'unsupported' | 'busy' | 'unavailable' | 'other'
+  // A size limit no plan sets: this deployment caps it, it couldn't be measured, or the plan can't be applied.
+  | 'technical' | 'unmeasured' | 'misconfigured';
 
 /** The refusals that are about a limit the package can't fix by being valid or by a credential: each has its own sentence in `message`. */
-export const LIMIT_KINDS: readonly RefusalKind[] = ['limit-unknown', 'technical', 'unmeasured', 'misconfigured'];
+export const LIMIT_KINDS: readonly RefusalKind[] = ['technical', 'unmeasured', 'misconfigured'];
 
 export interface Refusal {
   kind: RefusalKind;
@@ -30,11 +33,9 @@ export interface Refusal {
   title?: string;
   /** The problems a 422 lists, one per place in the package. */
   diagnostics: Diagnostic[];
-  /** What a 402 names: the allowance and its ceiling. */
+  /** What a 402 or a size refusal names: the limit and its ceiling. */
   limitId?: string;
   limit?: number;
-  /** How big the package is, in words, when the answer measured it. */
-  size?: string;
 }
 
 /** `(422)` or `(403 · api_key_boundary)`: the status and code of a refusal. */
@@ -46,10 +47,9 @@ export function refusalMarker(refusal: Pick<Refusal, 'status' | 'code'>): string
 /** Sort a failed call into the cases the workbench has words for. */
 export function refusalOf(caught: unknown): Refusal {
   if (caught instanceof QuotaError) {
-    const size = sizeOf(caught.bindingSpace, caught.notice) ?? undefined;
     return {
-      kind: 'too-big', status: 402, code: caught.code, message: caught.message, diagnostics: [],
-      limitId: caught.quota?.limit_id ?? caught.notice?.limit_id, limit: caught.quota?.limit ?? caught.notice?.limit, ...(size ? { size } : {}),
+      kind: 'quota', status: 402, code: caught.code, message: caught.message, diagnostics: [],
+      limitId: caught.quota?.limit_id ?? caught.notice?.limit_id, limit: caught.quota?.limit ?? caught.notice?.limit,
     };
   }
   if (caught instanceof HttpError) {
@@ -59,8 +59,8 @@ export function refusalOf(caught: unknown): Refusal {
       message: caught.message.replace(/^HTTP \d+: /, ''),
       diagnostics: (caught.diagnostics ?? []).filter(isRecord) as Diagnostic[],
     };
-    // A 403 that says the plan sets no size limit is not a key without permission, and a 422 over the deployment's cap
-    // or one that couldn't be measured is not an invalid package: each is told in its own words.
+    // A 422 over the deployment's size cap, or one whose size couldn't be measured, is not an invalid package, and a 503 for
+    // a plan that can't be applied is not an outage: each is told in its own words.
     const limited = limitProblemOf(caught, '', '');
     if (limited) {
       return { ...base, kind: limited.kind, title: limited.title, message: limited.text.trim(), limitId: limited.limitId, limit: caught.notice?.limit };
@@ -79,19 +79,23 @@ export function refusalOf(caught: unknown): Refusal {
   return { kind: 'other', message: caught instanceof Error ? caught.message : String(caught), diagnostics: [] };
 }
 
+/** What a 402 is out of, in the words of the plan: `storage`, else `allowance`. */
+function allowanceOf(refusal: Refusal): string {
+  return refusal.limitId ? inInterfaceWords(limitInfo(refusal.limitId).short) : 'allowance';
+}
+
 /** The sentence for a refusal that isn't one of the screen's own states. */
 export function refusalText(refusal: Refusal, doing: string): string {
   const marker = refusalMarker(refusal);
   switch (refusal.kind) {
-    case 'limit-unknown':
     case 'technical':
     case 'unmeasured':
     case 'misconfigured': return `${refusal.message.replace(/\.$/, '')}${marker}, so ${doing}.`;
     case 'unsupported': return `The gateway doesn’t take this kind of file${marker}. Use a .bim.zip package.`;
     case 'busy': return `Too many requests${marker}. Wait a moment and try again.`;
     case 'unavailable': return `A service OpenBinding depends on isn’t answering${marker}, so ${doing}. This says nothing about your package; try again in a moment.`;
-    case 'too-big': return `This package is bigger than your plan can compile${marker}, so ${doing}.`;
-    case 'too-large': return `This package is larger than your plan allows per request${marker}, so ${doing}.`;
+    case 'quota': return `Your plan’s ${allowanceOf(refusal)} is used up${marker}, so ${doing}. Free some, or see your plan.`;
+    case 'too-large': return `This package is larger than this deployment allows per request${marker}, so ${doing}.`;
     case 'session': return `Your session has ended${marker}. Log in again; your package is kept in this browser.`;
     default: return refusal.status === undefined ? refusal.message : `${refusal.message || 'That couldn’t be done'}${marker}, so ${doing}.`;
   }
@@ -110,8 +114,8 @@ export function saveRefusalText(refusal: Refusal): string {
     case 'key': return `You need MEMBER in the organization to save a version, and an API key needs projects:write${marker}. Nothing was saved.`;
     case 'session': return `Your session has ended${marker}. Log in again; the package is kept in this browser. Nothing was saved.`;
     case 'invalid': return `The gateway refused to seal a version from this package${marker}. ${refusal.message ? `${refusal.message} ` : ''}Nothing was saved.`;
-    case 'too-big': return `This package is bigger than your plan can compile${marker}. Nothing was saved.`;
-    case 'too-large': return `This package is larger than your plan allows per request${marker}. Nothing was saved.`;
+    case 'quota': return `Your plan’s ${allowanceOf(refusal)} is used up${marker}. Nothing was saved.`;
+    case 'too-large': return `This package is larger than this deployment allows per request${marker}. Nothing was saved.`;
     case 'other': return refusal.status === 404
       ? `That problem no longer exists, or you’re not in its organization${marker}. Nothing was saved.`
       : `${refusal.message || 'The version could not be saved'}${marker}. Nothing was saved.`;
@@ -126,14 +130,6 @@ export function saveRefusalText(refusal: Refusal): string {
 export function snapshotHref(root: string, problem: string, versions: readonly Pick<CaseRevision, 'revision' | 'source_snapshot_id'>[], snapshotId: string): string {
   const made = problem ? versions.find((version) => version.source_snapshot_id === snapshotId) : undefined;
   return made ? problemPath(root, problem, 'source', { version: made.revision }) : problemsPath(root);
-}
-
-// --- the plan's ceilings
-
-/** The plan's ceiling for the size of a compiled problem, as a power of ten; `null` when unlimited or unknown. */
-export function complexityCeiling(capability: unknown, planValue: number | null): number | null {
-  if (typeof capability === 'number' && Number.isFinite(capability)) return capability;
-  return planValue;
 }
 
 // --- the package as the person sees it

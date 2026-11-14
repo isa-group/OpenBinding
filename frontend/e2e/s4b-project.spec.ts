@@ -34,7 +34,7 @@ const token = (expiresInSeconds: number) => [
 
 const lucia = {
   id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-03-02T00:00:00Z', cas_verified: true, institutional_branding: true,
+  created_at: '2026-03-02T00:00:00Z', cas_verified: true,
 };
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
@@ -44,18 +44,17 @@ interface Org {
   slug: string;
   name: string;
   parent_id: string | null;
-  billing_sponsor_user_id: string;
   effective_role: Role;
   created_at: string;
 }
 
 const org = (n: number, slug: string, name: string, role: Role, over: Partial<Org> = {}): Org => ({
-  id: `org-${n}`, slug, name, parent_id: null, billing_sponsor_user_id: 'user-1', effective_role: role, created_at: '2026-03-03T00:00:00Z', ...over,
+  id: `org-${n}`, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z', ...over,
 });
 
 const isaDemo = org(1, 'isa-demo', 'ISA Demo Group', 'OWNER');
-const consultora = org(3, 'consultora-demo', 'Consultora Demo', 'VIEWER', { billing_sponsor_user_id: 'user-nora' });
-const memberLab = org(4, 'member-lab', 'Member Lab', 'MEMBER', { billing_sponsor_user_id: 'user-nora' });
+const consultora = org(3, 'consultora-demo', 'Consultora Demo', 'VIEWER');
+const memberLab = org(4, 'member-lab', 'Member Lab', 'MEMBER');
 
 interface Project {
   id: string;
@@ -98,8 +97,8 @@ const digest = (char: string) => `sha256-${char.repeat(64)}`;
 const researchUsage = () => ({
   plan: 'RESEARCH',
   contract_pending: false,
-  features: { collaboration: true, solve: true },
-  capabilities: { concurrentJobs: 3, organizations: 5, members: 15, projects: 50, privateProjects: 30, maxPayloadBytes: 134_217_728 },
+  features: { collaboration: true, runs: true },
+  capabilities: { maxConcurrentRuns: 4, maxPrivateProjects: 10, maxProblems: null, maxRepositoryStorage: null },
 });
 
 /** The jobs of the account (its history) and of the project: only two of the three project jobs were launched by this account. */
@@ -109,7 +108,6 @@ const ownJobs = () => ({
     { id: '00000000-0000-0000-0000-0000000000f6', engine_id: 'random-search', status: 'completed', termination: 'INFEASIBLE', solutions: 0, created_at: '2026-10-01T09:00:00Z', finished_at: '2026-10-01T09:00:40Z' },
   ],
   total: 2,
-  retention_days: 180,
 });
 
 const projectJob = (id: string, engine: string, status: string, termination: string | null, createdAt: string, finishedAt: string | null) => ({
@@ -309,8 +307,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await dialog.getByLabel('Name', { exact: true }).fill('Placement multi-región');
       await expect(dialog.getByLabel('Address')).toHaveValue('placement-multi-region');
       await expect(dialog.getByText('Looks good · can’t be changed later.')).toBeVisible();
-      await expect(dialog.getByText('Up to 50', { exact: true })).toBeVisible();
-      await expect(dialog.getByText('Up to 30', { exact: true })).toBeVisible();
+      await expect(dialog.getByText(/sponsor/i)).toHaveCount(0);
       await expect(dialog.getByRole('meter')).toHaveCount(0);
       await dialog.getByLabel(/^Description/).fill('Pools and latencies at the edge.');
       await capture(page, testInfo, `create-${name}-form`);
@@ -320,7 +317,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(dialog.getByRole('note')).toContainText('You’re a VIEWER in Consultora Demo, so you can look at this form but not create a project (403).');
       await expect(dialog.getByLabel('Name', { exact: true })).toBeDisabled();
       await expect(dialog.getByRole('button', { name: 'Create project' })).toBeDisabled();
-      await expect(dialog.getByText(/nora’s plan is visible only to them|Sponsor’s room/).first()).toBeVisible();
       await capture(page, testInfo, `create-${name}-viewer`);
       if (isMobile) {
         await page.goto('/app/isa-demo?create=project');
@@ -338,7 +334,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(page).toHaveURL(/\/app\/isa-demo$/);
       await expect(main.getByRole('button', { name: 'New project' })).toBeFocused();
 
-      // The gateway's refusals, one by one: 409, 402, 503.
+      // The gateway's refusal of a taken address.
       await main.getByRole('button', { name: 'New project' }).click();
       await expect(page).toHaveURL(/\/app\/isa-demo\?create=project$/);
       await dialog.getByLabel('Name', { exact: true }).fill('Placement multi-región');
@@ -348,23 +344,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(dialog.getByRole('alert')).toContainText('That address is already used in ISA Demo Group (409 · slug_conflict).');
       await capture(page, testInfo, `create-${name}-409`);
 
-      state.refuse.create = detail(402, 'sponsor_quota_exceeded', 'The sponsor contract allows 30 private projects.', { quota: { limit_id: 'privateProjects', limit: 30, used: 30 } });
-      await create.click();
-      const full = dialog.getByRole('alert');
-      await expect(full).toContainText('The sponsor has no private projects left (402 · sponsor_quota_exceeded). 30 of 30 private projects.');
-      await expect(full.getByRole('link', { name: 'Your plan' })).toHaveAttribute('href', '/app/account/usage');
-      await capture(page, testInfo, `create-${name}-402`);
-
-      state.refuse.create = detail(503, 'pricing_unavailable', 'The pricing service is not reachable.');
-      await create.click();
-      await expect(dialog.getByRole('alert')).toContainText('Limits can’t be checked right now (503 · pricing_unavailable). Nothing was created.');
-      await capture(page, testInfo, `create-${name}-503`);
-
-      // "Make it public instead" after the 402, then it is created: the payload carries what was typed, the dialog closes and the project opens.
-      state.refuse.create = detail(402, 'sponsor_quota_exceeded', 'The sponsor contract allows 30 private projects.', { quota: { limit_id: 'privateProjects', limit: 30, used: 30 } });
-      await create.click();
-      await dialog.getByRole('button', { name: 'Make it public instead' }).click();
-      await expect(dialog.getByRole('radio', { name: /^Public/ })).toBeChecked();
+      // Then it is created: the payload carries what was typed, the dialog closes and the project opens.
+      await dialog.getByRole('radio', { name: /^Public/ }).check({ force: true });
       state.refuse.create = undefined;
       const posted = request(page, 'POST', '/v1/organizations/isa-demo/projects');
       await create.click();
@@ -553,7 +534,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByLabel('Name', { exact: true }).fill('QoS Reference');
       state.refuse.patch = detail(503, 'pricing_unavailable', 'Limits cannot be checked.');
       await main.getByRole('button', { name: 'Save' }).click();
-      await expect(main.getByRole('alert')).toContainText('Limits can’t be checked right now (503 · pricing_unavailable). Nothing changed.');
+      await expect(main.getByRole('alert')).toContainText('(503 · pricing_unavailable)');
+      await expect(main.getByRole('alert')).toContainText(/nothing changed/i);
       await capture(page, testInfo, `settings-${name}-save-503`);
       state.refuse.patch = undefined;
       const renamed = request(page, 'PATCH', '/v1/organizations/isa-demo/projects/qos-benchmarks');
@@ -563,16 +545,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: 'Audit log' })).toHaveAttribute('href', '/app/isa-demo/settings/audit');
       await capture(page, testInfo, `settings-${name}-saved`);
 
-      // Visibility: public to private is checked against the sponsor's private projects (402), and the effect is spelled out.
+      // Visibility: public to private, with no sponsor to count it against.
       await main.getByRole('radio', { name: 'Private' }).check({ force: true });
-      await expect(main.getByText('Up to 30', { exact: true })).toBeVisible();
-      await expect(main.getByText('It counts as a private project for the sponsor')).toBeVisible();
-      state.refuse.patch = detail(402, 'sponsor_quota_exceeded', 'The sponsor contract allows 30 private projects.', { quota: { limit_id: 'privateProjects', limit: 30, used: 30 } });
-      await main.getByRole('button', { name: 'Change visibility' }).click();
-      await expect(main.getByRole('alert')).toContainText('The sponsor has no private projects left (402 · sponsor_quota_exceeded).');
-      await expect(main.getByRole('alert').getByRole('link', { name: 'Your plan' })).toHaveAttribute('href', '/app/account/usage');
-      await capture(page, testInfo, `settings-${name}-visibility-402`);
-      state.refuse.patch = undefined;
+      await expect(main.getByText(/sponsor/i)).toHaveCount(0);
       const hidden = request(page, 'PATCH', '/v1/organizations/isa-demo/projects/qos-benchmarks');
       await main.getByRole('button', { name: 'Change visibility' }).click();
       expect((await hidden).postDataJSON()).toEqual({ visibility: 'private' });
@@ -611,7 +586,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'Project settings' })).toBeVisible();
       await expect(main.getByRole('heading', { name: 'Export package' })).toBeVisible();
       await expect(main.getByRole('heading', { name: 'Import package' })).toBeVisible();
-      await expect(main.getByText('ZIP, JSON or YAML package · up to 128 MiB on your plan')).toBeVisible();
+      await expect(main.getByText('ZIP, JSON or YAML package · up to 128 MiB for the gateway')).toBeVisible();
       await capture(page, testInfo, `package-${name}-success`);
 
       // The old package address leads here.

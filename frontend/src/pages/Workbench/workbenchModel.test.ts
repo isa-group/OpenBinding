@@ -3,7 +3,7 @@ import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { DEFAULT_FILES, instanceResources, parseJson, type CompatibleMode } from './bimDocuments';
 import {
-  complexityCeiling, engineRows, filesHaveRanges, goalTerms, isRangeRefusal, loadRefusalText, packageFileList, rangePointers, refusalMarker, refusalOf,
+  engineRows, filesHaveRanges, goalTerms, isRangeRefusal, loadRefusalText, packageFileList, rangePointers, refusalMarker, refusalOf,
   refusalText, refusesRanges, saveRefusalText, snapshotHref, whyNot, workbenchDraftScope,
 } from './workbenchModel';
 
@@ -74,9 +74,11 @@ describe('ranges in a package', () => {
 });
 
 describe('how a refusal is sorted', () => {
-  it('reads a 402 as too big for the plan, with the allowance it names', () => {
-    const refusal = refusalOf(new QuotaError('instance_complexity', 'too complex', { limit_id: 'maxInstanceComplexityLog10', limit: 9 }));
-    expect(refusal).toMatchObject({ kind: 'too-big', status: 402, code: 'instance_complexity', limitId: 'maxInstanceComplexityLog10', limit: 9 });
+  it('reads a 402 as an allowance of the plan used up, with the allowance it names', () => {
+    const refusal = refusalOf(new QuotaError('quota_exceeded', 'used up', { limit_id: 'maxRepositoryStorage', limit: 500 }));
+    expect(refusal).toMatchObject({ kind: 'quota', status: 402, code: 'quota_exceeded', limitId: 'maxRepositoryStorage', limit: 500 });
+    expect(refusalText(refusal, 'nothing was checked')).toBe('Your plan’s storage is used up (402 · quota_exceeded), so nothing was checked. Free some, or see your plan.');
+    expect(saveRefusalText(refusal)).toBe('Your plan’s storage is used up (402 · quota_exceeded). Nothing was saved.');
   });
 
   it.each([
@@ -124,7 +126,7 @@ describe('the words for a refusal', () => {
     );
     expect(saveRefusalText(refusalOf(failure(404)))).toBe('That problem no longer exists, or you’re not in its organization (404). Nothing was saved.');
     expect(saveRefusalText(refusalOf(failure(422)))).toContain('The gateway refused to seal a version from this package (422).');
-    expect(saveRefusalText(refusalOf(new QuotaError('instance_complexity', 'x')))).toContain('bigger than your plan can compile (402');
+    expect(saveRefusalText(refusalOf(new QuotaError('quota_exceeded', 'x')))).toBe('Your plan’s allowance is used up (402 · quota_exceeded). Nothing was saved.');
     expect(saveRefusalText(refusalOf(failure(401)))).toContain('Nothing was saved.');
   });
 
@@ -133,14 +135,6 @@ describe('the words for a refusal', () => {
       'That problem version doesn’t exist any more, or you’re not in the organization it belongs to (404). The package was not loaded.',
     );
     expect(loadRefusalText(refusalOf(failure(503)))).toContain('the package was not loaded');
-  });
-});
-
-describe('the plan’s ceiling', () => {
-  it('prefers what the account reports and falls back to the plan', () => {
-    expect(complexityCeiling(20, 15)).toBe(20);
-    expect(complexityCeiling(undefined, 15)).toBe(15);
-    expect(complexityCeiling(null, null)).toBeNull();
   });
 });
 

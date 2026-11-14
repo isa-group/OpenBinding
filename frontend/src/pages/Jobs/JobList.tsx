@@ -29,24 +29,21 @@ interface ListData {
   rows: Job[];
   /** The ids of the runs this account launched; `null` when its own list could not be read. */
   mine: Set<string> | null;
-  /** How many days finished runs are kept on the launcher's plan; `null` when it could not be read. */
-  retention: number | null;
 }
 
 type Outcome = { tone: 'success'; text: string; follow?: string } | { tone: 'error'; refusal: Refusal };
 
 function JobListBody({ organization, project, canLaunch }: { organization: Organization; project: Project; canLaunch: boolean }) {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin } = useAuth();
   const org = organization.slug;
   const slug = project.slug;
   const root = `/app/${org}/${slug}`;
   const jobs = useResource<ListData>(`jobs:${org}/${slug}`, async () => {
-    const [rows, mine, retention] = await Promise.all([
+    const [rows, mine] = await Promise.all([
       platformApi.projectJobs(org, slug),
       jobsApi.mine().then((own) => new Set(own.map((job) => job.id)), () => null),
-      jobsApi.history({ limit: 1 }).then((page) => (typeof page.retention_days === 'number' ? page.retention_days : null), () => null),
     ]);
-    return { rows, mine, retention };
+    return { rows, mine };
   });
   const [status, setStatus] = useState<StatusFilter>('');
   const [engine, setEngine] = useState('');
@@ -117,11 +114,6 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
           </select>
         </label>
         <Action variant="ghost" size="sm" onClick={reload} busy={jobs.status === 'loading' && Boolean(data)}><RefreshCw aria-hidden="true" className="job-icon" />Refresh</Action>
-        {data?.retention != null && (
-          <span className="job-retention" title="Retention depends on the launcher’s plan">
-            Kept for {data.retention.toLocaleString('en-US')} days{user?.plan ? ` on your ${user.plan} plan` : ''}
-          </span>
-        )}
       </div>
 
       {outcome?.tone === 'success' && (
