@@ -26,7 +26,7 @@ routes/  ──►  services/  ──►  repositories/ , integrations  ──�
 | `core/` | `settings.py` (every environment variable in one place) and `logging.py` | `core/` |
 | `access/`, `security/` | Plan policy (`access/policy.py`: clamping, ceilings and quota rules, applied through `services/entitlements.py`), contract bookkeeping (`access/contracts.py`), public-read matrix; hashing of passwords, tokens and API keys | respective files |
 | `jobs/` | The job lifecycle: `leases.py`, `reconciler.py`, `limits.py`, `lifecycle.py` ([IDEMPOTENCY.md](../IDEMPOTENCY.md)) | `jobs/*.py` |
-| `integrations/bim.py`, `v1/`, `generator/` | The BIM port (`BimPort`, settings, error translation), the remaining `v1/` platform code (remote Engine transport) and the instance generator (see [the BIM boundary](#the-bim--platform-boundary)) | `integrations/`, `v1/`, `generator/` |
+| `integrations/bim.py`, `v1/` | The BIM port (`BimPort`, settings, error translation) and the remaining `v1/` platform code (remote Engine transport) (see [the BIM boundary](#the-bim--platform-boundary)); the instance generator moved to QACOForge | `integrations/`, `v1/` |
 
 Not every module follows the layer table yet: several top-level modules
 (`artifacts.py`, `studies.py`, `study_jobs.py`,
@@ -386,7 +386,7 @@ seed run that way in the lab and the default deployment.
 `BIM_MODE=http` runs `HttpBim` against a separately deployed `bim-service` (a
 deployable of the toolchain repository) and refuses to start if the service
 `compilerDigest` differs from the local one. Routes,
-services, the generator and studies use the port; BIM errors are
+services and studies use the port; BIM errors are
 translated to HTTP in one place. Details in [BIM_CORE.md](../BIM_CORE.md).
 
 `integrations/` may import `core`, `models` and the BIM packages, and must not

@@ -116,9 +116,9 @@ A stored composition is a project artifact and follows the matrix above.
 
 ## How often: the budgets of the routes open to anybody
 
-The routes above, like `POST /v1/instances/validate` and `POST /v1/generator/*`, need
-no account and do real CPU work: they read YAML, run the container's compiler in the
-gateway process, or synthesize instances. The cost of one request is bounded where the
+The routes above, like `POST /v1/instances/validate`, need
+no account and do real CPU work: they read YAML or run the container's compiler in the
+gateway process. The cost of one request is bounded where the
 work happens, and the composition pools answer `503` when full. So that one client
 cannot keep them full, every client also has a budget, in
 `openbinding_gateway/access/work_limits.py`:
@@ -126,7 +126,7 @@ cannot keep them full, every client also has a budget, in
 | Class | Routes | Anonymous, per client address | Signed in, per account |
 |---|---|---|---|
 | `read` | `POST /v1/compositions/validate`, `/parse`, `/serialise`, `/diff` | `WORK_RATE_LIMIT_READ_REQUESTS` (default 60) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` (default 5) |
-| `compile` | `POST /v1/compositions/compile`, `/package`, `/import`, `POST /v1/instances/validate`, `POST /v1/generator/instances`, `/corpus`, `/convert-legacy` | `WORK_RATE_LIMIT_COMPILE_REQUESTS` (default 10) | that, times the same multiplier |
+| `compile` | `POST /v1/compositions/compile`, `/package`, `/import`, `POST /v1/instances/validate` | `WORK_RATE_LIMIT_COMPILE_REQUESTS` (default 10) | that, times the same multiplier |
 
 - **Per window.** A fixed window of `WORK_RATE_LIMIT_WINDOW_S` seconds (default 60)
   that starts at a client's first request of the class. `0` switches a class off.

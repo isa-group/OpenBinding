@@ -366,7 +366,7 @@ are informative.
 
 Continue with the progressive [model atlas](models/README.md),
 [authoring](AUTHORING_GUIDE.md), [manifests](MANIFESTS.md),
-[Engine integration](ENGINE_INTEGRATION.md), [BIM QACO generator](BIM_GENERATOR.md), or the reproducible
+[Engine integration](ENGINE_INTEGRATION.md), or the reproducible
 [conciseness benchmark](CONCISENESS.md).
 
 ## Exact library versions and contract selection

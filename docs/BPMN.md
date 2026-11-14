@@ -53,12 +53,6 @@ The routing overlay targets an exclusive branch id for native JSON or a
 Every XOR is either condition-selected or fully probabilistic; conditions and
 probabilities cannot be mixed for one XOR.
 
-The generator endpoint accepts `dialects: ["bpmn-workflow/v1"]` and returns a
-BPMN package directly. The corresponding `qos-binding/v1` request with the
-same remaining parameters and seed produces a native JSON package with the
-same executable IR digest. This guarantee applies to the generator's paired
-outputs, not to arbitrary user-authored JSON and BPMN files.
-
 The normative external notation remains [OMG BPMN
 2.0.2](https://www.omg.org/spec/BPMN/2.0.2/). BIM supplies the role, schema
 digest, QName, adapter, and lowering contract; it does not redefine BPMN.

@@ -114,7 +114,7 @@ has the one-shot `pricing-bootstrap`, a separate compose project that prepares t
 | `language` | profiles, dialects, adapters, schemas, examples, compilation | `BimPort` | `integrations/bim*.py`, `services/discovery.py`, the profile and dialect lists |
 | `engines` | engine revisions, modes and manifests, federated deployments, conformance, capability matching | `EngineTransport` | `services/engines.py`, `services/engine_registry.py`, `services/probe.py`, `v1/remote.py` |
 | `execution` | runs: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood | `EngineTransport`, `BimPort`, `PlanPort` | `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py`, job routes |
-| `laboratory` | studies, study runs, cells, protocol metrics, trade-offs across engines, the generator | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py`, `generator/*`; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
+| `laboratory` | studies, study runs, cells, protocol metrics, trade-offs across engines | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py`; the generator moved to QACOForge; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
 | `publishing` | published results (a frozen study run), citations, Zenodo-ready export | application APIs of `repository` and `laboratory` | none: the reports, their publications and Explore were removed in F0a |
 | `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH through CAS) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`; local metering (`domain/usage_counters.py`) retires; sponsor proposals (`sponsor_proposals.py`) were removed by M9.6, and only the caller can become billing sponsor |
 | `administration` | users, queues and engine health, storage and retention, audit, moderation of public content | application APIs of the other modules | `routes/admin.py`, `telemetry.py` |
@@ -208,7 +208,7 @@ types. Enforced with `eslint-plugin-boundaries`.
 
 - **Public:** Home · Explore (Problems · Published results) · Engines · Language · Pricing · Verify ·
   About · Log in / Sign up.
-- **Signed in:** header with organization/project switcher; Home · Problems · Lab (Runs · Studies · Generator) ·
+- **Signed in:** header with organization/project switcher; Home · Problems · Lab (Runs · Studies) ·
   Engines · Language · Admin (administrators); "+ New" (problem, study, run); search; notifications;
   account menu (Profile · Plan · API keys · Identities · Notifications).
 - **Project:** Overview · Problems · Runs · Studies · Published · Settings (General · Members).
@@ -594,7 +594,8 @@ The application directories keep their names; the clutter at the root moves:
 | `deploy/kubernetes/` | removed |
 | `nginx/`, `up.sh` | `deploy/` |
 | `pricings/` (FaaS iPricings of CLASP) | `experimentation/clasp/pricings/` |
-| `output/` (Zenodo packaging) | `experimentation/qacobench/zenodo/` |
+| `output/` (Zenodo packaging) | QACOForge (`qacobench/`) |
+| `experimentation/qacobench/`, the generator (`/v1/generator`, `engines/bim-generator`) | removed: extracted to `javiercavlop/QACOForge` (private; QACOBench 1.1.1 reproduces from the tag `pre-redesign`) |
 | — | `acceptance/` (new), `deploy/compose/production/` (new), `docs/pricing/` (OpenBinding's pricing proposals and their rationale; SPHERE holds the published versions) |
 | the `bim-toolchain` directory | removed: extracted to `javiercavlop/bim-toolchain` (private; to the SCORELabUS organization when public), consumed as release wheels pinned in `openbinding-gateway/uv.lock` |
 

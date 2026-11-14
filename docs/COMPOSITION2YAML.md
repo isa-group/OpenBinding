@@ -100,10 +100,7 @@ dataset scripts, and the frontend's own document builder.
   published figure has ever moved. Saying that out loud matters, because a reader who
   mistakes the digest for the result will refuse a migration the repository has already
   performed.
-- **The Java generator: coexist.** It is not a package compiler at all -- it prints a
-  problem description that the gateway lowers, and that lowering already goes through the
-  container. Its historical command-line mode is not reproducible, which is a defect of its
-  own and not an argument about this language; its configuration mode is.
+- **The Java generator:** retired with the move of the QACO generator to QACOForge.
 
 One number this specification should print rather than imply. Canonicalization and
 digesting are single-sourced in the container -- a package digest is provably invariant
