@@ -7,13 +7,6 @@ const columns = [
     links: [
       { label: 'Engines', to: '/engines' },
       { label: 'Pricing', to: '/pricing' },
-    ],
-  },
-  {
-    title: 'Language',
-    links: [
-      { label: 'Profiles & dialects', to: '/language' },
-      { label: 'Schemas', to: '/language/schemas/application' },
       { label: 'Workbench', to: '/workbench' },
     ],
   },

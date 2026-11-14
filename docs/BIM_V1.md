@@ -146,7 +146,8 @@ an immutable registered reference:
 Resolution of a registered resource is local and exact. It requires the four
 identity fields, an installed approved revision, matching JSON metadata when
 applicable, and the pinned digest. It never performs a network lookup. Engines
-receive only the compiled IR.
+receive only the compiled IR. The OpenBinding gateway installs no registered
+resources, so it refuses such a reference.
 
 References between logical resources are explicit objects such as
 `{"resource":"application","id":"checkout"}`. `resource` names the

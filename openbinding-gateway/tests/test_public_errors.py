@@ -33,7 +33,7 @@ def gateway():
     async def boom():
         raise RuntimeError(SECRET_TEXT)
 
-    @app.get("/v1/catalog/boom")
+    @app.get("/v1/profiles/boom")
     async def bim_boom():
         raise RuntimeError(SECRET_TEXT)
 
@@ -45,7 +45,7 @@ def gateway():
     async def refuse_text(status: int):
         raise HTTPException(status_code=status, detail="plain reason")
 
-    @app.get("/v1/catalog/refuse/{status}")
+    @app.get("/v1/profiles/refuse/{status}")
     async def bim_refuse(status: int):
         raise HTTPException(status_code=status, detail={"code": "refused", "message": "refused here"})
 
@@ -166,7 +166,7 @@ async def test_a_5xx_http_exception_with_a_text_detail_carries_a_correlation_id(
 
 
 async def test_a_5xx_on_a_bim_route_is_a_problem_with_a_correlation_id(client):
-    response = await client.get("/v1/catalog/refuse/502")
+    response = await client.get("/v1/profiles/refuse/502")
 
     body = response.json()
     assert response.status_code == 502
@@ -198,7 +198,7 @@ async def test_a_5xx_that_is_not_json_is_left_as_it_is(client):
     assert response.text == "not json"
 
 
-@pytest.mark.parametrize("path", ["/refuse/404", "/refuse/409", "/refuse/422", "/refuse/429", "/v1/catalog/refuse/404"])
+@pytest.mark.parametrize("path", ["/refuse/404", "/refuse/409", "/refuse/422", "/refuse/429", "/v1/profiles/refuse/404"])
 async def test_a_4xx_gets_no_correlation_id(client, path):
     response = await client.get(path)
 
@@ -209,7 +209,7 @@ async def test_a_4xx_gets_no_correlation_id(client, path):
 
 async def test_the_4xx_shapes_are_unchanged(client):
     platform = await client.get("/refuse/409")
-    bim = await client.get("/v1/catalog/refuse/409")
+    bim = await client.get("/v1/profiles/refuse/409")
     validation = await client.get("/refuse/not-a-number")
 
     assert platform.json() == {
@@ -232,7 +232,7 @@ async def test_the_4xx_shapes_are_unchanged(client):
 
 async def test_the_500_has_the_same_shape_on_every_route(client):
     platform = await client.get("/boom")
-    bim = await client.get("/v1/catalog/boom")
+    bim = await client.get("/v1/profiles/boom")
 
     assert platform.status_code == bim.status_code == 500
     assert platform.headers["content-type"] == bim.headers["content-type"]

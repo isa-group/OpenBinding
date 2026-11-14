@@ -34,7 +34,6 @@ Contents: 1 Principles · 2 System context · 3 Containers · 4 Backend · 5 Fro
 flowchart LR
   R([Researcher / curator])
   E([Engine author])
-  X([Extension author])
   A([Platform admin])
   P([Paper reader])
   subgraph OB[OpenBinding]
@@ -45,16 +44,14 @@ flowchart LR
   SPA[(SPACE<br/>space.score.us.es)]
   CAS[(Universidad de Sevilla CAS)]
   FED[(Federated engines)]
-  ADS[(Adapter services)]
   Z[(Zenodo)]
-  R & E & X & A & P --> W --> G
+  R & E & A & P --> W --> G
   R -. API keys, scripts, QACOBench, MCP .-> G
   G -- space-python-client --> SPA
   SPA -- permanent-link sync --> SPH
   G -- public permanent-link API --> SPH
   G -- CAS 3.0 --> CAS
   G -- bim-engine/v1 --> FED
-  G -- bim-adapter/v1 --> ADS
   R -. datasets and artifacts .-> Z
 ```
 
@@ -114,7 +111,7 @@ has the one-shot `pricing-bootstrap`, a separate compose project that prepares t
 | `identity` | accounts, sessions, passwords, API keys, external identities (CAS) | `IdentityProvider` (CAS), `Mailer` | `routes/auth.py`, `routes/users.py`, `routes/cas.py`, `cas.py`, `security/*` |
 | `collaboration` | organizations (nested), projects, memberships, roles, invitations, audit, notifications, public read | — | `collaboration.py`, `routes/organizations.py` (org/project/member parts), `repositories/organizations.py`, `access/public_read.py` |
 | `repository` | problems and versions, collections, package import and export, blobs, permanent links of problems and collections, problem metrics, and the versioned-artifact store as internal storage of sealed parts (resources of problem versions, study definitions, execution configurations) | `BimPort`, `BlobStore` | case/collection/blob routes, `services/snapshots.py`, `services/instances.py`, `artifacts.py`; the library as a catalogue (`routes/library.py`, the library and project-resource parts of `routes/artifacts.py`) retires (§4.3) |
-| `language` | profiles, dialects, adapters, schemas, examples, compilation, the extension lifecycle | `BimPort`, `AdapterServicePort` | `integrations/bim*.py`, `services/discovery.py`, dialect/resource/profile routes |
+| `language` | profiles, dialects, adapters, schemas, examples, compilation | `BimPort` | `integrations/bim*.py`, `services/discovery.py`, the profile and dialect lists |
 | `engines` | engine revisions, modes and manifests, federated deployments, conformance, capability matching | `EngineTransport` | `services/engines.py`, `services/engine_registry.py`, `services/probe.py`, `v1/remote.py` |
 | `execution` | runs: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood | `EngineTransport`, `BimPort`, `PlanPort` | `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py`, job routes |
 | `laboratory` | studies, study runs, cells, protocol metrics, trade-offs across engines, the generator | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py`, `generator/*`; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
@@ -146,10 +143,10 @@ openbinding-gateway/src/openbinding_gateway/
   → `execution` → `engines` | `repository` → `language` → `collaboration` → `identity` → `plans` → `shared`
   (`|` marks independent siblings).
 - External systems only through ports: `BimPort` (exists), `PlanPort`, `PricingSource`, `EngineTransport`,
-  `AdapterServicePort`, `BlobStore`, `IdentityProvider`, `Mailer`, `Clock`.
+  `BlobStore`, `IdentityProvider`, `Mailer`, `Clock`.
 - Patterns: ports and adapters; application services as use-case functions; repositories with a unit of work per
   request (SQLAlchemy session); domain events for side effects; dispatch after commit (exists for runs); strategy
-  for engine transports (built-in, federated) and adapter tiers (§8).
+  for engine transports (built-in, federated).
 - Enforcement: the empty packages `openbinding_gateway/app`, `shared` and `modules` exist, with import-linter
   contracts in `openbinding-gateway/importlinter-modules.ini`: `kernel` (`shared` imports no module, composition
   root or legacy layer), `composition-root` (modules and shared do not import `app`), `no-legacy-http` (modules
@@ -378,10 +375,6 @@ in the paper.
 
 See §9.
 
-### 7.6 Language extension lifecycle
-
-See §8.4.
-
 ## 8. Language extensibility
 
 ### 8.1 Layers
@@ -391,8 +384,7 @@ See §8.4.
 | BIM core | envelope, `Instance`, role-indexed resources, references, digests, provenance | BIM MAJOR/MINOR release only |
 | Profile | a problem family: roles and cardinalities, resource types per role, output IR schema, capability vocabulary, limit vocabulary, evaluation semantics, adapter; **may extend one other profile** | new profile version |
 | Dialect | a concrete syntax for resources of one or more profiles (media type, schema or XML root), lowered to the profile's canonical resource types or to declared extension points | new dialect version |
-| Adapter | the lowering (and, for profiles, compile hooks and evaluator plug-ins) | tier 0, 1 or 2 (§8.3) |
-| Extension package | a digest-addressed bundle: manifests, schemas, adapter descriptor, golden examples, documentation | submitted and reviewed (§8.4) |
+| Adapter | the lowering (and, for profiles, compile hooks and evaluator plug-ins) | new BIM release (§8.3) |
 
 ### 8.2 Profiles that extend profiles
 
@@ -420,25 +412,13 @@ A pricing-aware profile (candidates as subscriptions; iPricings plus expected co
 as in CLASP and PACO) is the next candidate. A domain that fits the core without new semantics — quantum resource
 selection — needs no extension at all: it is plain BIM data.
 
-### 8.3 Adapter tiers
+### 8.3 Adapters
 
-| Tier | What it is | Who can install | Safety |
-|---|---|---|---|
-| 0 Built-in | reviewed Python in `bim-toolchain` (qos-binding, placement, BPMN) | ships with a BIM release | code review, goldens, consumer contracts |
-| 1 Declarative | a mapping document evaluated by bim-core's sandboxed transform engine (BIM Expression IR plus structural mapping); no code | organization admins for their organization; platform admins publicly | total and bounded (size, steps, time); double lowering must match byte for byte |
-| 2 Adapter service | an HTTP service implementing `bim-adapter/v1` (`GET /manifest`, `GET /health`, `POST /lower`) | platform admins | registered and verified like a federated engine: destination policy, authentication, determinism probes; outputs cached by input digest and stored with the compiled form |
+Every adapter is built in: reviewed Python in `bim-toolchain` (qos-binding, placement, BPMN), shipped with a BIM
+release and guarded by code review, goldens and consumer contracts. The gateway keeps no registry of dialects or
+resources and takes no submissions: what it compiles is what the installed `bim-toolchain` release ships.
 
-BPMN stays tier 0 but is packaged and installed through the same lifecycle, as the reference for third-party
-dialects.
-
-### 8.4 Lifecycle
-
-`draft → submitted → checked → approved → installed → deprecated → retired`, per exact version. Checking runs schema
-validation, the golden examples, double lowering, and for tier 2 the conformance probes. A deprecated version still
-compiles existing problem versions and is not offered for new ones; a version used by a sealed or cited problem
-version is never retired. Approval in production is an owner decision.
-
-### 8.5 Language API
+### 8.4 Language API
 
 | Operation | Purpose |
 |---|---|
@@ -447,19 +427,17 @@ version is never retired. Approval in production is an owner decision.
 | `GET /v1/language/dialects` (same shape) | dialects |
 | `GET /v1/language/schemas/{kind}` | schemas (download) |
 | `POST /v1/language/compile` | compile a package or an exact problem version: diagnostics, summary metrics, compatible engine modes |
-| `POST /v1/language/extensions`, `GET .../extensions`, `GET .../extensions/{id}` | submit an extension package and follow its checks |
-| `POST /v1/language/extensions/{id}/{approve,reject,deprecate,retire}` | administer the lifecycle |
-| `POST /v1/language/adapter-services` and `.../{name}/{activate,deactivate}` | register tier 2 deployments |
 
-The current `/v1/profiles`, `/v1/dialects`, `/v1/resources`, `/v1/schemas/{kind}`, `/v1/catalog`, `/v1/examples`
-and `/v1/validate` stay as aliases without `Deprecation` or `Sunset` headers (the deprecation middleware was removed
-in M9.6); only `GET /v1/pricing` is still marked deprecated.
+Today the gateway serves `GET /v1/profiles` and `GET /v1/dialects` (the installed contracts, read by the home page
+and the engine registration form), `/v1/examples` and `/v1/validate`, without `Deprecation` or `Sunset` headers (the
+deprecation middleware was removed in M9.6); only `GET /v1/pricing` is still marked deprecated. The registry routes
+(`POST /v1/dialects`, `/v1/resources`, their approvals), `/v1/schemas/{kind}` and `/v1/catalog` were removed in F0a.
 
-### 8.6 Developer kit
+### 8.5 Developer kit
 
 `bim-toolchain` ships a `bim-ext` command: `new` (scaffold a dialect or profile), `test` (schemas, golden examples,
-double lowering), `pack` (extension package and digest) and `submit` (to a platform with an API key), plus a template
-repository and a how-to in `docs/`.
+double lowering) and `pack` (extension package and digest), plus a template repository and a how-to in `docs/`. A
+dialect reaches the gateway in a `bim-toolchain` release, never through an upload.
 
 ## 9. Plans: SPACE and SPHERE
 

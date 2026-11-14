@@ -76,8 +76,8 @@ describe('admin-overview · how the platform is doing', () => {
     expect(await within(moderation).findByText('Engine catalogue requests')).toBeInTheDocument();
     const lines = within(moderation).getByRole('list', { name: 'Waiting for review' });
     expect(within(within(lines).getByText('Engine catalogue requests').closest('li')!).getByText('1')).toBeInTheDocument();
-    expect(within(within(lines).getByText('Dialects').closest('li')!).getByText('1')).toBeInTheDocument();
-    expect(within(moderation).getByText('2')).toBeInTheDocument();
+    expect(within(lines).queryByText('Dialects')).not.toBeInTheDocument();
+    expect(within(moderation).getByText('1', { selector: '.adm-big' })).toBeInTheDocument();
     expect(moderation).toHaveClass('is-attention');
   });
 

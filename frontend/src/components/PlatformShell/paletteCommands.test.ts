@@ -69,7 +69,7 @@ describe('buildCommands', () => {
 
     expect(commands.filter((command) => command.group === 'Tools')).toEqual([]);
     expect(goTo.map((command) => [command.label, command.href])).toEqual([
-      ['Home', '/app'], ['Runs', '/app/runs'], ['Generator', '/app/generator'], ['Engines', '/engines'], ['Language', '/language'],
+      ['Home', '/app'], ['Runs', '/app/runs'], ['Generator', '/app/generator'], ['Engines', '/engines'],
       ['Pricing', '/pricing'],
     ]);
     expect(commands.filter((command) => ['Jobs', 'Verify', 'Verifier', 'Engine catalog', 'My engines', 'Generator lab', 'Workbench'].includes(command.label))).toEqual([]);

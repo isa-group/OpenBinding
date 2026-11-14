@@ -6,7 +6,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 /** The registry order of the areas; an area file that is not listed comes after them, by name. */
 const AREA_ORDER = [
-  'public', 'auth', 'system', 'language', 'engines', 'account', 'organizations', 'project', 'problems', 'collections', 'runs',
+  'public', 'auth', 'system', 'engines', 'account', 'organizations', 'project', 'problems', 'collections', 'runs',
   'studies', 'admin',
 ];
 
@@ -27,7 +27,7 @@ export function readAreaSources(): Array<{ area: string; source: string }> {
 
 /**
  * The route pattern without its optional segments (`:section?`), each dropped with its slash, so an example address visits the base
- * address of a screen that takes sections (`/language/:section?/:item?` is visited at `/language`). Fill the other parameters afterwards.
+ * address of a screen that takes sections (`/app/account/:section?` is visited at `/app/account`). Fill the other parameters afterwards.
  * A `?` that starts a query (`/app/:org?create=project`) is not an optional marker: the marker ends the segment.
  */
 export function dropOptionalSegments(path: string): string {

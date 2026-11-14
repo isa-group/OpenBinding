@@ -7,11 +7,12 @@ from sqlalchemy import select
 
 from _repo import REPO_ROOT
 
-from openbinding_gateway.db.models import InstanceResource, User, UserRole
+from openbinding_gateway.db.models import InstanceResource
 from openbinding_gateway.main import app
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services import execution
 from openbinding_gateway.services.engines import engine_ref
+from bim_core.canonical import digest_bytes
 from bim_core.package import InstancePackage, load_package, strict_json_loads
 
 
@@ -291,89 +292,25 @@ async def test_v1_private_resources_require_authentication(api_client, registrat
     assert (await api_client.get(f"/v1/instances/{snapshot_id}")).status_code == 401
 
 
-async def test_registered_resource_requires_approval_and_resolves_exact_content(
-    api_client, db_session, registration
-):
+async def test_a_registry_reference_is_not_resolved(api_client, registration):
+    # The gateway keeps no registry of resources: only package files and library versions resolve.
     details = registration()
     headers = await _register_and_login(api_client, details)
     package = load_package(EXAMPLE)
-    optimization = package.json("optimization.json")
-    optimization["metadata"]["version"] = "1.0.0"
-    name = optimization["metadata"]["name"]
-    registered = await api_client.post(
-        "/v1/resources",
-        params={
-            "namespace": details["username"],
-            "name": name,
-            "version": "1.0.0",
-            "role": "optimization",
-        },
-        headers={**headers, "Content-Type": "application/json"},
-        content=json.dumps(optimization),
-    )
-    assert registered.status_code == 201, registered.text
-    reference = {
-        "namespace": details["username"],
-        "name": name,
-        "version": "1.0.0",
-        "digest": registered.json()["digest"],
-    }
-    assert registered.json()["status"] == "pending_review"
-
     files = dict(package.files)
-    files.pop("optimization.json")
+    optimization = files.pop("optimization.json")
     instance = strict_json_loads(files["instance.json"])
-    instance["spec"]["resources"]["optimization"]["optimization"] = reference
+    instance["spec"]["resources"]["optimization"]["optimization"] = {
+        "namespace": details["username"],
+        "name": "optimization",
+        "version": "1.0.0",
+        "digest": digest_bytes(optimization),
+    }
     files["instance.json"] = json.dumps(instance).encode()
-    portable = InstancePackage(files)
-    before = await api_client.post(
-        "/v1/instances", headers=_zip_headers(headers), content=portable.to_zip()
+    refused = await api_client.post(
+        "/v1/instances", headers=_zip_headers(headers), content=InstancePackage(files).to_zip()
     )
-    assert before.status_code == 422
-    assert "not installed, approved" in before.text
-
-    user = (
-        await db_session.execute(select(User).where(User.username == details["username"]))
-    ).scalars().one()
-    user.role = UserRole.ADMIN
-    await db_session.flush()
-    approved = await api_client.post(
-        f"/v1/resources/{name}/approve",
-        params={
-            "namespace": details["username"],
-            "version": "1.0.0",
-            "revision": reference["digest"],
-        },
-        headers=headers,
-    )
-    assert approved.status_code == 200, approved.text
-
-    created = await api_client.post(
-        "/v1/instances", headers=_zip_headers(headers), content=portable.to_zip()
-    )
-    assert created.status_code == 201, created.text
-    stored = (
-        await db_session.execute(
-            select(InstanceResource).where(
-                InstanceResource.registered_digest == reference["digest"]
-            )
-        )
-    ).scalars().one()
-    assert stored.document == optimization
-    assert stored.content != json.dumps(reference).encode()
-    assert stored.api_version == optimization["apiVersion"]
-    assert stored.kind == optimization["kind"]
-    assert stored.dialect_id == "qos-binding/v1"
-    fetched = await api_client.get(
-        f"/v1/resources/{name}",
-        params={
-            "namespace": details["username"],
-            "version": "1.0.0",
-            "revision": reference["digest"],
-        },
-    )
-    assert fetched.status_code == 200
-    assert fetched.json() == optimization
+    assert refused.status_code == 422, refused.text
 
 
 @pytest.mark.xfail(

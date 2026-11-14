@@ -37,7 +37,7 @@ export function AdminEngineReview({ onDecided }: Props) {
   const [message, setMessage] = useState<{ tone: 'success' | 'error' | 'warning'; text: string; title?: string } | null>(null);
 
   const rows = list.data ?? list.stale ?? [];
-  const failure = list.status === 'error' ? describeModerationFailure(list.error, 'The catalogue review queue couldn’t be loaded', 'engines') : null;
+  const failure = list.status === 'error' ? describeModerationFailure(list.error, 'The catalogue review queue couldn’t be loaded') : null;
 
   const toggle = async (row: EngineRegistrationRevision) => {
     const key = bimResourceKey(row);
@@ -68,7 +68,7 @@ export function AdminEngineReview({ onDecided }: Props) {
       });
       onDecided?.();
     } catch (error: unknown) {
-      const refused = describeModerationFailure(error, 'That decision couldn’t be applied', 'engines');
+      const refused = describeModerationFailure(error, 'That decision couldn’t be applied');
       setMessage({ tone: refused.tone, title: refused.title, text: refused.text });
     } finally {
       setBusy(false);

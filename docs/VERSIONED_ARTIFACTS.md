@@ -88,9 +88,8 @@ Migration `b3c4d5e6f7a8` follows the existing head, renames file storage to `blo
 The project-resource and collection HTTP surfaces now delegate to the common
 artifact identities and sealed versions while retaining their historical response
 envelopes for package clients. New writes no longer create `ProjectResource` or
-`CollectionRevision` rows. The BIM registered-resource endpoint remains a
-specialized executable-contract registry and is resolved by its exact manifest;
-it is intentionally separate from organization-owned scientific resources.
+`CollectionRevision` rows. The BIM registered-resource registry was removed in F0a:
+an Instance resolves only package files and organization library versions.
 Portable imports use the library closure as the source of truth as well: the
 legacy `resources` and `collections` arrays are checked as indexes and never
 materialized into the retired tables.

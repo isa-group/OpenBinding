@@ -4,8 +4,6 @@ from __future__ import annotations
 
 # ruff: noqa: E402
 
-import copy
-import json
 import sys
 import uuid
 
@@ -20,19 +18,7 @@ import pytest_asyncio
 from sqlalchemy import select
 
 from _pricing import fake_pricing_gate, largest_plan
-from _repo import REPO_ROOT
 from openbinding_gateway import space_client
-from bim_core.package import load_package
-
-EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
-
-
-def _optimization_document(name: str, version: str) -> dict:
-    document = copy.deepcopy(load_package(EXAMPLE).json("optimization.json"))
-    document["metadata"].update({"name": name, "version": version})
-    return document
-
-
 from openbinding_gateway.db.models import (
     ApiKey,
     Blob,
@@ -204,75 +190,6 @@ async def test_admin_cannot_download_private_artifacts(
     )
     assert admin_get.status_code == 403
     assert admin_get.json()["detail"]["code"] == "organization_forbidden"
-
-
-@pytest.mark.asyncio
-async def test_admin_cannot_spoof_dialect_or_resource_namespace(
-    api_client, registration, gate, db_session
-):
-    user_a, user_a_headers = await create_account(api_client, registration, db_session)
-    admin, admin_headers = await create_account(
-        api_client, registration, db_session, admin=True
-    )
-
-    # Admin attempting to register under user_a's namespace is rejected
-    spoof_res = await api_client.post(
-        "/v1/resources",
-        params={
-            "namespace": user_a["username"],
-            "name": "opt-test",
-            "version": "1.0.0",
-            "role": "optimization",
-        },
-        headers={**admin_headers, "Content-Type": "application/json"},
-        content=json.dumps(_optimization_document("opt-test", "1.0.0")),
-    )
-    assert spoof_res.status_code == 403
-    assert spoof_res.json()["title"] == "forbidden"
-
-    # Admin registering under their own username produces pending_review (NOT published)
-    admin_personal_res = await api_client.post(
-        "/v1/resources",
-        params={
-            "namespace": admin["username"],
-            "name": "opt-admin",
-            "version": "1.0.0",
-            "role": "optimization",
-        },
-        headers={**admin_headers, "Content-Type": "application/json"},
-        content=json.dumps(_optimization_document("opt-admin", "1.0.0")),
-    )
-    assert admin_personal_res.status_code == 201
-    assert admin_personal_res.json()["status"] == "pending_review"
-
-    # Admin registering under official system namespace 'openbinding' auto-publishes
-    system_res = await api_client.post(
-        "/v1/resources",
-        params={
-            "namespace": "openbinding",
-            "name": "opt-sys",
-            "version": "1.0.0",
-            "role": "optimization",
-        },
-        headers={**admin_headers, "Content-Type": "application/json"},
-        content=json.dumps(_optimization_document("opt-sys", "1.0.0")),
-    )
-    assert system_res.status_code == 201
-    assert system_res.json()["status"] == "published"
-
-    # Regular user attempting to register under 'openbinding' namespace is rejected
-    user_system_res = await api_client.post(
-        "/v1/resources",
-        params={
-            "namespace": "openbinding",
-            "name": "opt-user-sys",
-            "version": "1.0.0",
-            "role": "optimization",
-        },
-        headers={**user_a_headers, "Content-Type": "application/json"},
-        content=json.dumps(_optimization_document("opt-user-sys", "1.0.0")),
-    )
-    assert user_system_res.status_code == 403
 
 
 @pytest.mark.asyncio

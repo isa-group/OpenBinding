@@ -71,7 +71,7 @@ describe('Home', () => {
       renderHome();
 
       expect(screen.getByRole('link', { name: /Learn with an example/ })).toHaveAttribute('href', '/workbench');
-      expect(screen.getByRole('link', { name: /Explore extensibility/ })).toHaveAttribute('href', '/language');
+      expect(screen.queryByRole('link', { name: /Explore extensibility/ })).not.toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'A stable core, plural problem families.' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Inspect engine modes/ })).toHaveAttribute('href', '/engines');
     });
@@ -125,7 +125,7 @@ describe('Home', () => {
       renderHome();
 
       expect(await screen.findByText('No public engines yet')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Read the language guide' })).toHaveAttribute('href', '/language');
+      expect(screen.getByRole('link', { name: 'Open the Workbench' })).toHaveAttribute('href', '/workbench');
     });
 
     it('reports a failure with its status, keeps the page and retries on request', async () => {
@@ -159,7 +159,7 @@ describe('Home', () => {
       await screen.findByRole('link', { name: /2 public engine revisions/ });
 
       const hrefs = screen.getAllByRole('link').map((link) => link.getAttribute('href') ?? '');
-      expect(hrefs.filter((href) => /^\/(playground|profiles|schemas|team|research|funding|contributions|changelog|engines\/new|analytics|artifacts)(\/|\?|$)/.test(href))).toEqual([]);
+      expect(hrefs.filter((href) => /^\/(playground|profiles|schemas|language|team|research|funding|contributions|changelog|engines\/new|analytics|artifacts)(\/|\?|$)/.test(href))).toEqual([]);
     });
   });
 });

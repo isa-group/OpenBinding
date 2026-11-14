@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
-from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from _repo import REPO_ROOT
@@ -400,13 +399,19 @@ def test_secret_detection_is_recursive() -> None:
     ]
 
 
-def test_repeated_engine_aliases_are_removed_and_protocol_stays_public() -> None:
-    client = TestClient(app)
-    assert "/v1/catalog/engines" not in app.openapi()["paths"]
-    assert "/v1/catalog/engines/{name}" not in app.openapi()["paths"]
-    protocol = client.get("/v1/schemas/engine-contract").json()
-    assert protocol["protocol"] == "bim-engine/v1"
-    assert protocol["digest"] == engine_service.protocol_digest()
+def test_the_registry_and_catalogue_routes_are_gone() -> None:
+    paths = app.openapi()["paths"]
+    for path in (
+        "/v1/catalog",
+        "/v1/catalog/engines",
+        "/v1/schemas/{kind}",
+        "/v1/resources",
+        "/v1/resources/{name}",
+        "/v1/resources/{name}/approve",
+        "/v1/dialects/{name}/approve",
+    ):
+        assert path not in paths
+    assert set(paths["/v1/dialects"]) == {"get"}
 
 
 def test_structured_http_errors_preserve_their_problem_code() -> None:
@@ -424,14 +429,12 @@ def test_structured_http_errors_preserve_their_problem_code() -> None:
     assert json.loads(response.body)["title"] == "engine_mode_incompatible"
 
 
-def test_pricing_contract_is_public_and_separate_from_bim_schemas() -> None:
-    client = TestClient(app)
+def test_pricing_contract_is_public() -> None:
     operation = app.openapi()["paths"]["/v1/pricing"]["get"]
 
     assert operation["deprecated"] is True
     assert not operation.get("security")
     assert set(operation["responses"]["200"]["content"]) == {"application/yaml"}
-    assert client.get("/v1/schemas/pricing").status_code == 404
 
 
 @pytest.mark.asyncio
@@ -899,12 +902,6 @@ def test_compiled_ir_pins_complete_dialect_and_adapter_revisions() -> None:
         "version": installed["spec"]["adapter"]["version"],
         "digest": installed["spec"]["adapter"]["binaryDigest"],
     }
-
-
-def test_dialect_publication_cannot_relabel_an_installed_binary_contract() -> None:
-    document = copy.deepcopy(routes._builtin_dialects()[0])
-    document["spec"]["roles"] = ["application"]
-    assert routes._installed_dialect_contract(document) is False
 
 
 def test_gateway_rejects_incomplete_decisions_and_replaces_engine_evaluation() -> None:

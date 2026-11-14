@@ -78,19 +78,6 @@ describe('public catalog and validation endpoints', () => {
     expect(error).toMatchObject({ status: 429, retryAfter: 7 });
   });
 
-  it('lists the published registered resources and fetches one by all four pins', async () => {
-    const resource = { namespace: 'isa-demo', name: 'catalog', version: '2.0.0', digest: DIGEST, role: 'candidateCatalog', apiVersion: 'qos-binding/v1', kind: 'CandidateCatalog', dialect: 'qos-binding/v1', mediaType: 'application/json', status: 'published' };
-    fetchMock.mockResolvedValueOnce(json({ resources: [resource] }));
-    expect(await client.getRegisteredResources()).toEqual([resource]);
-    expect(fetchMock.mock.calls[0][0]).toBe('https://gateway.example/v1/resources');
-
-    fetchMock.mockResolvedValueOnce(new Response('{}', { status: 200 }));
-    await client.getRegisteredResourceContent(resource as never);
-    const url = new URL(String(fetchMock.mock.calls[1][0]));
-    expect(url.pathname).toBe('/v1/resources/catalog');
-    expect(Object.fromEntries(url.searchParams)).toEqual({ namespace: 'isa-demo', version: '2.0.0', revision: DIGEST });
-  });
-
   it('lists the engines of the account, and says when it had to fall back to the public list', async () => {
     const engine = { id: 'x', name: 'x', namespace: 'bim.builtin', version: '1.0.0', digest: DIGEST, ref: {}, modes: [] };
     fetchMock.mockResolvedValueOnce(json({ engines: [engine] }));

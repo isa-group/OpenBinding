@@ -150,24 +150,13 @@ When adding Placement, choose `networkMode: directed|symmetric` deliberately.
 Co-location alone has an implicit zero latency. Capacity scope, transition
 enforcement, and global-latency aggregation remain explicit policy choices.
 
-## 4. Reuse registered resources without remote imports
+## 4. Keep every resource in the package
 
-A target may replace its local path with an immutable reference:
-
-```json
-{
-  "namespace": "example.team",
-  "name": "production-catalog",
-  "version": "3.1.0",
-  "digest": "sha256-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-}
-```
-
-Register the complete JSON or BPMN resource through `/v1/resources`, wait for
-publication when approval is required, and copy the returned four-field
-reference. Never omit the digest, use a mutable tag, or place a registry URL in
-the package. Registered JSON `metadata.name` and `metadata.version` must match
-the registered identity. Content changes create a new version.
+OpenBinding keeps no registry of resources: a target that names a registered
+resource (`namespace`, `name`, `version`, `digest`) instead of a local path is
+refused when the package is compiled. Put the complete JSON or BPMN resource in
+the package and reuse it by copying it. Never place a registry URL or a mutable
+tag in the package.
 
 ## 5. Extend through installed Dialects
 
@@ -221,5 +210,4 @@ not a standalone `instance.json` or JSON virtual-filesystem object.
 Export uses RFC 8785 canonical JSON, UTF-8/LF, sorted POSIX paths, fixed ZIP
 timestamps, `STORE`, and SHA-256 digests. The same semantic source must produce
 the same package, Instance, and BindingProblem digests. `fileDigests` keys are
-ZIP paths; `resourceDigests` keys are logical Instance resource ids and also
-cover registered resources outside the ZIP.
+ZIP paths; `resourceDigests` keys are logical Instance resource ids.

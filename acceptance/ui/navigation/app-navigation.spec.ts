@@ -4,7 +4,7 @@ import { PROBLEMS, RUNS_ALL, RUN_NEW, current, entry, expectInOrder, menuScope, 
 test.use({ viewport: { width: 1280, height: 800 } });
 
 const PUBLIC_LINKS: Array<[string, string]> = [
-  ['Home', '/'], ['Engines', '/engines'], ['Language', '/language'], ['Pricing', '/pricing'],
+  ['Home', '/'], ['Engines', '/engines'], ['Pricing', '/pricing'],
   ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
 ];
 
@@ -16,17 +16,17 @@ async function signedIn(page: Page, path: string, role: Role = 'user', projects?
   await expect(banner(page)).toBeVisible();
 }
 
-test('public header lists the seven links in order with their addresses and marks the current one', async ({ page }) => {
+test('public header lists the six links in order with their addresses and marks the current one', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/pricing');
   const links = PUBLIC_LINKS.map(([name]) => entry(banner(page), name));
   await expectInOrder(links);
   for (const [index, [, href]] of PUBLIC_LINKS.entries()) await expect(links[index]).toHaveAttribute('href', href);
-  await expect(links[3]).toHaveAttribute('aria-current', 'page');
+  await expect(links[2]).toHaveAttribute('aria-current', 'page');
 });
 
-test('phone menu lists the same seven links in the same order', async ({ page }) => {
+test('phone menu lists the same six links in the same order', async ({ page }) => {
   await mockApi(page, { role: null });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
@@ -38,7 +38,7 @@ test('public header has no link or menu of the former header', async ({ page }) 
   await mockApi(page, { role: null });
   await page.goto('/');
   await expect(entry(banner(page), 'Engines')).toBeVisible();
-  for (const name of ['Explore', 'Profiles & dialects', 'Schemas', 'Examples', 'Workbench']) {
+  for (const name of ['Explore', 'Language', 'Profiles & dialects', 'Schemas', 'Examples', 'Workbench']) {
     await expect(banner(page).getByRole('link', { name, exact: true })).toHaveCount(0);
     await expect(banner(page).getByRole('button', { name, exact: true })).toHaveCount(0);
   }
@@ -49,7 +49,7 @@ test('application header lists its entries with a current project and a Lab menu
   const header = banner(page);
   await expectInOrder([
     entry(header, 'Home'), entry(header, 'Problems'), header.getByRole('button', { name: 'Lab' }),
-    entry(header, 'Engines'), entry(header, 'Language'), entry(header, 'Admin'),
+    entry(header, 'Engines'), entry(header, 'Admin'),
   ]);
   await expect(entry(header, 'Problems')).toHaveAttribute('href', PROBLEMS);
   await expect(entry(header, 'Problems')).toHaveAttribute('aria-current', 'page');
@@ -84,7 +84,7 @@ test('a person whose role is user sees no Admin entry', async ({ page }) => {
 test('application header has none of the former entries', async ({ page }) => {
   await signedIn(page, '/app', 'admin');
   await expect(entry(banner(page), 'Home')).toBeVisible();
-  for (const name of ['Jobs', 'Explore', 'Tools', 'Verifier', 'Engine catalog']) {
+  for (const name of ['Jobs', 'Explore', 'Tools', 'Verifier', 'Engine catalog', 'Language']) {
     await expect(banner(page).getByRole('link', { name, exact: true })).toHaveCount(0);
     await expect(banner(page).getByRole('button', { name, exact: true })).toHaveCount(0);
   }

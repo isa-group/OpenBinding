@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page, type Route } from '@playwright/test';
 import { API, mockApi, organization, project, type MockOptions } from './helpers';
 
-// Mock data, request trackers and locators of the language-hub and project-tab acceptance specs. There is no
+// Mock data, request trackers and locators of the project-tab acceptance specs. There is no
 // backend: the API origin is answered by page.route(); routes added here win over the catch-all of mockApi() because
 // they are registered later.
 
@@ -39,24 +39,6 @@ export const address = (page: Page): string => { const url = new URL(page.url())
 
 /** Waits until the address (path, query and hash) is exactly `expected`. */
 export const expectAddress = (page: Page, expected: string) => expect.poll(() => address(page), { message: `address of ${page.url()}` }).toBe(expected);
-
-export const resourceCalls = (calls: Call[]): Call[] => calls.filter((call) => call.path.startsWith('/v1/resources'));
-
-// ---- language hub ---------------------------------------------------------------------------------------------
-
-/** The gateway as the Language hub uses it, with empty profile and dialect catalogues. */
-export async function mockLanguage(page: Page, options: MockOptions = {}): Promise<Call[]> {
-  const calls = trackCalls(page);
-  await mockApi(page, options);
-  await answer(page, '/v1/profiles', { profiles: [] });
-  await answer(page, '/v1/dialects', { dialects: [] });
-  await answer(page, '/v1/resources', { resources: [] });
-  await page.route((url) => url.origin === API && url.pathname.startsWith('/v1/schemas/'), (route) => {
-    const kind = decodeURIComponent(new URL(route.request().url()).pathname.split('/').pop() ?? 'Application');
-    return route.fulfill({ json: { $schema: 'https://json-schema.org/draft/2020-12/schema', title: kind, type: 'object', properties: {} } });
-  });
-  return calls;
-}
 
 /** The navigation (links or tabs) that holds all the given labels: a hub, a settings page. */
 export const sectionNav = (page: Page, labels: string[]): Locator => {

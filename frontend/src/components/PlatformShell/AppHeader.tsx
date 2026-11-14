@@ -136,7 +136,6 @@ export function AppHeader({ organizations = [], projects = [], organization, pro
               )}
             </div>
             {renderEntry(mainLinks.engines, 'nav', 'app-nav-link', section === 'engines')}
-            {renderEntry(mainLinks.language, 'nav', 'app-nav-link', section === 'language')}
             {isAdmin && renderEntry(mainLinks.admin, 'nav', 'app-nav-link', section === 'admin')}
           </nav>
         </div>
@@ -228,7 +227,6 @@ export function AppHeader({ organizations = [], projects = [], organization, pro
           {lab.map((entry) => renderEntry(entry, 'mobile-lab', undefined, labEntry === entry.id))}
         </div>
         {renderEntry(mainLinks.engines, 'mobile', undefined, section === 'engines')}
-        {renderEntry(mainLinks.language, 'mobile', undefined, section === 'language')}
         {isAdmin && renderEntry(mainLinks.admin, 'mobile', undefined, section === 'admin')}
         <div className="app-mobile-group">
           <span>New</span>

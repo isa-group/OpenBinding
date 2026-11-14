@@ -19,7 +19,6 @@ from openbinding_gateway.db.models import (
     Job,
     JobState,
     ManifestPublication,
-    RegisteredResourceRevision,
     User,
     UserRole,
 )
@@ -27,6 +26,7 @@ from openbinding_gateway.main import app
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.security.secrets import generate_key
 from openbinding_gateway.services import engines
+from bim_core.canonical import digest
 from bim_core.package import load_package
 
 
@@ -109,12 +109,6 @@ def _engine_document(namespace: str, name: str, version: str) -> dict:
     return document
 
 
-def _optimization_document(name: str, version: str) -> dict:
-    document = copy.deepcopy(load_package(EXAMPLE).json("optimization.json"))
-    document["metadata"].update({"name": name, "version": version})
-    return document
-
-
 def _assert_same_not_found(hidden, missing) -> None:
     assert hidden.status_code == missing.status_code == 404
     assert hidden.headers["content-type"].startswith("application/problem+json")
@@ -136,7 +130,6 @@ def _assert_component(component: str, payload: dict) -> None:
 @pytest.mark.parametrize(
     ("method", "path"),
     [
-        ("GET", "/v1/catalog"),
         ("GET", "/v1/engine-registrations"),
         ("POST", "/v1/validate"),
         ("POST", "/v1/jobs"),
@@ -224,7 +217,7 @@ async def test_second_user_cannot_distinguish_private_v1_resources(
     engine_params = {
         "namespace": owner_details["username"],
         "version": "1.0.0",
-        "digest": routes.digest(private_engine_document),
+        "digest": digest(private_engine_document),
     }
     engine_before = await api_client.get(
         f"/v1/engines/{private_engine_name}", params=engine_params, headers=other_headers
@@ -268,30 +261,6 @@ async def test_second_user_cannot_distinguish_private_v1_resources(
         "digest": "sha256-" + "0" * 64,
     }
 
-    resource_name = f"private-optimization-{uuid.uuid4().hex[:8]}"
-    private_resource = await api_client.post(
-        "/v1/resources",
-        params={
-            "namespace": owner_details["username"],
-            "name": resource_name,
-            "version": "1.0.0",
-            "role": "optimization",
-        },
-        headers={**owner_headers, "Content-Type": "application/json"},
-        content=json.dumps(_optimization_document(resource_name, "1.0.0")),
-    )
-    assert private_resource.status_code == 201, private_resource.text
-    assert private_resource.json()["status"] == "pending_review"
-    resource_params = {
-        "namespace": owner_details["username"],
-        "version": "1.0.0",
-        "revision": private_resource.json()["digest"],
-    }
-    missing_resource_params = {
-        **resource_params,
-        "revision": "sha256-" + "0" * 64,
-    }
-
     missing_id = str(uuid.uuid4())
     for suffix in ("", "/source", "/ir"):
         hidden = await api_client.get(
@@ -311,18 +280,6 @@ async def test_second_user_cannot_distinguish_private_v1_resources(
         )
         _assert_same_not_found(hidden, missing)
 
-    hidden_resource = await api_client.get(
-        f"/v1/resources/{resource_name}",
-        params=resource_params,
-        headers=other_headers,
-    )
-    missing_resource = await api_client.get(
-        f"/v1/resources/{resource_name}",
-        params=missing_resource_params,
-        headers=other_headers,
-    )
-    _assert_same_not_found(hidden_resource, missing_resource)
-
     for suffix in ("", "/report"):
         hidden = await api_client.get(
             f"/v1/engine-registrations/{registration_name}{suffix}",
@@ -340,10 +297,8 @@ async def test_second_user_cannot_distinguish_private_v1_resources(
     listed_registrations = (
         await api_client.get("/v1/engine-registrations", headers=other_headers)
     ).json()
-    listed_resources = (await api_client.get("/v1/resources", headers=other_headers)).json()
     assert private_engine_name not in json.dumps(listed_engines)
     assert registration_name not in json.dumps(listed_registrations)
-    assert resource_name not in json.dumps(listed_resources)
 
 
 async def test_engine_registration_secret_is_never_serialized(
@@ -674,37 +629,6 @@ async def test_approvals_and_publications_do_not_cross_revision_digests(
 
     monkeypatch.setattr(routes, "_verify_registration", verified_registration)
 
-    resource_name = f"revision-resource-{uuid.uuid4().hex[:8]}"
-
-    async def register_resource(version: str):
-        response = await api_client.post(
-            "/v1/resources",
-            params={
-                "namespace": owner_details["username"],
-                "name": resource_name,
-                "version": version,
-                "role": "optimization",
-            },
-            headers={**owner_headers, "Content-Type": "application/json"},
-            content=json.dumps(_optimization_document(resource_name, version)),
-        )
-        assert response.status_code == 201, response.text
-        return response.json()
-
-    resource_v1 = await register_resource("1.0.0")
-    approved_resource = await api_client.post(
-        f"/v1/resources/{resource_name}/approve",
-        params={
-            "namespace": owner_details["username"],
-            "version": resource_v1["version"],
-            "revision": resource_v1["digest"],
-        },
-        headers=admin_headers,
-    )
-    assert approved_resource.status_code == 200, approved_resource.text
-    resource_v2 = await register_resource("2.0.0")
-    assert resource_v2["status"] == "pending_review"
-
     engine_name = f"revision-engine-{uuid.uuid4().hex[:8]}"
 
     async def register_engine(version: str):
@@ -768,27 +692,6 @@ async def test_approvals_and_publications_do_not_cross_revision_digests(
     })
     assert registration_v2["status"] == "private"
 
-    public_resource = await api_client.get(
-        f"/v1/resources/{resource_name}",
-        params={
-            "namespace": owner_details["username"],
-            "version": resource_v1["version"],
-            "revision": resource_v1["digest"],
-        },
-        headers=viewer_headers,
-    )
-    private_resource_revision = await api_client.get(
-        f"/v1/resources/{resource_name}",
-        params={
-            "namespace": owner_details["username"],
-            "version": resource_v2["version"],
-            "revision": resource_v2["digest"],
-        },
-        headers=viewer_headers,
-    )
-    assert public_resource.status_code == 200
-    assert private_resource_revision.status_code == 404
-
     visible_engine = await api_client.get(
         f"/v1/engines/{engine_name}",
         params={
@@ -829,13 +732,6 @@ async def test_approvals_and_publications_do_not_cross_revision_digests(
     assert public_registration.status_code == 200
     assert private_registration_revision.status_code == 404
 
-    resources = (
-        await db_session.execute(
-            select(RegisteredResourceRevision).where(
-                RegisteredResourceRevision.name == resource_name
-            )
-        )
-    ).scalars().all()
     engines = (
         await db_session.execute(
             select(EngineRevision).where(EngineRevision.name == engine_name)
@@ -848,10 +744,6 @@ async def test_approvals_and_publications_do_not_cross_revision_digests(
             )
         )
     ).scalars().all()
-    assert {row.version: row.state for row in resources} == {
-        "1.0.0": "published",
-        "2.0.0": "pending_review",
-    }
     assert {row.version: row.state for row in engines} == {
         "1.0.0": "published",
         "2.0.0": "private",
@@ -866,8 +758,6 @@ async def test_approvals_and_publications_do_not_cross_revision_digests(
             select(ManifestPublication).where(
                 ManifestPublication.resource_digest.in_(
                     {
-                        resource_v1["digest"],
-                        resource_v2["digest"],
                         engine_v1["digest"],
                         engine_v2["digest"],
                         registration_v1["digest"],
@@ -879,12 +769,21 @@ async def test_approvals_and_publications_do_not_cross_revision_digests(
     ).scalars().all()
     published_digests = {row.resource_digest for row in publications}
     assert published_digests == {
-        resource_v1["digest"],
         engine_v1["digest"],
         registration_v1["digest"],
     }
     assert {
-        resource_v2["digest"],
         engine_v2["digest"],
         registration_v2["digest"],
     }.isdisjoint(published_digests)
+
+    # The moderation overview counts both: the engine revisions by state, the deployments by publication status.
+    moderation = await api_client.get("/v1/admin/moderation", headers=admin_headers)
+    assert moderation.status_code == 200, moderation.text
+    assert set(moderation.json()) == {"engines", "registrations"}
+    assert moderation.json()["engines"]["published"] >= 1
+    assert moderation.json()["engines"]["private"] >= 1
+    assert moderation.json()["registrations"]["published"] >= 1
+    assert moderation.json()["registrations"]["private"] >= 1
+    refused = await api_client.get("/v1/admin/moderation", headers=viewer_headers)
+    assert refused.status_code == 403, refused.text

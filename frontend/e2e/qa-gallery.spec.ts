@@ -28,7 +28,6 @@ const HEADING: Record<string, RegExp> = {
   'pub-home': /Describe\. Bind\. Reproduce\./,
   'eng-catalog': /Engine catalog/,
   'eng-detail': /bim\.builtin\/random-search@1\.0\.0/,
-  'lang-profiles': /The BIM language/,
   'pub-workbench': /Workbench/,
   'pub-about': /People, research and changes behind OpenBinding/,
   'auth-login': /Welcome back/,

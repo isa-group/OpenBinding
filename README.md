@@ -194,7 +194,7 @@ account in an empty database. The `dev` profile publishes the gateway on
 `127.0.0.1:8000` only, so it is not reachable from other machines.
 
 
-The gateway exposes `/v1/profiles`, `/v1/dialects`, `/v1/resources`,
+The gateway exposes `/v1/profiles`, `/v1/dialects`,
 `/v1/engines`, `/v1/instances`, `/v1/jobs`, `/v1/generator`, and
 `/v1/engine-registrations`. BIM source uploads are complete `.bim.zip`
 packages; JSON requests may refer to immutable snapshots. Jobs always return

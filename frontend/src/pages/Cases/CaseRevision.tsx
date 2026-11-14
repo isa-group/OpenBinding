@@ -253,7 +253,7 @@ export function VersionOverview({ organization, project, content, revision }: {
           <div><dt>Sealed</dt><dd>{formatDateTime(revision.created_at) ?? '—'}</dd></div>
           <div>
             <dt>Language profile</dt>
-            <dd>{profile ?? 'not stated'}{model && model.dialects.length === 0 ? ' · no dialects' : ''} <Link to="/language" viewTransition>Profiles</Link></dd>
+            <dd>{profile ?? 'not stated'}{model && model.dialects.length === 0 ? ' · no dialects' : ''}</dd>
           </div>
           <div>
             <dt>Compiled snapshot</dt>

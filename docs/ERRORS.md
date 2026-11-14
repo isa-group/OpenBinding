@@ -132,7 +132,7 @@ Routes keep raising `api_error(422, code, message)`; they need not know the shap
 ### Media type
 
 BIM routes (`/v1/validate`, `/v1/instances`, `/v1/jobs`, `/v1/engines`,
-`/v1/resources`, … — the prefixes in `_BIM_PATH_PREFIXES`) answer
+`/v1/profiles`, … — the prefixes in `_BIM_PATH_PREFIXES`) answer
 `application/problem+json`, as they always did. `POST /v1/compositions/import`
 is among them, because it is a package upload and answers like the others; the
 rest of `/v1/compositions` does not. The platform routes

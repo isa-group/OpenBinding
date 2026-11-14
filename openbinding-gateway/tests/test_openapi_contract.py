@@ -135,9 +135,6 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/artifacts/{artifact_id}/versions", "get"),
         ("/v1/artifacts/{artifact_id}/versions/{version_id}/content", "get"),
         ("/v1/artifacts/resolve", "post"),
-        ("/v1/resources", "get"),
-        ("/v1/resources/{name}", "get"),
-        ("/v1/schemas/{kind}", "get"),
         ("/v1/examples", "get"),
         ("/v1/examples/{example_path}", "get"),
         ("/v1/pricing", "get"),
@@ -165,7 +162,7 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/compositions/package", "post"),
         ("/v1/compositions/import", "post"),
         # What the language is, not anyone's data: open even to an API key without
-        # permissions, like /v1/schemas.
+        # permissions, like /v1/profiles.
         ("/v1/compositions/language", "get"),
         ("/v1/compositions/schema", "get"),
     }
@@ -188,8 +185,6 @@ def test_authentication_and_role_requirements_are_explicit(document):
         assert "403" in operation["responses"]
 
     admin_only = {
-        ("/v1/dialects/{name}/approve", "post"),
-        ("/v1/resources/{name}/approve", "post"),
         ("/v1/admin/users", "get"),
         ("/v1/admin/users/{user_id}", "patch"),
         ("/v1/admin/users/{user_id}/plan", "post"),
@@ -309,7 +304,6 @@ def test_binary_yaml_and_job_inputs_have_their_real_media_types(document):
     [
         ("/v1/profiles", "ProfileList"),
         ("/v1/dialects", "DialectList"),
-        ("/v1/resources", "RegisteredResourceList"),
         ("/v1/examples", "ExampleList"),
     ],
 )

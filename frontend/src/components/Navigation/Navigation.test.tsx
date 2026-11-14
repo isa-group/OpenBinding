@@ -18,7 +18,7 @@ const member: UserProfile = {
 };
 
 const PUBLIC_LINKS = [
-  ['Home', '/'], ['Engines', '/engines'], ['Language', '/language'], ['Pricing', '/pricing'],
+  ['Home', '/'], ['Engines', '/engines'], ['Pricing', '/pricing'],
   ['About', '/about'], ['Log in', '/login'], ['Sign up', '/register'],
 ] as const;
 
@@ -35,7 +35,7 @@ describe('Public header', () => {
     auth.isAdmin = false;
   });
 
-  it('lists the nine links in order with their addresses', () => {
+  it('lists the links in order with their addresses', () => {
     renderHeader();
 
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
@@ -62,13 +62,13 @@ describe('Public header', () => {
     expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
   });
 
-  it('marks Home only at the root and Language under the language hub', () => {
+  it('marks Home only at the root and links to no language hub', () => {
     const { unmount } = renderHeader('/');
     expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
     unmount();
 
-    renderHeader('/language/schemas/application');
-    expect(screen.getByRole('link', { name: 'Language' })).toHaveAttribute('aria-current', 'page');
+    renderHeader('/engines');
+    expect(screen.queryByRole('link', { name: 'Language' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
   });
 
@@ -85,7 +85,7 @@ describe('Public header', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('lists the same nine links in the phone menu and closes it after navigating', () => {
+  it('lists the same links in the phone menu and closes it after navigating', () => {
     renderHeader();
 
     const toggle = screen.getByRole('button', { name: 'Open menu' });

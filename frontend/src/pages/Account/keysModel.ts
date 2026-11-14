@@ -45,13 +45,6 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
-    name: 'Extensions',
-    permissions: [
-      { id: 'extensions:register', description: 'Submit dialects and resources' },
-      { id: 'extensions:moderate', description: 'Approve dialects and resources' },
-    ],
-  },
-  {
     name: 'Collaboration',
     permissions: [
       { id: 'organizations:read', description: 'Read organizations' },
@@ -81,7 +74,6 @@ const CATALOGUED: Record<ApiKeyPermission, true> = {
   'account:read': true, 'account:write': true, 'keys:read': true, 'keys:write': true,
   'instances:read': true, 'instances:write': true, 'instances:validate': true,
   'jobs:read': true, 'engines:read': true, 'engines:execute': true, 'engines:register': true, 'engines:publish': true, 'engines:moderate': true,
-  'extensions:register': true, 'extensions:moderate': true,
   'organizations:read': true, 'organizations:write': true, 'projects:read': true, 'projects:write': true,
   'studies:read': true, 'studies:write': true, 'artifacts:read': true, 'artifacts:write': true,
   'notifications:read': true, 'pricing:read': true, 'pricing:admin': true, 'admin:accounts:read': true, 'admin:accounts:write': true,
@@ -91,7 +83,7 @@ export const ALL_PERMISSIONS = Object.keys(CATALOGUED) as ApiKeyPermission[];
 
 /** Only a global administrator may grant these; the API answers 403 `permission_not_grantable` to anybody else. */
 export const ADMIN_ONLY: ReadonlySet<ApiKeyPermission> = new Set<ApiKeyPermission>([
-  'engines:moderate', 'extensions:moderate', 'pricing:admin', 'admin:accounts:read', 'admin:accounts:write',
+  'engines:moderate', 'pricing:admin', 'admin:accounts:read', 'admin:accounts:write',
 ]);
 
 /** These need all Engines or at least one exact revision (the API's `ENGINE_LIMITED_PERMISSIONS`). */

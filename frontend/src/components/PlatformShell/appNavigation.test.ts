@@ -19,10 +19,10 @@ const pathOf = (address: string) => address.split(/[?#]/)[0];
 const addressesOf = (entries: readonly MenuEntry[]) => entries.flatMap((entry) => (entry.to ? [entry.to] : []));
 
 describe('mainLinks', () => {
-  it('lists Home, Engines, Language and Admin, each leading to a routed address and none to a retired path', () => {
-    expect(Object.keys(mainLinks)).toEqual(['home', 'engines', 'language', 'admin']);
+  it('lists Home, Engines and Admin, each leading to a routed address and none to a retired path', () => {
+    expect(Object.keys(mainLinks)).toEqual(['home', 'engines', 'admin']);
     expect(Object.values(mainLinks).map((link) => [link.label, link.to])).toEqual([
-      ['Home', '/app'], ['Engines', '/engines'], ['Language', '/language'], ['Admin', '/app/admin'],
+      ['Home', '/app'], ['Engines', '/engines'], ['Admin', '/app/admin'],
     ]);
     for (const link of Object.values(mainLinks)) {
       expect(link.to).not.toMatch(/^\/app\/analysis([/?#]|$)/);
@@ -38,7 +38,7 @@ describe('mainLinks', () => {
       ...addressesOf(createItems(organization, project)),
       ...accountLinks.map((link) => link.to),
     ];
-    expect(addresses.length).toBeGreaterThan(15);
+    expect(addresses.length).toBeGreaterThan(14);
     expect(addresses.filter((address) => /\/(reports|library|resources)([/?#]|$)/.test(address))).toEqual([]);
   });
 });
@@ -118,8 +118,7 @@ describe('currentSection', () => {
     ['/app/generator', 'lab'],
     ['/engines', 'engines'],
     ['/app/engines/registrations', 'engines'],
-    ['/language', 'language'],
-    ['/language/extensions', 'language'],
+    ['/language', null],
     ['/app/admin', 'admin'],
     ['/app/admin/audit', 'admin'],
     ['/app/isa-demo/qos/published', null],
@@ -142,7 +141,6 @@ describe('currentSection', () => {
   it('marks the entry of each header link at its own address', () => {
     expect(currentSection(mainLinks.home.to)).toBe('home');
     expect(currentSection(mainLinks.engines.to)).toBe('engines');
-    expect(currentSection(mainLinks.language.to)).toBe('language');
     expect(currentSection(mainLinks.admin.to)).toBe('admin');
     expect(currentSection(labLinks.runs.to)).toBe('lab');
     expect(currentSection(labLinks.generator.to)).toBe('lab');

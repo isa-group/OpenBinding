@@ -284,7 +284,7 @@ def test_gate_lifecycle_legacy_has_no_stale_entries() -> None:
 #: ceiling is the size of ``routes/v1.py`` rounded up to the hundred, and it can only go down.  Lower it when an
 #: extraction brings the file under the previous hundred; never raise it.
 V1_ROUTER = SOURCE / "routes" / "v1.py"
-MAX_LINES = 1400
+MAX_LINES = 900
 RATCHET_STEP = 100
 
 

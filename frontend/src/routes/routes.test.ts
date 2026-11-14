@@ -111,6 +111,7 @@ describe('route registry', () => {
     const legacy = [
       '/playground', '/engines/new', '/team', '/research', '/funding', '/contributions', '/changelog',
       '/profiles', '/schemas', '/app/acme/atlas/verifier', '/app/acme/atlas/analytics', '/app/acme/atlas/artifacts',
+      '/language', '/language/schemas/Instance', '/language/extensions',
     ];
     for (const path of legacy) expect(matchRoutes(config, path), path).toBeNull();
   });

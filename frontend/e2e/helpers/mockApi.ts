@@ -8,7 +8,7 @@ import {
   AUDIT, ERROR_EVENTS, ERROR_OVERVIEW, MODERATION, OVERVIEW, USERS, queuesAt, subscriptionOf, usageOf as adminUsageOf, userPage,
 } from '../../src/test/fixtures/admin';
 import {
-  COMMUNITY_DIALECT, EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, PLACEMENT_DIALECT, QOS_PROFILE, REGISTERED_RESOURCES,
+  EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, PLACEMENT_DIALECT, QOS_PROFILE,
   REPORT_FAILED, REPORT_PENDING, REPORT_VERIFIED, SHARED_SOLVER, SOLVER_IN_REVIEW, reportOf as registrationReport,
 } from '../../src/test/fixtures/engines';
 import { INSTANCE, NEIGHBORHOOD, REGISTRATION, REPORT as JOB_REPORT, SOLUTION, detailOf as jobDetailOf, jobOf } from '../../src/test/fixtures/jobs';
@@ -153,7 +153,7 @@ const API_KEYS = [
   },
 ];
 
-// -- The language: the profile with the roles it asks for, the dialects and the registered resources
+// -- The language: the profile with the roles it asks for and the installed dialects
 
 const roleOf = (kind: string, minimum: number, maximum?: number, extensionTypes: 'none' | 'installed' = 'none') => ({
   resourceTypes: [{ apiVersion: 'qos-binding/v1', kind, minimum, ...(maximum === undefined ? {} : { maximum }) }], extensionTypes,
@@ -170,8 +170,7 @@ const PROFILE = localize({
     },
   },
 });
-const DIALECTS = localize([PLACEMENT_DIALECT, COMMUNITY_DIALECT]);
-const REGISTERED = localize(REGISTERED_RESOURCES);
+const DIALECTS = localize([PLACEMENT_DIALECT]);
 
 // -- Engines
 
@@ -324,44 +323,6 @@ const ANALYTICS = localize(analyticsFixture({
 
 /** The example packages the gateway serves (GET /v1/examples). */
 const EXAMPLE_PATHS = ['demo/01_simple_seq', 'demo/02_parallel', 'demo/03_xor_choice', 'demo/05_multi_obj', 'demo/15_bpmn_complete', 'placement/01_small_placement'];
-
-/** A JSON Schema with enough structure to read: nested groups, a list, required fields and allowed values. */
-function schemaOf(kind: string) {
-  return {
-    $schema: 'https://json-schema.org/draft/2020-12/schema', $id: `https://openbinding.example/schemas/bim-v1-${kind.toLowerCase()}.json`, title: kind, type: 'object',
-    required: ['apiVersion', 'kind', 'metadata', 'spec'],
-    properties: {
-      apiVersion: { type: 'string', const: 'bim/v1', description: 'The version of the language the document is written in.' },
-      kind: { type: 'string', const: kind, description: `Always ${kind}.` },
-      metadata: {
-        type: 'object', required: ['name'], description: 'Who the document is.',
-        properties: {
-          name: { type: 'string', description: 'A fixed name, unique in its namespace.', pattern: '^[a-z0-9-]+$' },
-          namespace: { type: 'string', description: 'Where the name lives.' },
-          labels: { type: 'object', additionalProperties: { type: 'string' }, description: 'Free labels for finding it again.' },
-        },
-      },
-      spec: {
-        type: 'object', required: ['profile'], description: 'What the document says.',
-        properties: {
-          profile: { type: 'string', description: 'The Profile that directs the reading of the package.', enum: ['qos-binding/v1'] },
-          resources: {
-            type: 'array', description: 'The parts the package is made of.',
-            items: {
-              type: 'object', required: ['role', 'alias'],
-              properties: {
-                role: { type: 'string', enum: ['application', 'candidateCatalog', 'constraintSet', 'optimization'], description: 'What the part is for.' },
-                alias: { type: 'string', description: 'How other parts name it.' },
-                timeout: { type: 'number', description: 'Longest time one evaluation may take.', 'x-unit': 'ms' },
-              },
-            },
-          },
-        },
-      },
-    },
-    $defs: { Metric: { type: 'object', properties: { unit: { type: 'string' }, direction: { enum: ['minimize', 'maximize'] } } } },
-  };
-}
 
 // -- Administration
 
@@ -633,8 +594,6 @@ function route(request: Request): Reply | null {
       return null;
     case 'profiles': return ok({ profiles: [PROFILE] });
     case 'dialects': return ok({ dialects: DIALECTS });
-    case 'resources': return ok({ resources: REGISTERED });
-    case 'schemas': return ok(schemaOf(decodeURIComponent(second ?? 'Instance')));
     case 'examples': return second ? { status: 200, type: 'application/zip', bytes: request.archive } : ok({ examples: EXAMPLE_PATHS });
     case 'validate':
       return ok({

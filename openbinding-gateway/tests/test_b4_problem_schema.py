@@ -207,14 +207,11 @@ async def test_path_errors_name_the_parameter(api_client, admin):
 
 
 async def test_bim_routes_use_the_same_document_as_problem_json(api_client, member):
-    response = await api_client.post(
-        "/v1/resources?namespace=&name=x&version=1", headers=member, content=b"{}"
-    )
+    response = await api_client.get("/v1/engines/x?version=1", headers=member)
     body = assert_problem(response, code="validation_error", media_type="application/problem+json")
     found = {(item["in"], item["parameter"]): item for item in body["diagnostics"]}
-    assert found[("query", "namespace")]["code"] == "string_too_short"
-    assert found[("query", "namespace")]["context"] == {"min_length": 1}
-    assert found[("query", "role")]["code"] == "missing"
+    assert found[("query", "namespace")]["code"] == "missing"
+    assert found[("query", "digest")]["code"] == "missing"
 
 
 # -- A route's own 422 (api_error / HTTPException) ------------------------------
@@ -362,8 +359,12 @@ async def test_an_unauthenticated_call_has_the_code_and_status_beside_detail(api
     assert body["status"] == 401
 
 
-async def test_a_bim_refusal_that_is_not_a_422_has_the_same_keys(api_client):
-    response = await api_client.get("/v1/schemas/there-is-no-such-schema")
+async def test_a_bim_refusal_that_is_not_a_422_has_the_same_keys(api_client, member):
+    response = await api_client.get(
+        "/v1/engines/there-is-no-such-engine",
+        params={"namespace": "nobody", "version": "1.0.0", "digest": "sha256-" + "0" * 64},
+        headers=member,
+    )
     assert response.status_code == 404
     assert response.headers["content-type"].split(";")[0] == "application/problem+json"
     body = response.json()

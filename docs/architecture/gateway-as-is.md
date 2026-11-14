@@ -281,18 +281,15 @@ used by `verify_registration` (Engine registry).
 
 ## Discovery
 
-`GET /v1/profiles`, `/dialects`, `/resources` (and `/resources/{name}`),
-`/schemas/{kind}`, `/examples` (and `/examples/{path}`), `/engines`,
+`GET /v1/profiles`, `/dialects`, `/examples` (and `/examples/{path}`), `/engines`,
 `/engines/revisions` and `/engines/{namespace}/{name}/revisions/{version}` build
-their documents in `services/discovery.py`; `/catalog` is the composition of
-those handlers and stays in the route. The service raises
+their documents in `services/discovery.py`. The service raises
 `DiscoveryProblem(status, code, detail)`; the route renders it. It reads, never
-writes, and keeps no state: the resources registered without a database are held by
-the route that registers them (`_CUSTOM_RESOURCE_RECORDS`) and passed in, and the
-installed Dialects are always the ones of this process. `v1.py` keeps
-`_builtin_dialects` and `_installed_dialect_contract` as wrappers (the
-publication routes and the tests use them) and passes its own `_manifest` to
-`engine_revision_document`.
+writes, and keeps no state: the installed Dialects are always the ones of this
+process. `v1.py` keeps `_builtin_dialects` as a wrapper (the tests use it) and
+passes its own `_manifest` to `engine_revision_document`. There is no registry
+of dialects or resources: the publication routes, `/resources`, `/schemas/{kind}`
+and `/catalog` were removed in F0a.
 
 `GET /v1/engines/{name}` stays in the route: the permission check
 (`allows_engine`) is its whole decision and the rest is `services.engines`.
@@ -401,8 +398,9 @@ import `routes`, `services`, `repositories`, `jobs` or `db`
 
 These are real and not scheduled; no dates are promised.
 
-- `routes/v1.py` is 1,329 lines (frozen at 1,400 by
-  `test_v1_router_does_not_grow`; it was about 2,960 before job creation moved
+- `routes/v1.py` is 892 lines (frozen at 900 by
+  `test_v1_router_does_not_grow`; it was 1,329 before the dialect and resource
+  registries were removed in F0a, about 2,960 before job creation moved
   to `services/job_submission.py`, about 2,570 before the Engine registry
   moved to `services/engine_registry.py`, and 1,692 before instances, snapshots
   and discovery moved to `services/instances.py` and `services/discovery.py`).
@@ -411,9 +409,6 @@ These are real and not scheduled; no dates are promised.
   replace); the job routes and their transport (`create_job`, `_create_job_core`,
   `_read_job_request`, which `study_jobs.py` and many tests reach through the
   router); and the code that still has not moved, in this order of expected size:
-  the dialect and resource registries (`POST /dialects`, `POST /resources` and
-  their approvals), which hold their own publication logic inline and the
-  in-module `_CUSTOM_RESOURCE_RECORDS` that `discovery` receives as an argument;
   the job read routes (`/jobs/{id}`, neighbourhood with its `_ANALYSIS_SLOTS`
   semaphore, IR, instance, report), whose queries belong in
   `repositories/jobs.py`; and `GET /engines/{name}`. Each should move into

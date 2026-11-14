@@ -85,17 +85,16 @@ describe('AppHeader', () => {
     api.listNotifications.mockResolvedValue([]);
   });
 
-  it('lists Home, Problems, Lab, Engines, Language and, for an administrator, Admin, in this order', () => {
+  it('lists Home, Problems, Lab, Engines and, for an administrator, Admin, in this order', () => {
     renderHeader(adminUser, { path: '/app/isa-demo/qos/problems' });
 
     expect(screen.getByRole('link', { name: 'OpenBinding home' })).toHaveAttribute('href', '/app');
     const items = [...mainNav().children].map((item) => item.textContent?.trim());
-    expect(items).toEqual(['Home', 'Problems', 'Lab', 'Engines', 'Language', 'Admin']);
+    expect(items).toEqual(['Home', 'Problems', 'Lab', 'Engines', 'Admin']);
     const nav = within(mainNav());
     expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/app');
     expect(nav.getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/qos/problems');
     expect(nav.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-    expect(nav.getByRole('link', { name: 'Language' })).toHaveAttribute('href', '/language');
     expect(nav.getByRole('link', { name: 'Admin' })).toHaveAttribute('href', '/app/admin');
   });
 
@@ -176,7 +175,6 @@ describe('AppHeader', () => {
     ['/app/isa-demo/qos/studies/engines-vs-seeds', 'Lab'],
     ['/app/generator', 'Lab'],
     ['/app/engines/registrations', 'Engines'],
-    ['/language/extensions', 'Language'],
     ['/app/admin/audit', 'Admin'],
     ['/app/isa-demo/qos/published', null],
     ['/app/account/usage', null],
@@ -316,7 +314,7 @@ describe('AppHeader', () => {
         ['ISA Demo Group / QoS Benchmarks', '/app'],
         ['Home', '/app'], ['Problems', '/app/isa-demo/qos/problems'],
         ['Runs', '/app/runs'], ['Studies', '/app/isa-demo/qos/studies'], ['Generator', '/app/generator'],
-        ['Engines', '/engines'], ['Language', '/language'], ['Admin', '/app/admin'],
+        ['Engines', '/engines'], ['Admin', '/app/admin'],
         ['Problem', '/app/isa-demo/qos/problems?create=problem'], ['Collection', '/app/isa-demo/qos/collections?create=collection'],
         ['Study', '/app/isa-demo/qos/studies/new'], ['Run', '/app/isa-demo/qos/runs/new'],
       ]);

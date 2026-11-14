@@ -21,7 +21,6 @@ interface PublicLink {
 const publicLinks: readonly PublicLink[] = [
   { to: '/', label: 'Home', active: (pathname) => pathname === '/' },
   { to: '/engines', label: 'Engines', active: (pathname) => underPath(pathname, '/engines') },
-  { to: '/language', label: 'Language', active: (pathname) => underPath(pathname, '/language') },
   { to: '/pricing', label: 'Pricing', active: (pathname) => underPath(pathname, '/pricing') },
   { to: '/about', label: 'About', active: (pathname) => underPath(pathname, '/about') },
 ];

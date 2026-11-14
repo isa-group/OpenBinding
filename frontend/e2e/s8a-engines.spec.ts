@@ -1,12 +1,12 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
 import type { EngineRegistrationRevision } from '../src/api/client';
 import {
-  COMMUNITY_DIALECT, EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, PLACEMENT_DIALECT, QOS_PROFILE, REGISTERED_RESOURCES,
+  EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, QOS_PROFILE,
   REGISTRATION_MANIFEST, REPORT_FAILED, REPORT_PENDING, REPORT_VERIFIED, SHARED_SOLVER, SOLVER_IN_REVIEW, digestOf, reportOf, usageOf,
 } from '../src/test/fixtures/engines';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 
-// S8a · engines and language of the account: eng-register, eng-registrations, eng-registration-detail and lang-extensions.
+// S8a · engines of the account: eng-register, eng-registrations and eng-registration-detail.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
 // so they can be looked at after a run. Every test walks a screen through its states on a desktop and on a phone.
 
@@ -35,7 +35,7 @@ const alex = {
 
 type Key =
   | 'list' | 'review' | 'detail' | 'report' | 'activate' | 'deactivate' | 'publish' | 'credential' | 'delete'
-  | 'createEngine' | 'createRegistration' | 'dialects' | 'resources' | 'profiles';
+  | 'createEngine' | 'createRegistration' | 'profiles';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
@@ -108,10 +108,8 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     return json([])(route);
   });
 
-  // --- the language
+  // --- the profiles the engine form reads
   await page.route(`${API}/v1/profiles`, (route) => (state.refuse.profiles ? state.refuse.profiles(route) : json({ profiles: [QOS_PROFILE] })(route)));
-  await page.route(`${API}/v1/dialects`, (route) => (state.refuse.dialects ? state.refuse.dialects(route) : json({ dialects: [PLACEMENT_DIALECT, COMMUNITY_DIALECT] })(route)));
-  await page.route(`${API}/v1/resources`, (route) => (state.refuse.resources ? state.refuse.resources(route) : json({ resources: REGISTERED_RESOURCES })(route)));
 
   // --- registrations
   await page.route(new RegExp(`^${API}/v1/engine-registrations(/.*)?(\\?.*)?$`), async (route) => {
@@ -250,7 +248,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   // A phone is taller for the same content, so its captures keep more of the page.
   const tall = (height: number) => (isMobile ? Math.round(height * 1.9) : height);
 
-  test.describe(`${name} · S8a engines and language`, () => {
+  test.describe(`${name} · S8a engines`, () => {
     // One worker per viewport: with every test in parallel the browsers starve each other and the same walk takes twice as long.
     test.describe.configure({ mode: 'default' });
     test.use({ viewport, isMobile, deviceScaleFactor });
@@ -663,80 +661,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { name: 'Which revision of edge-solver?' })).toBeVisible();
       await expect(main.getByRole('link', { name: /alex\.rivera\/edge-solver@/ })).toHaveCount(2);
       await capture(page, testInfo, `detail-${name}-which`, { height: tall(900) });
-      expect(critical).toEqual([]);
-    });
-
-    test('lang-profiles /language/extensions · dialects, adapters and registered resources with their version and provenance', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      await mockApi(page);
-      await page.goto('/language/extensions');
-      const main = page.locator('main');
-
-      await expect(main.getByRole('heading', { level: 1, name: 'Language extensions' })).toBeVisible();
-      await expect(main.getByRole('region', { name: 'What is installed' })).toContainText('2Dialects installed');
-      await expect(main.getByRole('region', { name: 'What is installed' })).toContainText('3Adapters');
-      const placement = main.getByRole('article', { name: 'Dialect placement 1.0.0' });
-      await expect(placement.getByText('Installed', { exact: true })).toBeVisible();
-      await expect(placement.getByText('Built in', { exact: true })).toBeVisible();
-      const community = main.getByRole('article', { name: 'Dialect edge-annotations 1.0.0' });
-      await expect(community.getByText('Approved', { exact: true })).toBeVisible();
-      await expect(community.getByText('Submitted by alex.rivera and approved by an administrator.')).toBeVisible();
-      await capture(page, testInfo, `language-${name}-dialects`, { height: tall(1500) });
-
-      await community.getByRole('button', { name: 'Details of edge-annotations' }).click();
-      await expect(community.getByRole('region', { name: 'Resource types of edge-annotations' })).toContainText('BPMN (XML) · root definitions');
-      await expect(community.getByText('/spec/annotations', { exact: true })).toBeVisible();
-      await expect(community.getByRole('region', { name: 'edge-annotations dialect source' })).toBeHidden();
-      await capture(page, testInfo, `language-${name}-dialect-details`, { height: tall(2000) });
-
-      await main.getByRole('group', { name: 'Provenance' }).getByRole('button', { name: 'Built in' }).click();
-      await expect(main.getByRole('article', { name: 'Dialect edge-annotations 1.0.0' })).toHaveCount(0);
-      await main.getByRole('group', { name: 'Provenance' }).getByRole('button', { name: 'All', exact: true }).click();
-
-      await main.getByRole('tab', { name: /^Adapters/ }).click();
-      await expect(page).toHaveURL(/tab=adapters/);
-      const adapters = main.getByRole('region', { name: 'Installed adapters' });
-      await expect(adapters.getByRole('row')).toHaveCount(4);
-      await expect(adapters).toContainText('Profile · qos-binding/v1');
-      await capture(page, testInfo, `language-${name}-adapters`, { height: tall(1300) });
-
-      await main.getByRole('tab', { name: /Registered resources/ }).click();
-      const resources = main.getByRole('region', { name: 'Registered resources' });
-      await expect(resources.getByRole('row')).toHaveCount(3);
-      await expect(resources.getByRole('row', { name: /eu-edge-placement/ })).toContainText('placement/v1 · JSON');
-      await capture(page, testInfo, `language-${name}-resources`, { height: tall(1300) });
-      expect(critical).toEqual([]);
-    });
-
-    test('lang-profiles /language/extensions · nothing installed yet, a key that cannot read it (403) and a catalog that does not answer (503)', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      const main = page.locator('main');
-
-      state.refuse.dialects = json({ dialects: [] });
-      state.refuse.resources = json({ resources: [] });
-      state.refuse.profiles = json({ profiles: [] });
-      await page.goto('/language/extensions');
-      await expect(main.getByText('No dialects installed')).toBeVisible();
-      await capture(page, testInfo, `language-${name}-empty`, { height: tall(1200) });
-      await main.getByRole('tab', { name: /Registered resources/ }).click();
-      await expect(main.getByText('No resources registered yet')).toBeVisible();
-
-      state.refuse.resources = problem(403, 'insufficient_api_key_permission', 'The API key does not include this permission');
-      await page.goto('/language/extensions?tab=resources');
-      await expect(main.getByText('This API key can’t read the language catalog (403)')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Manage API keys' })).toHaveAttribute('href', '/app/account/keys');
-      await capture(page, testInfo, `language-${name}-403`, { height: tall(1100) });
-
-      state.refuse.dialects = unavailable;
-      await page.goto('/language/extensions');
-      await expect(main.getByText(/The language extensions couldn’t be loaded \(HTTP 503\)/)).toBeVisible();
-      await capture(page, testInfo, `language-${name}-503`, { height: tall(1100) });
-      state.refuse.dialects = undefined;
-      state.refuse.resources = undefined;
-      state.refuse.profiles = undefined;
-      await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('article', { name: 'Dialect placement 1.0.0' })).toBeVisible();
       expect(critical).toEqual([]);
     });
   });

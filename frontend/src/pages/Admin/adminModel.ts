@@ -113,14 +113,13 @@ export function isOutdatedChange(failure: Pick<Failure, 'status' | 'code'>): boo
  * A failure of moderation. A key needs the moderation permission for what it decides, not the accounts one, and a 409 here
  * usually means somebody else decided first.
  */
-export function describeModerationFailure(error: unknown, what: string, scope: 'engines' | 'extensions'): Failure {
+export function describeModerationFailure(error: unknown, what: string): Failure {
   const base = describeAdminFailure(error, what);
   if (base.status === 403) {
-    const [label, permission] = scope === 'engines' ? ['moderate engines', 'engines:moderate'] : ['moderate extensions', 'extensions:moderate'];
     return {
       ...base,
       title: 'This key can’t moderate (403)',
-      text: `The account is an administrator, but the API key behind this session doesn’t include “${label}” (${permission}).`,
+      text: 'The account is an administrator, but the API key behind this session doesn’t include “moderate engines” (engines:moderate).',
     };
   }
   if (base.status === 409) {

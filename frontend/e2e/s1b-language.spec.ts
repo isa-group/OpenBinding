@@ -5,7 +5,7 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { zipStore } from '../src/utils/bimZip';
 
-// S1b · public screens, part 2: eng-catalog, eng-detail, lang-profiles, lang-schemas, pub-workbench.
+// S1b · public screens, part 2: eng-catalog, eng-detail, pub-workbench.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
 
@@ -119,94 +119,6 @@ const profile = {
   protocolDigest: DIGEST('77aa88bb'),
 };
 
-const dialect = (name: string, kinds: string[], features: Array<{ dimension: string; value: string }>) => ({
-  apiVersion: 'bim/v1',
-  kind: 'Dialect',
-  metadata: { namespace: 'bim.builtin', name, version: '1.0.0' },
-  spec: {
-    compatibleProfiles: ['qos-binding/v1'],
-    resourceTypes: kinds.map((kind) => ({ apiVersion: `${name}/v1`, kind, roles: ['application'], mediaType: 'application/json', schemaDigest: DIGEST('99aabbcc') })),
-    extensionPoints: [],
-    irFeatures: features,
-    adapter: { id: `bim-${name}`, version: '1.0.0', binaryDigest: DIGEST('ddeeff00') },
-  },
-  digest: DIGEST('12345678'),
-});
-
-const dialects = [
-  dialect('bpmn-workflow', ['BPMN'], []),
-  dialect('placement', ['Placement', 'RoutingOverlay'], [{ dimension: 'irExtensions', value: 'qos-binding-placement/v1' }]),
-];
-
-const resource = {
-  namespace: 'isa-demo', name: 'checkout-catalog', version: '2.0.0', digest: DIGEST('abcdef01'), role: 'candidateCatalog',
-  apiVersion: 'qos-binding/v1', kind: 'CandidateCatalog', dialect: 'qos-binding/v1', mediaType: 'application/json', status: 'published',
-};
-
-const applicationSchema = {
-  $schema: 'https://json-schema.org/draft/2020-12/schema',
-  $id: 'https://bim.dev/schemas/qos-binding/v1/application.schema.json',
-  required: ['apiVersion', 'kind', 'spec'],
-  properties: {
-    apiVersion: { const: 'qos-binding/v1' },
-    kind: { const: 'Application' },
-    metadata: { type: 'object', properties: { name: { type: 'string', description: 'Name of the resource within the package' } }, required: ['name'] },
-    spec: {
-      type: 'object',
-      required: ['tasks', 'workflow'],
-      properties: {
-        tasks: { type: 'object', description: 'Each task id and the capability a candidate must provide', additionalProperties: { type: 'string' } },
-        features: {
-          type: 'object',
-          description: 'The QoS features the optimization can read',
-          additionalProperties: {
-            type: 'object',
-            properties: {
-              unit: { type: 'string', description: 'Unit of the feature values, such as ms or EUR/request' },
-              direction: { enum: ['minimize', 'maximize'], description: 'Which way is better' },
-            },
-          },
-        },
-        workflow: {
-          type: 'object',
-          description: 'Root workflow node',
-          properties: {
-            kind: { enum: ['sequence', 'parallel', 'exclusive', 'repeat'], description: 'How the children run' },
-            children: { type: 'array', minItems: 1, items: { type: 'object', description: 'A child node' }, description: 'Child nodes' },
-            probability: { type: 'number', minimum: 0, maximum: 1, description: 'Branch probability (exclusive)' },
-            count: { type: 'integer', minimum: 1, description: 'Repetitions (repeat)' },
-          },
-        },
-      },
-    },
-  },
-};
-
-const engineContract = {
-  protocol: 'bim-engine/v1',
-  digest: DIGEST('c0ffee11'),
-  openapi: {
-    openapi: '3.1.0',
-    paths: {
-      '/internal/v1/binding-problems': { post: { summary: 'Solve a compiled BindingProblem' } },
-      '/internal/v1/jobs/{id}': { get: { summary: 'Read a running job' } },
-      '/health': { get: { summary: 'Report whether the engine is ready' } },
-    },
-    components: {
-      schemas: {
-        SolveRequest: { type: 'object', required: ['problem'], properties: { problem: { type: 'object', description: 'The compiled BindingProblem' }, options: { type: 'object', description: 'Caller options of the mode' } } },
-        Solution: { type: 'object', required: ['termination'], properties: { termination: { enum: ['OPTIMAL', 'FEASIBLE', 'INFEASIBLE', 'UNKNOWN'] } } },
-      },
-    },
-  },
-};
-
-const genericSchema = (kind: string) => ({
-  $id: `https://bim.dev/schemas/${kind}.schema.json`,
-  required: ['spec'],
-  properties: { apiVersion: { const: 'bim/v1' }, spec: { type: 'object', description: `The body of a ${kind}`, properties: {} } },
-});
-
 const EXAMPLES = ['demo/01_simple_seq', 'demo/02_parallel', 'demo/03_xor_choice', 'placement/01_small_placement', 'literature/zhang'];
 
 // A small package the workbench can read and draw.
@@ -284,7 +196,6 @@ interface Mocks {
   /** Answers POST /v1/instances/validate. */
   validate?: (route: Route) => Promise<void> | void;
   engines?: (route: Route) => Promise<void> | void;
-  resourceContent?: (route: Route) => Promise<void> | void;
 }
 
 const json = (body: unknown, status = 200) => (route: Route) => route.fulfill({ status, json: body });
@@ -320,13 +231,6 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
   await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
   await page.route(`${API}/v1/profiles`, json({ profiles: [profile] }));
-  await page.route(`${API}/v1/dialects`, json({ dialects }));
-  await page.route(`${API}/v1/resources`, json({ resources: [resource] }));
-  await page.route(`${API}/v1/resources/checkout-catalog**`, mocks.resourceContent ?? json({ detail: 'Registered BIM resource not found' }, 404));
-  await page.route(`${API}/v1/schemas/**`, (route) => {
-    const kind = decodeURIComponent(new URL(route.request().url()).pathname.split('/').at(-1) ?? '');
-    return route.fulfill({ status: 200, json: kind === 'Application' ? applicationSchema : kind === 'engine-contract' ? engineContract : genericSchema(kind) });
-  });
   await page.route(`${API}/v1/examples`, json({ examples: EXAMPLES }));
   await page.route(`${API}/v1/examples/**`, (route) => route.fulfill({
     status: 200, contentType: 'application/vnd.bim+zip', body: packageZip(), headers: { 'Content-Disposition': 'attachment; filename="01_simple_seq.bim.zip"' },
@@ -361,7 +265,7 @@ const viewports = [
 ] as const;
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
-  test.describe(`${name} · S1b language and engines`, () => {
+  test.describe(`${name} · S1b engines and the workbench`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
     const shot = (page: Page, testInfo: TestInfo, label: string) => (
@@ -522,141 +426,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await shot(page, testInfo, 'engine-detail-digest-mismatch');
     });
 
-    test('lang-profiles /language', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      await mockApi(page);
-      await page.goto('/language');
-      const main = page.locator('main');
-
-      await expect(main.getByRole('heading', { level: 1, name: 'The BIM language' })).toBeVisible();
-      const chain = main.getByRole('region', { name: 'How the pieces connect' });
-      await expect(chain.getByRole('link')).toHaveCount(6);
-      await expect(chain).toContainText('Instance');
-      await expect(chain).toContainText('Placement');
-      const profiles = main.getByRole('region', { name: 'Profiles' });
-      await expect(profiles.getByRole('row', { name: /^qos-binding\/v1/ })).toContainText('qos-binding-profile@1.0.0');
-      await expect(profiles.getByRole('link', { name: 'application', exact: true })).toHaveAttribute('href', '/language/schemas/Application');
-      await expect(profiles.getByRole('article', { name: 'Contract of qos-binding/v1' })).toContainText('Application exactly 1');
-      const dialectsTable = main.getByRole('region', { name: 'Dialects' });
-      await expect(dialectsTable.getByRole('row', { name: /placement\/v1/ })).toContainText('irExtensions=qos-binding-placement/v1');
-      await expect(main.getByRole('link', { name: 'Submit a dialect or resource' })).toHaveCount(0);
-      const resources = main.getByRole('region', { name: 'Registered resources' });
-      await expect(resources).toContainText('isa-demo/checkout-catalog@2.0.0');
-      await ready(page);
-      await shot(page, testInfo, 'language-profiles');
-
-      // The resource is fetched by all four pins; the gateway answers 404.
-      await resources.getByRole('button', { name: 'Download isa-demo/checkout-catalog@2.0.0' }).click();
-      await expect(main.getByText('Resource not found (404).')).toBeVisible();
-      await shot(page, testInfo, 'language-profiles-resource-404');
-
-      await main.locator('.profiles-controls select').selectOption('qos-binding/v1');
-      await expect(dialectsTable.getByRole('row')).toHaveCount(3);
-      await expectNoHorizontalOverflow(page);
-      expect(critical).toEqual([]);
-    });
-
-    test('lang-profiles shows the extensions link to a signed-in account and the failed-list state', async ({ page }, testInfo) => {
+    test('the language hub is gone: its addresses answer Page not found', async ({ page }) => {
       await mockApi(page, { signedIn: true });
-      await page.route(`${API}/v1/dialects`, json({ detail: 'down' }, 503));
-      await page.goto('/language');
-      const main = page.locator('main');
-      await expect(main.getByRole('link', { name: 'Submit a dialect or resource' })).toHaveAttribute('href', '/language/extensions');
-      await expect(main.getByRole('alert')).toContainText('The language catalog couldn’t be loaded (HTTP 503). The diagram above still works.');
-      await ready(page);
-      await shot(page, testInfo, 'language-profiles-error');
-    });
-
-    test('lang-schemas /language/schemas/:kind draws the fields, not the JSON', async ({ page, context }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-      await mockApi(page);
-      // The menu links to `application`, in lower case.
-      await page.goto('/language/schemas/application');
-      const main = page.locator('main');
-
-      await expect(main.getByRole('heading', { level: 2, name: 'Application' })).toBeVisible();
-      const tree = main.getByRole('tree', { name: 'Application fields' });
-      await expect(tree.getByRole('treeitem').first()).toBeVisible();
-      await expect(tree.getByText('REQUIRED').first()).toBeVisible();
-      await expect(tree.getByText('at least 1', { exact: true })).toBeVisible();
-      await expect(main.getByText('Schema identity').locator('..')).toContainText('application.schema.json');
-      await expect(page.locator('body')).not.toContainText('"properties"');
-      const kinds = main.getByRole('navigation', { name: 'Kinds' });
-      await expect(kinds.getByRole('link')).toHaveCount(13);
-      await expect(kinds.getByRole('link', { name: /^Application/ })).toHaveAttribute('aria-current', 'page');
-      await ready(page);
-      await shot(page, testInfo, 'schemas-application');
-
-      await main.getByRole('button', { name: 'Collapse all' }).click();
-      await expect(tree.getByRole('treeitem')).toHaveCount(4);
-      await main.getByRole('button', { name: 'Expand all' }).click();
-      await expect(tree.getByText('minimize', { exact: true })).toBeVisible();
-      await main.getByRole('searchbox', { name: 'Find a field' }).fill('probability');
-      const hit = tree.getByRole('treeitem').filter({ hasText: 'Branch probability (exclusive)' });
-      await expect(hit).toBeVisible();
-      await hit.getByRole('button', { name: 'Copy path' }).click();
-      await expect(hit.getByRole('button', { name: 'Copied' })).toBeVisible();
-      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('/spec/workflow/probability');
-      await shot(page, testInfo, 'schemas-application-search');
-
-      // Another kind through the list, and the engine protocol with its calls.
-      await kinds.getByRole('link', { name: /^Engine protocol/ }).click();
-      await expect(page).toHaveURL(/\/language\/schemas\/engine-contract$/);
-      await expect(main.getByRole('heading', { level: 2, name: 'engine-contract' })).toBeVisible();
-      await expect(main.getByRole('region', { name: 'Calls of the engine protocol' })).toContainText('/internal/v1/binding-problems');
-      await expect(main).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      await main.getByRole('button', { name: 'Copy protocol digest' }).click();
-      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(DIGEST('c0ffee11'));
-      await shot(page, testInfo, 'schemas-engine-contract');
-
-      await expectNoHorizontalOverflow(page);
-      expect(critical).toEqual([]);
-    });
-
-    test('lang-schemas answers 404 for an unknown kind', async ({ page }, testInfo) => {
-      await mockApi(page);
-      await page.goto('/language/schemas/Placment');
-      const main = page.locator('main');
-      const alert = main.getByRole('alert');
-      await expect(alert).toContainText('Unknown kind “Placment” (404)');
-      await expect(alert.getByRole('link')).toHaveCount(13);
-      await ready(page);
-      await shot(page, testInfo, 'schemas-unknown-kind');
-      await alert.getByRole('link', { name: 'Placement', exact: true }).click();
-      await expect(main.getByRole('heading', { level: 2, name: 'Placement' })).toBeVisible();
-    });
-
-    test('lang-profiles hub switches between Profiles, Schemas and Extensions at /language/:section?/:item?', async ({ page }) => {
-      await mockApi(page, { signedIn: true });
-      await page.goto('/language');
-      const main = page.locator('main');
-      const sections = main.getByRole('navigation', { name: 'Language sections' });
-      await expect(main.getByRole('heading', { level: 1, name: 'The BIM language' })).toBeVisible();
-
-      await sections.getByRole('link', { name: 'Schemas' }).click();
-      await expect(page).toHaveURL(/\/language\/schemas$/);
-      await expect(main.getByRole('heading', { level: 2, name: 'Application' })).toBeVisible();
-
-      await sections.getByRole('link', { name: 'Extensions' }).click();
-      await expect(page).toHaveURL(/\/language\/extensions$/);
-      await expect(main.getByRole('heading', { level: 1, name: 'Language extensions' })).toBeVisible();
-    });
-
-    test('lang-profiles hub: signed out, Extensions explains and offers the login', async ({ page }) => {
-      await mockApi(page);
-      await page.goto('/language/extensions');
-      const main = page.locator('main');
-      await expect(main.getByRole('link', { name: 'Log in to see and manage language extensions' })).toHaveAttribute('href', '/login');
-    });
-
-    test('lang-profiles hub: an unknown section answers 404 and the old extensions address moves', async ({ page }) => {
-      await mockApi(page, { signedIn: true });
-      await page.goto('/language/nowhere');
-      await expect(page.locator('main').getByRole('heading', { name: 'Page not found' })).toBeVisible();
-
-      await page.goto('/app/language/extensions?tab=resources');
-      await expect(page).toHaveURL(/\/language\/extensions\?tab=resources$/);
+      for (const address of ['/language', '/language/schemas/Application', '/language/extensions']) {
+        await page.goto(address);
+        await expect(page.locator('main').getByRole('heading', { name: 'Page not found' }), address).toBeVisible();
+      }
     });
 
     test('pub-workbench /workbench validates an uploaded package', async ({ page, context }, testInfo) => {

@@ -187,19 +187,6 @@ describe('BIM v1 Engine API client', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://gateway.example/v1/engine-registrations?review=true');
   });
 
-  it('addresses each BIM schema by its actual public kind', async () => {
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ $id: 'instance' }))
-      .mockResolvedValueOnce(jsonResponse({ $id: 'registration' }));
-
-    await client.getBimSchema('Instance');
-    await client.getBimSchema('EngineRegistration');
-
-    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
-      'https://gateway.example/v1/schemas/Instance',
-      'https://gateway.example/v1/schemas/EngineRegistration',
-    ]);
-  });
   it('propagates caller cancellation to the actual fetch', async () => {
     const caller = new AbortController();
     fetchMock.mockImplementation((_url, options) => new Promise((_resolve, reject) => {

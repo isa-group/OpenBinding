@@ -54,10 +54,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         await expect(header.getByRole('navigation', { name: 'Primary navigation' })).toBeHidden();
         await header.getByRole('button', { name: 'Open menu' }).click();
         const menu = header.getByRole('navigation', { name: 'Mobile navigation' });
-        for (const label of ['Home', 'Engines', 'Language', 'Pricing', 'About', 'Log in', 'Sign up']) {
+        for (const label of ['Home', 'Engines', 'Pricing', 'About', 'Log in', 'Sign up']) {
           await expect(menu.getByRole('link', { name: label, exact: true })).toBeVisible();
         }
-        await expect(menu.getByRole('link', { name: 'Language', exact: true })).toHaveAttribute('href', '/language');
+        await expect(menu.getByRole('link', { name: 'Language', exact: true })).toHaveCount(0);
         await expect(menu.getByRole('link', { name: 'Workbench' })).toHaveCount(0);
         await page.screenshot({ path: testInfo.outputPath(`header-${name}-visitor-menu-open.png`), animations: 'disabled' });
         await header.getByRole('button', { name: 'Close menu' }).click();
@@ -66,13 +66,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         await expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
         await expect(nav.getByRole('link', { name: 'Explore' })).toHaveCount(0);
         await expect(nav.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-        await expect(nav.getByRole('link', { name: 'Language' })).toHaveAttribute('href', '/language');
+        await expect(nav.getByRole('link', { name: 'Language' })).toHaveCount(0);
         await expect(nav.getByRole('link', { name: 'Pricing' })).toHaveAttribute('href', '/pricing');
         await expect(nav.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/about');
         await expect(header.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login');
         await expect(header.getByRole('link', { name: /Sign up/ })).toHaveAttribute('href', '/register');
 
-        // Language is one link, not a menu.
         await expect(nav.getByRole('button', { name: 'Language' })).toHaveCount(0);
         await expect(header.getByRole('link', { name: /Schemas/ })).toHaveCount(0);
       }

@@ -106,7 +106,6 @@ function Hero({ signedIn, name, plan, runtime }: { signedIn: boolean; name: stri
       </div>
       <div className="home-quick">
         <Link to="/workbench" viewTransition className="link-arrow">Learn with an example <ArrowRight aria-hidden="true" /></Link>
-        <Link to="/language" viewTransition className="link-arrow">Explore extensibility <ArrowRight aria-hidden="true" /></Link>
         <div className="home-runtime" role="status" aria-label="Runtime catalogue status">
           {counts ? (
             <>
@@ -212,8 +211,8 @@ function PublicEngines() {
           <div className="home-empty">
             <Network aria-hidden="true" />
             <strong>No public engines yet</strong>
-            <span>An engine appears here once it is published. Meanwhile, the language guide explains what a package contains.</span>
-            <Link to="/language">Read the language guide</Link>
+            <span>An engine appears here once it is published. Meanwhile, the Workbench shows what a package contains.</span>
+            <Link to="/workbench">Open the Workbench</Link>
           </div>
         )}
         {engines.status === 'ready' && engineList.length > 0 && (

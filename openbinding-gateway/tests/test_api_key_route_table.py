@@ -44,7 +44,6 @@ def is_open(method: str, path: str) -> bool:
     return (
         path.startswith(OPEN_V1_PREFIXES)
         or (method == "GET" and path in OPEN_V1_GET_PATHS)
-        or (method == "GET" and path == "/v1/resources/{name}")
     )
 
 
@@ -122,7 +121,8 @@ def test_the_library_report_and_resource_writes_are_gone_and_the_kept_reads_keep
 
 def test_unknown_paths_are_denied_under_v1_and_untouched_elsewhere():
     assert required_permissions("/v1/brand-new", "GET") == frozenset({UNCLASSIFIED_ROUTE_PERMISSION})
-    assert required_permissions("/v1/resources/x/y", "GET") == frozenset({UNCLASSIFIED_ROUTE_PERMISSION})
+    assert required_permissions("/v1/resources", "GET") == frozenset({UNCLASSIFIED_ROUTE_PERMISSION})
+    assert required_permissions("/v1/schemas/Instance", "GET") == frozenset({UNCLASSIFIED_ROUTE_PERMISSION})
     assert required_permissions("/v1/dialects", "DELETE") == frozenset({UNCLASSIFIED_ROUTE_PERMISSION})
     assert required_permissions("/health", "GET") == frozenset()
 

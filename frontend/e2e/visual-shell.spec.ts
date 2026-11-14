@@ -92,10 +92,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           const toggle = header.getByRole('button', { name: 'Open menu' });
           await toggle.click();
           const menu = header.getByRole('navigation', { name: 'Mobile navigation' });
-          for (const label of ['Home', 'Problems', 'Runs', 'Studies', 'Generator', 'Engines', 'Language', 'Problem', 'Collection', 'Study', 'Run']) {
+          for (const label of ['Home', 'Problems', 'Runs', 'Studies', 'Generator', 'Engines', 'Problem', 'Collection', 'Study', 'Run']) {
             await expect(menu.getByRole('link', { name: label, exact: true }).first(), label).toBeVisible();
           }
-          for (const label of ['Jobs', 'Explore', 'Verifier', 'Engine catalog', 'Organization', 'API key']) {
+          for (const label of ['Language', 'Jobs', 'Explore', 'Verifier', 'Engine catalog', 'Organization', 'API key']) {
             await expect(menu.getByRole('link', { name: label, exact: true }), label).toHaveCount(0);
           }
           await expect(menu.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
@@ -120,8 +120,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           await expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current', 'page');
           await expect(nav.getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems');
           await expect(nav.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-          await expect(nav.getByRole('link', { name: 'Language' })).toHaveAttribute('href', '/language');
-          for (const label of ['Jobs', 'Analysis', 'Explore', 'Admin']) await expect(nav.getByRole('link', { name: label })).toHaveCount(0);
+          for (const label of ['Language', 'Jobs', 'Analysis', 'Explore', 'Admin']) await expect(nav.getByRole('link', { name: label })).toHaveCount(0);
           await expect(nav.getByRole('button', { name: /Tools/ })).toHaveCount(0);
           await expect(header.getByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' })).toHaveAttribute('href', '/app');
           await expect(header.getByRole('button', { name: 'Open menu' })).toBeHidden();

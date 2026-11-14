@@ -26,20 +26,18 @@ const token = (expiresInSeconds: number) => [
 ].join('.');
 
 type Key =
-  | 'moderation' | 'registrations' | 'report' | 'approve' | 'reject' | 'extension'
+  | 'moderation' | 'registrations' | 'report' | 'approve' | 'reject'
   | 'preview' | 'purge' | 'jobs';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
   refuse: Partial<Record<Key, Handler>>;
   registrations: Array<typeof PENDING_ENGINE>;
-  dialects: number;
   abandoned: number;
   purgeable: number;
   sent: {
     approved: string[];
     rejected: string[];
-    extension: Array<{ kind: string; name: string; query: Record<string, string> }>;
     previewDays: string[];
     purge: Array<Record<string, unknown>>;
     jobs: number;
@@ -70,10 +68,9 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
   const state: State = {
     refuse: {},
     registrations: [structuredClone(PENDING_ENGINE)],
-    dialects: 1,
     abandoned: 1,
     purgeable: 14,
-    sent: { approved: [], rejected: [], extension: [], previewDays: [], purge: [], jobs: 0 },
+    sent: { approved: [], rejected: [], previewDays: [], purge: [], jobs: 0 },
   };
   const me = options.role === 'user' ? { ...MARIA, role: 'user' } : { ...ALEX, institutional_branding: false };
   const answer = (key: Key, body: unknown | (() => unknown)): Handler => (route) => (
@@ -96,7 +93,7 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), json([]));
 
-  // --- engine registrations, dialects and resources
+  // --- engine registrations
   await page.route(new RegExp(`^${API}/v1/engine-registrations(/.*)?(\\?.*)?$`), async (route) => {
     const url = new URL(route.request().url());
     const parts = url.pathname.split('/').filter(Boolean);
@@ -119,14 +116,6 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
     }
     return detail(404, 'not_found', 'not mocked')(route);
   });
-  await page.route(new RegExp(`^${API}/v1/(dialects|resources)/[^/]+/approve(\\?.*)?$`), async (route) => {
-    const url = new URL(route.request().url());
-    const [, , kind, name] = url.pathname.split('/');
-    if (state.refuse.extension) return state.refuse.extension(route);
-    state.sent.extension.push({ kind, name: decodeURIComponent(name), query: Object.fromEntries(url.searchParams) });
-    if (kind === 'dialects') state.dialects = 0;
-    return json({ namespace: url.searchParams.get('namespace'), name, version: url.searchParams.get('version'), digest: `sha256-${'d'.repeat(64)}`, status: 'published' })(route);
-  });
 
   // --- administration
   await page.route(new RegExp(`^${API}/v1/admin/.*`), async (route) => {
@@ -138,7 +127,6 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
     if (path === 'moderation') {
       return answer('moderation', () => ({
         engines: { published: 3, pending_review: 0 },
-        dialects: { published: 2, pending_review: state.dialects },
         registrations: { private: 2, pending_review: state.registrations.length },
       }))(route);
     }
@@ -221,7 +209,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S9b administration`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('admin-moderation /app/admin/moderation · the queue, the verification report, approve, reject and the extensions', async ({ page }, testInfo) => {
+    test('admin-moderation /app/admin/moderation · the queue, the verification report, approve and reject', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/admin/moderation');
@@ -229,12 +217,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Moderation', exact: true })).toBeVisible();
       await expect(main.getByRole('navigation', { name: 'Administration', exact: true }).getByText('Moderation', { exact: true })).toHaveAttribute('aria-current', 'page');
-      await expect(main.getByRole('list', { name: 'Waiting for review' }).getByRole('listitem')).toHaveCount(3);
+      await expect(main.getByRole('list', { name: 'Waiting for review' }).getByRole('listitem')).toHaveCount(2);
       const request = main.getByRole('listitem', { name: 'maria-santos/edge-solver' });
       await expect(request.getByText('Waiting for review')).toBeVisible();
       await expect(request.getByText('0.3.1', { exact: true })).toBeVisible();
       await expect(main.getByText('Needs “moderate engines”')).toBeVisible();
-      await expect(main.getByText('Needs “moderate extensions”')).toBeVisible();
+      await expect(main.getByText('Needs “moderate extensions”')).toHaveCount(0);
       await capture(page, testInfo, `moderation-${name}-queue`, { height: tall(1900) });
 
       await request.getByRole('button', { name: 'Show verification report' }).click();
@@ -271,20 +259,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await reject.getByRole('button', { name: 'Reject' }).click();
       await expect(main.getByText(/Rejected\. The request left the queue and maria-santos\/edge-solver@0\.3\.1 is private to maria-santos again/)).toBeVisible();
       expect(state.sent.rejected).toEqual(['edge-solver']);
-
-      // Dialects and resources are approved by their exact revision; there is no reject for them.
-      const form = main.getByRole('form', { name: 'Approve a dialect or resource' });
-      await expect(form.getByRole('button', { name: 'Approve…' })).toBeDisabled();
-      await form.getByLabel('Namespace').fill('maria-santos');
-      await form.getByLabel('Name', { exact: true }).fill('edge-annotations');
-      await form.getByLabel('Version').fill('1.0.0');
-      await form.getByLabel('Revision', { exact: true }).fill(`sha256-${'a'.repeat(64)}`);
-      await capture(page, testInfo, `moderation-${name}-extension-form`, { area: main.getByRole('region', { name: 'Dialects and registered resources' }) });
-      await form.getByRole('button', { name: 'Approve…' }).click();
-      await page.getByRole('dialog', { name: 'Approve dialect maria-santos/edge-annotations@1.0.0?' }).getByRole('button', { name: 'Approve dialect' }).click();
-      await expect(main.getByText('Dialect maria-santos/edge-annotations@1.0.0 approved and published. Recorded in the audit log.')).toBeVisible();
-      expect(state.sent.extension).toEqual([{ kind: 'dialects', name: 'edge-annotations', query: { namespace: 'maria-santos', version: '1.0.0', revision: `sha256-${'a'.repeat(64)}` } }]);
-      await expect(main.getByText(/there is no reject action for them/)).toBeVisible();
 
       // States: a key without the permission, a failure, an empty queue.
       state.refuse.registrations = forbidden;

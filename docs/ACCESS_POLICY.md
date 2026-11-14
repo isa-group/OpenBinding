@@ -112,7 +112,7 @@ package the request carries and keeps nothing. So none needs an account.
 |---|---|---|
 | `POST /v1/compositions/validate`, `/parse`, `/serialise`, `/diff` | anybody | `instances:read` |
 | `POST /v1/compositions/compile`, `/package`, `/import` | anybody; each runs the container's compiler, as `POST /v1/instances/validate` does for anyone | `instances:read` |
-| `GET /v1/compositions/language`, `/schema` | anybody | nothing: they describe the language, like `/v1/schemas` |
+| `GET /v1/compositions/language`, `/schema` | anybody | nothing: they describe the language, like `/v1/profiles` |
 
 A stored composition is a project artifact and follows the matrix above.
 

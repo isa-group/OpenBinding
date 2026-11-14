@@ -39,7 +39,6 @@ from ..db.models import (
     BindingCase,
     BindingCaseRevision,
     Collection,
-    DialectRevision,
     EngineRegistrationRevision,
     EngineRevision,
     Job,
@@ -826,8 +825,7 @@ async def moderation_overview(
         return {str(value): int(count) for value, count in rows}
 
     return {
-        "engines": await statuses(EngineRevision, EngineRevision.publication_status),
-        "dialects": await statuses(DialectRevision, DialectRevision.publication_status),
+        "engines": await statuses(EngineRevision, EngineRevision.state),
         "registrations": await statuses(
             EngineRegistrationRevision, EngineRegistrationRevision.publication_status
         ),

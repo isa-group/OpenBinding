@@ -24,7 +24,7 @@ so everything it needs to know about a document it asks here.
 Every one of them reads what the request carries and stores nothing, so none needs an
 account: there is nothing an account would protect. An API key still needs
 ``instances:read``, except for the two descriptions of the language, which are open like
-``/v1/schemas``. The ones that read a document answer **200 whatever the document says**, with
+``/v1/profiles``. The ones that read a document answer **200 whatever the document says**, with
 ``valid``, ``complete`` and every diagnostic, for the reason ``/validate`` gives below; a
 malformed *request* is still a 422. ``/package`` and ``/import`` answer 422 when there is
 nothing to hand back, and say why; ``/diff`` answers 422 when either document is not a
@@ -1227,7 +1227,7 @@ async def describe_composition_language() -> CompositionLanguageView:
 
     Every value is read from the code that applies it -- ``model.TEMPLATES``, the tables of
     ``neutral.py``, ``text.PROPERTY_DEFAULTS`` -- not restated, so this cannot drift from what
-    the reader does. Open to every caller and every API key, like ``/v1/schemas``: it
+    the reader does. Open to every caller and every API key, like ``/v1/profiles``: it
     describes the language, not anyone's data.
     """
     return _language()
@@ -1258,7 +1258,7 @@ async def get_composition_schema() -> Response:
     The shape ``/parse`` returns and ``/serialise`` takes, with the enumerations and patterns
     a form validates a field against before sending it. It is the schema ``parse`` itself
     consults -- the same file, not a copy. Open to every caller and every API key, like
-    ``/v1/schemas``.
+    ``/v1/profiles``.
     """
     return Response(_schema_bytes(), media_type="application/schema+json")
 

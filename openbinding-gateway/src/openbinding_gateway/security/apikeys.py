@@ -51,8 +51,6 @@ class ApiKeyPermission(str, Enum):
     ENGINES_REGISTER = "engines:register"
     ENGINES_PUBLISH = "engines:publish"
     ENGINES_MODERATE = "engines:moderate"
-    EXTENSIONS_REGISTER = "extensions:register"
-    EXTENSIONS_MODERATE = "extensions:moderate"
     ORGANIZATIONS_READ = "organizations:read"
     ORGANIZATIONS_WRITE = "organizations:write"
     PROJECTS_READ = "projects:read"
@@ -72,7 +70,6 @@ ALL_PERMISSIONS = tuple(permission.value for permission in ApiKeyPermission)
 ADMIN_PERMISSIONS = frozenset(
     {
         ApiKeyPermission.ENGINES_MODERATE.value,
-        ApiKeyPermission.EXTENSIONS_MODERATE.value,
         ApiKeyPermission.ADMIN_ACCOUNTS_READ.value,
         ApiKeyPermission.ADMIN_ACCOUNTS_WRITE.value,
         ApiKeyPermission.PRICING_ADMIN.value,
@@ -99,14 +96,12 @@ UNCLASSIFIED_ROUTE_PERMISSION = "route:unclassified"
 OPEN_V1_PREFIXES = (
     "/v1/auth",
     "/v1/profiles",
-    "/v1/schemas",
     "/v1/examples",
 )
 OPEN_V1_GET_PATHS = frozenset({
     "/v1/dialects",
-    "/v1/resources",
     # The composition language's own description and schema: what the language is, not
-    # anyone's data, so open like /v1/schemas.
+    # anyone's data, so open like /v1/profiles.
     "/v1/compositions/language",
     "/v1/compositions/schema",
 })
@@ -424,16 +419,8 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         return frozenset({ApiKeyPermission.NOTIFICATIONS_READ.value})
     if path.startswith("/v1/pricing"):
         return frozenset({ApiKeyPermission.PRICING_READ.value})
-    if path.endswith("/approve") or path.endswith("/reject"):
-        if path.startswith("/v1/engine-registrations"):
-            return frozenset({ApiKeyPermission.ENGINES_MODERATE.value})
-        return frozenset({ApiKeyPermission.EXTENSIONS_MODERATE.value})
-    if path == "/v1/dialects" and method == "POST":
-        return frozenset({ApiKeyPermission.EXTENSIONS_REGISTER.value})
-    if path == "/v1/resources" and method == "POST":
-        return frozenset({ApiKeyPermission.EXTENSIONS_REGISTER.value})
-    if path == "/v1/catalog":
-        return frozenset({ApiKeyPermission.ENGINES_READ.value})
+    if path.startswith("/v1/engine-registrations") and (path.endswith("/approve") or path.endswith("/reject")):
+        return frozenset({ApiKeyPermission.ENGINES_MODERATE.value})
     if path.startswith("/v1/engines"):
         return frozenset(
             {ApiKeyPermission.ENGINES_READ.value}
@@ -478,6 +465,4 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
 
 
 def _is_open_v1_read(path: str) -> bool:
-    if path in OPEN_V1_GET_PATHS:
-        return True
-    return path.startswith("/v1/resources/") and path.count("/") == 3
+    return path in OPEN_V1_GET_PATHS

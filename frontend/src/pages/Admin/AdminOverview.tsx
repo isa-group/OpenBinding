@@ -57,7 +57,6 @@ function pendingOf(moderation: AdminModerationOverview | undefined) {
   return {
     engines: waiting(moderation?.engines),
     registrations: waiting(moderation?.registrations),
-    dialects: waiting(moderation?.dialects),
   };
 }
 
@@ -86,7 +85,7 @@ function OverviewScreen() {
   const oldest = queue?.status.oldestInFlight[0];
 
   const pending = pendingOf(moderation.data ?? moderation.stale);
-  const waiting = pending.engines + pending.registrations + pending.dialects;
+  const waiting = pending.engines + pending.registrations;
 
   const errorOverview = errors.data ?? errors.stale;
   const byStatus = Object.entries(errorOverview?.by_status_code_24h ?? {}).map(([code, total]) => [Number(code), total] as const).sort(([, a], [, b]) => b - a).slice(0, 4);
@@ -100,7 +99,7 @@ function OverviewScreen() {
     ['Audit log', 'Every contract, pricing and maintenance change.', '/app/admin/audit'],
     ['Errors', 'Error codes, routes and trends, without request bodies.', '/app/admin/errors'],
     ['Queues', 'Runs by state and the oldest ones waiting.', '/app/admin/queues'],
-    ['Moderation', 'Review engine catalogue requests, and approve dialects and resources.', '/app/admin/moderation'],
+    ['Moderation', 'Review engine catalogue requests.', '/app/admin/moderation'],
     ['Maintenance', 'Preview, then purge expired data or reconcile abandoned runs.', '/app/admin/maintenance'],
   ];
 
@@ -149,7 +148,6 @@ function OverviewScreen() {
           <ul className="adm-lines" aria-label="Waiting for review">
             <li><span>Engine catalogue requests</span><strong>{pending.registrations}</strong></li>
             <li><span>Engine revisions</span><strong>{pending.engines}</strong></li>
-            <li><span>Dialects</span><strong>{pending.dialects}</strong></li>
           </ul>
         </Block>
 

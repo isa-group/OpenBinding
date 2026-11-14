@@ -3,7 +3,6 @@ import * as admin from './areas/admin';
 import * as auth from './areas/auth';
 import * as collections from './areas/collections';
 import * as engines from './areas/engines';
-import * as language from './areas/language';
 import * as organizations from './areas/organizations';
 import * as problems from './areas/problems';
 import * as project from './areas/project';
@@ -19,7 +18,6 @@ const areas = {
   public: publicArea,
   auth,
   system,
-  language,
   engines,
   account,
   organizations,
