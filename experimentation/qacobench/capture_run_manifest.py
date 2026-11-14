@@ -16,10 +16,13 @@ FILES = (
     "experimentation/qacobench/requirements.lock",
     "experimentation/qacobench/gateway.lock",
     "experimentation/qacobench/compose.yaml",
+    # The bim-toolchain release the images install (wheel URLs and SHA-256): the identity of the BIM language.
+    "experimentation/qacobench/bim-toolchain.txt",
     "datasets/07_qfbs/manifest.jsonl",
 )
 IMAGES = ("gateway", "runner", "minizinc", "random-search", "evolutionary-heuristics")
-SOURCE_DIRS = ("openbinding-gateway/src", "bim-toolchain/packages/bim-core/src", "schemas", "experimentation/qacobench")
+# bim-core is not a source tree here since bim-toolchain left this repository; files_sha256 records the release (v3).
+SOURCE_DIRS = ("openbinding-gateway/src", "schemas", "experimentation/qacobench")
 
 
 def sha256(path: Path) -> str:
@@ -72,7 +75,7 @@ def main() -> int:
             "raw": text[:4000],
         }
     payload = {
-        "schema": "qacobench/run-manifest/v2",
+        "schema": "qacobench/run-manifest/v3",
         "source_revision": revision,
         "solver_versions": solver_versions,
         "engine_manifests_sha256": {

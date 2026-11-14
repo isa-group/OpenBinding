@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import sys
 import threading
 import time
 import uuid
@@ -30,7 +29,6 @@ from bim_core import ContractError, PackageError
 from bim_core.package import load_package
 
 EXAMPLE = REPO_ROOT / "examples" / "demo" / "01_simple_seq"
-SERVICE_SRC = REPO_ROOT / "bim-toolchain" / "packages" / "bim-service" / "src"
 TOKEN = "gateway-test-token-" + "0123456789abcdef" * 2
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
 ZIP = {"Content-Type": "application/vnd.bim+zip"}
@@ -47,16 +45,11 @@ BINDING = {
 def mounted_service(tmp_path):
     """A ``bim-service`` application and its token file, or a skip (with a warning) if it cannot be imported."""
     try:
-        import bim_service  # noqa: F401
+        import bim_service  # noqa: F401  (the bim-service wheel of the pinned release, a test extra)
     except ImportError:
-        if SERVICE_SRC.is_dir() and str(SERVICE_SRC) not in sys.path:
-            sys.path.insert(0, str(SERVICE_SRC))
-        try:
-            import bim_service  # noqa: F401
-        except ImportError:
-            message = "bim_service is not importable: the BIM_MODE=http cases are skipped"
-            warnings.warn(message, stacklevel=2)
-            pytest.skip(message)
+        message = "bim_service is not importable: the BIM_MODE=http cases are skipped"
+        warnings.warn(message, stacklevel=2)
+        pytest.skip(message)
     from bim_service.app import create_app
     from bim_service.settings import BimServiceSettings
 

@@ -18,50 +18,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 
 WORKDIR /app
 
-# The BIM toolchain. The language (compile, evaluate, re-evaluate) is bim-core and the
-# port the gateway calls it through is bim-client; both come from this repository, never
-# from a private index, and bim-service (the HTTP service) is not part of this image. The
-# gateway's pyproject names them by the relative paths below (../bim-toolchain from /app),
-# which is where they are put.
-COPY bim-toolchain/packages/bim-core/pyproject.toml bim-toolchain/packages/bim-core/README.md bim-toolchain/packages/bim-core/NOTICE.md /bim-toolchain/packages/bim-core/
-COPY bim-toolchain/packages/bim-core/src/ /bim-toolchain/packages/bim-core/src/
-COPY bim-toolchain/packages/bim-client/pyproject.toml bim-toolchain/packages/bim-client/README.md bim-toolchain/packages/bim-client/NOTICE.md /bim-toolchain/packages/bim-client/
-COPY bim-toolchain/packages/bim-client/src/ /bim-toolchain/packages/bim-client/src/
-
-# The five OMG BPMN 2.0.2 XSDs that bim-core validates BPMN with are not versioned in Git. They are
-# downloaded from omg.org over https here, before the install, and each SHA-256 is verified (all five
-# or the build fails, nothing is written); the install then ships them inside bim_core. If a copy of the
-# files is already in the context it is verified instead. The same script is the build hook of bim-core.
-COPY bim-toolchain/packages/bim-core/hatch_build.py /bim-toolchain/packages/bim-core/
-RUN python /bim-toolchain/packages/bim-core/hatch_build.py --ensure
-
 COPY openbinding-gateway/pyproject.toml openbinding-gateway/uv.lock ./
-COPY openbinding-gateway/tools/lock_constraints.py tools/
 COPY openbinding-gateway/src/ src/
+COPY tools/fetch_bim_toolchain.py /tmp/fetch_bim_toolchain.py
 
-# The image installs the versions the lock records, which is what CI installs with
-# `uv sync --locked`. Without this the image resolved every range in pyproject.toml afresh
-# against the index, so two builds a month apart got different dependency sets and the
-# lockfile meant nothing inside the container -- measured drift at the time this was added:
-# space-python-client 1.1.0 against a locked 1.0.0, FastAPI 0.162.0 against 0.141.1,
-# SQLAlchemy 2.1.8 against 2.0.51.
+# The image installs exactly what the lock records, which is what CI installs with
+# `uv sync --locked`: every package at its locked version and SHA-256 (--require-hashes).
+# The BIM language (bim-core, and bim-client, the port the gateway calls it through) is the
+# wheels of a bim-toolchain release, which the lock names as files of .bim-wheels/ with
+# the SHA-256 of the release assets; the wheel of bim-core carries the five OMG BPMN XSDs.
+# bim-service is a test extra only (the HTTP port's tests run it in process); the gateway
+# runs BIM in process.
 #
-# It is a constraints file rather than `uv export` or `uv sync` because the lock declares
-# bim-core and bim-client as editable paths relative to the gateway, and this image carries
-# only those two package directories, not the bim-toolchain workspace root they belong to.
-# uv cannot build their metadata without it and refuses to export anything at all; reading
-# the lock as data needs neither the root nor the network. tools/lock_constraints.py says
-# what it does not pin and why.
-RUN python tools/lock_constraints.py uv.lock -o /tmp/constraints.txt
-
-# One single install command. uv 0.8.22 does not take an already installed bim-core as a
-# candidate for the gateway's bim-core>=0.2,<0.3 requirement (with --no-sources it looks
-# for it in the package registry and reports it unsatisfiable), so installing bim-core and
-# bim-client in a separate earlier step does not work. Given as direct requirements next to
-# ".[test]" the local packages satisfy that dependency by name. Their sources are copied
-# above, before the gateway's, so the layer order still caches. The constraints bind the
-# registry packages only; the two local ones carry no registry version to pin.
-RUN uv pip install --system --no-sources --constraint /tmp/constraints.txt /bim-toolchain/packages/bim-core /bim-toolchain/packages/bim-client ".[test]"
+# tools/fetch_bim_toolchain.py downloads those wheels from the release through the GitHub
+# API and keeps a file only if its SHA-256 is the lock's. While javiercavlop/bim-toolchain
+# is private that needs a token that can read it: the build secret `bim_toolchain_token`
+# (compose: `secrets` of the build, from the environment variable BIM_TOOLCHAIN_TOKEN),
+# read only by that RUN and never written to a layer.
+RUN --mount=type=secret,id=bim_toolchain_token,required=false \
+    BIM_TOOLCHAIN_TOKEN="$(cat /run/secrets/bim_toolchain_token 2>/dev/null)" \
+    python /tmp/fetch_bim_toolchain.py --wheels --lock uv.lock --into .bim-wheels
+RUN uv export --frozen --no-dev --extra test --no-emit-project --format requirements-txt -o /tmp/requirements.txt \
+ && uv pip install --system --require-hashes -r /tmp/requirements.txt \
+ && uv pip install --system --no-deps . \
+ && rm -rf .bim-wheels /tmp/requirements.txt /tmp/fetch_bim_toolchain.py
 
 # Migrations. Copied rather than relied on from the bind mount, so that an
 # image built for a deployment that does not mount the source still knows how

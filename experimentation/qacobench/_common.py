@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.util
 import sys
 from pathlib import Path
 from typing import Any, Mapping
@@ -41,36 +40,17 @@ def discover_project_root(start: Path | None = None) -> Path:
     raise RuntimeError("Cannot locate a checkout containing openbinding-gateway/ and datasets/")
 
 
-def ensure_omg_xsd(root: Path) -> None:
-    """Put the five OMG BPMN XSDs of ``bim_core`` in place when it is imported from a checkout.
-
-    Git does not version them. Without network a missing file is an error that names the exact command to run
-    (``bim-toolchain/packages/bim-core/hatch_build.py``, the download the builds and the images use too).
-    """
-    script = root / "bim-toolchain/packages/bim-core/hatch_build.py"
-    if not script.is_file():
-        return
-    spec = importlib.util.spec_from_file_location("bim_core_hatch_build", script)
-    if spec is None or spec.loader is None:
-        return
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    module.ensure(script.parent / module.RELATIVE_DIRECTORY)
-
-
 def install_gateway_import(root: Path) -> None:
-    """Make the gateway and the BIM language (``bim_core``) importable from a checkout.
+    """Make the gateway importable from a checkout.
 
-    The campaign compiles and reads packages with the library, in process (it is an offline tool);
-    ``uv run --project openbinding-gateway`` already has both installed and then this changes nothing
-    (the OMG XSDs of ``bim_core`` come with that installation; from the sources they are verified here).
+    The campaign compiles and reads packages with the BIM language (``bim_core``), in process (it is an offline
+    tool). ``bim_core`` is the installed wheel of the pinned bim-toolchain release (``uv run --project
+    openbinding-gateway``, or the images); it carries the OMG XSDs. ``uv run`` already has the gateway installed too,
+    and then this changes nothing.
     """
-    for relative in ("openbinding-gateway/src", "bim-toolchain/packages/bim-core/src"):
-        source = str(root / relative)
-        if source not in sys.path and (root / relative).is_dir():
-            sys.path.insert(0, source)
-            if relative.startswith("bim-toolchain"):
-                ensure_omg_xsd(root)
+    source = str(root / "openbinding-gateway/src")
+    if source not in sys.path and (root / "openbinding-gateway/src").is_dir():
+        sys.path.insert(0, source)
 
 
 def stable_instance_seed(base_seed: int, suite: str, instance_id: str, engine: str) -> int:

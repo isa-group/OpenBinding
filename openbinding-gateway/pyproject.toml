@@ -36,11 +36,13 @@ dependencies = [
     "redis>=5.0,<7.0",
     # SPACE 1.5 is exposed through the native async v1 client.
     "space-python-client>=1.0,<2.0",
-    # The BIM language (compile, evaluate, re-evaluate) lives in bim-toolchain and
-    # is reached through bim_client.BimPort, in process or over HTTP. bim-service
-    # is deliberately not a dependency of the gateway.
-    "bim-core>=0.2,<0.3",
-    "bim-client>=0.2,<0.3",
+    # The BIM language (compile, evaluate, re-evaluate) is a release of
+    # javiercavlop/bim-toolchain, reached through bim_client.BimPort and run in
+    # process. Exact versions: the wheels are pinned by file (below) and SHA-256
+    # (uv.lock); a new release is a PR here that passes the consumer contract
+    # (CI job bim-toolchain). bim-service is only a test dependency.
+    "bim-core==0.2.0",
+    "bim-client==0.2.0",
 ]
 
 [project.optional-dependencies]
@@ -51,15 +53,24 @@ test = [
     "httpx>=0.27,<1.0",
     "requests>=2.31,<3.0",
     "ruff>=0.4,<1.0",
-    "scipy>=1.11,<2.0"
+    "scipy>=1.11,<2.0",
+    # The HTTP port (bim_client.HttpBim) is tested against the real service, in process.
+    "bim-service==0.2.0",
 ]
 
-# bim-toolchain is a uv workspace, so bim-client resolves its own bim-core as an
-# editable path. The gateway has to name the same source (editable) or uv sees
-# two conflicting URLs for bim-core.
+# The wheels of release v0.2.0 of javiercavlop/bim-toolchain (GitHub Release
+# assets) as files of .bim-wheels/, whose SHA-256 uv.lock records. While that
+# repository is private GitHub serves its assets only through the API with a
+# token, so they cannot be plain URLs here (they can once it is public):
+# `python3 tools/fetch_bim_toolchain.py --wheels` (repository root) downloads
+# them and keeps a file only if its SHA-256 is the lock's (token:
+# BIM_TOOLCHAIN_TOKEN, or `gh auth token`). A new release: fetch it with
+# `--wheels --bootstrap vX.Y.Z`, change the three paths and the two versions,
+# `uv lock`. Keep experimentation/qacobench/bim-toolchain.txt on the same release.
 [tool.uv.sources]
-bim-core = { path = "../bim-toolchain/packages/bim-core", editable = true }
-bim-client = { path = "../bim-toolchain/packages/bim-client", editable = true }
+bim-core = { path = ".bim-wheels/bim_core-0.2.0-py3-none-any.whl" }
+bim-client = { path = ".bim-wheels/bim_client-0.2.0-py3-none-any.whl" }
+bim-service = { path = ".bim-wheels/bim_service-0.2.0-py3-none-any.whl" }
 
 [tool.ruff]
 line-length = 110
