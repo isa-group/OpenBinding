@@ -26,16 +26,19 @@ NGINX_CONF = ROOT / "frontend" / "nginx.lab.conf"
 DOCKERFILE = ROOT / "frontend" / "Dockerfile"
 DEMO_DOC = ROOT / "docs" / "DEMO.md"
 
-ALLOWED_TOP_LEVEL = {"name", "services", "networks", "volumes"}
+ALLOWED_TOP_LEVEL = {"name", "services", "networks", "volumes", "secrets"}
+# The only secret: the token that reads the private bim-toolchain release whose wheels the gateway image installs. It is
+# a build secret (never mounted into a running container) and comes from the environment of whoever builds.
+BUILD_SECRETS = {"bim_toolchain_token": {"environment": "BIM_TOOLCHAIN_TOKEN"}}
 FORBIDDEN_SERVICE_KEYS = {
     "privileged", "devices", "cap_add", "pid", "ipc", "container_name", "extends",
     "env_file", "secrets", "configs", "volumes_from", "deploy",
 }
-ALLOWED_BUILD_KEYS = {"context", "dockerfile", "args", "target"}
+ALLOWED_BUILD_KEYS = {"context", "dockerfile", "args", "target", "secrets"}
 ALLOWED_MOUNT_KEYS = {"type", "source", "target", "tmpfs"}
 MAX_SERVICES = 15
 MAX_MIB = 4096  # the lab ceiling; the sum includes `seed`, which only runs on demand
-EXPECTED_MIB = 4032  # 3456 before e2e (576); docs/DEMO.md states it
+EXPECTED_MIB = 3776  # 4032 with the HTTP bim-service (256), 3456 before e2e (576); docs/DEMO.md states it
 ARTIFACT_DIR = "/var/lib/openbinding/artifacts"
 LOCK = ROOT / "frontend" / "pnpm-lock.yaml"
 DOCKERFILE_E2E = ROOT / "frontend" / "Dockerfile.e2e"
@@ -80,7 +83,7 @@ PUBLIC_ORIGIN_VARIABLES = {
 }
 
 # The gateway is the only service that signs sessions.  Everything else either never verifies a
-# token (workers, engines, bim-service, web) or talks to the gateway over HTTP (seed): a seed that
+# token (workers, engines, web) or talks to the gateway over HTTP (seed): a seed that
 # logs in sends a password and receives a token, so it needs no secret of its own.  The seed tools
 # of the repository write to the database directly.  Least privilege: the secret stays in one place.
 JWT_SECRET = "GATEWAY_JWT_SECRET"
@@ -90,15 +93,8 @@ SEED_OMITS = {
     JWT_SECRET: "the seed never signs or verifies a session",
     "FORWARDED_ALLOW_IPS": "the seed serves no HTTP",
 }
-# The worker and the seed compile and re-evaluate through the BIM port, so they reach the service like the gateway.
-BIM_CLIENTS = ("gateway", "worker", "seed")
-BIM_VARIABLES = {
-    "BIM_MODE": "http",
-    "BIM_SERVICE_URL": "http://bim-service:8080",
-    "BIM_SERVICE_TOKEN_FILE": "/run/bim/token",
-    "DEMO_BIM_TOKEN": "${DEMO_BIM_TOKEN}",
-    "BIM_SERVICE_ALLOW_INSECURE_HTTP": "true",
-}
+# Every lab manifest at the root of the repository (the process, engines, pricing and pgreset ones included).
+LAB_MANIFESTS = sorted(ROOT.glob("compose.lab*.json"))
 # Variables only the seed gets (tools/remote_probe.py exits without SPACE_ORGANIZATION_ID;
 # tools/seed_lab.py --space-contracts requires the three SPACE_DEV_* ones).
 SPACE_SERVICE_REFERENCE = "${DEMO_SPACE_DEV_SERVICE}"
@@ -172,6 +168,16 @@ def test_json_is_valid_and_only_allowed_top_level_keys(compose):
     assert {"name", "services"} <= set(compose)
 
 
+def test_the_only_secret_is_the_build_token_of_the_bim_toolchain_release(compose):
+    assert compose.get("secrets", {}) == BUILD_SECRETS
+    users = {
+        name: service["build"].get("secrets")
+        for name, service in compose["services"].items()
+        if isinstance(service.get("build"), dict) and "secrets" in service["build"]
+    }
+    assert users == {"gateway": ["bim_toolchain_token"]}
+
+
 def test_top_level_volumes_and_networks_carry_only_labels(compose):
     for section in ("networks", "volumes"):
         for name, definition in (compose.get(section) or {}).items():
@@ -234,9 +240,8 @@ def test_no_space_services(services):
 def test_seed_exists_behind_the_seed_profile(services):
     assert services["seed"]["profiles"] == ["seed"]
     assert [name for name, s in services.items() if "profiles" in s] == ["seed"]
-    assert services["seed"]["command"][:2] == ["sh", "-c"]
-    # The token file is written first (see test_demo_bim_token_is_expanded_by_the_shell_not_by_compose).
-    assert services["seed"]["command"][2].endswith("&& python tools/${DEMO_SEED_TOOL} ${DEMO_SEED_ARGS}")
+    # A shell, so that DEMO_SEED_ARGS splits into words.
+    assert services["seed"]["command"] == ["sh", "-c", "python tools/${DEMO_SEED_TOOL} ${DEMO_SEED_ARGS}"]
 
 
 # -- ports ---------------------------------------------------------------------------------------
@@ -580,41 +585,18 @@ def test_space_enabled_is_a_variable_in_gateway_worker_and_seed_never_a_literal(
         assert _env(services[name])["SPHERE_ENABLED"] == "true", name
 
 
-def test_demo_bim_token_is_expanded_by_the_shell_not_by_compose(services):
-    # `$$` is compose's escape: the token is read from the container's own environment and
-    # never baked into the command line that `docker inspect` shows.
-    for name in ("bim-service", "gateway", "worker", "seed"):
-        command = " ".join(services[name]["command"])
-        assert services[name]["command"][:2] == ["sh", "-c"], name
-        assert '"$$DEMO_BIM_TOKEN"' in command, name
-        assert "${DEMO_BIM_TOKEN}" not in command, name
-        assert "umask 077" in command, name
-        assert _env(services[name])["DEMO_BIM_TOKEN"] == "${DEMO_BIM_TOKEN}", name
-
-
-def test_the_bim_clients_reach_the_service_with_a_token_file_on_a_tmpfs(services):
-    for name in BIM_CLIENTS:
-        env = _env(services[name])
-        assert {key: env[key] for key in BIM_VARIABLES} == BIM_VARIABLES, name
-        token_file = env["BIM_SERVICE_TOKEN_FILE"]
-        tmpfs = [m for m in services[name]["volumes"] if m["type"] == "tmpfs" and token_file.startswith(m["target"] + "/")]
-        assert len(tmpfs) == 1, name
-        # The file is written where BIM_SERVICE_TOKEN_FILE says, and never to a layer of the image.
-        assert f"> {token_file}" in " ".join(services[name]["command"]), name
-        if name != "gateway":
-            assert tmpfs[0].get("tmpfs") == {"mode": 1023}, name
-    assert services["worker"]["depends_on"]["bim-service"] == {"condition": "service_healthy"}
-    assert services["seed"]["depends_on"]["bim-service"] == {"condition": "service_healthy"}
-
-
-def test_insecure_http_to_the_bim_service_is_opted_into_only_by_its_three_clients(services):
-    # The lab's private network carries a synthetic token over plain http; nothing else may opt in.
+@pytest.mark.parametrize("path", LAB_MANIFESTS, ids=lambda p: p.name)
+def test_the_lab_runs_bim_in_process(path):
+    # The gateway, the worker and the seed run BIM in process (bim_client's InProcessBim, the default of
+    # BIM_MODE); the HTTP bim-service and its toolchain live in their own repository, not in the lab.
+    services = json.loads(path.read_text(encoding="utf-8"))["services"]
+    assert "bim-service" not in services
     for name, service in services.items():
-        env = _env(service)
-        if name in BIM_CLIENTS:
-            assert env["BIM_SERVICE_ALLOW_INSECURE_HTTP"] == "true", name
-        else:
-            assert "BIM_SERVICE_ALLOW_INSECURE_HTTP" not in env, name
+        assert not [key for key in _env(service) if key.startswith("BIM_")], name
+        assert not str((service.get("build") or {}).get("context", "")).startswith("bim-toolchain"), name
+        assert "bim-service" not in (service.get("depends_on") or {}), name
+    text = path.read_text(encoding="utf-8")
+    assert "DEMO_BIM_TOKEN" not in text and "/run/bim" not in text
 
 
 # -- who holds the session-signing secret---------------------------------------------------------
@@ -717,8 +699,6 @@ def test_gateway_environment(services):
     assert env["SPACE_PRICING_VERSION"] == "${DEMO_SPACE_PRICING_VERSION}"
     assert env["SPACE_DEFAULT_PLAN"] == "${DEMO_SPACE_DEFAULT_PLAN}"
     assert int(env["MAX_CONCURRENT_JOBS_PER_USER"]) >= 1
-    assert (env["BIM_MODE"], env["BIM_SERVICE_URL"]) == ("http", "http://bim-service:8080")
-    assert env["BIM_SERVICE_TOKEN_FILE"].startswith("/run/bim/")
 
 
 def test_gateway_trusts_proxy_headers_only_from_private_networks(services):
@@ -738,39 +718,11 @@ def test_gateway_command_goes_through_the_migrating_entrypoint(services):
     assert "alembic upgrade head" in (ROOT / "openbinding-gateway" / "docker-entrypoint.sh").read_text(encoding="utf-8")
 
 
-def test_bim_service_reads_its_tokens_from_a_tmpfs(services):
-    bim = services["bim-service"]
-    env = _env(bim)
-    assert {"type": "tmpfs", "target": "/run/bim"} in bim["volumes"]
-    assert env["BIM_SERVICE_TOKENS_FILE"].startswith("/run/bim/")
-    assert env["BIM_SERVICE_TOKENS_FILE"] in " ".join(bim["command"])
-    assert "8080" in " ".join(bim["command"])
-    assert "/healthz" in " ".join(bim["healthcheck"]["test"])
-
-
-def test_bim_service_memory_limits_fit_its_mem_limit(services):
-    """The body-proportional memory of bim-service, by the figures of bim-toolchain/docs/SERVICE.md, fits its mem_limit."""
-    bim = services["bim-service"]
-    env = _env(bim)
-    body = int(env["BIM_SERVICE_MAX_BODY_BYTES"])
-    budget = int(env["BIM_SERVICE_MEMORY_BUDGET_BYTES"])
-    pending = int(env["BIM_SERVICE_MAX_PENDING_BODY_BYTES"])
-    assert int(env["BIM_SERVICE_MAX_CONCURRENCY"]) <= 2
-    assert body * 8 <= budget, "a request at the body limit must be admissible (BODY_MEMORY_FACTOR = 8)"
-    limit = _mib(bim["mem_limit"]) * 1024 * 1024
-    idle = 55451648  # RSS of the process at rest, measured
-    worst_case_per_byte = 8.4  # resident memory per body byte of the first admitted request, measured
-    admitted = budget // 8  # raw bytes the budget admits
-    waiting = max(pending - admitted, 0)
-    # the waiting bodies are buffered twice while their chunks are joined
-    assert idle + worst_case_per_byte * admitted + 2 * waiting <= limit, "bim-service could exceed its mem_limit"
-
-
 def test_gateway_waits_for_what_it_uses(services):
     depends = services["gateway"]["depends_on"]
-    assert {"postgres", "redis", "bim-service"} <= set(depends)
+    assert {"postgres", "redis"} <= set(depends)
     assert {n for n in services if n.startswith("engine-")} <= set(depends)
-    assert set(services["worker"]["depends_on"]) == {"gateway", "redis", "bim-service"}
+    assert set(services["worker"]["depends_on"]) == {"gateway", "redis"}
     assert set(services["web"]["depends_on"]) == {"gateway"}
 
 

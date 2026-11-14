@@ -126,7 +126,7 @@ def test_image_builder_only_builds_and_idles_like_the_pgtest_one(services):
     pgtest = json.loads((ROOT / "compose.pgtest.json").read_text(encoding="utf-8"))["services"]["image-builder"]
     for key in ("user", "entrypoint", "command", "mem_limit", "healthcheck"):
         assert builder[key] == pgtest[key], key
-    assert builder["build"] == {"context": ".", "dockerfile": "openbinding-gateway/Dockerfile"}
+    assert builder["build"] == {"context": ".", "dockerfile": "openbinding-gateway/Dockerfile", "secrets": ["bim_toolchain_token"]}
 
 
 def test_seed_and_the_real_tests_reuse_the_images_that_up_builds(services):

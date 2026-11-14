@@ -39,6 +39,7 @@ services:
       dockerfile: openbinding-gateway/Dockerfile
       args:
         <<: *proxy-build-args
+      secrets: [bim_toolchain_token]
     profiles: ["dev"]
     ports:
       # Loopback only: this profile runs with development defaults and must
@@ -57,8 +58,8 @@ services:
       - ./experimentation:/app/experimentation:ro
       - ./pricings:/app/pricings:ro
       # The whole checkout, read-only. The service's own tree is only /app plus
-      # the mounts above; tests that read bim-toolchain/, frontend/,
-      # the compose files or .env.example run with OPENBINDING_REPO_ROOT=/workspace.
+      # the mounts above; tests that read frontend/, the compose files or
+      # .env.example run with OPENBINDING_REPO_ROOT=/workspace.
       - .:/workspace:ro
       - artifacts:/var/lib/openbinding/artifacts
     environment:
@@ -98,13 +99,9 @@ services:
       - CAS_ENVIRONMENT=${CAS_ENVIRONMENT:-preproduction}
       - CAS_STORE_BACKEND=redis
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
-      # BIM (compile, evaluate, re-evaluate) runs in this process by default. To use a
-      # bim-service instead: BIM_MODE=http, BIM_SERVICE_URL=http://bim-service:8080 and
-      # BIM_SERVICE_TOKEN_FILE=/run/secrets/bim_token (a mounted secret file, never the
-      # token). The client refuses a token over plain http to a host that is not loopback,
-      # so a development service on this network runs with BIM_SERVICE_ALLOW_ANONYMOUS_DEV=1
-      # and the gateway has no token file. The service must run the same bim-toolchain
-      # release or startup fails.
+      # BIM (compile, evaluate, re-evaluate) runs in this process (bim_client's
+      # InProcessBim). The BIM toolchain lives in its own repository
+      # (javiercavlop/bim-toolchain); this stack builds and runs no bim-service.
       - BIM_MODE=${BIM_MODE:-inproc}
       # Comma-separated Fernet keys for stored engine credentials: the first
       # encrypts, all decrypt (rotation). FEDERATION_SECRET_KEY is the legacy
@@ -142,6 +139,7 @@ services:
       dockerfile: openbinding-gateway/Dockerfile
       args:
         <<: *proxy-build-args
+      secrets: [bim_toolchain_token]
     profiles: ["dev"]
     entrypoint: []
     command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "4", "--queues", "default"]
@@ -283,6 +281,7 @@ services:
       dockerfile: experimentation/qacobench/Dockerfile
       args:
         <<: *proxy-build-args
+      secrets: [bim_toolchain_token]
     profiles: ["benchmark", "dev"]
     ports:
       - "${QACOBENCH_JUPYTER_PORT:-8888}:8888"
@@ -365,6 +364,12 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+# The token that reads the private bim-toolchain release whose wheels (bim-core, bim-client) the gateway image
+# installs (openbinding-gateway/Dockerfile). Export BIM_TOOLCHAIN_TOKEN before building.
+secrets:
+  bim_toolchain_token:
+    environment: BIM_TOOLCHAIN_TOKEN
 
 volumes:
   artifacts:

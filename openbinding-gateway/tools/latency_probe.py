@@ -83,7 +83,7 @@ class Config:
 
 
 def percentile(values: Sequence[float], q: float) -> float:
-    """Nearest-rank percentile (``q`` in 0..1); 0.0 for no values (same as process_probe.percentile)."""
+    """Nearest-rank percentile (``q`` in 0..1); 0.0 for no values."""
     if not values:
         return 0.0
     ordered = sorted(values)

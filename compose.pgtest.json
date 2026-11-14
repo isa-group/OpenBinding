@@ -1,5 +1,8 @@
 {
   "name": "openbinding-pgtest",
+  "secrets": {
+    "bim_toolchain_token": {"environment": "BIM_TOOLCHAIN_TOKEN"}
+  },
   "services": {
     "postgres": {
       "image": "postgres:16-alpine",
@@ -41,7 +44,8 @@
       "build": {
         "context": ".",
         "dockerfile": "openbinding-gateway/Dockerfile",
-        "target": "test"
+        "target": "test",
+        "secrets": ["bim_toolchain_token"]
       },
       "image": "openbinding-pgtest-gateway:latest",
       "user": "65534:65534",
