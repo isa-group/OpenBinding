@@ -124,15 +124,6 @@ def validate_content(kind: str, payload: DraftContent) -> tuple[bytes, list[dict
         if not isinstance(payload.content, dict):
             raise api_error(422, 'invalid_content', 'JSON content must be an object.')
         document = payload.content
-        if kind == 'Composition':
-            # Refused here with the reason, rather than falling through to the resource path
-            # and coming back as 'select an installed Dialect'. A composition's content is
-            # its Composition2Yaml source text: the source is what the version's
-            # contentDigest covers and what makes the version citable, and a JSON body would
-            # be a projection of the model with the comments and the key order already gone.
-            raise api_error(422, 'invalid_content',
-                            'Composition content is Composition2Yaml source text; send it as '
-                            'application/yaml, not as JSON.')
         if kind in {'Dataset', 'Study', 'BindingDecision',
                     'ExecutionConfiguration', 'AnalysisConfiguration'}:
             if kind != 'Dataset' and not document:
@@ -174,31 +165,7 @@ def validate_content(kind: str, payload: DraftContent) -> tuple[bytes, list[dict
         if not isinstance(payload.content, str):
             raise api_error(422, 'invalid_content', 'Text/XML content must be a string.')
         content = payload.content.replace('\r\n', '\n').replace('\r', '\n').encode()
-        if kind == 'Composition':
-            # The line endings are already normalised above, which matters more here than
-            # anywhere else: the source text *is* the stored content, so the same document
-            # authored on Windows would otherwise seal under a different contentDigest.
-            if payload.media_type not in {'application/yaml', 'text/yaml'}:
-                raise api_error(422, 'invalid_content',
-                                'Composition content is sent as application/yaml.')
-            from .composition.checks import completeness
-            from .composition.text import TextError, parse
-            try:
-                composition = parse(content.decode())
-            except TextError as exc:
-                raise api_error(422, 'invalid_composition', str(exc)) from exc
-            except Exception as exc:  # a malformed YAML document is the caller's mistake too
-                raise api_error(422, 'invalid_composition',
-                                f'not a readable composition: {exc}') from exc
-            # Sealing is where a composition has to be finished, because a sealed version is
-            # citable and has to compile. ``parse`` lets a draft be incomplete -- an open
-            # task whose market is not written yet is a normal state while authoring -- and
-            # this is the one gate library content passes through, so it is where that ends.
-            missing = completeness(composition)
-            if missing:
-                raise api_error(422, 'incomplete_composition',
-                                '; '.join(str(item) for item in missing))
-        elif kind != 'Dataset':
+        if kind != 'Dataset':
             package = XmlResource(content)
             try:
                 root = package.root()

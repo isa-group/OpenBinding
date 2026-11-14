@@ -12,8 +12,8 @@ SOURCE = GATEWAY_ROOT / "src" / PACKAGE
 ROUTES = f"{PACKAGE}.routes"
 
 #: Layers that must stay independent of ``routes``.  ``composition`` is here so the
-#: Composition2Yaml language stays liftable into a distribution of its own: it may use the
-#: container and its own modules, and nothing above them.
+#: building blocks F1 reuses stay liftable into a distribution of their own: they may use
+#: the container and their own modules, and nothing above them.
 PROTECTED_LAYERS = ("services", "domain", "jobs", "composition")
 
 #: Modules outside ``routes/`` that import ``routes`` at the time of writing,

@@ -22,10 +22,10 @@ continuous change", so it carries no task breakdown and settles nothing here.
 This document records what each version is, how version 1 maps onto the package already in
 the corpus, and what is still undecided.
 
-Why it matters beyond illustration: version 1 is already modelled as a BIM v1 package, so
-it is the reference against which the Composition2Yaml translation is proved. The
-translation is faithful when the composition written by hand compiles to a package whose
-IR digest equals the existing one.
+Why it matters beyond illustration: version 1 is already modelled as a BIM v1 package
+(`examples/demo/13_fms`), so it is the reference problem for this case. Composition problems
+are written in BIM; the problem-authoring Composition2Yaml that this document was once
+proved against was removed in F0b (see `docs/COMPOSITION2YAML.md`).
 
 ## Version 1 (JISBD 2025)
 
@@ -71,9 +71,8 @@ package describes. The workflow is a sequence `T1 → T2 → T3 → (choice) →
 choice is the exclusive between `node_classic_routing` (probability 0.8) and `T5`
 (probability 0.2) — S1 routing a small problem in-house four times out of five.
 
-Modelling S2 as a `local` task is what the package does and must be preserved -- the
-phase F1 gate is digest equality -- and it is why Composition2Yaml needs a `local` kind and
-not only open and fixed ones. It is worth being exact about what it asserts, though,
+Modelling S2 as a `local` task is what the package does and must be preserved: the
+package's digests are pinned in the goldens. It is worth being exact about what it asserts, though,
 because "outside the candidate market" is not the same as "no information". A local task
 contributes each property's neutral under *every* operator, and this one sits in an
 exclusive aggregated with `weightedSum` at probability 0.8, so the package states that the
@@ -83,8 +82,8 @@ and -- since the neutral of a `min` property over a bounded domain is its upper 
 minimum is exactly `220 + 500 + 300 + (0.8 * 0 + 0.2 * 1200) + 950 = 2210`, and the
 recorded security 4.0 comes from T2 because the exclusive node reads `0.8 * 5.0 + 0.2 * 5.0
 = 5.0` and never binds the outer `min`. Any claim drawn from this package about classical
-versus quantum cost, latency or security rests on that optimism. Section 4.1 of
-`docs/COMPOSITION2YAML.md` says when to prefer a `fixed` task instead, and what it costs.
+versus quantum cost, latency or security rests on that optimism. The alternative is a
+service task with a single candidate that carries real values, which is what version 2 does.
 
 The package declares five properties: `cost` (USD/month), `execution_time` (ms),
 `availability`, `reliability` and `security` (a 1 to 5 score). Their neutrals, all
@@ -123,10 +122,9 @@ carrying `"kind": "ELEMENT"` where every other node carries `"kind": "TASK"` wit
 
 So nothing was dropped. The numbers belong to the `task_id` namespace, the in-house
 classical solver was deliberately placed outside it, and the gap is the visible trace of
-that modelling choice rather than a lost service. Section 4.1 of
-`docs/COMPOSITION2YAML.md` is now the rule that choice follows, and the gap is a signpost
-to it: today the same component would be weighed as `local` against `fixed`, and version 2
-of this case models it as `fixed` with real values.
+that modelling choice rather than a lost service. Today the same component would be weighed
+as a local task against a single-candidate one, and version 2 of this case models it with
+real values.
 
 **What the paper settles, and what it does not.** This document used to offer a second
 explanation -- "the numbering was kept aligned with a figure in the paper" -- and the paper
@@ -136,11 +134,8 @@ The T-numbers are the package's own. The paper therefore cannot confirm the read
 either; the commit is the whole of the evidence, and it is an inference about intent rather
 than a sentence from the author.
 
-Two things follow for phase F1. The task ids are reproduced verbatim and **renumbering is
-refused**, not merely expensive: the frozen-baseline equivalence checks pin this package's
-digests. And the reason belongs where the reader who would "fix" the gap is actually
-looking -- the hand-written `.c2y.yaml` fixture of step 7, as a comment above its `tasks:`
-block and as the composition's own `description`, both of which are free of every digest.
+One thing follows. The task ids are kept verbatim and **renumbering is refused**, not
+merely expensive: the frozen-baseline equivalence checks pin this package's digests.
 
 *To confirm against the published figure.* The commit gives the positions and the names, not
 a sentence from the author saying "position 4 is the classical solver", and the JISBD 2025
@@ -223,39 +218,25 @@ So:
 **Settled in review: R is the composition itself in both versions, and gets no task.**
 Version 1 already models S1 that way, and version 2 names R in the optimization layer
 without R occupying a step -- what R does, gathering and choosing and validating, *is* the
-workflow. The rule this follows from, and the two cases where a component the owner runs
-does get a task, are section 4.1 of `docs/COMPOSITION2YAML.md`.
+workflow.
 
-The decision matters because of the diff, not because of the binding. The diff the Studio
-already implements reports `N tasks (M get a provider)` and a row per task present in one
+The decision matters because of the diff, not because of the binding. A diff over the
+composition model (`composition/diff.py`) reports `N tasks (M get a provider)` and a row per task present in one
 revision and absent in the other, so modelling the same role two ways across versions would
 print `Task R | — | present`: a change of notation dressed as a service that did not exist
 before. With the rule applied to both versions, the version-to-version diff reports what
 actually changed -- nine services in three layers, the parallel gather, the compliance
-service consulted twice, monitoring alongside -- and nothing else. "The diff lists the added
-services" is a gate of phase F1, so this had to be settled before the fixtures were written.
-
-The `studio` block still names R in its optimization layer. That block is never emitted and
-is never checked against the task set, which is exactly how the architecture view keeps a
-name for the component that is the composition.
+service consulted twice, monitoring alongside -- and nothing else.
 
 ## What is already in the repository, and what is not
 
 | | state |
 | --- | --- |
 | version 1 as a BIM v1 package | `examples/demo/13_fms`, compiled and pinned in the goldens |
-| version 1 as a composition | to be written, and proved against that package |
+| version 1 as a final composition | arrives with the Composition API (F1) |
 | version 2 in any form | nothing; it is authored from scratch |
 | the FMS pricing | in SPHERE, not in this repository |
 
-Neither version is checked in as a *new* package. Composition sources live as
-`.c2y.yaml` fixtures and are compiled into a temporary directory by the tests. This is
-deliberate: the corpus package count is asserted in fourteen places across three CI jobs,
-nine checked-in golden files enumerate every current package by path, and adding one to
-the tree breaks several of each at once. Version 2 gets its own golden file instead,
-outside the corpus walk.
-
-Which packages version 1 has to reproduce is settled, and it is not "the demo examples":
-section 11.2 of `docs/COMPOSITION2YAML.md` names the live golden's 82 packages minus the
-seven that declare a Placement resource. Eight of the 20 demo packages would have failed
-the phrase it replaces, five of them for a limit no section had stated.
+Neither version is checked in as a *new* package, deliberately: the corpus package count is
+asserted in several places across CI jobs, checked-in golden files enumerate every current
+package by path, and adding one to the tree breaks several of each at once.

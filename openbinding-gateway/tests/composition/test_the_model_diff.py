@@ -8,7 +8,7 @@ plus an addition. This diff works over the model and names the kind of each chan
 tests below are mostly about those three.
 
 The first test is the one that makes an empty diff mean something: a package compared with
-itself produces nothing, over the whole gate. Without it, "no changes" is as likely to mean
+itself produces nothing, over the whole corpus. Without it, "no changes" is as likely to mean
 the comparison is shallow as to mean nothing moved.
 """
 
@@ -18,7 +18,6 @@ import importlib.util
 import sys
 from dataclasses import fields, replace
 from decimal import Decimal
-from pathlib import Path
 
 import pytest
 
@@ -80,32 +79,49 @@ def _subjects(changes) -> list[tuple[str, str, str]]:
     return [(c.section, c.subject, c.kind) for c in changes]
 
 
-@pytest.fixture(scope="module")
-def gate() -> list[str]:
-    path = REPO_ROOT / "tools" / "check_composition_roundtrip.py"
+def _corpus_tool():
+    """The corpus walk and its non-entry rules, loaded from the tool CI runs (tools/check_bim_corpus.py)."""
+    path = REPO_ROOT / "tools" / "check_bim_corpus.py"
     if not path.is_file():
-        pytest.skip(f"{path} is not mounted in this environment")
+        return None
+    spec = importlib.util.spec_from_file_location("_corpus_for_diff", path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["_corpus_for_diff"] = module
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.modules.pop("_corpus_for_diff", None)
+    return module
+
+
+@pytest.fixture(scope="module")
+def corpus():
+    """Every corpus package, with the files each one holds as entries."""
+    tool = _corpus_tool()
+    if tool is None:
+        pytest.skip("tools/check_bim_corpus.py is not mounted in this environment")
     try:
         import bim_core  # noqa: F401, PLC0415
     except ImportError:
         pytest.skip("bim_core is not importable in this environment")
-    spec = importlib.util.spec_from_file_location("_gate_for_diff", path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["_gate_for_diff"] = module
-    try:
-        spec.loader.exec_module(module)
-    finally:
-        sys.modules.pop("_gate_for_diff", None)
-    members, _unrecorded = module.gate(REPO_ROOT)
-    return members
+    packages = []
+    for directory in tool.package_directories(REPO_ROOT):
+        ignored = tool.NON_ENTRY_FILES.get(directory.relative_to(REPO_ROOT), frozenset())
+        files = {
+            entry.name: entry.read_bytes()
+            for entry in directory.iterdir()
+            if entry.is_file() and entry.name not in ignored
+        }
+        packages.append((directory.relative_to(REPO_ROOT).as_posix(), files))
+    return packages
 
 
-def test_a_package_against_itself_has_no_changes(gate: list[str]) -> None:
+def test_a_package_against_itself_has_no_changes(corpus) -> None:
     """What makes an empty diff evidence rather than a shrug.
 
-    The gate is the whole corpus now, so this runs over the placement packages too -- and
-    over the one whose workflow is BPMN, which is why the compiler is passed in: that
-    package is read by delegation (specification section 5.4).
+    This runs over the whole corpus, the placement packages too -- and over the packages
+    whose workflow is BPMN, which is why the compiler is passed in: those are read by
+    delegation.
     """
     from bim_core import compile_instance  # noqa: PLC0415
     from bim_core.package import InstancePackage  # noqa: PLC0415
@@ -115,10 +131,9 @@ def test_a_package_against_itself_has_no_changes(gate: list[str]) -> None:
     def compile(files: dict[str, bytes]) -> dict:
         return compile_instance(InstancePackage(files)).document
 
+    assert len(corpus) >= 82
     noisy = []
-    for package in gate:
-        directory = Path(REPO_ROOT / package)
-        files = {entry.name: entry.read_bytes() for entry in directory.iterdir() if entry.is_file()}
+    for package, files in corpus:
         model = import_bim(files, compile=compile)
         changes = diff(model, model)
         if changes:

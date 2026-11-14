@@ -50,12 +50,6 @@ PUBLIC_READ_ALLOWED: dict[str, str] = {
     f"{PROJECT}/cases/{{case}}": "A binding case.",
     f"{PROJECT}/cases/{{case}}/revisions": "Sealed case revisions (and, through them, their snapshot digests).",
     f"{PROJECT}/cases/{{case}}/revisions/{{revision}}": "One sealed case revision.",
-    f"{PROJECT}/compositions": "Compositions.",
-    f"{PROJECT}/compositions/{{composition}}": "A composition.",
-    f"{PROJECT}/compositions/{{composition}}/versions": "Sealed composition versions.",
-    f"{PROJECT}/compositions/{{composition}}/versions/{{version}}/content":
-        "One sealed version's Composition2Yaml source.",
-    f"{PROJECT}/compositions/{{composition}}/diff": "The change list between two sealed versions.",
     f"{PROJECT}/resources": "Project resources.",
     f"{PROJECT}/resources/{{resource}}/revisions": "Resource revisions.",
     f"{PROJECT}/studies": "Studies.",

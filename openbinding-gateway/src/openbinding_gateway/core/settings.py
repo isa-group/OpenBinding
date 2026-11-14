@@ -274,14 +274,12 @@ class Settings(BaseSettings):
     #: Requests per window that one client may send to the routes open to
     #: anybody that do real CPU work (``access/work_limits.py`` names them and
     #: docs/ACCESS_POLICY.md explains them). A client is its address (its /64
-    #: for IPv6) or, signed in, its account. ``read`` reads and writes YAML;
-    #: ``compile`` runs the container's compiler, so it is much
-    #: stricter. ``0`` switches a class off for everybody. Counted like
+    #: for IPv6) or, signed in, its account. The one class, ``compile``, runs
+    #: the container's compiler. ``0`` switches it off for everybody. Counted like
     #: authentication: in Redis, or per process while Redis does not answer.
     work_rate_limit_window_s: int = Field(default=60, ge=1)
-    work_rate_limit_read_requests: int = Field(default=60, ge=0)
     work_rate_limit_compile_requests: int = Field(default=10, ge=0)
-    #: How many times those budgets a signed-in caller gets.
+    #: How many times that budget a signed-in caller gets.
     work_rate_limit_signed_in_multiplier: int = Field(default=5, ge=1)
 
     # -- The first administrator -----------------------------------------

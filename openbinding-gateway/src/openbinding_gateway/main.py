@@ -64,8 +64,6 @@ from .routes.pricing import public_router as pricing_router
 from .routes.studies import router as studies_router
 from .routes.users import router as users_router
 from .routes.v1 import router as v1_router
-from .routes.compositions import project_router as compositions_project_router
-from .routes.compositions import router as compositions_router
 from .security.apikeys import (
     ALL_PERMISSIONS,
     ENGINE_LIMITED_PERMISSIONS,
@@ -184,9 +182,6 @@ _BIM_PATH_PREFIXES = (
     "/v1/instances",
     "/v1/validate",
     "/v1/jobs",
-    # A composition imported from a package is a package upload, and answers like the
-    # others. Only this path: the rest of /v1/compositions keeps the platform's media type.
-    "/v1/compositions/import",
 )
 
 
@@ -372,8 +367,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(artifacts_router)
     app.include_router(jobs_router)
     app.include_router(notifications_router)
-    app.include_router(compositions_router)
-    app.include_router(compositions_project_router)
 
     generated_openapi = app.openapi
     app.openapi = lambda: openapi_with_security_contract(app, settings, generated_openapi)
@@ -1180,10 +1173,6 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     snapshots["post"]["requestBody"] = package_body(
         "Portable BIM source package to persist privately."
     )
-    composition_import = paths["/v1/compositions/import"]["post"]
-    composition_import["requestBody"] = package_body(
-        "Portable BIM source package to read back as a composition."
-    )
     snapshots["post"]["responses"]["201"] = json_response(
         "SnapshotCreated", "Private immutable Instance snapshot created."
     )
@@ -1273,12 +1262,6 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
         add_problem(operation, 415, "The request media type is not a supported BIM package type.")
         add_problem(operation, 422, "The BIM source package or snapshot reference is invalid.")
     add_problem(analysis, 404, "The exact private snapshot does not exist for the caller.")
-    add_problem(composition_import, 413, "The BIM source package exceeds the request size limit.")
-    add_problem(composition_import, 415, "The request media type is not a supported BIM package type.")
-    add_problem(
-        composition_import, 422,
-        "The compiler refused the package, or this version of the language cannot express it.",
-    )
     for operation in (snapshot, snapshot_source, snapshot_ir):
         add_problem(operation, 404, "The exact private snapshot does not exist for the caller.")
     for operation in (job, job_ir, job_instance, job_report):

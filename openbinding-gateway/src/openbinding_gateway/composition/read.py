@@ -1,13 +1,10 @@
-"""Read an existing BIM v1 package back into a composition: the emitter's inverse.
+"""Read an existing BIM v1 package back into the composition model.
 
-Phase F1 step 2 needs this only to prove step 1. The gate is
-``ir_digest(compile(emit(import_bim(d)))) == ir_digest(compile(d))`` over all 82 packages of
-specification section 11.2, and without an importer there is no way to run it at scale:
-hand-writing 82 compositions would prove the author's patience rather than the translation.
-
-So this is a **test instrument first and an authoring convenience second**, and it is honest
-about the difference. It recovers everything the IR digest can see and deliberately drops
-everything it cannot:
+It was written as the inverse of the old problem-authoring language's emitter, to run its
+round-trip gate over the corpus; that language was removed in F0b. It stays as a building
+block for F1, which derives a composition from a problem, and the model diff test still
+reads the whole corpus through it. It recovers everything the IR digest can see and
+deliberately drops everything it cannot:
 
 * A document's ``metadata`` -- names, versions, descriptions, annotations -- is stripped by
   ``ir_digest``, so a package's own annotations do not survive the trip. Reproducing a
@@ -42,8 +39,8 @@ from decimal import Decimal
 from typing import Any
 
 from . import ids
+from .ids import FILES, PLACEMENT
 from .bpmn import Compile, reduce_package
-from .emit import FILES, PLACEMENT
 from .model import (
     Aggregation,
     Branch,

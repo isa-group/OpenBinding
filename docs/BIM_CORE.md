@@ -68,11 +68,9 @@ against the **installed** release wheels:
 - `tools/baseline_core.py --check` of the kit;
 - the gateway's BIM consumer tests: `tests/test_bim_baseline.py`,
   `tests/test_bim_consumer_contract.py`, `tests/test_bim_zip_dir_equivalence.py`,
-  `tests/test_bim_v1_conciseness.py` and `tests/composition`;
-- the composition round-trip gate `tools/check_composition_roundtrip.py`
-  (82/82 packages). It reads the pinned golden
-  `openbinding-gateway/tests/golden/bim_baseline/corpus.json`, a byte copy of the
-  release's [`golden/bim_normalized/corpus.json`](https://github.com/javiercavlop/bim-toolchain/blob/v0.2.0/golden/bim_normalized/corpus.json).
+  `tests/test_bim_v1_conciseness.py` and `tests/composition`. The baseline tests read the
+  pinned golden `openbinding-gateway/tests/golden/bim_baseline/corpus.json`, a byte copy of
+  the release's [`golden/bim_normalized/corpus.json`](https://github.com/javiercavlop/bim-toolchain/blob/v0.2.0/golden/bim_normalized/corpus.json).
 
 No test may skip there. The job fails if a release changes the IR or the
 semantic digests of this corpus. The checked-in corpus is 82 packages

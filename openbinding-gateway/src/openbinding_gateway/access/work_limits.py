@@ -1,20 +1,15 @@
 """How much work one client may ask of the routes that are open to anybody.
 
 A visitor may do almost everything but solve, so a few routes do real CPU work for whoever
-asks. Each request's cost is bounded where the work happens: a source in its length, a package
-in what it would emit, and the composition pools answer 503 when they are full. Nothing bounded
-how often one client may ask, so one client could keep those pools full and everybody else would
-get the 503.
+asks. Each request's cost is bounded where the work happens, a package in its size and in what
+it would emit, but nothing bounded how often one client may ask, so one client could keep the
+compiler busy for everybody else.
 
-Every such route belongs to one of two classes (``WORK_ROUTES``):
+Every such route belongs to a class (``WORK_ROUTES``). There is one today:
 
-``read``
-    Reads or writes YAML, what an editor asks at every pause in typing.
 ``compile``
-    Runs the container's compiler in this process: far more work per request
-    and nothing an editor does by itself, so its budget is much smaller.
-
-``GET /v1/compositions/language`` and ``/schema`` are in neither: they answer from a cache.
+    Runs the container's compiler in this process: real work per request and nothing an
+    editor does at every pause in typing, so its budget is small.
 
 A client is the address the proxy resolved (``core/ratelimit.client_address``), or the /64 of an
 IPv6 one, or, when signed in, the account, which gets ``WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER`` times
@@ -42,18 +37,11 @@ from ..models.errors import api_error
 from .dependencies import counted_caller, get_optional_user
 from .public_read import route_template
 
-WorkClass = Literal["read", "compile"]
+WorkClass = Literal["compile"]
 
 #: Every route counted here, by its template. A test walks the real route table and fails when a
 #: route under these prefixes is not listed, and the OpenAPI document declares the 429 from this table.
 WORK_ROUTES: dict[str, WorkClass] = {
-    "/v1/compositions/validate": "read",
-    "/v1/compositions/parse": "read",
-    "/v1/compositions/serialise": "read",
-    "/v1/compositions/diff": "read",
-    "/v1/compositions/compile": "compile",
-    "/v1/compositions/package": "compile",
-    "/v1/compositions/import": "compile",
     "/v1/instances/validate": "compile",
 }
 
@@ -95,11 +83,7 @@ def set_work_limiter(limiter: Optional[WorkRateLimiter]) -> None:
 
 
 def _budget(settings: Settings, work_class: WorkClass, signed_in: bool) -> int:
-    budget = (
-        settings.work_rate_limit_compile_requests
-        if work_class == "compile"
-        else settings.work_rate_limit_read_requests
-    )
+    budget = settings.work_rate_limit_compile_requests
     return budget * settings.work_rate_limit_signed_in_multiplier if signed_in else budget
 
 

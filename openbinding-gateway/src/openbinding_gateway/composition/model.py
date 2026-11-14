@@ -1,18 +1,16 @@
-"""The Composition2Yaml document, as data.
+"""The composition model, as data.
 
-A composition is the central entity of the Studio: a name, a version, properties, tasks,
-a workflow, candidates, rules and goals. This module is the in-memory shape of that
-document and nothing else -- no parsing, no emission, no validation beyond what a type
-can express. Both the reader and the writer of phase F1 work against it, which is what
-makes "parse then serialize gives the same model" a statement worth testing.
+A composition here is a name, a version, properties, tasks, a workflow, candidates, rules
+and goals: the shape the removed problem-authoring language wrote, which ``read`` still
+fills from a BIM package and ``diff`` compares. This module is the in-memory shape and
+nothing else -- no parsing, no emission, no validation beyond what a type can express.
+F1 prunes the problem-side types its document of a final composition does not need.
 
-Everything is frozen. A composition version is immutable by design: the Studio creates a
-new version rather than editing one in place, and the diff between two versions is a
-first-class result.
+Everything is frozen. A composition version is immutable by design, and the diff between
+two versions is a first-class result.
 
-The one thing to know when reading this: Composition2Yaml has no semantics of its own.
-The meaning of every field here is its translation into ``qos-binding/v1``, which
-``docs/COMPOSITION2YAML.md`` fixes rule by rule.
+The meaning of every field here is the ``qos-binding/v1`` document it was read from; the
+container's compiler remains the only authority on what those documents mean.
 """
 
 from __future__ import annotations

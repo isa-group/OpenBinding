@@ -1,24 +1,20 @@
-"""Composition2Yaml: the Studio's high-level composition language.
+"""Building blocks for the Composition API of F1.
 
-A composition -- a name, a workflow, tasks, properties and versions -- is the central
-entity of OpenBinding Studio, and QoS binding is one analysis performed on it. This
-package holds the language: its model, its schema, the identifiers a composition compiles
-to, and the neutral values the translation writes explicitly.
+The problem-authoring Composition2Yaml of the Studio was removed in F0b, because
+composition problems are written in BIM. What stays here is what F1 reuses to derive a
+composition from a problem and a binding: reading a BIM package into a model (``read``,
+with ``bpmn`` for BPMN workflows and ``neutral`` for the neutral values the compiler
+infers), the workflow tree and its identifiers (``model``, ``ids``), the model diff
+(``diff``), and located YAML with its diagnostics (``syntax``, ``spans``,
+``diagnostics``). F1 prunes the problem-side types it does not need.
 
-Composition2Yaml has no semantics of its own. It is defined by its translation into
-``qos-binding/v1`` documents, specified rule by rule in ``docs/COMPOSITION2YAML.md``, and
-the container's compiler remains the only authority on what those documents mean. The
-source is never a package entry: a composition compiles *into* an ordinary package, and
-nothing downstream can tell that package was generated.
-
-This layer stays free of the web layer and of the container's internals, so it can be
-lifted into a distribution of its own when the Studio needs one. The architecture test
-enforces that by listing ``composition`` among the protected layers.
+This layer stays free of the web layer and of the container's internals. The architecture
+test enforces that by listing ``composition`` among the protected layers.
 """
 
 from __future__ import annotations
 
-from . import bpmn, diff, emit, ids, read, text
+from . import bpmn, diff, ids, read
 from .diagnostics import CompositionError, Diagnostic, Span
 from .model import (
     Aggregation,
@@ -56,18 +52,6 @@ from .model import (
 )
 from .neutral import NeutralSource, Unbounded, expand_aggregation, infer_neutral, resolve_neutral
 
-#: The version of the language this package implements. It is also the id of the Dialect
-#: the container installs for it: a real, installed, JSON-only dialect that declares no
-#: resource type and one inline extension point, which costs no existing digest at all --
-#: measured, an untouched package compiled with it installed keeps both its ``irDigest``
-#: and its ``compilationDigest``. What is *not* free is the notation marker that dialect
-#: makes room for: ``ir_digest`` keeps ``spec.extensions``, so a package carrying the
-#: marker has a different IR digest from the same package without it. A discriminator in
-#: the application schema, the faithful reading of "the mechanism BPMN uses", is a third
-#: thing again and is the one that moves every live golden.
-#: ``docs/COMPOSITION2YAML.md`` section 13 prices all three.
-LANGUAGE_ID = "composition2yaml/v1"
-
 __all__ = [
     "Aggregation",
     "bpmn",
@@ -79,7 +63,6 @@ __all__ = [
     "Diagnostic",
     "diff",
     "Domain",
-    "emit",
     "EmptyNode",
     "Endpoint",
     "Event",
@@ -91,7 +74,6 @@ __all__ = [
     "Goal",
     "ids",
     "infer_neutral",
-    "LANGUAGE_ID",
     "LocalTask",
     "NetworkEdge",
     "NeutralSource",
@@ -113,7 +95,6 @@ __all__ = [
     "Span",
     "TaskNode",
     "TEMPLATES",
-    "text",
     "Transition",
     "Unbounded",
 ]

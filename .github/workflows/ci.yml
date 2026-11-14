@@ -123,7 +123,7 @@ jobs:
   # repository's corpus, with the released wheels installed: the toolchain's corpus tier (-m openbinding_corpus) and
   # baseline_core.py --check, from the test kit of the pinned tag (its tools, goldens, contracts and fixtures, without
   # packages/*/src, so that the code under test is always the installed release), and the gateway's own BIM consumer
-  # tests and composition round-trip gate. These are tests, so no step is report-only, and none may skip.
+  # tests. These are tests, so no step is report-only, and none may skip.
   bim-toolchain:
     needs: changes
     if: needs.changes.outputs.bim == 'true'
@@ -192,7 +192,7 @@ jobs:
           BIM_CORPUS_ROOT: ${{ github.workspace }}
         run: ../openbinding-gateway/.venv/bin/python tools/baseline_core.py --check
 
-      - name: The gateway's BIM consumer tests and the composition round-trip gate (no test may be skipped)
+      - name: The gateway's BIM consumer tests (no test may be skipped)
         working-directory: openbinding-gateway
         shell: bash
         env:
@@ -207,7 +207,6 @@ jobs:
             echo "::error::a BIM consumer test was SKIPPED; it must run"
             exit 1
           fi
-          .venv/bin/python ../tools/check_composition_roundtrip.py
 
   # The lab tests live outside openbinding-gateway/tests, so no other job
   # collects them. They run on the locked gateway environment with the test extra.

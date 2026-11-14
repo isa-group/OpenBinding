@@ -142,25 +142,6 @@ def test_authentication_and_role_requirements_are_explicit(document):
         # The public engine catalogue: a visitor gets the built-in and published Engines.
         ("/v1/engines", "get"),
         ("/v1/instances/validate", "post"),
-        # Like /v1/instances/validate: the response is a pure function of the request, so
-        # there is nothing an account would protect. An API key still needs
-        # instances:read.
-        ("/v1/compositions/diff", "post"),
-        # The same shape: a validation derives its answer from the document in the request
-        # and stores nothing, so an account would protect nothing either.
-        ("/v1/compositions/validate", "post"),
-        # The rest of the authoring surface has that shape too: each reads the document or
-        # the package in the request and stores nothing. Compiling and importing run the
-        # container's compiler, as /v1/instances/validate does for anyone.
-        ("/v1/compositions/parse", "post"),
-        ("/v1/compositions/serialise", "post"),
-        ("/v1/compositions/compile", "post"),
-        ("/v1/compositions/package", "post"),
-        ("/v1/compositions/import", "post"),
-        # What the language is, not anyone's data: open even to an API key without
-        # permissions, like /v1/profiles.
-        ("/v1/compositions/language", "get"),
-        ("/v1/compositions/schema", "get"),
     }
     for path, method, operation in operations(document):
         if (path, method) in public:

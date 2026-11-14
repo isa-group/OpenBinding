@@ -98,10 +98,6 @@ OPEN_V1_PREFIXES = (
 )
 OPEN_V1_GET_PATHS = frozenset({
     "/v1/dialects",
-    # The composition language's own description and schema: what the language is, not
-    # anyone's data, so open like /v1/profiles.
-    "/v1/compositions/language",
-    "/v1/compositions/schema",
 })
 
 
@@ -442,14 +438,6 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             if method == "GET"
             else {ApiKeyPermission.ENGINES_EXECUTE.value}
         )
-    if path.startswith("/v1/compositions"):
-        if method == "GET" and path in OPEN_V1_GET_PATHS:
-            return frozenset()
-        # Comparing two compositions derives a view from documents the caller supplies and
-        # persists nothing, which is a validator's shape rather than a writer's: the
-        # read permission, not the write one. A key still needs it, because deny-by-default
-        # under /v1 is the rule and "it only computes" is not an exemption.
-        return frozenset({ApiKeyPermission.INSTANCES_READ.value})
     if path.startswith("/v1/snapshots"):
         return frozenset({ApiKeyPermission.INSTANCES_READ.value})
     if not (path == "/v1" or path.startswith("/v1/")):
