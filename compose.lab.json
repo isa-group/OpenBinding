@@ -21,7 +21,7 @@
       "volumes": [
         {
           "type": "volume",
-          "source": "lab-pg-3",
+          "source": "lab-pg-4",
           "target": "/var/lib/postgresql/data"
         }
       ],
@@ -381,7 +381,7 @@
     }
   },
   "volumes": {
-    "lab-pg-3": {},
+    "lab-pg-4": {},
     "lab-redis": {},
     "lab-artifacts-2": {},
     "lab-e2e": {}

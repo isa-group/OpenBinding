@@ -52,7 +52,7 @@ Where the history below says "one old snapshot ... `invalid_instance`" without a
   `plan_usage` is omitted (it needs SPACE, i.e. `--with-space`).
 - Since that run one service was added (`e2e`, see "What
   runs" and "Browser specs and visual QA inside the lab") and the volumes were renamed
-  to `lab-pg-3` and `lab-artifacts-2` (see "Unprivileged containers"). At that time the new
+  to `lab-pg-4` and `lab-artifacts-2` (see "Unprivileged containers" and "Schema baseline"). At that time the new
   file, the image `frontend/Dockerfile.e2e` and the sequence below had been checked statically only; they have been built and
   run since (the Playwright result above).
 
@@ -66,7 +66,7 @@ A static check also exists (`lab/tests/test_lab_compose.py`).
 
 | Service | Image / build | `mem_limit` | Notes |
 | --- | --- | --- | --- |
-| `postgres` | `postgres:16-alpine` | 384 MiB | volume `lab-pg-3`, `PGDATA=/var/lib/postgresql/data/pgdata`, `pg_isready` healthcheck, `user: 70:70` |
+| `postgres` | `postgres:16-alpine` | 384 MiB | volume `lab-pg-4`, `PGDATA=/var/lib/postgresql/data/pgdata`, `pg_isready` healthcheck, `user: 70:70` |
 | `redis` | `redis:7-alpine` | 96 MiB | volume `lab-redis`, AOF, `maxmemory 64mb` + `noeviction`, `user: 999:1000` |
 | `engine-random-search` | `engines/random-search/Dockerfile` | 320 MiB | JVM, `-Xmx192m` |
 | `engine-many-heuristic` | `engines/many-heuristic/Dockerfile` | 320 MiB | JVM, `-Xmx192m` |
@@ -101,13 +101,17 @@ that limits a compromised process. Consequences for the lab:
   ownership ... Operation not permitted`: the supervisor drops every capability, so the
   container has no `CAP_CHOWN`. It was removed, and the lab uses **new volumes**
   instead: `lab-artifacts` became `lab-artifacts-2` and `lab-pg` became `lab-pg-3`
-  (`gateway`, `worker` and `seed` mount `lab-artifacts-2`; `postgres` mounts `lab-pg-3`).
+  (`gateway`, `worker` and `seed` mount `lab-artifacts-2`; `postgres` mounted `lab-pg-3`, now `lab-pg-4`).
   No service runs as root and none depends on a one-shot.
 - **Orphaned volumes.** The old `lab-artifacts` and `lab-pg` are not deleted and no
   service mounts them any more. The old synthetic database and its artifacts are kept
-  unused. Recreating the database on `lab-pg-3` means it starts empty: run `seed`
+  unused. Recreating the database on `lab-pg-4` means it starts empty: run `seed`
   again to populate it. `lab-pg-2` is also kept unused: its initial password was lost
   (the data is synthetic).
+- **Schema baseline.** The Alembic history was replaced by one generated baseline
+  (F0b), so a database migrated by the old chain is refused ("Rebuild the local
+  development database"). The lab moved to a new, empty volume, `lab-pg-4`; `lab-pg-3`
+  is kept unused like the older ones.
 - The gateway `Dockerfile` installs exactly the lock: `uv export --frozen` of
   `openbinding-gateway/uv.lock`, then `uv pip install --system --require-hashes`
   (`test_the_image_installs_exactly_the_lock_with_hashes`). `bim-core` and `bim-client` 0.2.0
@@ -264,7 +268,7 @@ change and was not re-verified).
    `DEMO_SEED_ARGS`, repeat `up` with the new values and then run `seed`.
 4. `status` / `logs`: look at `web`, `gateway`, `worker` first.
 5. `down` removes containers and the network and **keeps the named volumes**
-   (`lab-pg-3`, `lab-redis`, `lab-artifacts-2`), so data survives a restart. Only
+   (`lab-pg-4`, `lab-redis`, `lab-artifacts-2`), so data survives a restart. Only
    an explicit volume removal deletes it.
 
 ### Seeding

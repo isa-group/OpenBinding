@@ -2,7 +2,7 @@
 
 The source documents and solver results remain in the BIM tables.  These rows
 organise immutable references to them: organizations own projects, projects
-own binding cases and studies, and reports/publications preserve what was run.
+own binding cases and studies.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 
 if TYPE_CHECKING:
-    from .artifact_models import ArtifactDraft, ArtifactVersion
+    from .artifact_models import ArtifactVersion
 
 
 def utcnow() -> datetime:
@@ -74,11 +74,6 @@ class RunState(str, enum.Enum):
     PARTIAL = "partial"
     FAILED = "failed"
     CANCELLED = "cancelled"
-
-
-class ReportState(str, enum.Enum):
-    DRAFT = "draft"
-    FROZEN = "frozen"
 
 
 class AuthIdentity(Base):
@@ -306,74 +301,6 @@ class ProjectResourceRevision(Base):
     )
 
 
-class Collection(Base):
-    __tablename__ = "collections"
-    __table_args__ = (UniqueConstraint("project_id", "slug", name="uq_collection_project_slug"),)
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    project_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    slug: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    name: Mapped[str] = mapped_column(String(160), nullable=False)
-    description: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
-    created_by_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow, server_default=func.now()
-    )
-
-
-class CollectionRevision(Base):
-    __tablename__ = "collection_revisions"
-    __table_args__ = (
-        UniqueConstraint("collection_id", "revision", name="uq_collection_revision"),
-        UniqueConstraint("collection_id", "digest", name="uq_collection_revision_digest"),
-        CheckConstraint("revision > 0", name="collection_revision_positive"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    collection_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("collections.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    revision: Mapped[int] = mapped_column(Integer, nullable=False)
-    digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
-    created_by_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-
-
-class CollectionItem(Base):
-    __tablename__ = "collection_items"
-    __table_args__ = (
-        UniqueConstraint("collection_revision_id", "position", name="uq_collection_item_position"),
-        UniqueConstraint("collection_revision_id", "target_kind", "target_digest", name="uq_collection_item_target"),
-        CheckConstraint("position >= 0", name="collection_item_position_nonnegative"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    collection_revision_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("collection_revisions.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    position: Mapped[int] = mapped_column(Integer, nullable=False)
-    target_kind: Mapped[str] = mapped_column(String(32), nullable=False)
-    target_digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
-    target_ref: Mapped[dict] = mapped_column(JSON, nullable=False)
-    added_by_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-
-
 class Study(Base):
     __tablename__ = "studies"
     __table_args__ = (UniqueConstraint("project_id", "slug", name="uq_study_project_slug"),)
@@ -456,74 +383,6 @@ class StudyCell(Base):
     )
     state: Mapped[RunState] = enum_column(RunState, RunState.QUEUED)
     metrics: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-
-
-class Report(Base):
-    __tablename__ = "reports"
-    __table_args__ = (UniqueConstraint("project_id", "slug", name="uq_report_project_slug"),)
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    project_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    study_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("study_runs.id", ondelete="RESTRICT"), nullable=True, index=True
-    )
-    slug: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    title: Mapped[str] = mapped_column(String(240), nullable=False)
-    artifact_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("artifacts.id", ondelete="RESTRICT"), nullable=False, index=True)
-    draft_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("artifact_drafts.id", ondelete="RESTRICT"), nullable=True)
-    version_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("artifact_versions.id", ondelete="RESTRICT"), nullable=True, index=True)
-    draft: Mapped[Optional["ArtifactDraft"]] = relationship("ArtifactDraft", foreign_keys=[draft_id], lazy="joined")
-    version: Mapped[Optional["ArtifactVersion"]] = relationship("ArtifactVersion", foreign_keys=[version_id], lazy="joined")
-
-    @property
-    def document(self) -> dict:
-        if self.draft is not None and self.draft.sealed_version_id is None:
-            return self.draft.payload['content']
-        from ..artifacts import verified_version_content
-        from ..core.jsonio import strict_json_loads
-        return strict_json_loads(verified_version_content(self.version, self.version.blob)[0])
-
-    @property
-    def digest(self) -> str:
-        from bim_core.canonical import digest
-        return digest(self.document)
-
-    state: Mapped[ReportState] = enum_column(ReportState, ReportState.DRAFT)
-    created_by_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-
-
-class Publication(Base):
-    __tablename__ = "publications"
-    __table_args__ = (
-        UniqueConstraint("project_id", "slug", name="uq_publication_project_slug"),
-        UniqueConstraint("report_id", "version_id", name="uq_publication_report_version"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    project_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    report_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("reports.id", ondelete="RESTRICT"), nullable=False, index=True
-    )
-    version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("artifact_versions.id", ondelete="RESTRICT"), nullable=False, index=True)
-    version: Mapped["ArtifactVersion"] = relationship("ArtifactVersion", foreign_keys=[version_id], lazy="joined")
-    withdrawn: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    slug: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    citation: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    published_by_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
-    )
-    published_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
 
 
 class Blob(Base):

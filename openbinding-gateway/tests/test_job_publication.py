@@ -8,19 +8,13 @@ batches under ``FOR UPDATE SKIP LOCKED`` needs PostgreSQL and lives in
 
 from __future__ import annotations
 
-import os
-import sqlite3
-import subprocess
-import sys
 import uuid
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 import pytest_asyncio
 
-from _paths import GATEWAY_ROOT
 from _pricing import pricing_catalog
 from openbinding_gateway import job_dispatch
 from openbinding_gateway.db.models import Job, JobState, User, UserRole, utcnow
@@ -262,60 +256,6 @@ async def test_inline_mode_has_nothing_to_republish(db_session, owner, monkeypat
     assert await job_dispatch.redeliver_queued_jobs(db_session) == 0
     await db_session.refresh(job)
     assert job.publish_attempts == 0 and job.next_publish_at is None
-
-
-# -- The migration --------------------------------------------------------------
-
-ROOT = GATEWAY_ROOT
-PREVIOUS_REVISION = "e1f2a3b4c5d6"
-THIS_REVISION = "f2a3b4c5d6e7"
-
-
-def alembic(database: Path, *arguments: str) -> None:
-    environment = {**os.environ, "DATABASE_URL": f"sqlite+aiosqlite:///{database}"}
-    done = subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", "alembic.ini", *arguments],
-        cwd=ROOT, env=environment, capture_output=True, text=True, check=False,
-    )
-    assert done.returncode == 0, done.stdout + done.stderr
-
-
-def columns(database: Path, table: str) -> dict[str, tuple]:
-    with sqlite3.connect(database) as connection:
-        return {row[1]: row for row in connection.execute(f"PRAGMA table_info({table})")}
-
-
-def job_triggers(database: Path) -> set[str]:
-    with sqlite3.connect(database) as connection:
-        rows = connection.execute("SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'jobs'")
-        return {name for (name,) in rows}
-
-
-def test_the_migration_adds_the_publication_and_attempt_columns_and_keeps_the_job_triggers(tmp_path):
-    database = tmp_path / "publication.db"
-
-    alembic(database, "upgrade", PREVIOUS_REVISION)
-    triggers = job_triggers(database)
-    assert {"protect_jobs", "pin_job_configuration"} <= triggers
-    assert not {"publish_attempts", "next_publish_at"} & set(columns(database, "jobs"))
-    assert "attempts" not in columns(database, "analysis_tasks")
-
-    # Pinned by id: the head (e7f8a9b0c1d2, M9.6) drops analysis_tasks.
-    alembic(database, "upgrade", THIS_REVISION)
-    jobs = columns(database, "jobs")
-    assert jobs["publish_attempts"][3] == 1 and jobs["publish_attempts"][4].strip("'\"") == "0"  # NOT NULL, 0
-    assert jobs["next_publish_at"][3] == 0  # nullable
-    tasks = columns(database, "analysis_tasks")
-    assert tasks["attempts"][3] == 1 and tasks["attempts"][4].strip("'\"") == "0"
-    assert job_triggers(database) == triggers  # no table rebuild dropped them
-
-    alembic(database, "downgrade", PREVIOUS_REVISION)
-    assert not {"publish_attempts", "next_publish_at"} & set(columns(database, "jobs"))
-    assert "attempts" not in columns(database, "analysis_tasks")
-    assert job_triggers(database) == triggers
-
-    alembic(database, "upgrade", "head")
-    assert {"publish_attempts", "next_publish_at"} <= set(columns(database, "jobs"))
 
 
 # -- The PostgreSQL statement -------------------------------------------------

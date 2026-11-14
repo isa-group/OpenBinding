@@ -4,9 +4,11 @@ The database URL comes from ``core.settings`` rather than from ``alembic.ini``,
 so a deployment sets ``DATABASE_URL`` once and both the running gateway and its
 migrations agree about where they are pointing.
 
-``render_as_batch`` is on because the test database is SQLite, which cannot
-alter a column in place: Alembic has to rebuild the table instead, and it only
-does that when asked.
+There is one revision, the baseline that ``tools/rebaseline.py`` generates
+from the models (and regenerates, with a new id, on every schema change). A
+database stamped with a revision this directory no longer has was built from an
+older baseline: it is refused with the reset recipe, and nothing is dropped
+automatically.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
+from alembic.script import ScriptDirectory
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlalchemy import pool
 
@@ -39,13 +42,27 @@ def database_url() -> str:
     return url
 
 
+RESET_HINT = "Rebuild the local development database: see README 'Reset the dev database'."
+
+
+def refuse_unknown_revision() -> None:
+    """Refuse a database stamped with a revision that is not in this script directory."""
+    current = context.get_context().get_current_heads()
+    known = {script.revision for script in ScriptDirectory.from_config(config).walk_revisions()}
+    unknown = sorted(set(current) - known)
+    if unknown:
+        raise RuntimeError(
+            f"The database is at revision {', '.join(unknown)}, which this checkout does not have "
+            f"(it was built from an older baseline). {RESET_HINT}"
+        )
+
+
 def run_migrations_offline() -> None:
     context.configure(
         url=database_url(),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        render_as_batch=True,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -55,10 +72,10 @@ def do_run_migrations(connection) -> None:
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
-        render_as_batch=True,
         compare_type=True,
     )
     with context.begin_transaction():
+        refuse_unknown_revision()
         context.run_migrations()
 
 

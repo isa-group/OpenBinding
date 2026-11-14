@@ -472,10 +472,7 @@ def one_pass(db_session, monkeypatch):
 
 
 async def test_a_cycle_needs_no_analysis_tasks_or_sponsor_proposals(one_pass, db_session, owner, logs):
-    from openbinding_gateway.db.base import Base
-
-    assert "analysis_tasks" not in Base.metadata.tables
-    assert "sponsor_proposals" not in Base.metadata.tables
+    # Both tables are in RETIRED_TABLES (tests/test_schema_baseline.py).
     source = inspect.getsource(reconciler)
     assert "sweep_expired" not in source
     assert "redeliver_analysis" not in source and "analysis_jobs" not in source

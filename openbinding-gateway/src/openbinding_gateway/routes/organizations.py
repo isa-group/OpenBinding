@@ -42,8 +42,6 @@ from ..db.models import (
     Project,
     ProjectResource,
     ProjectResourceRevision,
-    Publication,
-    Report,
     Study,
     StudyCell,
     StudyRun,
@@ -314,8 +312,6 @@ async def _cascade_delete_project(session: AsyncSession, project: Project) -> No
         BindingCase.project_id == project.id).limit(1))
     if historical_case:
         raise api_error(409, "historical_references", "A project with sealed case revisions cannot be deleted.")
-    await session.execute(delete(Publication).where(Publication.project_id == project.id))
-    await session.execute(delete(Report).where(Report.project_id == project.id))
 
     cases = (
         await session.execute(

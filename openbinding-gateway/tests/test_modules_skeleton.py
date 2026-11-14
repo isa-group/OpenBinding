@@ -28,14 +28,14 @@ LEGACY_INI = GATEWAY_ROOT / ".importlinter"
 #: Module order of docs/ARCHITECTURE.md §4.2, top to bottom; each layer is optional.
 MODULE_ORDER = [
     "(administration)",
-    "(publishing)",
     "(laboratory)",
     "(execution)",
-    "(engines) | (repository)",
+    "(engines) | (problems)",
     "(language)",
     "(collaboration)",
     "(identity)",
     "(plans)",
+    "(shared)",
 ]
 CONTRACTS = {"kernel", "composition-root", "no-legacy-http", "module-layers", "module-inside", "pure-domain"}
 

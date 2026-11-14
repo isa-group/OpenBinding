@@ -184,8 +184,19 @@ async def clean_existing_data(session: AsyncSession) -> None:
     session.expunge_all()
     connection = await session.connection()
     def rebuild(sync_connection):
-        db_base.Base.metadata.drop_all(sync_connection)
-        sync_connection.execute(text('DROP TABLE IF EXISTS alembic_version'))
+        # Everything goes, not just the tables the models know: an older baseline leaves orphan
+        # tables (and, on PostgreSQL, trigger functions) that metadata.drop_all cannot see.
+        if sync_connection.dialect.name == 'postgresql':
+            sync_connection.execute(text('DROP SCHEMA public CASCADE'))
+            sync_connection.execute(text('CREATE SCHEMA public'))
+        else:
+            # SQLite enforces no foreign keys here, so the order does not matter; triggers and
+            # indexes go with their tables.
+            names = sync_connection.execute(text(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+            )).scalars().all()
+            for name in names:
+                sync_connection.execute(text(f'DROP TABLE IF EXISTS "{name}"'))
         config = Config(str(_gateway_root / 'alembic.ini'))
         config.set_main_option('script_location', str(_gateway_root / 'alembic'))
         config.attributes['connection'] = sync_connection

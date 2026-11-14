@@ -113,7 +113,8 @@ document and rejects a mismatch.
 ## What stays in OpenBinding
 
 The toolchain does not know accounts, organizations, projects, plans, jobs,
-queues, persistence, the artifact library, studies, reports or the HTTP routes. See [gateway-as-is.md](architecture/gateway-as-is.md#the-bim--platform-boundary).
+queues, persistence, the artifact library, studies, reports or the HTTP routes. See
+[ARCHITECTURE.md](ARCHITECTURE.md) for the gateway side of the boundary.
 Engine manifests are a platform catalogue.
 
 Checks about a single document (resource schema validation, secure XML parse and

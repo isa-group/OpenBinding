@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .db.models import (
     Blob,
-    Collection,
     Organization,
     OrganizationMembership,
     OrganizationRole,
@@ -185,7 +184,6 @@ async def organization_usage(
             "members": 0,
             "projects": 0,
             "privateProjects": 0,
-            "collections": 0,
             "studies": 0,
             "storageBytes": 0,
         }
@@ -211,10 +209,6 @@ async def organization_usage(
         or 0
     )
     project_ids = select(Project.id).where(Project.organization_id.in_(ids))
-    collections = int(
-        await session.scalar(select(func.count(Collection.id)).where(Collection.project_id.in_(project_ids)))
-        or 0
-    )
     studies = int(
         await session.scalar(select(func.count(Study.id)).where(Study.project_id.in_(project_ids)))
         or 0
@@ -232,7 +226,6 @@ async def organization_usage(
         "members": members,
         "projects": projects,
         "privateProjects": private_projects,
-        "collections": collections,
         "studies": studies,
         "storageBytes": storage_bytes,
     }

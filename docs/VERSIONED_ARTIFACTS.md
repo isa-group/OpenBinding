@@ -77,13 +77,13 @@ effective `options`, selected registration and applied limits. Quota clamping ne
 edits the sealed configuration. Idempotency distinguishes exact configurations,
 including when their effective options happen to coincide. Project packages retain
 configuration versions used by exported jobs and verify their provenance on import.
-Migration `b9c0d1e2f3a4` adds this pin without recreating SQLite's existing job triggers.
+The trigger `pin_job_configuration` (`db/triggers.py`) keeps the pin fixed.
 Study matrices and analysis requests still record their effective options inline;
 execution jobs can already pin an `ExecutionConfiguration` version explicitly.
 
 ## Development cutover and outstanding integration
 
-Migration `b3c4d5e6f7a8` follows the existing head, renames file storage to `blobs`, adds library tables and changes snapshot uniqueness. Its downgrade deliberately refuses to discard sealed history. SQLite upgrade-chain tests exercise a fresh database. The same migration chain and library/composition/portability checks have also passed against an isolated local PostgreSQL database. Independent PostgreSQL connections verify concurrent idempotent sealing, conflicting version labels and optimistic draft edits.
+The schema, library tables included, is the one-revision Alembic baseline (`tools/rebaseline.py`); the sealing triggers are declared once in `db/triggers.py`. Independent PostgreSQL connections verify concurrent idempotent sealing, conflicting version labels and optimistic draft edits.
 
 The project-resource HTTP surface now delegates to the common artifact identities
 and sealed versions while retaining its historical response envelope for package
@@ -106,8 +106,7 @@ Library studies use `apiVersion: "openbinding/study/v1"`, `cases` containing
 engine options, executable case snapshots, case composition hashes and organization
 ownership. Case revisions from different projects in that organization are allowed.
 
-Study case members have immutable FK rows in `artifact_case_references`,
-introduced by migration `c4d5e6f7a8b9`. Study creation takes the exact case
+Study case members have immutable FK rows in `artifact_case_references`. Study creation takes the exact case
 revisions in `definition.case_revision_ids`; collections, and seeding a study from
 one, were removed in F0a.
 
@@ -126,13 +125,12 @@ allows multiple projects to share a definition without copying its cases or payl
 version; every run records it even when the query parameter is omitted. Engine
 grants and analytics use the run's version, independently of later study updates.
 
-Migration `d5e6f7a8b9c0` removes the duplicated `studies.definition` column and adds
-version FKs to studies and runs. Run identity, definition and matrix hashes cannot
+Studies and runs point at their definition version by FK. Run identity, definition and matrix hashes cannot
 be updated in SQL; run deletion is rejected. Studies with runs can be archived
 using `PATCH {"archived": true}` and restored, preserving history. Lists omit
 archived studies unless `include_archived=true`; archival prevents new runs.
 The frontend exposes shared-version selection, adoption and archive/restore.
-Migration `e6f7a8b9c0d1` also protects cell identity, case revision, Engine reference,
+The triggers of `db/triggers.py` also protect cell identity, case revision, Engine reference,
 parameters, seed and fingerprint from SQL updates and rejects cell deletion.
 Operational state, retry job assignment and metrics remain writable.
 
@@ -162,14 +160,10 @@ inspectable; the study execution endpoint rejects them as evidence-only data.
 ## Reports and publications (removed)
 
 Reports, their editions, project publications and Explore were removed in F0a (no route, service, screen or seed
-creates or reads them; their tables stay until the F0b baseline). A study is exported instead (the CSV of the
+creates or reads them); their tables, with the collections and the report evidence, were dropped by the F0b baseline. A study is exported instead (the CSV of the
 Results tab). Sealed versions no longer carry evidence (`manifest.evidence` is always empty), and package export and
 import no longer carry reports, publications or job evidence.
 
-Migration `f7a8b9c0d1e2` performed the report cutover and added evidence retention. A fresh
-SQLite upgrade and the complete PostgreSQL chain have passed. The complete development
-seed requires a PostgreSQL volume created after this cutover; when an older volume
-is present, follow the targeted reset procedure in the README before starting the
-stack.
+A PostgreSQL volume built from an older baseline is refused; follow "Reset the dev database" in the README.
 
 Import checks identity collisions and retains source UUIDs when absent.

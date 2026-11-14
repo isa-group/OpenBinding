@@ -10,13 +10,8 @@ row locks are exercised in ``tests/concurrency/test_job_evidence_pg.py``.
 
 from __future__ import annotations
 
-import os
-import sqlite3
-import subprocess
-import sys
 import uuid
 from datetime import timedelta
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -629,58 +624,3 @@ async def test_a_retry_after_the_sweep_answers_410(api_client, db_session, faile
 
     assert response.status_code == 410 and code_of(response) == "evidence_expired"
     assert bim_back == []
-
-
-# -- The migration -------------------------------------------------------------
-
-PREVIOUS_REVISION = "f2a3b4c5d6e7"
-THIS_REVISION = "a5b6c7d8e9f0"
-
-
-def alembic(database: Path, *arguments: str) -> subprocess.CompletedProcess:
-    environment = {**os.environ, "DATABASE_URL": f"sqlite+aiosqlite:///{database}"}
-    return subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", "alembic.ini", *arguments],
-        cwd=ROOT, env=environment, capture_output=True, text=True, check=False,
-    )
-
-
-def run(database: Path, *arguments: str) -> str:
-    done = alembic(database, *arguments)
-    assert done.returncode == 0, done.stdout + done.stderr
-    return done.stdout
-
-
-def has_table(database: Path) -> bool:
-    with sqlite3.connect(database) as connection:
-        rows = connection.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'job_engine_evidence'")
-        return rows.fetchone() is not None
-
-
-def table_indexes(database: Path) -> dict[str, int]:
-    with sqlite3.connect(database) as connection:
-        return {row[1]: row[2] for row in connection.execute("PRAGMA index_list(job_engine_evidence)")}
-
-
-def test_the_migration_hangs_from_the_previous_head_and_its_downgrade_drops_the_table(tmp_path):
-    database = tmp_path / "evidence.db"
-
-    heads = run(database, "heads")
-    # Later migrations hang from this revision, so it is no longer the head;
-    # it only has to stay in the single linear history.
-    assert heads.count("(head)") == 1 and THIS_REVISION in run(database, "history")
-
-    run(database, "upgrade", PREVIOUS_REVISION)
-    assert not has_table(database)
-
-    run(database, "upgrade", "head")
-    assert has_table(database)
-    indexes = table_indexes(database)
-    assert indexes["uq_job_engine_evidence_job_attempt"] == 1  # unique
-    assert "ix_job_engine_evidence_expires_at" in indexes
-
-    run(database, "downgrade", PREVIOUS_REVISION)
-    assert not has_table(database)
-
-    run(database, "upgrade", "head")
-    assert has_table(database)

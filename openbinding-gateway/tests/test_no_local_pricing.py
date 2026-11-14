@@ -126,10 +126,9 @@ def test_the_fake_gate_exists_only_in_the_test_suite():
 
 
 def test_the_pricing_release_table_is_not_modelled_any_more():
-    from openbinding_gateway.db.base import Base
     from openbinding_gateway.db import models
 
-    assert "pricing_releases" not in Base.metadata.tables
+    # The table itself is in RETIRED_TABLES (tests/test_schema_baseline.py).
     assert not hasattr(models, "Pricing" + "Release")
 
 

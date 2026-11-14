@@ -408,53 +408,6 @@ class EngineRegistrationRevision(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
 
 
-class DialectRevision(Base):
-    __tablename__ = "v1_dialect_revisions"
-    __table_args__ = (UniqueConstraint("namespace", "name", "version", name="uq_v1_dialect_identity"),)
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    namespace: Mapped[str] = mapped_column(String(128), nullable=False)
-    name: Mapped[str] = mapped_column(String(128), nullable=False)
-    version: Mapped[str] = mapped_column(String(64), nullable=False)
-    digest: Mapped[str] = mapped_column(String(80), nullable=False, unique=True, index=True)
-    adapter_digest: Mapped[str] = mapped_column(String(80), nullable=False)
-    document: Mapped[dict] = mapped_column(JSON, nullable=False)
-    state: Mapped[str] = mapped_column(String(32), nullable=False, default="pending_review")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
-
-
-class RegisteredResourceRevision(Base):
-    """Immutable, locally stored BIM source resource approved for exact refs."""
-
-    __tablename__ = "v1_registered_resource_revisions"
-    __table_args__ = (
-        UniqueConstraint(
-            "namespace", "name", "version", name="uq_v1_registered_resource_identity"
-        ),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    owner_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    namespace: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
-    name: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
-    version: Mapped[str] = mapped_column(String(64), nullable=False)
-    digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
-    role: Mapped[str] = mapped_column(String(128), nullable=False)
-    api_version: Mapped[str] = mapped_column(String(255), nullable=False)
-    kind: Mapped[str] = mapped_column(String(128), nullable=False)
-    dialect_id: Mapped[str] = mapped_column(String(132), nullable=False)
-    media_type: Mapped[str] = mapped_column(String(128), nullable=False)
-    document: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    state: Mapped[str] = mapped_column(String(32), nullable=False, default="pending_review")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-
-
 class EngineCredential(Base):
     __tablename__ = "v1_engine_credentials"
 
@@ -561,9 +514,6 @@ from .platform_models import (  # noqa: E402,F401
     AuditEvent,
     BindingCase,
     BindingCaseRevision,
-    Collection,
-    CollectionItem,
-    CollectionRevision,
     Notification,
     Organization,
     OrganizationInvitation,
@@ -572,9 +522,6 @@ from .platform_models import (  # noqa: E402,F401
     Project,
     ProjectResource,
     ProjectResourceRevision,
-    Publication,
-    Report,
-    ReportState,
     RunState,
     Study,
     StudyCell,
@@ -585,7 +532,12 @@ from .platform_models import (  # noqa: E402,F401
 )
 
 from .artifact_models import (  # noqa: E402,F401
-    ArtifactCaseReference, ArtifactEvidence,
+    ArtifactCaseReference,
     Artifact, ArtifactVersion, ArtifactDraft, ArtifactDependency,
     ArtifactPublication, ProjectArtifact, CaseArtifact,
 )
+
+# Last, once every table above is in the metadata: the triggers of db/triggers.py (D2).
+from .triggers import register_triggers  # noqa: E402
+
+register_triggers(Base.metadata)

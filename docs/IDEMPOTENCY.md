@@ -138,8 +138,7 @@ inside the request. With `JOB_DISPATCH_MODE=dramatiq`:
   *after* the commit, so a crash or a Redis outage can lose the message but never
   the job.
 - **The row is the outbox.** `jobs.publish_attempts` (default 0) and
-  `jobs.next_publish_at` (null until the first republication; migration
-  `f2a3b4c5d6e7`). The reconciler's safety net (`jobs/publisher.py`,
+  `jobs.next_publish_at` (null until the first republication). The reconciler's safety net (`jobs/publisher.py`,
   `redeliver_queued_jobs`) claims a batch with one statement:
 
   ```sql
@@ -198,13 +197,10 @@ change does not alter the protocol (its digest is pinned). What the gateway does
 - The id is also written to `job_engine_attempts`, one row per attempt
   (`job_id`, `attempt`, `engine_job_id`, `endpoint`, `registered_at`,
   `cancel_state`, `cancel_attempts`, `next_cancel_at`; unique on `(job_id, attempt)`,
-  `ON DELETE CASCADE`; migration `b6c7d8e9f0a1`, hanging from `a5b6c7d8e9f0`), in the
+  `ON DELETE CASCADE`), in the
   same transaction. `jobs.engine_job_id` keeps only the latest id, because the next
   attempt overwrites it; the table keeps the id and the endpoint of **every** attempt,
-  so the first attempt is still known when the second is lost too. The downgrade drops
-  the table: the ids and the pending cancellations in it are destroyed, and the
-  remote jobs of lost attempts that were not yet cancelled can no longer be asked to
-  stop. An id that arrives after the worker already lost its lease is still
+  so the first attempt is still known when the second is lost too. An id that arrives after the worker already lost its lease is still
   recorded, as pending cancellation, and writes nothing on the job.
 - **Cancelling a remote job is best effort and conditioned on a declared
   capability.** `bim-engine/v1` has no cancellation operation and no Engine in the
@@ -283,9 +279,7 @@ minute, so the raw answer is no longer lost when BIM fails.
   `attempt` (the `jobs.attempt` of the claim that received the answer),
   `raw_result` (JSON, at most 4 MiB, the bound of `v1.remote.MAX_REMOTE_RESPONSE`;
   an answer over it is not kept), `digest`, `created_at`, `expires_at`; unique on
-  `(job_id, attempt)`. Migration `a5b6c7d8e9f0`, hanging from `f2a3b4c5d6e7`. Its
-  downgrade drops the table, so the answers still kept are destroyed and those
-  jobs can only be retried (which runs the Engine again).
+  `(job_id, attempt)`.
 - **BIM fails.** The job is `FAILED`, `termination = UNKNOWN`, `solutions = []`,
   with `result.code = "bim_evaluation_failed"`, the fixed sentence of the catalog,
   `correlationId` and `result.evidence = {id, digest, expiresAt}`: a reference,
@@ -355,8 +349,7 @@ Removed by M9.6. `analysis_jobs.py` followed the same scheme as jobs (a lease
 renewed from a background beat, every 20 s with a 60 s lease by the database
 clock, and a cap of three claims in `analysis_tasks.attempts`), and
 `routes/analysis.py` re-submitted failed tasks. The analysis queue, the worker,
-the routes and the `analysis_tasks` table no longer exist; the rows were exported
-and dropped (see [`runbooks/retired-data-export.md`](runbooks/retired-data-export.md)).
+the routes and the `analysis_tasks` table no longer exist.
 
 ## What has been certified
 
@@ -389,8 +382,8 @@ list as scope, not as a per-test result:
 - The SQL itself (`make_interval`, `power`, `LEAST`, the `IN (... FOR UPDATE SKIP
   LOCKED)` subquery, a `BIGINT` advisory key) is exercised by those tests on
   PostgreSQL; the SQLite suite only compiles and string-compares it.
-- The migration `f2a3b4c5d6e7`: the PG run applies `alembic upgrade head`; it was
-  not tested separately.
+- The schema: the PG run applies `alembic upgrade head` (the one-revision baseline),
+  and `tests/test_schema_baseline_pg.py` compares it with the models.
 
 **Covered by SQLite only:** the controlled-clock lease tests, the publisher's
 claim / backoff / commit-before-send ordering, the queue limit, analysis-task
@@ -406,5 +399,5 @@ real remote Engines under crash injection, the cancel call against an Engine tha
 implements it.
 
 Related: [ACCOUNTS_AND_PLANS.md](ACCOUNTS_AND_PLANS.md) (the concurrency cap),
-[gateway-as-is.md](architecture/gateway-as-is.md) (where `jobs/` sits), and
+[ARCHITECTURE.md](ARCHITECTURE.md) (where `jobs/` sits), and
 [qa/JOINT_STATUS.md](qa/JOINT_STATUS.md).

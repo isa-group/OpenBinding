@@ -11,7 +11,6 @@ from sqlalchemy import select
 from _repo import REPO_ROOT
 
 from openbinding_gateway import space_client
-from openbinding_gateway.db.base import Base
 from openbinding_gateway.db.models import EngineRegistrationRevision, User, UserRole
 from openbinding_gateway.integrations import bim, packages
 from openbinding_gateway.main import app
@@ -387,10 +386,6 @@ async def test_registration_conformance_rejects_false_protocol_or_schema(monkeyp
     assert report["checks"][-1]["id"] == "conformance"
     assert served == deployment
     assert served_digest == digest(deployment)
-
-
-def test_retired_federated_engine_model_is_absent() -> None:
-    assert "federated_engines" not in Base.metadata.tables
 
 
 def test_secret_detection_is_recursive() -> None:

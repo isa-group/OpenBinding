@@ -1,7 +1,6 @@
 # OpenBinding architecture (target)
 
-This document describes the architecture OpenBinding is moving to and the rules that get it there. The gateway as it is at 912648c,
-with file-level evidence, is in [`docs/architecture/gateway-as-is.md`](architecture/gateway-as-is.md); the BIM
+This document describes the architecture OpenBinding is moving to and the rules that get it there. The BIM
 language is in [`BIM_V1.md`](BIM_V1.md) and [`BIM_CORE.md`](BIM_CORE.md).
 
 Contents: 1 Principles · 2 System context · 3 Containers · 4 Backend · 5 Frontend · 6 Domain model · 7 Key flows ·
@@ -137,8 +136,8 @@ openbinding-gateway/src/openbinding_gateway/
 - Inside a module: `adapters → application → domain`. `domain` imports nothing from frameworks or adapters.
 - Between modules: only through the other module's `application` public API, or through in-process domain events
   (audit, notifications, cache invalidation). No cross-module ORM joins; each table has one owning module.
-- Modules form layers, and a module imports only modules below it: `administration` → `publishing` → `laboratory`
-  → `execution` → `engines` | `repository` → `language` → `collaboration` → `identity` → `plans` → `shared`
+- Modules form layers, and a module imports only modules below it: `administration` → `laboratory`
+  → `execution` → `engines` | `problems` → `language` → `collaboration` → `identity` → `plans` → `shared`
   (`|` marks independent siblings).
 - External systems only through ports: `BimPort` (exists), `PlanPort`, `PricingSource`, `EngineTransport`,
   `BlobStore`, `IdentityProvider`, `Mailer`, `Clock`.
@@ -156,23 +155,18 @@ openbinding-gateway/src/openbinding_gateway/
   `openbinding-gateway/tests/test_modules_cross_import.py` (AST, in the gateway pytest suite) enforces it;
   `tests/test_modules_skeleton.py` checks the structure of the contract file and also runs `lint-imports` against
   planted violations (the teeth test); it is skipped where `lint-imports` is not installed (the CI `test` job syncs
-  only `--extra test`) until the blocking CI step, pending, runs it with the `lint` group.
-  The legacy `.importlinter` stays report-only and unchanged, next to the existing `tests/test_architecture_layers.py` ratchets. Pending (owner/CI
-  follow-up): running the new contracts as a blocking CI step; until then they are not
-  enforced in CI.
+  only `--extra test`); the CI `lab` job runs the contracts as a blocking step, with the `lint` group.
+  The legacy `.importlinter` stays report-only and unchanged, next to the existing `tests/test_architecture_layers.py` ratchets.
 
 ### 4.3 Migration: strangler, one module at a time
 
 0. Retire first. The decision-space workspace, the report editor, the library as a catalogue (organization
    library, project resources, project library), the composer and sponsorship lose their screens, then their
    endpoints, then their code, so nothing retired is ever moved. Done by M9.6 (2026-10-27): the owner skipped the
-   `Deprecation`/`Sunset` period because nothing ran in production, and the 41 operations are removed
-   ([`API_DEPRECATIONS.md`](API_DEPRECATIONS.md)). The versioned-artifact store itself stays as the repository's internal storage of sealed parts:
+   `Deprecation`/`Sunset` period because nothing ran in production, and the 41 operations are removed. The versioned-artifact store itself stays as the repository's internal storage of sealed parts:
    problems are edited and versioned as a whole, and sealed problem versions keep referencing their parts by exact
-   digest, so nothing sealed changes. Existing publications keep their
-   permanent links as read-only published results; report drafts, decision-space workspaces and sponsorship
-   proposals are exported for the owner and dropped (the export tool and the guarded migration are in M9.6; see
-   [`runbooks/retired-data-export.md`](runbooks/retired-data-export.md)).
+   digest, so nothing sealed changes. The data of the retired features was dropped with them, and the tables they
+   left behind (reports, publications, collections, report evidence) went with the one-revision baseline of F0b.
 1. Create `app/`, `shared/` and `modules/` with import-linter contracts; move nothing. Packages and contracts exist
    (§4.2); the blocking CI step is pending.
 2. New capabilities land directly in modules: `plans` (M4) and the language registry (M5) are the first.
@@ -546,7 +540,6 @@ remote SPACE and its routes are unverified until the first live run of the one-s
 | Drafts | PostgreSQL | until deleted; owner notified after 180 idle days |
 | Runs and results | PostgreSQL + blob store | permanent while part of a study run or a published result; otherwise 365 days |
 | Raw engine logs | blob store | 90 days unless the run belongs to a published result |
-| Data of retired features (report drafts, decision-space workspaces, sponsorship proposals) | export for the owner | dropped after the export, by a guarded migration that refuses to drop non-empty tables without an export manifest (M9.6, §4.3) |
 | Uploads not referenced by any version | blob store | 30 days |
 | Notifications | PostgreSQL | 180 days |
 | Audit events | PostgreSQL | permanent |
@@ -554,6 +547,12 @@ remote SPACE and its routes are unverified until the first live run of the one-s
 | Datasets, raw campaign results | Zenodo | never in Git or the platform database |
 
 Purges run through `/v1/admin/maintenance/preview|purge` and scheduled workers.
+
+The schema is one Alembic revision, the baseline that `openbinding-gateway/tools/rebaseline.py` generates from the
+models and from the trigger declarations of `db/triggers.py` (the only source of trigger DDL). A schema change edits
+the models and regenerates the baseline under a new revision id; nothing is in production, so there are no
+incremental migrations, and a database built from an older baseline is refused and rebuilt (README, "Reset the dev
+database"). `tests/test_schema_baseline.py` keeps the baseline, the models and the triggers equal.
 
 ## 11. Quality architecture
 

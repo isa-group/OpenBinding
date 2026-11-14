@@ -10,14 +10,9 @@ failed, and a worker that lost its lease cannot write anything afterwards.
 from __future__ import annotations
 
 import asyncio
-import os
-import sqlite3
-import subprocess
-import sys
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -896,65 +891,3 @@ async def test_an_engine_id_that_cannot_be_stored_does_not_fail_the_solve(
     job = (await db_session.execute(select(Job))).scalars().one()
     await db_session.refresh(job)
     assert job.state is JobState.COMPLETED
-
-
-# -- The migration ----------------------------------------------------------
-
-PREVIOUS_REVISION = "d1e2f3a4b5c6"
-LEASE_COLUMNS = {"lease_token", "lease_until", "claimed_at", "attempt"}
-
-
-def alembic(database: Path, *arguments: str) -> subprocess.CompletedProcess:
-    environment = {**os.environ, "DATABASE_URL": f"sqlite+aiosqlite:///{database}"}
-    return subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", "alembic.ini", *arguments],
-        cwd=ROOT, env=environment, capture_output=True, text=True, check=False,
-    )
-
-
-def job_columns(database: Path) -> dict[str, tuple]:
-    with sqlite3.connect(database) as connection:
-        return {row[1]: row for row in connection.execute("PRAGMA table_info(jobs)")}
-
-
-def job_triggers(database: Path) -> set[str]:
-    with sqlite3.connect(database) as connection:
-        rows = connection.execute("SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'jobs'")
-        return {name for (name,) in rows}
-
-
-def job_indexes(database: Path) -> set[str]:
-    with sqlite3.connect(database) as connection:
-        return {row[1] for row in connection.execute("PRAGMA index_list(jobs)")}
-
-
-def run(database: Path, *arguments: str) -> None:
-    done = alembic(database, *arguments)
-    assert done.returncode == 0, done.stdout + done.stderr
-
-
-def test_the_migration_adds_the_lease_columns_and_keeps_the_job_triggers(tmp_path):
-    database = tmp_path / "leases.db"
-
-    run(database, "upgrade", PREVIOUS_REVISION)
-    triggers = job_triggers(database)
-    assert {"protect_jobs", "pin_job_configuration"} <= triggers
-    assert not LEASE_COLUMNS & set(job_columns(database))
-
-    run(database, "upgrade", "head")
-    columns = job_columns(database)
-    assert LEASE_COLUMNS <= set(columns)
-    assert columns["attempt"][3] == 1  # NOT NULL
-    assert columns["attempt"][4].strip("'\"") == "0"  # SQLite reports the default as "'0'"
-    assert columns["lease_token"][3] == 0 and columns["lease_until"][3] == 0
-    assert "ix_jobs_state_lease_until" in job_indexes(database)
-    assert job_triggers(database) == triggers
-
-    run(database, "downgrade", PREVIOUS_REVISION)
-    assert not LEASE_COLUMNS & set(job_columns(database))
-    assert "ix_jobs_state_lease_until" not in job_indexes(database)
-    assert job_triggers(database) == triggers
-
-    run(database, "upgrade", "head")
-    assert LEASE_COLUMNS <= set(job_columns(database))
-    assert job_triggers(database) == triggers

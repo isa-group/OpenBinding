@@ -43,7 +43,7 @@ async def _auth_headers(api_client, registration, platform_gate, username: str =
 
 @pytest.mark.asyncio
 async def test_case_patch_and_delete(api_client, registration, platform_gate):
-    # The resource writes this test also covered are removed since M9.6 (test_removed_operations.py).
+    # The resource writes this test also covered are removed since M9.6.
     headers = await _auth_headers(api_client, registration, platform_gate, username=f"user-{uuid.uuid4().hex[:6]}")
     org_slug = f"org-{uuid.uuid4().hex[:6]}"
     proj_slug = "test-proj"

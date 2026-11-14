@@ -28,8 +28,8 @@ Its layers stay deliberately separate:
 - Universidad de Sevilla CAS accounts receive the `RESEARCH` contract and a
   compact institutional mark. No identity is ever linked by email alone.
 
-For the layers of the gateway today and the BIM/platform boundary, see
-[`docs/architecture/gateway-as-is.md`](docs/architecture/gateway-as-is.md); for the guarantees of job
+For the target layers of the gateway and the BIM/platform boundary, see
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); for the guarantees of job
 submission and execution, [`docs/IDEMPOTENCY.md`](docs/IDEMPOTENCY.md).
 
 See the [interactive BIM v1 architecture map](docs/diagrams/bim-v1-architecture.html) for the package, compilation, and engine boundaries.
@@ -153,10 +153,14 @@ local emergency tool and binds only to loopback:
 docker compose --profile db-tools up -d adminer
 ```
 
-The versioned-artifact schema is a development cutover and cannot migrate a
-pre-cutover PostgreSQL volume because doing so would discard historical rows.
-If `gateway-dev` exits during Alembic with `Rebuild the local development
-database`, recreate only the local PostgreSQL volume and start the stack again:
+### Reset the dev database
+
+The schema is one Alembic revision, regenerated from the models
+(`openbinding-gateway/tools/rebaseline.py`) under a new revision id whenever it
+changes. Nothing is migrated: a database built from an older baseline is
+refused, and `gateway-dev` exits during Alembic with `Rebuild the local
+development database`. Recreate only the local PostgreSQL volume and start the
+stack again:
 
 ```bash
 docker compose stop postgres

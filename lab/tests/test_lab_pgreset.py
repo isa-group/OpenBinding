@@ -1,5 +1,5 @@
 """Static checks of ``compose.lab-pgreset.json``, the recovery-only manifest that resets the password of the
-``openbinding`` role in the ``lab-pg-3`` volume, without Docker.
+``openbinding`` role in the ``lab-pg-4`` volume, without Docker.
 
 It must pass the rules of ``compose.lab.json`` (except the memory sum, which is for the whole laboratory), use the
 same project, volume, image, user and PGDATA, and never carry the password anywhere but as a bare reference.
@@ -111,8 +111,8 @@ def test_same_project_image_user_volume_and_pgdata_as_compose_lab(base, manifest
     assert postgres["image"] == original["image"] == "postgres:16-alpine"
     assert postgres["user"] == original["user"] == "70:70"
     assert postgres["volumes"] == original["volumes"]
-    assert postgres["volumes"] == [{"type": "volume", "source": "lab-pg-3", "target": "/var/lib/postgresql/data"}]
-    assert manifest["volumes"] == {"lab-pg-3": base["volumes"]["lab-pg-3"]}
+    assert postgres["volumes"] == [{"type": "volume", "source": "lab-pg-4", "target": "/var/lib/postgresql/data"}]
+    assert manifest["volumes"] == {"lab-pg-4": base["volumes"]["lab-pg-4"]}
     assert rules._env(postgres)["PGDATA"] == rules._env(original)["PGDATA"] == "/var/lib/postgresql/data/pgdata"
 
 

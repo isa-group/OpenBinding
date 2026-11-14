@@ -51,7 +51,6 @@ UNBOUNDED_LIMITS = (
     "members",
     "projects",
     "privateProjects",
-    "collections",
     "studies",
     "storageBytes",
 )

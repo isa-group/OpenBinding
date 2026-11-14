@@ -332,7 +332,7 @@ organization **and its whole subtree** count against
 be made to carry someone else's organization, so the only way to change the
 sponsor is to name **yourself**. (Until M9.6 naming another person created a
 sponsor proposal that the person had to accept; the proposals and their routes
-were removed, see [API_DEPRECATIONS.md](API_DEPRECATIONS.md).)
+were removed.)
 
 `PATCH /v1/organizations/{org}` with `billing_sponsor_user_id`:
 
@@ -433,8 +433,7 @@ counter.
 ### One reader of the plan
 
 Every decision above starts from the account's capabilities, and they are read in
-exactly one place: `services/entitlements.py` (`EntitlementService`, see
-[gateway-as-is.md](architecture/gateway-as-is.md#entitlements)). It is the only module that calls
+exactly one place: `services/entitlements.py` (`EntitlementService`). It is the only module that calls
 `get_gate().caps(...)` (enforced by `tests/test_architecture_layers.py`). The rules
 stay in `access/policy.py` and `domain/entitlements.py`; the service names them
 (`require_feature`, `payload_ceiling`, `solve_timeout`, `clamp_options`,

@@ -386,7 +386,7 @@ async def counts(c) -> dict[str, int]:
 
 # method, path suffix, JSON body (None: a raw body), exact refusal wanted (False: any non-success)
 WRITES = [
-    # The resource writes are removed since M9.6 (test_removed_operations.py).
+    # The resource writes are removed since M9.6.
     ("POST", "/cases", {"slug": "intruder", "name": "Intruder"}, True),
     ("PATCH", "", {"name": "Hijacked", "visibility": "private"}, True),
     ("PATCH", "/cases/{case}", {"name": "Hijacked"}, True),

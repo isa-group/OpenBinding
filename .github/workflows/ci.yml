@@ -256,6 +256,12 @@ jobs:
         working-directory: openbinding-gateway
         run: uv run --locked --extra test --group lint lint-imports --config .importlinter
 
+      # The module contracts of docs/ARCHITECTURE.md §4.2. Blocking.
+      - name: Check the module contracts
+        if: ${{ !cancelled() }}
+        working-directory: openbinding-gateway
+        run: uv run --locked --extra test --group lint lint-imports --no-cache --config importlinter-modules.ini
+
   # The engines' own tests. They were never run here, which is how a MiniZinc
   # builder that could not solve a single repeat workflow, and a Java unit test
   # that had been failing for months, both went unnoticed.

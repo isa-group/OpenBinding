@@ -9,7 +9,7 @@ import sys
 import pytest
 from _paths import GATEWAY_ROOT
 from _repo import REPO_ROOT
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 _tools_dir = str(GATEWAY_ROOT / "tools")
 if _tools_dir not in sys.path:
@@ -173,8 +173,12 @@ async def test_seed_dev_lifecycle(db_session):
     orgs_again = await ensure_organizations(db_session, users)
     assert len(orgs_again) == 5
 
-    # 9. Reset test
+    # 9. Reset test. A table of an older baseline, unknown to the models, goes too.
+    await db_session.execute(text("CREATE TABLE reports (id INTEGER PRIMARY KEY)"))
+    await db_session.commit()
     await clean_existing_data(db_session)
+    tables = (await db_session.execute(text("SELECT name FROM sqlite_master WHERE type = 'table'"))).scalars().all()
+    assert "reports" not in tables and "alembic_version" in tables
 
     # Verify that clean deleted the seeded orgs, artifacts, resources, and non-admin users
     remaining_engs = (await db_session.execute(select(EngineRevision))).scalars().all()
