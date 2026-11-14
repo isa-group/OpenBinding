@@ -45,6 +45,7 @@ class _ProbeBody(BaseModel):
     items: list[_ProbeItem] = Field(default_factory=list)
     tasks: int = Field(default=2, ge=2)
     candidates: int = Field(default=2, le=100)
+    tags: list[str] = Field(default_factory=lambda: ["a"], min_length=1)
 
 
 def _probe_app():
@@ -192,14 +193,14 @@ async def test_nested_body_errors_have_a_json_pointer_with_array_indexes(probe_c
 
 
 async def test_a_value_out_of_range_says_which_bound(probe_client):
-    response = await probe_client.post("/probe/body", json={"tasks": 1, "candidates": 101})
+    response = await probe_client.post("/probe/body", json={"tasks": 1, "candidates": 101, "tags": []})
     body = assert_problem(response)
     found = by_pointer(body)
     assert found["/tasks"]["code"] == "greater_than_equal"
     assert found["/tasks"]["context"] == {"ge": 2}
     assert found["/candidates"]["code"] == "less_than_equal"
     assert found["/candidates"]["context"] == {"le": 100}
-    assert found["/features"]["code"] == "too_short"
+    assert found["/tags"]["code"] == "too_short"
 
 
 async def test_an_unknown_body_field_is_pointed_at(api_client, admin):

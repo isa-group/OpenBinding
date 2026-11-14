@@ -9,11 +9,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_PACKAGES = 82
-# Same scope as tools/check_bim_corpus.py: datasets/ duplicates sources and
-# frontend/ holds test fixtures, so neither contributes corpus packages.
+# Same scope as tools/check_bim_corpus.py: frontend/ holds test fixtures, so it
+# contributes no corpus packages.
 NON_CORPUS_ROOTS = {
     ROOT / "experimentation" / "icsoc" / "out" / "bim-v1",
-    ROOT / "datasets",
     ROOT / "frontend",
 }
 # Files next to a package that are not entries of it (none since the example package of bim-core left with
@@ -35,10 +34,6 @@ THIRD_PARTY_ROOTS = {
     # A local 479 MB campaign build is reproducible output, not checked-in
     # language corpus.  ICSOC's official regression generates one case in tmp.
     ROOT / "experimentation" / "icsoc" / "out" / "bim-v1",
-    # Third-party datasets keep their own field names: weights_sum_to_one and
-    # aggregation_policies in datasets/sources/quantum are not consumed by any
-    # code (transform_quantum.py reads other fields).
-    ROOT / "datasets" / "sources",
 }
 CACHE_DIRECTORY_NAMES = {"__pycache__", ".pytest_cache", ".ruff_cache"}
 

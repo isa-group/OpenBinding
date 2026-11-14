@@ -171,8 +171,8 @@ toolchain to be recompiled.
 
 The repository's offline tools use the library in process (`from bim_core import
 compile_instance, load_package`), run with `uv run --project openbinding-gateway`:
-`tools/{build_bim_packages,check_bim_corpus,check_bim_conciseness}.py`,
-`datasets/scripts/transform_*.py` and `experimentation/{icws,icsoc}`.
+`tools/{build_bim_packages,check_bim_corpus,check_bim_conciseness}.py` and
+`experimentation/{icws,icsoc}`.
 `tools/bim_baseline.py` only gives the platform's corpus, Engine manifests and
 golden directory to `tools/baseline_core.py` of the test kit (`.bim-toolchain/`
 or `BIM_TOOLCHAIN_ROOT`), which computes the documents.
