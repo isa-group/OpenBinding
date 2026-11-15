@@ -15,7 +15,7 @@ import { compositionViewModel } from '../../../entities/composition/viewModel';
 import { problemFactsApi } from '../../../entities/problem/facts';
 import { problemPath } from '../../../routes/paths/problems';
 import { runPath } from '../../../routes/paths/runs';
-import { compositionPath, showcasePath, type CompositionQuery } from '../../../routes/paths/compositions';
+import { compositionPath, showcasePath, type CompositionQuery, type VersionsView } from '../../../routes/paths/compositions';
 import { classifyAuthError, marker, readApiError } from '../../../shared/api/errors';
 import type { CompositionVersionDiff, CompositionVersionView, CompositionView, ProblemFacts } from '../../../shared/api/types';
 import { formatDate } from '../../../utils/format';
@@ -25,18 +25,23 @@ import { useVersionChanges } from '../../../widgets/change-summary/useVersionCha
 import { CompositionRenderer } from '../../../widgets/composition-renderer/CompositionRenderer';
 import type { Loaded } from '../../../widgets/composition-renderer/modes/comparison/comparisonModel';
 import type { Texts } from '../../../widgets/composition-renderer/modes/comparison/Comparison';
+import { EvolutionCharts } from '../../../widgets/evolution-charts/EvolutionCharts';
 import { ValueBadge } from '../../../widgets/value-badge/ValueBadge';
 import { factsSource } from '../factsSource';
 
-type View = 'table' | 'compare' | 'file';
+type View = VersionsView;
 
 const VIEWS: ReadonlyArray<{ id: View; label: string }> = [
   { id: 'table', label: 'Table' },
   { id: 'compare', label: 'Compare' },
   { id: 'file', label: 'File' },
+  { id: 'evolution', label: 'Evolution' },
 ];
 
-const viewOf = (value: string | null): View => (value === 'compare' || value === 'file' ? value : 'table');
+const viewOf = (value: string | null): View => (value === 'compare' || value === 'file' || value === 'evolution' ? value : 'table');
+
+/** The views that show a pair of versions. */
+const pairView = (view: View): view is 'compare' | 'file' => view === 'compare' || view === 'file';
 
 const shortId = (id: string) => id.slice(0, 8);
 
@@ -227,7 +232,8 @@ interface VersionsTabProps {
 /**
  * Versions: every sealed version, newest first, with its values and their status, the problem it links, where it comes from and
  * what it changed (`view=table`); the gateway's comparison of two of them (`view=compare`, `?from=&to=`); or their texts line by
- * line (`view=file`). Versions are immutable and referenced, so there is no per-version visibility and no delete.
+ * line (`view=file`); or how its structure and values evolved, version by version (`view=evolution`). Versions are immutable and
+ * referenced, so there is no per-version visibility and no delete.
  */
 export function VersionsTab({ org, composition, versions, shown, canCreate, onChanged }: VersionsTabProps) {
   const navigate = useNavigate();
@@ -235,7 +241,7 @@ export function VersionsTab({ org, composition, versions, shown, canCreate, onCh
   const [message, setMessage] = useState('');
   const view = viewOf(query.get('view'));
   const slug = composition.slug;
-  const pair = view === 'table' ? null : pairOf(versions, query.get('from'), query.get('to'));
+  const pair = pairView(view) ? pairOf(versions, query.get('from'), query.get('to')) : null;
   const pairKey = pair ? `${org}/${slug}/${pair.from.id}..${pair.to.id}` : 'none';
 
   const go = (next: CompositionQuery) => void navigate(compositionPath(org, slug, 'versions', { version: query.get('version') ?? undefined, ...next }), { viewTransition: true });
@@ -296,7 +302,11 @@ export function VersionsTab({ org, composition, versions, shown, canCreate, onCh
   return (
     <div className="cmv">
       <div className="cmv-bar">
-        <FilterPills options={VIEWS} value={view} onChange={(id) => go({ view: id === 'table' ? undefined : id as View, from: pair ? labelOf(pair.from.id) : undefined, to: pair ? labelOf(pair.to.id) : undefined })} ariaLabel="Versions view" />
+        <FilterPills options={VIEWS} value={view} onChange={(id) => {
+          const next = id as View;
+          const keep = pair && pairView(next);
+          go({ view: next === 'table' ? undefined : next, from: keep ? labelOf(pair.from.id) : undefined, to: keep ? labelOf(pair.to.id) : undefined });
+        }} ariaLabel="Versions view" />
         {message && <p className="cmv-message" role="status">{message}</p>}
       </div>
 
@@ -336,8 +346,10 @@ export function VersionsTab({ org, composition, versions, shown, canCreate, onCh
         )
       )}
 
-      {view !== 'table' && !pair && <p className="cmp-muted">This composition has fewer than two versions: there is nothing to compare yet.</p>}
-      {view !== 'table' && pair && (
+      {view === 'evolution' && <EvolutionCharts org={org} composition={slug} refresh={versions.map((version) => version.id).join(',')} />}
+
+      {pairView(view) && !pair && <p className="cmp-muted">This composition has fewer than two versions: there is nothing to compare yet.</p>}
+      {pairView(view) && pair && (
         <CompositionRenderer
           model={model}
           mode="comparison"

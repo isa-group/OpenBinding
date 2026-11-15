@@ -202,6 +202,23 @@ describe('the Versions tab', () => {
     expect(screen.getByRole('combobox', { name: 'Compared with' })).toHaveValue('v3');
   });
 
+  it('charts the evolution of the versions, from the table and in the address', async () => {
+    renderVersions('/app/isa-demo/compositions/fleet-routing/versions?view=compare&from=1.0.0&to=1.1.0');
+    expect(await screen.findByRole('group', { name: 'Show one kind of change' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Evolution' }));
+    await waitFor(() => expect(where()).toBe('/app/isa-demo/compositions/fleet-routing/versions?view=evolution'));
+    expect(screen.getByRole('button', { name: 'Evolution' })).toHaveAttribute('aria-pressed', 'true');
+    const charts = await screen.findByRole('region', { name: 'Evolution' });
+    expect(api.allVersions).toHaveBeenCalledWith('isa-demo', 'fleet-routing', { include: ['analytics'], order: 'oldest' });
+    expect(await within(charts).findByText('3 versions, oldest first.')).toBeInTheDocument();
+    expect(within(charts).getByRole('figure', { name: 'cost · USD/month' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /^Versions of/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+    await waitFor(() => expect(where()).toBe('/app/isa-demo/compositions/fleet-routing/versions'));
+  });
+
   it('has nothing to compare with one version', async () => {
     api.allVersions.mockResolvedValue([v1]);
     renderVersions('/app/isa-demo/compositions/fleet-routing/versions?view=compare');

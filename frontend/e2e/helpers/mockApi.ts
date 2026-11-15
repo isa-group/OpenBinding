@@ -18,7 +18,7 @@ import { NEIGHBORHOOD, REGISTRATION, RESULT, RUN_REFS, SOLUTION, detailOf as job
 import {
   RANDOM_SEARCH, REVISION_2, analyticsFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
 } from '../../src/test/fixtures/studies';
-import { compositionStore, type CompositionStore } from './mockCompositions';
+import { compositionStore, type CompositionSeed, type CompositionStore } from './mockCompositions';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
 // with compositions, problems, runs and studies, and everything the public screens read.
@@ -528,8 +528,8 @@ function route(request: Request): Reply | null {
   }
 }
 
-/** Answers the API origin of the page: a signed-in administrator, or nobody when `session` is `none`. */
-export async function installMockApi(page: Page, session: Session): Promise<MockHandle> {
+/** Answers the API origin of the page: a signed-in administrator, or nobody when `session` is `none`; `seed` adds compositions. */
+export async function installMockApi(page: Page, session: Session, seed: CompositionSeed = {}): Promise<MockHandle> {
   const handle: MockHandle = { unmocked: [] };
   await page.clock.setFixedTime(new Date(NOW));
   if (session === 'admin') {
@@ -542,7 +542,7 @@ export async function installMockApi(page: Page, session: Session): Promise<Mock
   zip.file('instance.json', '{"apiVersion":"bim/v1","kind":"Instance"}');
   zip.file('application.json', '{"kind":"Application"}');
   const archive = await zip.generateAsync({ type: 'nodebuffer' });
-  const compositions = compositionStore();
+  const compositions = compositionStore(seed);
 
   await page.route(`${API}/**`, async (call: Route) => {
     const request = call.request();

@@ -7,6 +7,7 @@ import type { CompositionVersionView, CompositionView } from '../../src/shared/a
 // declared ones follow src/test/fixtures/compositions/declared.yaml. A composition created through the mock is kept for the page.
 // The diff of two versions is worked out here in the gateway's shape, from their documents and values.
 // The facts of the compilation the linked versions were evaluated on are core/fms.facts.json, which mockApi.ts serves for it.
+// On request (`{ evolution: true }`) a fourth composition with a longer history is seeded, for the evolution charts (J5).
 
 /** The organization that has compositions; every other one has none. */
 export const COMPOSITIONS_ORG = 'isa-demo';
@@ -113,6 +114,42 @@ interface Entry {
   versions: CompositionVersionView[];
 }
 
+/**
+ * Notification hub (J5): two declared versions with costs in EUR/month, then linked to checkout-flow@1 (values verified, costs in
+ * USD/month), then to checkout-flow@2, whose last version the installed toolchain no longer verifies.
+ */
+function evolutionEntry(): Entry {
+  const hub = (version: CompositionVersionView, n: number, analytics: Record<string, unknown>): CompositionVersionView => {
+    const evaluation = uuid(0xf100 + n);
+    return {
+      ...version,
+      id: uuid(0xf000 + n), kind: 'application', analytics, content_digest: digest(String.fromCharCode(103 + n)), derivation: null,
+      current_evaluation_id: evaluation,
+      current_evaluation: version.current_evaluation && { ...version.current_evaluation, id: evaluation },
+      evaluations: version.evaluations.map((item) => ({ ...item, id: evaluation })),
+      document: version.document && { ...version.document, composition: 'notification-hub', kind: 'application' },
+    };
+  };
+  const onRevisionOne = (version: CompositionVersionView): CompositionVersionView => ({
+    ...version,
+    problem: version.problem && { ...version.problem, revision: { id: 'rev-1', revision: 1 } },
+    document: version.document && { ...version.document, problem: { ...(version.document.problem as object), ref: `${COMPOSITIONS_ORG}/checkout-flow@1` } },
+  });
+  const small = { ...ORDER_ANALYTICS, tasks: 4, boundTasks: 3, providers: 3, hasOffering: false, workflow: { depth: 2, and: 1, xor: 0, loop: 0 } };
+  const linked = core('fms.version.json').analytics as Record<string, unknown>;
+  const versions = [
+    hub(declaredVersion(1, '1.0.0', 30, '2026-07-06T09:00:00Z'), 1, small),
+    hub(declaredVersion(2, '1.1.0', 28, '2026-07-28T09:30:00Z'), 2, ORDER_ANALYTICS),
+    hub(onRevisionOne(linkedVersion(3, '2.0.0', 31, '2026-08-19T10:00:00Z')), 3, linked),
+    hub(linkedVersion(4, '2.1.0', 29, '2026-09-14T14:00:00Z'), 4, linked),
+    hub(semanticsChanged(linkedVersion(5, '2.2.0', 29, '2026-10-12T16:30:00Z')), 5, linked),
+  ];
+  return {
+    view: composition(4, 'notification-hub', 'Notification hub', { description: 'Tells customers about their orders by e-mail and text message.' }, versions),
+    versions,
+  };
+}
+
 function seed(): Entry[] {
   const order = [
     declaredVersion(1, '1.0.0', 48, '2026-09-02T09:00:00Z'),
@@ -199,8 +236,18 @@ const refused = (diagnostics: unknown[]): CompositionReply => ({
 const ok = (json: unknown, status = 200): CompositionReply => ({ status, json });
 const missing = (): CompositionReply => ({ status: 404, json: { detail: { code: 'not_found', error: 'Composition not found.' } } });
 
-/** The light row of a version, as the versions list serves it without `include`. */
-const lightRow = (version: CompositionVersionView): CompositionVersionView => ({ ...version, document: null, evaluations: [], analytics: null });
+/** The light row of a version, as the versions list serves it: analytics only when `include` names them. */
+const lightRow = (version: CompositionVersionView, include: string[]): CompositionVersionView => ({
+  ...version, document: null, evaluations: [], analytics: include.includes('analytics') ? version.analytics : null,
+});
+
+/** Whether a version was sealed within `created_after` (inclusive) and `created_before` (exclusive), as the gateway filters. */
+function sealedWithin(version: CompositionVersionView, query: URLSearchParams): boolean {
+  const at = Date.parse(version.created_at);
+  const after = query.get('created_after');
+  const before = query.get('created_before');
+  return (!after || at >= Date.parse(after)) && (!before || at < Date.parse(before));
+}
 
 type Fields = Record<string, unknown>;
 type FieldChange = { path: string; before: unknown; after: unknown };
@@ -258,9 +305,16 @@ function versionDiff(before: CompositionVersionView, after: CompositionVersionVi
   };
 }
 
+/** What a page's store seeds beyond the three compositions every page has. */
+export interface CompositionSeed {
+  /** Also seed Notification hub, whose history the evolution charts draw (J5). */
+  evolution?: boolean;
+}
+
 /** A store of compositions for one page: the seeded ones plus what the page creates. */
-export function compositionStore(): CompositionStore {
+export function compositionStore(options: CompositionSeed = {}): CompositionStore {
   const entries = seed();
+  if (options.evolution) entries.push(evolutionEntry());
   let created = 0;
   let sealed = 0;
   /** The stored text of each version, by id. */
@@ -360,8 +414,9 @@ export function compositionStore(): CompositionStore {
       if (!ref && request.method === 'POST') return seal(entry, request.text());
       if (ref === 'check' && request.method === 'POST') return check(entry, request.text());
       if (!ref) {
-        const ordered = request.query.get('order') === 'oldest' ? entry.versions : newest;
-        return ok({ versions: ordered.map(lightRow), total: ordered.length, limit: 200, offset: 0 });
+        const ordered = (request.query.get('order') === 'oldest' ? entry.versions : newest).filter((version) => sealedWithin(version, request.query));
+        const include = (request.query.get('include') ?? '').split(',');
+        return ok({ versions: ordered.map((version) => lightRow(version, include)), total: ordered.length, limit: 200, offset: 0 });
       }
       const version = find(ref);
       if (!version) return { status: 404, json: { detail: { code: 'not_found', error: 'Composition version not found.' } } };

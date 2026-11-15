@@ -83,6 +83,14 @@
   --tp-diff-added: var(--tp-severity-success);
   --tp-diff-removed: var(--tp-severity-error);
   --tp-diff-changed: var(--tp-severity-warning);
+  /* Chart series, in this fixed order (blue, orange, aqua, yellow, magenta, green): adjacent pairs stay apart under the common
+     colour-vision deficiencies. 3 to 6 are under 3:1 on white, so every chart also has a table and says its series in words. */
+  --tp-chart-1: #2a78d6;
+  --tp-chart-2: #eb6834;
+  --tp-chart-3: #1baf7a;
+  --tp-chart-4: #eda100;
+  --tp-chart-5: #e87ba4;
+  --tp-chart-6: #008300;
 
   --tp-spacing-xxs: 4px;
   --tp-spacing-xs: 8px;
