@@ -368,6 +368,12 @@ def test_a_quota_refusal_says_which_limit_and_where_it_stands(document):
         ),
         ("/v1/organizations/{org}/compositions/{composition}/versions/{version}", "get", {"200", "404"}),
         ("/v1/organizations/{org}/compositions/{composition}/versions/{version}/content", "get", {"200", "304", "404"}),
+        # Comparing two versions reads their stored bytes in a language slot; a fork seals as a seal does.
+        ("/v1/organizations/{org}/compositions/{composition}/diff", "get", {"200", "404", "422", "429"}),
+        (
+            "/v1/organizations/{org}/compositions/{composition}/fork", "post",
+            {"200", "201", "403", "404", "409", "422", "429"},
+        ),
     ],
 )
 def test_the_failures_an_endpoint_can_produce_are_declared(document, path, method, statuses):

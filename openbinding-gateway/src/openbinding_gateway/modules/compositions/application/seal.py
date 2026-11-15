@@ -98,22 +98,29 @@ def _read(raw: bytes, entity_slug: str) -> tuple[str | None, text.Reading]:
     return decoded, text.read(decoded, context=context)
 
 
-async def check(
-    session: AsyncSession, organization: Organization, composition: Composition, raw: bytes, caller: User,
+async def judge(
+    session: AsyncSession, organization: Organization, slug: str, raw: bytes, caller: User,
 ) -> Checked:
-    """``raw`` read as a submission to ``composition`` and assessed in ``organization``; nothing is stored.
+    """``raw`` read as a submission to the composition ``slug`` and assessed in ``organization``.
 
-    The reading is the full one (the deployment's registries, the composition's slug) and runs in a
-    language slot; the assessment evaluates in an evaluation slot.
+    Nothing is stored. The reading is the full one (the deployment's registries, the composition's slug)
+    and runs in a language slot; the assessment evaluates in an evaluation slot.
     """
     async with language_slot():
-        source, reading = await asyncio.to_thread(_read, raw, composition.slug)
+        source, reading = await asyncio.to_thread(_read, raw, slug)
     if reading.document is None or source is None:
         return Checked(reading.diagnostics)
     assessment = await assess(
         session, organization, reading.document, caller=caller, source=source, language=reading.diagnostics,
     )
     return Checked(assessment.diagnostics, assessment)
+
+
+async def check(
+    session: AsyncSession, organization: Organization, composition: Composition, raw: bytes, caller: User,
+) -> Checked:
+    """``raw`` read as a submission to ``composition`` and assessed in ``organization``; nothing is stored."""
+    return await judge(session, organization, composition.slug, raw, caller)
 
 
 # --------------------------------------------------------------------------- the stored evaluation
@@ -225,6 +232,16 @@ async def _version_where(session: AsyncSession, composition_id: uuid.UUID, *cond
     )
 
 
+def _sealable(assessment: Assessment) -> None:
+    effective, content, digest, draft = (
+        assessment.effective, assessment.content, assessment.content_digest, assessment.evaluation,
+    )
+    if not assessment.valid or effective is None or content is None or digest is None or draft is None:
+        raise ValueError("only a valid assessment is sealed")
+    if draft.outcome not in SEALED_OUTCOMES:
+        raise ValueError(f"a seal stores no {draft.outcome!r} evaluation")
+
+
 async def persist(
     session: AsyncSession,
     composition: Composition,
@@ -239,14 +256,7 @@ async def persist(
     evaluation added when this toolchain had none. A label another content holds is 409
     ``version_label_taken``. A problem deleted meanwhile is 422 ``c2y_problem_not_found``.
     """
-    effective, content, digest, draft = (
-        assessment.effective, assessment.content, assessment.content_digest, assessment.evaluation,
-    )
-    if not assessment.valid or effective is None or content is None or digest is None or draft is None:
-        raise ValueError("only a valid assessment is sealed")
-    if draft.outcome not in SEALED_OUTCOMES:
-        raise ValueError(f"a seal stores no {draft.outcome!r} evaluation")
-    resolved = assessment.problem
+    _sealable(assessment)
     # Phase 1 read in a transaction of its own; nothing it holds is kept across this one.
     await session.commit()
 
@@ -256,21 +266,46 @@ async def persist(
     )
     if locked is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Composition not found.")
+    sealed = await seal_into(session, locked, assessment, actor=actor, based_on=based_on)
+    await session.commit()
+    return sealed
 
-    existing = await _version_where(session, locked.id, CompositionVersion.content_digest == digest)
+
+async def seal_into(
+    session: AsyncSession,
+    composition: Composition,
+    assessment: Assessment,
+    *,
+    actor: User,
+    based_on: dict[str, Any] | None = None,
+    forked_from: dict[str, Any] | None = None,
+) -> Sealed:
+    """Store the valid ``assessment`` as a version of ``composition``, in the caller's transaction.
+
+    The caller holds the composition's row lock (``persist``), or created the composition in this very
+    transaction (a fork), and commits. The same canonical bytes answer the version that holds them, a label
+    another content holds is 409 ``version_label_taken``, and a new version takes the next ordinal.
+    """
+    _sealable(assessment)
+    effective, content, digest, draft = (
+        assessment.effective, assessment.content, assessment.content_digest, assessment.evaluation,
+    )
+    assert effective is not None and content is not None and digest is not None and draft is not None
+    resolved = assessment.problem
+    existing = await _version_where(session, composition.id, CompositionVersion.content_digest == digest)
     if existing is not None:
         evaluation, _ = await insert_evaluation(session, existing, draft, actor=actor)
-        await session.commit()
         return Sealed(existing, evaluation, False)
-    taken = await _version_where(session, locked.id, CompositionVersion.label == effective.version)
+    taken = await _version_where(session, composition.id, CompositionVersion.label == effective.version)
     if taken is not None:
         raise _label_taken(taken)
 
     ordinal = int(await session.scalar(
-        select(func.coalesce(func.max(CompositionVersion.ordinal), 0)).where(CompositionVersion.composition_id == locked.id)
+        select(func.coalesce(func.max(CompositionVersion.ordinal), 0))
+        .where(CompositionVersion.composition_id == composition.id)
     ) or 0) + 1
     version = CompositionVersion(
-        composition_id=locked.id,
+        composition_id=composition.id,
         ordinal=ordinal,
         label=effective.version,
         syntax_version=effective.syntax_version,
@@ -284,6 +319,7 @@ async def persist(
         evidence_job_id=assessment.evidence_run,
         offering=_offering(effective),
         based_on=based_on,
+        forked_from=forked_from,
         analytics=analytics(effective),
         created_by_id=actor.id,
     )
@@ -299,15 +335,14 @@ async def persist(
     await session.refresh(version, ["created_at"])
     evaluation, _ = await insert_evaluation(session, version, draft, actor=actor)
 
-    if locked.kind != version.kind:
-        locked.kind = version.kind
+    if composition.kind != version.kind:
+        composition.kind = version.kind
     await session.flush()
     audit(
-        session, actor, "composition.version_sealed", TARGET, locked.id, locked.organization_id,
+        session, actor, "composition.version_sealed", TARGET, composition.id, composition.organization_id,
         version_id=str(version.id), ordinal=version.ordinal, label=version.label,
         values_status=version.values_status.value,
     )
-    await session.commit()
     return Sealed(version, evaluation, True)
 
 
@@ -330,4 +365,14 @@ async def _lost_race(session: AsyncSession, version: CompositionVersion) -> HTTP
     return None
 
 
-__all__ = ["SEALED_OUTCOMES", "Checked", "Sealed", "check", "insert_evaluation", "persist", "relocated"]
+__all__ = [
+    "SEALED_OUTCOMES",
+    "Checked",
+    "Sealed",
+    "check",
+    "insert_evaluation",
+    "judge",
+    "persist",
+    "relocated",
+    "seal_into",
+]

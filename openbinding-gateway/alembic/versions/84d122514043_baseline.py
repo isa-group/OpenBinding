@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '7471fbcd92b2'
+revision: str = '84d122514043'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -509,6 +509,7 @@ def upgrade() -> None:
     sa.Column('evidence_job_id', sa.Uuid(), nullable=True),
     sa.Column('offering', sa.JSON(), nullable=True),
     sa.Column('based_on', sa.JSON(), nullable=True),
+    sa.Column('forked_from', sa.JSON(), nullable=True),
     sa.Column('analytics', sa.JSON(), nullable=False),
     sa.Column('created_by_id', sa.Uuid(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),

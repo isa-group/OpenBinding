@@ -172,6 +172,12 @@ whether or not the document is valid. The others refuse a document with an error
 |---|---|---|
 | `composition_invalid` | 422 | `parseComposition`, `serialiseComposition` or `diffCompositions` read a document with at least one error; `diagnostics` lists every finding (the `c2y_*` codes below), located; on a diff each names its `document` |
 | `composition_busy` | 429 | every Composition2Yaml slot of this process is taken (`COMPOSITION_LANGUAGE_SLOTS`, 4); `Retry-After: 1`. Refused at once rather than queued |
+
+A diff (`diffCompositions`, and `diffCompositionVersions` below) answers SPHERE's PricingDiff shape:
+`general` (top-level changes, `workflow` compared whole; `version` and `evidence` are not reported), the
+`binding`, `values` and `offering` `sections` with their entries, `totals` and `isEmpty`, plus
+`comparison {comparable, problemRefChanged, compilationChanged, valueStatus}`. Value changes are listed only
+when the two sides are `comparable`.
 | `payload_too_large` | 413 | a document longer than 262 144 bytes (a JSON document to serialise: 524 288); `limitBytes` says the limit |
 | `unsupported_media_type` | 415 | `validate` and `parse` read `application/yaml`, `text/yaml` or `application/x-yaml`; `serialise` and `diff` read `application/json` |
 | `rate_limit_exceeded` | 429 | past the `read` budget of the client ([ACCESS_POLICY.md](ACCESS_POLICY.md)) |
@@ -253,11 +259,15 @@ composition, never `403`. A member whose role is too weak for a write gets `403 
 |---|---|---|
 | `not_found` | 404 | no such organization or composition, or the caller cannot read it |
 | `organization_forbidden` | 403 | the caller reads the organization but its role is too weak: MEMBER creates and edits, ADMIN deletes |
-| `feature_not_entitled` | 403 | `createComposition`: the caller's plan lacks the `repository` feature |
-| `slug_conflict` | 409 | the composition slug is in use in the organization |
-| `composition_invalid` | 422 | `createCompositionVersion` read or judged a document with at least one error; `diagnostics` lists every finding (the `c2y_*` codes above), located in the submitted text. `checkCompositionVersion` answers the same findings with 200 |
+| `feature_not_entitled` | 403 | `createComposition`, `forkComposition`: the caller's plan lacks the `repository` feature |
+| `slug_conflict` | 409 | the composition slug is in use in the organization (`forkComposition`: the `slug` given is in use in the target; without one, a taken slug answers 200 `{nameTaken: true, existingComposition}` and nothing is forked) |
+| `diff_version_missing` | 422 | `diffCompositionVersions` needs a default the composition cannot give: it has no version yet, or none before `to`. Name `from` |
+| `composition_fork_same_organization` | 409 | `forkComposition` into the source's own organization: a fork goes to another organization; seal a new version instead |
+| `composition_fork_problem_unreadable` | 409 | `forkComposition` of a version that links a problem, which the target organization cannot read. Set `dropProblem` to fork it without `problem` and `evidence`, its values declared |
+| `api_key_boundary` | 403 | `forkComposition`: the API key's boundary does not reach the target organization or slug |
+| `composition_invalid` | 422 | `createCompositionVersion` read or judged a document with at least one error; `diagnostics` lists every finding (the `c2y_*` codes above), located in the submitted text. `checkCompositionVersion` answers the same findings with 200. `forkComposition`: the forked copy was refused as a new seal would be (for example `c2y_from_registry_unknown` once a registry left `SPHERE_REGISTRIES`) |
 | `version_label_taken` | 409 | `createCompositionVersion`: another content of the composition holds this `version:`; `version` names it (`id`, `ordinal`, `label`) |
-| `composition_busy` | 429 | `createCompositionVersion`, `checkCompositionVersion`: every Composition2Yaml or evaluation slot of this process is taken (`COMPOSITION_EVALUATION_SLOTS`, 2); `Retry-After: 1` |
+| `composition_busy` | 429 | `createCompositionVersion`, `checkCompositionVersion`, `forkComposition`, `diffCompositionVersions`: every Composition2Yaml or evaluation slot of this process is taken (`COMPOSITION_EVALUATION_SLOTS`, 2); `Retry-After: 1` |
 | `payload_too_large` | 413 | a document longer than 262 144 bytes; `limitBytes` says the limit |
 | `unsupported_media_type` | 415 | a document not sent as `application/yaml`, `text/yaml` or `application/x-yaml` |
 | `rate_limit_exceeded` | 429 | past the `evaluate` budget of the caller ([ACCESS_POLICY.md](ACCESS_POLICY.md)) |

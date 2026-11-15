@@ -13,16 +13,19 @@ from .compositions import (
     organization_for,
     update_composition,
 )
-from .language import LanguageRefusal, diff, parse, serialise, validate
-from .seal import Checked, Sealed, check, insert_evaluation, persist
+from .fork import Forked, NameTaken, fork_composition
+from .language import LanguageRefusal, diff, diff_stored, parse, serialise, validate
+from .seal import Checked, Sealed, check, insert_evaluation, judge, persist, seal_into
 from .slots import evaluation_slot, language_slot
-from .versions import list_versions, required_version, summaries, version_by_ref
+from .versions import diff_pair, list_versions, required_version, summaries, version_by_ref
 
 __all__ = [
     "STRICTER_THAN_TOOLCHAIN",
     "Assessment",
     "Checked",
+    "Forked",
     "LanguageRefusal",
+    "NameTaken",
     "Resolved",
     "Sealed",
     "assess",
@@ -31,8 +34,12 @@ __all__ = [
     "create_composition",
     "delete_composition",
     "diff",
+    "diff_pair",
+    "diff_stored",
     "evaluation_slot",
+    "fork_composition",
     "insert_evaluation",
+    "judge",
     "language_slot",
     "list_compositions",
     "list_versions",
@@ -40,6 +47,7 @@ __all__ = [
     "parse",
     "persist",
     "required_version",
+    "seal_into",
     "serialise",
     "summaries",
     "update_composition",

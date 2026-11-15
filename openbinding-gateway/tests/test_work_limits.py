@@ -33,6 +33,7 @@ EMPTY_YAML = {"content": b"", "headers": {"content-type": "application/yaml"}}
 EMPTY_JSON = {"content": b"{}", "headers": {"content-type": "application/json"}}
 LANGUAGE = "/v1/compositions"
 VERSIONS = "/v1/organizations/{org}/compositions/{composition}/versions"
+FORK = "/v1/organizations/{org}/compositions/{composition}/fork"
 
 #: A request for every route that reaches the limiter: ``(method, template) -> (method, concrete path, body)``,
 #: the concrete path filled in by the ``member`` fixture's organization and problem.
@@ -50,6 +51,7 @@ REQUESTS = {
     # Counted before the composition is looked up: the first is a 404, the second a 429.
     ("POST", f"{VERSIONS}"): ("POST", "/v1/organizations/{org}/compositions/none/versions", EMPTY_YAML),
     ("POST", f"{VERSIONS}/check"): ("POST", "/v1/organizations/{org}/compositions/none/versions/check", EMPTY_YAML),
+    ("POST", FORK): ("POST", "/v1/organizations/{org}/compositions/none/fork", EMPTY_JSON),
 }
 
 #: The stateless language services: open to anybody, and answering ``application/problem+json``.
@@ -156,7 +158,7 @@ def test_compile_read_and_evaluate_are_the_classes_the_policy_states():
     assert set(WORK_ROUTES.values()) == {"compile", "read", "evaluate"}
     assert {route for route, work_class in WORK_ROUTES.items() if work_class == "read"} == LANGUAGE_ROUTES
     assert {route for route, work_class in WORK_ROUTES.items() if work_class == "evaluate"} == {
-        ("POST", VERSIONS), ("POST", f"{VERSIONS}/check"),
+        ("POST", VERSIONS), ("POST", f"{VERSIONS}/check"), ("POST", FORK),
     }
 
 

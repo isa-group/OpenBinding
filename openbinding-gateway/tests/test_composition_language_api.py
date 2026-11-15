@@ -221,11 +221,26 @@ async def test_diff_of_two_goldens_lists_their_changes(api_client, registries):
     response = await diff(api_client, before, after)
 
     assert response.status_code == 200, response.text
-    assert response.json() == {"changes": [{
-        "section": "offering", "subject": "source", "kind": "changed",
-        "was": {"url": "https://pricings.example.org/shop/pricing.yml"},
-        "now": {"sphere": "isa/shop", "registry": "lab"},
-    }]}
+    assert response.json() == {
+        "general": [],
+        "sections": [
+            {"key": "binding", "label": "Binding", "entries": []},
+            {"key": "values", "label": "Values", "entries": []},
+            {"key": "offering", "label": "Offering", "entries": [{
+                "name": "source", "kind": "changed", "changes": [
+                    {"path": "url", "before": "https://pricings.example.org/shop/pricing.yml", "after": None},
+                    {"path": "sphere", "before": None, "after": "isa/shop"},
+                    {"path": "registry", "before": None, "after": "lab"},
+                ],
+            }]},
+        ],
+        "totals": {"added": 0, "removed": 0, "changed": 1},
+        "isEmpty": False,
+        "comparison": {
+            "comparable": True, "problemRefChanged": False, "compilationChanged": False,
+            "valueStatus": {"before": "declared", "after": "declared"},
+        },
+    }
 
 
 async def test_diff_answers_what_the_library_finds(api_client):
@@ -235,11 +250,14 @@ async def test_diff_answers_what_the_library_finds(api_client):
     response = await diff(api_client, before, after)
 
     assert response.status_code == 200, response.text
-    changes = response.json()["changes"]
-    assert changes == composition_diff.as_documents(composition_diff.diff(text.parse(before), text.parse(after)))
-    assert {(change["section"], change["subject"], change["kind"]) for change in changes} == {
-        ("identity", "version", "changed"), ("binding", "greet.candidate", "changed"),
-    }
+    found = response.json()
+    assert found == composition_diff.diff(text.parse(before), text.parse(after))
+    # The label differs between versions by definition and is not reported.
+    assert found["general"] == []
+    assert found["sections"][0]["entries"] == [{
+        "name": "greet", "kind": "changed",
+        "changes": [{"path": "candidate", "before": "greeter", "after": "welcomer"}],
+    }]
 
 
 async def test_diff_refuses_an_invalid_side_naming_the_document(api_client):

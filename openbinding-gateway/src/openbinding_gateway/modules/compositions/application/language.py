@@ -1,4 +1,4 @@
-"""The stateless Composition2Yaml services: validate, parse, serialise and diff a document.
+"""The Composition2Yaml services: validate, parse, serialise and diff a document, and diff two stored ones.
 
 Each one runs the pure library (``openbinding_gateway.composition.text``) in a worker thread
 under one :func:`~.slots.language_slot`, so a large document never blocks the event loop and
@@ -123,7 +123,7 @@ async def serialise(source: Any) -> str:
     return await _run(_serialise, source)
 
 
-def _diff(before: bytes, after: bytes) -> list[dict[str, Any]]:
+def _diff(before: bytes, after: bytes) -> dict[str, Any]:
     readings = {side: _read(raw) for side, raw in zip(SIDES, (before, after), strict=True)}
     refused = [
         diagnostic_view(item, document=side)
@@ -134,13 +134,26 @@ def _diff(before: bytes, after: bytes) -> list[dict[str, Any]]:
         raise LanguageRefusal(refused)
     was, now = (readings[side].document for side in SIDES)
     assert was is not None and now is not None
-    return composition_diff.as_documents(composition_diff.diff(was, now))
+    return composition_diff.diff(was, now)
 
 
-async def diff(before: bytes, after: bytes) -> list[dict[str, Any]]:
-    """What changed from one document to another; raises :class:`LanguageRefusal`, each
-    diagnostic naming its ``document``, when either side has an error."""
+async def diff(before: bytes, after: bytes) -> dict[str, Any]:
+    """What changed from one document to another (SPHERE's PricingDiff shape, with ``comparison``);
+    raises :class:`LanguageRefusal`, each diagnostic naming its ``document``, when either side has an error."""
     return await _run(_diff, before, after)
+
+
+def _diff_stored(before: str, after: str) -> dict[str, Any]:
+    return composition_diff.diff(text.read_stored(before), text.read_stored(after))
+
+
+async def diff_stored(before: str, after: str) -> dict[str, Any]:
+    """What changed from one sealed version's content to another's.
+
+    Stored bytes are read in the stored mode: they read when they were sealed, whatever registries the
+    deployment defines today.
+    """
+    return await _run(_diff_stored, before, after)
 
 
 __all__ = [
@@ -150,6 +163,7 @@ __all__ = [
     "decode",
     "diagnostic_view",
     "diff",
+    "diff_stored",
     "parse",
     "serialise",
     "validate",

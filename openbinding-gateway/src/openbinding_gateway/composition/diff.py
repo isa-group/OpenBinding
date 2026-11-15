@@ -1,251 +1,183 @@
 """What changed between two Composition2Yaml documents.
 
-A comparison of two versions of a composition is read section by section: its identity, the
-problem it links, its workflow, its binding, its values, its offering and its evidence. Each
-:class:`Change` names its section, the subject within it (a task, a property, a field), and
-whether it was ``added``, ``removed``, ``changed`` or ``moved``, with the value it had and has.
-Values are written the way a response carries them: text, numbers, lists and mappings.
+Ported from SPHERE (SCORELabUS/SPHERE, MIT licence, revision 73779a8a),
+``frontend/src/modules/pricing/utils/pricing-diff.ts``: the same JSON shape and the same rules, applied to
+the canonical form of a composition instead of a pricing.
 
-The workflow is compared the way :mod:`.workflow` compares trees: positionally. A different
-block structure is one ``shape`` change; a task invoked at other places is ``moved``; an
-exclusive choice whose probabilities or ``uniform`` changed is reported at the choice. A
-number is compared and reported by its ``repr``, so ``30`` and ``30.0`` differ, as their
-canonical bytes do.
+A comparison has ``general`` changes (top-level fields that are not a section) and three ``sections``:
+
+* ``binding``, one entry per task;
+* ``values``, one entry per property;
+* ``offering``, one entry, ``source``.
+
+An entry was ``added``, ``removed`` or ``changed``, and lists its field ``changes``, each a dotted ``path``
+within the entry with the value ``before`` and ``after`` (``null`` where the field is absent). Mappings are
+flattened to their leaves; lists are compared whole, since their order means something. The workflow is
+compared whole, as one general change: a positional tree has no stable keys to flatten by. ``version`` and
+``evidence`` differ between two versions by definition and are not reported. Two values are the same when
+their JSON is, so ``30`` and ``30.0`` differ, as their canonical bytes do.
+
+``totals`` counts the entries of each kind, plus each general change as ``changed``; ``isEmpty`` says there
+is nothing to show. ``comparison`` says whether the two sides' values can be compared at all
+(``comparable``): only when both are verified on the same problem and compilation, or both declared on the
+same link (or none). Value changes are never reported between incomparable sides, since a toolchain's value
+and an author's, or the values of two problems, differ for reasons a diff cannot show; the ``values``
+section is then empty and ``comparison`` says why.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Iterable
+import json
+from typing import Any, Literal
 
-from .document import Document, Entry, Evidence, Offering, Provenance, Value
-from .text import canonical_binding
-from .workflow import Exclusive, Location, invocations, shape, walk
+from .document import Document
+from .text import document as canonical
 
-#: The sections, in the order changes are listed.
-SECTIONS: tuple[str, ...] = ("identity", "problem", "workflow", "binding", "values", "offering", "evidence")
-#: What happened to a subject.
-KINDS: tuple[str, ...] = ("added", "removed", "changed", "moved")
+ChangeKind = Literal["added", "removed", "changed"]
+ValueStatus = Literal["verified", "declared"]
 
+#: The sections, in the order they are listed, with their labels.
+SECTIONS: tuple[tuple[str, str], ...] = (("binding", "Binding"), ("values", "Values"), ("offering", "Offering"))
+#: The kinds of entry change.
+KINDS: tuple[ChangeKind, ...] = ("added", "removed", "changed")
+#: Top-level keys that are no general change: the sections, and what differs between versions by definition.
+IGNORED_GENERAL_KEYS = frozenset({"version", "evidence", *(key for key, _ in SECTIONS)})
+#: Top-level keys compared whole rather than flattened.
+WHOLE_KEYS = frozenset({"workflow"})
+#: The one entry of the ``offering`` section.
+OFFERING_ENTRY = "source"
 
-@dataclass(frozen=True, slots=True)
-class Change:
-    """One difference between two documents."""
-
-    section: str
-    subject: str
-    kind: str
-    was: Any = None
-    now: Any = None
-
-    def as_dict(self) -> dict[str, Any]:
-        return {"section": self.section, "subject": self.subject, "kind": self.kind, "was": self.was, "now": self.now}
+_ABSENT = object()
 
 
-def as_documents(changes: Iterable[Change]) -> list[dict[str, Any]]:
-    """The changes as JSON-native mappings."""
-    return [change.as_dict() for change in changes]
-
-
-def diff(before: Document, after: Document) -> tuple[Change, ...]:
-    """Every difference from ``before`` to ``after``, sorted by section, then subject."""
-    found: list[Change] = []
-    found += _identity(before, after)
-    found += _problem(before, after)
-    found += _workflow(before, after)
-    found += _binding(before, after)
-    found += _values(before, after)
-    found += _offering(before.offering, after.offering)
-    found += _evidence(before.evidence, after.evidence)
-    return tuple(sorted(found, key=lambda change: (SECTIONS.index(change.section), change.subject)))
-
-
-def _field(section: str, subject: str, was: Any, now: Any) -> list[Change]:
-    """The change of one optional field: absent is ``None``."""
-    if was == now:
-        return []
-    if was is None:
-        return [Change(section, subject, "added", now=now)]
-    if now is None:
-        return [Change(section, subject, "removed", was=was)]
-    return [Change(section, subject, "changed", was=was, now=now)]
-
-
-def _identity(before: Document, after: Document) -> list[Change]:
-    found: list[Change] = []
-    for subject, was, now in (
-        ("syntaxVersion", before.syntax_version, after.syntax_version),
-        ("composition", before.composition, after.composition),
-        ("version", before.version, after.version),
-        ("kind", before.kind, after.kind),
-    ):
-        found += _field("identity", subject, was, now)
-    return found
-
-
-def _problem(before: Document, after: Document) -> list[Change]:
-    was, now = before.problem, after.problem
-    return _field(
-        "problem", "ref", str(was.ref) if was else None, str(now.ref) if now else None,
-    ) + _field(
-        "problem", "compilation", was.compilation if was else None, now.compilation if now else None,
-    )
-
-
-# --------------------------------------------------------------------------- workflow
-
-
-def _where(document: Document, location: Location) -> str:
-    """A location as the source path it was read from, or by its positions for a document built in code."""
-    path = document.paths.nodes.get(location)
-    if path is not None:
-        return path.dotted
-    return "workflow" + "".join(f"[{position}]" for position in location)
-
-
-def _choice(node: Exclusive) -> dict[str, Any]:
-    return {"uniform": node.uniform, "probabilities": [branch.probability for branch in node.branches]}
-
-
-def _workflow(before: Document, after: Document) -> list[Change]:
-    found: list[Change] = []
-    was_shape, now_shape = shape(before.workflow), shape(after.workflow)
-    if was_shape != now_shape:
-        found.append(Change("workflow", "shape", "changed", was=was_shape, now=now_shape))
-    was_at, now_at = invocations(before.workflow), invocations(after.workflow)
-    for task in (*was_at, *(task for task in now_at if task not in was_at)):
-        old, new = was_at.get(task), now_at.get(task)
-        old_text = [_where(before, location) for location in old] if old else None
-        new_text = [_where(after, location) for location in new] if new else None
-        if old is None:
-            found.append(Change("workflow", task, "added", now=new_text))
-        elif new is None:
-            found.append(Change("workflow", task, "removed", was=old_text))
-        elif old != new:
-            found.append(Change("workflow", task, "moved", was=old_text, now=new_text))
-    choices = {location: node for location, node in walk(after.workflow) if isinstance(node, Exclusive)}
-    for location, node in walk(before.workflow):
-        other = choices.get(location)
-        if not isinstance(node, Exclusive) or other is None or len(other.branches) != len(node.branches):
-            continue
-        was, now = _choice(node), _choice(other)
-        if [repr(p) for p in was["probabilities"]] != [repr(p) for p in now["probabilities"]] or (
-            was["uniform"] != now["uniform"]
-        ):
-            found.append(Change("workflow", _where(after, location), "changed", was=was, now=now))
-    return found
-
-
-# --------------------------------------------------------------------------- binding and values
-
-
-def _entry_text(entry: Entry) -> dict[str, Any]:
-    written: dict[str, Any] = {}
-    if entry.candidate is not None:
-        written["candidate"] = entry.candidate
-    if entry.local:
-        written["local"] = True
-    if entry.source is not None:
-        written["from"] = _provenance_text(entry.source)
-    return written
-
-
-def _provenance_text(source: Provenance) -> dict[str, Any]:
-    written = {
-        key: value
-        for key, value in (
-            ("sphere", source.sphere), ("registry", source.registry),
-            ("version", source.version), ("plan", source.plan),
-        )
-        if value is not None
-    }
-    if source.addons:
-        written["addons"] = list(source.addons)
-    return written
-
-
-def _binding(before: Document, after: Document) -> list[Change]:
-    found: list[Change] = []
-    was_entries = dict(canonical_binding(before.workflow, before.binding))
-    now_entries = dict(canonical_binding(after.workflow, after.binding))
-    for task in (*was_entries, *(task for task in now_entries if task not in was_entries)):
-        was, now = was_entries.get(task), now_entries.get(task)
-        if was is None:
-            found.append(Change("binding", task, "added", now=_entry_text(now)))  # type: ignore[arg-type]
-            continue
-        if now is None:
-            found.append(Change("binding", task, "removed", was=_entry_text(was)))
-            continue
-        found += _field("binding", f"{task}.candidate", was.candidate, now.candidate)
-        if was.local != now.local:
-            found.append(Change("binding", f"{task}.local", "changed", was=was.local, now=now.local))
-        found += _source(task, was.source, now.source)
-    return found
-
-
-def _source(task: str, was: Provenance | None, now: Provenance | None) -> list[Change]:
-    subject = f"{task}.from"
-    if was is None or now is None:
-        return _field(
-            "binding", subject,
-            None if was is None else _provenance_text(was),
-            None if now is None else _provenance_text(now),
-        )
-    found: list[Change] = []
-    for key in ("sphere", "registry", "version", "plan"):
-        found += _field("binding", f"{subject}.{key}", getattr(was, key), getattr(now, key))
-    if set(was.addons) != set(now.addons):
-        found.append(Change(
-            "binding", f"{subject}.addons", "changed", was=sorted(set(was.addons)), now=sorted(set(now.addons)),
-        ))
-    return found
-
-
-def _value_text(value: Value) -> dict[str, Any]:
-    return {"value": repr(value.value), "unit": value.unit}
-
-
-def _values(before: Document, after: Document) -> list[Change]:
-    found: list[Change] = []
-    was_values, now_values = dict(before.values), dict(after.values)
-    for name in sorted({*was_values, *now_values}):
-        was, now = was_values.get(name), now_values.get(name)
-        if was is None:
-            found.append(Change("values", name, "added", now=_value_text(now)))  # type: ignore[arg-type]
-        elif now is None:
-            found.append(Change("values", name, "removed", was=_value_text(was)))
+def _flatten(value: Any, prefix: str = "", whole: frozenset[str] = frozenset()) -> dict[str, Any]:
+    """The leaves of ``value`` by dotted path; a non-mapping is one leaf at ``prefix``."""
+    flat: dict[str, Any] = {}
+    if value is None or value is _ABSENT:
+        return flat
+    if not isinstance(value, dict):
+        flat[prefix] = value
+        return flat
+    for key, child in value.items():
+        path = f"{prefix}.{key}" if prefix else key
+        if isinstance(child, dict) and path not in whole:
+            nested = _flatten(child, path)
+            if not nested:
+                flat[path] = child
+            flat.update(nested)
         else:
-            found += _field("values", f"{name}.value", repr(was.value), repr(now.value))
-            found += _field("values", f"{name}.unit", was.unit, now.unit)
-    return found
+            flat[path] = child
+    return flat
 
 
-# --------------------------------------------------------------------------- offering and evidence
+def _same(one: Any, other: Any) -> bool:
+    return json.dumps(one, sort_keys=True) == json.dumps(other, sort_keys=True)
 
 
-def _offering_text(offering: Offering | None) -> dict[str, str] | None:
-    if offering is None:
-        return None
+def _fields(before: Any, after: Any, whole: frozenset[str] = frozenset()) -> list[dict[str, Any]]:
+    """Every leaf that differs, in the order the paths first appear (``before``'s, then ``after``'s new ones)."""
+    was, now = _flatten(before, whole=whole), _flatten(after, whole=whole)
+    changes: list[dict[str, Any]] = []
+    for path in (*was, *(path for path in now if path not in was)):
+        if path in was and path in now and _same(was[path], now[path]):
+            continue
+        changes.append({"path": path, "before": was.get(path), "after": now.get(path)})
+    return changes
+
+
+def _entries(before: dict[str, Any], after: dict[str, Any]) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    for name in (*before, *(name for name in after if name not in before)):
+        if name not in after:
+            entries.append({"name": name, "kind": "removed", "changes": _fields(before[name], _ABSENT)})
+        elif name not in before:
+            entries.append({"name": name, "kind": "added", "changes": _fields(_ABSENT, after[name])})
+        else:
+            changes = _fields(before[name], after[name])
+            if changes:
+                entries.append({"name": name, "kind": "changed", "changes": changes})
+    return entries
+
+
+def value_status(doc: Document) -> ValueStatus:
+    """``verified`` when the toolchain computed the document's values, as a sealed linked version says."""
+    evidence = doc.evidence
+    if doc.problem is not None and evidence is not None and evidence.evaluated_by == "gateway":
+        return "verified"
+    return "declared"
+
+
+def comparison(before: Document, after: Document) -> dict[str, Any]:
+    """Whether the values of the two documents can be compared, and what tells them apart if not."""
+    statuses = {"before": value_status(before), "after": value_status(after)}
+    ref_changed = (
+        (str(before.problem.ref) if before.problem else None) != (str(after.problem.ref) if after.problem else None)
+    )
+    compilation_changed = (
+        (before.problem.compilation if before.problem else None)
+        != (after.problem.compilation if after.problem else None)
+    )
     return {
-        key: value
-        for key, value in (("sphere", offering.sphere), ("registry", offering.registry), ("url", offering.url))
-        if value is not None
+        "comparable": statuses["before"] == statuses["after"] and not ref_changed and not compilation_changed,
+        "problemRefChanged": ref_changed,
+        "compilationChanged": compilation_changed,
+        "valueStatus": statuses,
     }
 
 
-def _offering(was: Offering | None, now: Offering | None) -> list[Change]:
-    return _field("offering", "source", _offering_text(was), _offering_text(now))
+def _sections(written: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Each section as named entries: values always as ``{value, unit}``, the offering as one ``source``."""
+    values = {
+        name: value if isinstance(value, dict) else {"value": value, "unit": "1"}
+        for name, value in written.get("values", {}).items()
+    }
+    offering = written.get("offering")
+    return {
+        "binding": dict(written.get("binding", {})),
+        "values": values,
+        "offering": {OFFERING_ENTRY: offering} if offering is not None else {},
+    }
 
 
-def _evidence(was: Evidence | None, now: Evidence | None) -> list[Change]:
-    old, new = was or Evidence(), now or Evidence()
-    found: list[Change] = []
-    for subject, before, after in (
-        ("run", old.run, new.run),
-        ("point", old.point, new.point),
-        ("manual", old.manual or None, new.manual or None),
-        ("evaluatedBy", old.evaluated_by, new.evaluated_by),
-        ("toolchain", old.toolchain, new.toolchain),
-    ):
-        found += _field("evidence", subject, before, after)
-    return found
+def diff(before: Document, after: Document) -> dict[str, Any]:
+    """What changed from ``before`` (the older document) to ``after``, as JSON-native data."""
+    was, now = canonical(before), canonical(after)
+    compared = comparison(before, after)
+    general = _fields(
+        {key: value for key, value in was.items() if key not in IGNORED_GENERAL_KEYS},
+        {key: value for key, value in now.items() if key not in IGNORED_GENERAL_KEYS},
+        whole=WHOLE_KEYS,
+    )
+    was_sections, now_sections = _sections(was), _sections(now)
+    sections = []
+    for key, label in SECTIONS:
+        entries = _entries(was_sections[key], now_sections[key])
+        if key == "values" and not compared["comparable"]:
+            entries = []
+        sections.append({"key": key, "label": label, "entries": entries})
+    totals = {kind: 0 for kind in KINDS}
+    for section in sections:
+        for entry in section["entries"]:
+            totals[entry["kind"]] += 1
+    totals["changed"] += len(general)
+    return {
+        "general": general,
+        "sections": sections,
+        "totals": totals,
+        "isEmpty": sum(totals.values()) == 0,
+        "comparison": compared,
+    }
+
+
+__all__ = [
+    "IGNORED_GENERAL_KEYS",
+    "KINDS",
+    "OFFERING_ENTRY",
+    "SECTIONS",
+    "WHOLE_KEYS",
+    "ChangeKind",
+    "ValueStatus",
+    "comparison",
+    "diff",
+    "value_status",
+]

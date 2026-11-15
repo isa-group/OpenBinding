@@ -140,7 +140,24 @@ def _slug_conflict() -> HTTPException:
     return api_error(status.HTTP_409_CONFLICT, "slug_conflict", "That composition slug is in use in this organization.")
 
 
-async def create_composition(
+async def require_repository(actor: User) -> None:
+    """403 ``feature_not_entitled`` unless the actor's plan has the ``repository`` feature.
+
+    Pricing 0.2.0 has no composition feature or limit of its own, so creating a composition (or forking one)
+    needs ``repository``.
+    """
+    caps = await entitlement_service.caps_or_503(actor.id)
+    entitlement_service.require_feature(caps, ids.REPOSITORY)
+
+
+async def slug_holder(session: AsyncSession, organization_id: uuid.UUID, slug: str) -> Composition | None:
+    """The organization's composition that holds ``slug``, if any."""
+    return await session.scalar(select(Composition).where(
+        Composition.organization_id == organization_id, Composition.slug == slug,
+    ).limit(1))
+
+
+async def insert_composition(
     session: AsyncSession,
     organization: Organization,
     actor: User,
@@ -150,17 +167,11 @@ async def create_composition(
     description: str = "",
     kind: CompositionKind = CompositionKind.APPLICATION,
 ) -> Composition:
-    """A new, empty composition of ``organization``.
+    """Insert a composition of ``organization`` and audit it; 409 ``slug_conflict`` when the slug is taken.
 
-    Needs the ``repository`` feature of the actor's plan (403 ``feature_not_entitled``): pricing 0.2.0 has no
-    composition feature or limit of its own. 409 ``slug_conflict`` when the slug is taken.
+    The caller has checked the actor's entitlement.
     """
-    caps = await entitlement_service.caps_or_503(actor.id)
-    entitlement_service.require_feature(caps, ids.REPOSITORY)
-    taken = await session.scalar(select(Composition.id).where(
-        Composition.organization_id == organization.id, Composition.slug == slug,
-    ).limit(1))
-    if taken is not None:
+    if await slug_holder(session, organization.id, slug) is not None:
         raise _slug_conflict()
     composition = Composition(
         organization_id=organization.id, slug=slug, name=name, description=description, kind=kind,
@@ -176,6 +187,27 @@ async def create_composition(
     await session.refresh(composition, ["created_at", "updated_at"])
     audit(session, actor, "composition.created", TARGET, composition.id, organization.id, slug=slug, kind=kind.value)
     return composition
+
+
+async def create_composition(
+    session: AsyncSession,
+    organization: Organization,
+    actor: User,
+    *,
+    slug: str,
+    name: str,
+    description: str = "",
+    kind: CompositionKind = CompositionKind.APPLICATION,
+) -> Composition:
+    """A new, empty composition of ``organization``.
+
+    Needs the ``repository`` feature of the actor's plan (403 ``feature_not_entitled``). 409
+    ``slug_conflict`` when the slug is taken.
+    """
+    await require_repository(actor)
+    return await insert_composition(
+        session, organization, actor, slug=slug, name=name, description=description, kind=kind,
+    )
 
 
 async def update_composition(

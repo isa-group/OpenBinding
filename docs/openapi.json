@@ -2468,54 +2468,6 @@
         "title": "ChangeSubscriptionRequest",
         "type": "object"
       },
-      "ChangeView": {
-        "description": "One difference between two documents.",
-        "properties": {
-          "kind": {
-            "enum": [
-              "added",
-              "removed",
-              "changed",
-              "moved"
-            ],
-            "title": "Kind",
-            "type": "string"
-          },
-          "now": {
-            "description": "The value after; null when removed.",
-            "title": "Now"
-          },
-          "section": {
-            "enum": [
-              "identity",
-              "problem",
-              "workflow",
-              "binding",
-              "values",
-              "offering",
-              "evidence"
-            ],
-            "title": "Section",
-            "type": "string"
-          },
-          "subject": {
-            "description": "What changed within the section: a task, a property, a field.",
-            "title": "Subject",
-            "type": "string"
-          },
-          "was": {
-            "description": "The value before; null when added.",
-            "title": "Was"
-          }
-        },
-        "required": [
-          "section",
-          "subject",
-          "kind"
-        ],
-        "title": "ChangeView",
-        "type": "object"
-      },
       "CheckResult": {
         "description": "The lint of a document against its problem: 200 whether or not it is valid; nothing is stored.",
         "properties": {
@@ -2848,6 +2800,78 @@
         "title": "CompositionDiagnosticView",
         "type": "object"
       },
+      "CompositionFork": {
+        "additionalProperties": false,
+        "description": "A version of a composition to fork into another organization, as a new composition there.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The source's by default.",
+            "title": "Description"
+          },
+          "dropProblem": {
+            "default": false,
+            "description": "Fork a version that links a problem anyway: its `problem` and `evidence` are removed and its values sealed as declared. Without it, such a fork is 409 `composition_fork_problem_unreadable`.",
+            "title": "Dropproblem",
+            "type": "boolean"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The source's by default.",
+            "title": "Name"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The new composition's slug; the source's by default. Taken by default is 200 `nameTaken`, taken when given is 409.",
+            "title": "Slug"
+          },
+          "targetOrganization": {
+            "description": "The organization to fork into (slug or id); not the source's own.",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Targetorganization",
+            "type": "string"
+          },
+          "version": {
+            "description": "The version to fork: its id, label or ordinal.",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "targetOrganization"
+        ],
+        "title": "CompositionFork",
+        "type": "object"
+      },
       "CompositionList": {
         "description": "One page of an organization's compositions, and how many match in all.",
         "properties": {
@@ -2977,6 +3001,55 @@
         "title": "CompositionUpdate",
         "type": "object"
       },
+      "CompositionVersionDiff": {
+        "description": "What changed from one version of a composition to another.",
+        "properties": {
+          "comparison": {
+            "$ref": "#/components/schemas/DiffComparison"
+          },
+          "from": {
+            "$ref": "#/components/schemas/VersionName",
+            "description": "The earlier side."
+          },
+          "general": {
+            "items": {
+              "$ref": "#/components/schemas/FieldChangeView"
+            },
+            "title": "General",
+            "type": "array"
+          },
+          "isEmpty": {
+            "description": "Whether nothing changed that a diff reports.",
+            "title": "Isempty",
+            "type": "boolean"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/SectionDiffView"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "to": {
+            "$ref": "#/components/schemas/VersionName",
+            "description": "The later side."
+          },
+          "totals": {
+            "$ref": "#/components/schemas/DiffTotals"
+          }
+        },
+        "required": [
+          "general",
+          "sections",
+          "totals",
+          "isEmpty",
+          "comparison",
+          "from",
+          "to"
+        ],
+        "title": "CompositionVersionDiff",
+        "type": "object"
+      },
       "CompositionVersionList": {
         "description": "One page of a composition's versions, and how many it has.",
         "properties": {
@@ -3078,7 +3151,7 @@
                 "type": "null"
               }
             ],
-            "description": "The version it was forked from, as data.",
+            "description": "The version it was forked from, as data: `{composition_id, version_id, label}`.",
             "title": "Based On"
           },
           "content_digest": {
@@ -3124,6 +3197,19 @@
                 "type": "null"
               }
             ]
+          },
+          "forked_from": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What it was forked from, as it was named when it was forked: `{compositionId, versionId, label, organization{id, name, displayName}, slug, name, droppedProblem}`. `droppedProblem` says the fork removed the source's problem link and evidence, so its values are the source's, declared.",
+            "title": "Forked From"
           },
           "id": {
             "format": "uuid",
@@ -3702,21 +3788,99 @@
         ],
         "type": "object"
       },
-      "DiffResult": {
-        "description": "What changed, sorted by section and then subject.",
+      "DiffComparison": {
+        "description": "Whether the values of the two sides can be compared, and what tells them apart if not.",
         "properties": {
-          "changes": {
-            "items": {
-              "$ref": "#/components/schemas/ChangeView"
-            },
-            "title": "Changes",
-            "type": "array"
+          "comparable": {
+            "description": "Both sides verified on the same problem revision and compilation, or both declared on the same link (or none). Otherwise the `values` section is empty: value changes are not shown.",
+            "title": "Comparable",
+            "type": "boolean"
+          },
+          "compilationChanged": {
+            "title": "Compilationchanged",
+            "type": "boolean"
+          },
+          "problemRefChanged": {
+            "title": "Problemrefchanged",
+            "type": "boolean"
+          },
+          "valueStatus": {
+            "$ref": "#/components/schemas/ValueStatusPair"
           }
         },
         "required": [
-          "changes"
+          "comparable",
+          "problemRefChanged",
+          "compilationChanged",
+          "valueStatus"
+        ],
+        "title": "DiffComparison",
+        "type": "object"
+      },
+      "DiffResult": {
+        "description": "What changed between two documents, in SPHERE's PricingDiff shape.\n\n`general` holds the top-level fields that changed (`syntaxVersion`, `composition`, `kind`, `problem.*`, and\n`workflow` compared whole); `version` and `evidence` are not reported. `sections` are always `binding`\n(one entry per task), `values` (one per property) and `offering` (one, `source`).",
+        "properties": {
+          "comparison": {
+            "$ref": "#/components/schemas/DiffComparison"
+          },
+          "general": {
+            "items": {
+              "$ref": "#/components/schemas/FieldChangeView"
+            },
+            "title": "General",
+            "type": "array"
+          },
+          "isEmpty": {
+            "description": "Whether nothing changed that a diff reports.",
+            "title": "Isempty",
+            "type": "boolean"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/SectionDiffView"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/DiffTotals"
+          }
+        },
+        "required": [
+          "general",
+          "sections",
+          "totals",
+          "isEmpty",
+          "comparison"
         ],
         "title": "DiffResult",
+        "type": "object"
+      },
+      "DiffTotals": {
+        "description": "How many entries were added, removed and changed; each general change counts as changed.",
+        "properties": {
+          "added": {
+            "minimum": 0.0,
+            "title": "Added",
+            "type": "integer"
+          },
+          "changed": {
+            "minimum": 0.0,
+            "title": "Changed",
+            "type": "integer"
+          },
+          "removed": {
+            "minimum": 0.0,
+            "title": "Removed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "added",
+          "removed",
+          "changed"
+        ],
+        "title": "DiffTotals",
         "type": "object"
       },
       "EngineCatalog": {
@@ -4737,6 +4901,38 @@
         ],
         "type": "object"
       },
+      "EntryDiffView": {
+        "description": "One entry of a section (a task, a property, the offering's `source`) that was added, removed or changed.",
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/FieldChangeView"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "added",
+              "removed",
+              "changed"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "changes"
+        ],
+        "title": "EntryDiffView",
+        "type": "object"
+      },
       "ErrorBody": {
         "description": "The payload under ``detail``.",
         "properties": {
@@ -4953,6 +5149,96 @@
           "id"
         ],
         "title": "EvidenceRun",
+        "type": "object"
+      },
+      "ExistingComposition": {
+        "description": "The composition that holds the slug a fork would take.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name"
+        ],
+        "title": "ExistingComposition",
+        "type": "object"
+      },
+      "FieldChangeView": {
+        "description": "One field that differs: its dotted path within the entry (or the document), and both values.",
+        "properties": {
+          "after": {
+            "description": "The value after; null when the field is absent after.",
+            "title": "After"
+          },
+          "before": {
+            "description": "The value before; null when the field is absent before.",
+            "title": "Before"
+          },
+          "path": {
+            "description": "Dotted path of the field: `candidate`, `from.version`, `value`, `problem.ref`, `workflow`.",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "FieldChangeView",
+        "type": "object"
+      },
+      "ForkNameTaken": {
+        "description": "Nothing was forked: the source's slug is taken in the target organization; name another `slug`.",
+        "properties": {
+          "existingComposition": {
+            "$ref": "#/components/schemas/ExistingComposition"
+          },
+          "nameTaken": {
+            "const": true,
+            "title": "Nametaken",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "nameTaken",
+          "existingComposition"
+        ],
+        "title": "ForkNameTaken",
+        "type": "object"
+      },
+      "ForkResult": {
+        "description": "The new composition and its first version, sealed from the source's document.",
+        "properties": {
+          "composition": {
+            "$ref": "#/components/schemas/CompositionView"
+          },
+          "droppedProblem": {
+            "description": "Whether the source's problem link was removed (`dropProblem`).",
+            "title": "Droppedproblem",
+            "type": "boolean"
+          },
+          "version": {
+            "$ref": "#/components/schemas/CompositionVersionView"
+          }
+        },
+        "required": [
+          "composition",
+          "version",
+          "droppedProblem"
+        ],
+        "title": "ForkResult",
         "type": "object"
       },
       "GatewayBindingResult": {
@@ -7712,6 +7998,38 @@
         "title": "SealResult",
         "type": "object"
       },
+      "SectionDiffView": {
+        "description": "The entries of one section that differ.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/EntryDiffView"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "key": {
+            "enum": [
+              "binding",
+              "values",
+              "offering"
+            ],
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "entries"
+        ],
+        "title": "SectionDiffView",
+        "type": "object"
+      },
       "StudyCellResult": {
         "additionalProperties": false,
         "properties": {
@@ -8464,6 +8782,33 @@
         ],
         "type": "object"
       },
+      "ValueStatusPair": {
+        "description": "Whose values each side holds: the toolchain's (`verified`) or the author's (`declared`).",
+        "properties": {
+          "after": {
+            "enum": [
+              "verified",
+              "declared"
+            ],
+            "title": "After",
+            "type": "string"
+          },
+          "before": {
+            "enum": [
+              "verified",
+              "declared"
+            ],
+            "title": "Before",
+            "type": "string"
+          }
+        },
+        "required": [
+          "before",
+          "after"
+        ],
+        "title": "ValueStatusPair",
+        "type": "object"
+      },
       "ValueView": {
         "description": "A global value: the toolchain's float as it returned it, or the author's number, and its unit.",
         "properties": {
@@ -8535,6 +8880,26 @@
           "linked_compilation"
         ],
         "title": "VersionLink",
+        "type": "object"
+      },
+      "VersionName": {
+        "description": "A version, by id and label.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "VersionName",
         "type": "object"
       },
       "VersionProblem": {
@@ -11155,7 +11520,7 @@
     },
     "/v1/compositions/diff": {
       "post": {
-        "description": "What changed from `before` to `after`, section by section. Either side with an error is refused with 422 `composition_invalid`, each diagnostic naming its `document`.",
+        "description": "What changed from `before` to `after`, in SPHERE's PricingDiff shape: `general` changes, the `binding`, `values` and `offering` sections, `totals`, `isEmpty`, and `comparison`, which says whether the two sides' values can be compared (value changes are not listed when not). Either side with an error is refused with 422 `composition_invalid`, each diagnostic naming its `document`.",
         "operationId": "diffCompositions",
         "requestBody": {
           "content": {
@@ -15198,6 +15563,321 @@
           }
         ],
         "summary": "Update Composition",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/diff": {
+      "get": {
+        "description": "What changed from version `from` to version `to`, read from their stored bytes, in SPHERE's PricingDiff shape with a `comparison` (see `diffCompositions`). `to` is the latest version by default, and `from` the one before `to`. Versions of two compositions are compared with `diffCompositions` on their contents.",
+        "operationId": "diffCompositionVersions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The earlier version: id, label or ordinal.",
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The earlier version: id, label or ordinal.",
+              "title": "From"
+            }
+          },
+          {
+            "description": "The later version: id, label or ordinal.",
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The later version: id, label or ordinal.",
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionVersionDiff"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A default the composition cannot give: no version yet, or none before `to` (`diff_version_missing`)."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Every Composition2Yaml slot of this process is taken (`composition_busy`)."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Compare two versions of a composition",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/fork": {
+      "post": {
+        "description": "Create a new composition in `targetOrganization` whose first version is the source version's document with `composition:` set to the new slug, sealed again through the same pipeline. The caller must read the source and be a MEMBER of the target. Without `slug` the fork takes the source's, and when the target holds it already nothing is written: 200 `nameTaken` names the composition that holds it. A version that links a problem is forked only with `dropProblem`, which removes its `problem` and `evidence` and declares its values.",
+        "operationId": "forkComposition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionFork"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForkNameTaken"
+                }
+              }
+            },
+            "description": "Nothing was forked: the source's slug is taken in the target."
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForkResult"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Location": {
+                "description": "The new composition.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's role in the target is too weak (`organization_forbidden`), its plan lacks the `repository` feature (`feature_not_entitled`), or its API key does not reach the target (`api_key_boundary`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The target is the source's own organization (`composition_fork_same_organization`), the version links a problem and `dropProblem` is not set (`composition_fork_problem_unreadable`), or the given `slug` is in use in the target (`slug_conflict`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The forked document has errors (`composition_invalid`); `diagnostics` lists each one."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Fork a version of a composition into another organization",
         "tags": [
           "Compositions"
         ],

@@ -95,6 +95,41 @@ async def required_version(session: AsyncSession, composition: Composition, ref:
     return found
 
 
+def _too_few(message: str):
+    return api_error(422, "diff_version_missing", message)
+
+
+async def diff_pair(
+    session: AsyncSession, composition: Composition, from_ref: str | None, to_ref: str | None,
+) -> tuple[CompositionVersion, CompositionVersion]:
+    """The two versions a diff compares: ``to`` (the latest by default) and ``from`` (by default the one
+    before ``to``).
+
+    A version a reference does not name is 404 ``not_found``; a default the composition cannot give (no
+    version yet, or none before ``to``) is 422 ``diff_version_missing``.
+    """
+    if to_ref is not None:
+        to = await required_version(session, composition, to_ref)
+    else:
+        latest = await session.scalar(
+            select(CompositionVersion).where(CompositionVersion.composition_id == composition.id)
+            .order_by(CompositionVersion.ordinal.desc()).limit(1)
+        )
+        if latest is None:
+            raise _too_few("This composition has no version yet: there is nothing to compare.")
+        to = latest
+    if from_ref is not None:
+        return await required_version(session, composition, from_ref), to
+    before = await session.scalar(
+        select(CompositionVersion).where(
+            CompositionVersion.composition_id == composition.id, CompositionVersion.ordinal < to.ordinal,
+        ).order_by(CompositionVersion.ordinal.desc()).limit(1)
+    )
+    if before is None:
+        raise _too_few(f"This composition has no version before {to.label}; name the version to compare with (`from`).")
+    return before, to
+
+
 async def list_versions(
     session: AsyncSession,
     composition: Composition,
@@ -193,6 +228,7 @@ __all__ = [
     "Summary",
     "current_of",
     "details",
+    "diff_pair",
     "installed_basis",
     "list_versions",
     "required_version",

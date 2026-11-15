@@ -7,7 +7,9 @@ composition of another organization, never 403. A member whose role is too weak 
 
 A version is sealed from a Composition2Yaml document sent as YAML (at most 256 KiB): it is read, judged
 and, when it links a problem, evaluated by the toolchain; its canonical bytes and the evaluation are then
-stored, immutable. Sealing and checking count against the caller's ``evaluate`` budget.
+stored, immutable. Sealing and checking count against the caller's ``evaluate`` budget. Two versions are
+compared from their stored bytes; a version is forked into another organization as a new composition, whose
+first version is sealed through the same pipeline (also the ``evaluate`` budget).
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....access.dependencies import get_current_user, session_dependency
@@ -37,7 +40,9 @@ from ....models.errors import (
     ErrorResponse,
     api_error,
 )
-from ..application import compositions, seal, versions
+from ....security.apikeys import authenticated_api_key, boundary_of
+from ..application import compositions, language, seal, versions
+from ..application.fork import NameTaken, fork_composition
 from ..application.language import diagnostic_view
 from ..domain.records import values_json
 from .language_routes import MAX_DOCUMENT_BYTES, YAML_BODY, YAML_MEDIA_TYPES, document_body
@@ -47,7 +52,9 @@ from .schemas import (
     CompositionKindName,
     CompositionList,
     CompositionOrganization,
+    CompositionFork,
     CompositionUpdate,
+    CompositionVersionDiff,
     CompositionVersionList,
     CompositionVersionSummary,
     CompositionVersionView,
@@ -55,6 +62,8 @@ from .schemas import (
     EvaluationCompilation,
     EvaluationView,
     EvidenceRun,
+    ForkNameTaken,
+    ForkResult,
     SealResult,
     VersionCompilation,
     VersionLink,
@@ -284,6 +293,7 @@ def _version_view(detail: versions.Detail, *, analytics: bool = True) -> Composi
         offering=version.offering,
         evidence_run=EvidenceRun(id=version.evidence_job_id) if version.evidence_job_id else None,
         based_on=version.based_on,
+        forked_from=version.forked_from,
         analytics=version.analytics if analytics else None,
         evaluations=[_evaluation_view(item, current, detail) for item in detail.evaluations],
         current_evaluation_id=current.id if current is not None else None,
@@ -482,3 +492,143 @@ async def get_composition_version_content(
     if tag in {item.strip() for item in request.headers.get("if-none-match", "").split(",")}:
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
     return Response(content=row.content.encode("utf-8"), media_type="application/yaml; charset=utf-8", headers=headers)
+
+
+# -- Diff and fork ---------------------------------------------------------------------------------------
+
+_BUSY = {429: {**_ERROR, "description": "Every Composition2Yaml slot of this process is taken (`composition_busy`)."}}
+
+
+def _name(version: CompositionVersion) -> dict[str, Any]:
+    return {"id": version.id, "label": version.label}
+
+
+@router.get(
+    "/{composition}/diff",
+    response_model=CompositionVersionDiff,
+    operation_id="diffCompositionVersions",
+    summary="Compare two versions of a composition",
+    description=(
+        "What changed from version `from` to version `to`, read from their stored bytes, in SPHERE's "
+        "PricingDiff shape with a `comparison` (see `diffCompositions`). `to` is the latest version by "
+        "default, and `from` the one before `to`. Versions of two compositions are compared with "
+        "`diffCompositions` on their contents."
+    ),
+    responses={
+        **_UNREADABLE,
+        422: {
+            **_ERROR,
+            "description": "A default the composition cannot give: no version yet, or none before `to` (`diff_version_missing`).",
+        },
+        **_BUSY,
+    },
+)
+async def diff_composition_versions(
+    org: str,
+    composition: str,
+    from_version: str | None = Query(default=None, alias="from", description="The earlier version: id, label or ordinal."),
+    to_version: str | None = Query(default=None, alias="to", description="The later version: id, label or ordinal."),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> dict[str, Any]:
+    organization = await compositions.organization_for(session, org, user, OrganizationRole.VIEWER)
+    found = await compositions.required_composition(session, organization, composition)
+    before, after = await versions.diff_pair(session, found, from_version, to_version)
+    compared = await language.diff_stored(before.content, after.content)
+    return {"from": _name(before), "to": _name(after), **compared}
+
+
+def _key_reaches(user: User, organization: Organization, slug: str) -> bool:
+    """Whether the authenticating API key's boundary covers a composition ``slug`` of ``organization``.
+
+    The fork's target is named in its body, so the route-level boundary check sees only the source.
+    """
+    key = authenticated_api_key(user)
+    boundary = boundary_of(key) if key is not None else None
+    if boundary is None:
+        return True
+    if not boundary:
+        return False
+    if "organizations" in boundary and not {str(organization.id), organization.slug} & boundary["organizations"]:
+        return False
+    return "slugs" not in boundary or slug in boundary["slugs"]
+
+
+@router.post(
+    "/{composition}/fork",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ForkResult,
+    operation_id="forkComposition",
+    summary="Fork a version of a composition into another organization",
+    description=(
+        "Create a new composition in `targetOrganization` whose first version is the source version's "
+        "document with `composition:` set to the new slug, sealed again through the same pipeline. The "
+        "caller must read the source and be a MEMBER of the target. Without `slug` the fork takes the "
+        "source's, and when the target holds it already nothing is written: 200 `nameTaken` names the "
+        "composition that holds it. A version that links a problem is forked only with `dropProblem`, which "
+        "removes its `problem` and `evidence` and declares its values."
+    ),
+    dependencies=[Depends(limit_work)],
+    responses={
+        200: {"model": ForkNameTaken, "description": "Nothing was forked: the source's slug is taken in the target."},
+        201: {"headers": {
+            "ETag": etags.ETAG_HEADER,
+            "Location": {"description": "The new composition.", "schema": {"type": "string"}},
+        }},
+        403: {
+            **_ERROR,
+            "description": (
+                "The caller's role in the target is too weak (`organization_forbidden`), its plan lacks the "
+                "`repository` feature (`feature_not_entitled`), or its API key does not reach the target "
+                "(`api_key_boundary`)."
+            ),
+        },
+        **_UNREADABLE,
+        409: {
+            **CONFLICT_RESPONSE,
+            "description": (
+                "The target is the source's own organization (`composition_fork_same_organization`), the version "
+                "links a problem and `dropProblem` is not set (`composition_fork_problem_unreadable`), or the "
+                "given `slug` is in use in the target (`slug_conflict`)."
+            ),
+        },
+        422: {"description": "The forked document has errors (`composition_invalid`); `diagnostics` lists each one."},
+        **_BUSY,
+    },
+)
+async def fork_composition_version(
+    org: str,
+    composition: str,
+    payload: CompositionFork,
+    response: Response,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> Any:
+    source_organization = await compositions.organization_for(session, org, user, OrganizationRole.VIEWER)
+    source = await compositions.required_composition(session, source_organization, composition)
+    version = await versions.required_version(session, source, payload.version)
+    target = await compositions.organization_for(session, payload.target_organization, user, OrganizationRole.MEMBER)
+    if not _key_reaches(user, target, payload.slug or source.slug):
+        raise api_error(
+            status.HTTP_403_FORBIDDEN, "api_key_boundary",
+            "This API key is restricted from the requested method or resource.",
+        )
+    outcome = await fork_composition(
+        session, source_organization, source, version, target,
+        actor=user, slug=payload.slug, name=payload.name, description=payload.description,
+        drop_problem=payload.drop_problem,
+    )
+    if isinstance(outcome, NameTaken):
+        existing = outcome.existing
+        return JSONResponse(status_code=status.HTTP_200_OK, content=ForkNameTaken(
+            nameTaken=True, existingComposition={"id": existing.id, "slug": existing.slug, "name": existing.name},
+        ).model_dump(mode="json", by_alias=True))
+    created = outcome.composition
+    (detail,) = await versions.details(session, [outcome.sealed.version])
+    etags.set_etag(response, created)
+    response.headers["Location"] = f"/v1/organizations/{target.slug}/compositions/{created.slug}"
+    return ForkResult(
+        composition=_view(created, target, versions.Summary(outcome.sealed.version, 1)),
+        version=_version_view(detail),
+        droppedProblem=outcome.dropped_problem,
+    )

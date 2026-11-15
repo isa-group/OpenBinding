@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 124
+    assert len(ROUTES) == 126
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -213,6 +213,8 @@ def test_the_compositions_of_an_organization_have_their_own_permissions():
     assert required_permissions(f"{compositions}/{{composition}}", "PATCH") == write
     assert required_permissions(f"{compositions}/{{composition}}", "DELETE") == write
     assert required_permissions(f"{compositions}/{{composition}}/versions", "POST") == write
+    assert required_permissions(f"{compositions}/{{composition}}/diff", "GET") == read
+    assert required_permissions(f"{compositions}/{{composition}}/fork", "POST") == write
     # The organizations fallthrough does not reach them: an org-admin key gains no composition write.
     assert "organizations:write" not in required_permissions(compositions, "POST")
     # A composition-scoped key reaches them, by kind and by slug; a problem-scoped one does not.
@@ -231,11 +233,13 @@ def test_the_compositions_of_an_organization_are_composition_reads_and_writes():
         ("DELETE", f"{compositions}/{{composition}}"),
         ("GET", compositions),
         ("GET", f"{compositions}/{{composition}}"),
+        ("GET", f"{compositions}/{{composition}}/diff"),
         ("GET", f"{compositions}/{{composition}}/versions"),
         ("GET", f"{compositions}/{{composition}}/versions/{{version}}"),
         ("GET", f"{compositions}/{{composition}}/versions/{{version}}/content"),
         ("PATCH", f"{compositions}/{{composition}}"),
         ("POST", compositions),
+        ("POST", f"{compositions}/{{composition}}/fork"),
         ("POST", f"{compositions}/{{composition}}/versions"),
         ("POST", f"{compositions}/{{composition}}/versions/check"),
     ]

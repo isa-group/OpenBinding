@@ -35,7 +35,7 @@ malformed, and a malformed boundary denies everything.
 | `/problems`, `/problems/{problem}`, `/problems/{problem}/revisions/...` | VIEWER | MEMBER uploads, adds revisions and edits; ADMIN deletes | `problems:read` / `problems:write` |
 | `/runs/...` | VIEWER (redacted below MEMBER) | MEMBER | `jobs:read` / `engines:execute` |
 | `/studies/...` (study runs and cells included) | VIEWER | MEMBER creates, edits and runs; ADMIN deletes | `studies:read` / `studies:write` |
-| `/compositions`, `/compositions/{composition}`, `/compositions/{composition}/versions/...` | VIEWER (a non-member gets `404`); VIEWER also checks a document (`POST …/versions/check`) | MEMBER creates, edits and seals versions; ADMIN deletes | `compositions:read` / `compositions:write` |
+| `/compositions`, `/compositions/{composition}`, `/compositions/{composition}/versions/...`, `/compositions/{composition}/diff`, `/compositions/{composition}/fork` | VIEWER (a non-member gets `404`); VIEWER also checks a document (`POST …/versions/check`) and compares versions | MEMBER creates, edits and seals versions; ADMIN deletes. A fork needs read on the source and MEMBER on the target organization, which must be another one | `compositions:read` / `compositions:write` |
 
 ## Deleting an organization
 
@@ -90,7 +90,7 @@ cannot keep the compiler busy for everybody else, every client also has a budget
 |---|---|---|---|
 | `compile` | `POST /v1/bim/validate`, `POST /v1/organizations/{org}/problems`, `POST …/problems/{problem}/revisions`, `GET …/revisions/{revision}/compilation` | `WORK_RATE_LIMIT_COMPILE_REQUESTS` (default 10) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` (default 5) |
 | `read` | `POST /v1/compositions/validate`, `/parse`, `/serialise`, `/diff` | `WORK_RATE_LIMIT_READ_REQUESTS` (default 60) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` |
-| `evaluate` | `POST /v1/organizations/{org}/compositions/{composition}/versions`, `POST …/versions/check` | `WORK_RATE_LIMIT_EVALUATE_REQUESTS` (default 30) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` |
+| `evaluate` | `POST /v1/organizations/{org}/compositions/{composition}/versions`, `POST …/versions/check`, `POST …/fork` | `WORK_RATE_LIMIT_EVALUATE_REQUESTS` (default 30) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` |
 
 - **Per window.** A fixed window of `WORK_RATE_LIMIT_WINDOW_S` seconds (default 60)
   that starts at a client's first request of the class. `0` switches a class off.
@@ -118,7 +118,7 @@ cannot keep the compiler busy for everybody else, every client also has a budget
   Their concurrency is bounded apart, per process, by `COMPOSITION_LANGUAGE_SLOTS` (default 4):
   a request that finds every slot taken gets `429 composition_busy` with `Retry-After: 1`.
   `GET /v1/compositions/schema` is open, like the BIM templates, and needs no permission.
-- **Sealing and checking a composition version is the `evaluate` class.** Each request has the
+- **Sealing, checking and forking a composition version is the `evaluate` class.** Each request has the
   toolchain evaluate the document's binding once, and compiles the linked revision only when the
   installed toolchain has no compilation of it yet (at most once per revision and release). Only
   members of the organization reach these routes, so they are charged to the account. Their

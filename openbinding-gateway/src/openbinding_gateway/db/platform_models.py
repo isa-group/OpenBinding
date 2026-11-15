@@ -380,7 +380,8 @@ class CompositionVersion(Base):
     evaluation. A version linked to a problem keeps the link as ids (the revision and the compilation the
     document names), so renaming a slug never breaks it. ``offering`` is the normalised source of the
     offering the document names, and ``analytics`` a summary of the document computed once at seal. Fork
-    lineage is data (``based_on``): a fork outlives its source.
+    lineage is data (``based_on``, and ``forked_from``, the source as it was named when forked): a fork
+    outlives its source and its renames.
     """
 
     __tablename__ = "composition_versions"
@@ -431,6 +432,9 @@ class CompositionVersion(Base):
     offering: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     #: Fork lineage: ``{composition_id, version_id, label}``.
     based_on: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    #: The fork's source as it was named at fork time: ``{compositionId, versionId, label,
+    #: organization{id, name, displayName}, slug, name, droppedProblem}``.
+    forked_from: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     #: A summary of the document (tasks, bindings, workflow shape), for evolution charts.
     analytics: Mapped[dict] = mapped_column(JSON, nullable=False)
     created_by_id: Mapped[uuid.UUID] = mapped_column(

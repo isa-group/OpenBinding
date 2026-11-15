@@ -18,7 +18,7 @@ Every such route belongs to a class (``WORK_ROUTES``):
 
 ``evaluate``
     Judges a composition against its problem and has the toolchain evaluate its binding (seal a
-    version, check one): one evaluation per request, and at most one compile per revision and
+    version, check one, fork one): one evaluation per request, and at most one compile per revision and
     toolchain release. Its concurrency is bounded apart, by the evaluation slots.
 
 A client is the address the proxy resolved (``core/ratelimit.client_address``), or the /64 of an
@@ -70,6 +70,8 @@ WORK_ROUTES: dict[tuple[str, str], WorkClass] = {
     # A seal or a check evaluates once, and compiles only on a miss (a toolchain release).
     ("POST", "/v1/organizations/{org}/compositions/{composition}/versions"): "evaluate",
     ("POST", "/v1/organizations/{org}/compositions/{composition}/versions/check"): "evaluate",
+    # A fork seals its first version through the same pipeline as a seal.
+    ("POST", "/v1/organizations/{org}/compositions/{composition}/fork"): "evaluate",
 }
 
 #: The setting that holds each class's budget.

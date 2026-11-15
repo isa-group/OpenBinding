@@ -64,20 +64,79 @@ class DiffRequest(BaseModel):
     after: str = Field(description="The later document, as Composition2Yaml text.")
 
 
-class ChangeView(BaseModel):
-    """One difference between two documents."""
+ValuesStatusName = Literal["verified", "declared"]
 
-    section: Literal["identity", "problem", "workflow", "binding", "values", "offering", "evidence"]
-    subject: str = Field(description="What changed within the section: a task, a property, a field.")
-    kind: Literal["added", "removed", "changed", "moved"]
-    was: Any = Field(default=None, description="The value before; null when added.")
-    now: Any = Field(default=None, description="The value after; null when removed.")
+
+class FieldChangeView(BaseModel):
+    """One field that differs: its dotted path within the entry (or the document), and both values."""
+
+    path: str = Field(description="Dotted path of the field: `candidate`, `from.version`, `value`, `problem.ref`, `workflow`.")
+    before: Any = Field(default=None, description="The value before; null when the field is absent before.")
+    after: Any = Field(default=None, description="The value after; null when the field is absent after.")
+
+
+class EntryDiffView(BaseModel):
+    """One entry of a section (a task, a property, the offering's `source`) that was added, removed or changed."""
+
+    name: str
+    kind: Literal["added", "removed", "changed"]
+    changes: list[FieldChangeView]
+
+
+class SectionDiffView(BaseModel):
+    """The entries of one section that differ."""
+
+    key: Literal["binding", "values", "offering"]
+    label: str
+    entries: list[EntryDiffView]
+
+
+class DiffTotals(BaseModel):
+    """How many entries were added, removed and changed; each general change counts as changed."""
+
+    added: int = Field(ge=0)
+    removed: int = Field(ge=0)
+    changed: int = Field(ge=0)
+
+
+class ValueStatusPair(BaseModel):
+    """Whose values each side holds: the toolchain's (`verified`) or the author's (`declared`)."""
+
+    before: ValuesStatusName
+    after: ValuesStatusName
+
+
+class DiffComparison(BaseModel):
+    """Whether the values of the two sides can be compared, and what tells them apart if not."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    comparable: bool = Field(
+        description=(
+            "Both sides verified on the same problem revision and compilation, or both declared on the same link "
+            "(or none). Otherwise the `values` section is empty: value changes are not shown."
+        ),
+    )
+    problem_ref_changed: bool = Field(alias="problemRefChanged")
+    compilation_changed: bool = Field(alias="compilationChanged")
+    value_status: ValueStatusPair = Field(alias="valueStatus")
 
 
 class DiffResult(BaseModel):
-    """What changed, sorted by section and then subject."""
+    """What changed between two documents, in SPHERE's PricingDiff shape.
 
-    changes: list[ChangeView]
+    `general` holds the top-level fields that changed (`syntaxVersion`, `composition`, `kind`, `problem.*`, and
+    `workflow` compared whole); `version` and `evidence` are not reported. `sections` are always `binding`
+    (one entry per task), `values` (one per property) and `offering` (one, `source`).
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    general: list[FieldChangeView]
+    sections: list[SectionDiffView]
+    totals: DiffTotals
+    is_empty: bool = Field(alias="isEmpty", description="Whether nothing changed that a diff reports.")
+    comparison: DiffComparison
 
 
 # -- Compositions of an organization ---------------------------------------------------------------------
@@ -143,8 +202,6 @@ class CompositionList(BaseModel):
 
 
 # -- Versions and their evaluations ----------------------------------------------------------------------
-
-ValuesStatusName = Literal["verified", "declared"]
 
 
 class CompositionVersionSummary(BaseModel):
@@ -245,7 +302,17 @@ class CompositionVersionView(BaseModel):
     problem: Optional[VersionLink] = Field(description="The problem the version links; null for a declared one.")
     offering: Optional[dict[str, str]] = Field(description="The offering's source: `{sphere, registry?}` or `{url}`.")
     evidence_run: Optional[EvidenceRun]
-    based_on: Optional[dict[str, Any]] = Field(description="The version it was forked from, as data.")
+    based_on: Optional[dict[str, Any]] = Field(
+        description="The version it was forked from, as data: `{composition_id, version_id, label}`.",
+    )
+    forked_from: Optional[dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "What it was forked from, as it was named when it was forked: `{compositionId, versionId, label, "
+            "organization{id, name, displayName}, slug, name, droppedProblem}`. `droppedProblem` says the fork "
+            "removed the source's problem link and evidence, so its values are the source's, declared."
+        ),
+    )
     analytics: Optional[dict[str, Any]] = Field(
         default=None,
         description=(
@@ -292,3 +359,74 @@ class CheckResult(BaseModel):
 
 
 CompositionView.model_rebuild()
+
+
+# -- Diff and fork ---------------------------------------------------------------------------------------
+
+
+class VersionName(BaseModel):
+    """A version, by id and label."""
+
+    id: uuid.UUID
+    label: str
+
+
+class CompositionVersionDiff(DiffResult):
+    """What changed from one version of a composition to another."""
+
+    from_version: VersionName = Field(alias="from", description="The earlier side.")
+    to_version: VersionName = Field(alias="to", description="The later side.")
+
+
+class CompositionFork(BaseModel):
+    """A version of a composition to fork into another organization, as a new composition there."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=False)
+
+    version: str = Field(min_length=1, max_length=64, description="The version to fork: its id, label or ordinal.")
+    target_organization: str = Field(
+        alias="targetOrganization", min_length=1, max_length=64,
+        description="The organization to fork into (slug or id); not the source's own.",
+    )
+    slug: Optional[str] = Field(
+        default=None, pattern=SLUG,
+        description="The new composition's slug; the source's by default. Taken by default is 200 `nameTaken`, taken when given is 409.",
+    )
+    name: Optional[str] = Field(default=None, min_length=1, max_length=160, description="The source's by default.")
+    description: Optional[str] = Field(default=None, max_length=2000, description="The source's by default.")
+    drop_problem: bool = Field(
+        default=False, alias="dropProblem",
+        description=(
+            "Fork a version that links a problem anyway: its `problem` and `evidence` are removed and its values "
+            "sealed as declared. Without it, such a fork is 409 `composition_fork_problem_unreadable`."
+        ),
+    )
+
+
+class ForkResult(BaseModel):
+    """The new composition and its first version, sealed from the source's document."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    composition: CompositionView
+    version: CompositionVersionView
+    dropped_problem: bool = Field(
+        alias="droppedProblem", description="Whether the source's problem link was removed (`dropProblem`).",
+    )
+
+
+class ExistingComposition(BaseModel):
+    """The composition that holds the slug a fork would take."""
+
+    id: uuid.UUID
+    slug: str
+    name: str
+
+
+class ForkNameTaken(BaseModel):
+    """Nothing was forked: the source's slug is taken in the target organization; name another `slug`."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    name_taken: Literal[True] = Field(alias="nameTaken")
+    existing_composition: ExistingComposition = Field(alias="existingComposition")

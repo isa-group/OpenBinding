@@ -193,8 +193,10 @@ async def serialise_composition(request: Request, caller: User | None = Depends(
     operation_id="diffCompositions",
     summary="Compare two Composition2Yaml documents",
     description=(
-        "What changed from `before` to `after`, section by section. Either side with an error is "
-        "refused with 422 `composition_invalid`, each diagnostic naming its `document`."
+        "What changed from `before` to `after`, in SPHERE's PricingDiff shape: `general` changes, the "
+        "`binding`, `values` and `offering` sections, `totals`, `isEmpty`, and `comparison`, which says "
+        "whether the two sides' values can be compared (value changes are not listed when not). Either side "
+        "with an error is refused with 422 `composition_invalid`, each diagnostic naming its `document`."
     ),
     response_model=DiffResult,
     dependencies=[Depends(limit_work_of_counted_caller)],
@@ -227,10 +229,9 @@ async def diff_compositions(request: Request, caller: User | None = Depends(coun
         if len(value) > MAX_DOCUMENT_BYTES:
             raise _too_large(len(value), MAX_DOCUMENT_BYTES, f"The {side} document")
     try:
-        changes = await language.diff(encoded["before"], encoded["after"])
+        return await language.diff(encoded["before"], encoded["after"])
     except LanguageRefusal as refusal:
         raise _invalid(refusal) from None
-    return {"changes": changes}
 
 
 def _etag(content: bytes) -> str:
