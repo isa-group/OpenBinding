@@ -1170,7 +1170,7 @@ export interface paths {
         };
         /**
          * List Compositions
-         * @description The organization's compositions, by name.
+         * @description The organization's compositions, by name or the most recently updated first.
          */
         get: operations["listCompositions"];
         put?: never;
@@ -1322,7 +1322,7 @@ export interface paths {
         };
         /**
          * List Composition Versions
-         * @description The composition's versions, each with its values, value status and evaluations.
+         * @description The composition's versions, each with its values, value status and current evaluation.
          */
         get: operations["listCompositionVersions"];
         put?: never;
@@ -3526,11 +3526,22 @@ export interface components {
              * @description Null for a reader who is not a member of the organization (a public composition's reader).
              */
             created_by_id: string | null;
+            /** @description The current evaluation, named; null while the version has none. */
+            current_evaluation: components["schemas"]["EvaluationSummary"] | null;
             /** Current Evaluation Id */
             current_evaluation_id: string | null;
+            /** @description Where it was derived from; null for a version sealed from a document or forked. */
+            derivation: components["schemas"]["VersionDerivation"] | null;
+            /**
+             * Document
+             * @description The version's content as the canonical JSON model (as `parseComposition` answers it), read as it was sealed; only with `include=document`.
+             */
+            document?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Evaluations
-             * @description Its evaluations, oldest first; only the current one for a reader who is not a member.
+             * @description Its evaluations, oldest first; only the current one for a reader who is not a member. In a list, only with `include=evaluations` (else empty).
              */
             evaluations: components["schemas"]["EvaluationView"][];
             evidence_run: components["schemas"]["EvidenceRun"] | null;
@@ -4318,6 +4329,48 @@ export interface components {
             };
         };
         /**
+         * EvaluationSummary
+         * @description A version's current evaluation, named: what a list row shows without the evaluations themselves.
+         */
+        EvaluationSummary: {
+            /**
+             * Basis
+             * @enum {string}
+             */
+            basis: "bim" | "declared";
+            /** @description Null for a declared evaluation. */
+            compilation: components["schemas"]["EvaluationSummaryCompilation"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "verified" | "binding_invalid" | "semantics_changed" | "declared";
+        };
+        /**
+         * EvaluationSummaryCompilation
+         * @description The compilation an evaluation evaluated, as a row of a version list names it.
+         */
+        EvaluationSummaryCompilation: {
+            /** Compilation Digest */
+            compilation_digest: string;
+            /** Semantic Digest */
+            semantic_digest: string;
+            /** Toolchain */
+            toolchain: {
+                [key: string]: unknown;
+            };
+        };
+        /**
          * EvaluationView
          * @description One evaluation of a version: by one toolchain release (`bim`), or the author's values (`declared`).
          */
@@ -4327,6 +4380,13 @@ export interface components {
              * @enum {string}
              */
             basis: "bim" | "declared";
+            /**
+             * Binding
+             * @description The candidate the toolchain was given for each service task, `{task: "<resource>/<id>"}` (the key a problem's facts give each candidate); local tasks are absent. Null for a declared evaluation, and for a public composition's reader.
+             */
+            binding: {
+                [key: string]: string;
+            } | null;
             compilation: components["schemas"]["EvaluationCompilation"] | null;
             /**
              * Created At
@@ -6416,6 +6476,49 @@ export interface components {
             id: string | null;
             /** Semantic Digest */
             semantic_digest: string;
+        };
+        /**
+         * VersionDerivation
+         * @description Where a derived version came from: a run's solution (`run`, `point`) or a binding given with a revision.
+         */
+        VersionDerivation: {
+            /**
+             * Point
+             * @description The solution of the run, for a version derived from one.
+             */
+            point: number | null;
+            revision: components["schemas"]["VersionDerivationRevision"];
+            /** @description The run, for a version derived from one. */
+            run: components["schemas"]["VersionDerivationRun"] | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "run" | "binding";
+        };
+        /**
+         * VersionDerivationRevision
+         * @description The problem revision a version was derived from.
+         */
+        VersionDerivationRevision: {
+            /**
+             * Id
+             * @description Null for a reader who is not a member of the organization (a public composition's reader).
+             */
+            id: string | null;
+            /** Revision */
+            revision: number;
+        };
+        /**
+         * VersionDerivationRun
+         * @description The run a version was derived from (`evidence.run` in its document); the run itself stays private.
+         */
+        VersionDerivationRun: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
         };
         /**
          * VersionLink
@@ -10439,6 +10542,8 @@ export interface operations {
                 q?: string | null;
                 /** @description Only archived (`true`) or only active (`false`) ones. */
                 archived?: boolean | null;
+                /** @description By `name` (the default), or the most recently `updated` first. */
+                sort?: "name" | "updated";
                 limit?: number;
                 offset?: number;
             };
@@ -10999,7 +11104,7 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. Or: Every Composition2Yaml slot of this process is taken (`composition_busy`). */
             429: {
                 headers: {
                     /** @description Seconds until the budget is available again. */
@@ -11316,10 +11421,14 @@ export interface operations {
     listCompositionVersions: {
         parameters: {
             query?: {
-                /** @description `analytics`: each version with the summary of its document. */
-                include?: "analytics" | null;
+                /** @description A comma list: `analytics`, each version with the summary of its document; `evaluations`, each with its evaluations (without it a row names its current evaluation only). */
+                include?: string | null;
                 /** @description `newest` first (the default) or `oldest` first, as evolution charts read them. */
                 order?: "newest" | "oldest";
+                /** @description Only versions sealed at or after this instant (ISO 8601; UTC without an offset). */
+                created_after?: string | null;
+                /** @description Only versions sealed before this instant (ISO 8601; UTC without an offset). */
+                created_before?: string | null;
                 limit?: number;
                 offset?: number;
             };
@@ -11368,13 +11477,13 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            /** @description `created_after` is later than `created_before` (`invalid_request`). */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Problem"];
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
@@ -11633,7 +11742,10 @@ export interface operations {
     };
     getCompositionVersion: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description A comma list: `document`, the version's content as the canonical JSON model, read as it was sealed. */
+                include?: string | null;
+            };
             header?: never;
             path: {
                 org: string;
@@ -11691,7 +11803,7 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. Or: Every Composition2Yaml slot of this process is taken (`composition_busy`). */
             429: {
                 headers: {
                     /** @description Seconds until the budget is available again. */

@@ -1,0 +1,100 @@
+{
+  "comparison": {
+    "comparable": true,
+    "compilationChanged": false,
+    "problemRefChanged": false,
+    "valueStatus": {
+      "after": "verified",
+      "before": "verified"
+    }
+  },
+  "from": {
+    "id": "00000000-0000-4000-8000-000000000008",
+    "label": "1.0.0"
+  },
+  "general": [],
+  "isEmpty": false,
+  "sections": [
+    {
+      "entries": [
+        {
+          "changes": [
+            {
+              "after": "cand_t1_google_cloud",
+              "before": "cand_t1_aws",
+              "path": "candidate"
+            }
+          ],
+          "kind": "changed",
+          "name": "T1"
+        }
+      ],
+      "key": "binding",
+      "label": "Binding"
+    },
+    {
+      "entries": [
+        {
+          "changes": [
+            {
+              "after": 0.9966034884802901,
+              "before": 0.9963044476255752,
+              "path": "value"
+            }
+          ],
+          "kind": "changed",
+          "name": "availability"
+        },
+        {
+          "changes": [
+            {
+              "after": 3080.0,
+              "before": 3060.0,
+              "path": "value"
+            }
+          ],
+          "kind": "changed",
+          "name": "cost"
+        },
+        {
+          "changes": [
+            {
+              "after": 3190.0,
+              "before": 3180.0,
+              "path": "value"
+            }
+          ],
+          "kind": "changed",
+          "name": "execution_time"
+        },
+        {
+          "changes": [
+            {
+              "after": 0.9771952373591039,
+              "before": 0.97670566058688,
+              "path": "value"
+            }
+          ],
+          "kind": "changed",
+          "name": "reliability"
+        }
+      ],
+      "key": "values",
+      "label": "Values"
+    },
+    {
+      "entries": [],
+      "key": "offering",
+      "label": "Offering"
+    }
+  ],
+  "to": {
+    "id": "00000000-0000-4000-8000-000000000009",
+    "label": "1.1.0"
+  },
+  "totals": {
+    "added": 0,
+    "changed": 5,
+    "removed": 0
+  }
+}

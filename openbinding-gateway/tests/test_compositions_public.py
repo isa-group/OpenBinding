@@ -294,7 +294,7 @@ async def test_the_reads_of_a_public_composition_are_revalidated_and_stop_when_i
 
     reads = {
         "composition": await api_client.get(base),
-        "versions": await api_client.get(f"{base}/versions"),
+        "versions": await api_client.get(f"{base}/versions?include=evaluations"),
         "version": await api_client.get(f"{base}/versions/1"),
         "content": await api_client.get(f"{base}/versions/1/content"),
         "diff": await api_client.get(f"{base}/diff"),
@@ -307,6 +307,7 @@ async def test_the_reads_of_a_public_composition_are_revalidated_and_stop_when_i
     assert [item["label"] for item in listed] == ["2.0.0", "1.0.0"]
     assert all(item["created_by_id"] is None for item in listed)
     assert len(listed[1]["evaluations"]) == 1 and listed[1]["evaluations"][0]["current"] is True
+    assert listed[1]["evaluations"][0]["binding"] is None
     assert reads["diff"].json()["to"]["label"] == "2.0.0"
 
     # A member's content keeps its immutable cache, and every read still varies on the credential.
@@ -319,6 +320,37 @@ async def test_the_reads_of_a_public_composition_are_revalidated_and_stop_when_i
     await set_visibility(api_client, owner.headers, base, "private")
     again = await api_client.get(f"{base}/versions/1/content", headers={"If-None-Match": tag})
     assert again.status_code == 404 and code(again) == "not_found"
+
+
+async def test_a_public_reader_gets_the_document_and_where_it_was_derived_from_but_not_the_binding(
+    api_client, registration, db_session, gate,  # noqa: F811
+):
+    owner, base, run = await linked_public(api_client, registration, db_session, gate)
+    revision = owner.linked.upload.revision
+
+    public = await api_client.get(f"{base}/versions/1", params={"include": "document"})
+    member = await api_client.get(f"{base}/versions/1", params={"include": "document"}, headers=owner.headers)
+    rows = await api_client.get(f"{base}/versions")
+    content = await api_client.get(f"{base}/versions/1/content")
+
+    assert public.status_code == 200, public.text
+    body, whole = public.json(), member.json()
+    evidence = yaml.safe_load(content.text)["evidence"]
+    # The document is the bytes, which anybody reads already; the derivation's run and point are its evidence.
+    assert body["document"] == whole["document"] and body["document"]["evidence"]["run"] == str(run.id)
+    assert body["derivation"] == {
+        "source": "run", "run": {"id": str(evidence["run"])}, "point": evidence["point"],
+        "revision": {"id": None, "revision": revision.revision},
+    }
+    assert whole["derivation"]["revision"] == {"id": str(revision.id), "revision": revision.revision}
+    # The binding names the private package's catalog resources: members only.
+    (evaluation,) = body["evaluations"]
+    assert evaluation["binding"] is None
+    assert all(item["binding"] == {"t1": "catalog/c1a", "t2": "catalog/c2a", "t3": "catalog/c3a"} for item in whole["evaluations"])
+    (row,) = rows.json()["versions"]
+    assert row["evaluations"] == [] and row["current_evaluation"]["id"] == body["current_evaluation_id"]
+    assert row["current_evaluation"] == body["current_evaluation"] == whole["current_evaluation"]
+    assert row["derivation"] == body["derivation"] and row["document"] is None
 
 
 async def test_every_other_route_stays_for_members(api_client, registration, db_session, gate):  # noqa: F811

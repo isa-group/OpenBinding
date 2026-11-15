@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import json
 import uuid
+from contextlib import contextmanager
 
 import pytest
-from sqlalchemy import func, select, update
+from sqlalchemy import event, func, select, update
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from _b1_helpers import gate, make_account  # noqa: F401
@@ -29,6 +30,7 @@ from openbinding_gateway.composition import diagnostics as codes
 from openbinding_gateway.composition import spans, text
 from openbinding_gateway.composition.diagnostics import Path
 from openbinding_gateway.composition.document import Evidence, Offering, ProblemRef, Provenance, Value
+from openbinding_gateway.core.settings import SphereRegistry, get_settings
 from openbinding_gateway.db.models import (
     AuditEvent,
     Composition,
@@ -535,6 +537,164 @@ async def test_a_seal_asks_the_toolchain_once_and_a_declared_one_never(api_clien
     assert checked.get("evaluate") == 1 and checked.get("compile", 0) == 0
     assert sealed.get("evaluate") == 2 and sealed.get("compile", 0) == 0
     assert port.calls["evaluate"] == 2 and port.calls["compile"] == 0
+
+
+# --------------------------------------------------------------------------- reading versions for the renderer
+
+PINNED = "t1: {candidate: c1a, from: {sphere: acme/greeter, registry: onprem, version: v1, plan: basic}}"
+
+
+async def test_a_version_serves_its_document_as_it_was_sealed(api_client, registration, db_session, gate, monkeypatch):  # noqa: F811
+    headers, _, base = await owner_of(api_client, registration, db_session, gate)
+    monkeypatch.setattr(get_settings(), "sphere_registries", {"onprem": SphereRegistry(url="https://sphere.onprem.example")})
+    assert (await seal(api_client, headers, base, DECLARED.replace("t1: {candidate: c1a}", PINNED))).status_code == 201
+    content = (await api_client.get(f"{base}/versions/1/content", headers=headers)).content
+
+    parsed = await api_client.post("/v1/compositions/parse", content=content, headers=YAML)
+    served = await api_client.get(f"{base}/versions/1", params={"include": "document"}, headers=headers)
+    plain = await api_client.get(f"{base}/versions/1", headers=headers)
+    monkeypatch.setattr(get_settings(), "sphere_registries", {})
+    still = await api_client.get(f"{base}/versions/1.0.0", params={"include": "document,document"}, headers=headers)
+    refused = await api_client.post("/v1/compositions/parse", content=content, headers=YAML)
+    unknown = await api_client.get(f"{base}/versions/1", params={"include": "document,ir"}, headers=headers)
+
+    assert parsed.status_code == 200 and served.status_code == 200, served.text
+    assert served.json()["document"] == parsed.json()["document"]
+    assert served.json()["document"]["binding"]["t1"]["from"]["registry"] == "onprem"
+    assert plain.json()["document"] is None
+    assert {key: value for key, value in served.json().items() if key != "document"} == {
+        key: value for key, value in plain.json().items() if key != "document"
+    }
+    # The stored bytes read as they were sealed, whatever registries the deployment defines now.
+    assert still.status_code == 200, still.text
+    assert still.json()["document"] == parsed.json()["document"]
+    assert refused.status_code == 422
+    assert codes.FROM_REGISTRY_UNKNOWN in {item["code"] for item in refused.json()["diagnostics"]}
+    assert unknown.status_code == 422
+
+
+async def test_a_list_row_names_its_current_evaluation_and_the_evaluations_come_on_request(
+    api_client, registration, db_session, gate,  # noqa: F811
+):
+    headers, linked, base = await owner_of(api_client, registration, db_session, gate)
+    assert (await seal(api_client, headers, base, document_for(linked, SIMPLE_BINDING))).status_code == 201
+    assert (await seal(api_client, headers, base, DECLARED.replace("version: 1.0.0", "version: 2.0.0"))).status_code == 201
+
+    light = (await api_client.get(f"{base}/versions", headers=headers)).json()["versions"]
+    whole = (await api_client.get(f"{base}/versions", params={"include": "evaluations,analytics"}, headers=headers)).json()
+    single = [(await api_client.get(f"{base}/versions/{item['id']}", headers=headers)).json() for item in light]
+
+    assert [item["label"] for item in light] == ["2.0.0", "1.0.0"]
+    assert all(item["evaluations"] == [] and item["analytics"] is None for item in light)
+    assert whole["versions"] == single
+    declared_row, linked_row = light
+    declared_view, linked_view = single
+    (declared_evaluation,) = declared_view["evaluations"]
+    (linked_evaluation,) = linked_view["evaluations"]
+    assert declared_row["current_evaluation"] == {
+        "id": declared_evaluation["id"], "basis": "declared", "outcome": "declared", "compilation": None,
+        "created_at": declared_evaluation["created_at"],
+    }
+    assert declared_evaluation["binding"] is None
+    assert linked_row["current_evaluation"] == {
+        "id": linked_evaluation["id"], "basis": "bim", "outcome": "verified",
+        "compilation": {
+            key: linked_evaluation["compilation"][key] for key in ("compilation_digest", "semantic_digest", "toolchain")
+        },
+        "created_at": linked_evaluation["created_at"],
+    }
+    assert linked_evaluation["binding"] == {task: f"catalog/{candidate}" for task, candidate in SIMPLE_BINDING.items()}
+    for row, view in zip(light, single, strict=True):
+        assert row["current_evaluation_id"] == row["current_evaluation"]["id"]
+        assert {key: value for key, value in row.items() if key not in ("evaluations", "analytics")} == {
+            key: value for key, value in view.items() if key not in ("evaluations", "analytics")
+        }
+
+
+async def test_versions_are_paged_by_the_date_they_were_sealed(api_client, registration, db_session, gate):  # noqa: F811
+    headers, _, base = await owner_of(api_client, registration, db_session, gate)
+    sealed = []
+    for label in ("1.0.0", "2.0.0", "3.0.0"):
+        answer = await seal(api_client, headers, base, DECLARED.replace("version: 1.0.0", f"version: {label}"))
+        assert answer.status_code == 201, answer.text
+        sealed.append(answer.json()["version"])
+    instants = [item["created_at"] for item in sealed]
+
+    async def labels(**params: str) -> list[str]:
+        answer = await api_client.get(f"{base}/versions", params={"order": "oldest", **params}, headers=headers)
+        assert answer.status_code == 200, answer.text
+        assert answer.json()["total"] == len(answer.json()["versions"])
+        return [item["label"] for item in answer.json()["versions"]]
+
+    assert await labels(created_after=instants[1]) == ["2.0.0", "3.0.0"]
+    assert await labels(created_before=instants[1]) == ["1.0.0"]
+    assert await labels(created_after=instants[1], created_before=instants[2]) == ["2.0.0"]
+    assert await labels(created_after=instants[1], created_before=instants[1]) == []
+    assert await labels(created_after="2000-01-01T00:00:00") == ["1.0.0", "2.0.0", "3.0.0"]
+    assert await labels(created_before="2000-01-01T00:00:00+02:00") == []
+    backwards = await api_client.get(
+        f"{base}/versions", params={"created_after": instants[2], "created_before": instants[0]}, headers=headers,
+    )
+    assert backwards.status_code == 422 and code(backwards) == "invalid_request"
+    assert (await api_client.get(f"{base}/versions", params={"created_after": "yesterday"}, headers=headers)).status_code == 422
+
+
+async def test_compositions_are_listed_by_name_or_the_latest_updated_first(api_client, registration, db_session, gate):  # noqa: F811
+    headers, linked, base = await owner_of(api_client, registration, db_session, gate)
+    listing = f"/v1/organizations/{linked.organization.slug}/compositions"
+    for slug, name in (("b-two", "Alpha"), ("a-one", "Beta")):
+        assert (await api_client.post(listing, headers=headers, json={"slug": slug, "name": name})).status_code == 201
+    assert (await api_client.patch(f"{listing}/shop", headers=headers, json={"description": "touched"})).status_code == 200
+
+    by_name = (await api_client.get(listing, headers=headers)).json()["compositions"]
+    by_update = (await api_client.get(listing, params={"sort": "updated"}, headers=headers)).json()["compositions"]
+
+    assert [item["slug"] for item in by_name] == ["b-two", "a-one", "shop"]
+    assert [item["slug"] for item in by_update] == ["shop", "a-one", "b-two"]
+    assert [item["updated_at"] for item in by_update] == sorted((item["updated_at"] for item in by_update), reverse=True)
+    assert (await api_client.get(listing, params={"sort": "created"}, headers=headers)).status_code == 422
+
+
+@contextmanager
+def statements(db_session):
+    """How many SQL statements the database runs inside the block."""
+    counted = [0]
+
+    def count(*_arguments) -> None:
+        counted[0] += 1
+
+    engine = db_session.bind.sync_engine
+    event.listen(engine, "before_cursor_execute", count)
+    try:
+        yield counted
+    finally:
+        event.remove(engine, "before_cursor_execute", count)
+
+
+async def test_reading_versions_costs_the_same_queries_whatever_their_number(api_client, registration, db_session, gate):  # noqa: F811
+    headers, linked, base = await owner_of(api_client, registration, db_session, gate)
+    run = await finished_run(db_session, linked, [bim_binding(linked, SIMPLE_BINDING)])
+    derived = await api_client.post(f"{base}/derive", headers=headers, json={"run": str(run.id), "version": "1.0.0"})
+    assert derived.status_code == 201, derived.text
+    reads = (f"{base}/versions", f"{base}/versions?include=evaluations,analytics")
+
+    async def cost() -> list[int]:
+        found = []
+        for path in reads:
+            with statements(db_session) as counted:
+                assert (await api_client.get(path, headers=headers)).status_code == 200
+            found.append(counted[0])
+        return found
+
+    await cost()
+    one = await cost()
+    assert (await seal(api_client, headers, base, document_for(linked, {**SIMPLE_BINDING, "t1": "c1b"}).replace(
+        "version: 1.0.0", "version: 2.0.0",
+    ))).status_code == 201
+    assert (await seal(api_client, headers, base, DECLARED.replace("version: 1.0.0", "version: 3.0.0"))).status_code == 201
+    three = await cost()
+
+    assert all(found > 0 for found in one) and one == three
 
 
 # --------------------------------------------------------------------------- the domain

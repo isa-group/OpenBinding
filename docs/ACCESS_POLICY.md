@@ -63,10 +63,13 @@ compositions, the members-only rule of [ADR 0034](adr/0034-no-public-read-in-f0b
   expired refreshes it instead of seeing their own private composition as missing.
 - **Redaction follows the documents.** What a version's canonical bytes carry is public with them, because
   the bytes are served (the content, the diff): values, value status, `verified`, outcome, digests, the
-  toolchain, the problem's ref (slug and revision number) and the run and point the document's `evidence`
-  names (`evidence_run`). The run itself stays unreadable to non-members, as the problem does. What the bytes
-  do not carry is removed: `created_by_id`, the problem, revision and compilation ids and the problem's name
-  are `null`; `evaluations` holds only the current one, with no `diagnostics` and no `violations`.
+  toolchain, the problem's ref (slug and revision number), the run and point the document's `evidence`
+  names (`evidence_run`, and the `run` and `point` of `derivation`), and the document itself
+  (`include=document`). The run itself stays unreadable to non-members, as the problem does. What the bytes
+  do not carry is removed: `created_by_id`, the problem, revision and compilation ids (the derivation's
+  revision id too) and the problem's name are `null`; `evaluations` holds only the current one, with no
+  `diagnostics`, no `violations` and no `binding` (its `<resource>/<id>` keys name the private package's
+  catalogs).
 - **Lineage.** `based_on` and `forked_from` name the source only while that source is this composition or is
   public now (read when the view is built). Otherwise `based_on` is `null` and `forked_from` keeps only
   `droppedProblem`, so a fork of a private source, published later, names no source organization or

@@ -338,8 +338,55 @@ class EvaluationView(BaseModel):
         ),
     )
     compilation: Optional[EvaluationCompilation]
+    binding: Optional[dict[str, str]] = Field(
+        description=(
+            "The candidate the toolchain was given for each service task, `{task: \"<resource>/<id>\"}` (the key "
+            "a problem's facts give each candidate); local tasks are absent. Null for a declared evaluation, "
+            "and for a public composition's reader."
+        ),
+    )
     current: bool = Field(description="Whether this is the version's current evaluation.")
     created_at: datetime
+
+
+class EvaluationSummaryCompilation(BaseModel):
+    """The compilation an evaluation evaluated, as a row of a version list names it."""
+
+    compilation_digest: str
+    semantic_digest: str
+    toolchain: dict[str, Any]
+
+
+class EvaluationSummary(BaseModel):
+    """A version's current evaluation, named: what a list row shows without the evaluations themselves."""
+
+    id: uuid.UUID
+    basis: Literal["bim", "declared"]
+    outcome: Literal["verified", "binding_invalid", "semantics_changed", "declared"]
+    compilation: Optional[EvaluationSummaryCompilation] = Field(description="Null for a declared evaluation.")
+    created_at: datetime
+
+
+class VersionDerivationRun(BaseModel):
+    """The run a version was derived from (`evidence.run` in its document); the run itself stays private."""
+
+    id: uuid.UUID
+
+
+class VersionDerivationRevision(BaseModel):
+    """The problem revision a version was derived from."""
+
+    id: Optional[uuid.UUID] = Field(description=_MEMBERS_ONLY)
+    revision: int
+
+
+class VersionDerivation(BaseModel):
+    """Where a derived version came from: a run's solution (`run`, `point`) or a binding given with a revision."""
+
+    source: Literal["run", "binding"]
+    run: Optional[VersionDerivationRun] = Field(description="The run, for a version derived from one.")
+    point: Optional[int] = Field(description="The solution of the run, for a version derived from one.")
+    revision: VersionDerivationRevision
 
 
 class EvidenceRun(BaseModel):
@@ -414,10 +461,26 @@ class CompositionVersionView(BaseModel):
             "`include=analytics`."
         ),
     )
+    derivation: Optional[VersionDerivation] = Field(
+        description="Where it was derived from; null for a version sealed from a document or forked.",
+    )
     evaluations: list[EvaluationView] = Field(
-        description="Its evaluations, oldest first; only the current one for a reader who is not a member.",
+        description=(
+            "Its evaluations, oldest first; only the current one for a reader who is not a member. In a list, "
+            "only with `include=evaluations` (else empty)."
+        ),
     )
     current_evaluation_id: Optional[uuid.UUID]
+    current_evaluation: Optional[EvaluationSummary] = Field(
+        description="The current evaluation, named; null while the version has none.",
+    )
+    document: Optional[dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "The version's content as the canonical JSON model (as `parseComposition` answers it), read as it "
+            "was sealed; only with `include=document`."
+        ),
+    )
     created_by_id: Optional[uuid.UUID] = Field(description=_MEMBERS_ONLY)
     created_at: datetime
 

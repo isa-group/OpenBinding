@@ -1224,7 +1224,11 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
         }
         refused["content"] = {JSON_MEDIA_TYPE: {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}
         operation = paths[path][method.lower()]
-        operation.setdefault("responses", {})["429"] = refused
+        declared = operation.setdefault("responses", {}).get("429")
+        if declared and declared.get("description"):
+            # The route's own 429 (a busy Composition2Yaml slot) stays said.
+            refused["description"] += f" Or: {declared['description']}"
+        operation["responses"]["429"] = refused
         if {} not in operation.setdefault("security", []):
             operation["security"].append({})
 

@@ -1,0 +1,152 @@
+{
+  "analytics": {
+    "boundTasks": 3,
+    "hasOffering": false,
+    "localTasks": 0,
+    "providers": 3,
+    "tasks": 3,
+    "upstreamPricings": 0,
+    "workflow": {
+      "and": 0,
+      "depth": 1,
+      "loop": 0,
+      "xor": 0
+    }
+  },
+  "based_on": null,
+  "content_digest": "sha256-c16c8250c25d194a8bfff645ea5c124d2c699fa95e17c6df5016d98f1ff81d17",
+  "created_at": "2026-01-01T00:00:00Z",
+  "created_by_id": "00000000-0000-4000-8000-000000000003",
+  "current_evaluation": {
+    "basis": "bim",
+    "compilation": {
+      "compilation_digest": "sha256-2d15e0f35b4d180352b7bd8fafc64ff13d0c23fc88b20163f28c6edf90671002",
+      "semantic_digest": "sha256-8357e875061b16934148e86d182e6fe2d25be78eff4fc5982d97b2c2228b337c",
+      "toolchain": {
+        "apiVersion": "bim/v1",
+        "compilerDigest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+        "name": "bim-core",
+        "version": "0.2.0"
+      }
+    },
+    "created_at": "2026-01-01T00:00:01Z",
+    "id": "00000000-0000-4000-8000-000000000004",
+    "outcome": "verified"
+  },
+  "current_evaluation_id": "00000000-0000-4000-8000-000000000004",
+  "derivation": {
+    "point": null,
+    "revision": {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "revision": 1
+    },
+    "run": null,
+    "source": "binding"
+  },
+  "document": {
+    "binding": {
+      "t1": {
+        "candidate": "catalog/c1a"
+      },
+      "t2": {
+        "candidate": "c2a"
+      },
+      "t3": {
+        "candidate": "c3a"
+      }
+    },
+    "composition": "ambiguous",
+    "evidence": {
+      "evaluatedBy": "gateway",
+      "manual": true,
+      "toolchain": "bim-core 0.2.0"
+    },
+    "kind": "application",
+    "problem": {
+      "compilation": "sha256-2d15e0f35b4d180352b7bd8fafc64ff13d0c23fc88b20163f28c6edf90671002",
+      "ref": "fixtures/problems/ambiguous@1"
+    },
+    "syntaxVersion": "1.0",
+    "values": {
+      "latency": {
+        "unit": "ms",
+        "value": 30.0
+      }
+    },
+    "version": "1.0.0",
+    "workflow": {
+      "seq": [
+        "t1",
+        "t2",
+        "t3"
+      ]
+    }
+  },
+  "evaluations": [
+    {
+      "basis": "bim",
+      "binding": {
+        "t1": "catalog/c1a",
+        "t2": "catalog/c2a",
+        "t3": "catalog/c3a"
+      },
+      "compilation": {
+        "compilation_digest": "sha256-2d15e0f35b4d180352b7bd8fafc64ff13d0c23fc88b20163f28c6edf90671002",
+        "compiler_digest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+        "id": "00000000-0000-4000-8000-000000000006",
+        "semantic_digest": "sha256-8357e875061b16934148e86d182e6fe2d25be78eff4fc5982d97b2c2228b337c",
+        "toolchain": {
+          "apiVersion": "bim/v1",
+          "compilerDigest": "sha256-b91fc3a05d1a58d128f5589f35396aaf8ebd0c3854e1e072ce17c765fe42b4d4",
+          "name": "bim-core",
+          "version": "0.2.0"
+        }
+      },
+      "created_at": "2026-01-01T00:00:01Z",
+      "current": true,
+      "diagnostics": [],
+      "id": "00000000-0000-4000-8000-000000000004",
+      "outcome": "verified",
+      "values": {
+        "latency": {
+          "unit": "ms",
+          "value": 30.0
+        }
+      },
+      "violations": []
+    }
+  ],
+  "evidence_run": null,
+  "forked_from": null,
+  "id": "00000000-0000-4000-8000-000000000001",
+  "kind": "application",
+  "label": "1.0.0",
+  "offering": null,
+  "ordinal": 1,
+  "problem": {
+    "linked_compilation": {
+      "compilation_digest": "sha256-2d15e0f35b4d180352b7bd8fafc64ff13d0c23fc88b20163f28c6edf90671002",
+      "id": "00000000-0000-4000-8000-000000000006",
+      "semantic_digest": "sha256-8357e875061b16934148e86d182e6fe2d25be78eff4fc5982d97b2c2228b337c"
+    },
+    "problem": {
+      "id": "00000000-0000-4000-8000-000000000007",
+      "name": "demo_ambiguous_candidates",
+      "slug": "ambiguous"
+    },
+    "revision": {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "revision": 1
+    }
+  },
+  "size_bytes": 464,
+  "syntax_version": "1.0",
+  "values": {
+    "latency": {
+      "unit": "ms",
+      "value": 30.0
+    }
+  },
+  "values_status": "verified",
+  "verified": true
+}

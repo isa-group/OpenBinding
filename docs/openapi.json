@@ -3533,6 +3533,17 @@
             "description": "Null for a reader who is not a member of the organization (a public composition's reader).",
             "title": "Created By Id"
           },
+          "current_evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The current evaluation, named; null while the version has none."
+          },
           "current_evaluation_id": {
             "anyOf": [
               {
@@ -3545,8 +3556,32 @@
             ],
             "title": "Current Evaluation Id"
           },
+          "derivation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VersionDerivation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where it was derived from; null for a version sealed from a document or forked."
+          },
+          "document": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version's content as the canonical JSON model (as `parseComposition` answers it), read as it was sealed; only with `include=document`.",
+            "title": "Document"
+          },
           "evaluations": {
-            "description": "Its evaluations, oldest first; only the current one for a reader who is not a member.",
+            "description": "Its evaluations, oldest first; only the current one for a reader who is not a member. In a list, only with `include=evaluations` (else empty).",
             "items": {
               "$ref": "#/components/schemas/EvaluationView"
             },
@@ -3673,8 +3708,10 @@
           "offering",
           "evidence_run",
           "based_on",
+          "derivation",
           "evaluations",
           "current_evaluation_id",
+          "current_evaluation",
           "created_by_id",
           "created_at"
         ],
@@ -5657,6 +5694,84 @@
         "title": "EvaluationCompilation",
         "type": "object"
       },
+      "EvaluationSummary": {
+        "description": "A version's current evaluation, named: what a list row shows without the evaluations themselves.",
+        "properties": {
+          "basis": {
+            "enum": [
+              "bim",
+              "declared"
+            ],
+            "title": "Basis",
+            "type": "string"
+          },
+          "compilation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationSummaryCompilation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a declared evaluation."
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "verified",
+              "binding_invalid",
+              "semantics_changed",
+              "declared"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "basis",
+          "outcome",
+          "compilation",
+          "created_at"
+        ],
+        "title": "EvaluationSummary",
+        "type": "object"
+      },
+      "EvaluationSummaryCompilation": {
+        "description": "The compilation an evaluation evaluated, as a row of a version list names it.",
+        "properties": {
+          "compilation_digest": {
+            "title": "Compilation Digest",
+            "type": "string"
+          },
+          "semantic_digest": {
+            "title": "Semantic Digest",
+            "type": "string"
+          },
+          "toolchain": {
+            "additionalProperties": true,
+            "title": "Toolchain",
+            "type": "object"
+          }
+        },
+        "required": [
+          "compilation_digest",
+          "semantic_digest",
+          "toolchain"
+        ],
+        "title": "EvaluationSummaryCompilation",
+        "type": "object"
+      },
       "EvaluationView": {
         "description": "One evaluation of a version: by one toolchain release (`bim`), or the author's values (`declared`).",
         "properties": {
@@ -5667,6 +5782,21 @@
             ],
             "title": "Basis",
             "type": "string"
+          },
+          "binding": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The candidate the toolchain was given for each service task, `{task: \"<resource>/<id>\"}` (the key a problem's facts give each candidate); local tasks are absent. Null for a declared evaluation, and for a public composition's reader.",
+            "title": "Binding"
           },
           "compilation": {
             "anyOf": [
@@ -5736,6 +5866,7 @@
           "violations",
           "diagnostics",
           "compilation",
+          "binding",
           "current",
           "created_at"
         ],
@@ -10471,6 +10602,96 @@
           "semantic_digest"
         ],
         "title": "VersionCompilation",
+        "type": "object"
+      },
+      "VersionDerivation": {
+        "description": "Where a derived version came from: a run's solution (`run`, `point`) or a binding given with a revision.",
+        "properties": {
+          "point": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The solution of the run, for a version derived from one.",
+            "title": "Point"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/VersionDerivationRevision"
+          },
+          "run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VersionDerivationRun"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The run, for a version derived from one."
+          },
+          "source": {
+            "enum": [
+              "run",
+              "binding"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "run",
+          "point",
+          "revision"
+        ],
+        "title": "VersionDerivation",
+        "type": "object"
+      },
+      "VersionDerivationRevision": {
+        "description": "The problem revision a version was derived from.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a reader who is not a member of the organization (a public composition's reader).",
+            "title": "Id"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ],
+        "title": "VersionDerivationRevision",
+        "type": "object"
+      },
+      "VersionDerivationRun": {
+        "description": "The run a version was derived from (`evidence.run` in its document); the run itself stays private.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "VersionDerivationRun",
         "type": "object"
       },
       "VersionLink": {
@@ -16721,7 +16942,7 @@
     },
     "/v1/organizations/{org}/compositions": {
       "get": {
-        "description": "The organization's compositions, by name.",
+        "description": "The organization's compositions, by name or the most recently updated first.",
         "operationId": "listCompositions",
         "parameters": [
           {
@@ -16790,6 +17011,22 @@
               ],
               "description": "Only archived (`true`) or only active (`false`) ones.",
               "title": "Archived"
+            }
+          },
+          {
+            "description": "By `name` (the default), or the most recently `updated` first.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "name",
+              "description": "By `name` (the default), or the most recently `updated` first.",
+              "enum": [
+                "name",
+                "updated"
+              ],
+              "title": "Sort",
+              "type": "string"
             }
           },
           {
@@ -17698,7 +17935,7 @@
                 }
               }
             },
-            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. Or: Every Composition2Yaml slot of this process is taken (`composition_busy`).",
             "headers": {
               "Retry-After": {
                 "description": "Seconds until the budget is available again.",
@@ -18232,7 +18469,7 @@
     },
     "/v1/organizations/{org}/compositions/{composition}/versions": {
       "get": {
-        "description": "The composition's versions, each with its values, value status and evaluations.",
+        "description": "The composition's versions, each with its values, value status and current evaluation.",
         "operationId": "listCompositionVersions",
         "parameters": [
           {
@@ -18254,21 +18491,21 @@
             }
           },
           {
-            "description": "`analytics`: each version with the summary of its document.",
+            "description": "A comma list: `analytics`, each version with the summary of its document; `evaluations`, each with its evaluations (without it a row names its current evaluation only).",
             "in": "query",
             "name": "include",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "const": "analytics",
+                  "pattern": "^(analytics|evaluations)(,(analytics|evaluations))*$",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "description": "`analytics`: each version with the summary of its document.",
+              "description": "A comma list: `analytics`, each version with the summary of its document; `evaluations`, each with its evaluations (without it a row names its current evaluation only).",
               "title": "Include"
             }
           },
@@ -18286,6 +18523,44 @@
               ],
               "title": "Order",
               "type": "string"
+            }
+          },
+          {
+            "description": "Only versions sealed at or after this instant (ISO 8601; UTC without an offset).",
+            "in": "query",
+            "name": "created_after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only versions sealed at or after this instant (ISO 8601; UTC without an offset).",
+              "title": "Created After"
+            }
+          },
+          {
+            "description": "Only versions sealed before this instant (ISO 8601; UTC without an offset).",
+            "in": "query",
+            "name": "created_before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only versions sealed before this instant (ISO 8601; UTC without an offset).",
+              "title": "Created Before"
             }
           },
           {
@@ -18357,11 +18632,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Problem"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
+            "description": "`created_after` is later than `created_before` (`invalid_request`)."
           },
           "429": {
             "content": {
@@ -18808,6 +19083,25 @@
               "title": "Version",
               "type": "string"
             }
+          },
+          {
+            "description": "A comma list: `document`, the version's content as the canonical JSON model, read as it was sealed.",
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^document(,document)*$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A comma list: `document`, the version's content as the canonical JSON model, read as it was sealed.",
+              "title": "Include"
+            }
           }
         ],
         "responses": {
@@ -18877,7 +19171,7 @@
                 }
               }
             },
-            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. Or: Every Composition2Yaml slot of this process is taken (`composition_busy`).",
             "headers": {
               "Retry-After": {
                 "description": "Seconds until the budget is available again.",

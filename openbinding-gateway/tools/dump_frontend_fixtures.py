@@ -7,7 +7,11 @@ toolchain), uploads a few packages as problems of a throwaway organization and w
 response **bodies** (never headers) of the routes the frontend reads:
 
 * ``<name>.facts.json``: ``getProblemCompilationFacts`` of the upload's compilation;
-* ``<name>.validate.json``: ``validateBimPackage?include=facts`` of the same package.
+* ``<name>.validate.json``: ``validateBimPackage?include=facts`` of the same package;
+* ``<name>.version.json``: ``getCompositionVersion?include=document`` of version 1.0.0 of a
+  composition ``<name>`` derived from the first binding of the problem without a hard violation;
+* ``<name>.diff.json``: ``diffCompositionVersions`` from that 1.0.0 to a 1.1.0 derived from the
+  same binding with one task bound to another candidate.
 
 The packages are ``simple-seq`` (``examples/demo/01_simple_seq``), ``fms`` (``13_fms``: an
 exclusive choice and a local task), ``json-complete`` (``16_json_complete``: a parallel block
@@ -30,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import itertools
 import json
 import os
 import re
@@ -148,6 +153,9 @@ async def _bodies(work: Path) -> dict[str, Any]:
                     bodies[f"{name}.facts.json"] = _ok(facts, 200).json()
                     validated = await client.post("/v1/bim/validate", params={"include": "facts"}, content=archive, headers=ZIP)
                     bodies[f"{name}.validate.json"] = _ok(validated, 200).json()
+                    version, diff = await _versions(client, headers, name, bodies[f"{name}.facts.json"])
+                    bodies[f"{name}.version.json"] = version
+                    bodies[f"{name}.diff.json"] = diff
     finally:
         app.dependency_overrides.clear()
         space_client.set_gate(None)
@@ -155,6 +163,50 @@ async def _bodies(work: Path) -> dict[str, Any]:
         set_auth_limiter(None)
         await engine.dispose()
     return bodies
+
+
+async def _versions(client, headers: dict[str, str], name: str, facts: dict[str, Any]) -> tuple[Any, Any]:
+    """A composition ``name`` with two versions derived from the problem ``name``: 1.0.0 from the first binding
+    (in the facts' task and candidate order) without a hard violation, 1.1.0 from the first that differs from
+    it in one task. Answers 1.0.0 with its document, and the diff of the two."""
+    base = "/v1/organizations/fixtures/compositions"
+    _ok(await client.post(base, json={"slug": name, "name": name}, headers=headers), 201)
+    base = f"{base}/{name}"
+    eligible = {task["id"]: [item["written"] for item in task["eligible"]] for task in facts["tasks"] if task["kind"] == "service"}
+
+    async def derivable(binding: dict[str, str], version: str, *, seal: bool) -> bool:
+        answer = await client.post(
+            f"{base}/derive", headers=headers,
+            json={"revision": f"{name}@1", "binding": binding, "version": version, "seal": seal},
+        )
+        if answer.status_code == 422 and not seal:
+            return False
+        _ok(answer, 201 if seal else 200)
+        return True
+
+    first = None
+    for choice in itertools.product(*eligible.values()):
+        binding = dict(zip(eligible, choice, strict=True))
+        if await derivable(binding, "1.0.0", seal=False):
+            first = binding
+            break
+    if first is None:
+        raise SystemExit(f"{name}: no binding of the problem is free of hard violations")
+    second = None
+    for task, candidates in eligible.items():
+        for candidate in candidates:
+            if candidate != first[task] and await derivable({**first, task: candidate}, "1.1.0", seal=False):
+                second = {**first, task: candidate}
+                break
+        if second is not None:
+            break
+    if second is None:
+        raise SystemExit(f"{name}: no second binding differs from the first in one task")
+    await derivable(first, "1.0.0", seal=True)
+    await derivable(second, "1.1.0", seal=True)
+    version = await client.get(f"{base}/versions/1.0.0", params={"include": "document"}, headers=headers)
+    diff = await client.get(f"{base}/diff", params={"from": "1.0.0", "to": "1.1.0"}, headers=headers)
+    return _ok(version, 200).json(), _ok(diff, 200).json()
 
 
 async def _sign_in(client) -> dict[str, str]:

@@ -30,6 +30,7 @@ budget too).
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Any, Literal, Union
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
@@ -86,6 +87,8 @@ from .schemas import (
     DeriveResult,
     EvaluateResult,
     EvaluationCompilation,
+    EvaluationSummary,
+    EvaluationSummaryCompilation,
     EvaluationView,
     EvidenceRun,
     ForkedFrom,
@@ -93,6 +96,9 @@ from .schemas import (
     ForkResult,
     SealResult,
     VersionCompilation,
+    VersionDerivation,
+    VersionDerivationRevision,
+    VersionDerivationRun,
     VersionLink,
     VersionName,
     VersionProblem,
@@ -149,16 +155,19 @@ async def list_compositions(
     kind: CompositionKindName | None = Query(default=None),
     q: str | None = Query(default=None, max_length=160, description="Text in the name or the slug."),
     archived: bool | None = Query(default=None, description="Only archived (`true`) or only active (`false`) ones."),
+    sort: Literal["name", "updated"] = Query(
+        default="name", description="By `name` (the default), or the most recently `updated` first.",
+    ),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> CompositionList:
-    """The organization's compositions, by name."""
+    """The organization's compositions, by name or the most recently updated first."""
     organization = await compositions.organization_for(session, org, user, OrganizationRole.VIEWER)
     page = await compositions.list_compositions(
         session, organization.id, kind=CompositionKind(kind) if kind else None, q=q, archived=archived,
-        limit=limit, offset=offset,
+        sort=sort, limit=limit, offset=offset,
     )
     found = await versions.summaries(session, [row.id for row in page.compositions])
     return CompositionList(
@@ -274,6 +283,7 @@ async def delete_composition(
 # -- Versions --------------------------------------------------------------------------------------------
 
 _ERROR = {"model": ErrorResponse}
+_BUSY = {429: {**_ERROR, "description": "Every Composition2Yaml slot of this process is taken (`composition_busy`)."}}
 _DOCUMENT_REFUSALS: dict[int | str, dict[str, Any]] = {
     413: {**_ERROR, "description": f"The document is longer than {MAX_DOCUMENT_BYTES} bytes (`limitBytes`)."},
     415: {**_ERROR, "description": "The document is not sent as YAML."},
@@ -308,12 +318,56 @@ def _evaluation_view(
         violations=list(result.get("violations") or []),
         diagnostics=list(evaluation.diagnostics or []),
         compilation=compiled,
+        binding=_binding(evaluation.binding),
         current=current is not None and current.id == evaluation.id,
         created_at=evaluation.created_at,
     )
 
 
-def _version_view(detail: versions.Detail, *, analytics: bool = True) -> CompositionVersionView:
+def _binding(binding: dict[str, Any] | None) -> dict[str, str] | None:
+    """``{task: {resource, id}}`` as the toolchain was given it, keyed as a problem's facts key a candidate."""
+    if binding is None:
+        return None
+    return {task: f"{reference['resource']}/{reference['id']}" for task, reference in binding.items()}
+
+
+def _evaluation_summary(evaluation: CompositionEvaluation | None, detail: versions.Detail) -> EvaluationSummary | None:
+    if evaluation is None:
+        return None
+    compiled = None
+    if evaluation.compilation_id is not None:
+        row = detail.compilations.get(evaluation.compilation_id)
+        compiled = EvaluationSummaryCompilation(
+            compilation_digest=evaluation.compilation_digest or "",
+            semantic_digest=evaluation.semantic_digest or (row.semantic_digest if row is not None else ""),
+            toolchain=dict(evaluation.toolchain or {}),
+        )
+    return EvaluationSummary(
+        id=evaluation.id, basis=evaluation.basis.value, outcome=evaluation.outcome.value, compilation=compiled,
+        created_at=evaluation.created_at,
+    )
+
+
+def _derivation(found: versions.Derivation | None) -> VersionDerivation | None:
+    if found is None:
+        return None
+    return VersionDerivation(
+        source=found.source,
+        run=VersionDerivationRun(id=found.run_id) if found.run_id is not None else None,
+        point=found.point,
+        revision=VersionDerivationRevision(id=found.revision_id, revision=found.revision),
+    )
+
+
+def _version_view(
+    detail: versions.Detail,
+    *,
+    analytics: bool = True,
+    evaluations: bool = True,
+    document: dict[str, Any] | None = None,
+) -> CompositionVersionView:
+    """A version's view; ``evaluations`` false leaves the evaluations out (a light list row), and
+    ``document`` is its content as JSON when asked for."""
     version, current, link = detail.version, detail.current, detail.link
     linked = None
     if link is not None:
@@ -345,8 +399,11 @@ def _version_view(detail: versions.Detail, *, analytics: bool = True) -> Composi
         based_on=version.based_on,
         forked_from=version.forked_from,
         analytics=version.analytics if analytics else None,
-        evaluations=[_evaluation_view(item, current, detail) for item in detail.evaluations],
+        derivation=_derivation(detail.derivation),
+        evaluations=[_evaluation_view(item, current, detail) for item in detail.evaluations] if evaluations else [],
         current_evaluation_id=current.id if current is not None else None,
+        current_evaluation=_evaluation_summary(current, detail),
+        document=document,
         created_by_id=version.created_by_id,
         created_at=version.created_at,
     )
@@ -369,7 +426,7 @@ def _sources(view: CompositionVersionView) -> set[uuid.UUID]:
 
 def _public_evaluation(view: EvaluationView) -> EvaluationView:
     compiled = view.compilation.model_copy(update={"id": None}) if view.compilation is not None else None
-    return view.model_copy(update={"violations": [], "diagnostics": [], "compilation": compiled})
+    return view.model_copy(update={"violations": [], "diagnostics": [], "compilation": compiled, "binding": None})
 
 
 def _public_version(view: CompositionVersionView, readable: set[uuid.UUID]) -> CompositionVersionView:
@@ -378,8 +435,10 @@ def _public_version(view: CompositionVersionView, readable: set[uuid.UUID]) -> C
     The bytes are served (the content, the diff), so what they carry stays: values, digests, the toolchain,
     the problem's ref (slug and revision number), the run and point of ``evidence``. What they do not carry
     goes: member ids, the problem, revision and compilation ids and the problem's name, every evaluation but
-    the current one and its diagnostics and violations, which speak of the private problem, and lineage that
-    names a source ``readable`` does not hold (one that is neither this composition nor public now).
+    the current one and its diagnostics and violations, which speak of the private problem, the binding it
+    was given (catalog resource names a document writes only when an id is ambiguous), and lineage that
+    names a source ``readable`` does not hold (one that is neither this composition nor public now). The
+    derivation keeps its source, run and point (the bytes' ``evidence``) and loses its revision id.
     """
     link = view.problem
     if link is not None:
@@ -394,10 +453,14 @@ def _public_version(view: CompositionVersionView, readable: set[uuid.UUID]) -> C
     forked_from = view.forked_from
     if forked_from is not None and forked_from.composition_id not in readable:
         forked_from = ForkedFrom(dropped_problem=forked_from.dropped_problem)
+    derivation = view.derivation
+    if derivation is not None:
+        derivation = derivation.model_copy(update={"revision": derivation.revision.model_copy(update={"id": None})})
     return view.model_copy(update={
         "problem": link,
         "based_on": based_on,
         "forked_from": forked_from,
+        "derivation": derivation,
         "evaluations": [_public_evaluation(item) for item in view.evaluations if item.current],
         "created_by_id": None,
     })
@@ -430,29 +493,49 @@ def _invalid(diagnostics) -> Exception:
     response_model=CompositionVersionList,
     operation_id="listCompositionVersions",
     dependencies=[Depends(charge_anonymous_read)],
-    responses=_UNREADABLE,
+    responses={
+        **_UNREADABLE,
+        422: {**_ERROR, "description": "`created_after` is later than `created_before` (`invalid_request`)."},
+    },
 )
 async def list_composition_versions(
     org: str,
     composition: str,
     response: Response,
-    include: Literal["analytics"] | None = Query(
-        default=None, description="`analytics`: each version with the summary of its document.",
+    include: str | None = Query(
+        default=None, pattern=r"^(analytics|evaluations)(,(analytics|evaluations))*$",
+        description=(
+            "A comma list: `analytics`, each version with the summary of its document; `evaluations`, each with "
+            "its evaluations (without it a row names its current evaluation only)."
+        ),
     ),
     order: Literal["newest", "oldest"] = Query(
         default="newest", description="`newest` first (the default) or `oldest` first, as evolution charts read them.",
+    ),
+    created_after: datetime | None = Query(
+        default=None, description="Only versions sealed at or after this instant (ISO 8601; UTC without an offset).",
+    ),
+    created_before: datetime | None = Query(
+        default=None, description="Only versions sealed before this instant (ISO 8601; UTC without an offset).",
     ),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     user: User | None = Depends(get_reader),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> CompositionVersionList:
-    """The composition's versions, each with its values, value status and evaluations."""
+    """The composition's versions, each with its values, value status and current evaluation."""
     _, found, reader = await compositions.readable_composition(session, org, composition, user)
     _read_headers(response.headers, reader)
-    rows, total = await versions.list_versions(session, found, order=order, limit=limit, offset=offset)
-    shown = await versions.details(session, rows)
-    views = [_version_view(item, analytics=include == "analytics") for item in shown]
+    included = set(include.split(",")) if include else set()
+    if created_after is not None and created_before is not None and created_after > created_before:
+        raise api_error(422, "invalid_request", "`created_after` is later than `created_before`.")
+    rows, total = await versions.list_versions(
+        session, found, order=order, created_after=created_after, created_before=created_before,
+        limit=limit, offset=offset,
+    )
+    whole = "evaluations" in included
+    shown = await versions.details(session, rows, light=not whole)
+    views = [_version_view(item, analytics="analytics" in included, evaluations=whole) for item in shown]
     return CompositionVersionList(
         versions=await _for_reader(session, reader, found, views), total=total, limit=limit, offset=offset,
     )
@@ -556,13 +639,17 @@ async def check_composition_version(
     response_model=CompositionVersionView,
     operation_id="getCompositionVersion",
     dependencies=[Depends(charge_anonymous_read)],
-    responses={200: {"headers": _VERSION_ETAG}, **_UNREADABLE},
+    responses={200: {"headers": _VERSION_ETAG}, **_UNREADABLE, **_BUSY},
 )
 async def get_composition_version(
     org: str,
     composition: str,
     version: str,
     response: Response,
+    include: str | None = Query(
+        default=None, pattern=r"^document(,document)*$",
+        description="A comma list: `document`, the version's content as the canonical JSON model, read as it was sealed.",
+    ),
     user: User | None = Depends(get_reader),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> CompositionVersionView:
@@ -570,9 +657,10 @@ async def get_composition_version(
     _, found, reader = await compositions.readable_composition(session, org, composition, user)
     row = await versions.required_version(session, found, version)
     (detail,) = await versions.details(session, [row])
+    document = await language.document_stored(row.content) if include else None
     response.headers["ETag"] = _content_tag(row)
     _read_headers(response.headers, reader)
-    (view,) = await _for_reader(session, reader, found, [_version_view(detail)])
+    (view,) = await _for_reader(session, reader, found, [_version_view(detail, document=document)])
     return view
 
 
@@ -614,8 +702,6 @@ async def get_composition_version_content(
 
 
 # -- Diff and fork ---------------------------------------------------------------------------------------
-
-_BUSY = {429: {**_ERROR, "description": "Every Composition2Yaml slot of this process is taken (`composition_busy`)."}}
 
 
 def _name(version: CompositionVersion) -> dict[str, Any]:

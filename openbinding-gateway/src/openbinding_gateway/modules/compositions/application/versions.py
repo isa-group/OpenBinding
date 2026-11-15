@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Literal
 
 from bim_core import BimError
@@ -21,6 +22,7 @@ from ....db.models import (
     BindingCase,
     BindingCaseRevision,
     Composition,
+    CompositionDerivation,
     CompositionEvaluation,
     CompositionVersion,
     EvaluationOutcome,
@@ -42,14 +44,27 @@ class Link:
 
 
 @dataclass(frozen=True)
+class Derivation:
+    """Where a derived version came from: a run's solution or a binding, and the problem revision."""
+
+    source: str
+    run_id: uuid.UUID | None
+    point: int | None
+    revision_id: uuid.UUID
+    revision: int
+
+
+@dataclass(frozen=True)
 class Detail:
-    """A version with what its view shows: its evaluations (oldest first), the current one, its link."""
+    """A version with what its view shows: its evaluations (oldest first), the current one, its link and how
+    it was derived."""
 
     version: CompositionVersion
     evaluations: list[CompositionEvaluation]
     current: CompositionEvaluation | None
     link: Link | None
     compilations: dict[uuid.UUID, ProblemCompilation]
+    derivation: Derivation | None
 
 
 @dataclass(frozen=True)
@@ -132,19 +147,31 @@ async def diff_pair(
     return before, to
 
 
+def _utc(instant: datetime) -> datetime:
+    """An instant in UTC; one without an offset is read as UTC, as every stored instant is."""
+    return instant.replace(tzinfo=timezone.utc) if instant.tzinfo is None else instant.astimezone(timezone.utc)
+
+
 async def list_versions(
     session: AsyncSession,
     composition: Composition,
     *,
     order: Literal["newest", "oldest"] = "newest",
+    created_after: datetime | None = None,
+    created_before: datetime | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> tuple[list[CompositionVersion], int]:
-    """One page of the composition's versions, newest (or oldest) first, and how many it has.
+    """One page of the composition's versions, newest (or oldest) first, and how many match.
 
-    Their content is not loaded: a view does not show it.
+    ``created_after`` is inclusive and ``created_before`` exclusive. Their content is not loaded: a view
+    does not show it.
     """
     query = select(CompositionVersion).where(CompositionVersion.composition_id == composition.id)
+    if created_after is not None:
+        query = query.where(CompositionVersion.created_at >= _utc(created_after))
+    if created_before is not None:
+        query = query.where(CompositionVersion.created_at < _utc(created_before))
     total = int(await session.scalar(select(func.count()).select_from(query.subquery())) or 0)
     ordinal = CompositionVersion.ordinal.desc() if order == "newest" else CompositionVersion.ordinal.asc()
     rows = (await session.scalars(
@@ -153,15 +180,21 @@ async def list_versions(
     return list(rows), total
 
 
-async def details(session: AsyncSession, versions: list[CompositionVersion]) -> list[Detail]:
-    """What the views of ``versions`` show, in a fixed number of queries whatever their number."""
+async def details(session: AsyncSession, versions: list[CompositionVersion], *, light: bool = False) -> list[Detail]:
+    """What the views of ``versions`` show, in a fixed number of queries whatever their number.
+
+    ``light`` leaves out what only a whole evaluation shows (its result and diagnostics), for views that
+    name the current evaluation only.
+    """
     if not versions:
         return []
     ids = [version.id for version in versions]
     evaluations: dict[uuid.UUID, list[CompositionEvaluation]] = {identifier: [] for identifier in ids}
+    query = select(CompositionEvaluation).where(CompositionEvaluation.version_id.in_(ids))
+    if light:
+        query = query.options(defer(CompositionEvaluation.result), defer(CompositionEvaluation.diagnostics))
     for evaluation in (await session.scalars(
-        select(CompositionEvaluation).where(CompositionEvaluation.version_id.in_(ids))
-        .order_by(CompositionEvaluation.created_at, CompositionEvaluation.id)
+        query.order_by(CompositionEvaluation.created_at, CompositionEvaluation.id)
     )).all():
         evaluations[evaluation.version_id].append(evaluation)
 
@@ -183,6 +216,17 @@ async def details(session: AsyncSession, versions: list[CompositionVersion]) -> 
             .where(BindingCaseRevision.id.in_(revision_ids))
         )).all():
             links[revision.id] = (problem, revision)
+    derivations = {
+        version_id: Derivation(source.value, job_id, point, revision_id, revision)
+        for version_id, source, job_id, point, revision_id, revision in (await session.execute(
+            select(
+                CompositionDerivation.version_id, CompositionDerivation.source, CompositionDerivation.job_id,
+                CompositionDerivation.point, CompositionDerivation.revision_id, BindingCaseRevision.revision,
+            )
+            .join(BindingCaseRevision, BindingCaseRevision.id == CompositionDerivation.revision_id)
+            .where(CompositionDerivation.version_id.in_(ids))
+        )).all()
+    }
 
     basis = installed_basis()
     found: list[Detail] = []
@@ -192,7 +236,9 @@ async def details(session: AsyncSession, versions: list[CompositionVersion]) -> 
             problem, revision = links[version.revision_id]
             link = Link(problem, revision, compilations[version.linked_compilation_id])
         own = evaluations[version.id]
-        found.append(Detail(version, own, current_of(own, basis), link, compilations))
+        found.append(Detail(
+            version, own, current_of(own, basis), link, compilations, derivations.get(version.id),
+        ))
     return found
 
 
@@ -245,6 +291,7 @@ async def verified_among(session: AsyncSession, versions: list[CompositionVersio
 
 
 __all__ = [
+    "Derivation",
     "Detail",
     "Link",
     "Summary",

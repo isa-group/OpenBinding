@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from typing import Literal
 
 from fastapi import HTTPException, status
 from sqlalchemy import delete, func, or_, select
@@ -164,6 +165,13 @@ async def required_composition(session: AsyncSession, organization: Organization
 # -- Listing ---------------------------------------------------------------------------------------------
 
 
+#: How ``list_compositions`` orders: by name, or the most recently updated first; the slug breaks ties.
+_ORDER = {
+    "name": (Composition.name, Composition.slug),
+    "updated": (Composition.updated_at.desc(), Composition.slug),
+}
+
+
 async def list_compositions(
     session: AsyncSession,
     organization_id: uuid.UUID,
@@ -171,10 +179,12 @@ async def list_compositions(
     kind: CompositionKind | None = None,
     q: str | None = None,
     archived: bool | None = None,
+    sort: Literal["name", "updated"] = "name",
     limit: int = 50,
     offset: int = 0,
 ) -> Page:
-    """The organization's compositions by name, filtered by kind, by a text in name or slug, and by archived."""
+    """The organization's compositions by name (or the most recently updated first), filtered by kind, by a
+    text in name or slug, and by archived."""
     query = select(Composition).where(Composition.organization_id == organization_id)
     if kind is not None:
         query = query.where(Composition.kind == kind)
@@ -188,7 +198,7 @@ async def list_compositions(
         ))
     total = int(await session.scalar(select(func.count()).select_from(query.subquery())) or 0)
     rows = (await session.scalars(
-        query.order_by(Composition.name, Composition.slug).offset(offset).limit(limit)
+        query.order_by(*_ORDER[sort]).offset(offset).limit(limit)
     )).all()
     return Page(list(rows), total)
 

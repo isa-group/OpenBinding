@@ -38,7 +38,7 @@ def test_two_runs_write_byte_identical_trees(two_runs) -> None:
     first, second = two_runs
     assert _tree(first) == _tree(second)
     assert sorted(_tree(first)) == sorted(
-        f"{name}.{kind}.json" for name, _ in tool.PACKAGES for kind in ("facts", "validate")
+        f"{name}.{kind}.json" for name, _ in tool.PACKAGES for kind in ("facts", "validate", "version", "diff")
     )
 
 
@@ -54,6 +54,22 @@ def test_the_fixtures_hold_the_facts_each_package_was_chosen_for(two_runs) -> No
     for name, _ in tool.PACKAGES:
         validated = json.loads((first / f"{name}.validate.json").read_text(encoding="utf-8"))
         assert validated["facts"] == json.loads((first / f"{name}.facts.json").read_text(encoding="utf-8"))
+
+
+def test_each_package_has_a_derived_version_and_a_diff_of_one_candidate(two_runs) -> None:
+    first, _ = two_runs
+    for name, _ in tool.PACKAGES:
+        version = json.loads((first / f"{name}.version.json").read_text(encoding="utf-8"))
+        assert version["label"] == "1.0.0" and version["document"]["composition"] == name
+        assert version["derivation"]["source"] == "binding" and version["values_status"] == "verified"
+        (evaluation,) = version["evaluations"]
+        assert evaluation["binding"] and evaluation["outcome"] == "verified"
+        diff = json.loads((first / f"{name}.diff.json").read_text(encoding="utf-8"))
+        (binding,) = [section for section in diff["sections"] if section["key"] == "binding"]
+        assert [(entry["kind"], [change["path"] for change in entry["changes"]]) for entry in binding["entries"]] == [
+            ("changed", ["candidate"]),
+        ]
+        assert diff["from"]["label"] == "1.0.0" and diff["to"]["label"] == "1.1.0"
 
 
 def test_the_checked_in_fixtures_are_up_to_date() -> None:
