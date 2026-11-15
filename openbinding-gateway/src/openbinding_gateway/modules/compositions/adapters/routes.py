@@ -536,7 +536,6 @@ def _name(version: CompositionVersion) -> dict[str, Any]:
     responses={
         **_UNREADABLE,
         422: {
-            **_ERROR,
             "description": "A default the composition cannot give: no version yet, or none before `to` (`diff_version_missing`).",
         },
         **_BUSY,
@@ -676,7 +675,6 @@ _EMPTY = {409: {**CONFLICT_RESPONSE, "description": "The composition has no vers
         200: {"model": EvaluationView, "description": "The installed toolchain had evaluated the version already."},
         **_UNREADABLE,
         422: {
-            **_ERROR,
             "description": (
                 "The installed toolchain could not evaluate the version, for example its package no longer "
                 "compiles (`evaluation_invalid`); `diagnostics` says why."
@@ -719,7 +717,6 @@ async def reevaluate_composition_version(
         **_UNREADABLE,
         **_EMPTY,
         422: {
-            **_ERROR,
             "description": (
                 f"The binding could not be evaluated (`evaluation_invalid`; a finding about a rebound task points "
                 f"at `/binding/<task>`), or {_NOT_LINKED}."
@@ -766,7 +763,6 @@ async def evaluate_composition(
         **_UNREADABLE,
         **_EMPTY,
         422: {
-            **_ERROR,
             "description": (
                 f"The toolchain cannot analyse the binding or the task (`analysis_invalid`), {_NOT_LINKED}, or the "
                 "installed toolchain reads the problem differently (`c2y_compilation_semantics_changed`)."
@@ -835,7 +831,6 @@ def _derivation_view(row: CompositionDerivation) -> DerivationView:
         },
         409: {**CONFLICT_RESPONSE, "description": "Another content holds this `version` (`version_label_taken`)."},
         422: {
-            **_ERROR,
             "description": (
                 "The binding cannot be derived (`derivation_invalid`): `diagnostics` lists the `c2y_*` findings, "
                 "those about the request at `/point`, `/binding/<task>` or `/offering/...`, the others in the "
