@@ -1,7 +1,8 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { lucia, member, org, renderScreen, researchUsage } from './testKit';
+import { lucia, org } from '../../features/workspace/testKit';
+import { member, renderScreen, researchUsage } from './testKit';
 import { OrgOverview } from './OrgOverview';
 
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn() }));

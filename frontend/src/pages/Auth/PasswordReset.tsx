@@ -4,7 +4,8 @@ import { KeyRound, Mail } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { Notice } from '../../components/ui/Notice';
-import { classifyAuthError, fieldErrorsFrom } from './authErrors';
+import { fieldErrorsFrom } from './authErrors';
+import { classifyAuthError } from '../../shared/api/errors';
 import { AuthField, AuthShell, AuthSpinner } from './AuthShell';
 import { MIN_PASSWORD_LENGTH, passwordStrength } from './passwordStrength';
 

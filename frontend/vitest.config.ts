@@ -15,6 +15,7 @@ const CORPUS = [
   'src/hygiene.test.ts',
   'src/routes/links.test.ts',
   'src/routes/screenBudget.test.ts',
+  'src/shared/api/generatedTypes.test.ts',
   'src/test/boundariesLint.test.ts',
   'src/test/digestHygiene.test.ts',
   'src/test/e2eSpecs.test.ts',

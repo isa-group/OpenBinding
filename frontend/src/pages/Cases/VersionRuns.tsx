@@ -12,7 +12,7 @@ import { runPath } from '../../routes/paths/runs';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { StatusChip } from '../Jobs/parts';
-import { classifyAuthError, marker } from './caseErrors';
+import { classifyAuthError, marker } from '../../shared/api/errors';
 import type { RouteProblemContent } from './useRouteProblem';
 
 /** The Runs tab of the problem page: the organization's runs of a version of this problem, newest first, each linking to its page. */

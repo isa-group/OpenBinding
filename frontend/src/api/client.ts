@@ -282,6 +282,8 @@ export class HttpError extends Error {
   /** What a 429 names: the limit, how many jobs are in flight, and whose limit it is (`plan` or `technical`). */
   concurrency?: { limit_id: string; limit: number; used: number; source?: string; unit?: string };
   retryAfter?: number;
+  /** The current `ETag` a 412 names (docs/ERRORS.md, "Conditional writes"): the revision to re-read before retrying. */
+  etag?: string;
   /** The limit a refusal names (a 403 or 422 about a size limit carries one, with its state and source). */
   notice?: LimitNotice;
   /** The measured size, when the refusal is about the binding space. */
@@ -486,6 +488,10 @@ export class ApiClient {
     const error = new HttpError(response.status, message);
     error.code = code;
     error.problem = problem;
+    const retryAfter = parseInt(response.headers.get('Retry-After') ?? '', 10);
+    if (!isNaN(retryAfter)) error.retryAfter = retryAfter;
+    const etag = response.status === 412 ? response.headers.get('ETag') : null;
+    if (etag) error.etag = etag;
     error.notice = notice;
     error.bindingSpace = bindingSpace;
     error.diagnostics = Array.isArray(problemObject?.diagnostics)

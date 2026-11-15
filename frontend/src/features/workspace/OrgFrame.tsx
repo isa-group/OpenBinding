@@ -2,8 +2,8 @@ import type { ReactNode } from 'react';
 import type { Organization } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { Breadcrumb, Gate, type Crumb } from '../../pages/Organization/parts';
-import { marker, type AuthFailure } from './errors';
+import { Breadcrumb, Gate, type Crumb } from './parts';
+import { marker, type AuthFailure } from '../../shared/api/errors';
 import './workspace.css';
 
 interface OrgFrameProps {

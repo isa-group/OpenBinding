@@ -13,8 +13,9 @@ import { formatDate, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { createAddress } from './createDialog';
 import { ancestorsOf, atLeast, byName, roleSource } from './orgModel';
-import { classifyAuthError, marker } from './orgErrors';
-import { Breadcrumb, NeutralGate, OrgTile, PageSkeleton, RoleChip } from './parts';
+import { classifyAuthError, marker } from '../../shared/api/errors';
+import { Breadcrumb } from '../../features/workspace/parts';
+import { NeutralGate, OrgTile, PageSkeleton, RoleChip } from './parts';
 import { useRouteOrganization } from './useRouteOrganization';
 import './Organization.css';
 

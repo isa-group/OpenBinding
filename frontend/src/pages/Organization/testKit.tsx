@@ -6,22 +6,10 @@ import type { UsageView, UserProfile } from '../../api/auth';
 import type { Organization, OrganizationMember } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { AuthContext } from '../../contexts/auth';
+import { lucia } from '../../features/workspace/testKit';
 import { Where } from './Where';
 
-/** Shared by the tests of the organization screens: accounts, organizations and a router with the workspace outlet. */
-export const lucia: UserProfile = {
-  id: 'user-lucia', username: 'lucia.vega', email: 'lucia@example.test', role: 'user', is_active: true, plan: 'RESEARCH', created_at: '2026-03-01T00:00:00Z',
-};
-
-export const iker: UserProfile = { ...lucia, id: 'user-iker', username: 'iker.mora', email: 'iker@example.test', role: 'admin', plan: 'LAB' };
-
-export function org(slug: string, over: Partial<Organization> = {}): Organization {
-  return {
-    id: `org-${slug}`, slug, name: slug.toUpperCase(), parent_id: null, effective_role: 'OWNER', created_at: '2026-03-03T00:00:00Z',
-    ...over,
-  };
-}
-
+/** Shared by the tests of the organization screens: members, the plan's usage and a router with the workspace outlet. */
 export function member(user: string, role: OrganizationMember['role'], over: Partial<OrganizationMember> = {}): OrganizationMember {
   return {
     id: `m-${user}`, organization_id: 'org-isa-demo', user_id: `user-${user}`, username: user, email: `${user}@example.test`, role, created_at: '2026-03-04T00:00:00Z',

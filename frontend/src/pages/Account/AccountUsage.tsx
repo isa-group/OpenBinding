@@ -13,7 +13,8 @@ import { describeLimit, formatCount, LIMIT, type LimitDefinition } from '../../u
 import { usePricingTokenStatus, type PricingTokenStatus } from '../../utils/pricingToken';
 import { useResource } from '../../utils/useResource';
 import { featureName, readCatalog, type PricingView } from '../Pricing/pricingModel';
-import { classifyAuthError, fallbackMessage } from './accountErrors';
+import { fallbackMessage } from './accountErrors';
+import { classifyAuthError } from '../../shared/api/errors';
 import { AccountLayout, LoadFailure, PermissionNotice } from './AccountLayout';
 import { NO_LIMIT_TEXT, exactValueText, usageRows, type UsageRow } from './usageModel';
 import './AccountUsage.css';

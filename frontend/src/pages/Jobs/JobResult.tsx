@@ -7,10 +7,10 @@ import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { problemPath, workbenchPath } from '../../routes/paths/problems';
-import { classifyAuthError, marker } from '../Account/accountErrors';
+import { classifyAuthError, marker } from '../../shared/api/errors';
 import { normalizeStatus, numberText, violationsOf } from './jobsModel';
 import { useRunProblem } from './useRunProblem';
-import type { Neighborhood } from '../../analysis/neighborhood';
+import type { NeighborhoodResponse } from '../../shared/api/types';
 
 /** What a run is of: the organization and problem it names, the version and the compilation it ran. */
 export interface Origin {
@@ -77,7 +77,7 @@ const COMPARISON: Record<string, { label: string; tone: 'success' | 'warning' | 
 
 /** What if one task used another provider? The bounded, single-task swaps the gateway can check without running the engine again. */
 function NeighborhoodPanel({ org, jobId }: { org: string; jobId: string }) {
-  const [result, setResult] = useState<Neighborhood | null>(null);
+  const [result, setResult] = useState<NeighborhoodResponse | null>(null);
   const [state, setState] = useState<'idle' | 'busy' | 'failed'>('idle');
   const [problem, setProblem] = useState('');
 

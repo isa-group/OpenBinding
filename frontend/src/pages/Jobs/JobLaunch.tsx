@@ -12,7 +12,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
 import { useResource } from '../../utils/useResource';
 import { randomUUID } from '../../utils/uuid';
-import { classifyAuthError } from '../Account/accountErrors';
+import { classifyAuthError } from '../../shared/api/errors';
 import { irHasRanges } from '../Cases/bindingModel';
 import { loadProblems } from '../Cases/problemsData';
 import { problemsPath } from '../../routes/paths/problems';

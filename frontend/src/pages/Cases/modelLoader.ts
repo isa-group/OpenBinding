@@ -1,6 +1,6 @@
 import { problemsApi, type CompilationIr, type ProblemCompilation } from '../../api/problems';
 import { readBindingProblem, type BindingModel } from './bindingModel';
-import { classifyAuthError, type AuthFailure } from './caseErrors';
+import { classifyAuthError, type AuthFailure } from '../../shared/api/errors';
 
 /** What reading the compilation of a revision gave: a model, or a failure that belongs to that part only. */
 export type ModelState =

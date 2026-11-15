@@ -1,7 +1,7 @@
 import { useParams } from 'react-router-dom';
 import type { Organization } from '../../api/platform';
 import { problemsApi, type Problem, type ProblemRevision } from '../../api/problems';
-import { classifyAuthError, type AuthFailure } from '../../features/workspace/errors';
+import { classifyAuthError, type AuthFailure } from '../../shared/api/errors';
 import { useResource, type Resource } from '../../utils/useResource';
 import { atLeast } from '../Organization/orgModel';
 import { useRouteOrganization, type RouteOrganization } from '../Organization/useRouteOrganization';

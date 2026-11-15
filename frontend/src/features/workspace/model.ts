@@ -4,7 +4,20 @@ import type { Problem, ProblemRevision } from '../../api/problems';
 
 // Data shapes and small rules the screens of an organization's workspace share: problems, runs and studies.
 
-export { SLUG_PATTERN, slugFromName } from '../../pages/Organization/orgModel';
+/** Slugs the gateway accepts (`OrganizationCreate.slug`). */
+export const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
+
+/** `Distributed Systems Lab` → `distributed-systems-lab`: what the address suggests while the name is typed. */
+export function slugFromName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64)
+    .replace(/-+$/g, '');
+}
 
 /** A problem with its versions, as the lists of problems read it. */
 export interface CaseContent {

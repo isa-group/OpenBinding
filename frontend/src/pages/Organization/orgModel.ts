@@ -38,21 +38,6 @@ export const ROLE_SUMMARY: Record<OrganizationRole, string> = {
   OWNER: 'everything, including owners',
 };
 
-/** Slugs the gateway accepts (`OrganizationCreate.slug`). */
-export const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
-
-/** `Distributed Systems Lab` → `distributed-systems-lab`: what the address suggests while the name is typed. */
-export function slugFromName(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 64)
-    .replace(/-+$/g, '');
-}
-
 /** Two letters for the tile of an organization: the initials of its first two words, or its first two letters. */
 export function initialsOf(name: string): string {
   const words = name.replace(/\([^)]*\)/g, ' ').split(/[^\p{L}\p{N}]+/u).filter(Boolean);

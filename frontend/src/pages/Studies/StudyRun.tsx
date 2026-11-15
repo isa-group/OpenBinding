@@ -5,7 +5,7 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { classifyAuthError, marker } from '../Account/accountErrors';
+import { classifyAuthError, marker } from '../../shared/api/errors';
 import { RefusalNotice } from '../Jobs/parts';
 import { CellTable, RunHeatmap } from './CellViews';
 import { CopyDigest } from './CopyDigest';

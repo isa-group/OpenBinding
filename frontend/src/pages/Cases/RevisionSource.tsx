@@ -16,7 +16,8 @@ import { useResource } from '../../utils/useResource';
 import { saveBytes } from '../../features/workspace/download';
 import { formatFeature } from '../../utils/featureRange';
 import { rangeCandidates, readBindingProblem, powerText, type BindingModel } from './bindingModel';
-import { classifyAuthError, marker, sourceFailureKind, type AuthFailure } from './caseErrors';
+import { sourceFailureKind } from './caseErrors';
+import { classifyAuthError, marker, type AuthFailure } from '../../shared/api/errors';
 import { CaseMissing } from './parts';
 // The source styles keep the name of the page that used to hold them.
 import './RevisionSource.css';

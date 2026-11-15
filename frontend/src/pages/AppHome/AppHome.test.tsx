@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingUnavailableError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { config } from '../../config';
-import { addressNow, org, renderScreen, researchUsage } from '../Organization/testKit';
+import { org } from '../../features/workspace/testKit';
+import { addressNow, renderScreen, researchUsage } from '../Organization/testKit';
 import { AppHome } from './AppHome';
 
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn(), listNotifications: vi.fn(), markNotificationRead: vi.fn() }));

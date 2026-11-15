@@ -10,7 +10,8 @@ import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { useAuth } from '../../contexts/auth';
 import { useResource } from '../../utils/useResource';
-import { classifyAuthError, fallbackMessage } from './accountErrors';
+import { fallbackMessage } from './accountErrors';
+import { classifyAuthError } from '../../shared/api/errors';
 import {
   ADMIN_ONLY, EXPIRY_PRESETS, PERMISSION_GROUPS, PRESETS, describeDescription, expiryFor, needsEngines,
   type ExpiryId,

@@ -1,8 +1,6 @@
 import { diagnosticsOf, type Diagnostic } from '../../api/problem';
-import { classifyAuthError, generalFailure, marker, type AuthFailure } from '../../features/workspace/errors';
-
-export { classifyAuthError, marker };
-export type { AuthFailure };
+import { generalFailure } from '../../features/workspace/errors';
+import { classifyAuthError, marker, type AuthFailure } from '../../shared/api/errors';
 
 export interface Refusal {
   kind: 'address' | 'invalid' | 'forbidden' | 'gone' | 'sealed' | 'quota' | 'size' | 'other';

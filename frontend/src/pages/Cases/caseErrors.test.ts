@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HttpError } from '../../api/client';
-import { classifyAuthError, deleteRefusal, isMissing, sourceFailureKind, updateRefusal, uploadRefusal } from './caseErrors';
+import { deleteRefusal, isMissing, sourceFailureKind, updateRefusal, uploadRefusal } from './caseErrors';
+import { classifyAuthError } from '../../shared/api/errors';
 
 const http = (status: number, code?: string) => Object.assign(new HttpError(status, 'refused'), code ? { code } : {});
 

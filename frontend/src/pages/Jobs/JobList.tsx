@@ -16,7 +16,7 @@ import { launchPath, runPath } from '../../routes/paths/runs';
 import { runLabel } from '../../shared/lib/identity';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { classifyAuthError, marker } from '../Account/accountErrors';
+import { classifyAuthError, marker } from '../../shared/api/errors';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { problemAccess } from '../Cases/useRouteProblem';
 import { useRouteOrganization } from '../Organization/useRouteOrganization';

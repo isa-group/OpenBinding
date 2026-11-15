@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  TILE_COLOURS, ancestorsOf, atLeast, buildForest, canGrantOwner, descendantsOf, flatten, initialsOf, pathOf, roleSource, slugFromName, tileColour,
+  TILE_COLOURS, ancestorsOf, atLeast, buildForest, canGrantOwner, descendantsOf, flatten, initialsOf, pathOf, roleSource, tileColour,
 } from './orgModel';
 import { auditFixture } from './auditFixture';
 import { changesOf, describeEvent, kindOf, toCsv } from './auditModel';
-import { org } from './testKit';
+import { slugFromName } from '../../features/workspace/model';
+import { org } from '../../features/workspace/testKit';
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const lab = org('qos-lab', { name: 'QoS Lab (sub-organización)', parent_id: group.id, effective_role: 'OWNER' });

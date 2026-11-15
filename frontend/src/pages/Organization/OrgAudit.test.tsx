@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import type { OrganizationAuditEvent } from '../../api/platform';
 import { auditFixture } from './auditFixture';
-import { member, org, renderScreen } from './testKit';
+import { org } from '../../features/workspace/testKit';
+import { member, renderScreen } from './testKit';
 import { OrgAudit } from './OrgAudit';
 
 const platform = vi.hoisted(() => ({ organizationAudit: vi.fn(), members: vi.fn() }));

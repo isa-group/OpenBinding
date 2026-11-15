@@ -1,4 +1,4 @@
-import type { Neighborhood } from '../analysis/neighborhood';
+import type { NeighborhoodResponse } from '../shared/api/types';
 import { apiClient, type BimResourceRef } from './client';
 import type { Job, JobCompilationRef, JobOrganizationRef, JobProblemRef, JobRevisionRef } from './platform';
 
@@ -130,10 +130,10 @@ export const runsApi = {
   /** The server-sent events of one run (state snapshots), as a path for an `EventSource`. */
   events: (org: string, run: string) => `${runPath(org, run)}/events`,
   /** The bounded single-task swaps of one solution, checked without running the engine again. */
-  neighborhood: async (org: string, run: string, solutionIndex: number, task: string, limit: number, signal?: AbortSignal): Promise<Neighborhood> => {
+  neighborhood: async (org: string, run: string, solutionIndex: number, task: string, limit: number, signal?: AbortSignal): Promise<NeighborhoodResponse> => {
     const params = new URLSearchParams({ solution_index: String(solutionIndex), limit: String(limit) });
     if (task) params.set('task', task);
-    const result = await apiClient.request<Neighborhood & { detail?: string; title?: string }>(`${runPath(org, run)}/neighborhood?${params}`, { signal });
+    const result = await apiClient.request<NeighborhoodResponse & { detail?: string; title?: string }>(`${runPath(org, run)}/neighborhood?${params}`, { signal });
     // A 422 throws; this guards a 200 whose body is not an evaluation.
     if (!result.coverage || !Array.isArray(result.moves)) throw new Error(typeof result.detail === 'string' ? result.detail : result.title || 'Neighborhood evaluation could not be completed');
     return result;

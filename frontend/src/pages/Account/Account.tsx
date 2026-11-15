@@ -10,7 +10,7 @@ import { formatDate } from '../../utils/format';
 import { personInitials } from '../../utils/initials';
 import { leaveTo } from '../../utils/navigation';
 import { useResource } from '../../utils/useResource';
-import { classifyAuthError } from './accountErrors';
+import { classifyAuthError } from '../../shared/api/errors';
 import { AccountLayout, PermissionNotice } from './AccountLayout';
 import { DeleteAccountDialog, EmailForm, PasswordForm } from './ProfileForms';
 

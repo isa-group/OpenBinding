@@ -31,6 +31,9 @@ function stylesheets(): Array<[string, string]> {
 describe('the interface is light and carries no prototype persona', () => {
   it('reads files', () => {
     expect(shipped.length).toBeGreaterThan(100);
+    // The glob is src/**, so the layer folders (shared, entities, widgets, features) are read as they appear.
+    expect(shipped.some(([path]) => path.startsWith('/src/shared/'))).toBe(true);
+    expect(shipped.some(([path]) => path.startsWith('/src/features/'))).toBe(true);
   });
 
   it('has no dark theme: no colour-scheme media query, no theme attribute, no dark colour scheme', () => {

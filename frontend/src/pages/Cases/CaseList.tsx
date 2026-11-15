@@ -13,7 +13,7 @@ import { RoleChip } from '../Organization/parts';
 import { useRouteOrganization } from '../Organization/useRouteOrganization';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import type { CaseContent } from '../../features/workspace/model';
-import { classifyAuthError, marker } from './caseErrors';
+import { classifyAuthError, marker } from '../../shared/api/errors';
 import { caseSortKey, newestFirst, plural } from './casesModel';
 import { useCreateDialog } from './createDialog';
 import { DeleteCaseDialog, UploadProblemDialog } from './dialogs';

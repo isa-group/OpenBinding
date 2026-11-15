@@ -11,7 +11,7 @@ import { formatBytes, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { formatFeature } from '../../utils/featureRange';
 import type { BindingModel, FeatureValue, TaskInfo } from './bindingModel';
-import { marker } from './caseErrors';
+import { marker } from '../../shared/api/errors';
 import { plural } from './casesModel';
 import { loadModel, modelKey, type ModelState } from './modelLoader';
 import { DigestLine, FlowDrawing, Power } from './parts';

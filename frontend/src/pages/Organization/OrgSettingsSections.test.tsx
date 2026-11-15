@@ -1,7 +1,8 @@
 import { screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { auditFixture } from './auditFixture';
-import { member, org, renderScreen } from './testKit';
+import { org } from '../../features/workspace/testKit';
+import { member, renderScreen } from './testKit';
 import { OrgSettings } from './OrgSettings';
 
 const api = vi.hoisted(() => ({ adminListUsers: vi.fn() }));

@@ -7,9 +7,20 @@ import type { Organization, Study, StudyRun } from '../../api/platform';
 import type { Problem, ProblemRevision } from '../../api/problems';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { AuthContext } from '../../contexts/auth';
-import { iker, lucia, org } from '../../pages/Organization/testKit';
 
-export { iker, lucia, org };
+/** Accounts and organizations, shared by the tests of the workspace and of the organization screens. */
+export const lucia: UserProfile = {
+  id: 'user-lucia', username: 'lucia.vega', email: 'lucia@example.test', role: 'user', is_active: true, plan: 'RESEARCH', created_at: '2026-03-01T00:00:00Z',
+};
+
+export const iker: UserProfile = { ...lucia, id: 'user-iker', username: 'iker.mora', email: 'iker@example.test', role: 'admin', plan: 'LAB' };
+
+export function org(slug: string, over: Partial<Organization> = {}): Organization {
+  return {
+    id: `org-${slug}`, slug, name: slug.toUpperCase(), parent_id: null, effective_role: 'OWNER', created_at: '2026-03-03T00:00:00Z',
+    ...over,
+  };
+}
 
 /** Shared by the tests of the organization's screens: the organization kit plus a router, and the problems, studies and runs. */
 export interface RenderOptions {

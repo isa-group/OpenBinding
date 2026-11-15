@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "gen:api": "node scripts/gen-api.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run --project app --project corpus",
@@ -49,6 +50,7 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "jsdom": "^30.0.1",
+    "openapi-typescript": "7.13.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4",

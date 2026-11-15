@@ -9,7 +9,7 @@ import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
-import { classifyAuthError } from '../Auth/authErrors';
+import { classifyAuthError } from '../../shared/api/errors';
 import './AcceptInvitation.css';
 
 /** The gateway rejects shorter tokens before looking anything up. */
