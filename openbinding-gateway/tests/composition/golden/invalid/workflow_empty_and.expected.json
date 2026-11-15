@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_workflow_malformed", "severity": "error", "path": "workflow.seq[1].and", "pointer": "/workflow/seq/1/and", "span": [6, 25, 6, 32]}
+]

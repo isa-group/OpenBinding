@@ -1,0 +1,10 @@
+# Composition2Yaml has no anchors or aliases.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: {seq: [pick, ship]}
+binding:
+  pick: &chosen {candidate: c_pick}
+  ship: *chosen
+values: {}

@@ -1,0 +1,10 @@
+# A block has at least one step.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: {seq: [pick, {and: []}, ship]}
+binding:
+  pick: {candidate: c_pick}
+  ship: {candidate: c_ship}
+values: {cost: {value: 4.5, unit: EUR/month}}

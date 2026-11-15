@@ -1,0 +1,22 @@
+syntaxVersion: '1.0'
+composition: shop
+version: 2.0.0-rc.1
+kind: pipeline
+workflow:
+  seq:
+  - pick
+  - loop: pack
+    count: 3
+  - ship
+binding:
+  pick:
+    candidate: c_pick
+  pack:
+    candidate: c_pack
+  ship:
+    candidate: c_ship
+values:
+  cost: 4.5
+  latency:
+    value: 12
+    unit: ms

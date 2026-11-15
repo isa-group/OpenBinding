@@ -157,6 +157,26 @@ def normalise(node: Node) -> Node:
     return _normal(node, ()).node
 
 
+def normal_form(node: Node, paths: Mapping[Location, Path]) -> tuple[Node, dict[Location, Path]]:
+    """``normalise(node)``, and the source path of each of its nodes.
+
+    ``paths`` gives the source path of each location of the written tree; the result gives
+    it for each location of the normal form, so a node keeps pointing at the text it was
+    read from after the sequences around it were spliced. The normal form is its own normal
+    form, location for location, so the result is what :func:`first_mismatch` takes.
+    """
+    located = _normal(node, ())
+    found: dict[Location, Path] = {}
+    pending: list[tuple[_Located, Location]] = [(located, ())]
+    while pending:
+        item, location = pending.pop()
+        path = paths.get(item.location)
+        if path is not None:
+            found[location] = path
+        pending.extend((child, (*location, position)) for position, child in enumerate(item.children))
+    return located.node, found
+
+
 @dataclass(frozen=True, slots=True)
 class _Located:
     """A normalised node, the location of the written node it stands for, and its children's."""

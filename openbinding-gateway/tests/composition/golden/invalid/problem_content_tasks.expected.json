@@ -1,0 +1,4 @@
+[
+  {"code": "c2y_problem_content", "severity": "error", "path": "tasks", "pointer": "/tasks", "span": [11, 1, 13, 1]},
+  {"code": "c2y_problem_content", "severity": "error", "path": "properties", "pointer": "/properties", "span": [13, 1, 15, 1]}
+]

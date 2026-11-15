@@ -1,0 +1,41 @@
+syntaxVersion: '1.0'
+composition: tomatometer
+version: 1.3.0
+kind: application
+problem:
+  ref: isa/problems/tomatometer-email@3
+  compilation: sha256-6b1c0d6f1e9e4a8f0d2c3b4a5968778695a4b3c2d1e0f9e8d7c6b5a493827160
+workflow:
+  seq:
+  - login
+  - and:
+    - dailySummary
+    - export
+  - quotes
+binding:
+  login:
+    local: true
+  dailySummary:
+    candidate: email.brevo.business
+    from:
+      sphere: brevo/brevo
+      version: 665f1c2e9b1d4a0012ab34cd
+      plan: BUSINESS
+  export:
+    candidate: storage.dropbox.plus
+  quotes:
+    candidate: quotes.zenquotes.free
+values:
+  availability: 0.9985
+  cost:
+    value: 34.5
+    unit: EUR/month
+  latency:
+    value: 420
+    unit: ms
+offering:
+  sphere: isa/tomatometer
+evidence:
+  run: 3f2b8c1e-7d4a-4e9b-9c1f-2a6d8e5b7c90
+  evaluatedBy: gateway
+  toolchain: bim-core 0.2.0

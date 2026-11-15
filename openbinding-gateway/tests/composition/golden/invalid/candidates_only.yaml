@@ -1,0 +1,12 @@
+# Alternatives are the BIM problem's: a document names the one candidate chosen.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: {seq: [pick, ship]}
+binding:
+  pick: {candidate: c_pick}
+  ship: {candidate: c_ship}
+values: {cost: {value: 4.5, unit: EUR/month}}
+candidates:
+  pick: [c_pick, c_pick_cheap]

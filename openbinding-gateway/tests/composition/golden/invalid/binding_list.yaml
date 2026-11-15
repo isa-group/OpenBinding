@@ -1,0 +1,8 @@
+# The binding maps each task to its entry.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: {seq: [pick, ship]}
+binding: [pick, ship]
+values: {cost: {value: 4.5, unit: EUR/month}}

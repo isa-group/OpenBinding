@@ -1,0 +1,19 @@
+# Nested sequences are flattened on read, as the compiler flattens them; each step keeps
+# the path it was written at.
+syntaxVersion: "1.0"
+composition: nested
+version: 1.0.0
+kind: workflow
+workflow:
+  seq:
+    - a
+    - seq:
+        - b
+        - seq: [c]
+    - d
+binding:
+  a: {candidate: ca}
+  b: {candidate: cb}
+  c: {candidate: cc}
+  d: {candidate: cd}
+values: {}

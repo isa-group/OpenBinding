@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_syntax_version_type", "severity": "error", "path": "syntaxVersion", "pointer": "/syntaxVersion", "span": [2, 1, 2, 19]}
+]

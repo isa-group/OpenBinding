@@ -27,6 +27,36 @@ SYNTAX = "c2y_syntax"
 SCHEMA = "c2y_schema"
 #: More problems were found than a refusal lists; the first ones are listed.
 MORE = "c2y_more"
+#: The source, or the canonical text written from a document, is longer than a document may be.
+TOO_LONG = "c2y_too_long"
+#: A value of the wrong JSON type: a list where a mapping goes, a number where text goes.
+TYPE = "c2y_type"
+#: A key the language does not have.
+UNKNOWN_KEY = "c2y_unknown_key"
+#: A required key is absent; the diagnostic's path is the key's.
+MISSING_KEY = "c2y_missing_key"
+#: ``syntaxVersion`` is not a quoted ``<major>.<minor>`` string.
+SYNTAX_VERSION_TYPE = "c2y_syntax_version_type"
+#: ``syntaxVersion`` names a version this reader does not support.
+SYNTAX_VERSION_UNSUPPORTED = "c2y_syntax_version_unsupported"
+#: ``composition`` is not a slug.
+SLUG_INVALID = "c2y_slug_invalid"
+#: ``version`` is not a Semantic Versioning label.
+VERSION_NOT_SEMVER = "c2y_version_not_semver"
+#: ``kind`` is not one of the four kinds.
+KIND_UNKNOWN = "c2y_kind_unknown"
+#: Content that belongs in the BIM problem: candidates, constraints, objectives, tasks...
+PROBLEM_CONTENT = "c2y_problem_content"
+#: ``problem.ref`` or ``problem.compilation`` is malformed.
+PROBLEM_REF = "c2y_problem_ref"
+#: A workflow node that is not a task, ``null`` or one well-formed block.
+WORKFLOW_MALFORMED = "c2y_workflow_malformed"
+#: A task id that is not one the container accepts.
+TASK_ID_INVALID = "c2y_task_id_invalid"
+#: A property id that is not one the container accepts.
+PROPERTY_ID_INVALID = "c2y_property_id_invalid"
+#: A binding's candidate that is neither an id nor ``<resource>/<id>``.
+CANDIDATE_REF_INVALID = "c2y_candidate_ref_invalid"
 
 Severity = Literal["error", "warning", "info"]
 
@@ -69,7 +99,7 @@ def listed(
         if counted
         else "more problems were found and are not listed: fix these first"
     )
-    return tuple(found[:MAX_LISTED]) + (Diagnostic(code=MORE, message=message, path=""),)
+    return tuple(found[:MAX_LISTED]) + (Diagnostic(code=MORE, message=message, path="", severity="info", pointer=""),)
 
 
 class Path(tuple):
