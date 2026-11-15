@@ -49,6 +49,14 @@ describe('boundaries rule on the new layers', () => {
     expect(errors).toBeGreaterThan(0);
   });
 
+  it('fails when a renderer mode imports the derive dialog: the page mounts it and the mode takes a callback', async () => {
+    const { errors } = await errorsOf(
+      'src/widgets/composition-renderer/modes/probe.tsx',
+      "import { DeriveCompositionDialog } from '../../../features/derive/DeriveCompositionDialog';\nexport const used = DeriveCompositionDialog;\n",
+    );
+    expect(errors).toBeGreaterThan(0);
+  });
+
   it('fails when a feature imports a page', async () => {
     const { errors } = await errorsOf('src/features/probe/probe.ts', "import { About } from '../../pages/About/About';\nexport const used = About;\n");
     expect(errors).toBeGreaterThan(0);

@@ -22,7 +22,8 @@ import { formatNumber } from '../../utils/format';
 import { ProblemsPanel } from '../../widgets/problems-panel/ProblemsPanel';
 import { ValueBadge } from '../../widgets/value-badge/ValueBadge';
 import {
-  FIRST_LABEL, LABEL_PATTERN, criteriaOf, nextMinor, pointsOf, previewValues, runDerivation, type Point, type RunSource,
+  FIRST_LABEL, LABEL_PATTERN, bindingDerivation, criteriaOf, isRunSource, nextMinor, pointsOf, previewValues, runDerivation,
+  type BindingSource, type DeriveSource, type Point,
 } from './deriveModel';
 import './DeriveCompositionDialog.css';
 
@@ -47,17 +48,19 @@ type Compositions = { status: 'loading' } | { status: 'ready'; list: Composition
 const isSealed = (result: DeriveResult | DeriveDraft): result is DeriveResult => 'version' in result;
 
 /** What a refusal of a derivation says, for the cases the dialog does not answer at a field. */
-function refusalOf(caught: unknown, what: 'create' | 'derive'): Refusal {
+function refusalOf(caught: unknown, what: 'create' | 'derive', from: 'run' | 'binding'): Refusal {
   const error = readApiError(caught);
   const code = error.status ? ` (${error.status}${error.code !== 'unknown' ? ` · ${error.code}` : ''})` : '';
   if (error.status === 403) {
     return { message: `Deriving a composition needs MEMBER in this organization${code}.`, findings: [] };
   }
   if (error.status === 404) {
-    return { message: `The run or the composition is not there any more, or you can’t read it${code}.`, findings: [] };
+    const source = from === 'run' ? 'The run' : 'The problem version';
+    return { message: `${source} or the composition is not there any more, or you can’t read it${code}.`, findings: [] };
   }
   if (error.status === 422 && error.code === 'derivation_invalid') {
-    return { message: `This solution can’t be written as a composition${code}. The gateway found:`, findings: error.diagnostics };
+    const subject = from === 'run' ? 'This solution' : 'This binding';
+    return { message: `${subject} can’t be written as a composition${code}. The gateway found:`, findings: error.diagnostics };
   }
   if (error.status === 429) {
     const wait = error.retryAfter ? ` Try again in ${error.retryAfter} s.` : ' Try again in a moment.';
@@ -128,29 +131,60 @@ function RefusalNotice({ refusal }: { refusal: Refusal }) {
   );
 }
 
+/** The binding a derivation writes, task by task, as the calculator or the configurator chose it. */
+function BindingTable({ source }: { source: BindingSource }) {
+  const tasks = Object.entries(source.binding);
+  return (
+    <DataTable label="Binding to derive" minWidth={0} caption={<>On problem version <code>{source.revision}</code>. Local tasks stay local.</>}>
+      <thead>
+        <tr>
+          <th scope="col">Task</th>
+          <th scope="col">Candidate</th>
+        </tr>
+      </thead>
+      <tbody>
+        {tasks.map(([task, candidate]) => (
+          <tr key={task}>
+            <th scope="row"><code>{task}</code></th>
+            <td><code>{candidate}</code></td>
+          </tr>
+        ))}
+      </tbody>
+    </DataTable>
+  );
+}
+
 export interface DeriveCompositionDialogProps {
-  /** The organization of the run; the composition is one of its own. */
+  /** The organization of the run or of the problem version; the composition is one of its own. */
   org: string;
-  /** The run and its solutions. */
-  source: RunSource;
+  /**
+   * What is derived: a run and its solutions, or a binding of a problem version (with the composition it goes to by default,
+   * which then opens on the label step).
+   */
+  source: DeriveSource;
   onClose: () => void;
 }
 
 /**
- * Derive a composition from a run (§4 derive): where the version goes (a composition of the organization, or a new one, created
- * when the preview is asked for), which solution and under which label, then the document the gateway writes, previewed before it
- * is sealed. A preview and a seal send the same request but `seal`, so the sealed bytes are the previewed ones (F1 D15). The
- * preview can also open in the Editor as a draft.
+ * Derive a composition from a run or from a binding of a problem version (§4 derive): where the version goes (a composition of the
+ * organization, or a new one, created when the preview is asked for), which solution (of a run) and under which label, then the
+ * document the gateway writes, previewed before it is sealed. A preview and a seal send the same request but `seal`, so the sealed
+ * bytes are the previewed ones (F1 D15). The preview can also open in the Editor as a draft. A binding derived into a given
+ * composition starts at the label step, with the next minor of that composition's latest label.
  */
 export function DeriveCompositionDialog({ org, source, onClose }: DeriveCompositionDialogProps) {
   const navigate = useNavigate();
   const ids = useId();
-  const points = pointsOf(source.solutions);
+  const run = isRunSource(source) ? source : null;
+  const bound = isRunSource(source) ? null : source;
+  const from = run ? 'run' : 'binding';
+  const into = bound?.composition ?? null;
+  const points = run ? pointsOf(run.solutions) : [];
 
-  const [step, setStep] = useState<Step>('where');
+  const [step, setStep] = useState<Step>(into ? 'what' : 'where');
   const [compositions, setCompositions] = useState<Compositions>({ status: 'loading' });
-  const [mode, setMode] = useState<'new' | 'existing'>('new');
-  const [chosen, setChosen] = useState('');
+  const [mode, setMode] = useState<'new' | 'existing'>(into ? 'existing' : 'new');
+  const [chosen, setChosen] = useState(into?.slug ?? '');
   const [name, setName] = useState('');
   const [address, setAddress] = useState<string | null>(null);
   const [kind, setKind] = useState<Kind>('application');
@@ -184,7 +218,9 @@ export function DeriveCompositionDialog({ org, source, onClose }: DeriveComposit
     return () => { active = false; };
   }, [org]);
 
-  const list = compositions.status === 'ready' ? compositions.list : [];
+  const listed = compositions.status === 'ready' ? compositions.list : [];
+  // The composition the binding is derived into is a choice even before (or without) the organization's list.
+  const list = into && !listed.some((item) => item.slug === into.slug) ? [into, ...listed] : listed;
   const target = mode === 'existing' ? list.find((item) => item.slug === chosen) ?? null : null;
   const slug = mode === 'existing' ? chosen : address ?? slugFromName(name);
   const targetKey = `${mode}:${slug}`;
@@ -230,7 +266,7 @@ export function DeriveCompositionDialog({ org, source, onClose }: DeriveComposit
         setSlugTaken(true);
         setStep('where');
       } else {
-        setRefusal(refusalOf(caught, 'create'));
+        setRefusal(refusalOf(caught, 'create', from));
       }
       return null;
     }
@@ -252,14 +288,14 @@ export function DeriveCompositionDialog({ org, source, onClose }: DeriveComposit
       setBusy(null);
       return;
     }
-    const request = runDerivation(source, point, version, false);
+    const request = run ? runDerivation(run, point, version, false) : bindingDerivation(bound as BindingSource, version, false);
     try {
       const answer = await compositionsApi.derive(org, into, request);
       if (isSealed(answer.result)) throw new Error('The gateway sealed a preview.');
       setPreview({ request, slug: into, draft: answer.result });
       setStep('preview');
     } catch (caught) {
-      setRefusal(refusalOf(caught, 'derive'));
+      setRefusal(refusalOf(caught, 'derive', from));
     } finally {
       setBusy(null);
     }
@@ -285,7 +321,7 @@ export function DeriveCompositionDialog({ org, source, onClose }: DeriveComposit
         setStep('what');
         return;
       }
-      setRefusal(refusalOf(caught, 'derive'));
+      setRefusal(refusalOf(caught, 'derive', from));
     }
   };
 
@@ -387,7 +423,7 @@ export function DeriveCompositionDialog({ org, source, onClose }: DeriveComposit
             <p className="dc-muted">
               {`Into ${mode === 'existing' ? (target?.name ?? chosen) : name.trim()} (${slug}).`}
             </p>
-            {points.length > 1 ? (
+            {bound ? <BindingTable source={bound} /> : points.length > 1 ? (
               <>
                 <p className="dc-muted">The run found {points.length} solutions. Their objectives are as the run’s result gives them.</p>
                 <PointTable points={points} chosen={point} onChoose={setPoint} />
@@ -415,7 +451,7 @@ export function DeriveCompositionDialog({ org, source, onClose }: DeriveComposit
         {step === 'preview' && preview && (
           <div className="dc-form">
             <p className="dc-muted">
-              {`${points.find((item) => item.point === preview.request.point)?.label ?? 'The solution'} as version ${preview.request.version} of ${preview.slug}. Nothing is stored until you seal it.`}
+              {`${bound ? 'The binding' : points.find((item) => item.point === preview.request.point)?.label ?? 'The solution'} as version ${preview.request.version} of ${preview.slug}. Nothing is stored until you seal it.`}
             </p>
             <SourceView source={preview.draft.content} label="Derived composition.yaml" language="yaml" maxHeight="16rem" />
             <section className="dc-values" aria-labelledby={`${ids}-values`}>

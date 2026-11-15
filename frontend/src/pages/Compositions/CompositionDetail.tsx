@@ -1,5 +1,5 @@
 // Design follows SPHERE frontend/src/modules/pricing/pages/card/index.tsx (revision 73779a8a); no code copied
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { CheckCircle2 } from 'lucide-react';
 import type { Organization } from '../../api/platform';
@@ -26,6 +26,7 @@ import { ReadOnlyNote } from '../Cases/parts';
 import { CompositionMissing } from './CompositionMissing';
 import { CompositionFrame } from './parts';
 import { factsSource } from './factsSource';
+import { AnalysisTab } from './tabs/AnalysisTab';
 import { EditorTab, type EditorEntry } from './tabs/EditorTab';
 import { OverviewTab, type CandidatesState } from './tabs/OverviewTab';
 import { VersionsTab } from './tabs/VersionsTab';
@@ -34,11 +35,12 @@ import { useRouteComposition, type CompositionAccess, type RouteCompositionConte
 
 type TabId = 'overview' | CompositionTabSegment;
 
-/** The tabs built so far; Analysis and Settings join with their blocks. */
+/** The tabs built so far; Settings joins with its block. Analysis shows only for a version whose linked problem the reader can read. */
 const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: 'overview', label: 'Overview' },
   { id: 'editor', label: 'Editor' },
   { id: 'versions', label: 'Versions' },
+  { id: 'analysis', label: 'Analysis' },
 ];
 
 interface ShownVersion {
@@ -122,6 +124,13 @@ function CompositionBody({ organization, organizations, access, content, tab, re
   };
   const versionFailure = shown.status === 'error' ? classifyAuthError(shown.error) : null;
   const mine = (slug: string) => organizations.some((item) => item.slug === slug);
+  // The version the gateway said links no problem after all (422 composition_not_linked): its Analysis tab goes.
+  const [unlinked, setUnlinked] = useState<string | null>(null);
+  const analysable = version !== null && model.modes.includes('calculator') && unlinked !== version.id;
+  const analysisModel = analysable ? model : { ...model, modes: model.modes.filter((mode) => mode !== 'calculator' && mode !== 'configurator') };
+  // A direct address to Analysis keeps its tab, which then explains why there is nothing to explore.
+  const tabs = TABS.filter((item) => item.id !== 'analysis' || analysable || active === 'analysis');
+  const reading = (active === 'overview' || active === 'analysis') && picked !== null && shown.status === 'loading';
 
   return (
     <CompositionFrame organization={organization} trail={[{ label: 'Compositions', to: compositionsPath(org) }, { label: composition.name }]}>
@@ -168,12 +177,12 @@ function CompositionBody({ organization, organizations, access, content, tab, re
       )}
       {!canCreate && <ReadOnlyNote role={role}>You can read this composition and its versions. Sealing versions needs MEMBER.</ReadOnlyNote>}
 
-      <TabBar items={TABS} value={active} onChange={(id) => open(id as TabId)} ariaLabel="Composition sections" prefix="cp-tab" />
+      <TabBar items={tabs} value={active} onChange={(id) => open(id as TabId)} ariaLabel="Composition sections" prefix="cp-tab" />
       <TabPanel prefix="cp-tab" active={active}>
-        {active === 'overview' && picked && shown.status === 'loading' && (
+        {reading && (
           <div role="status" aria-busy="true" className="cmp-panel-loading"><span className="sr-only">Loading the version…</span><Skeleton variant="panel" /><Skeleton variant="card" /></div>
         )}
-        {active === 'overview' && versionFailure && (
+        {(active === 'overview' || active === 'analysis') && versionFailure && (
           <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={() => { shown.reload(); reload(); }}>Retry</Action>}>
             {`Version ${picked?.label ?? ''} couldn’t be loaded${marker(versionFailure)}.`}
           </Notice>
@@ -181,6 +190,16 @@ function CompositionBody({ organization, organizations, access, content, tab, re
         {active === 'overview' && (!picked || shown.status === 'ready') && <OverviewTab org={org} model={model} version={version} candidates={candidates} />}
         {active === 'editor' && (
           <EditorTab org={org} composition={composition} version={picked ?? null} canSeal={canCreate} onSealed={reload} />
+        )}
+        {active === 'analysis' && (!picked || shown.status === 'ready') && (
+          <AnalysisTab
+            org={org}
+            composition={composition}
+            model={analysisModel}
+            canDerive={canCreate}
+            candidates={candidates}
+            onNotLinked={() => setUnlinked(version?.id ?? null)}
+          />
         )}
         {active === 'versions' && (
           <VersionsTab org={org} composition={composition} versions={versions} shown={picked?.id ?? null} canCreate={canCreate} onChanged={() => { shown.reload(); reload(); }} />

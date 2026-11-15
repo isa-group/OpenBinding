@@ -74,6 +74,11 @@ export interface CompositionViewModel {
     problemRef: string | null;
     /** The reader may open the linked problem (a member, and the gateway named it). */
     problemReadable: boolean;
+    /**
+     * The linked problem version as a derivation names one (`<problem>@<revision>`, by slug and number); null unless the reader
+     * may read it.
+     */
+    problemRevision: string | null;
   };
   workflow: WorkflowGraph;
   tasks: TaskModel[];
@@ -196,6 +201,7 @@ export function compositionViewModel(input: CompositionViewModelInput): Composit
       compilationDrift: evaluatedOn !== null && linkedTo !== null && evaluatedOn !== linkedTo,
       problemRef: document?.problem?.ref ?? (link ? `${link.problem.slug}@${link.revision.revision}` : null),
       problemReadable,
+      problemRevision: problemReadable && link ? `${link.problem.slug}@${link.revision.revision}` : null,
     },
     workflow: graph,
     tasks: tasksOf(graph, document, selection, facts),

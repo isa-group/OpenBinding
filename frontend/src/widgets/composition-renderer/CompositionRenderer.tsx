@@ -1,7 +1,10 @@
 import type { CompositionViewModel } from '../../entities/composition/viewModel';
+import type { AnalysisActions } from './modes/analysis';
 import { ArchitectureMode } from './modes/architecture';
+import { CalculatorMode } from './modes/calculator';
 import { CatalogMode } from './modes/catalog';
 import { Comparison, type ComparisonData } from './modes/comparison/Comparison';
+import { ConfiguratorMode } from './modes/configurator';
 import { WorkflowMode } from './modes/workflow';
 import { sectionsOf, type Density, type RendererMode, type Section } from './presets';
 import './CompositionRenderer.css';
@@ -26,6 +29,8 @@ interface CompositionRendererProps extends RendererLinks {
   onlyDifferences?: boolean;
   /** The pair the comparison mode compares and what the gateway answered for it; `model` is then the later version's. */
   comparison?: ComparisonData;
+  /** The page's answers to the calculator and the configurator (try, derive, open as a draft), and where the configurator starts. */
+  analysis?: AnalysisActions;
 }
 
 /**
@@ -33,7 +38,7 @@ interface CompositionRendererProps extends RendererLinks {
  * the screen chooses the rest by props: nothing about the presentation is read from or written to the document.
  */
 export function CompositionRenderer({
-  model, mode, hideSections = [], density = 'comfortable', onlyDifferences = true, comparison, problemHref = null, runHref = null,
+  model, mode, hideSections = [], density = 'comfortable', onlyDifferences = true, comparison, analysis, problemHref = null, runHref = null,
 }: CompositionRendererProps) {
   const sections = sectionsOf(mode, hideSections);
   return (
@@ -42,6 +47,8 @@ export function CompositionRenderer({
       {mode === 'architecture' && <ArchitectureMode model={model} sections={sections} />}
       {mode === 'workflow' && <WorkflowMode model={model} sections={sections} />}
       {mode === 'comparison' && comparison && <Comparison {...comparison} model={model} sections={sections} onlyDifferences={onlyDifferences} />}
+      {mode === 'calculator' && <CalculatorMode model={model} sections={sections} actions={analysis} />}
+      {mode === 'configurator' && <ConfiguratorMode model={model} sections={sections} actions={analysis} />}
     </div>
   );
 }

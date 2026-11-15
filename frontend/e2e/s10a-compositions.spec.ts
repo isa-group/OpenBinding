@@ -3,9 +3,9 @@ import { installMockApi } from './helpers/mockApi';
 
 // S10a · the compositions of an organization: composition-list (/app/:org/compositions) and the composition page composition-detail
 // with its Overview (the catalog of the version shown, its architecture and its workflow), its Editor (Composition2Yaml code with
-// the gateway's lint, and the seal) and its Versions (the table, and the comparison of two versions by entry and by line). The smoke
-// grows with the blocks that build the composition screens: list, create, overview, editor and versions here; analysis and settings
-// later.
+// the gateway's lint, and the seal), its Versions (the table, and the comparison of two versions by entry and by line) and its
+// Analysis (one change at a time, and a binding chosen per task, evaluated and derived). The smoke grows with the blocks that build
+// the composition screens: list, create, overview, editor, versions and analysis here; settings later.
 // There is no backend: e2e/helpers/mockApi.ts answers the API origin, with the compositions of e2e/helpers/mockCompositions.ts.
 
 // Several browsers share one development server, so a screen can take longer than the default five seconds to settle.
@@ -245,6 +245,57 @@ test.describe('S10a · compositions', () => {
     await expect(plans.getByRole('link')).toHaveCount(0);
     await expect(region(page, 'Workflow').getByRole('group', { name: 'Choice, 2 branches, probabilities 0.7, 0.3' })).toBeVisible();
     await expect(region(page, 'Problem candidates')).toHaveCount(0);
+    expect(mock.unmocked).toEqual([]);
+  });
+
+  test('the Analysis tab tries a move in the configurator, evaluates the binding and derives it as a new version', async ({ page }) => {
+    const mock = await installMockApi(page, 'admin');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${LIST}/fleet-routing`);
+
+    await main(page).getByRole('tab', { name: 'Analysis' }).click();
+    await expect(page).toHaveURL(`${LIST}/fleet-routing/analysis`);
+    const moves = region(page, 'One change at a time');
+    const t1 = moves.getByRole('row', { name: /^T1 / });
+    await expect(t1).toContainText('cand_t1_aws');
+    await expect(t1).toContainText('cand_t1_google_cloud');
+    await expect(t1).toContainText('Better');
+    await expect(moves.getByRole('row', { name: /^T2 / })).toContainText('Trade-off');
+    await moves.getByRole('combobox', { name: 'Comparison' }).selectOption('trade-off');
+    await expect(moves.getByRole('row', { name: /^T1 / })).toHaveCount(0);
+    await moves.getByRole('combobox', { name: 'Comparison' }).selectOption('');
+
+    // Change a candidate: the move is tried in the configurator, which has the toolchain evaluate it.
+    await t1.getByRole('button', { name: 'Try in configurator' }).click();
+    await expect(main(page).getByRole('radio', { name: 'cand_t1_google_cloud for T1' })).toBeChecked();
+    const result = region(page, 'This binding');
+    await expect(result).toContainText('Valid: the toolchain reports no broken hard rule.');
+    const cost = result.getByRole('row', { name: /^cost/ });
+    await expect(cost).toContainText('2,980 USD/month');
+    await expect(cost).toContainText('3,080 USD/month');
+
+    // Derive it as the next version of this composition.
+    await result.getByRole('button', { name: 'Derive as a new version' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Derive a composition' });
+    await expect(dialog.getByRole('region', { name: 'Binding to derive' })).toContainText('cand_t1_google_cloud');
+    await expect(dialog.getByLabel('Version label')).toHaveValue('1.3.0');
+    await dialog.getByRole('button', { name: 'Preview' }).click();
+    await expect(dialog.getByRole('region', { name: 'Derived composition.yaml' })).toContainText('cand_t1_google_cloud');
+    await dialog.getByRole('button', { name: 'Seal 1.3.0' }).click();
+    await expect(page).toHaveURL(`${LIST}/fleet-routing/versions?version=1.3.0`);
+    await expect(main(page).getByText('Version 1.3.0 sealed.')).toBeVisible();
+    await expect(main(page).getByRole('list', { name: 'Lineage' })).toContainText('Derived from a binding of problem version 2.');
+    expect(mock.unmocked).toEqual([]);
+  });
+
+  test('a declared composition has no Analysis tab, and its address says why', async ({ page }) => {
+    const mock = await installMockApi(page, 'admin');
+    await page.goto(`${LIST}/order-desk`);
+    await expect(main(page).getByRole('tab', { name: 'Versions' })).toBeVisible();
+    await expect(main(page).getByRole('tab', { name: 'Analysis' })).toHaveCount(0);
+
+    await page.goto(`${LIST}/order-desk/analysis`);
+    await expect(main(page).getByText('Values are declared: the calculator and configurator need a linked problem you can read.')).toBeVisible();
     expect(mock.unmocked).toEqual([]);
   });
 

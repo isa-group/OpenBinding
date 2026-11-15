@@ -6,6 +6,7 @@ import { SourceView } from '../../components/rendering/SourceView';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
+import { comparisonText } from '../../entities/binding/comparison';
 import { DeriveCompositionDialog } from '../../features/derive/DeriveCompositionDialog';
 import { problemPath, workbenchPath } from '../../routes/paths/problems';
 import { classifyAuthError, marker } from '../../shared/api/errors';
@@ -68,14 +69,6 @@ function moveLine(move: Record<string, unknown>): string {
     .join(' · ');
 }
 
-const COMPARISON: Record<string, { label: string; tone: 'success' | 'warning' | 'plain' }> = {
-  better: { label: 'Better', tone: 'success' },
-  'repairs-feasibility': { label: 'Repairs a broken rule', tone: 'success' },
-  worse: { label: 'Worse', tone: 'warning' },
-  equal: { label: 'Same quality', tone: 'plain' },
-  incomparable: { label: 'Trade-off', tone: 'plain' },
-};
-
 /** What if one task used another provider? The bounded, single-task swaps the gateway can check without running the engine again. */
 function NeighborhoodPanel({ org, jobId }: { org: string; jobId: string }) {
   const [result, setResult] = useState<NeighborhoodResponse | null>(null);
@@ -113,7 +106,7 @@ function NeighborhoodPanel({ org, jobId }: { org: string; jobId: string }) {
           {moves.length > 0 && (
             <ul className="job-swaps" aria-label="Single-task swaps">
               {moves.map((move, position) => {
-                const comparison = COMPARISON[typeof move.comparison === 'string' ? move.comparison : ''] ?? { label: 'Checked', tone: 'plain' as const };
+                const comparison = comparisonText(move.comparison);
                 return (
                   <li key={`${String(move.task)}-${position}`}>
                     <span className="job-swap-pair">

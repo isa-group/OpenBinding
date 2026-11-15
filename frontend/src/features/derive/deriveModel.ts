@@ -1,7 +1,8 @@
-import type { CompositionDerive, DeriveDraft } from '../../shared/api/types';
+import type { CompositionDerive, CompositionView, DeriveDraft } from '../../shared/api/types';
 
-// The rules of deriving a composition from a run, without screens: the label a new version gets, the solutions a person picks
-// from, and the requests. Every number shown is the run's own; nothing is ranked, summed or compared here.
+// The rules of deriving a composition from a run or from a binding of a problem version, without screens: the label a new version
+// gets, the solutions a person picks from, and the requests. Every number shown is the run's own; nothing is ranked, summed or
+// compared here.
 
 /** A Semantic Versioning label, as the gateway accepts one for a derived version (`CompositionDerive.version`). */
 export const LABEL_PATTERN = /^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
@@ -25,6 +26,21 @@ export interface RunSource {
   run: string;
   solutions: readonly unknown[];
 }
+
+/**
+ * What a derivation starts from: a binding of a problem version, each task's candidate as a document writes it (the calculator's
+ * and the configurator's), and the composition it is derived into by default.
+ */
+export interface BindingSource {
+  /** `<problem>@<revision>`. */
+  revision: string;
+  binding: Record<string, string>;
+  composition?: CompositionView;
+}
+
+export type DeriveSource = RunSource | BindingSource;
+
+export const isRunSource = (source: DeriveSource): source is RunSource => 'run' in source;
 
 /** One objective of a solution, as the run's result writes it. */
 export interface PointObjective {
@@ -76,6 +92,11 @@ export function criteriaOf(points: readonly Point[]): string[] {
 /** The request that derives `point` of the run as version `version`: only a preview (`seal: false`), or the version itself. */
 export function runDerivation(source: Pick<RunSource, 'run'>, point: number, version: string, seal: boolean): CompositionDerive {
   return { run: source.run, point, version, seal };
+}
+
+/** The request that derives the binding as version `version`: only a preview (`seal: false`), or the version itself. */
+export function bindingDerivation(source: Pick<BindingSource, 'revision' | 'binding'>, version: string, seal: boolean): CompositionDerive {
+  return { revision: source.revision, binding: { ...source.binding }, version, seal };
 }
 
 /** The values of a preview, in the order the gateway listed them. */

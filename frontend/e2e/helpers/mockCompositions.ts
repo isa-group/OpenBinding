@@ -12,6 +12,9 @@ import type { CompositionVersionView, CompositionView } from '../../src/shared/a
 // evaluated: a check or a seal recomputes its values from T1's candidate, as the gateway's F1 fixtures give them (core/fms.version.json
 // for one candidate, core/fms.diff.json for the other), and the diff of its two versions is that golden. Texts the mock writes are
 // block YAML, and it reads back the texts it wrote.
+// Deriving a binding (`revision` and `binding`, the Analysis tab) writes the FMS binding with those tasks bound otherwise, on the
+// problem version named. The Analysis tab's `neighborhood` lists one move per other candidate each task of the linked problem has
+// (core/fms.facts.json), and `evaluate` computes another binding's values from T1's candidate, as above.
 
 /** The organization that has compositions; every other one has none. */
 export const COMPOSITIONS_ORG = 'isa-demo';
@@ -123,6 +126,11 @@ const FMS_VALUES: Record<string, Values> = {
 };
 const DERIVED_REF = `${COMPOSITIONS_ORG}/problems/checkout-flow@1`;
 const DERIVED_REVISION = { id: 'rev-checkout-1', revision: 1 };
+
+/** The facts of the compilation the linked versions were evaluated on: what each task can take instead. */
+const FMS_FACTS = core('fms.facts.json') as { tasks: Array<{ id: string; kind: string; eligible: Array<{ candidate: string; written: string }> }> };
+/** The words the mock's toolchain gives the moves, in turn: one of each the gateway sends. */
+const COMPARISONS = ['better', 'trade-off', 'worse', 'infeasible', 'equal', 'repairs-feasibility'] as const;
 
 /** T1's candidate in a document's binding. */
 const t1Of = (document: Record<string, unknown>) => String((asFields(asFields(document.binding).T1)).candidate ?? '');
@@ -444,18 +452,26 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     current_evaluation: version.current_evaluation && { ...version.current_evaluation, outcome: 'verified' as const },
   });
 
-  /** `POST …/derive` from a run: the FMS binding of checkout-flow@1 as `version`, previewed (`seal: false`) or sealed. */
+  /**
+   * `POST …/derive`, previewed (`seal: false`) or sealed as `version`: from a run, the FMS binding of checkout-flow@1; from a binding
+   * (`revision`, `binding`), the FMS binding with the tasks it names bound otherwise, on that problem version.
+   */
   const derive = (entry: Entry, request: CompositionRequest): CompositionReply => {
-    const sent = request.body() as { run?: string; point?: number; version?: string; seal?: boolean };
+    const sent = request.body() as { run?: string; point?: number; revision?: string; binding?: Record<string, string>; version?: string; seal?: boolean };
     const label = String(sent.version ?? '');
-    const run = String(sent.run ?? '');
-    const point = sent.point ?? 0;
+    const run = sent.run ? String(sent.run) : null;
+    const point = run ? sent.point ?? 0 : null;
     const fms = FMS.document as Record<string, unknown>;
-    const values = evaluated(fms);
+    const rebound = Object.fromEntries(Object.entries(sent.binding ?? {}).map(([task, candidate]) => [task, { candidate }]));
+    const binding = { ...asFields(fms.binding), ...rebound };
+    const revision = run ? DERIVED_REVISION : { id: `rev-${String(sent.revision)}`, revision: Number(String(sent.revision).split('@')[1] ?? 1) };
+    const ref = run ? DERIVED_REF : `${COMPOSITIONS_ORG}/problems/${String(sent.revision)}`;
+    const values = evaluated({ binding });
     const document = {
       syntaxVersion: '1.0', composition: entry.view.slug, version: label, kind: entry.view.kind,
-      problem: { ref: DERIVED_REF, compilation: asFields(fms.problem).compilation }, workflow: fms.workflow, binding: fms.binding,
-      values: documentValues(values), evidence: { run, point, evaluatedBy: 'gateway', toolchain: 'bim-core 0.2.0' },
+      problem: { ref, compilation: asFields(fms.problem).compilation }, workflow: fms.workflow, binding,
+      values: documentValues(values),
+      evidence: run ? { run, point, evaluatedBy: 'gateway', toolchain: 'bim-core 0.2.0' } : { evaluatedBy: 'gateway', toolchain: 'bim-core 0.2.0' },
     };
     const text = write(document);
     entry.evaluated = true;
@@ -466,15 +482,93 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     }
     const base = structuredClone(FMS);
     const version = existing ?? store(entry, label, text, document, {
-      ...evaluatedFields(base, values), kind: entry.view.kind, created_by_id: AUTHOR, evidence_run: { id: run },
-      problem: base.problem && { ...base.problem, problem: { id: 'case-checkout-flow', slug: 'checkout-flow', name: 'Checkout flow' }, revision: DERIVED_REVISION },
-      derivation: { source: 'run', run: { id: run }, point, revision: DERIVED_REVISION },
+      ...evaluatedFields(base, values), kind: entry.view.kind, created_by_id: AUTHOR, evidence_run: run ? { id: run } : null,
+      problem: base.problem && { ...base.problem, problem: { id: 'case-checkout-flow', slug: 'checkout-flow', name: 'Checkout flow' }, revision },
+      derivation: run ? { source: 'run', run: { id: run }, point, revision } : { source: 'binding', run: null, point: null, revision },
     }, base);
     const derivation = {
-      id: uuid(0xe200 + version.ordinal), source: 'run', revision_id: DERIVED_REVISION.id, compilation_id: base.problem?.linked_compilation?.id,
+      id: uuid(0xe200 + version.ordinal), source: run ? 'run' : 'binding', revision_id: revision.id, compilation_id: base.problem?.linked_compilation?.id,
       binding: {}, binding_digest: digest('d'), provenance: {}, job_id: run, point, created_by_id: AUTHOR, created_at: version.created_at,
     };
     return ok({ version, evaluation: version.evaluations[0], derivation, diagnostics: [] }, existing ? 200 : 201);
+  };
+
+  /** The version a request names (`version`: an id, a label or an ordinal), the latest by default; null when there is none. */
+  const named = (entry: Entry, ref: unknown) => (ref === undefined || ref === null || ref === ''
+    ? entry.versions.at(-1) ?? null
+    : entry.versions.find((item) => item.id === ref || item.label === ref || String(item.ordinal) === String(ref)) ?? null);
+
+  /** What `evaluate` and `neighborhood` refuse before the toolchain has a say: no version, or a version that links no problem. */
+  const unanalysable = (entry: Entry, version: CompositionVersionView | null): CompositionReply | null => {
+    if (!version) {
+      return entry.versions.length === 0
+        ? { status: 409, json: { detail: { code: 'composition_empty', error: 'This composition has no version yet: seal one before evaluating it.' } } }
+        : { status: 404, json: { detail: { code: 'not_found', error: 'Composition version not found.' } } };
+    }
+    if (!version.problem) {
+      return { status: 422, json: { type: 'about:blank', title: 'Unprocessable Content', status: 422, code: 'composition_not_linked', detail: `Version ${version.label} links no problem.`, diagnostics: [] } };
+    }
+    return null;
+  };
+
+  /** `POST …/evaluate`: another binding of a linked version, its values computed from T1's candidate; nothing is stored. */
+  const evaluate = (entry: Entry, request: CompositionRequest): CompositionReply => {
+    const sent = request.body() as { version?: string; binding?: Record<string, string> };
+    const version = named(entry, sent.version);
+    const refusal = unanalysable(entry, version);
+    if (refusal || !version) return refusal ?? missing();
+    const document = asFields(version.document);
+    const tasks = new Set(FMS_FACTS.tasks.map((task) => task.id));
+    const unknown = Object.keys(sent.binding ?? {}).filter((task) => !tasks.has(task));
+    if (unknown.length) {
+      return {
+        status: 422,
+        json: {
+          type: 'about:blank', title: 'Unprocessable Content', status: 422, code: 'evaluation_invalid', detail: 'The binding names what the version does not have.',
+          diagnostics: unknown.map((task) => ({ code: 'c2y_binding_unknown_task', message: `the version's workflow has no task '${task}'`, severity: 'error', path: `binding.${task}`, pointer: `/binding/${task}`, span: null })),
+        },
+      };
+    }
+    const rebound = Object.fromEntries(Object.entries(sent.binding ?? {}).map(([task, candidate]) => [task, { candidate }]));
+    const values = Object.keys(rebound).length ? evaluated({ binding: { ...asFields(document.binding), ...rebound } }) : version.values;
+    return ok({ version: { id: version.id, label: version.label }, valid: true, values, violations: [], diagnostics: [] });
+  };
+
+  /** `GET …/neighborhood`: one move per other candidate of each service task, with the mock toolchain's words and deltas. */
+  const neighbourhood = (entry: Entry, request: CompositionRequest): CompositionReply => {
+    const version = named(entry, request.query.get('version'));
+    const refusal = unanalysable(entry, version);
+    if (refusal || !version) return refusal ?? missing();
+    const bound = asFields(asFields(version.document).binding);
+    const limit = Number(request.query.get('limit') ?? 64);
+    const task = request.query.get('task');
+    const tasks = FMS_FACTS.tasks.filter((item) => item.kind === 'service' && (!task || item.id === task));
+    const choices = tasks.flatMap((item) => item.eligible
+      .filter((eligible) => eligible.written !== String(asFields(bound[item.id]).candidate ?? ''))
+      .map((eligible) => ({ task: item.id, eligible, from: String(asFields(bound[item.id]).candidate ?? '') })));
+    const moves = choices.slice(0, limit).map(({ task: id, eligible, from }, index) => {
+      const comparison = COMPARISONS[index % COMPARISONS.length];
+      const [resource, ...rest] = eligible.candidate.split('/');
+      const step = (index + 1) * 10;
+      return {
+        task: id, candidate: eligible.written, from: { resource, id: from }, to: { resource, id: rest.join('/') }, decision: { kind: 'binding' }, objectives: {},
+        feasible: comparison !== 'infeasible', comparison,
+        componentDeltas: [{ feature: 'cost', value: comparison === 'better' ? -step : step, loss: 0 }, { feature: 'execution_time', value: comparison === 'trade-off' ? -step : step, loss: 0 }],
+        penaltyDelta: comparison === 'infeasible' ? 5 : 0,
+        violations: comparison === 'infeasible' ? [{ constraint: { resource: 'rules', id: 'eu-only' }, enforcement: 'hard', penalty: 5, message: 'Keep the data in the EU' }] : [],
+      };
+    });
+    const improving = moves.filter((move) => move.comparison === 'better' || move.comparison === 'repairs-feasibility').length;
+    return ok({
+      version: { id: version.id, label: version.label }, kind: 'canonical-one-task-counterfactuals', irDigest: digest('f'),
+      scope: task ? 'selected-service-task' : 'all-service-tasks', task, base: {}, moves, failures: [],
+      coverage: {
+        total: choices.length, attempted: moves.length, evaluated: moves.length, complete: moves.length === choices.length, limit,
+        stopReason: moves.length === choices.length ? null : 'evaluation-limit', perTask: Object.fromEntries(tasks.map((item) => [item.id, item.eligible.length - 1])),
+      },
+      conclusion: `Found ${improving} feasible canonical improvements or feasibility repairs. Every eligible one-task move in this scope was evaluated.`,
+      semantics: 'Re-evaluated with the current canonical evaluator.',
+    });
   };
 
   const seal = (entry: Entry, text: string): CompositionReply => {
@@ -541,6 +635,8 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
       if (!entry) return missing();
       if (!section) return ok(entry.view);
       if (section === 'derive' && request.method === 'POST') return derive(entry, request);
+      if (section === 'evaluate' && request.method === 'POST') return evaluate(entry, request);
+      if (section === 'neighborhood' && request.method === 'GET') return neighbourhood(entry, request);
       const find = (value: string | null) => entry.versions.find((item) => item.id === value || item.label === value || String(item.ordinal) === value);
       if (section === 'diff') {
         const to = request.query.get('to') ? find(request.query.get('to')) : entry.versions.at(-1);

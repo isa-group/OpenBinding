@@ -174,7 +174,7 @@ describe('Composition page', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
-  it.each(['overview', 'analysis', 'settings', 'nonsense'])('answers the tab %s it does not have with the page that does not exist', (tab) => {
+  it.each(['overview', 'settings', 'nonsense'])('answers the tab %s it does not have with the page that does not exist', (tab) => {
     renderDetail(`/app/isa-demo/compositions/fleet-routing/${tab}`);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();

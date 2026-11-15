@@ -6,7 +6,7 @@ import type { Mode } from '../../entities/composition/viewModel';
  */
 
 /** The modes this renderer draws so far; the others join with the blocks that build them. */
-export type RendererMode = Extract<Mode, 'catalog' | 'architecture' | 'workflow' | 'comparison'>;
+export type RendererMode = Extract<Mode, 'catalog' | 'architecture' | 'workflow' | 'comparison' | 'calculator' | 'configurator'>;
 
 /**
  * The sections of the modes.
@@ -15,19 +15,25 @@ export type RendererMode = Extract<Mode, 'catalog' | 'architecture' | 'workflow'
  * - architecture: the providers the tasks are grouped by, and the upstream SPHERE plans the candidates come from;
  * - workflow: the workflow drawn with each task's candidate, and the candidates of the linked problem;
  * - comparison: what changed between two versions (the gateway's diff), the later workflow with what changed marked, and the
- *   candidates each version chose.
+ *   candidates each version chose;
+ * - calculator: the toolchain's one-task moves of the version's binding;
+ * - configurator: what the toolchain makes of the binding chosen, and the linked problem's candidates to choose from.
  */
 export type Section =
   | 'identity' | 'status' | 'values' | 'binding' | 'offering' | 'evidence' | 'problem' | 'diagnostics'
   | 'providers' | 'plans'
   | 'graph' | 'candidates'
-  | 'changes';
+  | 'changes'
+  | 'moves'
+  | 'result' | 'choice';
 
 export const MODE_SECTIONS: Readonly<Record<RendererMode, readonly Section[]>> = {
   catalog: ['identity', 'status', 'values', 'binding', 'offering', 'evidence', 'problem', 'diagnostics'],
   architecture: ['providers', 'plans'],
   workflow: ['graph', 'candidates'],
   comparison: ['changes', 'graph', 'candidates'],
+  calculator: ['moves'],
+  configurator: ['result', 'choice'],
 };
 
 /** How tightly a mode is laid out: a page of its own, or a panel beside something else. */

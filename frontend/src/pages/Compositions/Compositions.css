@@ -31,6 +31,8 @@
 .cmp-lineage li { overflow-wrap: anywhere; }
 .cmp-panel-loading { display: flex; flex-direction: column; gap: 10px; }
 .cmp-overview { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-lg); }
+.cmp-analysis, .cmp-analysis-configurator { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-lg); }
+.cmp-analysis-configurator { scroll-margin-top: var(--tp-spacing-lg); }
 .cmp-muted { margin: 0; color: var(--tp-steel); font-size: 0.8125rem; }
 
 /* Versions tab: the view switch, the version table (cards below 640 px) and its row actions. */

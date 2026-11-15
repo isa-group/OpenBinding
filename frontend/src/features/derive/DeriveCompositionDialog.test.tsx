@@ -6,6 +6,7 @@ import type { CompositionView, DeriveDraft, DeriveResult } from '../../shared/ap
 import { readCompositionFragment } from '../../shared/sphere/composition-fragment';
 import { RESULT, S1 } from '../../test/fixtures/jobs';
 import { DeriveCompositionDialog } from './DeriveCompositionDialog';
+import type { DeriveSource } from './deriveModel';
 
 const api = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn(), derive: vi.fn() }));
 vi.mock('../../entities/composition/api', () => ({ compositionsApi: api }));
@@ -46,17 +47,21 @@ function Where() {
 
 const where = () => screen.getByTestId('where').textContent ?? '';
 
-function renderDialog(solutions: readonly unknown[] = RESULT.solutions) {
+function renderDialog(solutions: readonly unknown[] = RESULT.solutions, source: DeriveSource = { run: RUN, solutions }) {
   const onClose = vi.fn();
   render(
     <MemoryRouter initialEntries={[`/app/isa-demo/runs/${RUN}`]}>
       <Routes>
-        <Route path="*" element={<><DeriveCompositionDialog org="isa-demo" source={{ run: RUN, solutions }} onClose={onClose} /><Where /></>} />
+        <Route path="*" element={<><DeriveCompositionDialog org="isa-demo" source={source} onClose={onClose} /><Where /></>} />
       </Routes>
     </MemoryRouter>,
   );
   return { onClose, dialog: screen.getByRole('dialog', { name: 'Derive a composition' }) };
 }
+
+/** A binding of checkout-flow@2, as the calculator or the configurator hands it over, into `composition` when given. */
+const BOUND = { revision: 'checkout-flow@2', binding: { t1: 'c2', t2: 'catalog/c7' } };
+const renderBinding = (composition?: CompositionView) => renderDialog([], { ...BOUND, ...(composition ? { composition } : {}) });
 
 const click = (scope: HTMLElement, name: string) => fireEvent.click(within(scope).getByRole('button', { name }));
 const refused = (status: number, code: string, message = 'refused', extra: Record<string, unknown> = {}) => Object.assign(new HttpError(status, message), { code, ...extra });
@@ -230,5 +235,63 @@ describe('Deriving a composition from a run', () => {
     expect(within(dialog).getByText('Give the new composition a name.')).toBeInTheDocument();
     click(dialog, 'Cancel');
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Deriving a composition from a binding of a problem version', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.list.mockResolvedValue({ compositions: [FLEET], total: 1, limit: 200, offset: 0 });
+    api.create.mockImplementation(async (_org: string, body: { slug: string; name: string }) => composition(body.slug, body.name, null));
+    api.derive.mockImplementation(async (_org: string, _slug: string, body: { seal: boolean; version: string }) => (
+      body.seal ? { created: true, result: sealedAs(body.version) } : { created: false, result: DRAFT }
+    ));
+  });
+
+  it('starts at the label of the composition it is derived into, shows the binding, and seals the previewed request', async () => {
+    const { dialog } = renderBinding(FLEET);
+
+    expect(within(dialog).getByRole('list', { name: 'Steps' }).querySelector('[aria-current="step"]')).toHaveTextContent('What');
+    expect(dialog).toHaveTextContent('Into Fleet routing (fleet-routing).');
+    const binding = within(dialog).getByRole('region', { name: 'Binding to derive' });
+    expect(within(binding).getAllByRole('row').slice(1).map((row) => row.textContent)).toEqual(['t1c2', 't2catalog/c7']);
+    expect(binding).toHaveTextContent('On problem version checkout-flow@2.');
+    expect(within(dialog).getByLabelText('Version label')).toHaveValue('1.3.0');
+
+    click(dialog, 'Preview');
+    await within(dialog).findByRole('region', { name: 'Derived composition.yaml' });
+    expect(api.create).not.toHaveBeenCalled();
+    expect(api.derive).toHaveBeenCalledWith('isa-demo', 'fleet-routing', { ...BOUND, version: '1.3.0', seal: false });
+    expect(within(dialog).getByText(/^The binding as version 1\.3\.0 of fleet-routing\./)).toBeInTheDocument();
+
+    click(dialog, 'Seal 1.3.0');
+    await waitFor(() => expect(where()).toBe('/app/isa-demo/compositions/fleet-routing/versions?version=1.3.0'));
+    expect(api.derive.mock.calls[1]).toEqual(['isa-demo', 'fleet-routing', { ...BOUND, version: '1.3.0', seal: true }]);
+  });
+
+  it('can go into a new composition instead, and words the refusals for a binding', async () => {
+    const { dialog } = renderBinding(FLEET);
+    click(dialog, 'Back');
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'A new composition' }));
+    await intoNew(dialog, 'Fleet plan');
+    expect(within(dialog).getByLabelText('Version label')).toHaveValue('1.0.0');
+
+    api.derive.mockRejectedValueOnce(refused(422, 'derivation_invalid', 'The binding cannot be derived.', {
+      diagnostics: [{ code: 'c2y_candidate_unknown', message: 'The problem has no candidate c9 for t1.', pointer: '/binding/t1' }],
+    }));
+    click(dialog, 'Preview');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('This binding can’t be written as a composition (422 · derivation_invalid). The gateway found:');
+    expect(api.derive).toHaveBeenCalledWith('isa-demo', 'fleet-plan', { ...BOUND, version: '1.0.0', seal: false });
+
+    api.derive.mockRejectedValueOnce(refused(404, 'not_found'));
+    click(dialog, 'Preview');
+    expect(await within(dialog).findByText('The problem version or the composition is not there any more, or you can’t read it (404 · not_found).')).toBeInTheDocument();
+  });
+
+  it('starts at the first step when no composition is given', async () => {
+    const { dialog } = renderBinding();
+    expect(within(dialog).getByRole('list', { name: 'Steps' }).querySelector('[aria-current="step"]')).toHaveTextContent('Where');
+    await intoNew(dialog);
+    expect(within(dialog).getByRole('region', { name: 'Binding to derive' })).toBeInTheDocument();
   });
 });

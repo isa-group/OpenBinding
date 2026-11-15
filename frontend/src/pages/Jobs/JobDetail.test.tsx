@@ -228,6 +228,18 @@ describe('One run', () => {
     expect(runsApi.neighborhood).toHaveBeenCalledWith('isa-demo', JOB_ID, 0, '', 128);
   });
 
+  it('words a trade-off swap as the gateway compares it', async () => {
+    runsApi.neighborhood.mockResolvedValueOnce({ ...NEIGHBORHOOD, moves: [{ ...NEIGHBORHOOD.moves[0], comparison: 'trade-off' }] });
+    renderJob();
+
+    const swaps = (await screen.findByRole('heading', { name: 'What if one task used another provider?' })).closest('section') as HTMLElement;
+    fireEvent.click(within(swaps).getByRole('button', { name: 'Check single swaps' }));
+
+    const list = await within(swaps).findByRole('list', { name: 'Single-task swaps' });
+    expect(within(list).getByText('Trade-off')).toBeInTheDocument();
+    expect(within(list).queryByText('Checked')).toBeNull();
+  });
+
   it('says so when the analysis is busy or the compiled problem is gone', async () => {
     runsApi.neighborhood.mockRejectedValueOnce(refusal(429, 'analysis_busy'));
     renderJob();

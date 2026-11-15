@@ -67,6 +67,7 @@ describe('compositionViewModel for a member', () => {
   it('says the values are verified on the problem the document names, and readable', () => {
     expect(model.status).toEqual({
       values: 'verified', outcome: 'verified', compilationDrift: false, problemRef: 'fixtures/problems/fms@1', problemReadable: true,
+      problemRevision: 'fms@1',
     });
   });
 
@@ -152,7 +153,7 @@ describe('compositionViewModel for a public reader', () => {
 describe('the status of the values', () => {
   it('is declared, with no problem, for a declared version', () => {
     const model = compositionViewModel({ composition: composition(), version: declaredVersion(), reader: 'member' });
-    expect(model.status).toEqual({ values: 'declared', outcome: 'declared', compilationDrift: false, problemRef: null, problemReadable: false });
+    expect(model.status).toEqual({ values: 'declared', outcome: 'declared', compilationDrift: false, problemRef: null, problemReadable: false, problemRevision: null });
     expect(model.values.every((value) => value.status === 'declared')).toBe(true);
     expect(model.modes).not.toContain('calculator');
   });
@@ -196,7 +197,7 @@ describe('a composition without versions', () => {
   it('has nothing but the catalog', () => {
     const model = compositionViewModel({ composition: composition({ version_count: 0, latest_version: null }), version: null, reader: 'member' });
     expect(model.version).toBeNull();
-    expect(model.status).toEqual({ values: null, outcome: null, compilationDrift: false, problemRef: null, problemReadable: false });
+    expect(model.status).toEqual({ values: null, outcome: null, compilationDrift: false, problemRef: null, problemReadable: false, problemRevision: null });
     expect(model.workflow.root).toEqual({ kind: 'empty' });
     expect(model.tasks).toEqual([]);
     expect(model.values).toEqual([]);

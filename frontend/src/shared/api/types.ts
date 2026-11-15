@@ -89,6 +89,9 @@ export type EvaluateResult = Schemas['EvaluateResult'];
 /** The toolchain's one-task alternatives of a version's binding (`GET …/neighborhood`). */
 export type CompositionNeighborhoodResponse = Schemas['CompositionNeighborhoodResponse'];
 
+/** One move of a composition's neighbourhood: a task bound to another candidate, as the toolchain compared it with the version's binding. */
+export type CompositionMove = Schemas['CompositionMove'];
+
 /** What deriving a version takes (`POST …/derive`): a run and its point, or a binding of a problem revision. */
 export type CompositionDerive = Schemas['CompositionDerive'];
 

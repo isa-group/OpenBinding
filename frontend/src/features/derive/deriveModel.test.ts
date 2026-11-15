@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { RESULT, S1, S2 } from '../../test/fixtures/jobs';
-import { FIRST_LABEL, LABEL_PATTERN, criteriaOf, nextMinor, pointsOf, previewValues, runDerivation } from './deriveModel';
+import {
+  FIRST_LABEL, LABEL_PATTERN, bindingDerivation, criteriaOf, isRunSource, nextMinor, pointsOf, previewValues, runDerivation,
+} from './deriveModel';
 
 describe('the label of a derived version', () => {
   it('is 1.0.0 for a composition with no version', () => {
@@ -56,6 +58,19 @@ describe('the requests', () => {
     const preview = runDerivation({ run: 'run-1' }, 1, '1.0.0', false);
     expect(preview).toEqual({ run: 'run-1', point: 1, version: '1.0.0', seal: false });
     expect(runDerivation({ run: 'run-1' }, 1, '1.0.0', true)).toEqual({ ...preview, seal: true });
+  });
+
+  it('derive a binding of a problem version as a preview or as a version, with the same revision, binding and label', () => {
+    const source = { revision: 'checkout-flow@2', binding: { T1: 'cand_t1_google_cloud', T2: 'cand_t2_radius_iot_network' } };
+    const preview = bindingDerivation(source, '1.3.0', false);
+    expect(preview).toEqual({ revision: 'checkout-flow@2', binding: { T1: 'cand_t1_google_cloud', T2: 'cand_t2_radius_iot_network' }, version: '1.3.0', seal: false });
+    expect(bindingDerivation(source, '1.3.0', true)).toEqual({ ...preview, seal: true });
+    expect(preview.binding).not.toBe(source.binding);
+  });
+
+  it('tell a run from a binding', () => {
+    expect(isRunSource({ run: 'run-1', solutions: [] })).toBe(true);
+    expect(isRunSource({ revision: 'checkout-flow@2', binding: {} })).toBe(false);
   });
 
   it('read the values of a preview in the gateway’s order', () => {
