@@ -1,8 +1,8 @@
 """Collaborative platform tables built around the BIM v1 pipeline.
 
 Organizations own problems (``binding_cases``), whose revisions are uploaded
-packages kept as blobs, the compilations of those revisions, and studies whose
-runs freeze the definition they ran.
+packages kept as blobs, the compilations of those revisions, studies whose
+runs freeze the definition they ran, and compositions.
 """
 
 from __future__ import annotations
@@ -299,6 +299,46 @@ class Study(Base):
     state: Mapped[StudyState] = enum_column(StudyState, StudyState.DRAFT)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow, server_default=func.now()
+    )
+
+
+class CompositionKind(str, enum.Enum):
+    """What a composition composes: the ``kind`` of Composition2Yaml (``composition.document.KINDS``)."""
+
+    APPLICATION = "application"
+    WORKFLOW = "workflow"
+    PIPELINE = "pipeline"
+    SYSTEM = "system"
+
+
+class Composition(Base):
+    """A composition of an organization: a named binding of a workflow to services, as Composition2Yaml.
+
+    Mutable, like a problem (the ETag is ``updated_at``). An empty composition, with no version yet, is the
+    editor's starting point and a derivation's target. ``kind`` is metadata: the latest version's kind, and
+    the one given at creation until a version exists.
+    """
+
+    __tablename__ = "compositions"
+    __table_args__ = (UniqueConstraint("organization_id", "slug", name="uq_compositions_organization_slug"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    slug: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    description: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
+    kind: Mapped[CompositionKind] = enum_column(CompositionKind, CompositionKind.APPLICATION, length=16)
+    archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_by_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()

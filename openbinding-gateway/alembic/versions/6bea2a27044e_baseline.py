@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '0ec174837dc9'
+revision: str = '6bea2a27044e'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -286,6 +286,24 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_blobs_digest'), 'blobs', ['digest'], unique=False)
     op.create_index(op.f('ix_blobs_organization_id'), 'blobs', ['organization_id'], unique=False)
+    op.create_table('compositions',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('organization_id', sa.Uuid(), nullable=False),
+    sa.Column('slug', sa.String(length=64), nullable=False),
+    sa.Column('name', sa.String(length=160), nullable=False),
+    sa.Column('description', sa.String(length=2000), nullable=False),
+    sa.Column('kind', sa.Enum('application', 'workflow', 'pipeline', 'system', name='compositionkind', native_enum=False, length=16), nullable=False),
+    sa.Column('archived', sa.Boolean(), nullable=False),
+    sa.Column('created_by_id', sa.Uuid(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_compositions_created_by_id_users'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_compositions_organization_id_organizations'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_compositions')),
+    sa.UniqueConstraint('organization_id', 'slug', name='uq_compositions_organization_slug')
+    )
+    op.create_index(op.f('ix_compositions_created_by_id'), 'compositions', ['created_by_id'], unique=False)
+    op.create_index(op.f('ix_compositions_organization_id'), 'compositions', ['organization_id'], unique=False)
     op.create_table('organization_invitations',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('organization_id', sa.Uuid(), nullable=False),
@@ -579,6 +597,9 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_organization_invitations_organization_id'), table_name='organization_invitations')
     op.drop_index(op.f('ix_organization_invitations_email'), table_name='organization_invitations')
     op.drop_table('organization_invitations')
+    op.drop_index(op.f('ix_compositions_organization_id'), table_name='compositions')
+    op.drop_index(op.f('ix_compositions_created_by_id'), table_name='compositions')
+    op.drop_table('compositions')
     op.drop_index(op.f('ix_blobs_organization_id'), table_name='blobs')
     op.drop_index(op.f('ix_blobs_digest'), table_name='blobs')
     op.drop_table('blobs')

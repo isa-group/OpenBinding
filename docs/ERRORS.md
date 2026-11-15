@@ -230,6 +230,19 @@ Against a compiled problem (the organization's routes, from F1 B8):
 | `c2y_constraint_violated` | the binding violates a hard constraint |
 | `c2y_constraint_soft` | **warning**: the binding misses a soft constraint, with its penalty |
 
+## Compositions
+
+The compositions of an organization (`/v1/organizations/{org}/compositions`). A composition the caller
+cannot read answers as a missing one: `404 not_found` for a non-member and for another organization's
+composition, never `403`. A member whose role is too weak for a write gets `403 organization_forbidden`.
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `not_found` | 404 | no such organization or composition, or the caller cannot read it |
+| `organization_forbidden` | 403 | the caller reads the organization but its role is too weak: MEMBER creates and edits, ADMIN deletes |
+| `feature_not_entitled` | 403 | `createComposition`: the caller's plan lacks the `repository` feature |
+| `slug_conflict` | 409 | the composition slug is in use in the organization |
+
 ## Organizations
 
 | `code` | Status | Meaning |
@@ -256,13 +269,14 @@ These operations take an optional `If-Match` header:
 - `PATCH /v1/organizations/{org}`
 - `PATCH …/problems/{problem}`
 - `PATCH …/studies/{study}`
+- `PATCH …/compositions/{composition}`
 - `PATCH /v1/users/me`
 - `PUT /v1/notifications/preferences`
 - `PUT /v1/engine-registrations/{name}/credential`
 - `POST /v1/admin/users/{user_id}/plan`
 - `POST /v1/admin/users/{user_id}/subscription`
 
-The first seven are the covered-operations table of change `optimistic-concurrency`. Their `200`, and the
+The first eight are the covered-operations table of change `optimistic-concurrency`, with `updateComposition` added in F1. Their `200`, and the
 single-resource `GET` of the same resource, carry an `ETag`. The tag is a strong, opaque entity tag, so send it back
 unchanged and never parse it. Without `If-Match` nothing is checked and the request behaves as it always did, with
 the last writer winning.

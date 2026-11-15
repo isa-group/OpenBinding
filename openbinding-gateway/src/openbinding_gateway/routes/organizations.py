@@ -25,6 +25,7 @@ from ..db.models import (
     AuditEvent,
     BindingCase,
     BindingCaseRevision,
+    Composition,
     Job,
     Organization,
     OrganizationInvitation,
@@ -258,14 +259,15 @@ async def delete_organization(
     """Delete an organization and every organization below it, in one transaction.
 
     Runs and study runs are history, so a subtree that holds any is refused. Otherwise its studies,
-    problems (revisions and compilations), blob rows, invitations, memberships and audit events go.
-    Stored files are not unlinked here: they are content addressed and shared (D14).
+    compositions, problems (revisions and compilations), blob rows, invitations, memberships and audit events
+    go. Stored files are not unlinked here: they are content addressed and shared (D14).
 
-    The subtree's studies, problems and organizations are locked before the history check, in the order
-    concurrent writers take them (a study-run start locks its study, a revision upload its problem, and every
-    insert into an organization takes a key-share lock on its row): a writer that got there first commits
-    before the check sees the subtree, and a later one waits for the delete. A foreign key that still catches
-    a concurrent write is answered with the same 409.
+    The subtree's studies, compositions, problems and organizations are locked before the history check, in
+    the order concurrent writers take them (a study-run start locks its study, a revision upload its problem,
+    and every insert into an organization takes a key-share lock on its row). Compositions come before
+    problems because a composition write that reads a problem locks the composition first. A writer that got
+    there first commits before the check sees the subtree, and a later one waits for the delete. A foreign key
+    that still catches a concurrent write is answered with the same 409.
     """
     organization = await _required_org(session, org)
     if not user.is_admin:
@@ -273,8 +275,8 @@ async def delete_organization(
 
     descendants = await descendant_ids(session, organization.id)
     unique_descendants = list(dict.fromkeys(descendants))
-    for model, column in ((Study, Study.organization_id), (BindingCase, BindingCase.organization_id),
-                          (Organization, Organization.id)):
+    for model, column in ((Study, Study.organization_id), (Composition, Composition.organization_id),
+                          (BindingCase, BindingCase.organization_id), (Organization, Organization.id)):
         await session.execute(
             select(model.id).where(column.in_(unique_descendants)).order_by(model.id).with_for_update()
         )
@@ -306,6 +308,7 @@ async def _delete_subtree(session: AsyncSession, organization: Organization, uni
             delete(AuditEvent).where(AuditEvent.organization_id == oid)
         )
         await session.execute(delete(Study).where(Study.organization_id == oid))
+        await session.execute(delete(Composition).where(Composition.organization_id == oid))
         cases = select(BindingCase.id).where(BindingCase.organization_id == oid)
         revisions = select(BindingCaseRevision.id).where(BindingCaseRevision.binding_case_id.in_(cases))
         await session.execute(delete(ProblemCompilation).where(ProblemCompilation.revision_id.in_(revisions)))

@@ -1,7 +1,7 @@
 """Deleting an organization on PostgreSQL, where the RESTRICT foreign keys hold (F0b B8).
 
-The subtree goes in one transaction and in an order the foreign keys accept: studies, compilations, revisions,
-problems and blob rows of each organization, then the organizations below it, then the organization. A run
+The subtree goes in one transaction and in an order the foreign keys accept: studies, compositions, compilations,
+revisions, problems and blob rows of each organization, then the organizations below it, then the organization. A run
 anywhere in the subtree answers 409 ``historical_references`` and deletes nothing, also when it is written while
 the delete runs: the subtree's studies, problems and organizations are locked before the check. SQLite enforces no
 foreign key and takes no row lock, so only this file shows the order and the locking are right.
@@ -25,6 +25,7 @@ from openbinding_gateway.db.models import (
     BindingCase,
     BindingCaseRevision,
     Blob,
+    Composition,
     Job,
     JobState,
     Organization,
@@ -96,6 +97,30 @@ async def test_an_organization_is_deleted_with_its_subtree_in_an_order_the_forei
     assert await _count(reader, OrganizationMembership, OrganizationMembership.organization_id.in_(ids)) == 0
     assert await _count(reader, OrganizationInvitation, OrganizationInvitation.organization_id.in_(ids)) == 0
     assert await _count(reader, AuditEvent, AuditEvent.organization_id.in_(ids)) == 0
+    assert await reader.get(User, user.id) is not None
+
+
+async def test_an_organization_with_compositions_and_no_runs_is_deleted_with_them(two_sessions):
+    session, reader = two_sessions
+    user = await _user(session)
+    upload = await problem_for(session, user)
+    organization = await session.get(Organization, upload.problem.organization_id)
+    child = await _child(session, organization, user)
+    session.add_all([
+        Composition(organization_id=organization.id, slug="checkout", name="Checkout", created_by_id=user.id),
+        Composition(organization_id=organization.id, slug="archived", name="Old", archived=True, created_by_id=user.id),
+        Composition(organization_id=child.id, slug="checkout", name="Checkout", created_by_id=user.id),
+    ])
+    await session.commit()
+    ids, slug = [organization.id, child.id], organization.slug
+    assert await _count(reader, Composition, Composition.organization_id.in_(ids)) == 3
+
+    await delete_organization(org=slug, user=user, session=session)
+    await session.commit()
+
+    assert await _count(reader, Composition, Composition.organization_id.in_(ids)) == 0
+    assert await _count(reader, Organization, Organization.id.in_(ids)) == 0
+    assert await _count(reader, BindingCase, BindingCase.organization_id.in_(ids)) == 0
     assert await reader.get(User, user.id) is not None
 
 

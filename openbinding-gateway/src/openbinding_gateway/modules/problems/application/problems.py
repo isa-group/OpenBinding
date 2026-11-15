@@ -24,7 +24,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....db.models import (
-    AuditEvent,
     BindingCase,
     BindingCaseRevision,
     Blob,
@@ -41,7 +40,7 @@ from ....models.errors import api_error
 from ....services.entitlements import entitlement_service
 from ...plans.application import entitlement_map as ids
 from ...plans.application import quotas
-from ...shared.application import put_row, read_verified, write_file
+from ...shared.application import audit, put_row, read_verified, write_file
 from ..domain.compilation import Compilation
 from ..domain.digests import is_digest
 from .compile import compile_package, compile_refusal
@@ -309,14 +308,6 @@ def _new_revision(
         provenance=provenance or None,
         created_by_id=actor.id,
     )
-
-
-def audit(session: AsyncSession, actor: User, action: str, target_type: str, target_id: uuid.UUID,
-           organization_id: uuid.UUID, **detail: Any) -> None:
-    session.add(AuditEvent(
-        organization_id=organization_id, actor_id=actor.id, action=action,
-        target_type=target_type, target_id=target_id, detail=detail,
-    ))
 
 
 async def create_problem(

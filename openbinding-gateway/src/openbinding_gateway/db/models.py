@@ -454,6 +454,8 @@ from .platform_models import (  # noqa: E402,F401
     AuditEvent,
     BindingCase,
     BindingCaseRevision,
+    Composition,
+    CompositionKind,
     Notification,
     Organization,
     OrganizationInvitation,

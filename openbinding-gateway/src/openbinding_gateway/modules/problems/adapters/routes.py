@@ -33,6 +33,7 @@ from ....integrations import bim
 from ....models.errors import CONFLICT_RESPONSE, NOT_FOUND_RESPONSE, ErrorResponse, api_error
 from ....services.engines import compatible_modes
 from ....services.entitlements import entitlement_service
+from ...shared.application import audit
 from ..application import problems
 from ..application.package import PackageRequest, read_package
 from ..domain.compilation import analysis_summary, resource_contracts
@@ -265,7 +266,7 @@ async def update_problem(
     if payload.description is not None:
         found.description = payload.description
     await session.flush()
-    problems.audit(session, user, "problem.updated", "BindingCase", found.id, organization.id)
+    audit(session, user, "problem.updated", "BindingCase", found.id, organization.id)
     etags.set_etag(response, found)
     latest = (await problems.latest_revisions(session, [found.id])).get(found.id)
     return _problem_view(found, latest)

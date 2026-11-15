@@ -11,6 +11,7 @@ can only be shown to be the compare-and-swap it is claimed to be on a real serve
 * the ETag of a timestamp read back from PostgreSQL (aware, microseconds) equals the one computed right after the write;
 * over HTTP, two concurrent PATCHes of one organization with the same ETag give one 200 and one 412, and the stored name is
   the winner's;
+* the same over HTTP for two PATCHes of one composition;
 * over HTTP, a PATCH with the current tag that is refused after its claim (422 ``ambiguous_parent``) leaves the
   ETag of the next GET unchanged: the request transaction rolled the claim back.
 
@@ -222,6 +223,39 @@ async def test_over_http_two_concurrent_patches_with_the_same_etag_give_one_200_
         loser = next(item for item in responses if item.status_code == 412)
         assert loser.json()["code"] == "precondition_failed"
         assert loser.headers["ETag"] == winner.headers["ETag"] != tag  # retry with the winner's revision
+
+        final = await client.get(url, headers=headers)
+        assert final.json()["name"] == winner.json()["name"] in ("alpha", "beta")
+        assert final.headers["ETag"] == winner.headers["ETag"]
+
+
+async def test_over_http_two_concurrent_composition_patches_with_the_same_etag_give_one_200_and_one_412(pg, registration):
+    async with http_client(pg) as client:
+        headers = await signed_in(client, registration)
+        slug = f"o{uuid.uuid4().hex[:8]}"
+        assert (
+            await client.post("/v1/organizations", headers=headers, json={"slug": slug, "name": "Org"})
+        ).status_code == 201
+        created = await client.post(
+            f"/v1/organizations/{slug}/compositions", headers=headers, json={"slug": "checkout", "name": "Checkout"},
+        )
+        assert created.status_code == 201, created.text
+        url = f"/v1/organizations/{slug}/compositions/checkout"
+        first_read = await client.get(url, headers=headers)
+        assert first_read.status_code == 200, first_read.text
+        tag = first_read.headers["ETag"]
+        assert tag == created.headers["ETag"]
+
+        def patch(name):
+            return client.patch(url, headers={**headers, "If-Match": tag}, json={"name": name})
+
+        responses = await settle(patch("alpha"), patch("beta"))
+        assert all(not isinstance(item, BaseException) for item in responses), responses
+        assert sorted(item.status_code for item in responses) == [200, 412], [item.text for item in responses]
+        winner = next(item for item in responses if item.status_code == 200)
+        loser = next(item for item in responses if item.status_code == 412)
+        assert loser.json()["code"] == "precondition_failed"
+        assert loser.headers["ETag"] == winner.headers["ETag"] != tag
 
         final = await client.get(url, headers=headers)
         assert final.json()["name"] == winner.json()["name"] in ("alpha", "beta")

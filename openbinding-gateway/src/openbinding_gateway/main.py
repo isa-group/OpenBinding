@@ -55,6 +55,7 @@ from .models.problem import (
     validation_diagnostics,
 )
 from .modules.compositions.adapters.language_routes import router as composition_language_router
+from .modules.compositions.adapters.routes import router as compositions_router
 from .modules.execution.adapters.routes import router as runs_router
 from .modules.problems.adapters.bim_routes import router as bim_router
 from .modules.problems.adapters.routes import router as problems_router
@@ -430,6 +431,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(invitation_router)
     app.include_router(studies_router)
     app.include_router(problems_router)
+    app.include_router(compositions_router)
     app.include_router(bim_router)
     app.include_router(composition_language_router)
     app.include_router(runs_router)

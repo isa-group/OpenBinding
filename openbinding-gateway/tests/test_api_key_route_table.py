@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 114
+    assert len(ROUTES) == 119
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -126,9 +126,10 @@ def test_projects_are_gone_with_their_permissions_and_boundary():
     assert not [route for route in ROUTES if "/projects" in route[1] or "{project}" in route[1]]
     assert not {"projects:read", "projects:write"} & set(ALL_PERMISSIONS)
     assert "projects" not in apikeys.BOUNDARY_FIELDS
-    # The organization tree holds only the organization, its members, invitations, audit, problems, runs and studies.
+    # The organization tree holds only the organization, its members, invitations, audit, problems, runs, studies
+    # and compositions.
     sections = {route[1].split("/")[4] for route in ROUTES if route[1].startswith("/v1/organizations/{org}/")}
-    assert sections == {"members", "invitations", "audit", "problems", "runs", "studies"}
+    assert sections == {"members", "invitations", "audit", "problems", "runs", "studies", "compositions"}
     # A stored boundary that still names projects is malformed, and a malformed boundary denies everything.
     stale = SimpleNamespace(grants={"boundary": {"projects": ["p"]}})
     assert not allows_request(stale, method="GET", path_params={"org": "acme"}, path="/v1/organizations/{org}")
@@ -220,3 +221,26 @@ def test_the_compositions_of_an_organization_have_their_own_permissions():
     assert not allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["problem"]}}), **request)
     assert allows_request(SimpleNamespace(grants={"boundary": {"slugs": ["shop"]}}), **request)
     assert not allows_request(SimpleNamespace(grants={"boundary": {"slugs": ["other"]}}), **request)
+
+
+def test_the_compositions_of_an_organization_are_composition_reads_and_writes():
+    compositions = "/v1/organizations/{org}/compositions"
+    routes = sorted(route for route in ROUTES if route[1].startswith(compositions))
+
+    assert routes == [
+        ("DELETE", f"{compositions}/{{composition}}"),
+        ("GET", compositions),
+        ("GET", f"{compositions}/{{composition}}"),
+        ("PATCH", f"{compositions}/{{composition}}"),
+        ("POST", compositions),
+    ]
+    for method, path in routes:
+        expected = "compositions:read" if method == "GET" else "compositions:write"
+        assert required_permissions(path, method) == frozenset({expected}), (method, path)
+        # The organizations fallback does not reach them.
+        assert not {"organizations:read", "organizations:write"} & required_permissions(path, method)
+    composition_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["composition"]}})
+    problems_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["problem"]}})
+    request = {"method": "GET", "path_params": {"org": "acme", "composition": "c"}, "path": f"{compositions}/{{composition}}"}
+    assert allows_request(composition_only, **request)
+    assert not allows_request(problems_only, **request)

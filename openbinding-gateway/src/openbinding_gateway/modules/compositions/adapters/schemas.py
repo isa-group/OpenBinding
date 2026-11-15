@@ -1,10 +1,20 @@
-"""What the Composition2Yaml services read and answer, as HTTP documents."""
+"""What the compositions routes read and answer, as HTTP documents.
+
+The Composition2Yaml services (diagnostics, lint, parse, diff) and the compositions of an organization.
+"""
 
 from __future__ import annotations
 
+import uuid
+from datetime import datetime
 from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from ....models.platform import SLUG
+
+#: What a composition composes, as Composition2Yaml's ``kind`` spells it.
+CompositionKindName = Literal["application", "workflow", "pipeline", "system"]
 
 
 class CompositionSpan(BaseModel):
@@ -68,3 +78,63 @@ class DiffResult(BaseModel):
     """What changed, sorted by section and then subject."""
 
     changes: list[ChangeView]
+
+
+# -- Compositions of an organization ---------------------------------------------------------------------
+
+
+class CompositionCreate(BaseModel):
+    """A new, empty composition."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    slug: str = Field(pattern=SLUG, description="Unique within the organization: 1 to 64 lowercase letters, digits and hyphens.")
+    name: str = Field(min_length=1, max_length=160)
+    description: str = Field(default="", max_length=2000)
+    kind: CompositionKindName = Field(
+        default="application",
+        description="What the composition composes; once a version exists it follows the latest version's `kind`.",
+    )
+
+
+class CompositionUpdate(BaseModel):
+    """The fields to change; absent fields stay. `kind` follows the versions and is not edited here."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: Optional[str] = Field(default=None, min_length=1, max_length=160)
+    description: Optional[str] = Field(default=None, max_length=2000)
+    archived: Optional[bool] = None
+
+
+class CompositionOrganization(BaseModel):
+    """The organization a composition belongs to."""
+
+    id: uuid.UUID
+    slug: str
+
+
+class CompositionView(BaseModel):
+    """A composition of an organization."""
+
+    id: uuid.UUID
+    slug: str
+    name: str
+    description: str
+    kind: CompositionKindName
+    archived: bool
+    organization: CompositionOrganization
+    latest_version: None = Field(default=None, description="The latest sealed version; null while it has none.")
+    version_count: int = Field(default=0, ge=0, description="How many versions it has.")
+    created_by_id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class CompositionList(BaseModel):
+    """One page of an organization's compositions, and how many match in all."""
+
+    compositions: list[CompositionView]
+    total: int
+    limit: int
+    offset: int

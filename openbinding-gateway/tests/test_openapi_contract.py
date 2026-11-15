@@ -350,6 +350,12 @@ def test_a_quota_refusal_says_which_limit_and_where_it_stands(document):
         ("/v1/admin/users/{user_id}/subscription", "post", {"400", "404", "409", "412", "503"}),
         ("/v1/organizations", "post", {"201", "409", "422"}),
         ("/v1/organizations/{org}", "delete", {"204", "403", "409"}),
+        # The compositions of an organization: an unreadable one is a 404, a weak role a 403.
+        ("/v1/organizations/{org}/compositions", "get", {"200", "403", "404", "422"}),
+        ("/v1/organizations/{org}/compositions", "post", {"201", "403", "404", "409", "422"}),
+        ("/v1/organizations/{org}/compositions/{composition}", "get", {"200", "404"}),
+        ("/v1/organizations/{org}/compositions/{composition}", "patch", {"200", "400", "403", "404", "412", "422"}),
+        ("/v1/organizations/{org}/compositions/{composition}", "delete", {"204", "403", "404"}),
     ],
 )
 def test_the_failures_an_endpoint_can_produce_are_declared(document, path, method, statuses):

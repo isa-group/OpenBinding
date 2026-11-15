@@ -2,7 +2,7 @@
 
 The organization is the only container. Everything a person works on lives under
 `/v1/organizations/{org}/...`: its members, invitations and audit log, its problems
-(with their revisions and compilations), its runs and its studies. There are no
+(with their revisions and compilations), its runs, its studies and its compositions. There are no
 projects, and there is no public read: every route under an organization is for its
 members.
 
@@ -14,7 +14,9 @@ the chain applies (`collaboration.effective_role`). Anybody else is refused:
 
 - a signed-in non-member gets `403 organization_forbidden`; a slug that names no
   organization is `404 not_found`; the runs routes answer `404` to a non-member too
-  (below);
+  (below), and so do the compositions routes: a composition the caller cannot read
+  answers exactly as a missing one, `404` and never `403`, on every route and before
+  any `If-Match` handling;
 - a caller with no credential gets `401` on every route under `/v1/organizations`;
 - a platform administrator is a non-member like anybody else unless invited.
 
@@ -33,6 +35,7 @@ malformed, and a malformed boundary denies everything.
 | `/problems`, `/problems/{problem}`, `/problems/{problem}/revisions/...` | VIEWER | MEMBER uploads, adds revisions and edits; ADMIN deletes | `problems:read` / `problems:write` |
 | `/runs/...` | VIEWER (redacted below MEMBER) | MEMBER | `jobs:read` / `engines:execute` |
 | `/studies/...` (study runs and cells included) | VIEWER | MEMBER creates, edits and runs; ADMIN deletes | `studies:read` / `studies:write` |
+| `/compositions`, `/compositions/{composition}` | VIEWER (a non-member gets `404`) | MEMBER creates and edits; ADMIN deletes | `compositions:read` / `compositions:write` |
 
 ## Deleting an organization
 
@@ -40,8 +43,8 @@ malformed, and a malformed boundary denies everything.
 platform administrator. It takes the organization and every organization below it in
 one transaction. Runs and study runs are history: a subtree that holds any is refused
 with `409 historical_references`, including a run or study run that starts while the
-delete is in progress (the subtree's studies, problems and organizations are locked
-before the check). Otherwise its studies, problems (revisions and
+delete is in progress (the subtree's studies, compositions, problems and organizations
+are locked before the check). Otherwise its studies, compositions, problems (revisions and
 compilations), blob rows, invitations, memberships and audit events go with it. The
 stored files are not unlinked: they are content addressed and may back another
 organization's blob.

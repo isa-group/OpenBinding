@@ -4,15 +4,29 @@ Code outside ``modules/compositions`` reaches the module through this package on
 (``tests/test_modules_skeleton.py``); the composition root mounts the router of ``adapters``.
 """
 
+from .compositions import (
+    composition_by_ref,
+    create_composition,
+    delete_composition,
+    list_compositions,
+    organization_for,
+    update_composition,
+)
 from .language import LanguageRefusal, diff, parse, serialise, validate
 from .slots import evaluation_slot, language_slot
 
 __all__ = [
     "LanguageRefusal",
+    "composition_by_ref",
+    "create_composition",
+    "delete_composition",
     "diff",
     "evaluation_slot",
     "language_slot",
+    "list_compositions",
+    "organization_for",
     "parse",
     "serialise",
+    "update_composition",
     "validate",
 ]
