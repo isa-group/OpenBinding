@@ -4822,6 +4822,12 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Origin
+             * @description Where the revision came from: `upload`, `editor` (the problem editor), `qacoforge` or `sphere`; read from the upload's producer when it was stored.
+             * @enum {string}
+             */
+            origin: "upload" | "editor" | "qacoforge" | "sphere";
             /** Package Digest */
             package_digest: string;
             /** Revision */
@@ -5776,6 +5782,12 @@ export interface components {
             id: string;
             /** Instance Digest */
             instance_digest?: string | null;
+            /**
+             * Origin
+             * @description Where the revision came from: `upload`, `editor` (the problem editor), `qacoforge` or `sphere`; read from the upload's producer when it was stored.
+             * @enum {string}
+             */
+            origin: "upload" | "editor" | "qacoforge" | "sphere";
             /** Package Digest */
             package_digest: string;
             /** Package Size */
@@ -5815,6 +5827,12 @@ export interface components {
             id: string;
             /** Instance Digest */
             instance_digest?: string | null;
+            /**
+             * Origin
+             * @description Where the revision came from: `upload`, `editor` (the problem editor), `qacoforge` or `sphere`; read from the upload's producer when it was stored.
+             * @enum {string}
+             */
+            origin: "upload" | "editor" | "qacoforge" | "sphere";
             /** Package Digest */
             package_digest: string;
             /** Package Size */
@@ -10547,6 +10565,8 @@ export interface operations {
                 q?: string | null;
                 /** @description Only archived (`true`) or only active (`false`) ones. */
                 archived?: boolean | null;
+                /** @description Only compositions with a version linking a revision of this problem (slug or id); none for an unknown one. */
+                problem?: string | null;
                 /** @description By `name` (the default), or the most recently `updated` first. */
                 sort?: "name" | "updated";
                 limit?: number;
@@ -12701,6 +12721,10 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string | null;
+                /** @description Only problems whose latest revision came from here. */
+                origin?: ("upload" | "editor" | "qacoforge" | "sphere") | null;
+                /** @description Only problems a version of this composition (slug or id) links; none for an unknown one. */
+                composition?: string | null;
                 limit?: number;
                 offset?: number;
             };

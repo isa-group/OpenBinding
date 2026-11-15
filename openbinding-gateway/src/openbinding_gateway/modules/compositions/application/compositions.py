@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....collaboration import ROLE_STRENGTH, effective_role, organization_by_ref
 from ....core.like import LIKE_ESCAPE, like_contains
 from ....db.models import (
+    BindingCaseRevision,
     Composition,
     CompositionDerivation,
     CompositionEvaluation,
@@ -41,6 +42,7 @@ from ....db.models import (
 from ....models.errors import api_error
 from ....services.entitlements import entitlement_service
 from ...plans.application import entitlement_map as ids
+from ...problems.application import problem_by_ref
 from ...shared.application import audit
 
 #: The audit target type of a composition.
@@ -179,13 +181,24 @@ async def list_compositions(
     kind: CompositionKind | None = None,
     q: str | None = None,
     archived: bool | None = None,
+    problem: str | None = None,
     sort: Literal["name", "updated"] = "name",
     limit: int = 50,
     offset: int = 0,
 ) -> Page:
     """The organization's compositions by name (or the most recently updated first), filtered by kind, by a
-    text in name or slug, and by archived."""
+    text in name or slug, by archived, and by ``problem`` (slug or id): a version links one of its revisions.
+    An unknown problem matches nothing."""
     query = select(Composition).where(Composition.organization_id == organization_id)
+    if problem is not None:
+        found = await problem_by_ref(session, organization_id, problem)
+        if found is None:
+            return Page([], 0)
+        query = query.where(Composition.id.in_(
+            select(CompositionVersion.composition_id)
+            .join(BindingCaseRevision, BindingCaseRevision.id == CompositionVersion.revision_id)
+            .where(BindingCaseRevision.binding_case_id == found.id)
+        ))
     if kind is not None:
         query = query.where(Composition.kind == kind)
     if archived is not None:

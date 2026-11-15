@@ -238,3 +238,25 @@ async def test_an_anonymous_caller_is_refused(api_client, registration, db_sessi
     _, headers, org = await owner(api_client, registration, db_session, gate)
 
     assert (await api_client.get(f"/v1/organizations/{org}/compositions")).status_code == 401
+
+
+async def test_the_list_filters_on_the_problem_a_version_links(api_client, registration, db_session, gate):  # noqa: F811
+    from _b3_links import an_organization_with_links
+
+    world = await an_organization_with_links(api_client, registration, db_session, gate)
+    url = f"/v1/organizations/{world.org}/compositions"
+
+    async def slugs(**params):
+        response = await api_client.get(url, params=params, headers=world.headers)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["total"] == len(body["compositions"])
+        return [row["slug"] for row in body["compositions"]]
+
+    assert await slugs() == ["plain", "shop"]
+    assert await slugs(problem=world.linked.slug) == ["shop"]
+    assert await slugs(problem=str(world.linked.id)) == ["shop"]
+    assert await slugs(problem=world.other.slug) == []
+    assert await slugs(problem="nowhere") == []
+    assert await slugs(problem=str(uuid.uuid4())) == []
+    assert await slugs(problem=world.linked.slug, archived=True) == []

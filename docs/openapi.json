@@ -6853,6 +6853,17 @@
             "title": "Id",
             "type": "string"
           },
+          "origin": {
+            "description": "Where the revision came from: `upload`, `editor` (the problem editor), `qacoforge` or `sphere`; read from the upload's producer when it was stored.",
+            "enum": [
+              "upload",
+              "editor",
+              "qacoforge",
+              "sphere"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
           "package_digest": {
             "title": "Package Digest",
             "type": "string"
@@ -6866,6 +6877,7 @@
           "id",
           "revision",
           "package_digest",
+          "origin",
           "created_at"
         ],
         "title": "LatestRevision",
@@ -9051,6 +9063,17 @@
             ],
             "title": "Instance Digest"
           },
+          "origin": {
+            "description": "Where the revision came from: `upload`, `editor` (the problem editor), `qacoforge` or `sphere`; read from the upload's producer when it was stored.",
+            "enum": [
+              "upload",
+              "editor",
+              "qacoforge",
+              "sphere"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
           "package_digest": {
             "title": "Package Digest",
             "type": "string"
@@ -9094,6 +9117,7 @@
           "revision",
           "package_digest",
           "package_size",
+          "origin",
           "created_by_id",
           "created_at",
           "document",
@@ -9129,6 +9153,17 @@
               }
             ],
             "title": "Instance Digest"
+          },
+          "origin": {
+            "description": "Where the revision came from: `upload`, `editor` (the problem editor), `qacoforge` or `sphere`; read from the upload's producer when it was stored.",
+            "enum": [
+              "upload",
+              "editor",
+              "qacoforge",
+              "sphere"
+            ],
+            "title": "Origin",
+            "type": "string"
           },
           "package_digest": {
             "title": "Package Digest",
@@ -9166,6 +9201,7 @@
           "revision",
           "package_digest",
           "package_size",
+          "origin",
           "created_by_id",
           "created_at"
         ],
@@ -17020,6 +17056,25 @@
             }
           },
           {
+            "description": "Only compositions with a version linking a revision of this problem (slug or id); none for an unknown one.",
+            "in": "query",
+            "name": "problem",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only compositions with a version linking a revision of this problem (slug or id); none for an unknown one.",
+              "title": "Problem"
+            }
+          },
+          {
             "description": "By `name` (the default), or the most recently `updated` first.",
             "in": "query",
             "name": "sort",
@@ -20626,6 +20681,49 @@
                 }
               ],
               "title": "Q"
+            }
+          },
+          {
+            "description": "Only problems whose latest revision came from here.",
+            "in": "query",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "upload",
+                    "editor",
+                    "qacoforge",
+                    "sphere"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only problems whose latest revision came from here.",
+              "title": "Origin"
+            }
+          },
+          {
+            "description": "Only problems a version of this composition (slug or id) links; none for an unknown one.",
+            "in": "query",
+            "name": "composition",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only problems a version of this composition (slug or id) links; none for an unknown one.",
+              "title": "Composition"
             }
           },
           {

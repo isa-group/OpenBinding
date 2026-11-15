@@ -156,6 +156,11 @@ async def list_compositions(
     kind: CompositionKindName | None = Query(default=None),
     q: str | None = Query(default=None, max_length=160, description="Text in the name or the slug."),
     archived: bool | None = Query(default=None, description="Only archived (`true`) or only active (`false`) ones."),
+    problem: str | None = Query(
+        default=None, max_length=64,
+        description="Only compositions with a version linking a revision of this problem (slug or id); none for an "
+        "unknown one.",
+    ),
     sort: Literal["name", "updated"] = Query(
         default="name", description="By `name` (the default), or the most recently `updated` first.",
     ),
@@ -168,7 +173,7 @@ async def list_compositions(
     organization = await compositions.organization_for(session, org, user, OrganizationRole.VIEWER)
     page = await compositions.list_compositions(
         session, organization.id, kind=CompositionKind(kind) if kind else None, q=q, archived=archived,
-        sort=sort, limit=limit, offset=offset,
+        problem=problem, sort=sort, limit=limit, offset=offset,
     )
     found = await versions.summaries(session, [row.id for row in page.compositions])
     return CompositionList(

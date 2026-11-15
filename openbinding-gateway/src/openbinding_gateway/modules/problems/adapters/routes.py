@@ -38,6 +38,7 @@ from ..application import problems
 from ..application.facts import compilation_facts
 from ..application.package import PackageRequest, read_package
 from ..domain.compilation import analysis_summary, resource_contracts
+from ..domain.origin import ProblemOrigin
 from .schemas import (
     CompilationIr,
     CompilationSummary,
@@ -137,7 +138,7 @@ def _problem_view(
         description=problem.description, created_by_id=problem.created_by_id,
         created_at=problem.created_at, updated_at=problem.updated_at,
         latest_revision=LatestRevision(
-            id=latest.id, revision=latest.revision, package_digest=latest.package_digest,
+            id=latest.id, revision=latest.revision, package_digest=latest.package_digest, origin=latest.origin,
             created_at=latest.created_at,
             current_compilation=_summary(compilation) if compilation is not None else None,
         ) if latest is not None else None,
@@ -148,7 +149,7 @@ def _revision_view(row: BindingCaseRevision) -> RevisionView:
     return RevisionView(
         id=row.id, problem_id=row.binding_case_id, revision=row.revision, package_digest=row.package_digest,
         instance_digest=row.instance_digest, package_size=row.package_size, provenance=row.provenance,
-        created_by_id=row.created_by_id, created_at=row.created_at,
+        origin=row.origin, created_by_id=row.created_by_id, created_at=row.created_at,
     )
 
 
@@ -168,6 +169,11 @@ def _upload_view(upload: problems.Upload) -> ProblemUpload:
 async def list_problems(
     org: str,
     q: str | None = Query(default=None, max_length=160),
+    origin: ProblemOrigin | None = Query(default=None, description="Only problems whose latest revision came from here."),
+    composition: str | None = Query(
+        default=None, max_length=64,
+        description="Only problems a version of this composition (slug or id) links; none for an unknown one.",
+    ),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     user: User = Depends(get_current_user),
@@ -176,6 +182,13 @@ async def list_problems(
     """The organization's problems, each with its latest revision and that revision's current compilation."""
     organization = await _organization(session, org, user, OrganizationRole.VIEWER)
     query = select(BindingCase).where(BindingCase.organization_id == organization.id)
+    if origin is not None:
+        query = query.where(problems.latest_origin_is(origin))
+    if composition is not None:
+        linked = await problems.linked_by_composition(session, organization.id, composition)
+        if linked is None:
+            return ProblemList(problems=[], total=0, limit=limit, offset=offset)
+        query = query.where(linked)
     if q:
         pattern = like_contains(q)
         query = query.where(or_(

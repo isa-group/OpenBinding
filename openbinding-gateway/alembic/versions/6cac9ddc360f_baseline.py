@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = 'a024e73c942c'
+revision: str = '6cac9ddc360f'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -414,8 +414,10 @@ def upgrade() -> None:
     sa.Column('files', sa.JSON(), nullable=False),
     sa.Column('resource_digests', sa.JSON(), nullable=True),
     sa.Column('provenance', sa.JSON(), nullable=True),
+    sa.Column('origin', sa.String(length=16), server_default='upload', nullable=False),
     sa.Column('created_by_id', sa.Uuid(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint("origin IN ('upload', 'editor', 'qacoforge', 'sphere')", name=op.f('ck_binding_case_revisions_binding_case_revision_origin')),
     sa.CheckConstraint('revision > 0', name=op.f('ck_binding_case_revisions_binding_case_revision_positive')),
     sa.ForeignKeyConstraint(['binding_case_id'], ['binding_cases.id'], name=op.f('fk_binding_case_revisions_binding_case_id_binding_cases'), ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_binding_case_revisions_created_by_id_users'), ondelete='RESTRICT'),
