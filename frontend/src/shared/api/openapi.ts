@@ -6300,7 +6300,11 @@ export interface components {
         /**
          * StudyDefinition
          * @description The reproducible Cartesian product behind a comparative study: problem revisions of the study's
-         *     organization, exact engine revisions with a mode, parameter sets and seeds.
+         *     organization, engines, parameter sets and seeds.
+         *
+         *     An engine is an exact engine revision with a mode, an optimization and, optionally, ``options``; or
+         *     ``{"preset": <slug or id>}``, a run preset of the organization that each run expands into one (and records
+         *     as ``preset: {id, slug}``, which an exact entry copied from a run may keep).
          */
         StudyDefinition: {
             /** Engines */

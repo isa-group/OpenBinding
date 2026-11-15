@@ -18,14 +18,24 @@ from bim_core.canonical import digest
 STUDY_RUN_API_VERSION = "openbinding/study-run/v1"
 
 
-def expand_study(definition: StudyDefinition, compilations: Mapping[str, str]) -> list[dict[str, Any]]:
+def expand_study(
+    definition: StudyDefinition,
+    compilations: Mapping[str, str],
+    engines: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     """The cells of ``definition``, in a fixed order; ``compilations`` maps each revision id to the
-    compilation id its cells run, which is part of every cell's fingerprint (D7)."""
+    compilation id its cells run, which is part of every cell's fingerprint (D7). ``engines`` are the
+    definition's engines with every preset expanded (``study_jobs.study_engines``); the definition's own by
+    default."""
     cells = []
     engines = sorted(
-        definition.engines,
+        definition.engines if engines is None else engines,
         key=lambda item: tuple(item[key] for key in ("namespace", "name", "version", "digest"))
-        + (item.get("mode", ""), item.get("optimization", {}).get("scalarization", "")),
+        + (
+            item.get("mode", ""),
+            item.get("optimization", {}).get("scalarization", ""),
+            digest(item.get("options") or {}),
+        ),
     )
     revisions = sorted(definition.revision_ids, key=str)
     parameters = sorted(definition.parameter_sets, key=digest)
@@ -44,16 +54,20 @@ def expand_study(definition: StudyDefinition, compilations: Mapping[str, str]) -
     return cells
 
 
-def frozen_definition(definition: StudyDefinition, problems: list[dict[str, Any]]) -> dict[str, Any]:
+def frozen_definition(
+    definition: StudyDefinition, problems: list[dict[str, Any]], engines: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """The ``openbinding/study-run/v1`` document a study run freezes (D7).
 
     ``problems`` holds one entry per revision: ``revisionId``, ``problemId``, ``revision``,
-    ``packageDigest`` and the pinned ``compilationId``, ``compilationDigest`` and ``irDigest``.
+    ``packageDigest`` and the pinned ``compilationId``, ``compilationDigest`` and ``irDigest``. ``engines`` are
+    the expanded engines (``expand_study``), each ``{namespace, name, version, digest, mode, optimization,
+    options, preset}``; the definition's own by default.
     """
     return {
         "apiVersion": STUDY_RUN_API_VERSION,
         "problems": sorted(problems, key=lambda item: item["revisionId"]),
-        "engines": definition.model_dump(mode="json")["engines"],
+        "engines": definition.model_dump(mode="json")["engines"] if engines is None else engines,
         "parameterSets": definition.parameter_sets,
         "seeds": definition.seeds,
     }

@@ -105,9 +105,36 @@ class InvitationAccept(BaseModel):
     token: str = Field(..., min_length=32)
 
 
+def study_preset_ref(engine: Mapping[str, Any]) -> str | None:
+    """The run preset a study engine entry starts from (``{"preset": <slug or id>}``), else ``None``."""
+    if set(engine) == {"preset"} and isinstance(engine["preset"], str) and engine["preset"]:
+        return engine["preset"]
+    return None
+
+
+def study_engine_identity(engine: Mapping[str, Any]) -> tuple[Any, ...]:
+    """What makes two study engines the same: the exact revision, the mode, the optimization and the options.
+
+    A preset entry not yet expanded is named by its reference; ``preset`` provenance is not part of it.
+    """
+    ref = study_preset_ref(engine)
+    if ref is not None:
+        return ("preset", ref)
+    return (
+        tuple(engine.get(key, "") for key in ("namespace", "name", "version", "digest", "mode")),
+        json.dumps(engine.get("optimization", {}), sort_keys=True, separators=(",", ":")),
+        json.dumps(engine.get("options") or {}, sort_keys=True, separators=(",", ":")),
+    )
+
+
 class StudyDefinition(BaseModel):
     """The reproducible Cartesian product behind a comparative study: problem revisions of the study's
-    organization, exact engine revisions with a mode, parameter sets and seeds."""
+    organization, engines, parameter sets and seeds.
+
+    An engine is an exact engine revision with a mode, an optimization and, optionally, ``options``; or
+    ``{"preset": <slug or id>}``, a run preset of the organization that each run expands into one (and records
+    as ``preset: {id, slug}``, which an exact entry copied from a run may keep).
+    """
 
     model_config = ConfigDict(extra="forbid")
     revision_ids: list[uuid.UUID] = Field(default_factory=list, max_length=250)
@@ -125,26 +152,32 @@ class StudyDefinition(BaseModel):
             raise ValueError("seeds contains duplicates")
         if len({json.dumps(value, sort_keys=True, separators=(",", ":")) for value in self.parameter_sets}) != len(self.parameter_sets):
             raise ValueError("parameter_sets contains duplicates")
-        identities = {
-            (tuple(engine.get(key, "") for key in ("namespace", "name", "version", "digest", "mode")), json.dumps(engine.get("optimization", {}), sort_keys=True, separators=(",", ":")))
-            for engine in self.engines
-        }
-        if len(identities) != len(self.engines):
+        if len({study_engine_identity(engine) for engine in self.engines}) != len(self.engines):
             raise ValueError("engines contains duplicate revisions")
         cells = max(1, len(self.revision_ids)) * len(self.engines) * len(self.parameter_sets) * len(self.seeds)
         if self.revision_ids and cells > 10_000:
             raise ValueError("a study run may contain at most 10,000 cells")
+        exact = [engine for engine in self.engines if study_preset_ref(engine) is None]
         required = {"namespace", "name", "version", "digest"}
-        allowed = required | {"mode", "optimization"}
-        if any(not required <= set(engine) or not set(engine) <= allowed for engine in self.engines):
-            raise ValueError("every engine must be an exact immutable reference with mode and optimization")
-        for engine in self.engines:
+        allowed = required | {"mode", "optimization", "options", "preset"}
+        if any(not required <= set(engine) or not set(engine) <= allowed for engine in exact):
+            raise ValueError(
+                "every engine must be an exact immutable reference with mode and optimization, or {preset}"
+            )
+        for engine in exact:
+            if not isinstance(engine.get("options", {}), dict):
+                raise ValueError("an engine's options is an object")
+            provenance = engine.get("preset")
+            if provenance is not None and (
+                not isinstance(provenance, dict) or set(provenance) != {"id", "slug"}
+            ):
+                raise ValueError("an engine's preset is the {id, slug} of the preset it came from")
             optimization = engine.get("optimization")
             if not engine.get("mode"):
                 raise ValueError("every study engine must select an explicit mode")
             if not isinstance(optimization, dict) or not isinstance(optimization.get("type"), str) or not isinstance(optimization.get("scalarization"), str):
                 raise ValueError("every study engine must define an optimization type and scalarization")
-        if any(not re.fullmatch(DIGEST, engine.get("digest", "")) for engine in self.engines):
+        if any(not re.fullmatch(DIGEST, engine.get("digest", "")) for engine in exact):
             raise ValueError("every engine digest must be sha256- followed by 64 lowercase hex characters")
         return self
 

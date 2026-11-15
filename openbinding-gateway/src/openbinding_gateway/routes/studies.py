@@ -49,6 +49,7 @@ from ..models.platform import (
     StudyRunView,
     StudyUpdate,
     StudyView,
+    study_preset_ref,
 )
 from ..modules.problems.application import ir_analysis
 from ..services.entitlements import EntitlementService, get_entitlements
@@ -66,6 +67,7 @@ from ..study_jobs import (
     launch_study_cell,
     lock_run,
     metrics_from_job,
+    study_engines,
 )
 from ..studies import aggregate_metrics, export_csv, export_json, pareto_fronts
 from bim_core.canonical import digest
@@ -109,8 +111,11 @@ def _allows_study_engine(user: User, engine: Mapping) -> bool:
     """Whether the caller may use the exact Engine revision a study engine pins.
 
     A study engine also carries its ``mode`` and ``optimization``; an API key grants revisions, so
-    only the identity fields are checked.
+    only the identity fields are checked. A ``{preset}`` entry pins no revision until a run expands it,
+    and the expansion checks the revision it comes to (``study_engines``).
     """
+    if study_preset_ref(engine) is not None:
+        return True
     return allows_engine(user, {field: engine[field] for field in ENGINE_REF_FIELDS if field in engine})
 
 
@@ -189,16 +194,25 @@ async def _definition(
         )
     engines = []
     for engine in definition.engines:
+        if study_preset_ref(engine) is not None:
+            engines.append(dict(engine))
+            continue
         _, mode, _ = await engine_mode(
-            engine["name"], engine.get("mode"), definition.parameter_sets[0], session, caller=user,
+            engine["name"], engine.get("mode"), {**(engine.get("options") or {}), **definition.parameter_sets[0]},
+            session, caller=user,
             namespace=engine["namespace"], version=engine["version"], manifest_digest=engine["digest"],
         )
         engines.append({**engine, "mode": mode["id"]})
-    return {
+    stored = {
         **definition.model_dump(mode="json"),
         "revision_ids": [str(value) for value in sorted(revision_ids, key=str)],
         "engines": engines,
     }
+    # Each preset is expanded once here, to refuse what no run could expand (an unknown, federated or
+    # incomplete preset, or two engines that come out the same); the study keeps the ``{preset}`` entry,
+    # and every run expands it again.
+    await study_engines(session, organization, user, StudyDefinition.model_validate(stored))
+    return stored
 
 
 @router.get("/studies", response_model=list[StudyView], operation_id="listStudies")

@@ -10120,7 +10120,7 @@
       },
       "StudyDefinition": {
         "additionalProperties": false,
-        "description": "The reproducible Cartesian product behind a comparative study: problem revisions of the study's\norganization, exact engine revisions with a mode, parameter sets and seeds.",
+        "description": "The reproducible Cartesian product behind a comparative study: problem revisions of the study's\norganization, engines, parameter sets and seeds.\n\nAn engine is an exact engine revision with a mode, an optimization and, optionally, ``options``; or\n``{\"preset\": <slug or id>}``, a run preset of the organization that each run expands into one (and records\nas ``preset: {id, slug}``, which an exact entry copied from a run may keep).",
         "properties": {
           "engines": {
             "items": {
