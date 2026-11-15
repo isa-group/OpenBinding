@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 130
+    assert len(ROUTES) == 135
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -126,10 +126,10 @@ def test_projects_are_gone_with_their_permissions_and_boundary():
     assert not [route for route in ROUTES if "/projects" in route[1] or "{project}" in route[1]]
     assert not {"projects:read", "projects:write"} & set(ALL_PERMISSIONS)
     assert "projects" not in apikeys.BOUNDARY_FIELDS
-    # The organization tree holds only the organization, its members, invitations, audit, problems, runs, studies
-    # and compositions.
+    # The organization tree holds only the organization, its members, invitations, audit, problems, runs, run
+    # presets, studies and compositions.
     sections = {route[1].split("/")[4] for route in ROUTES if route[1].startswith("/v1/organizations/{org}/")}
-    assert sections == {"members", "invitations", "audit", "problems", "runs", "studies", "compositions"}
+    assert sections == {"members", "invitations", "audit", "problems", "runs", "presets", "studies", "compositions"}
     # A stored boundary that still names projects is malformed, and a malformed boundary denies everything.
     stale = SimpleNamespace(grants={"boundary": {"projects": ["p"]}})
     assert not allows_request(stale, method="GET", path_params={"org": "acme"}, path="/v1/organizations/{org}")
@@ -264,3 +264,26 @@ def test_the_compositions_of_an_organization_are_composition_reads_and_writes():
     request = {"method": "GET", "path_params": {"org": "acme", "composition": "c"}, "path": f"{compositions}/{{composition}}"}
     assert allows_request(composition_only, **request)
     assert not allows_request(problems_only, **request)
+
+
+def test_the_run_presets_of_an_organization_are_jobs_reads_and_engine_executions():
+    presets = "/v1/organizations/{org}/presets"
+    routes = sorted(route for route in ROUTES if route[1].startswith(presets))
+
+    assert routes == [
+        ("DELETE", f"{presets}/{{preset}}"),
+        ("GET", presets),
+        ("GET", f"{presets}/{{preset}}"),
+        ("PATCH", f"{presets}/{{preset}}"),
+        ("POST", presets),
+    ]
+    for method, path in routes:
+        # Configuring how engines run is what creating a run needs.
+        expected = "jobs:read" if method == "GET" else "engines:execute"
+        assert required_permissions(path, method) == frozenset({expected}), (method, path)
+        assert not {"organizations:read", "organizations:write"} & required_permissions(path, method)
+    request = {"method": "GET", "path_params": {"org": "acme", "preset": "quick"}, "path": f"{presets}/{{preset}}"}
+    assert allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["preset"]}}), **request)
+    assert not allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["run"]}}), **request)
+    assert allows_request(SimpleNamespace(grants={"boundary": {"slugs": ["quick"]}}), **request)
+    assert not allows_request(SimpleNamespace(grants={"boundary": {"slugs": ["other"]}}), **request)

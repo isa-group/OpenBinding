@@ -56,6 +56,7 @@ from .models.problem import (
 )
 from .modules.compositions.adapters.language_routes import router as composition_language_router
 from .modules.compositions.adapters.routes import router as compositions_router
+from .modules.execution.adapters.preset_routes import router as run_presets_router
 from .modules.execution.adapters.routes import router as runs_router
 from .modules.problems.adapters.bim_routes import router as bim_router
 from .modules.problems.adapters.routes import router as problems_router
@@ -435,6 +436,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(bim_router)
     app.include_router(composition_language_router)
     app.include_router(runs_router)
+    app.include_router(run_presets_router)
     app.include_router(notifications_router)
 
     generated_openapi = app.openapi
@@ -851,6 +853,14 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             "mode": {"type": "string"},
             "options": {"type": "object"},
             "optimization": {"type": "object"},
+            "preset": {
+                "type": "string",
+                "minLength": 1,
+                "description": (
+                    "A run preset of the organization (`listRunPresets`), by slug or id, whose settings the run "
+                    "copies; not together with `engine`, `registration`, `mode`, `options` or `optimization`."
+                ),
+            },
         },
         "additionalProperties": False,
     }
@@ -1114,7 +1124,8 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
 
     runs = paths["/v1/organizations/{org}/runs"]
     runs["post"]["requestBody"] = json_body(
-        "JobRequest", "The problem revision to run, and the exact Engine, deployment and settings."
+        "JobRequest",
+        "The problem revision to run, and the exact Engine, deployment and settings, or a run preset that holds them.",
     )
     runs["post"].setdefault("parameters", []).append(
         {

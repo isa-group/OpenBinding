@@ -2,7 +2,7 @@
 
 The organization is the only container. Everything a person works on lives under
 `/v1/organizations/{org}/...`: its members, invitations and audit log, its problems
-(with their revisions and compilations), its runs, its studies and its compositions. There are no
+(with their revisions and compilations), its runs and run presets, its studies and its compositions. There are no
 projects, and there is no public read: every route under an organization is for its
 members.
 
@@ -13,8 +13,8 @@ A member of the organization, or of one of its ancestors, has a role there
 the chain applies (`collaboration.effective_role`). Anybody else is refused:
 
 - a signed-in non-member gets `403 organization_forbidden`; a slug that names no
-  organization is `404 not_found`; the runs routes answer `404` to a non-member too
-  (below), and so do the compositions routes: a composition the caller cannot read
+  organization is `404 not_found`; the runs and run presets routes answer `404` to a
+  non-member too (below), and so do the compositions routes: a composition the caller cannot read
   answers exactly as a missing one, `404` and never `403`, on every route and before
   any `If-Match` handling;
 - a caller with no credential gets `401` on every route under `/v1/organizations`;
@@ -34,6 +34,7 @@ malformed, and a malformed boundary denies everything.
 | `/audit` | ADMIN | — | `organizations:read` |
 | `/problems`, `/problems/{problem}`, `/problems/{problem}/revisions/...` | VIEWER | MEMBER uploads, adds revisions and edits; ADMIN deletes | `problems:read` / `problems:write` |
 | `/runs/...` | VIEWER (redacted below MEMBER) | MEMBER | `jobs:read` / `engines:execute` |
+| `/presets`, `/presets/{preset}` | VIEWER (options redacted below MEMBER; a non-member gets `404`) | MEMBER creates, edits and deletes | `jobs:read` / `engines:execute` |
 | `/studies/...` (study runs and cells included) | VIEWER | MEMBER creates, edits and runs; ADMIN deletes | `studies:read` / `studies:write` |
 | `/compositions`, `/compositions/{composition}`, `/compositions/{composition}/versions/...`, `/compositions/{composition}/diff`, `/compositions/{composition}/fork`, `/compositions/{composition}/evaluate`, `/compositions/{composition}/neighborhood`, `/compositions/{composition}/derive` | VIEWER (a non-member gets `404`); VIEWER also checks a document (`POST …/versions/check`), compares versions, evaluates another binding of a version (`POST …/evaluate`) and explores its neighbourhood | MEMBER creates, edits, seals, re-evaluates (`POST …/versions/{version}/evaluations`) and derives versions (`POST …/derive`, from a run of the organization or a binding of one of its problems); ADMIN deletes. A fork needs read on the source and MEMBER on the target organization, which must be another one | `compositions:read` / `compositions:write` |
 
@@ -44,7 +45,7 @@ platform administrator. It takes the organization and every organization below i
 one transaction. Runs and study runs are history: a subtree that holds any is refused
 with `409 historical_references`, including a run or study run that starts while the
 delete is in progress (the subtree's studies, compositions, problems and organizations
-are locked before the check). Otherwise its studies, compositions, problems (revisions and
+are locked before the check). Otherwise its studies, run presets, compositions, problems (revisions and
 compilations), blob rows, invitations, memberships and audit events go with it. The
 stored files are not unlinked: they are content addressed and may back another
 organization's blob.
@@ -70,6 +71,12 @@ reads as missing), not `403`.
 | `GET /runs`, `GET /runs/{run}`, `GET /runs/{run}/events`, `GET /runs/{run}/neighborhood` | VIEWER and up; below MEMBER the options, the request and the error text are redacted | `jobs:read` |
 | `POST /runs` | MEMBER and up; the revision must be of `{org}` (`409 revision_not_in_organization`) | `engines:execute` |
 | `POST /runs/{run}/cancel`, `/retry`, `/reevaluate` | MEMBER and up, whoever launched the run (`403 insufficient_role` below) | `engines:execute` |
+| `GET /presets`, `GET /presets/{preset}` | VIEWER and up; below MEMBER the options are redacted | `jobs:read` |
+| `POST /presets`, `PATCH`/`DELETE /presets/{preset}` | MEMBER and up (`403 insufficient_role` below) | `engines:execute` |
+
+A run preset names the settings a run starts from (`createRun {revision, preset}`). The run
+copies them and records the preset as `{id, slug}`, so editing or deleting a preset never
+changes a run.
 
 An API key that cannot run engines (no `engines:execute`) reads redacted whatever
 the role of its user, and a key only sees the runs of the Engine revisions it may

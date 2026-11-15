@@ -35,6 +35,7 @@ from ..db.models import (
     OrganizationMembership,
     OrganizationRole,
     ProblemCompilation,
+    RunPreset,
     Study,
     StudyRun,
     User,
@@ -261,8 +262,8 @@ async def delete_organization(
 ) -> None:
     """Delete an organization and every organization below it, in one transaction.
 
-    Runs and study runs are history, so a subtree that holds any is refused. Otherwise its studies,
-    compositions (their versions and evaluations first), problems (revisions and compilations), blob rows,
+    Runs and study runs are history, so a subtree that holds any is refused. Otherwise its studies, run
+    presets, compositions (their versions and evaluations first), problems (revisions and compilations), blob rows,
     invitations, memberships and audit events go. A version's evidence names a run of the subtree, so a
     subtree that reaches the delete has none to name. Stored files are not unlinked here: they are content addressed and shared (D14).
 
@@ -312,6 +313,8 @@ async def _delete_subtree(session: AsyncSession, organization: Organization, uni
             delete(AuditEvent).where(AuditEvent.organization_id == oid)
         )
         await session.execute(delete(Study).where(Study.organization_id == oid))
+        # Run presets: no run or history refers to one, a run copies the settings it expands.
+        await session.execute(delete(RunPreset).where(RunPreset.organization_id == oid))
         held = select(Composition.id).where(Composition.organization_id == oid)
         versions = select(CompositionVersion.id).where(CompositionVersion.composition_id.in_(held))
         await session.execute(delete(CompositionDerivation).where(CompositionDerivation.version_id.in_(versions)))

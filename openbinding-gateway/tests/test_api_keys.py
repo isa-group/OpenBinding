@@ -779,6 +779,17 @@ def test_study_routes_need_the_study_permissions(path, method, permission):
     assert apikeys.required_permissions(path, method) == frozenset({permission})
 
 
+@pytest.mark.parametrize('path,method,permission', [
+    ('/v1/organizations/team/presets', 'GET', 'jobs:read'),
+    ('/v1/organizations/team/presets', 'POST', 'engines:execute'),
+    ('/v1/organizations/{org}/presets/{preset}', 'GET', 'jobs:read'),
+    ('/v1/organizations/{org}/presets/{preset}', 'PATCH', 'engines:execute'),
+    ('/v1/organizations/{org}/presets/{preset}', 'DELETE', 'engines:execute'),
+])
+def test_run_preset_routes_need_the_run_permissions(path, method, permission):
+    assert apikeys.required_permissions(path, method) == frozenset({permission})
+
+
 @pytest.mark.parametrize('path', ['/v1/artifacts/id/versions', '/v1/organizations/team/library'])
 def test_the_library_is_gone_and_its_paths_are_unclassified(path):
     assert apikeys.required_permissions(path, 'GET') in (

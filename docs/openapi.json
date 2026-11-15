@@ -6301,6 +6301,11 @@
           "options": {
             "type": "object"
           },
+          "preset": {
+            "description": "A run preset of the organization (`listRunPresets`), by slug or id, whose settings the run copies; not together with `engine`, `registration`, `mode`, `options` or `optimization`.",
+            "minLength": 1,
+            "type": "string"
+          },
           "registration": {
             "$ref": "#/components/schemas/ImmutableResourceRef"
           },
@@ -8325,6 +8330,323 @@
           "total"
         ],
         "title": "RunList",
+        "type": "object"
+      },
+      "RunPresetCreate": {
+        "additionalProperties": false,
+        "description": "A new run preset: its name and the settings a run started from it runs with.",
+        "properties": {
+          "description": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Description",
+            "type": "string"
+          },
+          "engine": {
+            "description": "A built-in engine name, or an immutable reference `{namespace, name, version, digest}`.",
+            "oneOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "$ref": "#/components/schemas/ImmutableResourceRef"
+              }
+            ],
+            "title": "Engine"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The engine mode; null for the engine's default.",
+            "title": "Mode"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "optimization": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`{type: SINGLE|MULTI|MANY, scalarization, weights?: [{criteria, value}]}`, resolved against the problem's criteria when a run uses the preset.",
+            "title": "Optimization"
+          },
+          "options": {
+            "description": "The engine options, as a run request's (at most 65536 bytes as JSON).",
+            "title": "Options",
+            "type": "object"
+          },
+          "registration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImmutableResourceRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The deployment to run on, an immutable reference; null for the engine's installed one.",
+            "title": "Registration"
+          },
+          "slug": {
+            "description": "Unique within the organization: 1 to 64 lowercase letters, digits and hyphens.",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "engine"
+        ],
+        "title": "RunPresetCreate",
+        "type": "object"
+      },
+      "RunPresetList": {
+        "description": "One page of an organization's run presets, by name, and how many match in all.",
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "presets": {
+            "items": {
+              "$ref": "#/components/schemas/RunPresetView"
+            },
+            "title": "Presets",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "presets",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "RunPresetList",
+        "type": "object"
+      },
+      "RunPresetUpdate": {
+        "additionalProperties": false,
+        "description": "The fields to change; absent fields stay. `registration`, `mode` and `optimization` are cleared with null.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "engine": {
+            "description": "A built-in engine name, or an immutable reference `{namespace, name, version, digest}`.",
+            "oneOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "$ref": "#/components/schemas/ImmutableResourceRef"
+              }
+            ],
+            "title": "Engine"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The engine mode; null for the engine's default.",
+            "title": "Mode"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "optimization": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`{type: SINGLE|MULTI|MANY, scalarization, weights?: [{criteria, value}]}`, resolved against the problem's criteria when a run uses the preset.",
+            "title": "Optimization"
+          },
+          "options": {
+            "description": "The engine options, as a run request's (at most 65536 bytes as JSON).",
+            "title": "Options",
+            "type": "object"
+          },
+          "registration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImmutableResourceRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The deployment to run on, an immutable reference; null for the engine's installed one.",
+            "title": "Registration"
+          }
+        },
+        "title": "RunPresetUpdate",
+        "type": "object"
+      },
+      "RunPresetView": {
+        "description": "A run preset of an organization. Below MEMBER the options are redacted, as a run's are.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "format": "uuid",
+            "title": "Created By Id",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "engine": {
+            "description": "A built-in engine name, or an immutable reference `{namespace, name, version, digest}`.",
+            "oneOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "$ref": "#/components/schemas/ImmutableResourceRef"
+              }
+            ],
+            "title": "Engine"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "optimization": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optimization"
+          },
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "registration": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registration"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "slug",
+          "name",
+          "description",
+          "engine",
+          "options",
+          "created_by_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "RunPresetView",
         "type": "object"
       },
       "RunView": {
@@ -15011,7 +15333,7 @@
     },
     "/v1/organizations/{org}": {
       "delete": {
-        "description": "Delete an organization and every organization below it, in one transaction.\n\nRuns and study runs are history, so a subtree that holds any is refused. Otherwise its studies,\ncompositions (their versions and evaluations first), problems (revisions and compilations), blob rows,\ninvitations, memberships and audit events go. A version's evidence names a run of the subtree, so a\nsubtree that reaches the delete has none to name. Stored files are not unlinked here: they are content addressed and shared (D14).\n\nThe subtree's studies, compositions, problems and organizations are locked before the history check, in\nthe order concurrent writers take them (a study-run start locks its study, a revision upload its problem,\nand every insert into an organization takes a key-share lock on its row). Compositions come before\nproblems because a composition write that reads a problem locks the composition first. A writer that got\nthere first commits before the check sees the subtree, and a later one waits for the delete. A foreign key\nthat still catches a concurrent write is answered with the same 409.",
+        "description": "Delete an organization and every organization below it, in one transaction.\n\nRuns and study runs are history, so a subtree that holds any is refused. Otherwise its studies, run\npresets, compositions (their versions and evaluations first), problems (revisions and compilations), blob rows,\ninvitations, memberships and audit events go. A version's evidence names a run of the subtree, so a\nsubtree that reaches the delete has none to name. Stored files are not unlinked here: they are content addressed and shared (D14).\n\nThe subtree's studies, compositions, problems and organizations are locked before the history check, in\nthe order concurrent writers take them (a study-run start locks its study, a revision upload its problem,\nand every insert into an organization takes a key-share lock on its row). Compositions come before\nproblems because a composition write that reads a problem locks the composition first. A writer that got\nthere first commits before the check sees the subtree, and a later one waits for the delete. A foreign key\nthat still catches a concurrent write is answered with the same 409.",
         "operationId": "deleteOrganization",
         "parameters": [
           {
@@ -18311,6 +18633,637 @@
         ]
       }
     },
+    "/v1/organizations/{org}/presets": {
+      "get": {
+        "description": "The organization's run presets, by name.",
+        "operationId": "listRunPresets",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Text in the name or the slug.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 160,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Text in the name or the slug.",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPresetList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or preset, or the caller is not a member."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Run Presets",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read"
+        ]
+      },
+      "post": {
+        "description": "Name a set of run settings that runs of the organization can start from (MEMBER).\n\nOnly their shape is checked here; the engine, the mode's options and the optimization are checked\nagainst the problem when a run uses the preset.",
+        "operationId": "createRunPreset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunPresetCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPresetView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Below MEMBER (`insufficient_role`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or preset, or the caller is not a member."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The slug is in use in this organization (`slug_conflict`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A setting of the wrong shape (`invalid_request_fields`), located by its `pointer`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Create Run Preset",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "engines:execute"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/presets/{preset}": {
+      "delete": {
+        "description": "Delete a run preset (MEMBER); runs started from it keep the settings they copied.",
+        "operationId": "deleteRunPreset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "preset",
+            "required": true,
+            "schema": {
+              "title": "Preset",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Below MEMBER (`insufficient_role`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or preset, or the caller is not a member."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Delete Run Preset",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "engines:execute"
+        ]
+      },
+      "get": {
+        "description": "One run preset, by slug or id.",
+        "operationId": "getRunPreset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "preset",
+            "required": true,
+            "schema": {
+              "title": "Preset",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPresetView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or preset, or the caller is not a member."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Run Preset",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read"
+        ]
+      },
+      "patch": {
+        "description": "Rename, describe or change the settings of a run preset (MEMBER); runs already started keep theirs.",
+        "operationId": "updateRunPreset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "preset",
+            "required": true,
+            "schema": {
+              "title": "Preset",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunPresetUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPresetView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Below MEMBER (`insufficient_role`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or preset, or the caller is not a member."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Update Run Preset",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "engines:execute"
+        ]
+      }
+    },
     "/v1/organizations/{org}/problems": {
       "get": {
         "description": "The organization's problems, each with its latest revision and that revision's current compilation.",
@@ -19950,7 +20903,7 @@
         ]
       },
       "post": {
-        "description": "Run a revision of one of the organization's problems on an engine (MEMBER).\n\n``Idempotency-Key`` makes sending twice by accident start one run: the same key and the same\nrequest answer the first run again (202, ``idempotent``), the same key with another request 409.",
+        "description": "Run a revision of one of the organization's problems on an engine (MEMBER).\n\nThe settings (engine, registration, mode, options, optimization) are given inline or taken from a run\npreset of the organization (``preset``, its slug or id), never both. The run copies the preset's\nsettings and records it as ``{id, slug}`` in ``original_request`` and ``provenance``.\n\n``Idempotency-Key`` makes sending twice by accident start one run: the same key and the same\nrequest answer the first run again (202, ``idempotent``), the same key with another request 409.",
         "operationId": "createRun",
         "parameters": [
           {
@@ -19982,7 +20935,7 @@
               }
             }
           },
-          "description": "The problem revision to run, and the exact Engine, deployment and settings.",
+          "description": "The problem revision to run, and the exact Engine, deployment and settings, or a run preset that holds them.",
           "required": true
         },
         "responses": {
@@ -20074,7 +21027,7 @@
                 }
               }
             },
-            "description": "The revision, selection, mode or options are invalid, or the binding space exceeds the limit."
+            "description": "The revision, selection, mode or options are invalid, or the binding space exceeds the limit; the preset is not one of the organization's (`preset_not_found`) or comes with settings of its own (`preset_with_settings`)."
           },
           "429": {
             "content": {

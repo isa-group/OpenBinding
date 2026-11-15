@@ -291,6 +291,8 @@ def test_binary_yaml_and_job_inputs_have_their_real_media_types(document):
     assert set(runs["requestBody"]["content"]) == {"application/json"}
     assert runs["requestBody"]["content"]["application/json"]["schema"] == {"$ref": "#/components/schemas/JobRequest"}
     assert any(parameter["name"] == "Idempotency-Key" for parameter in runs["parameters"])
+    # A run names its settings or a preset that holds them.
+    assert "preset" in document["components"]["schemas"]["JobRequest"]["properties"]
 
 
 @pytest.mark.parametrize(
@@ -341,6 +343,12 @@ def test_a_quota_refusal_says_which_limit_and_where_it_stands(document):
     [
         ("/v1/organizations/{org}/runs", "post", {"202", "403", "404", "409", "422", "429"}),
         ("/v1/organizations/{org}/runs/{run}", "get", {"200", "404", "422"}),
+        # The run presets of an organization: a non-member gets a 404, a role below MEMBER a 403 on writes.
+        ("/v1/organizations/{org}/presets", "get", {"200", "404", "422"}),
+        ("/v1/organizations/{org}/presets", "post", {"201", "403", "404", "409", "422"}),
+        ("/v1/organizations/{org}/presets/{preset}", "get", {"200", "404"}),
+        ("/v1/organizations/{org}/presets/{preset}", "patch", {"200", "400", "403", "404", "412", "422"}),
+        ("/v1/organizations/{org}/presets/{preset}", "delete", {"204", "403", "404"}),
         ("/v1/auth/login", "post", {"401", "503"}),
         ("/v1/auth/register", "post", {"409", "503"}),
         ("/v1/users/me", "get", {"401", "503"}),

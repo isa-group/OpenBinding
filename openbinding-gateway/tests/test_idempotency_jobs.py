@@ -244,3 +244,62 @@ async def test_study_launches_replay_with_an_idempotency_key(api_client, db_sess
     assert second.body["idempotent"] is True
     assert await _job_count(db_session) == 1
     json.dumps(second.body)
+
+
+# -- Run presets --------------------------------------------------------------
+
+
+def _presets_url(revision):
+    return runs_url_for(revision).replace("/runs", "/presets")
+
+
+async def _preset(client, headers, revision, slug="quick", **settings):
+    body = {"slug": slug, "name": slug.title(), "engine": "random-search", "mode": "seeded",
+            "optimization": OPTIMIZATION, "options": {"seed": 3}, **settings}
+    created = await client.post(_presets_url(revision), headers=headers, json=body)
+    assert created.status_code == 201, created.text
+    return created.json()
+
+
+async def test_a_run_from_a_preset_replays_while_the_preset_is_unchanged(api_client, db_session, account):
+    headers, revision = account
+    preset = await _preset(api_client, headers, revision)
+    first = await _post(api_client, headers, {"revision": revision, "preset": "quick"})
+    again = await _post(api_client, headers, {"revision": revision, "preset": preset["id"]})
+
+    assert first.status_code == again.status_code == 202, again.text
+    assert again.json()["id"] == first.json()["id"] and again.json()["idempotent"] is True
+    stored = (await db_session.execute(select(Job))).scalars().one()
+    assert stored.original_request["preset"] == stored.provenance["preset"] == {"id": preset["id"], "slug": "quick"}
+    assert stored.provenance["requestedOptions"] == {"seed": 3}
+
+
+async def test_retrying_after_the_preset_changed_is_an_idempotency_conflict(api_client, db_session, account):
+    headers, revision = account
+    await _preset(api_client, headers, revision)
+    first = await _post(api_client, headers, {"revision": revision, "preset": "quick"})
+    edited = await api_client.patch(f"{_presets_url(revision)}/quick", headers=headers, json={"options": {"seed": 4}})
+    retried = await _post(api_client, headers, {"revision": revision, "preset": "quick"})
+
+    assert first.status_code == 202 and edited.status_code == 200, edited.text
+    # The same key would now run something else.
+    assert retried.status_code == 409, retried.text
+    assert retried.json()["title"] == "idempotency_conflict"
+    assert await _job_count(db_session) == 1
+    stored = (await db_session.execute(select(Job))).scalars().one()
+    assert stored.provenance["requestedOptions"] == {"seed": 3}
+
+
+async def test_a_preset_beside_settings_or_unknown_is_a_422_without_a_job(api_client, db_session, account):
+    headers, revision = account
+    await _preset(api_client, headers, revision)
+
+    mixed = await _post(api_client, headers, {"revision": revision, "preset": "quick", "mode": "seeded"})
+    unknown = await _post(api_client, headers, {"revision": revision, "preset": "nothing-here"}, key="other")
+    malformed = await _post(api_client, headers, {"revision": revision, "preset": ""}, key="third")
+
+    assert mixed.status_code == unknown.status_code == malformed.status_code == 422
+    assert mixed.json()["title"] == "preset_with_settings"
+    assert unknown.json()["title"] == "preset_not_found"
+    assert malformed.json()["title"] == "invalid_request_fields"
+    assert await _job_count(db_session) == 0

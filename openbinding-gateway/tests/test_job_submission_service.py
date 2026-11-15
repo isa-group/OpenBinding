@@ -20,9 +20,10 @@ from _pricing import pricing_catalog, roomy_plan
 
 from openbinding_gateway import space_client, study_jobs
 from openbinding_gateway.core.settings import get_settings
-from openbinding_gateway.db.models import Job, User, UserRole
+from openbinding_gateway.db.models import Job, RunPreset, User, UserRole
 from openbinding_gateway.modules.execution.adapters import routes as runs_routes
 from openbinding_gateway.modules.execution.application import RunRequest
+from openbinding_gateway.modules.execution.domain.run_request import RunRequestRefused
 from openbinding_gateway.services import job_submission
 from openbinding_gateway.services.job_submission import (
     JobSubmission,
@@ -310,6 +311,89 @@ async def test_a_failing_compilation_leaves_no_job(db_session, user, revision_id
 
     await db_session.rollback()
     assert await job_count(db_session) == 0
+
+
+# -- Run presets ------------------------------------------------------------
+
+#: The settings of ``payload_for`` with options, as a preset holds them.
+PRESET_OPTIONS = {"seed": 11}
+
+
+async def preset_of(session, user, revision: str, slug: str = "quick") -> RunPreset:
+    """A preset of the revision's organization holding the settings of ``payload_for`` (with options)."""
+    preset = RunPreset(
+        organization_id=ORGANIZATIONS[revision], slug=slug, name=slug.title(), engine="random-search", mode="seeded",
+        options=dict(PRESET_OPTIONS), optimization=dict(OPTIMIZATION), created_by_id=user.id,
+    )
+    session.add(preset)
+    await session.commit()
+    return preset
+
+
+def from_preset(revision: str, preset: str = "quick", key: str | None = KEY) -> RunRequest:
+    return request_for(revision, {"revision": revision, "preset": preset}, key=key)
+
+
+async def test_a_run_from_a_preset_is_the_run_of_its_settings_and_names_the_preset(db_session, user, revision_id):
+    space_client.get_gate().plans[user.id] = roomy_plan()
+    preset = await preset_of(db_session, user, revision_id)
+
+    inline = await submit(db_session, user, request_for(revision_id, payload_for(revision_id, options=PRESET_OPTIONS), key="inline"))
+    preset_run = await submit(db_session, user, from_preset(revision_id, preset="quick", key="preset"))
+    by_id = await submit(db_session, user, from_preset(revision_id, preset=str(preset.id), key="by-id"))
+
+    assert inline.kind == preset_run.kind == by_id.kind == "created"
+    plain = await db_session.get(Job, uuid.UUID(inline.body["id"]))
+    started = await db_session.get(Job, uuid.UUID(preset_run.body["id"]))
+    named = {"id": str(preset.id), "slug": "quick"}
+    assert started.original_request == {**plain.original_request, "preset": named}
+    assert started.provenance == {**plain.provenance, "preset": named}
+    assert (started.options, started.engine_id) == (plain.options, plain.engine_id)
+    assert "preset" not in plain.original_request and "preset" not in plain.provenance
+    assert (await db_session.get(Job, uuid.UUID(by_id.body["id"]))).provenance["preset"] == named
+
+
+def test_a_preset_with_settings_of_its_own_is_refused_before_anything_is_read():
+    organization = uuid.uuid4()
+    for name, value in (("engine", "random-search"), ("registration", None), ("mode", "seeded"),
+                        ("options", {}), ("optimization", OPTIMIZATION)):
+        with pytest.raises(RunRequestRefused) as refused:
+            RunRequest.from_document(organization, {"revision": "r", "preset": "quick", name: value})
+        assert refused.value.code == "preset_with_settings"
+    with pytest.raises(RunRequestRefused) as malformed:
+        RunRequest.from_document(organization, {"revision": "r", "preset": 3})
+    assert malformed.value.code == "invalid_request_fields"
+
+
+async def test_an_unknown_preset_is_a_422_and_creates_nothing(db_session, user, revision_id):
+    elsewhere = await problem_for(db_session, user)
+    ORGANIZATIONS[str(elsewhere.revision.id)] = elsewhere.problem.organization_id
+    # A preset of another organization of the caller is not one of the run's organization.
+    await preset_of(db_session, user, str(elsewhere.revision.id), slug="theirs")
+
+    missing = await submit(db_session, user, from_preset(revision_id, preset="nothing-here"))
+    foreign = await submit(db_session, user, from_preset(revision_id, preset="theirs", key="other"))
+
+    for result in (missing, foreign):
+        assert (result.kind, result.status, result.body["code"]) == ("problem", 422, "preset_not_found")
+    assert await job_count(db_session) == 0
+
+
+async def test_editing_or_deleting_the_preset_leaves_the_run_as_it_started(db_session, user, revision_id):
+    preset = await preset_of(db_session, user, revision_id)
+    started = await submit(db_session, user, from_preset(revision_id))
+    job = await db_session.get(Job, uuid.UUID(started.body["id"]))
+    before = (dict(job.original_request), dict(job.provenance), dict(job.options))
+
+    preset.options = {"seed": 99}
+    preset.mode = None
+    await db_session.commit()
+    await db_session.delete(preset)
+    await db_session.commit()
+    await db_session.refresh(job)
+
+    assert (job.original_request, job.provenance, job.options) == before
+    assert job.provenance["requestedOptions"] == PRESET_OPTIONS
 
 
 # -- The route's translation --------------------------------------------------

@@ -1,8 +1,8 @@
 """Deleting an organization, and the slugs an organization may not take (F0b B8).
 
 The organization is the only container. Deleting one takes its whole subtree in one transaction: studies,
-compositions, problems with their revisions and compilations, blob rows, invitations, memberships and audit events. Runs and
-study runs are history, so a subtree that holds any is refused with 409 ``historical_references``. Stored files
+run presets, compositions, problems with their revisions and compilations, blob rows, invitations, memberships
+and audit events. Runs and study runs are history, so a subtree that holds any is refused with 409 ``historical_references``. Stored files
 are not unlinked (D14): they are content addressed and may back another organization's blob.
 
 An organization slug is the first segment of ``/app/<slug>``, so the fixed places of the application and the
@@ -30,6 +30,7 @@ from openbinding_gateway.db.models import (
     OrganizationInvitation,
     OrganizationMembership,
     ProblemCompilation,
+    RunPreset,
     Study,
     User,
 )
@@ -149,6 +150,11 @@ async def test_deleting_an_organization_takes_its_subtree_and_leaves_the_files(
             f"/v1/organizations/{where}/compositions", headers=headers, json={"slug": "checkout", "name": "Checkout"}
         )
         assert composed.status_code == 201, composed.text
+        preset = await api_client.post(
+            f"/v1/organizations/{where}/presets", headers=headers,
+            json={"slug": "quick", "name": "Quick", "engine": "random-search"},
+        )
+        assert preset.status_code == 201, preset.text
     blob = await db_session.scalar(
         select(Blob).join(BindingCaseRevision, BindingCaseRevision.package_blob_id == Blob.id)
         .where(BindingCaseRevision.id == uuid.UUID(uploaded["revision_id"]))
@@ -168,6 +174,7 @@ async def test_deleting_an_organization_takes_its_subtree_and_leaves_the_files(
     assert await _count(db_session, ProblemCompilation, ProblemCompilation.revision_id.in_(revisions)) == 0
     assert await _count(db_session, Study, Study.organization_id.in_(ids)) == 0
     assert await _count(db_session, Composition, Composition.organization_id.in_(ids)) == 0
+    assert await _count(db_session, RunPreset, RunPreset.organization_id.in_(ids)) == 0
     assert await _count(db_session, Blob, Blob.organization_id.in_(ids)) == 0
     assert await _count(db_session, OrganizationMembership, OrganizationMembership.organization_id.in_(ids)) == 0
     assert await _count(db_session, OrganizationInvitation, OrganizationInvitation.organization_id.in_(ids)) == 0

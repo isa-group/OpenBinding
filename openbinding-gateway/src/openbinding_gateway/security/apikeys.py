@@ -227,7 +227,7 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
         return False
     aliases = {
         "organizations": ("org", "organization", "organization_id", "org_id"),
-        "slugs": ("slug", "problem", "study", "composition"),
+        "slugs": ("slug", "problem", "study", "composition", "preset"),
     }
     for field, names in aliases.items():
         allowed = boundary.get(field)
@@ -246,6 +246,7 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "studies": {"study", "studies"},
             "compositions": {"composition", "compositions"},
             "runs": {"run", "runs"},
+            "presets": {"preset", "presets"},
             "cells": {"cell", "cells"},
             "bim": {"problem", "problems"},
             "engines": {"engine", "engines"},
@@ -359,9 +360,10 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             if method == "GET"
             else {ApiKeyPermission.ADMIN_ACCOUNTS_WRITE.value}
         )
-    if path.startswith("/v1/organizations/") and path.split("/")[4:5] == ["runs"]:
+    if path.startswith("/v1/organizations/") and path.split("/")[4:5] in (["runs"], ["presets"]):
         # The runs of an organization: reading them is following jobs, creating, cancelling, retrying
-        # or re-evaluating one runs an engine.
+        # or re-evaluating one runs an engine. Its run presets alike: configuring how engines run is
+        # what creating a run needs.
         return frozenset(
             {ApiKeyPermission.JOBS_READ.value}
             if method == "GET"

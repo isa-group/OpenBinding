@@ -2,8 +2,9 @@
 
 Organizations own problems (``binding_cases``), whose revisions are uploaded
 packages kept as blobs, the compilations of those revisions, studies whose
-runs freeze the definition they ran, and compositions with their sealed
-versions, their evaluations and how they were derived.
+runs freeze the definition they ran, compositions with their sealed
+versions, their evaluations and how they were derived, and the run presets
+a run can start from.
 """
 
 from __future__ import annotations
@@ -554,6 +555,42 @@ class CompositionDerivation(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
+class RunPreset(Base):
+    """Named run settings of an organization: the engine, registration, mode, options and optimization a run
+    can start from (``createRun {revision, preset}``).
+
+    Mutable, like a study (the ETag is ``updated_at``). A run copies the settings it expands, so editing or
+    deleting a preset never changes a run, and nothing keeps a reference to it.
+    """
+
+    __tablename__ = "run_presets"
+    __table_args__ = (UniqueConstraint("organization_id", "slug", name="uq_run_presets_organization_slug"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    slug: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    description: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
+    #: A built-in engine name or an immutable reference ``{namespace, name, version, digest}``, as a run request's.
+    engine: Mapped[object] = mapped_column(JSON, nullable=False)
+    registration: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    mode: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    options: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    #: ``{type, scalarization, weights: [{criteria, value}]}``, resolved against the problem when a run uses it.
+    optimization: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    created_by_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow, server_default=func.now()
     )
 
 

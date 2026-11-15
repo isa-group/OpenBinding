@@ -161,6 +161,21 @@ is not needed.
 | `revision_required` | 422 | `createRun` (`POST /v1/organizations/{org}/runs`) without `revision` |
 | `revision_not_in_organization` | 409 | `createRun` names a revision of another organization the caller can see: launch it from that organization |
 | `contract_not_installed` | 422 | a retry of a run whose compilation needs a contract the installed toolchain does not have |
+| `preset_with_settings` | 422 | `createRun` names a `preset` together with `engine`, `registration`, `mode`, `options` or `optimization`: a run takes its settings from the preset or from the request, never both |
+| `preset_not_found` | 422 | `createRun` names a `preset` the run's organization has no run preset by (slug or id) |
+| `invalid_request_fields` | 422 | `createRun`: a field outside the run contract, or a `preset` that is not a slug or id |
+
+## Run presets
+
+The run presets of an organization (`/v1/organizations/{org}/presets`) follow the runs: a non-member gets
+`404 not_found` on every route, a role below MEMBER `403 insufficient_role` on a write.
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `not_found` | 404 | no such organization or preset, or the caller is not a member |
+| `insufficient_role` | 403 | `createRunPreset`, `updateRunPreset`, `deleteRunPreset` below MEMBER |
+| `slug_conflict` | 409 | the preset slug is in use in the organization |
+| `invalid_request_fields` | 422 | a setting of the wrong shape: `engine` not a name or an immutable reference, `registration` not an immutable reference, `mode` not a mode id, `options` not an object of at most 65 536 bytes as JSON, `optimization` not `{type: SINGLE\|MULTI\|MANY, scalarization, weights?: [{criteria, value}]}`; its one diagnostic's `pointer` names the setting (`/optimization/weights/0`). Whether the engine runs the problem is checked when a run uses the preset |
 
 ## Composition2Yaml
 
@@ -306,13 +321,14 @@ These operations take an optional `If-Match` header:
 - `PATCH …/problems/{problem}`
 - `PATCH …/studies/{study}`
 - `PATCH …/compositions/{composition}`
+- `PATCH …/presets/{preset}`
 - `PATCH /v1/users/me`
 - `PUT /v1/notifications/preferences`
 - `PUT /v1/engine-registrations/{name}/credential`
 - `POST /v1/admin/users/{user_id}/plan`
 - `POST /v1/admin/users/{user_id}/subscription`
 
-The first eight are the covered-operations table of change `optimistic-concurrency`, with `updateComposition` added in F1. Their `200`, and the
+The first nine are the covered-operations table of change `optimistic-concurrency`, with `updateComposition` and `updateRunPreset` added in F1. Their `200`, and the
 single-resource `GET` of the same resource, carry an `ETag`. The tag is a strong, opaque entity tag, so send it back
 unchanged and never parse it. Without `If-Match` nothing is checked and the request behaves as it always did, with
 the last writer winning.

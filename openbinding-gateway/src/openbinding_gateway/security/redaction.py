@@ -72,7 +72,7 @@ _MAX_OPTION_STRING = 128
 _REFERENCE_KEYS = ("namespace", "name", "version", "digest")
 
 #: Top-level keys of ``original_request`` a VIEWER may see.
-_REQUEST_KEYS = ("timeout", "mode", "optimization", "registration")
+_REQUEST_KEYS = ("timeout", "mode", "optimization", "registration", "preset")
 
 
 @lru_cache(maxsize=4)
