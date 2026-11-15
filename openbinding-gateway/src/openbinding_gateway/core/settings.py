@@ -297,6 +297,9 @@ class Settings(BaseSettings):
     #: parse, serialise, diff), which an editor calls as its author types, so its
     #: budget is larger.
     work_rate_limit_read_requests: int = Field(default=60, ge=0)
+    #: The class ``evaluate``: sealing or checking a composition version, which
+    #: has the toolchain evaluate its binding (and compile its problem on a miss).
+    work_rate_limit_evaluate_requests: int = Field(default=30, ge=0)
     #: How many times that budget a signed-in caller gets.
     work_rate_limit_signed_in_multiplier: int = Field(default=5, ge=1)
 

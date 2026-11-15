@@ -54,7 +54,7 @@ def _refusal(description: str) -> dict[str, Any]:
 _TOO_LARGE = _refusal("The document is longer than a document may be (`limitBytes`).")
 _WRONG_TYPE = _refusal("The request media type is not one this service reads.")
 _INVALID = _refusal("The document has errors: `code` is `composition_invalid`, and `diagnostics` lists each one, located.")
-_YAML_BODY = {
+YAML_BODY = {
     "requestBody": {
         "required": True,
         "description": f"A Composition2Yaml document, as YAML text in UTF-8, at most {MAX_DOCUMENT_BYTES} bytes.",
@@ -67,7 +67,7 @@ def _media_type(request: Request) -> str:
     return (request.headers.get("content-type") or "").split(";", 1)[0].strip().lower()
 
 
-async def _body(request: Request, media_types: tuple[str, ...], limit: int, what: str) -> bytes:
+async def document_body(request: Request, media_types: tuple[str, ...], limit: int, what: str) -> bytes:
     """The raw body, refused at the transport: 415 for another media type, 413 past ``limit`` bytes."""
     if _media_type(request) not in media_types:
         raise api_error(
@@ -111,12 +111,12 @@ def _invalid(refusal: LanguageRefusal) -> Exception:
     response_model=ValidateResult,
     dependencies=[Depends(limit_work_of_counted_caller)],
     responses={413: _TOO_LARGE, 415: _WRONG_TYPE},
-    openapi_extra=_YAML_BODY,
+    openapi_extra=YAML_BODY,
 )
 async def validate_composition(request: Request, caller: User | None = Depends(counted_caller)) -> dict[str, Any]:
     # Counted for anybody; a key must carry ``compositions:read`` (nothing is stored).
     authorize_counted_key(request, caller)
-    raw = await _body(request, YAML_MEDIA_TYPES, MAX_DOCUMENT_BYTES, "A document")
+    raw = await document_body(request, YAML_MEDIA_TYPES, MAX_DOCUMENT_BYTES, "A document")
     reading = await language.validate(raw)
     return {"valid": reading.valid, "diagnostics": [language.diagnostic_view(item) for item in reading.diagnostics]}
 
@@ -132,11 +132,11 @@ async def validate_composition(request: Request, caller: User | None = Depends(c
     response_model=ParseResult,
     dependencies=[Depends(limit_work_of_counted_caller)],
     responses={413: _TOO_LARGE, 415: _WRONG_TYPE, 422: _INVALID},
-    openapi_extra=_YAML_BODY,
+    openapi_extra=YAML_BODY,
 )
 async def parse_composition(request: Request, caller: User | None = Depends(counted_caller)) -> dict[str, Any]:
     authorize_counted_key(request, caller)
-    raw = await _body(request, YAML_MEDIA_TYPES, MAX_DOCUMENT_BYTES, "A document")
+    raw = await document_body(request, YAML_MEDIA_TYPES, MAX_DOCUMENT_BYTES, "A document")
     try:
         document, diagnostics = await language.parse(raw)
     except LanguageRefusal as refusal:
@@ -174,7 +174,7 @@ async def parse_composition(request: Request, caller: User | None = Depends(coun
 )
 async def serialise_composition(request: Request, caller: User | None = Depends(counted_caller)) -> Response:
     authorize_counted_key(request, caller)
-    raw = await _body(request, (JSON_MEDIA_TYPE,), MAX_JSON_DOCUMENT_BYTES, "A JSON document")
+    raw = await document_body(request, (JSON_MEDIA_TYPE,), MAX_JSON_DOCUMENT_BYTES, "A JSON document")
     try:
         source = strict_json_loads(raw)
     except PackageError as error:
@@ -209,7 +209,7 @@ async def serialise_composition(request: Request, caller: User | None = Depends(
 )
 async def diff_compositions(request: Request, caller: User | None = Depends(counted_caller)) -> dict[str, Any]:
     authorize_counted_key(request, caller)
-    raw = await _body(request, (JSON_MEDIA_TYPE,), MAX_DIFF_BODY_BYTES, "A diff request")
+    raw = await document_body(request, (JSON_MEDIA_TYPE,), MAX_DIFF_BODY_BYTES, "A diff request")
     try:
         sides = DiffRequest.model_validate(strict_json_loads(raw))
     except PackageError as error:

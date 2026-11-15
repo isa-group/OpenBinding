@@ -2516,6 +2516,75 @@
         "title": "ChangeView",
         "type": "object"
       },
+      "CheckResult": {
+        "description": "The lint of a document against its problem: 200 whether or not it is valid; nothing is stored.",
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The exact canonical text a seal would store; null when not valid.",
+            "title": "Content"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "valid": {
+            "description": "Whether a seal would accept the document.",
+            "title": "Valid",
+            "type": "boolean"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/ValueView"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The values a seal would store; null when not valid.",
+            "title": "Values"
+          },
+          "values_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "verified",
+                  "declared"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What a seal would store: `verified` for a linked document, `declared` for one with no problem.",
+            "title": "Values Status"
+          }
+        },
+        "required": [
+          "valid",
+          "values_status",
+          "values",
+          "content",
+          "diagnostics"
+        ],
+        "title": "CheckResult",
+        "type": "object"
+      },
       "CompilationIr": {
         "properties": {
           "id": {
@@ -2908,6 +2977,261 @@
         "title": "CompositionUpdate",
         "type": "object"
       },
+      "CompositionVersionList": {
+        "description": "One page of a composition's versions, and how many it has.",
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionVersionView"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "versions",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "CompositionVersionList",
+        "type": "object"
+      },
+      "CompositionVersionSummary": {
+        "description": "A version, named.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "description": "The document's `version:` (Semantic Versioning).",
+            "title": "Label",
+            "type": "string"
+          },
+          "ordinal": {
+            "description": "1 for the first version sealed, then one more each time.",
+            "minimum": 1.0,
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "values_status": {
+            "enum": [
+              "verified",
+              "declared"
+            ],
+            "title": "Values Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ordinal",
+          "label",
+          "values_status",
+          "created_at"
+        ],
+        "title": "CompositionVersionSummary",
+        "type": "object"
+      },
+      "CompositionVersionView": {
+        "description": "A sealed version of a composition: immutable.",
+        "properties": {
+          "analytics": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A summary of the document computed at seal: `tasks`, `boundTasks`, `localTasks`, `providers`, `upstreamPricings`, `workflow{depth, xor, and, loop}`, `hasOffering`. In a list, only with `include=analytics`.",
+            "title": "Analytics"
+          },
+          "based_on": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version it was forked from, as data.",
+            "title": "Based On"
+          },
+          "content_digest": {
+            "description": "Digest of the canonical bytes; the content's `ETag`.",
+            "title": "Content Digest",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "format": "uuid",
+            "title": "Created By Id",
+            "type": "string"
+          },
+          "current_evaluation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Evaluation Id"
+          },
+          "evaluations": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluationView"
+            },
+            "title": "Evaluations",
+            "type": "array"
+          },
+          "evidence_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceRun"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "application",
+              "workflow",
+              "pipeline",
+              "system"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "description": "The document's `version:` (Semantic Versioning).",
+            "title": "Label",
+            "type": "string"
+          },
+          "offering": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The offering's source: `{sphere, registry?}` or `{url}`.",
+            "title": "Offering"
+          },
+          "ordinal": {
+            "minimum": 1.0,
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VersionLink"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The problem the version links; null for a declared one."
+          },
+          "size_bytes": {
+            "minimum": 1.0,
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "syntax_version": {
+            "description": "The `syntaxVersion` the version was sealed with.",
+            "title": "Syntax Version",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ValueView"
+            },
+            "description": "The values of the current evaluation.",
+            "title": "Values",
+            "type": "object"
+          },
+          "values_status": {
+            "description": "`verified`: the values are the toolchain's; `declared`: they are the author's.",
+            "enum": [
+              "verified",
+              "declared"
+            ],
+            "title": "Values Status",
+            "type": "string"
+          },
+          "verified": {
+            "description": "Whether the current evaluation verified the binding and computed the values.",
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "ordinal",
+          "label",
+          "syntax_version",
+          "kind",
+          "values_status",
+          "verified",
+          "content_digest",
+          "size_bytes",
+          "values",
+          "problem",
+          "offering",
+          "evidence_run",
+          "based_on",
+          "evaluations",
+          "current_evaluation_id",
+          "created_by_id",
+          "created_at"
+        ],
+        "title": "CompositionVersionView",
+        "type": "object"
+      },
       "CompositionView": {
         "description": "A composition of an organization.",
         "properties": {
@@ -2945,9 +3269,15 @@
             "type": "string"
           },
           "latest_version": {
-            "description": "The latest sealed version; null while it has none.",
-            "title": "Latest Version",
-            "type": "null"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompositionVersionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The latest sealed version; null while it has none."
           },
           "name": {
             "title": "Name",
@@ -4487,6 +4817,142 @@
           "detail"
         ],
         "title": "ErrorResponse",
+        "type": "object"
+      },
+      "EvaluationCompilation": {
+        "description": "The compilation an evaluation evaluated: the toolchain's of that release.",
+        "properties": {
+          "compilation_digest": {
+            "title": "Compilation Digest",
+            "type": "string"
+          },
+          "compiler_digest": {
+            "title": "Compiler Digest",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "semantic_digest": {
+            "title": "Semantic Digest",
+            "type": "string"
+          },
+          "toolchain": {
+            "additionalProperties": true,
+            "title": "Toolchain",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "compilation_digest",
+          "compiler_digest",
+          "semantic_digest",
+          "toolchain"
+        ],
+        "title": "EvaluationCompilation",
+        "type": "object"
+      },
+      "EvaluationView": {
+        "description": "One evaluation of a version: by one toolchain release (`bim`), or the author's values (`declared`).",
+        "properties": {
+          "basis": {
+            "enum": [
+              "bim",
+              "declared"
+            ],
+            "title": "Basis",
+            "type": "string"
+          },
+          "compilation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationCompilation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "current": {
+            "description": "Whether this is the version's current evaluation.",
+            "title": "Current",
+            "type": "boolean"
+          },
+          "diagnostics": {
+            "description": "What the evaluation found, located in the version's content (null span where it has no place there).",
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "verified",
+              "binding_invalid",
+              "semantics_changed",
+              "declared"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ValueView"
+            },
+            "title": "Values",
+            "type": "object"
+          },
+          "violations": {
+            "description": "The constraint violations the toolchain reported.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "basis",
+          "outcome",
+          "values",
+          "violations",
+          "diagnostics",
+          "compilation",
+          "current",
+          "created_at"
+        ],
+        "title": "EvaluationView",
+        "type": "object"
+      },
+      "EvidenceRun": {
+        "description": "The run a version's evidence names.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "EvidenceRun",
         "type": "object"
       },
       "GatewayBindingResult": {
@@ -7220,6 +7686,32 @@
         "title": "RunView",
         "type": "object"
       },
+      "SealResult": {
+        "description": "A sealed version, the evaluation stored for it, and what the seal found in the submitted text.",
+        "properties": {
+          "diagnostics": {
+            "description": "Every warning and info, located in the submitted text.",
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "evaluation": {
+            "$ref": "#/components/schemas/EvaluationView"
+          },
+          "version": {
+            "$ref": "#/components/schemas/CompositionVersionView"
+          }
+        },
+        "required": [
+          "version",
+          "evaluation",
+          "diagnostics"
+        ],
+        "title": "SealResult",
+        "type": "object"
+      },
       "StudyCellResult": {
         "additionalProperties": false,
         "properties": {
@@ -7970,6 +8462,124 @@
           "irDigest",
           "diagnostics"
         ],
+        "type": "object"
+      },
+      "ValueView": {
+        "description": "A global value: the toolchain's float as it returned it, or the author's number, and its unit.",
+        "properties": {
+          "unit": {
+            "description": "The problem's unit; `\"1\"` for a dimensionless value.",
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "value",
+          "unit"
+        ],
+        "title": "ValueView",
+        "type": "object"
+      },
+      "VersionCompilation": {
+        "description": "The compilation a version's document names.",
+        "properties": {
+          "compilation_digest": {
+            "title": "Compilation Digest",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "semantic_digest": {
+            "title": "Semantic Digest",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "compilation_digest",
+          "semantic_digest"
+        ],
+        "title": "VersionCompilation",
+        "type": "object"
+      },
+      "VersionLink": {
+        "description": "The problem revision a version is judged against, and the compilation its document names.",
+        "properties": {
+          "linked_compilation": {
+            "$ref": "#/components/schemas/VersionCompilation"
+          },
+          "problem": {
+            "$ref": "#/components/schemas/VersionProblem"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/VersionRevision"
+          }
+        },
+        "required": [
+          "problem",
+          "revision",
+          "linked_compilation"
+        ],
+        "title": "VersionLink",
+        "type": "object"
+      },
+      "VersionProblem": {
+        "description": "The problem a version links.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name"
+        ],
+        "title": "VersionProblem",
+        "type": "object"
+      },
+      "VersionRevision": {
+        "description": "The revision of the problem a version links.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ],
+        "title": "VersionRevision",
         "type": "object"
       }
     },
@@ -13487,7 +14097,7 @@
     },
     "/v1/organizations/{org}": {
       "delete": {
-        "description": "Delete an organization and every organization below it, in one transaction.\n\nRuns and study runs are history, so a subtree that holds any is refused. Otherwise its studies,\ncompositions, problems (revisions and compilations), blob rows, invitations, memberships and audit events\ngo. Stored files are not unlinked here: they are content addressed and shared (D14).\n\nThe subtree's studies, compositions, problems and organizations are locked before the history check, in\nthe order concurrent writers take them (a study-run start locks its study, a revision upload its problem,\nand every insert into an organization takes a key-share lock on its row). Compositions come before\nproblems because a composition write that reads a problem locks the composition first. A writer that got\nthere first commits before the check sees the subtree, and a later one waits for the delete. A foreign key\nthat still catches a concurrent write is answered with the same 409.",
+        "description": "Delete an organization and every organization below it, in one transaction.\n\nRuns and study runs are history, so a subtree that holds any is refused. Otherwise its studies,\ncompositions (their versions and evaluations first), problems (revisions and compilations), blob rows,\ninvitations, memberships and audit events go. A version's evidence names a run of the subtree, so a\nsubtree that reaches the delete has none to name. Stored files are not unlinked here: they are content addressed and shared (D14).\n\nThe subtree's studies, compositions, problems and organizations are locked before the history check, in\nthe order concurrent writers take them (a study-run start locks its study, a revision upload its problem,\nand every insert into an organization takes a key-share lock on its row). Compositions come before\nproblems because a composition write that reads a problem locks the composition first. A writer that got\nthere first commits before the check sees the subtree, and a later one waits for the delete. A foreign key\nthat still catches a concurrent write is answered with the same 409.",
         "operationId": "deleteOrganization",
         "parameters": [
           {
@@ -14228,7 +14838,7 @@
     },
     "/v1/organizations/{org}/compositions/{composition}": {
       "delete": {
-        "description": "Delete a composition.",
+        "description": "Delete a composition with its versions and their evaluations.",
         "operationId": "deleteComposition",
         "parameters": [
           {
@@ -14593,6 +15203,776 @@
         ],
         "x-required-api-key-permissions": [
           "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/versions": {
+      "get": {
+        "description": "The composition's versions, each with its values, value status and evaluations.",
+        "operationId": "listCompositionVersions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "description": "`analytics`: each version with the summary of its document.",
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "analytics",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`analytics`: each version with the summary of its document.",
+              "title": "Include"
+            }
+          },
+          {
+            "description": "`newest` first (the default) or `oldest` first, as evolution charts read them.",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "default": "newest",
+              "description": "`newest` first (the default) or `oldest` first, as evolution charts read them.",
+              "enum": [
+                "newest",
+                "oldest"
+              ],
+              "title": "Order",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionVersionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Composition Versions",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      },
+      "post": {
+        "description": "Read the document, judge it and, when it links a problem, have the toolchain check its binding and compute its values; then store its canonical text as a new, immutable version with that evaluation. The same canonical text sealed again answers 200 with the version that holds it.",
+        "operationId": "createCompositionVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-yaml": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "application/yaml": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "text/yaml": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "A Composition2Yaml document, as YAML text in UTF-8, at most 262144 bytes.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SealResult"
+                }
+              }
+            },
+            "description": "The canonical text was already sealed: the version that holds it.",
+            "headers": {
+              "ETag": {
+                "description": "The version's content digest, quoted.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SealResult"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "The version's content digest, quoted.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Location": {
+                "description": "The new version.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Another content holds this `version:` (`version_label_taken`)."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The document is longer than 262144 bytes (`limitBytes`)."
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The document is not sent as YAML."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The document has errors (`composition_invalid`); `diagnostics` lists each one, located."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The toolchain does not answer (`bim_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Seal a version of a composition",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/versions/check": {
+      "post": {
+        "description": "Every diagnostic a seal of this document would give, against its problem and by the toolchain, and the canonical text a seal would store: 200 whether or not the document is valid.",
+        "operationId": "checkCompositionVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-yaml": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "application/yaml": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "text/yaml": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "A Composition2Yaml document, as YAML text in UTF-8, at most 262144 bytes.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The document is longer than 262144 bytes (`limitBytes`)."
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The document is not sent as YAML."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The toolchain does not answer (`bim_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Check a document as a seal would, storing nothing",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/versions/{version}": {
+      "get": {
+        "description": "One version, by id, label or ordinal.",
+        "operationId": "getCompositionVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionVersionView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "The version's content digest, quoted.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Composition Version",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/versions/{version}/content": {
+      "get": {
+        "description": "The canonical text the version stores. It never changes: `ETag` is its digest.",
+        "operationId": "getCompositionVersionContent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/yaml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The canonical text.",
+            "headers": {
+              "ETag": {
+                "description": "The version's content digest, quoted.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The caller's copy (`If-None-Match`) is the content."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Download a version's Composition2Yaml text",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
         ]
       }
     },
@@ -15419,7 +16799,7 @@
     },
     "/v1/organizations/{org}/problems/{problem}": {
       "delete": {
-        "description": "Delete a problem nothing has run on (409 `problem_has_runs` otherwise). Its stored files stay.",
+        "description": "Delete a problem nothing has run on and no composition links.\n\n409 `problem_has_runs` when a run or a study names a revision, `problem_has_compositions` when a sealed\ncomposition version does. Its stored files stay.",
         "operationId": "deleteProblem",
         "parameters": [
           {

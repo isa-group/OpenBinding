@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 119
+    assert len(ROUTES) == 124
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -231,11 +231,18 @@ def test_the_compositions_of_an_organization_are_composition_reads_and_writes():
         ("DELETE", f"{compositions}/{{composition}}"),
         ("GET", compositions),
         ("GET", f"{compositions}/{{composition}}"),
+        ("GET", f"{compositions}/{{composition}}/versions"),
+        ("GET", f"{compositions}/{{composition}}/versions/{{version}}"),
+        ("GET", f"{compositions}/{{composition}}/versions/{{version}}/content"),
         ("PATCH", f"{compositions}/{{composition}}"),
         ("POST", compositions),
+        ("POST", f"{compositions}/{{composition}}/versions"),
+        ("POST", f"{compositions}/{{composition}}/versions/check"),
     ]
     for method, path in routes:
-        expected = "compositions:read" if method == "GET" else "compositions:write"
+        # Checking a document against its problem writes nothing.
+        reads = method == "GET" or path.endswith("/versions/check")
+        expected = "compositions:read" if reads else "compositions:write"
         assert required_permissions(path, method) == frozenset({expected}), (method, path)
         # The organizations fallback does not reach them.
         assert not {"organizations:read", "organizations:write"} & required_permissions(path, method)

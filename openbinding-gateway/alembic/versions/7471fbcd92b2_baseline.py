@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '6bea2a27044e'
+revision: str = '7471fbcd92b2'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -21,6 +21,8 @@ depends_on: Union[str, Sequence[str], None] = None
 SQLITE_TRIGGERS = (
     "CREATE TRIGGER immutable_binding_case_revisions_update BEFORE UPDATE ON binding_case_revisions BEGIN SELECT RAISE(ABORT, 'binding_case_revisions rows are sealed and immutable'); END",
     "CREATE TRIGGER immutable_problem_compilations_update BEFORE UPDATE ON problem_compilations BEGIN SELECT RAISE(ABORT, 'problem_compilations rows are sealed and immutable'); END",
+    "CREATE TRIGGER immutable_composition_versions_update BEFORE UPDATE ON composition_versions BEGIN SELECT RAISE(ABORT, 'composition_versions rows are sealed and immutable'); END",
+    "CREATE TRIGGER immutable_composition_evaluations_update BEFORE UPDATE ON composition_evaluations BEGIN SELECT RAISE(ABORT, 'composition_evaluations rows are sealed and immutable'); END",
     "CREATE TRIGGER protect_study_runs BEFORE UPDATE ON study_runs WHEN OLD.study_id IS NOT NEW.study_id OR OLD.run_number IS NOT NEW.run_number OR OLD.matrix_digest IS NOT NEW.matrix_digest OR OLD.definition IS NOT NEW.definition OR OLD.definition_digest IS NOT NEW.definition_digest BEGIN SELECT RAISE(ABORT, 'the protected columns of study_runs are immutable'); END",
     "CREATE TRIGGER retain_study_runs BEFORE DELETE ON study_runs BEGIN SELECT RAISE(ABORT, 'study_runs history is retained'); END",
     "CREATE TRIGGER protect_study_cells BEFORE UPDATE ON study_cells WHEN OLD.study_run_id IS NOT NEW.study_run_id OR OLD.ordinal IS NOT NEW.ordinal OR OLD.binding_case_revision_id IS NOT NEW.binding_case_revision_id OR OLD.compilation_id IS NOT NEW.compilation_id OR OLD.engine_ref IS NOT NEW.engine_ref OR OLD.parameters IS NOT NEW.parameters OR OLD.seed IS NOT NEW.seed OR OLD.fingerprint IS NOT NEW.fingerprint BEGIN SELECT RAISE(ABORT, 'the protected columns of study_cells are immutable'); END",
@@ -31,6 +33,10 @@ POSTGRESQL_TRIGGERS = (
     'CREATE TRIGGER immutable_binding_case_revisions_update BEFORE UPDATE ON binding_case_revisions FOR EACH ROW EXECUTE FUNCTION immutable_binding_case_revisions_update()',
     "CREATE OR REPLACE FUNCTION immutable_problem_compilations_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'problem_compilations rows are sealed and immutable'; END $$",
     'CREATE TRIGGER immutable_problem_compilations_update BEFORE UPDATE ON problem_compilations FOR EACH ROW EXECUTE FUNCTION immutable_problem_compilations_update()',
+    "CREATE OR REPLACE FUNCTION immutable_composition_versions_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'composition_versions rows are sealed and immutable'; END $$",
+    'CREATE TRIGGER immutable_composition_versions_update BEFORE UPDATE ON composition_versions FOR EACH ROW EXECUTE FUNCTION immutable_composition_versions_update()',
+    "CREATE OR REPLACE FUNCTION immutable_composition_evaluations_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'composition_evaluations rows are sealed and immutable'; END $$",
+    'CREATE TRIGGER immutable_composition_evaluations_update BEFORE UPDATE ON composition_evaluations FOR EACH ROW EXECUTE FUNCTION immutable_composition_evaluations_update()',
     "CREATE OR REPLACE FUNCTION protect_study_runs() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.study_id IS DISTINCT FROM NEW.study_id OR OLD.run_number IS DISTINCT FROM NEW.run_number OR OLD.matrix_digest IS DISTINCT FROM NEW.matrix_digest OR OLD.definition::jsonb IS DISTINCT FROM NEW.definition::jsonb OR OLD.definition_digest IS DISTINCT FROM NEW.definition_digest THEN RAISE EXCEPTION 'the protected columns of study_runs are immutable'; END IF; RETURN NEW; END $$",
     'CREATE TRIGGER protect_study_runs BEFORE UPDATE ON study_runs FOR EACH ROW EXECUTE FUNCTION protect_study_runs()',
     "CREATE OR REPLACE FUNCTION retain_study_runs() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'study_runs history is retained'; END $$",
@@ -43,6 +49,8 @@ POSTGRESQL_TRIGGERS = (
 POSTGRESQL_TRIGGER_FUNCTIONS = (
     'immutable_binding_case_revisions_update',
     'immutable_problem_compilations_update',
+    'immutable_composition_versions_update',
+    'immutable_composition_evaluations_update',
     'protect_study_runs',
     'retain_study_runs',
     'protect_study_cells',
@@ -485,6 +493,42 @@ def upgrade() -> None:
     op.create_index('ix_jobs_state_lease_until', 'jobs', ['state', 'lease_until'], unique=False)
     op.create_index(op.f('ix_jobs_termination'), 'jobs', ['termination'], unique=False)
     op.create_index('uq_jobs_study_cell_id', 'jobs', ['study_cell_id'], unique=True, sqlite_where=sa.text('study_cell_id IS NOT NULL'), postgresql_where=sa.text('study_cell_id IS NOT NULL'))
+    op.create_table('composition_versions',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('composition_id', sa.Uuid(), nullable=False),
+    sa.Column('ordinal', sa.Integer(), nullable=False),
+    sa.Column('label', sa.String(length=64), nullable=False),
+    sa.Column('syntax_version', sa.String(length=16), nullable=False),
+    sa.Column('kind', sa.Enum('application', 'workflow', 'pipeline', 'system', name='compositionkind', native_enum=False, length=16), nullable=False),
+    sa.Column('values_status', sa.Enum('verified', 'declared', name='valuesstatus', native_enum=False, length=16), nullable=False),
+    sa.Column('content', sa.Text(), nullable=False),
+    sa.Column('content_digest', sa.String(length=80), nullable=False),
+    sa.Column('size_bytes', sa.Integer(), nullable=False),
+    sa.Column('revision_id', sa.Uuid(), nullable=True),
+    sa.Column('linked_compilation_id', sa.Uuid(), nullable=True),
+    sa.Column('evidence_job_id', sa.Uuid(), nullable=True),
+    sa.Column('offering', sa.JSON(), nullable=True),
+    sa.Column('based_on', sa.JSON(), nullable=True),
+    sa.Column('analytics', sa.JSON(), nullable=False),
+    sa.Column('created_by_id', sa.Uuid(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint("(values_status = 'verified') = (revision_id IS NOT NULL)", name=op.f('ck_composition_versions_composition_version_verified_linked')),
+    sa.CheckConstraint('(revision_id IS NULL) = (linked_compilation_id IS NULL)', name=op.f('ck_composition_versions_composition_version_link_whole')),
+    sa.CheckConstraint('ordinal > 0', name=op.f('ck_composition_versions_composition_version_ordinal_positive')),
+    sa.CheckConstraint('size_bytes > 0 AND size_bytes <= 262144', name=op.f('ck_composition_versions_composition_version_size_bounded')),
+    sa.ForeignKeyConstraint(['composition_id'], ['compositions.id'], name=op.f('fk_composition_versions_composition_id_compositions'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_composition_versions_created_by_id_users'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['evidence_job_id'], ['jobs.id'], name=op.f('fk_composition_versions_evidence_job_id_jobs'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['linked_compilation_id', 'revision_id'], ['problem_compilations.id', 'problem_compilations.revision_id'], name='fk_composition_versions_link', ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_composition_versions')),
+    sa.UniqueConstraint('composition_id', 'content_digest', name='uq_composition_versions_composition_digest'),
+    sa.UniqueConstraint('composition_id', 'label', name='uq_composition_versions_composition_label'),
+    sa.UniqueConstraint('composition_id', 'ordinal', name='uq_composition_versions_composition_ordinal')
+    )
+    op.create_index(op.f('ix_composition_versions_composition_id'), 'composition_versions', ['composition_id'], unique=False)
+    op.create_index(op.f('ix_composition_versions_created_by_id'), 'composition_versions', ['created_by_id'], unique=False)
+    op.create_index(op.f('ix_composition_versions_evidence_job_id'), 'composition_versions', ['evidence_job_id'], unique=False)
+    op.create_index(op.f('ix_composition_versions_revision_id'), 'composition_versions', ['revision_id'], unique=False)
     op.create_table('job_engine_attempts',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('job_id', sa.Uuid(), nullable=False),
@@ -540,6 +584,36 @@ def upgrade() -> None:
     op.create_index(op.f('ix_study_cells_compilation_id'), 'study_cells', ['compilation_id'], unique=False)
     op.create_index(op.f('ix_study_cells_job_id'), 'study_cells', ['job_id'], unique=False)
     op.create_index(op.f('ix_study_cells_study_run_id'), 'study_cells', ['study_run_id'], unique=False)
+    op.create_table('composition_evaluations',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('version_id', sa.Uuid(), nullable=False),
+    sa.Column('basis', sa.Enum('bim', 'declared', name='evaluationbasis', native_enum=False, length=16), nullable=False),
+    sa.Column('basis_key', sa.String(length=80), nullable=False),
+    sa.Column('outcome', sa.Enum('verified', 'binding_invalid', 'semantics_changed', 'declared', name='evaluationoutcome', native_enum=False, length=24), nullable=False),
+    sa.Column('revision_id', sa.Uuid(), nullable=True),
+    sa.Column('compilation_id', sa.Uuid(), nullable=True),
+    sa.Column('compiler_digest', sa.String(length=80), nullable=True),
+    sa.Column('compilation_digest', sa.String(length=80), nullable=True),
+    sa.Column('semantic_digest', sa.String(length=80), nullable=True),
+    sa.Column('ir_digest', sa.String(length=80), nullable=True),
+    sa.Column('toolchain', sa.JSON(), nullable=True),
+    sa.Column('binding', sa.JSON(), nullable=True),
+    sa.Column('values', sa.JSON(), nullable=False),
+    sa.Column('result', sa.JSON(), nullable=True),
+    sa.Column('diagnostics', sa.JSON(), nullable=False),
+    sa.Column('created_by_id', sa.Uuid(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint("(basis = 'bim') = (compilation_id IS NOT NULL)", name=op.f('ck_composition_evaluations_composition_evaluation_bim_compiled')),
+    sa.CheckConstraint("(basis = 'declared') = (outcome = 'declared')", name=op.f('ck_composition_evaluations_composition_evaluation_declared_outcome')),
+    sa.ForeignKeyConstraint(['compilation_id', 'revision_id'], ['problem_compilations.id', 'problem_compilations.revision_id'], name='fk_composition_evaluations_compilation', ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_composition_evaluations_created_by_id_users'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['version_id'], ['composition_versions.id'], name=op.f('fk_composition_evaluations_version_id_composition_versions'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_composition_evaluations')),
+    sa.UniqueConstraint('version_id', 'basis_key', name='uq_composition_evaluations_version_basis')
+    )
+    op.create_index(op.f('ix_composition_evaluations_created_by_id'), 'composition_evaluations', ['created_by_id'], unique=False)
+    op.create_index(op.f('ix_composition_evaluations_revision_id'), 'composition_evaluations', ['revision_id'], unique=False)
+    op.create_index(op.f('ix_composition_evaluations_version_id'), 'composition_evaluations', ['version_id'], unique=False)
     # Foreign keys that close a cycle: inline on SQLite, added once both tables exist elsewhere.
     if dialect != 'sqlite':
         op.create_foreign_key('fk_jobs_study_cell_id', 'jobs', 'study_cells', ['study_cell_id'], ['id'], ondelete='SET NULL')
@@ -551,6 +625,10 @@ def downgrade() -> None:
     dialect = op.get_bind().dialect.name
     if dialect != 'sqlite':
         op.drop_constraint('fk_jobs_study_cell_id', 'jobs', type_='foreignkey')
+    op.drop_index(op.f('ix_composition_evaluations_version_id'), table_name='composition_evaluations')
+    op.drop_index(op.f('ix_composition_evaluations_revision_id'), table_name='composition_evaluations')
+    op.drop_index(op.f('ix_composition_evaluations_created_by_id'), table_name='composition_evaluations')
+    op.drop_table('composition_evaluations')
     op.drop_index(op.f('ix_study_cells_study_run_id'), table_name='study_cells')
     op.drop_index(op.f('ix_study_cells_job_id'), table_name='study_cells')
     op.drop_index(op.f('ix_study_cells_compilation_id'), table_name='study_cells')
@@ -562,6 +640,11 @@ def downgrade() -> None:
     op.drop_index('uq_job_engine_attempts_job_attempt', table_name='job_engine_attempts')
     op.drop_index('ix_job_engine_attempts_cancel_due', table_name='job_engine_attempts')
     op.drop_table('job_engine_attempts')
+    op.drop_index(op.f('ix_composition_versions_revision_id'), table_name='composition_versions')
+    op.drop_index(op.f('ix_composition_versions_evidence_job_id'), table_name='composition_versions')
+    op.drop_index(op.f('ix_composition_versions_created_by_id'), table_name='composition_versions')
+    op.drop_index(op.f('ix_composition_versions_composition_id'), table_name='composition_versions')
+    op.drop_table('composition_versions')
     op.drop_index('uq_jobs_study_cell_id', table_name='jobs', sqlite_where=sa.text('study_cell_id IS NOT NULL'), postgresql_where=sa.text('study_cell_id IS NOT NULL'))
     op.drop_index(op.f('ix_jobs_termination'), table_name='jobs')
     op.drop_index('ix_jobs_state_lease_until', table_name='jobs')

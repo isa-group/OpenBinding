@@ -27,6 +27,8 @@ from ....db.models import (
     BindingCase,
     BindingCaseRevision,
     Blob,
+    CompositionEvaluation,
+    CompositionVersion,
     Job,
     Organization,
     ProblemCompilation,
@@ -438,18 +440,19 @@ async def add_revision(
 
 
 async def delete_problem(session: AsyncSession, problem: BindingCase, actor: User) -> None:
-    """Delete ``problem``, its revisions and compilations; 409 ``problem_has_runs`` when anything names them.
+    """Delete ``problem``, its revisions and compilations, unless something names them.
 
-    A run or a study cell that names one of its revisions keeps the problem. Blob rows and files stay (D14).
-    A run launched while the delete runs is caught by the ``RESTRICT`` foreign keys and answered the same way.
+    A run or a study cell that names one of its revisions keeps the problem (409 ``problem_has_runs``), and
+    so does a sealed composition version or evaluation (409 ``problem_has_compositions``); runs are checked
+    first. Blob rows and files stay (D14). A run launched or a version sealed while the delete runs is caught
+    by the ``RESTRICT`` foreign keys, and the references are checked again to answer with the right code.
     """
     revision_ids = list((await session.scalars(
         select(BindingCaseRevision.id).where(BindingCaseRevision.binding_case_id == problem.id)
     )).all())
-    if revision_ids:
-        for column in (Job.revision_id, StudyCell.binding_case_revision_id):
-            if await session.scalar(select(column).where(column.in_(revision_ids)).limit(1)) is not None:
-                raise _has_runs()
+    refusal = await _named(session, revision_ids)
+    if refusal is not None:
+        raise refusal
     try:
         async with session.begin_nested():
             if revision_ids:
@@ -466,9 +469,27 @@ async def delete_problem(session: AsyncSession, problem: BindingCase, actor: Use
             await session.delete(problem)
             await session.flush()
     except IntegrityError as exc:
-        raise _has_runs() from exc
+        raise (await _named(session, revision_ids) or _has_runs()) from exc
     audit(session, actor, "problem.deleted", "BindingCase", problem.id, problem.organization_id, slug=problem.slug)
     await session.flush()
+
+
+async def _named(session: AsyncSession, revision_ids: list[uuid.UUID]) -> HTTPException | None:
+    """Why the revisions are kept: a run or study cell first, then a composition; ``None`` when nothing names them.
+
+    Compositions are read from their tables directly: this module may not import the compositions module.
+    """
+    if not revision_ids:
+        return None
+    for column in (Job.revision_id, StudyCell.binding_case_revision_id):
+        if await session.scalar(select(column).where(column.in_(revision_ids)).limit(1)) is not None:
+            return _has_runs()
+    for column in (CompositionVersion.revision_id, CompositionEvaluation.revision_id):
+        if await session.scalar(select(column).where(column.in_(revision_ids)).limit(1)) is not None:
+            return api_error(
+                409, "problem_has_compositions", "Delete the compositions that link this problem first.",
+            )
+    return None
 
 
 def _has_runs() -> HTTPException:

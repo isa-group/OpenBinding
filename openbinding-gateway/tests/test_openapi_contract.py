@@ -356,6 +356,18 @@ def test_a_quota_refusal_says_which_limit_and_where_it_stands(document):
         ("/v1/organizations/{org}/compositions/{composition}", "get", {"200", "404"}),
         ("/v1/organizations/{org}/compositions/{composition}", "patch", {"200", "400", "403", "404", "412", "422"}),
         ("/v1/organizations/{org}/compositions/{composition}", "delete", {"204", "403", "404"}),
+        # Its versions: a seal is evaluated by the toolchain and counted against the `evaluate` budget.
+        ("/v1/organizations/{org}/compositions/{composition}/versions", "get", {"200", "404", "422"}),
+        (
+            "/v1/organizations/{org}/compositions/{composition}/versions", "post",
+            {"200", "201", "403", "404", "409", "413", "415", "422", "429", "503"},
+        ),
+        (
+            "/v1/organizations/{org}/compositions/{composition}/versions/check", "post",
+            {"200", "404", "413", "415", "429", "503"},
+        ),
+        ("/v1/organizations/{org}/compositions/{composition}/versions/{version}", "get", {"200", "404"}),
+        ("/v1/organizations/{org}/compositions/{composition}/versions/{version}/content", "get", {"200", "304", "404"}),
     ],
 )
 def test_the_failures_an_endpoint_can_produce_are_declared(document, path, method, statuses):

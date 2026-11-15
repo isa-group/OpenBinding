@@ -37,6 +37,7 @@ from ..db.models import (
     AuthIdentity,
     BindingCase,
     BindingCaseRevision,
+    CompositionVersion,
     EngineRegistrationRevision,
     EngineRevision,
     Job,
@@ -106,6 +107,23 @@ def _aware(value):
     return value.replace(tzinfo=timezone.utc)
 
 
+def _purgeable_jobs(cutoff) -> tuple:
+    """The terminal jobs older than ``cutoff`` that nothing keeps.
+
+    A study cell's job and the run a sealed composition version cites as evidence are kept: the version's
+    foreign key would refuse the delete.
+    """
+    study_job_ids = select(StudyCell.job_id).where(StudyCell.job_id.is_not(None))
+    evidence_job_ids = select(CompositionVersion.evidence_job_id).where(CompositionVersion.evidence_job_id.is_not(None))
+    return (
+        Job.state.in_([JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED]),
+        Job.finished_at.is_not(None),
+        Job.finished_at <= cutoff,
+        Job.id.not_in(study_job_ids),
+        Job.id.not_in(evidence_job_ids),
+    )
+
+
 async def _maintenance_preview(session: AsyncSession, retention_days: int) -> dict:
     now = utcnow()
     cutoff = now - timedelta(days=retention_days)
@@ -114,14 +132,8 @@ async def _maintenance_preview(session: AsyncSession, retention_days: int) -> di
             ApiKey.expires_at.is_not(None), ApiKey.expires_at <= now, ApiKey.revoked_at.is_(None)
         )
     ) or 0)
-    study_job_ids = select(StudyCell.job_id).where(StudyCell.job_id.is_not(None))
     terminal_jobs = int(await session.scalar(
-        select(func.count(Job.id)).where(
-            Job.state.in_([JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED]),
-            Job.finished_at.is_not(None),
-            Job.finished_at <= cutoff,
-            Job.id.not_in(study_job_ids),
-        )
+        select(func.count(Job.id)).where(*_purgeable_jobs(cutoff))
     ) or 0)
     abandoned = 0
     in_flight = (await session.execute(select(Job).where(
@@ -858,13 +870,7 @@ async def purge_expired_data(
         .values(revoked_at=now)
     )
     cutoff = now - timedelta(days=request.terminal_job_retention_days)
-    study_job_ids = select(StudyCell.job_id).where(StudyCell.job_id.is_not(None))
-    deleted_jobs = await session.execute(delete(Job).where(
-        Job.state.in_([JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED]),
-        Job.finished_at.is_not(None),
-        Job.finished_at <= cutoff,
-        Job.id.not_in(study_job_ids),
-    ))
+    deleted_jobs = await session.execute(delete(Job).where(*_purgeable_jobs(cutoff)))
     cutoff_errors = now - timedelta(days=request.error_retention_days or 90)
     deleted_errors = await session.execute(delete(ApiErrorEvent).where(
         ApiErrorEvent.created_at <= cutoff_errors

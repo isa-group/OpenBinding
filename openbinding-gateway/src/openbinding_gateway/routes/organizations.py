@@ -26,6 +26,8 @@ from ..db.models import (
     BindingCase,
     BindingCaseRevision,
     Composition,
+    CompositionEvaluation,
+    CompositionVersion,
     Job,
     Organization,
     OrganizationInvitation,
@@ -259,8 +261,9 @@ async def delete_organization(
     """Delete an organization and every organization below it, in one transaction.
 
     Runs and study runs are history, so a subtree that holds any is refused. Otherwise its studies,
-    compositions, problems (revisions and compilations), blob rows, invitations, memberships and audit events
-    go. Stored files are not unlinked here: they are content addressed and shared (D14).
+    compositions (their versions and evaluations first), problems (revisions and compilations), blob rows,
+    invitations, memberships and audit events go. A version's evidence names a run of the subtree, so a
+    subtree that reaches the delete has none to name. Stored files are not unlinked here: they are content addressed and shared (D14).
 
     The subtree's studies, compositions, problems and organizations are locked before the history check, in
     the order concurrent writers take them (a study-run start locks its study, a revision upload its problem,
@@ -308,6 +311,10 @@ async def _delete_subtree(session: AsyncSession, organization: Organization, uni
             delete(AuditEvent).where(AuditEvent.organization_id == oid)
         )
         await session.execute(delete(Study).where(Study.organization_id == oid))
+        held = select(Composition.id).where(Composition.organization_id == oid)
+        versions = select(CompositionVersion.id).where(CompositionVersion.composition_id.in_(held))
+        await session.execute(delete(CompositionEvaluation).where(CompositionEvaluation.version_id.in_(versions)))
+        await session.execute(delete(CompositionVersion).where(CompositionVersion.composition_id.in_(held)))
         await session.execute(delete(Composition).where(Composition.organization_id == oid))
         cases = select(BindingCase.id).where(BindingCase.organization_id == oid)
         revisions = select(BindingCaseRevision.id).where(BindingCaseRevision.binding_case_id.in_(cases))

@@ -155,6 +155,7 @@ is not needed.
 | `invalid_instance` | 422 | the compiler refuses the package; `diagnostics` locate the refusal |
 | `slug_conflict` | 409 | the problem slug is in use in the organization |
 | `problem_has_runs` | 409 | `DELETE …/problems/{problem}`: a run, a study cell or a sealed study names one of its revisions, which are kept as their evidence |
+| `problem_has_compositions` | 409 | `DELETE …/problems/{problem}`: a sealed composition version, or one of its evaluations, names one of its revisions. Delete the compositions that link the problem first |
 | `revision_not_recompilable` | 422 | the installed toolchain refuses a stored revision (or reads it as another package); `reason` carries the refusal |
 | `content_unavailable` | 409 | the stored package of a revision cannot be read |
 | `revision_required` | 422 | `createRun` (`POST /v1/organizations/{org}/runs`) without `revision` |
@@ -229,6 +230,18 @@ Against a compiled problem (the organization's routes, from F1 B8):
 | `c2y_value_not_computed` | **warning**: a declared value of a property the toolchain does not compute; dropped |
 | `c2y_constraint_violated` | the binding violates a hard constraint |
 | `c2y_constraint_soft` | **warning**: the binding misses a soft constraint, with its penalty |
+| `c2y_problem_foreign` | `problem.ref` names a problem of another organization; it is not looked up there |
+| `c2y_problem_not_found` | the organization has no such problem or revision (or it was deleted while the version was being sealed) |
+| `c2y_problem_not_recompilable` | the installed toolchain refuses the linked revision's stored package |
+| `c2y_compilation_not_found` | the revision has no compilation with the digest `problem.compilation` names |
+| `c2y_compilation_superseded` | **info**: the named compilation was made by another toolchain release that reads the problem alike; the binding is evaluated on the installed one's |
+| `c2y_compilation_semantics_changed` | the installed toolchain reads the revision differently from the named compilation: derive the composition again |
+| `c2y_binding_invalid` | the toolchain refuses the binding; its message as given, beside the located `c2y_candidate_not_allowed` / `c2y_task_local_mismatch` |
+| `c2y_evaluation_failed` | the toolchain could not evaluate the binding |
+| `c2y_run_not_found` | the organization has no run `evidence.run` names (or the caller may not see it) |
+| `c2y_run_foreign_revision` | the run solved another revision, or a compilation that reads it differently |
+| `c2y_run_point_invalid` | the run has no binding to cite, or `evidence.point` is not one of its solutions |
+| `c2y_run_binding_mismatch` | the binding is not the run's solution (`point`) or none of them; the message lists the tasks that differ |
 
 ## Compositions
 
@@ -242,6 +255,13 @@ composition, never `403`. A member whose role is too weak for a write gets `403 
 | `organization_forbidden` | 403 | the caller reads the organization but its role is too weak: MEMBER creates and edits, ADMIN deletes |
 | `feature_not_entitled` | 403 | `createComposition`: the caller's plan lacks the `repository` feature |
 | `slug_conflict` | 409 | the composition slug is in use in the organization |
+| `composition_invalid` | 422 | `createCompositionVersion` read or judged a document with at least one error; `diagnostics` lists every finding (the `c2y_*` codes above), located in the submitted text. `checkCompositionVersion` answers the same findings with 200 |
+| `version_label_taken` | 409 | `createCompositionVersion`: another content of the composition holds this `version:`; `version` names it (`id`, `ordinal`, `label`) |
+| `composition_busy` | 429 | `createCompositionVersion`, `checkCompositionVersion`: every Composition2Yaml or evaluation slot of this process is taken (`COMPOSITION_EVALUATION_SLOTS`, 2); `Retry-After: 1` |
+| `payload_too_large` | 413 | a document longer than 262 144 bytes; `limitBytes` says the limit |
+| `unsupported_media_type` | 415 | a document not sent as `application/yaml`, `text/yaml` or `application/x-yaml` |
+| `rate_limit_exceeded` | 429 | past the `evaluate` budget of the caller ([ACCESS_POLICY.md](ACCESS_POLICY.md)) |
+| `bim_unavailable` | 503 | the toolchain does not answer |
 
 ## Organizations
 

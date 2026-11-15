@@ -16,13 +16,21 @@ import uuid
 from dataclasses import dataclass
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....collaboration import ROLE_STRENGTH, effective_role, organization_by_ref
 from ....core.like import LIKE_ESCAPE, like_contains
-from ....db.models import Composition, CompositionKind, Organization, OrganizationRole, User
+from ....db.models import (
+    Composition,
+    CompositionEvaluation,
+    CompositionKind,
+    CompositionVersion,
+    Organization,
+    OrganizationRole,
+    User,
+)
 from ....models.errors import api_error
 from ....services.entitlements import entitlement_service
 from ...plans.application import entitlement_map as ids
@@ -198,7 +206,15 @@ async def update_composition(
 
 
 async def delete_composition(session: AsyncSession, composition: Composition, actor: User) -> None:
-    """Delete ``composition``."""
+    """Delete ``composition`` with its versions and their evaluations, in one transaction.
+
+    The composition's row is locked first, as a seal locks it, so a seal in flight either commits before
+    the delete sees the versions or waits for it and finds the composition gone.
+    """
+    await session.execute(select(Composition.id).where(Composition.id == composition.id).with_for_update())
+    versions = select(CompositionVersion.id).where(CompositionVersion.composition_id == composition.id)
+    await session.execute(delete(CompositionEvaluation).where(CompositionEvaluation.version_id.in_(versions)))
+    await session.execute(delete(CompositionVersion).where(CompositionVersion.composition_id == composition.id))
     audit(session, actor, "composition.deleted", TARGET, composition.id, composition.organization_id,
           slug=composition.slug)
     await session.delete(composition)

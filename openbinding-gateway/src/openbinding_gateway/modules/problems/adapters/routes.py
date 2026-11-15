@@ -284,7 +284,11 @@ async def delete_problem(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> None:
-    """Delete a problem nothing has run on (409 `problem_has_runs` otherwise). Its stored files stay."""
+    """Delete a problem nothing has run on and no composition links.
+
+    409 `problem_has_runs` when a run or a study names a revision, `problem_has_compositions` when a sealed
+    composition version does. Its stored files stay.
+    """
     organization = await _organization(session, org, user, OrganizationRole.ADMIN)
     found = await _problem(session, organization, problem)
     await problems.delete_problem(session, found, user)

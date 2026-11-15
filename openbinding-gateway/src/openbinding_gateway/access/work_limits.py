@@ -16,6 +16,11 @@ Every such route belongs to a class (``WORK_ROUTES``):
     work an editor asks for as its author types, so its budget is larger. Its concurrency is
     bounded apart, by the language slots (``modules/compositions/application/slots.py``).
 
+``evaluate``
+    Judges a composition against its problem and has the toolchain evaluate its binding (seal a
+    version, check one): one evaluation per request, and at most one compile per revision and
+    toolchain release. Its concurrency is bounded apart, by the evaluation slots.
+
 A client is the address the proxy resolved (``core/ratelimit.client_address``), or the /64 of an
 IPv6 one, or, when signed in, the account, which gets ``WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER`` times
 the budget and does not share it with whoever shares its address. A key and its account are one
@@ -41,7 +46,7 @@ from ..db.models import User
 from ..models.errors import api_error
 from .dependencies import counted_caller, get_optional_user
 
-WorkClass = Literal["compile", "read"]
+WorkClass = Literal["compile", "read", "evaluate"]
 
 
 def route_template(request: Request) -> str:
@@ -62,6 +67,16 @@ WORK_ROUTES: dict[tuple[str, str], WorkClass] = {
     ("POST", "/v1/compositions/parse"): "read",
     ("POST", "/v1/compositions/serialise"): "read",
     ("POST", "/v1/compositions/diff"): "read",
+    # A seal or a check evaluates once, and compiles only on a miss (a toolchain release).
+    ("POST", "/v1/organizations/{org}/compositions/{composition}/versions"): "evaluate",
+    ("POST", "/v1/organizations/{org}/compositions/{composition}/versions/check"): "evaluate",
+}
+
+#: The setting that holds each class's budget.
+_BUDGETS: dict[WorkClass, str] = {
+    "compile": "work_rate_limit_compile_requests",
+    "read": "work_rate_limit_read_requests",
+    "evaluate": "work_rate_limit_evaluate_requests",
 }
 
 
@@ -102,9 +117,7 @@ def set_work_limiter(limiter: Optional[WorkRateLimiter]) -> None:
 
 
 def _budget(settings: Settings, work_class: WorkClass, signed_in: bool) -> int:
-    budget = (
-        settings.work_rate_limit_read_requests if work_class == "read" else settings.work_rate_limit_compile_requests
-    )
+    budget = int(getattr(settings, _BUDGETS[work_class]))
     return budget * settings.work_rate_limit_signed_in_multiplier if signed_in else budget
 
 

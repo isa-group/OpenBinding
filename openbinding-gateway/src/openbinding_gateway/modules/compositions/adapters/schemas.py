@@ -124,7 +124,9 @@ class CompositionView(BaseModel):
     kind: CompositionKindName
     archived: bool
     organization: CompositionOrganization
-    latest_version: None = Field(default=None, description="The latest sealed version; null while it has none.")
+    latest_version: Optional["CompositionVersionSummary"] = Field(
+        default=None, description="The latest sealed version; null while it has none.",
+    )
     version_count: int = Field(default=0, ge=0, description="How many versions it has.")
     created_by_id: uuid.UUID
     created_at: datetime
@@ -138,3 +140,155 @@ class CompositionList(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+# -- Versions and their evaluations ----------------------------------------------------------------------
+
+ValuesStatusName = Literal["verified", "declared"]
+
+
+class CompositionVersionSummary(BaseModel):
+    """A version, named."""
+
+    id: uuid.UUID
+    ordinal: int = Field(ge=1, description="1 for the first version sealed, then one more each time.")
+    label: str = Field(description="The document's `version:` (Semantic Versioning).")
+    values_status: ValuesStatusName
+    created_at: datetime
+
+
+class VersionProblem(BaseModel):
+    """The problem a version links."""
+
+    id: uuid.UUID
+    slug: str
+    name: str
+
+
+class VersionRevision(BaseModel):
+    """The revision of the problem a version links."""
+
+    id: uuid.UUID
+    revision: int
+
+
+class VersionCompilation(BaseModel):
+    """The compilation a version's document names."""
+
+    id: uuid.UUID
+    compilation_digest: str
+    semantic_digest: str
+
+
+class VersionLink(BaseModel):
+    """The problem revision a version is judged against, and the compilation its document names."""
+
+    problem: VersionProblem
+    revision: VersionRevision
+    linked_compilation: VersionCompilation
+
+
+class EvaluationCompilation(BaseModel):
+    """The compilation an evaluation evaluated: the toolchain's of that release."""
+
+    id: uuid.UUID
+    compilation_digest: str
+    compiler_digest: str
+    semantic_digest: str
+    toolchain: dict[str, Any]
+
+
+class ValueView(BaseModel):
+    """A global value: the toolchain's float as it returned it, or the author's number, and its unit."""
+
+    value: int | float
+    unit: str = Field(description='The problem\'s unit; `"1"` for a dimensionless value.')
+
+
+class EvaluationView(BaseModel):
+    """One evaluation of a version: by one toolchain release (`bim`), or the author's values (`declared`)."""
+
+    id: uuid.UUID
+    basis: Literal["bim", "declared"]
+    outcome: Literal["verified", "binding_invalid", "semantics_changed", "declared"]
+    values: dict[str, ValueView]
+    violations: list[dict[str, Any]] = Field(description="The constraint violations the toolchain reported.")
+    diagnostics: list[CompositionDiagnosticView] = Field(
+        description="What the evaluation found, located in the version's content (null span where it has no place there).",
+    )
+    compilation: Optional[EvaluationCompilation]
+    current: bool = Field(description="Whether this is the version's current evaluation.")
+    created_at: datetime
+
+
+class EvidenceRun(BaseModel):
+    """The run a version's evidence names."""
+
+    id: uuid.UUID
+
+
+class CompositionVersionView(BaseModel):
+    """A sealed version of a composition: immutable."""
+
+    id: uuid.UUID
+    ordinal: int = Field(ge=1)
+    label: str = Field(description="The document's `version:` (Semantic Versioning).")
+    syntax_version: str = Field(description="The `syntaxVersion` the version was sealed with.")
+    kind: CompositionKindName
+    values_status: ValuesStatusName = Field(
+        description="`verified`: the values are the toolchain's; `declared`: they are the author's.",
+    )
+    verified: bool = Field(description="Whether the current evaluation verified the binding and computed the values.")
+    content_digest: str = Field(description="Digest of the canonical bytes; the content's `ETag`.")
+    size_bytes: int = Field(ge=1)
+    values: dict[str, ValueView] = Field(description="The values of the current evaluation.")
+    problem: Optional[VersionLink] = Field(description="The problem the version links; null for a declared one.")
+    offering: Optional[dict[str, str]] = Field(description="The offering's source: `{sphere, registry?}` or `{url}`.")
+    evidence_run: Optional[EvidenceRun]
+    based_on: Optional[dict[str, Any]] = Field(description="The version it was forked from, as data.")
+    analytics: Optional[dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "A summary of the document computed at seal: `tasks`, `boundTasks`, `localTasks`, `providers`, "
+            "`upstreamPricings`, `workflow{depth, xor, and, loop}`, `hasOffering`. In a list, only with "
+            "`include=analytics`."
+        ),
+    )
+    evaluations: list[EvaluationView]
+    current_evaluation_id: Optional[uuid.UUID]
+    created_by_id: uuid.UUID
+    created_at: datetime
+
+
+class CompositionVersionList(BaseModel):
+    """One page of a composition's versions, and how many it has."""
+
+    versions: list[CompositionVersionView]
+    total: int
+    limit: int
+    offset: int
+
+
+class SealResult(BaseModel):
+    """A sealed version, the evaluation stored for it, and what the seal found in the submitted text."""
+
+    version: CompositionVersionView
+    evaluation: EvaluationView
+    diagnostics: list[CompositionDiagnosticView] = Field(
+        description="Every warning and info, located in the submitted text.",
+    )
+
+
+class CheckResult(BaseModel):
+    """The lint of a document against its problem: 200 whether or not it is valid; nothing is stored."""
+
+    valid: bool = Field(description="Whether a seal would accept the document.")
+    values_status: Optional[ValuesStatusName] = Field(
+        description="What a seal would store: `verified` for a linked document, `declared` for one with no problem.",
+    )
+    values: Optional[dict[str, ValueView]] = Field(description="The values a seal would store; null when not valid.")
+    content: Optional[str] = Field(description="The exact canonical text a seal would store; null when not valid.")
+    diagnostics: list[CompositionDiagnosticView]
+
+
+CompositionView.model_rebuild()
