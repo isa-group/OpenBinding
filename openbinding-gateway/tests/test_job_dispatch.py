@@ -3,7 +3,7 @@ import uuid
 
 import pytest
 import pytest_asyncio
-from _problem_helpers import compiled_run_refs, placeholder_refs
+from _problem_helpers import compiled_run_refs, placeholder_refs, run_url
 from dramatiq.brokers.redis import RedisBroker
 from dramatiq.middleware import AsyncIO
 from sqlalchemy import func, select
@@ -157,8 +157,8 @@ async def test_job_retry_is_idempotent_and_creates_only_one_replacement(
     db_session.add(original)
     await db_session.flush()
 
-    first = await api_client.post(f"/v1/jobs/{original.id}/retry", headers=headers)
-    second = await api_client.post(f"/v1/jobs/{original.id}/retry", headers=headers)
+    first = await api_client.post(run_url(original, "/retry"), headers=headers)
+    second = await api_client.post(run_url(original, "/retry"), headers=headers)
     retries = int(
         await db_session.scalar(
             select(func.count(Job.id)).where(Job.retry_of_id == original.id)
@@ -186,9 +186,9 @@ async def test_job_cancel_is_terminal_and_its_sse_stream_closes(
     db_session.add(job)
     await db_session.flush()
 
-    cancelled = await api_client.post(f"/v1/jobs/{job.id}/cancel", headers=headers)
-    repeated = await api_client.post(f"/v1/jobs/{job.id}/cancel", headers=headers)
-    events = await api_client.get(f"/v1/jobs/{job.id}/events", headers=headers)
+    cancelled = await api_client.post(run_url(job, "/cancel"), headers=headers)
+    repeated = await api_client.post(run_url(job, "/cancel"), headers=headers)
+    events = await api_client.get(run_url(job, "/events"), headers=headers)
 
     assert cancelled.status_code == 200
     assert cancelled.json()["status"] == "cancelled"

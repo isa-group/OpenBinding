@@ -41,7 +41,7 @@ from ..models.problem import PROBLEM_MEDIA_TYPE, problem_body
 UPLOAD_ROUTES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("POST", re.compile(r"^/v1/organizations/[^/]+/problems(/[^/]+/revisions)?/?$")),
     ("POST", re.compile(r"^/v1/bim/validate/?$")),
-    ("POST", re.compile(r"^/v1/jobs/?$")),
+    ("POST", re.compile(r"^/v1/organizations/[^/]+/runs/?$")),
 )
 
 

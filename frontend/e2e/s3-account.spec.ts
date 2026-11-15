@@ -60,7 +60,7 @@ const engine = { ...engineRef, id: 'bim.builtin/random-search', ref: engineRef, 
 const reader = {
   id: 'k1', name: 'ci-lectura-resultados', prefix: 'obk_demo0001', created_at: '2026-09-01T00:00:00Z', last_used_at: '2026-10-08T00:00:00Z',
   expires_at: '2099-12-31T00:00:00Z', permissions: ['jobs:read', 'projects:read', 'studies:read'], engine_access: { all: true, engines: [] },
-  boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['jobs', 'studies'], slugs: null },
+  boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['runs', 'studies'], slugs: null },
 };
 const runner = {
   id: 'k2', name: 'ejecucion-engine-fijo', prefix: 'obk_demo0002', created_at: '2026-09-10T00:00:00Z', last_used_at: null, expires_at: null,
@@ -467,7 +467,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(first.getByText('created Sep 1, 2026')).toBeVisible();
       await expect(first.getByText('last used Oct 8, 2026')).toBeVisible();
       await expect(first.getByText('expires Dec 31, 2099')).toBeVisible();
-      for (const label of ['GET only', 'org isa-demo', 'project qos-benchmarks', 'jobs, studies']) await expect(first.getByText(label, { exact: true })).toBeVisible();
+      for (const label of ['GET only', 'org isa-demo', 'project qos-benchmarks', 'runs, studies']) await expect(first.getByText(label, { exact: true })).toBeVisible();
       await expect(first.getByText('All engines, including future ones')).toBeVisible();
       const second = main.getByRole('article', { name: 'ejecucion-engine-fijo' });
       await expect(second.getByText('Only bim.builtin/random-search@1.0.0', { exact: true })).toBeVisible();
@@ -595,7 +595,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('group', { name: 'HTTP methods' }).getByRole('button', { name: 'GET' }).click();
       await main.getByRole('group', { name: 'Organizations' }).getByRole('button', { name: 'isa-demo' }).click();
       await main.getByRole('group', { name: 'Projects' }).getByRole('button', { name: 'qos-benchmarks' }).click();
-      await main.getByRole('group', { name: 'Resource kinds' }).getByRole('button', { name: 'jobs' }).click();
+      await main.getByRole('group', { name: 'Resource kinds' }).getByRole('button', { name: 'runs' }).click();
       await main.getByRole('group', { name: 'Slugs' }).getByLabel('Add slugs').fill('latency-study');
       await main.getByRole('group', { name: 'Slugs' }).getByRole('button', { name: 'Add' }).click();
       await expect(main.getByRole('group', { name: 'Slugs' }).getByRole('button', { name: 'latency-study' })).toHaveAttribute('aria-pressed', 'true');      await next();
@@ -605,7 +605,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(review).toContainText('ci-nightly');
       await expect(review).toContainText('In 30 days');
       await expect(review).toContainText('Launch, cancel and retry runs (engines:execute)');
-      await expect(review).toContainText('GET · isa-demo · qos-benchmarks · jobs · latency-study');
+      await expect(review).toContainText('GET · isa-demo · qos-benchmarks · runs · latency-study');
       await capture(page, testInfo, `keynew-${name}-5-review`);
 
       // The gateway's refusals, one by one: 402, 403 escalation, 403 not grantable, 422 engines.
@@ -631,7 +631,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         name: 'ci-nightly',
         permissions: ['engines:read', 'engines:execute', 'jobs:read', 'problems:read'],
         engine_access: { all: false, engines: [engineRef] },
-        boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['jobs'], slugs: ['latency-study'] },
+        boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['runs'], slugs: ['latency-study'] },
       });
       const days = (Date.parse(sent.expires_at as string) - Date.now()) / 86_400_000;
       expect(days).toBeGreaterThan(29.9);

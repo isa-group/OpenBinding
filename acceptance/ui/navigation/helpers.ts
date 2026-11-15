@@ -43,12 +43,12 @@ const members = [
   { id: 'm1', organization_id: 'org-acme', user_id: 'user-1', username: 'lucia', email: 'lucia@example.org', role: 'OWNER', created_at: NOW },
 ];
 
-// The problems belong to the organization (`/app/acme/problems`); runs and studies still live in a project.
+// The problems and the runs belong to the organization (`/app/acme/problems`, `/app/acme/runs`); studies still live in a project.
 export const PROBLEMS_SEGMENT = 'problems';
 export const RUNS_SEGMENT = 'runs';
 export const PROBLEMS = `/app/acme/${PROBLEMS_SEGMENT}`;
-export const RUN_NEW = `/app/acme/demo/${RUNS_SEGMENT}/new`;
-export const RUNS = `/app/acme/demo/${RUNS_SEGMENT}`;
+export const RUN_NEW = `/app/acme/${RUNS_SEGMENT}/new`;
+export const RUNS = `/app/acme/${RUNS_SEGMENT}`;
 
 const TEMPLATES = ['demo/01_simple_seq', 'demo/02_parallel', 'placement/01_small_placement'];
 
@@ -94,7 +94,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Re
     : route.fulfill({ json: options.projects ?? [project('demo', 'Demo')] })));
   await page.route(`${API}/v1/organizations/acme/projects/demo`, json(project('demo', 'Demo')));
   await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/problems`, json({ problems: [], total: 0, limit: 200, offset: 0 }));
-  await page.route((url) => url.origin + url.pathname === `${API}/v1/jobs`, json([]));
+  await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/runs`, json({ runs: [], total: 0 }));
   return requests;
 }
 

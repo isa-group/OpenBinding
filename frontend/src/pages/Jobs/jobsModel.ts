@@ -1,4 +1,4 @@
-import type { JobSolution } from '../../api/jobs';
+import type { JobSolution } from '../../api/runs';
 import type { Job } from '../../api/platform';
 import { formatDateTime } from '../../utils/format';
 

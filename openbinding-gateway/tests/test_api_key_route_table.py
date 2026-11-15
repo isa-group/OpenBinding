@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 121
+    assert len(ROUTES) == 118
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -79,8 +79,8 @@ def test_explore_is_gone_and_reports_need_no_permission():
     assert not {"reports:read", "reports:write"} & set(ALL_PERMISSIONS)
 
 
-def test_the_analysis_workspace_is_gone_and_the_neighbourhood_stays_a_job_read():
-    neighbourhood = "/v1/jobs/{job_id}/analysis/neighborhood"
+def test_the_analysis_workspace_is_gone_and_the_neighbourhood_stays_a_run_read():
+    neighbourhood = "/v1/organizations/{org}/runs/{run}/neighborhood"
 
     assert not [route for route in ROUTES if route[1].startswith("/v1/analysis")]
     assert ("GET", neighbourhood) in ROUTES
@@ -90,12 +90,26 @@ def test_the_analysis_workspace_is_gone_and_the_neighbourhood_stays_a_job_read()
     assert not hasattr(apikeys, "analysis_work_permissions")
     # Existing keys may hold it; it still guards kept operations (design D6).
     assert "engines:execute" in ALL_PERMISSIONS
-    # The "analysis" alias lets a job-scoped key read the neighbourhood (design D5).
-    jobs_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["job"]}})
+    # A run-scoped key reads the neighbourhood: the last fixed segment is ``runs``.
+    runs_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["run"]}})
     projects_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["project"]}})
-    request = {"method": "GET", "path_params": {"job_id": "j1"}, "path": neighbourhood}
-    assert allows_request(jobs_only, **request)
+    request = {"method": "GET", "path_params": {"org": "acme", "run": "r1"}, "path": neighbourhood}
+    assert allows_request(runs_only, **request)
     assert not allows_request(projects_only, **request)
+
+
+def test_the_runs_of_an_organization_are_jobs_reads_and_engine_executions():
+    runs = "/v1/organizations/{org}/runs"
+
+    assert not [route for route in ROUTES if route[1].startswith("/v1/jobs") or route[1] == "/v1/users/me/jobs"]
+    assert required_permissions(runs, "GET") == required_permissions(f"{runs}/{{run}}", "GET") == frozenset({"jobs:read"})
+    assert required_permissions(f"{runs}/{{run}}/events", "GET") == frozenset({"jobs:read"})
+    for path in (runs, f"{runs}/{{run}}/cancel", f"{runs}/{{run}}/retry", f"{runs}/{{run}}/reevaluate"):
+        assert required_permissions(path, "POST") == frozenset({"engines:execute"}), path
+    # The organizations fallback does not reach the runs, nor do the study runs of a project.
+    assert "organizations:write" not in required_permissions(runs, "POST")
+    study_runs = "/v1/organizations/{org}/projects/{project}/studies/{study}/runs"
+    assert required_permissions(study_runs, "POST") == frozenset({"studies:write"})
 
 
 def test_the_library_report_and_resource_writes_are_gone_and_the_kept_reads_keep_their_permissions():

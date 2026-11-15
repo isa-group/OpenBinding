@@ -91,7 +91,6 @@ async def test_seed_dev_lifecycle(db_session):
 
     # 4. Problems of the organization, uploaded from the demo packages
     examples_dir = REPO_ROOT / "examples"
-    qos_proj = projects["score-ai/qos-placement"]
     case_map = await ensure_cases(db_session, orgs["score-ai"], users["alice"], examples_dir)
     case, rev = case_map["simple-seq"]
     assert case.slug == "simple-seq" and case.organization_id == orgs["score-ai"].id
@@ -109,7 +108,7 @@ async def test_seed_dev_lifecycle(db_session):
     assert len(db_regs) >= 2
 
     # Without a problem revision, the seeder must not manufacture solver jobs.
-    jobs = await ensure_standalone_jobs(db_session, orgs["score-ai"], qos_proj, users["alice"], all_states=True)
+    jobs = await ensure_standalone_jobs(db_session, orgs["score-ai"], users["alice"], all_states=True)
     assert jobs == []
     assert not (await db_session.scalars(select(Job))).all()
 

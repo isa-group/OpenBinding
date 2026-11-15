@@ -4,8 +4,9 @@
 > account, with no billing sponsors and no subtree quotas. The target is `docs/ARCHITECTURE.md` §9.
 
 The OpenBinding `/v1` gateway separates public validation from authenticated
-job ownership: every `/v1/jobs` request resolves to an account (`401`
-otherwise), which owns the job.
+work: every request to the runs of an organization (`/v1/organizations/{org}/runs`)
+resolves to an account (`401` otherwise); a run belongs to the organization, and the
+account that launched it is recorded and holds its concurrency slot.
 
 Three ideas carry most of the weight:
 
@@ -86,8 +87,8 @@ all-Engines key because its immutable digest cannot be selected in advance.
 **Analysis routes (removed).** The `/v1/analysis` routes (sources, query,
 candidate, export, reports and the Pareto tasks) and their extra
 `engines:execute` check were removed by M9.6, together with the analysis queue.
-The kept `GET /v1/jobs/{job_id}/analysis/neighborhood` is guarded by `jobs:read`
-like any job read. Keys that hold `engines:execute` keep working: it still
+The kept neighbourhood analysis, `GET /v1/organizations/{org}/runs/{run}/neighborhood`,
+is guarded by `jobs:read` like any run read. Keys that hold `engines:execute` keep working: it still
 guards kept operations. The `reports:read` and `reports:write` permissions were
 removed in F0a with the reports; no route needs them.
 
@@ -174,19 +175,23 @@ before anything is compiled, reserved or written.
 
 | Action | Route | Minimum role |
 |---|---|---|
-| Read jobs, studies, runs, cells, artifacts and results of a project | `GET` routes of `/v1/organizations/{org}/projects/{project}/…` | VIEWER (jobs redacted, see below) |
+| Read studies, study runs, cells, artifacts and results of a project | `GET` routes of `/v1/organizations/{org}/projects/{project}/…` | VIEWER |
 | Read the organization's problems, revisions and compilations | `GET /v1/organizations/{org}/problems/…` | VIEWER |
+| Read the organization's runs, whoever launched them | `GET /v1/organizations/{org}/runs/…` | VIEWER (redacted, see below) |
 | Upload a problem or a revision, edit a problem | `POST …/problems`, `POST …/problems/{problem}/revisions`, `PATCH …/problems/{problem}` | MEMBER |
-| Launch a job on a revision of the organization's problem | `POST /v1/jobs` with `{"revision": …}` | MEMBER |
+| Launch a run of a revision of the organization's problem | `POST /v1/organizations/{org}/runs` with `{"revision": …}` | MEMBER |
 | Create a study | `POST …/studies` | MEMBER |
 | Run a study, retry a cell, cancel a run | `POST …/studies/{study}/runs`, `…/cells/{cell}/retry`, `…/runs/{run}/cancel` | MEMBER |
-| Retry or cancel a job of an organization | `POST /v1/jobs/{id}/retry`, `POST /v1/jobs/{id}/cancel` | MEMBER (the job must also be the caller's) |
+| Retry, cancel or re-evaluate a run of the organization | `POST …/runs/{run}/retry`, `…/cancel`, `…/reevaluate` | MEMBER (any member, not only who launched it; a retry is a new run of the caller) |
 | Delete a study or a problem | `DELETE …/studies/{study}`, `DELETE …/problems/{problem}` | ADMIN |
 
-A refused role is `403` with the stable code `insufficient_role` for `/v1/jobs`
+A refused role is `403` with the stable code `insufficient_role` for the runs
 (and `organization_forbidden` on the project routes, as
-before). A user who has no role at all in the organization that owns a revision
-still gets `404 not_found`, the same as for a revision that does not exist.
+before). A user who has no role at all in the organization gets `404 not_found` on
+its runs, the same as for one that does not exist, and a run naming a revision of
+another organization is `409 revision_not_in_organization`. Retrying a teammate's
+run on that teammate's private engine is refused when it is dispatched
+(`registration_changed`): a private engine resolves for the caller only.
 
 Every run belongs to the organization of its problem: there is no personal work.
 Checking a package without storing it (`POST /v1/bim/validate`) needs no account.
@@ -197,10 +202,10 @@ even when its user is a MEMBER (`403 insufficient_api_key_permission`), and a ke
 with `engines:execute` whose user is a VIEWER cannot either (`403 insufficient_role`).
 Tests: `openbinding-gateway/tests/test_viewer_read_only.py`.
 
-### What a VIEWER reads of a failed job
+### What a VIEWER reads of a failed run
 
-A VIEWER (and an API key that cannot write projects, in the job list and in the
-project package export) reads the job redacted: options by allow-list, the
+A VIEWER (and an API key that cannot run engines, without `engines:execute`, in
+the run list and on a run's page) reads the run redacted: options by allow-list, the
 request reduced to the problem and the pinned choices, provenance without
 credentials. The `error` of a failed job is also replaced. The stored message is
 the text of the exception that stopped the job and can name the host or address
@@ -502,7 +507,8 @@ start under `APP_ENV=prod` and is a warning elsewhere.
 `MAX_CONCURRENT_JOBS_PER_USER` (`core/settings.py`, default `8`, minimum `1`) is
 how many jobs one account may have `queued` or `running` at once. It protects
 the engines and does **not** depend on the plan or on SPACE. Every entry point
-that creates a job (`POST /v1/jobs`, retry, study cells) calls
+that creates a job (`createRun`, `POST /v1/organizations/{org}/runs`; retry; study
+cells) calls
 `jobs/limits.enforce_concurrency_limit` inside the transaction that inserts the
 job, after an idempotent replay has been ruled out, so a replay does not take a
 second slot. The check locks the account row (`FOR UPDATE`) so that two

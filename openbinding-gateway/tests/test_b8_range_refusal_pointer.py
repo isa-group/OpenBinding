@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from _problem_helpers import revision_of
+from _problem_helpers import revision_of, runs_url_for
 from dataclasses import replace
 
 import pytest
@@ -107,7 +107,7 @@ async def test_the_422_of_a_job_with_ranges_carries_the_pointer_in_its_diagnosti
     created_id = await revision_of(api_client, headers, archive=package_with({"min": 100, "max": None}).to_zip())
 
     job = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(created_id),
         headers={**headers, "Idempotency-Key": f"b8-{uuid.uuid4()}"},
         json={
             "revision": created_id,

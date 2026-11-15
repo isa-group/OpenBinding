@@ -1,7 +1,8 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { routeDefinitions, routesByArea } from '../registry';
-import { isProblemTabSegment, launchPath, PROBLEMS_SEGMENT, problemPath, problemsPath, workbenchPath } from '../paths/problems';
+import { isProblemTabSegment, PROBLEMS_SEGMENT, problemPath, problemsPath, workbenchPath } from '../paths/problems';
+import { launchPath, runPath, runsPath } from '../paths/runs';
 
 // One pair per line: screenBudget.test.ts counts them.
 const PROTOTYPE: Array<[string, string]> = [
@@ -93,8 +94,12 @@ describe('the address builders of the problems area', () => {
     expect(workbenchPath('acme', { template: 'demo/01_simple_seq' })).toBe('/app/acme/workbench?template=demo%2F01_simple_seq');
   });
 
-  it('builds the launcher of a run of a problem version', () => {
-    expect(launchPath('/app/acme/atlas', 'routing', 2)).toBe('/app/acme/atlas/runs/new?problem=routing&revision=2');
+  it('builds the runs of the organization and the launcher of a run of a problem version or with an engine', () => {
+    expect(runsPath('acme')).toBe('/app/acme/runs');
+    expect(runPath('acme', 'r 1')).toBe('/app/acme/runs/r%201');
+    expect(launchPath('acme', { problem: 'routing', revision: 2 })).toBe('/app/acme/runs/new?problem=routing&revision=2');
+    expect(launchPath('acme', { engine: 'bim.builtin/random-search' })).toBe('/app/acme/runs/new?engine=bim.builtin%2Frandom-search');
+    expect(launchPath('acme')).toBe('/app/acme/runs/new');
   });
 
   it('names the segment once', () => {

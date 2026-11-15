@@ -272,9 +272,10 @@ def test_binary_yaml_and_job_inputs_have_their_real_media_types(document):
         paths["/v1/organizations/{org}/problems/{problem}/revisions"]["post"],
     ):
         assert set(upload["requestBody"]["content"]) == {"application/vnd.bim+zip", "application/zip"}
-    jobs = paths["/v1/jobs"]["post"]
-    assert set(jobs["requestBody"]["content"]) == {"application/json"}
-    assert any(parameter["name"] == "Idempotency-Key" for parameter in jobs["parameters"])
+    runs = paths["/v1/organizations/{org}/runs"]["post"]
+    assert set(runs["requestBody"]["content"]) == {"application/json"}
+    assert runs["requestBody"]["content"]["application/json"]["schema"] == {"$ref": "#/components/schemas/JobRequest"}
+    assert any(parameter["name"] == "Idempotency-Key" for parameter in runs["parameters"])
 
 
 @pytest.mark.parametrize(
@@ -323,8 +324,8 @@ def test_a_quota_refusal_says_which_limit_and_where_it_stands(document):
 @pytest.mark.parametrize(
     "path,method,statuses",
     [
-        ("/v1/jobs", "post", {"202"}),
-        ("/v1/jobs/{job_id}", "get", {"200", "422"}),
+        ("/v1/organizations/{org}/runs", "post", {"202", "403", "404", "409", "422", "429"}),
+        ("/v1/organizations/{org}/runs/{run}", "get", {"200", "404", "422"}),
         ("/v1/auth/login", "post", {"401", "503"}),
         ("/v1/auth/register", "post", {"409", "503"}),
         ("/v1/users/me", "get", {"401", "503"}),
@@ -339,8 +340,8 @@ def test_the_failures_an_endpoint_can_produce_are_declared(document, path, metho
     assert statuses <= declared, f"{method.upper()} {path} is missing {statuses - declared}"
 
 
-def test_v1_jobs_are_always_accepted_asynchronously(document):
-    responses = document["paths"]["/v1/jobs"]["post"]["responses"]
+def test_runs_are_always_accepted_asynchronously(document):
+    responses = document["paths"]["/v1/organizations/{org}/runs"]["post"]["responses"]
     assert {code for code in responses if code.startswith("2")} == {"202"}
     assert {"401", "503"} <= set(responses)
 

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ORG, OTHER_ORG, PROJECT, PROJECT_PATH, capture, signInByApi, watchPageErrors } from './support';
+import { CASE, ORG, OTHER_ORG, PROJECT, PROJECT_PATH, RUNS_PATH, capture, signInByApi, watchPageErrors } from './support';
 
 // lab-outsider owns lab-other and has no role in lab-main: the interface must show nothing of lab-main and must not even say that it exists.
 
@@ -42,15 +42,19 @@ test.describe('live · lab-outsider has no access to lab-main', () => {
     expect(errors).toEqual([]);
   });
 
-  test('a problem, the launch of a run and the studies of the project are as hidden as the project', async ({ page }) => {
+  test('the problems, the runs, the launch of a run and the studies of lab-main are as hidden as lab-main', async ({ page }) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'outsider');
 
-    for (const path of [`${PROJECT_PATH}/problems`, `${PROJECT_PATH}/problems/simple-seq`, `${PROJECT_PATH}/runs/new`, `${PROJECT_PATH}/studies`]) {
+    // Problems and runs belong to the organization: the outsider gets its neutral refusal.
+    for (const path of [`/app/${ORG}/problems`, `/app/${ORG}/problems/${CASE}`, RUNS_PATH, `${RUNS_PATH}/new`]) {
       await page.goto(path);
-      await expect(page.getByRole('heading', { name: 'Project not found' }), path).toBeVisible();
-      await expect(page.getByRole('heading', { level: 1, name: 'Problems' }), path).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Organization not available' }), path).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: /^(Problems|Runs)$/ }), path).toHaveCount(0);
     }
+    // Studies belong to the project.
+    await page.goto(`${PROJECT_PATH}/studies`);
+    await expect(page.getByRole('heading', { name: 'Project not found' })).toBeVisible();
     expect(errors).toEqual([]);
   });
 });

@@ -42,7 +42,7 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/api/bim.ts',
   '/src/api/client.ts',
   '/src/api/health.ts',
-  '/src/api/' + 'jobs.ts',
+  '/src/api/runs.ts',
   '/src/api/library.ts',
   '/src/api/limitNotice.ts',
   '/src/api/platform.ts',

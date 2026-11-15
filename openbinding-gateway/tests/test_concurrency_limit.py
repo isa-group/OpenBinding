@@ -2,7 +2,7 @@
 
 It is configuration (``MAX_CONCURRENT_JOBS_PER_USER``) and never depends on the
 plan to be applied, and it is enforced inside the transaction that creates the
-job: by ``POST /v1/jobs``, by retry and by study-cell launches. The plan's own
+job: by ``createRun``, by retry and by study-cell launches. The plan's own
 ``maxConcurrentRuns`` lowers it (the lower wins); that is in
 ``tests/test_plan_concurrency.py``. That two creations in two transactions cannot
 both take the last slot needs PostgreSQL and lives in
@@ -12,7 +12,7 @@ both take the last slot needs PostgreSQL and lives in
 
 from __future__ import annotations
 
-from _problem_helpers import compiled_run_refs, placeholder_refs
+from _problem_helpers import compiled_run_refs, placeholder_refs, run_url
 
 import uuid
 
@@ -25,13 +25,13 @@ from test_idempotency_jobs import _body, _login, _post, _revision
 from test_job_dispatch import _account
 from test_study_cell_launch import BASE, _cells, _study
 
+from openbinding_gateway.services import job_submission
 from openbinding_gateway import space_client, study_jobs
 from openbinding_gateway.core.settings import Settings, get_settings
 from openbinding_gateway.db.models import Job, JobState, Organization, Project, RunState, User, UserRole
 from openbinding_gateway.domain.entitlements import Refusal
 from openbinding_gateway.jobs import limits
-from openbinding_gateway.routes import jobs as job_routes
-from openbinding_gateway.routes import v1
+from openbinding_gateway.modules.execution.adapters import routes as runs_routes
 
 
 def set_limit(monkeypatch, value: int) -> None:
@@ -52,8 +52,8 @@ def no_dispatch(monkeypatch):
     async def queued(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(v1, "dispatch_persisted_job", queued)
-    monkeypatch.setattr(job_routes, "dispatch_persisted_job", queued)
+    monkeypatch.setattr(runs_routes, "dispatch_persisted_job", queued)
+    monkeypatch.setattr(study_jobs, "dispatch_persisted_job", queued)
 
 
 # -- The setting ------------------------------------------------------------
@@ -141,7 +141,7 @@ async def test_jobs_added_earlier_in_the_same_transaction_count(db_session):
     assert (await limits.enforce_concurrency_limit(db_session, user.id, limit=1)).status == 429
 
 
-# -- POST /v1/jobs ----------------------------------------------------------
+# -- createRun --------------------------------------------------------------
 
 
 async def test_creating_a_job_at_the_limit_is_a_429_and_finishing_one_frees_the_slot(
@@ -159,7 +159,7 @@ async def test_creating_a_job_at_the_limit_is_a_429_and_finishing_one_frees_the_
     assert refused.json()["title"] == "concurrency_limit_exceeded"
     assert refused.headers["Retry-After"] == "15"
     # Named like a 402 quota (limit_id, limit, used) so the frontend reads it; ``active`` is kept.
-    assert refused.json()["concurrency"] == {
+    assert refused.json()["detail"]["concurrency"] == {
         "limit_id": "maxConcurrentRuns", "limit": 1, "used": 1, "active": 1, "unit": "job", "source": "technical",
     }
     assert await db_session.scalar(select(func.count()).select_from(Job)) == 1
@@ -228,8 +228,8 @@ async def test_a_bigger_plan_does_not_raise_the_technical_cap(
     refused = await _post(api_client, headers, _body(revision), key="second")
 
     assert refused.status_code == 429
-    assert refused.json()["concurrency"]["limit"] == 1
-    assert refused.json()["concurrency"]["source"] == "technical"
+    assert refused.json()["detail"]["concurrency"]["limit"] == 1
+    assert refused.json()["detail"]["concurrency"]["source"] == "technical"
 
 
 # -- Retry ------------------------------------------------------------------
@@ -246,16 +246,16 @@ async def test_a_retry_at_the_limit_is_a_429_and_a_replay_of_a_retry_is_not(
     await db_session.flush()
     set_limit(monkeypatch, 1)
 
-    refused = await api_client.post(f"/v1/jobs/{failed.id}/retry", headers=headers)
+    refused = await api_client.post(run_url(failed, "/retry"), headers=headers)
     assert refused.status_code == 429, refused.text
     assert refused.headers["Retry-After"] == "15"
     assert await db_session.scalar(select(func.count(Job.id)).where(Job.retry_of_id == failed.id)) == 0
 
     busy.state = JobState.COMPLETED
     await db_session.flush()
-    first = await api_client.post(f"/v1/jobs/{failed.id}/retry", headers=headers)
+    first = await api_client.post(run_url(failed, "/retry"), headers=headers)
     # The replacement now holds the only slot, yet asking again answers with it.
-    again = await api_client.post(f"/v1/jobs/{failed.id}/retry", headers=headers)
+    again = await api_client.post(run_url(failed, "/retry"), headers=headers)
 
     assert first.status_code == again.status_code == 202, again.text
     assert first.json()["id"] == again.json()["id"]
@@ -269,10 +269,10 @@ async def test_cancelling_a_queued_job_frees_its_slot(api_client, db_session, re
     db_session.add_all([queued, failed])
     await db_session.flush()
     set_limit(monkeypatch, 1)
-    assert (await api_client.post(f"/v1/jobs/{failed.id}/retry", headers=headers)).status_code == 429
+    assert (await api_client.post(run_url(failed, "/retry"), headers=headers)).status_code == 429
 
-    cancelled = await api_client.post(f"/v1/jobs/{queued.id}/cancel", headers=headers)
-    retried = await api_client.post(f"/v1/jobs/{failed.id}/retry", headers=headers)
+    cancelled = await api_client.post(run_url(queued, "/cancel"), headers=headers)
+    retried = await api_client.post(run_url(failed, "/retry"), headers=headers)
 
     assert cancelled.status_code == 200 and cancelled.json()["status"] == "cancelled"
     assert retried.status_code == 202, retried.text
@@ -303,10 +303,10 @@ async def test_a_study_cell_at_the_limit_gets_the_retryable_429(
     assert launched.job_id is not None
     assert waiting.job_id is None and waiting.state is RunState.QUEUED
     with pytest.raises(study_jobs.StudyLaunchError) as refused:
-        await study_jobs.launch_study_cell(db_session, waiting, user, organization, project.id)
+        await study_jobs.launch_study_cell(db_session, waiting, user, organization)
     assert refused.value.code == "concurrency_limit_exceeded"
     assert refused.value.code in study_jobs.RETRYABLE_LAUNCH_CODES
-    assert v1.pending_launches(db_session) == []
+    assert job_submission.pending_launches(db_session) == []
 
 
 async def test_a_run_started_at_the_limit_leaves_its_cells_queued_for_later(

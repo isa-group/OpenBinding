@@ -249,9 +249,6 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "cells": {"cell", "cells"},
             "artifacts": {"artifact", "artifacts"},
             "library": {"artifact", "artifacts"},
-            "jobs": {"job", "jobs"},
-            # GET /v1/jobs/{job_id}/analysis/neighborhood: a job-scoped key reads it.
-            "analysis": {"job", "jobs", "analysis"},
             "bim": {"problem", "problems"},
             "engines": {"engine", "engines"},
             "engine-registrations": {"engine-registration", "engine-registrations"},
@@ -352,8 +349,6 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         )
     if path == "/v1/auth/cas/link-intent":
         return frozenset({ApiKeyPermission.ACCOUNT_WRITE.value})
-    if path.startswith("/v1/users/me/jobs"):
-        return frozenset({ApiKeyPermission.JOBS_READ.value})
     if path.startswith("/v1/users/me"):
         return frozenset(
             {ApiKeyPermission.ACCOUNT_READ.value}
@@ -365,6 +360,14 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             {ApiKeyPermission.ADMIN_ACCOUNTS_READ.value}
             if method == "GET"
             else {ApiKeyPermission.ADMIN_ACCOUNTS_WRITE.value}
+        )
+    if path.startswith("/v1/organizations/") and path.split("/")[4:5] == ["runs"]:
+        # The runs of an organization: reading them is following jobs, creating, cancelling, retrying
+        # or re-evaluating one runs an engine.
+        return frozenset(
+            {ApiKeyPermission.JOBS_READ.value}
+            if method == "GET"
+            else {ApiKeyPermission.ENGINES_EXECUTE.value}
         )
     if path.startswith("/v1/organizations/") and "problems" in path.split("/")[4:5]:
         return frozenset(
@@ -429,12 +432,6 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         if method == "GET":
             return frozenset({ApiKeyPermission.ENGINES_READ.value})
         return frozenset({ApiKeyPermission.ENGINES_REGISTER.value})
-    if path.startswith("/v1/jobs"):
-        return frozenset(
-            {ApiKeyPermission.JOBS_READ.value}
-            if method == "GET"
-            else {ApiKeyPermission.ENGINES_EXECUTE.value}
-        )
     if not (path == "/v1" or path.startswith("/v1/")):
         return frozenset()
     if path.startswith(OPEN_V1_PREFIXES) or (method == "GET" and _is_open_v1_read(path)):

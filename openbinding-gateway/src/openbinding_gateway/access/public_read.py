@@ -55,9 +55,7 @@ PUBLIC_READ_ALLOWED: dict[str, str] = {
 }
 
 #: GET routes that stay closed to non-members even on public projects.
-PUBLIC_READ_DENIED_GET: dict[str, str] = {
-    f"{PROJECT}/jobs": "Jobs and their history (they carry requests, options and results of members).",
-}
+PUBLIC_READ_DENIED_GET: dict[str, str] = {}
 
 
 def eligible(method: str, template: str) -> bool:

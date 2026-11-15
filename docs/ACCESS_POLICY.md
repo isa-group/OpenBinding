@@ -68,13 +68,14 @@ Two precisions. *Resources* are the project's own contents; an artifact of
 library) is shown to visitors only while it is itself published, so
 a withdrawn one does not stay reachable through the project. *Problems* belong to
 the organization, not to a project: `/v1/organizations/{org}/problems/...` is
-members-only (VIEWER and up) and this policy does not open it.
+members-only (VIEWER and up) and this policy does not open it. *Runs* belong to
+the organization too (`/v1/organizations/{org}/runs/...`, below), and are never
+public.
 
 ## Always denied to visitors
 
 | Route | Why |
 |---|---|
-| `GET /jobs` | jobs carry members' requests, options, results and history |
 | every `POST`, `PUT`, `PATCH`, `DELETE` under the project | writes (creating or changing resources, studies, runs, cells, library associations, settings, visibility, deleting the project) |
 
 Outside the project path nothing changes either: members, invitations,
@@ -82,6 +83,23 @@ organization settings, quota/usage/billing, API keys, library drafts, and the
 private analyses under `/v1/analysis` stay members-only (or owner-only).
 The refusal is the ordinary one: `403 organization_forbidden` for a signed-in
 non-member, `401` without credentials.
+
+## The runs of an organization (`/v1/organizations/{org}/runs`)
+
+A run belongs to the organization of the problem revision it runs. No public read
+reaches it, and a non-member gets `404 not_found` on every route (the organization
+reads as missing), not `403`.
+
+| Route | Who | API key permission |
+|---|---|---|
+| `GET /runs`, `GET /runs/{run}`, `GET /runs/{run}/events`, `GET /runs/{run}/neighborhood` | VIEWER and up; below MEMBER the options, the request and the error text are redacted | `jobs:read` |
+| `POST /runs` | MEMBER and up; the revision must be of `{org}` (`409 revision_not_in_organization`) | `engines:execute` |
+| `POST /runs/{run}/cancel`, `/retry`, `/reevaluate` | MEMBER and up, whoever launched the run (`403 insufficient_role` below) | `engines:execute` |
+
+An API key that cannot run engines (no `engines:execute`) reads redacted whatever
+the role of its user, and a key only sees the runs of the Engine revisions it may
+use. The `organizations:*` permissions do not reach the runs. A retry is a new run
+of the caller: it takes the caller's concurrency slot and plan.
 
 ## Roles at a glance
 

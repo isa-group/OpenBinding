@@ -2,11 +2,11 @@
 import copy
 
 import pytest
-from _problem_helpers import run_refs, seed_problem_run
+from _problem_helpers import run_refs, run_url, seed_problem_run
 from _repo import REPO_ROOT
 from sqlalchemy import select
 
-from openbinding_gateway.db.models import Job, JobState, User
+from openbinding_gateway.db.models import Job, JobState, OrganizationMembership, OrganizationRole, User
 from bim_core.neighborhood import analyze_neighborhood
 from bim_core.compiler import BindingProblem, compile_instance
 from bim_core.package import load_package
@@ -124,12 +124,16 @@ async def test_endpoint_requires_owner_and_validates_budget(api_client, db_sessi
     problem, binding = problem_and_binding()
     solution = {"decision": {"kind": "binding", "binding": binding}, **problem.evaluate(binding)}
     seeded = await seed_problem_run(db_session, owner_id=owner.id, ir=problem.document, ir_digest=problem.digest)
+    # Runs are read by the members of their organization.
+    db_session.add(OrganizationMembership(
+        organization_id=seeded["organization_id"], user_id=owner.id, role=OrganizationRole.OWNER,
+    ))
     job = Job(owner_id=owner.id, engine_id="analysis-test", engine_job_id="analysis-test", service_url="https://example.invalid", state=JobState.COMPLETED,
               original_request={"optimization": {"type": "MULTI", "scalarization": "pareto", "weights": []}},
               provenance={"irDigest": problem.digest}, result={"solutions": [solution]}, **run_refs(seeded))
     db_session.add(job)
     await db_session.commit()
-    url = f"/v1/jobs/{job.id}/analysis/neighborhood"
+    url = run_url(job, "/neighborhood")
     assert (await api_client.get(url)).status_code == 401
     response = await api_client.get(url, headers=headers)
     assert response.status_code == 200, response.text

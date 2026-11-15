@@ -16,7 +16,7 @@ from datetime import timedelta
 
 from sqlalchemy import select
 
-from _problem_helpers import revision_of, run_refs, seed_problem_run
+from _problem_helpers import revision_of, run_refs, runs_url_for, seed_problem_run
 from _repo import REPO_ROOT as EXAMPLES_ROOT
 from openbinding_gateway.db.base import Base
 from openbinding_gateway.db.models import EngineRegistrationRevision, Job, JobState, utcnow
@@ -142,7 +142,7 @@ async def account_with_revision(client, registration) -> tuple[dict[str, str], s
 
 async def submit(client, headers, revision_id) -> None:
     response = await client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers=headers,
         json={
             "revision": revision_id,

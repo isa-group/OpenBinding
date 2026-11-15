@@ -117,7 +117,7 @@ async def test_launching_the_same_cell_again_returns_the_same_job(
     # Forget the link on the cell side, as a lost race would leave it.
     cell.job_id = None
     await db_session.flush()
-    again = await study_jobs.launch_study_cell(db_session, cell, user, organization, job.project_id)
+    again = await study_jobs.launch_study_cell(db_session, cell, user, organization)
 
     assert again.id == job.id
     assert cell.job_id == job.id
@@ -168,7 +168,7 @@ async def test_sync_of_a_single_cell_run_never_adds_a_job(
 async def test_a_run_whose_every_cell_fails_to_launch_is_terminal_and_has_no_job(
     api_client, db_session, registration, study_gate, monkeypatch
 ) -> None:
-    async def reject(session, cell, user, organization, project_id):
+    async def reject(session, cell, user, organization):
         raise study_jobs.StudyLaunchError("invalid_engine", "no such engine")
 
     monkeypatch.setattr(study_routes, "launch_study_cell", reject)

@@ -14,7 +14,7 @@ import uuid
 
 import pytest
 
-from _problem_helpers import upload_problem
+from _problem_helpers import runs_url_for, upload_problem
 from _repo import REPO_ROOT
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.integrations import bim, packages
@@ -95,12 +95,12 @@ async def test_a_problem_a_job_and_the_reevaluation_of_its_answer(
     assert ir == reference["ir"]
 
     submitted = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(created["revision_id"]),
         headers={**headers, "Idempotency-Key": f"port-{uuid.uuid4()}"},
         json={"revision": created["revision_id"], "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION},
     )
     assert submitted.status_code == 202, submitted.text
-    finished = (await api_client.get(f"/v1/jobs/{submitted.json()['id']}", headers=headers)).json()
+    finished = (await api_client.get(f"{runs_url_for(created['revision_id'])}/{submitted.json()['id']}", headers=headers)).json()
     assert finished["status"] == "completed", finished
     assert finished["provenance"]["irDigest"] == reference["irDigest"]
     assert finished["provenance"]["compilerDigest"] == bim.toolchain_digest()
@@ -119,7 +119,7 @@ async def test_an_engine_mode_that_cannot_run_the_instance_is_a_422(
     created = await upload_problem(api_client, headers, archive=package_with_latency({"min": 100, "max": None}))
 
     refused_job = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(created["revision_id"]),
         headers={**headers, "Idempotency-Key": f"port-{uuid.uuid4()}"},
         json={"revision": created["revision_id"], "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION},
     )
@@ -139,7 +139,7 @@ async def test_an_option_the_mode_does_not_have_is_a_422_with_the_toolchains_cod
     created = await upload_problem(api_client, headers, archive=example_zip())
 
     response = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(created["revision_id"]),
         headers={**headers, "Idempotency-Key": f"port-{uuid.uuid4()}"},
         json={"revision": created["revision_id"], "engine": "random-search", "mode": "seeded",
               "optimization": OPTIMIZATION, "options": {"bogus": 1}},

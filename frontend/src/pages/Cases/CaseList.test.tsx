@@ -74,7 +74,7 @@ describe('Problem list', () => {
     expect(first.getByText(/latest v2 · /)).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     expect(first.getByText('Payments with parallel stock and shipping.')).toBeInTheDocument();
-    expect(first.getByRole('link', { name: 'Run latest' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/runs/new?problem=flujo-checkout&revision=2');
+    expect(first.getByRole('link', { name: 'Run latest' })).toHaveAttribute('href', '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2');
     expect(first.getByRole('link', { name: 'New version' })).toHaveAttribute('href', `${root}/workbench?problem=flujo-checkout`);
     const second = within(rows[1]);
     expect(second.getByText('No version yet')).toBeInTheDocument();
@@ -93,10 +93,10 @@ describe('Problem list', () => {
     expect(screen.getByRole('link', { name: 'Start from a template' })).toHaveAttribute('href', `${root}/workbench?template=demo%2F01_simple_seq`);
   });
 
-  it('offers no run when the organization has no project to run in', async () => {
+  it('runs in the organization even when it has no project', async () => {
     renderList(group, '', []);
     const list = await screen.findByRole('list', { name: 'Problems' });
-    expect(within(list).queryByRole('link', { name: 'Run latest' })).not.toBeInTheDocument();
+    expect(within(list).getAllByRole('link', { name: 'Run latest' })[0]).toHaveAttribute('href', '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2');
   });
 
   it('finds a problem by name or address and says when none matches', async () => {

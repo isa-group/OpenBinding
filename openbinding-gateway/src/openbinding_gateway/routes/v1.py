@@ -1,17 +1,13 @@
-"""The public BIM v1 API exposed by the OpenBinding platform: engines, registrations and jobs.
+"""The public BIM v1 API exposed by the OpenBinding platform: engines and engine registrations.
 
-A job runs a problem revision; the engine receives only the compiled BindingProblem of the
-revision's compilation, never a source ZIP. Problems themselves are ``modules.problems``.
+Runs are ``modules.execution`` (``/v1/organizations/{org}/runs``) and problems ``modules.problems``.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import uuid
 from typing import Any, Mapping
 
-from ..models.analysis import NeighborhoodResponse
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,10 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..access.dependencies import get_optional_user, optional_session, require_v1_admin, solve_caller
 from ..core import revision
 from ..core.settings import get_settings
-from ..db import base as db_base
-from ..db.models import ProblemCompilation, User
-from ..job_dispatch import dispatch_persisted_job
-from ..repositories.jobs import refs_for
+from ..db.models import User
 from ..models.problem import PROBLEM_MEDIA_TYPE, VALIDATION_ERROR, problem_response, split_detail
 from ..security.apikeys import allows_engine
 from bim_core import PackageError
@@ -36,20 +29,9 @@ from ..services import engines as engine_documents
 from ..services.entitlements import EntitlementsUnavailable, entitlement_service
 from ..modules.plans.application import entitlement_map as ids
 from ..services.engine_registry import RegistrationKey
-from ..services.engines import owned_job
 from ..services.engines import protocol_digest as protocol_digest  # re-exported for the tests
 from ..services.engines import manifest as _manifest
 from ..services.engines import manifest_async
-from ..services.job_submission import (
-    STUDY_CELL_KEY_PREFIX,
-    JobSubmission,
-    JobSubmissionInput,
-    JobSubmissionResult,
-)
-
-# Re-exported for ``study_jobs`` and the tests that read the pending launches through this module.
-from ..services.job_submission import discard_pending_launches as discard_pending_launches
-from ..services.job_submission import pending_launches as pending_launches
 
 logger = logging.getLogger(__name__)
 
@@ -447,207 +429,3 @@ async def set_engine_registration_credential(
     except engine_registry.RegistryProblem as exc:
         return _registry_problem(exc)
     return JSONResponse(summary, headers={"ETag": etag})
-
-
-@router.post("/jobs", status_code=status.HTTP_202_ACCEPTED)
-async def create_job(
-    request: Request,
-    caller: User | None = Depends(solve_caller),
-    session: AsyncSession | None = Depends(optional_session, scope="function"),
-):
-    key = request.headers.get("Idempotency-Key")
-    if key is not None and key.startswith(STUDY_CELL_KEY_PREFIX):
-        return _problem(
-            422,
-            "reserved_idempotency_key",
-            f"Idempotency-Key cannot start with {STUDY_CELL_KEY_PREFIX!r}; the gateway reserves that prefix",
-        )
-    return await _create_job_core(request, caller, session)
-
-
-async def _create_job_core(
-    request: Request,
-    caller: User | None,
-    session: AsyncSession | None,
-    *,
-    commit: bool = True,
-    dispatch: bool = True,
-    study_cell_id: uuid.UUID | None = None,
-):
-    """Read, submit and dispatch a job; ``create_job`` is its HTTP face.
-
-    The submission itself (validation, idempotency, limits, persistence) is
-    ``services.job_submission``. ``commit`` and ``dispatch`` say whether to
-    commit and queue the job here. Without them the job stays in the caller's
-    transaction and its reservation is recorded in ``pending_launches``.
-    ``study_cell_id`` is written in the job's own INSERT, so the cell and the
-    job cannot be seen apart; losing the race for a cell returns the job that
-    won it.
-    """
-
-    if dispatch and not commit:
-        raise ValueError("a job cannot be dispatched before it is committed")
-    idempotency_key = request.headers.get("Idempotency-Key")
-    if idempotency_key is not None and not (1 <= len(idempotency_key) <= 255):
-        return _problem(
-            422,
-            "invalid_idempotency_key",
-            "Idempotency-Key must contain between 1 and 255 characters",
-        )
-    submission = await _read_job_request(request, idempotency_key)
-    if isinstance(submission, JSONResponse):
-        return submission
-    result = await JobSubmission(
-        session,
-        caller,
-        commit=commit,
-        study_cell_id=study_cell_id,
-    ).submit(submission)
-    if dispatch and result.kind == "created":
-        await dispatch_persisted_job(result.body["id"], None if db_base.is_configured() else session)
-    return _job_response(result)
-
-
-async def _read_job_request(request: Request, idempotency_key: str | None) -> JobSubmissionInput | JSONResponse:
-    """The job request as the service takes it, or the problem that stops it at the transport.
-
-    A job runs a problem revision: the body is a JSON object naming it (``revision``) and the run's settings.
-    """
-    try:
-        content_type = (request.headers.get("content-type") or "").split(";", 1)[0].strip().lower()
-        if content_type and content_type != "application/json":
-            return _problem(
-                415,
-                "unsupported_media_type",
-                "A job request is a JSON object naming a problem revision; upload packages as problems first",
-            )
-        body = await request.body()
-        if len(body) > _max_expanded():
-            return _problem(413, "payload_too_large", f"request body exceeds {_max_expanded()} bytes")
-        payload = strict_json_loads(body)
-        revision_id = payload.get("revision") if isinstance(payload, dict) else None
-        if not isinstance(revision_id, str) or not revision_id:
-            return _problem(
-                422,
-                "revision_required",
-                "A job names the problem revision it runs (revision)",
-            )
-        allowed_fields = {"revision", "engine", "registration", "mode", "options", "optimization"}
-        if set(payload) - allowed_fields:
-            return _problem(
-                422,
-                "invalid_request_fields",
-                "job request contains fields outside the BIM v1 job contract",
-            )
-        return JobSubmissionInput(payload, len(body), idempotency_key, revision_id=revision_id)
-    except PackageError as exc:
-        return _problem(422, "invalid_request", str(exc))
-    except HTTPException as exc:
-        return _error_from_http(exc)
-
-
-def _job_response(result: JobSubmissionResult) -> dict[str, Any] | JSONResponse:
-    """A new job answers with its document (202 by the route); a replay or a problem is a response of its own."""
-    if result.kind == "created":
-        return result.body
-    if result.kind == "replay":
-        return JSONResponse(result.body, status_code=result.status, headers=result.headers or None)
-    return JSONResponse(
-        result.body, status_code=result.status, media_type=PROBLEM_MEDIA_TYPE, headers=result.headers or None
-    )
-
-
-@router.get("/jobs/{job_id}")
-async def get_v1_job(
-    job_id: str,
-    caller: User | None = Depends(solve_caller),
-    session: AsyncSession | None = Depends(optional_session, scope="function"),
-):
-    job = await owned_job(job_id, caller, session)
-    if job is None:
-        return _problem(404, "not_found", "Job not found")
-    result: dict[str, Any] = {"id": job_id, "status": job.state.value, "provenance": dict(job.provenance or {})}
-    if session is not None:
-        # What the run is of (its organization, problem, revision and compilation), as the job lists name it.
-        result.update((await refs_for(session, [job])).get(job.id, {}))
-    if job.result is not None:
-        result["result"] = job.result
-        if isinstance(job.result, dict) and "error" in job.result:
-            result["error"] = job.result["error"]
-    return result
-
-
-# A per-process bound protects the evaluator pool. No Engine or solver job is dispatched.
-_ANALYSIS_SLOTS = asyncio.Semaphore(2)
-
-
-@router.get(
-    "/jobs/{job_id}/analysis/neighborhood",
-    response_model=NeighborhoodResponse,
-    summary="Evaluate bounded one-task binding alternatives",
-    description="Owner-scoped counterfactual evaluation against the pinned job IR. "
-                "At most 128 eligible substitutions, with a cooperative two-second budget between evaluations. "
-                "Does not invoke an Engine, mutate the job, or claim global optimality.",
-)
-async def get_v1_job_neighborhood(
-    job_id: str,
-    solution_index: int = Query(0, ge=0),
-    task: str | None = Query(None, max_length=256),
-    limit: int = Query(64, ge=1, le=128),
-    caller: User | None = Depends(solve_caller),
-    session: AsyncSession | None = Depends(optional_session, scope="function"),
-):
-    job = await owned_job(job_id, caller, session)
-    if job is None:
-        return _problem(404, "not_found", "Job not found")
-    solutions = (job.result or {}).get("solutions", [])
-    if not isinstance(solutions, list) or solution_index >= len(solutions):
-        return _problem(422, "invalid_solution", "Selected returned solution does not exist")
-    decision = solutions[solution_index].get("decision", {})
-    if decision.get("kind") != "binding" or not isinstance(decision.get("binding"), dict):
-        return _problem(422, "unsupported_decision", "Analysis requires a canonical binding decision")
-    compilation = await session.get(ProblemCompilation, job.compilation_id) if session is not None else None
-    document = compilation.ir if compilation is not None else None
-    ir_digest = (job.provenance or {}).get("irDigest")
-    if compilation is not None and ir_digest and ir_digest != compilation.ir_digest:
-        return _problem(409, "analysis_unavailable", "Job and compilation IR identities disagree")
-    if not isinstance(document, dict) or document.get("kind") != "BindingProblem":
-        return _problem(409, "analysis_unavailable", "The pinned BindingProblem is unavailable")
-    if not bim.ir_is_installed(document):
-        return _problem(422, "contract_not_installed", bim.STALE_IR_MESSAGE)
-    if _ANALYSIS_SLOTS.locked():
-        return _problem(429, "analysis_busy", "The analysis evaluator is busy; retry shortly")
-    # Compare under the job's execution optimization, as the gateway re-evaluation did.
-    execution = (job.original_request or {}).get("optimization") or (job.provenance or {}).get("optimization")
-    if not isinstance(execution, dict):
-        execution = None
-    async with _ANALYSIS_SLOTS:
-        try:
-            result = await bim.abim().neighborhood(
-                document, decision["binding"], task=task, limit=limit, execution=execution
-            )
-        except (ValueError, ArithmeticError) as exc:
-            return _problem(422, "analysis_invalid", str(exc)[:300])
-    return {"jobId": job_id, "solutionIndex": solution_index, **result}
-
-
-@router.get("/jobs/{job_id}/report")
-async def get_v1_job_report(
-    job_id: str,
-    caller: User | None = Depends(solve_caller),
-    session: AsyncSession | None = Depends(optional_session, scope="function"),
-):
-    job = await owned_job(job_id, caller, session)
-    if job is None:
-        return _problem(404, "not_found", "Job not found")
-    result = job.result or {}
-    provenance = job.provenance or {}
-    return {
-        "id": job_id,
-        "gatewayEvaluation": {
-            "termination": result.get("termination"),
-            "solutions": result.get("solutions", []),
-        },
-        "remote": result.get("provenance", {}).get("engineReported", {}),
-        "provenance": provenance,
-    }

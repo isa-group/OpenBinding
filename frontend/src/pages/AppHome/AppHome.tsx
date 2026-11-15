@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { Building2, FilePlus2, Play, Plus, type LucideIcon } from 'lucide-react';
 import { apiClient } from '../../api/client';
-import type { JobSummary } from '../../api/client';
 import type { Notification } from '../../api/auth';
 import { platformApi } from '../../api/platform';
-import type { Organization } from '../../api/platform';
+import type { Job, Organization } from '../../api/platform';
+import { runsApi } from '../../api/runs';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
@@ -13,7 +13,9 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { config } from '../../config';
 import { useAuth } from '../../contexts/auth';
+import { lastOrganization } from '../../features/workspace/lastOrganization';
 import { problemsPath } from '../../routes/paths/problems';
+import { launchPath, runPath, runsPath } from '../../routes/paths/runs';
 import { formatDate } from '../../utils/format';
 import { formatCount, formatDuration, LIMIT } from '../../utils/limits';
 import { runLabel } from '../../shared/lib/identity';
@@ -39,7 +41,7 @@ interface Shortcut {
 type StatusTone = 'running' | 'queued' | 'ok' | 'warn' | 'bad';
 
 /** How a job reads in the activity list: the word, and the tone of its dot and chip. */
-function jobStatus(job: JobSummary): { label: string; tone: StatusTone } {
+function jobStatus(job: Job): { label: string; tone: StatusTone } {
   switch (job.status) {
     case 'running': return { label: 'Running', tone: 'running' };
     case 'queued': return { label: 'Queued', tone: 'queued' };
@@ -52,7 +54,7 @@ function jobStatus(job: JobSummary): { label: string; tone: StatusTone } {
   }
 }
 
-function jobMeta(job: JobSummary): string {
+function jobMeta(job: Job): string {
   const seconds = job.finished_at ? (Date.parse(job.finished_at) - Date.parse(job.created_at)) / 1000 : null;
   const label = runLabel({ engine: { name: job.engine_id }, createdAt: job.created_at });
   return `${label}${seconds !== null && seconds >= 0 ? ` · finished in ${formatDuration(seconds)}` : ''}`;
@@ -81,14 +83,17 @@ function OrgBranch({ node, all }: { node: TreeNode; all: Organization[] }) {
   );
 }
 
-function ActivityBlock() {
-  const jobs = useResource('home-activity', () => apiClient.listOwnJobs({ limit: 5 }));
+/** The recent runs of one organization (the one last visited, else the first): five, newest first, each linking to its page. */
+function ActivityBlock({ organization }: { organization: Organization | undefined }) {
+  const org = organization?.slug;
+  const jobs = useResource(`home-activity:${org ?? ''}`, () => (org ? runsApi.list(org, { limit: 5 }) : Promise.resolve({ runs: [], total: 0 })));
   const failure = jobs.status === 'error' ? classifyAuthError(jobs.error) : null;
-  const items = jobs.data?.jobs ?? [];
+  const items = jobs.data?.runs ?? [];
   return (
     <section className="apphome-card" aria-labelledby="home-activity-title" aria-busy={jobs.status === 'loading'}>
       <header className="home-card-head">
         <h2 id="home-activity-title">Recent activity</h2>
+        {org && items.length > 0 && <Link to={runsPath(org)} viewTransition aria-label={`All runs of ${organization?.name ?? org}`}>All runs</Link>}
       </header>
       {jobs.status === 'loading' && <div className="home-skeleton" role="status"><span className="sr-only">Loading recent runs…</span><Skeleton variant="tile" /><Skeleton variant="tile" /><Skeleton variant="tile" /></div>}
       {failure && isForbidden(failure) && <p className="home-blocked">Not available with this key (needs <code>jobs:read</code>).</p>}
@@ -104,8 +109,8 @@ function ActivityBlock() {
           <strong>No runs yet. Here’s a way to your first run.</strong>
           <ol>
             <li><Link to="/workbench">Open the Workbench</Link> and validate a package, or start from one of its examples.</li>
-            <li>Open or create a project to keep its problems, runs and studies together.</li>
-            <li>Launch a run from the project; it appears here while it works.</li>
+            <li>Save it as a problem of one of your organizations.</li>
+            <li>Launch a run of it; it appears here while it works.</li>
           </ol>
         </div>
       )}
@@ -115,11 +120,11 @@ function ActivityBlock() {
             const status = jobStatus(job);
             return (
               <li key={job.id}>
-                <div className="home-activity-row">
+                <Link to={runPath(org ?? job.organization_id, job.id)} viewTransition className="home-activity-row">
                   <span className={`home-dot is-${status.tone}`} aria-hidden="true" />
-                  <span className="home-activity-body"><strong>{job.engine_id}</strong><small>{jobMeta(job)}</small></span>
+                  <span className="home-activity-body"><strong>{job.problem?.name ?? job.engine_id}</strong><small>{jobMeta(job)}</small></span>
                   <span className={`home-status is-${status.tone}`}>{status.label}</span>
-                </div>
+                </Link>
               </li>
             );
           })}
@@ -248,13 +253,12 @@ export function AppHome() {
   const empty = orgs.status === 'ready' && list.length === 0;
 
   const organization = context.organization ?? list[0];
-  const project = context.project;
   const shortcuts: Shortcut[] = [];
   if (organization) {
     shortcuts.push({ label: 'New project', to: createAddress(`/app/${organization.slug}`, 'project'), icon: Plus });
     shortcuts.push({ label: 'New problem', to: `${problemsPath(organization.slug)}?create=problem`, icon: FilePlus2 });
   }
-  if (organization && project) shortcuts.push({ label: 'Run', to: `/app/${organization.slug}/${project.slug}/runs/new`, icon: Play });
+  if (organization) shortcuts.push({ label: 'Run', to: launchPath(organization.slug), icon: Play });
 
   const subtitle = isAdmin
     ? 'You’re a platform administrator. Admin tools are in the header.'
@@ -329,7 +333,7 @@ export function AppHome() {
         </section>
 
         <div className="home-side">
-          <ActivityBlock />
+          <ActivityBlock organization={list.find((item) => item.slug === lastOrganization()) ?? list[0]} />
           <div className="home-pair">
             <PlanBlock />
             <NotificationsBlock announce={setAnnouncement} />

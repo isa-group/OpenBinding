@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { measurePage, prepareCapture, waitUntilSettled } from '../helpers/pageChecks';
-import { API, CASE, ORG, PROJECT_PATH, RESULTS_DIR, signInByApi } from './support';
+import { API, CASE, ORG, PROJECT_PATH, RESULTS_DIR, RUNS_PATH, signInByApi } from './support';
 
 /**
  * Visual QA of the main screens at the two sizes of the project (`desktop` 1280x800 and `mobile` 390x844 with touch: see
@@ -241,7 +241,7 @@ const OWNER_STOPS: Stop[] = [
   { slug: 'project', path: PROJECT_PATH, ready: (page) => page.getByRole('navigation', { name: 'Project sections' }) },
   { slug: 'cases', path: `${PROJECT_PATH}/problems`, ready: (page) => page.getByRole('list', { name: 'Problems' }) },
   { slug: 'case', path: `${PROJECT_PATH}/problems/${CASE}`, ready: (page) => page.locator('code.case-slug') },
-  { slug: 'jobs', path: `${PROJECT_PATH}/runs`, ready: (page) => page.getByRole('heading', { level: 1, name: 'Runs' }) },
+  { slug: 'jobs', path: `${RUNS_PATH}`, ready: (page) => page.getByRole('heading', { level: 1, name: 'Runs' }) },
   { slug: 'plan-permissions', path: '/app/account/usage', ready: (page) => page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Plan & permissions' }) },
   { slug: 'team-organization', path: `/app/${ORG}/settings/members`, ready: (page) => page.locator('#platform-main').getByRole('heading', { level: 1 }) },
 ];
@@ -258,7 +258,7 @@ const VIEWER_STOPS: Stop[] = [
   },
   {
     slug: 'viewer-jobs',
-    path: `${PROJECT_PATH}/runs`,
+    path: `${RUNS_PATH}`,
     ready: (page) => page.getByRole('heading', { level: 1, name: 'Runs' }),
     extra: async (page, label) => {
       await expect.soft(page.getByRole('link', { name: 'New run' }), `${label}: a viewer sees "New run"`).toHaveCount(0);
@@ -267,7 +267,7 @@ const VIEWER_STOPS: Stop[] = [
   },
   {
     slug: 'viewer-job-launch',
-    path: `${PROJECT_PATH}/runs/new?case=${CASE}`,
+    path: `${RUNS_PATH}/new?problem=${CASE}`,
     ready: (page) => page.getByRole('heading', { level: 1, name: 'New run' }),
     extra: async (page, label) => {
       await expect.soft(page.getByText('starting a run needs MEMBER'), `${label}: the launch page does not say a run needs MEMBER`).toBeVisible();
@@ -287,19 +287,19 @@ test.describe('live · visual QA', () => {
     const token = await signInByApi(page, 'owner');
 
     // "A result" is a finished job of the owner: the one spec 04 starts, or any other (the API smoke leaves some).
-    const listed = await page.request.get(`${API}/v1/jobs?limit=100`, { headers: { Authorization: `Bearer ${token}` } });
-    const jobs = listed.ok() ? await listed.json() as Array<{ id: string; status: string }> : [];
+    const listed = await page.request.get(`${API}/v1/organizations/${ORG}/runs?limit=100`, { headers: { Authorization: `Bearer ${token}` } });
+    const jobs = listed.ok() ? (await listed.json() as { runs: Array<{ id: string; status: string }> }).runs : [];
     const finished = jobs.find((job) => String(job.status).toLowerCase() === 'completed');
     const stops = [...OWNER_STOPS];
     const skipped: Array<{ slug: string; why: string }> = [];
     if (finished) {
       stops.splice(6, 0, {
         slug: 'job-result',
-        path: `${PROJECT_PATH}/runs/${finished.id}`,
+        path: `${RUNS_PATH}/${finished.id}`,
         ready: (target) => finishedResult(target),
       });
     } else {
-      skipped.push({ slug: 'job-result', why: `the owner has no completed job to open (GET /v1/jobs answered ${listed.status()}, ${jobs.length} jobs); run 04-job-random-search first` });
+      skipped.push({ slug: 'job-result', why: `the owner has no completed job to open (listRuns answered ${listed.status()}, ${jobs.length} jobs); run 04-job-random-search first` });
       testInfo.annotations.push({ type: 'skipped-screen', description: 'job-result: no completed job' });
     }
     await report(testInfo, 'owner', await walk(page, testInfo, stops, skipped));

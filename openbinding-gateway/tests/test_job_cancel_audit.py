@@ -7,6 +7,7 @@ import uuid
 import pytest
 from sqlalchemy import select
 
+from _problem_helpers import run_url
 from _b1_helpers import gate, make_account  # noqa: F401
 from openbinding_gateway.db.models import AuditEvent, Job, JobState, RunState, StudyRun
 from test_b1_cell_result import build_world
@@ -44,7 +45,7 @@ async def test_cancelling_a_queued_study_job_cancels_its_cell_and_is_audited(api
     cell = world.cells[0]
     taken = record_locks(db_session)
 
-    response = await api_client.post(f"/v1/jobs/{job.id}/cancel", headers=world.headers)
+    response = await api_client.post(run_url(job, "/cancel"), headers=world.headers)
 
     assert response.status_code == 200, response.text
     assert response.json()["status"] == "cancelled"
@@ -70,7 +71,7 @@ async def test_cancelling_a_running_study_job_only_requests_it(api_client, db_se
     job = await unfinish(db_session, world, JobState.RUNNING)
     cell = world.cells[0]
 
-    response = await api_client.post(f"/v1/jobs/{job.id}/cancel", headers=world.headers)
+    response = await api_client.post(run_url(job, "/cancel"), headers=world.headers)
 
     assert response.status_code == 200, response.text
     await db_session.refresh(job)
@@ -86,8 +87,8 @@ async def test_a_refused_cancellation_leaves_no_audit_event(api_client, db_sessi
     finished = world.jobs[1]
     _, stranger = await make_account(api_client, registration, db_session, gate)
 
-    terminal = await api_client.post(f"/v1/jobs/{finished.id}/cancel", headers=world.headers)
-    foreign = await api_client.post(f"/v1/jobs/{finished.id}/cancel", headers=stranger)
+    terminal = await api_client.post(run_url(finished, "/cancel"), headers=world.headers)
+    foreign = await api_client.post(run_url(finished, "/cancel"), headers=stranger)
 
     assert terminal.status_code == 409 and foreign.status_code == 404
     assert await events(db_session, "job.cancelled") == []
@@ -98,8 +99,8 @@ async def test_retrying_a_job_is_audited_once(api_client, db_session, world):
     original.state = JobState.FAILED
     await db_session.flush()
 
-    first = await api_client.post(f"/v1/jobs/{original.id}/retry", headers=world.headers)
-    replay = await api_client.post(f"/v1/jobs/{original.id}/retry", headers=world.headers)
+    first = await api_client.post(run_url(original, "/retry"), headers=world.headers)
+    replay = await api_client.post(run_url(original, "/retry"), headers=world.headers)
 
     assert first.status_code == 202, first.text
     assert replay.status_code == 202, replay.text
@@ -117,7 +118,7 @@ async def test_retrying_a_job_is_audited_once(api_client, db_session, world):
 async def test_a_refused_retry_leaves_no_audit_event(api_client, db_session, world):
     completed = world.jobs[1]
 
-    response = await api_client.post(f"/v1/jobs/{completed.id}/retry", headers=world.headers)
+    response = await api_client.post(run_url(completed, "/retry"), headers=world.headers)
 
     assert response.status_code == 409
     assert await events(db_session, "job.retried") == []

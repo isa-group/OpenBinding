@@ -1,4 +1,3 @@
-import type { Neighborhood } from '../analysis/neighborhood';
 import { config } from '../config';
 import { PricingUnavailableError, QuotaError } from './auth';
 import { bindingSpaceFrom, limitNoticeFrom, type BindingSpaceReport, type LimitNotice } from './limitNotice';
@@ -30,23 +29,8 @@ import type {
 import type { AdminErrorOverview, AdminErrorListResponse } from '../pages/Admin/types';
 import { rememberCasFlow } from '../utils/authFlow';
 
-/** One solve in an account's history. */
+/** How a run ended, in BIM v1 terms. */
 export type Termination = 'OPTIMAL' | 'FEASIBLE' | 'INFEASIBLE' | 'UNKNOWN';
-
-export interface JobSummary {
-  id: string;
-  engine_id: string;
-  status: 'queued' | 'running' | 'completed' | 'failed';
-  termination?: Termination | null;
-  solutions?: number | null;
-  created_at: string;
-  finished_at?: string | null;
-}
-
-export interface JobHistory {
-  jobs: JobSummary[];
-  total: number;
-}
 
 export interface BimResourceRef {
   namespace: string;
@@ -344,10 +328,6 @@ export interface BimCompatibleMode {
   mode: string;
   compatible: boolean;
   diagnostics?: Array<Record<string, unknown>>;
-}
-
-export interface V1JobStatus extends JobStatus {
-  error?: string;
 }
 
 /**
@@ -767,82 +747,6 @@ export class ApiClient {
     }
   }
 
-  async getV1Job(jobId: string, signal?: AbortSignal): Promise<V1JobStatus> {
-    return this.request<V1JobStatus>(`/v1/jobs/${encodeURIComponent(jobId)}`, signal ? { signal } : {});
-  }
-
-  async getBindingNeighborhood(jobId: string, solutionIndex: number, task: string, limit: number, signal?: AbortSignal): Promise<Neighborhood> {
-    const query = new URLSearchParams({ solution_index: String(solutionIndex), limit: String(limit) });
-    if (task) query.set('task', task);
-    const result = await this.request<Neighborhood & { detail?: string; title?: string }>(`/v1/jobs/${encodeURIComponent(jobId)}/analysis/neighborhood?${query}`, { signal });
-    // A 422 throws; this guards a 200 whose body is not an evaluation.
-    if (!result.coverage || !Array.isArray(result.moves)) throw new Error(typeof result.detail === 'string' ? result.detail : result.title || 'Neighborhood evaluation could not be completed');
-    return result;
-  }
-
-  async getJobStatus(jobId: string, timeoutMs: number = 30000): Promise<JobStatus> {
-    return this.request<JobStatus>(`/v1/jobs/${jobId}`, {}, timeoutMs);
-  }
-
-  async pollJob(
-    jobId: string,
-    onUpdate?: (status: JobStatus) => void,
-    interval: number = 2000
-  ): Promise<JobStatus['result']> {
-    return new Promise<JobStatus['result']>((resolve, reject) => {
-      const start = Date.now();
-      let consecutiveErrors = 0;
-      const MAX_CONSECUTIVE_ERRORS = 3;
-
-      const poll = async () => {
-        try {
-          if (Date.now() - start > 7200000) {
-            reject(new Error('Polling timed out'));
-            return;
-          }
-
-          const status = await this.getJobStatus(jobId, 30000);
-          consecutiveErrors = 0; // Reset on success
-          
-          if (onUpdate) {
-            onUpdate(status);
-          }
-
-          if (status.status === 'completed') {
-            resolve(status.result);
-          } else if (status.status === 'failed') {
-            reject(new Error(status.result?.error || 'Run failed'));
-          } else {
-            setTimeout(poll, interval);
-          }
-        } catch (error: unknown) {
-          consecutiveErrors++;
-
-          // If the job is not found (404), it likely completed synchronously
-          // or the engine restarted. Don't retry indefinitely.
-          if (error instanceof HttpError && error.status === 404) {
-            reject(new Error(
-              'The run could not be found on the server. ' +
-              'It may have completed synchronously or the engine may have restarted.'
-            ));
-            return;
-          }
-
-          // For transient errors, allow a few retries before giving up
-          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-            reject(error);
-            return;
-          }
-
-          // Retry with a longer backoff
-          setTimeout(poll, interval * 2);
-        }
-      };
-
-      poll();
-    });
-  }
-
   // -- Accounts --------------------------------------------------------
   //
   // Every one of these is a documented gateway endpoint. The interface is a
@@ -1000,19 +904,6 @@ export class ApiClient {
     return this.request<UsageView>('/v1/users/me/usage');
   }
 
-  /**
-   * Your own solves, as far back as the plan keeps them.
-   *
-   * Summaries only - a result can be hundreds of megabytes, and this is for
-   * finding the one you want. `getJobStatus` returns the answer itself.
-   */
-  async listOwnJobs(params: { limit?: number; offset?: number } = {}): Promise<JobHistory> {
-    const query = new URLSearchParams();
-    if (params.limit != null) query.set('limit', String(params.limit));
-    if (params.offset != null) query.set('offset', String(params.offset));
-    const suffix = query.toString() ? `?${query}` : '';
-    return this.request<JobHistory>(`/v1/users/me/jobs${suffix}`);
-  }
 
   /**
    * The active Pricing2Yaml document, digest-verified by the gateway and served as JSON.

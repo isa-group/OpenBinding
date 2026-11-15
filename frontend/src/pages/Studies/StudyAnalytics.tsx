@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { apiClient } from '../../api/client';
+import { runsApi } from '../../api/runs';
 import { platformApi, type BindingSpaceAnalytics, type StudyCell } from '../../api/platform';
 import { BindingAnalysis } from '../../components/BindingAnalysis/BindingAnalysis';
 import { BindingSpaceBadge } from '../../components/BindingSpaceBadge/BindingSpaceBadge';
@@ -61,12 +61,12 @@ function SpacePanel({ space }: { space: BindingSpaceAnalytics }) {
 }
 
 /** The solutions of one cell's job, on request: the decision workspace the earlier analytics screen opened by default. */
-function CellSolutions({ cells, index }: { cells: readonly StudyCell[]; index: ReturnType<typeof useRevisionIndex>['index'] }) {
+function CellSolutions({ org, cells, index }: { org: string; cells: readonly StudyCell[]; index: ReturnType<typeof useRevisionIndex>['index'] }) {
   const withJob = cells.filter((cell) => cell.job_id && cell.state === 'completed');
   const [picked, setPicked] = useState('');
   const [asked, setAsked] = useState('');
   const chosen = withJob.some((cell) => cell.job_id === picked) ? picked : withJob[0]?.job_id ?? '';
-  const result = useResource(`explore:${asked}`, () => (asked ? apiClient.getJobStatus(asked).then((job) => job.result ?? null) : Promise.resolve(null)));
+  const result = useResource(`explore:${org}/${asked}`, () => (asked ? runsApi.get(org, asked).then((job) => job.result ?? null) : Promise.resolve(null)));
   if (withJob.length === 0) return null;
   const failure = result.status === 'error' ? classifyAuthError(result.error) : null;
   return (
@@ -86,7 +86,7 @@ function CellSolutions({ cells, index }: { cells: readonly StudyCell[]; index: R
         </label>
         <Action variant="secondary" size="sm" disabled={!chosen || asked === chosen} busy={Boolean(asked) && result.status === 'loading'} onClick={() => setAsked(chosen)}>Load the solutions</Action>
       </div>
-      {failure && <Notice tone="error">{failure.status === 404 ? 'That run opens only for whoever launched it' : 'The solutions couldn’t be loaded'}{marker(failure)}.</Notice>}
+      {failure && <Notice tone="error">{failure.status === 404 ? 'That run isn’t in this organization any more' : 'The solutions couldn’t be loaded'}{marker(failure)}.</Notice>}
       {asked && result.status === 'ready' && result.data && <BindingAnalysis result={result.data} jobId={asked} />}
       {asked && result.status === 'ready' && !result.data && <p className="org-muted">That run has no stored result.</p>}
     </section>
@@ -283,7 +283,7 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
           </div>
 
           {summary.binding_space && <SpacePanel space={summary.binding_space} />}
-          <CellSolutions cells={allCells} index={index} />
+          <CellSolutions org={org} cells={allCells} index={index} />
 
           <section className="st-card" aria-labelledby="st-ledger-title">
             <div className="st-card-head">

@@ -129,8 +129,8 @@ export function refusalOf(caught: unknown, action: JobAction = 'launch'): Refusa
 
   if (failure.status === 404) {
     return action === 'launch'
-      ? { ...base, kind: 'not-found', title: `Engine not available with this key${at}`, text: `The snapshot, the engine or its deployment isn’t visible to this account or key. ${nothing}` }
-      : { ...base, kind: 'not-found', title: `Run not found${at}`, text: 'Runs open only for whoever launched them. Nothing changed.' };
+      ? { ...base, kind: 'not-found', title: `Engine not available with this key${at}`, text: `The problem version, the engine or its deployment isn’t visible to this account or key. ${nothing}` }
+      : { ...base, kind: 'not-found', title: `Run not found${at}`, text: 'Runs open for the members of their organization. Nothing changed.' };
   }
 
   if (failure.status === 409) {
@@ -139,6 +139,9 @@ export function refusalOf(caught: unknown, action: JobAction = 'launch'): Refusa
     }
     if (action === 'retry' || failure.code === 'job_not_retryable') {
       return { ...base, kind: 'terminal', title: `This run can’t be retried${at}`, text: 'Only failed or cancelled runs can be retried. Nothing was started.' };
+    }
+    if (failure.code === 'revision_not_in_organization') {
+      return { ...base, kind: 'conflict', title: `That problem version belongs to another organization${at}`, text: `Launch the run from the organization of the problem. ${nothing}` };
     }
     const reused = failure.code === 'idempotency_conflict';
     return {

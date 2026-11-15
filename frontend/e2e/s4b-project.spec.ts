@@ -22,8 +22,6 @@ const rateLimited = (seconds: number): Handler => (route) => route.fulfill({
   headers: { 'Retry-After': String(seconds), 'Access-Control-Expose-Headers': 'Retry-After' },
   json: { type: 'https://openbinding.dev/problems/rate_limit_exceeded', title: 'rate_limit_exceeded', status: 429, code: 'rate_limit_exceeded', detail: { code: 'rate_limit_exceeded', error: 'Too many reads of public projects.' } },
 });
-/** A service that does not answer: a 503 with no machine code, as a proxy in front of the gateway would send it. */
-const unavailable: Handler = json({ detail: 'The service is not reachable.' }, 503);
 
 const token = (expiresInSeconds: number) => [
   'header',
@@ -100,26 +98,6 @@ const researchUsage = () => ({
   capabilities: { maxConcurrentRuns: 4, maxPrivateProjects: 10, maxProblems: null, maxRepositoryStorage: null },
 });
 
-/** The jobs of the account (its history) and of the project: only two of the three project jobs were launched by this account. */
-const ownJobs = () => ({
-  jobs: [
-    { id: '00000000-0000-0000-0000-0000000000f2', engine_id: 'minizinc', status: 'running', termination: null, solutions: null, created_at: '2026-10-08T08:00:00Z', finished_at: null },
-    { id: '00000000-0000-0000-0000-0000000000f6', engine_id: 'random-search', status: 'completed', termination: 'INFEASIBLE', solutions: 0, created_at: '2026-10-01T09:00:00Z', finished_at: '2026-10-01T09:00:40Z' },
-  ],
-  total: 2,
-});
-
-const projectJob = (id: string, engine: string, status: string, termination: string | null, createdAt: string, finishedAt: string | null) => ({
-  id, engine_id: engine, status, cancellation_requested: false, retry_of_id: null, organization_id: 'org-1', project_id: 'project-1',
-  created_at: createdAt, finished_at: finishedAt, termination,
-});
-
-const qosJobs = () => [
-  projectJob('00000000-0000-0000-0000-0000000000f2', 'minizinc', 'running', null, '2026-10-08T08:00:00Z', null),
-  projectJob('00000000-0000-0000-0000-0000000000f6', 'random-search', 'completed', 'INFEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:00:40Z'),
-  projectJob('00000000-0000-0000-0000-0000000000f9', 'evolutionary', 'completed', 'FEASIBLE', '2026-09-30T09:00:00Z', '2026-09-30T09:01:05Z'),
-];
-
 const study = {
   archived: false, id: 'study-1', definition_version_id: 'sv-1', definition_artifact_id: 'sa-1', project_id: 'project-1', slug: 'engines-seeds', name: 'Engines × seeds', description: '',
   definition: { case_revision_ids: ['rev-1', 'rev-2'], engines: [{}, {}], parameter_sets: [{}], seeds: [1, 2] }, state: 'active', created_by_id: 'user-1', created_at: '2026-09-20T00:00:00Z',
@@ -175,7 +153,6 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(`${API}/v1/users/me/usage`, json(researchUsage()));
-  await page.route(new RegExp(`^${API}/v1/users/me/jobs(\\?.*)?$`), json(ownJobs()));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
 
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
@@ -226,10 +203,6 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     if (!current) return detail(404, 'not_found', 'Project not found.')(route);
     const filled = state.filled.has(projectSlug);
     switch (sub) {
-      case 'jobs':
-        // A visitor never reads the jobs of a project; the screen must not ask.
-        if (visitorList) return detail(403, 'organization_forbidden', 'Jobs are for members.')(route);
-        return state.refuse.jobs ? state.refuse.jobs(route) : json(filled ? qosJobs() : [])(route);
       case 'studies':
         if (subId && subSub === 'runs' && parts.includes('cells')) return json(cells)(route);
         if (subId && subSub === 'runs') return json([studyRun])(route);
@@ -358,18 +331,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(band.getByRole('link', { name: 'Workbench' })).toHaveAttribute('href', '/app/isa-demo/workbench');
       await expect(band.getByRole('link', { name: 'Export package' })).toHaveCount(0);
       const tabs = main.getByRole('navigation', { name: 'Project sections' });
-      await expect(tabs.getByRole('link')).toHaveText(['Overview', 'Runs', 'Studies', 'Settings']);
+      await expect(tabs.getByRole('link')).toHaveText(['Overview', 'Studies', 'Settings']);
       await expect(tabs.getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
       await expect(tabs.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/settings');
 
       const strip = main.getByRole('region', { name: 'What’s sealed and what’s still a draft' });
       await expect(strip.getByRole('list', { name: 'Sealed and draft items' }).getByRole('listitem')).toHaveText(['1 study run']);
       await expect(main.getByRole('region', { name: 'Problems' })).toHaveCount(0);
-      const jobs = main.getByRole('list', { name: 'Recent runs' });
-      await expect(jobs.getByRole('listitem')).toHaveCount(3);
-      await expect(jobs.getByRole('link')).toHaveCount(2);
-      await expect(jobs.getByText('Owner only')).toBeVisible();
-      await expect(jobs.getByText('No feasible binding')).toBeVisible();
+      // Runs belong to the organization: the project shows none.
+      await expect(main.getByRole('region', { name: 'Recent runs' })).toHaveCount(0);
+      await expect(band.getByRole('link', { name: 'Run' })).toHaveAttribute('href', '/app/isa-demo/runs/new');
       const studies = main.getByRole('region', { name: 'Studies' });
       await expect(studies.getByText('Run #1 · partial')).toBeVisible();
       await expect(studies.getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8' })).toBeVisible();
@@ -411,7 +382,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `overview-${name}-public-read`);
 
       // Its members-only parts show the neutral gate, not the screens.
-      for (const part of ['runs', 'settings']) {
+      for (const part of ['settings']) {
         await page.goto(`/app/open-lab/open-bench/${part}`);
         await expect(main.getByRole('heading', { name: 'Members only' })).toBeVisible();
         await expect(main.getByRole('link', { name: 'Back to the project' })).toHaveAttribute('href', '/app/open-lab/open-bench');
@@ -440,17 +411,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { name: 'Your role doesn’t reach this (403 · organization_forbidden)' })).toBeVisible();
       await capture(page, testInfo, `overview-${name}-403`);
       state.refuse.project = undefined;
-
-      // The jobs card fails on its own: the rest of the page is there, and it loads on retry.
-      state.refuse.jobs = unavailable;
-      await page.goto('/app/isa-demo/qos-benchmarks');
-      const jobsCard = main.getByRole('region', { name: 'Recent runs' });
-      await expect(jobsCard.getByRole('alert')).toContainText('Runs couldn’t be loaded (503). The rest of the page is unaffected.');
-      await expect(main.getByRole('region', { name: 'Studies' }).getByText('Run #1 · partial')).toBeVisible();
-      await capture(page, testInfo, `overview-${name}-jobs-503`);
-      state.refuse.jobs = undefined;
-      await jobsCard.getByRole('button', { name: 'Retry' }).click();
-      await expect(jobsCard.getByRole('list', { name: 'Recent runs' }).getByRole('listitem')).toHaveCount(3);
       expect(critical).toEqual([]);
     });
 

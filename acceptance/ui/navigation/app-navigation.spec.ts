@@ -58,17 +58,16 @@ test('application header lists its entries with a current project and a Lab menu
   await expect(entry(menuScope(page), 'Studies')).toHaveAttribute('href', '/app/acme/demo/studies');
 });
 
-test('Runs and Studies are disabled with a hint without a current project, and Problems stays with the organization', async ({ page }) => {
+test('Studies is disabled with a hint without a current project, and Problems and Runs stay with the organization', async ({ page }) => {
   await signedIn(page, '/app', 'user', []);
   const header = banner(page);
   await expect(entry(header, 'Problems')).toHaveAttribute('href', PROBLEMS);
   await header.getByRole('button', { name: 'Lab' }).click();
-  for (const name of ['Runs', 'Studies']) {
-    const item = menuScope(page).getByText(name, { exact: true }).first();
-    await expect(item).toHaveAttribute('aria-disabled', 'true');
-    await expect(item).not.toHaveAttribute('href', /.*/);
-    await expect(item).toHaveAccessibleDescription(/Needs a project/);
-  }
+  await expect(entry(menuScope(page), 'Runs')).toHaveAttribute('href', RUNS);
+  const item = menuScope(page).getByText('Studies', { exact: true }).first();
+  await expect(item).toHaveAttribute('aria-disabled', 'true');
+  await expect(item).not.toHaveAttribute('href', /.*/);
+  await expect(item).toHaveAccessibleDescription(/Needs a project/);
 });
 
 test('a person whose role is user sees no Admin entry', async ({ page }) => {
@@ -86,7 +85,7 @@ test('application header has none of the former entries', async ({ page }) => {
   }
 });
 
-test('New menu offers a Problem of the organization, and a Study and a Run of the current project', async ({ page }) => {
+test('New menu offers a Problem and a Run of the organization, and a Study of the current project', async ({ page }) => {
   await signedIn(page, '/app/acme/demo');
   await banner(page).getByRole('button', { name: 'New', exact: true }).click();
   const items: Array<[string, string]> = [
@@ -96,15 +95,14 @@ test('New menu offers a Problem of the organization, and a Study and a Run of th
   for (const [name, href] of items) await expect(entry(menuScope(page), name)).toHaveAttribute('href', href);
 });
 
-test('New menu items of a project are disabled with a hint without a current project', async ({ page }) => {
+test('the New menu item of a project is disabled with a hint without a current project', async ({ page }) => {
   await signedIn(page, '/app', 'user', []);
   await banner(page).getByRole('button', { name: 'New', exact: true }).click();
   await expect(entry(menuScope(page), 'Problem')).toHaveAttribute('href', `${PROBLEMS}?create=problem`);
-  for (const name of ['Study', 'Run']) {
-    const item = menuScope(page).getByText(name, { exact: true }).last();
-    await expect(item).toHaveAttribute('aria-disabled', 'true');
-    await expect(item).toHaveAccessibleDescription(/Needs a project/);
-  }
+  await expect(entry(menuScope(page), 'Run')).toHaveAttribute('href', RUN_NEW);
+  const item = menuScope(page).getByText('Study', { exact: true }).last();
+  await expect(item).toHaveAttribute('aria-disabled', 'true');
+  await expect(item).toHaveAccessibleDescription(/Needs a project/);
 });
 
 test('the problem dialog opens from the address over the Problems screen', async ({ page }) => {

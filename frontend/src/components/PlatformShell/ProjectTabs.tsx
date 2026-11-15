@@ -2,12 +2,11 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye } from 'lucide-react';
 import type { ProjectAccessKind } from '../../api/platform';
-import { RUNS_SEGMENT } from '../../routes/paths/runs';
 import { canOpenSection, levelOf } from '../../utils/accessLevel';
 import './SectionNav.css';
 
-// The key `jobs` is the section name the run screens pass today, not an address. Problems belong to the organization.
-export type ProjectSection = 'overview' | 'jobs' | 'studies' | 'settings';
+// Problems and runs belong to the organization; a project holds its studies.
+export type ProjectSection = 'overview' | 'studies' | 'settings';
 
 interface ProjectTabsProps {
   active?: ProjectSection;
@@ -28,7 +27,6 @@ interface Tab {
 
 const TABS: readonly Tab[] = [
   { key: 'overview', label: 'Overview', suffix: '' },
-  { key: 'jobs', label: 'Runs', suffix: `/${RUNS_SEGMENT}` },
   { key: 'studies', label: 'Studies', suffix: '/studies' },
   { key: 'settings', label: 'Settings', suffix: '/settings', trailing: true },
 ];
@@ -37,7 +35,7 @@ const TABS: readonly Tab[] = [
 export function ProjectTabs({ active = 'overview', orgSlug, projectSlug, access }: ProjectTabsProps) {
   const root = `/app/${orgSlug}/${projectSlug}`;
   const nav = useRef<HTMLElement>(null);
-  // Runs and the settings are only for members: the gateway refuses them to a visitor.
+  // The settings are only for members: the gateway refuses them to a visitor.
   const level = levelOf(access, null);
   const readOnly = level === 'public_read';
 

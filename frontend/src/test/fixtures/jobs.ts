@@ -1,4 +1,4 @@
-import type { JobDetail, JobReport } from '../../api/jobs';
+import type { JobDetail } from '../../api/runs';
 import type { Job } from '../../api/platform';
 
 /** Shared by the tests of the job screens and by the browser spec that mocks the same API. */
@@ -10,7 +10,8 @@ export const REGISTRATION = { namespace: 'bim.builtin', name: 'random-search-dep
 
 export function jobOf(id: string, engine: string, status: string, termination: Job['termination'], createdAt: string, finishedAt: string | null, over: Partial<Job> = {}): Job {
   return {
-    id, engine_id: engine, status, cancellation_requested: false, retry_of_id: null, organization_id: 'org-isa-demo', project_id: 'project-qos-benchmarks',
+    id, engine_id: engine, status, cancellation_requested: false, retry_of_id: null, organization_id: 'org-isa-demo',
+    created_by: { id: 'user-lucia', username: 'lucia' },
     created_at: createdAt, finished_at: finishedAt, termination, options: null, ...over,
   };
 }
@@ -80,7 +81,7 @@ export const RESULT = { termination: 'FEASIBLE', logs: 'solve started\nsolve fin
 
 const candidate = (name: string, provider: string, latency: number, cost: number) => ({ name, provider: { resource: 'catalog', id: provider }, features: { latency, cost } });
 
-/** The compiled document `jobsApi.ir` returns: a BindingProblem that `readBindingProblem` reads. */
+/** The compiled document of a run's compilation: a BindingProblem that `readBindingProblem` reads. */
 export const CONSTRAINTS = [
   { ref: { resource: 'rules', id: 'max-latency' }, enforcement: 'hard', assert: { kind: 'compare', op: 'lte', left: { kind: 'path', segments: ['features', 'latency'] }, right: { kind: 'literal', value: 600 } } },
   { ref: { resource: 'rules', id: 'prefer-eu' }, enforcement: 'soft', assert: { kind: 'compare', op: 'eq', left: { kind: 'path', segments: ['features', 'region'] }, right: { kind: 'literal', value: 'eu' } } },
@@ -136,16 +137,13 @@ export function detailOf(id: string, status: string, over: Partial<JobDetail> = 
     ...RUN_REFS,
     provenance: provenanceOf(),
     result: status === 'completed' ? RESULT : finished ? { error: 'The deployment didn’t answer within the budget (engine unreachable).' } : null,
+    remote: status === 'completed' ? REMOTE : {},
     ...over,
   };
 }
 
-export const REPORT: JobReport = {
-  id: 'job-1',
-  gatewayEvaluation: { termination: 'FEASIBLE', solutions: [] },
-  remote: { engine: 'demo-solver', divergence: { agrees: true, notes: ['Solved with presolve'] } },
-  provenance: {},
-};
+/** What the engine of a completed run reported about itself (`remote` of `getRun`). */
+export const REMOTE: Record<string, unknown> = { engine: 'demo-solver', divergence: { agrees: true, notes: ['Solved with presolve'] } };
 
 export const NEIGHBORHOOD = {
   jobId: 'job-3',

@@ -7,10 +7,12 @@ import { OrgOverview } from './OrgOverview';
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn() }));
 const platform = vi.hoisted(() => ({ projects: vi.fn(), members: vi.fn(), createProject: vi.fn() }));
 const problems = vi.hoisted(() => ({ list: vi.fn() }));
+const runsApi = vi.hoisted(() => ({ list: vi.fn() }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const lab = org('qos-lab', { name: 'QoS Lab (sub-organización)', parent_id: group.id });
@@ -29,6 +31,7 @@ describe('Organization overview', () => {
     platform.members.mockResolvedValue([member('lucia.vega', 'OWNER', { user_id: lucia.id })]);
     api.getOwnUsage.mockResolvedValue(researchUsage());
     problems.list.mockResolvedValue({ problems: [], total: 0, limit: 5, offset: 0 });
+    runsApi.list.mockResolvedValue({ runs: [], total: 0 });
   });
 
   it('introduces the organization: address, role and where it comes from, and creation date', async () => {
@@ -209,5 +212,24 @@ describe('Organization overview', () => {
     expect(await within(panel).findByRole('link', { name: /Checkout flow/ })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow');
     expect(within(panel).getByText('7')).toBeInTheDocument();
     expect(within(panel).getByRole('link', { name: 'All problems' })).toHaveAttribute('href', '/app/isa-demo/problems');
+  });
+
+  it('lists the organization’s newest runs, whoever launched them, and leads to all of them', async () => {
+    runsApi.list.mockResolvedValue({
+      runs: [{
+        id: 'run-1', engine_id: 'random-search', status: 'completed', termination: 'FEASIBLE', cancellation_requested: false, retry_of_id: null,
+        organization_id: group.id, created_at: '2026-10-01T09:00:00Z', finished_at: '2026-10-01T09:01:00Z',
+        problem: { id: 'p1', slug: 'checkout-flow', name: 'Checkout flow' }, created_by: { id: 'user-ana', username: 'ana' },
+      }],
+      total: 12,
+    });
+    renderOverview();
+
+    const panel = (await screen.findByRole('heading', { name: /^Runs/ })).closest('section')!;
+    expect(runsApi.list).toHaveBeenCalledWith('isa-demo', { limit: 5 });
+    expect(await within(panel).findByRole('link', { name: /Checkout flow/ })).toHaveAttribute('href', '/app/isa-demo/runs/run-1');
+    expect(within(panel).getByText('12')).toBeInTheDocument();
+    expect(within(panel).getByRole('link', { name: 'All runs' })).toHaveAttribute('href', '/app/isa-demo/runs');
+    expect(within(panel).getByRole('link', { name: '+ New run' })).toHaveAttribute('href', '/app/isa-demo/runs/new');
   });
 });

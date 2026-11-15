@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { jobsApi } from '../../api/jobs';
+import { runsApi } from '../../api/runs';
 import { platformApi, type Job, type StudyCell as StudyCellView } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { CopyDigest } from './CopyDigest';
@@ -10,6 +10,8 @@ import { SourceView } from '../../components/rendering/SourceView';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { problemPath } from '../../routes/paths/problems';
+import { runPath } from '../../routes/paths/runs';
+import { useAuth } from '../../contexts/auth';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
@@ -35,16 +37,17 @@ type Outcome =
 
 const TERMINAL_JOB = new Set(['completed', 'failed', 'cancelled']);
 
-/** The finished jobs of the account in this project, newest first: the ones whose result can stand in for a cell's. */
-async function loadAttachable(org: string, project: string): Promise<{ jobs: Job[]; narrowed: boolean }> {
-  const [rows, mine] = await Promise.all([platformApi.projectJobs(org, project), jobsApi.mine().then((own) => new Set(own.map((job) => job.id)), () => null)]);
-  const finished = rows.filter((job) => TERMINAL_JOB.has(normalizeStatus(job.status)) && (mine === null || mine.has(job.id)));
-  return { jobs: finished.sort((a, b) => b.created_at.localeCompare(a.created_at)), narrowed: mine !== null };
+/** The finished runs the account launched in this organization, newest first: the ones whose result can stand in for a cell's. */
+async function loadAttachable(org: string, me: string | undefined): Promise<{ jobs: Job[] }> {
+  const { runs } = await runsApi.list(org, { limit: 200 });
+  const finished = runs.filter((job) => TERMINAL_JOB.has(normalizeStatus(job.status)) && job.created_by?.id === me);
+  return { jobs: finished.sort((a, b) => b.created_at.localeCompare(a.created_at)) };
 }
 
 function AttachDialog({ scope, runId, cell, onClose, onAttached }: { scope: StudyScopeValue; runId: string; cell: StudyCellView; onClose: () => void; onAttached: () => void }) {
   const { organization, project, study } = scope;
-  const jobs = useResource(`attachable:${organization.slug}/${project.slug}`, () => loadAttachable(organization.slug, project.slug));
+  const { user } = useAuth();
+  const jobs = useResource(`attachable:${organization.slug}:${user?.id ?? ''}`, () => loadAttachable(organization.slug, user?.id));
   const [chosen, setChosen] = useState('');
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
@@ -66,7 +69,7 @@ function AttachDialog({ scope, runId, cell, onClose, onAttached }: { scope: Stud
       <p>A run you already did becomes this cell’s result as it is. It has to be a run of this cell: the same problem version, engine, mode and seed. The gateway checks, and names what differs if it isn’t.</p>
       {jobs.status === 'loading' && <div role="status" aria-busy="true"><span className="sr-only">Loading your runs…</span><Skeleton variant="tile" /></div>}
       {jobs.status === 'error' && <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={jobs.reload}>Retry</Action>}>Your runs couldn’t be loaded{marker(classifyAuthError(jobs.error))}.</Notice>}
-      {jobs.status === 'ready' && list.length === 0 && <p className="org-muted">You have no finished run in this project to attach.</p>}
+      {jobs.status === 'ready' && list.length === 0 && <p className="org-muted">You have no finished run in this organization to attach.</p>}
       {list.length > 0 && (
         <div className="st-choices" role="radiogroup" aria-label="Finished runs">
           {list.map((job) => (
@@ -296,7 +299,7 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
       <p className="st-job-line">
         <span className="org-muted">Ran as:</span>{' '}
         {cell.job_id
-          ? <><Link to={`${root}/runs/${cell.job_id}`} viewTransition title="A run opens for whoever launched it">Open run</Link></>
+          ? <><Link to={runPath(organization.slug, cell.job_id)} viewTransition>Open run</Link></>
           : <span>none yet</span>}
         {' · '}<Link to={resultsHref} viewTransition>Back to the results</Link>
         {' · '}<Link to={studyPageHref(studyPath, 'progress', { run: runId })} viewTransition>Back to the progress</Link>

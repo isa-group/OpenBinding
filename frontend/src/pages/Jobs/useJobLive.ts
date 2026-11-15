@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { HttpError } from '../../api/client';
-import { jobsApi, type JobDetail } from '../../api/jobs';
+import { runsApi, type JobDetail } from '../../api/runs';
 import { isActive, normalizeStatus } from './jobsModel';
 
 /** How often a run that has not finished is asked about again. The stream of events carries status snapshots only, so this is the same news. */
@@ -20,15 +20,15 @@ type Publish = (update: (current: LiveState | null) => LiveState | null) => void
 
 /**
  * Ask about one job until it ends, handing every answer to `publish`. Returns the function that stops asking.
- * The first reading failing is an answer (a 404 is the same for a missing run and one that is not yours); later readings failing are
+ * The first reading failing is an answer (a 404 is the same for a missing run and one of another organization); later readings failing are
  * retried, and after a few the feed is reported as lost rather than pretending to be live.
  */
-function follow(jobId: string, first: boolean, publish: Publish): () => void {
+function follow(org: string, jobId: string, first: boolean, publish: Publish): () => void {
   let active = true;
   let timer: number | undefined;
   let failures = 0;
   const read = (initial: boolean) => {
-    jobsApi.detail(jobId).then(
+    runsApi.get(org, jobId).then(
       (detail) => {
         if (!active) return;
         failures = 0;
@@ -70,13 +70,13 @@ export interface JobLive {
   adopt: (status: string) => void;
 }
 
-/** One job as its launcher sees it, kept up to date while it is queued or running. */
-export function useJobLive(jobId: string): JobLive {
+/** One run of an organization as a member sees it, kept up to date while it is queued or running. */
+export function useJobLive(org: string, jobId: string): JobLive {
   const [state, setState] = useState<LiveState | null>(null);
   const [nonce, setNonce] = useState(0);
 
   // A reading asked for again (after cancelling or retrying) is not the first: the run was already shown.
-  useEffect(() => follow(jobId, nonce === 0, setState), [jobId, nonce]);
+  useEffect(() => follow(org, jobId, nonce === 0, setState), [org, jobId, nonce]);
 
   const mine = state?.jobId === jobId ? state : null;
   const detail = mine?.detail;

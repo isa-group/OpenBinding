@@ -5,7 +5,7 @@ Two limits bound it and the lower wins: the deployment's cap
 on the plan) and the ``concurrentJobs`` the plan declares, when it declares a
 usable one. A plan without a usable value leaves the cap alone. It is a ceiling
 on what runs now, measured by counting rows, not a balance. Every entry point
-that creates a job (``POST /v1/jobs``, retry, study cells) goes through
+that creates a job (``createRun``, retry, study cells) goes through
 ``enforce_concurrency_limit`` inside the transaction that inserts the job.
 """
 

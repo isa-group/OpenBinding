@@ -3,7 +3,7 @@ and what a project VIEWER may read of a job."""
 
 from __future__ import annotations
 
-from _problem_helpers import placeholder_refs
+from _problem_helpers import placeholder_refs, run_url, runs_url
 import json
 import logging
 import uuid
@@ -172,13 +172,14 @@ async def test_upload_routes_keep_the_larger_ceiling_and_other_routes_the_json_o
 
 
 def test_the_upload_routes_are_the_package_ones():
-    assert is_upload("POST", "/v1/jobs")
+    assert is_upload("POST", "/v1/organizations/acme/runs")
     assert is_upload("POST", "/v1/organizations/acme/problems")
     assert is_upload("POST", "/v1/organizations/acme/problems/p/revisions")
     assert is_upload("POST", "/v1/bim/validate")
     assert not is_upload("POST", "/v1/organizations/acme/problems/p")
     assert not is_upload("POST", "/v1/organizations/acme/projects/p/blobs")
-    assert not is_upload("GET", "/v1/jobs")
+    assert not is_upload("GET", "/v1/organizations/acme/runs")
+    assert not is_upload("POST", "/v1/organizations/acme/runs/r/retry")
     assert not is_upload("POST", "/v1/auth/login")
     assert not is_upload("POST", "/v1/engine-registrations")
 
@@ -561,6 +562,8 @@ REGISTRATION_REF = {
     "digest": "sha256-" + "a" * 64,
 }
 PROVENANCE = {
+    # The engine an API key's engine grant is held against (``allows_engine``).
+    "engine": REGISTRATION_REF,
     "irDigest": "sha256-" + "b" * 64,
     "packageDigest": "sha256-" + "c" * 64,
     "options": SENSITIVE_OPTIONS,
@@ -574,18 +577,14 @@ PROVENANCE = {
 
 
 async def project_with_a_job(api_client, registration, db_session, gate):  # noqa: F811
+    """An organization with one run of its owner; returns the slug, the owner's headers and the run."""
     owner, owner_h = await make_account(api_client, registration, db_session, gate)
     organization = await make_org(api_client, owner_h)
     slug = organization["slug"]
-    created = await api_client.post(
-        f"/v1/organizations/{slug}/projects", headers=owner_h,
-        json={"slug": "p", "name": "P", "description": "d", "visibility": "private"},
-    )
-    assert created.status_code == 201, created.text
     job = Job(
         owner_id=uuid.UUID(owner["id"]), engine_id="random-search", engine_job_id=str(uuid.uuid4()),
         service_url="http://engine", state=JobState.COMPLETED, termination="OPTIMAL",
-        organization_id=uuid.UUID(organization["id"]), project_id=uuid.UUID(created.json()["id"]),
+        organization_id=uuid.UUID(organization["id"]),
         options=dict(SENSITIVE_OPTIONS),
         original_request={
             "timeout": 30.0,
@@ -616,10 +615,13 @@ async def test_a_viewer_sees_state_engine_result_and_digests_but_not_sensitive_o
     slug, owner_h, job = await project_with_a_job(api_client, registration, db_session, gate)
     viewer_h = await member(api_client, registration, db_session, gate, owner_h, slug, "VIEWER")
 
-    response = await api_client.get(f"/v1/organizations/{slug}/projects/p/jobs", headers=viewer_h)
+    response = await api_client.get(run_url(job, org=slug), headers=viewer_h)
+    listed = await api_client.get(runs_url(slug), headers=viewer_h)
 
-    assert response.status_code == 200, response.text
-    [row] = response.json()
+    assert response.status_code == listed.status_code == 200, response.text
+    row = response.json()
+    assert listed.json()["runs"][0]["options"] == HARMLESS
+    assert row["remote"] == {"iterations": 10}
     assert row["status"] == "completed" and row["engine_id"] == "random-search"
     assert row["termination"] == "OPTIMAL"
     assert row["result"]["termination"] == "OPTIMAL"
@@ -634,7 +636,7 @@ async def test_a_viewer_sees_state_engine_result_and_digests_but_not_sensitive_o
     assert row["original_request"]["registration"] == REGISTRATION_REF
     assert "auth" not in row["original_request"]["mode"]
     for leaked in ("tok-SECRET", "10.0.0.5", "private.example", "free text", "private-engine"):
-        assert leaked not in response.text, leaked
+        assert leaked not in response.text + listed.text, leaked
 
     # Reading never edits the stored row.
     assert job.options == SENSITIVE_OPTIONS
@@ -643,14 +645,14 @@ async def test_a_viewer_sees_state_engine_result_and_digests_but_not_sensitive_o
 async def test_a_member_and_an_owner_see_the_complete_options(
     api_client, registration, db_session, gate  # noqa: F811
 ):
-    slug, owner_h, _ = await project_with_a_job(api_client, registration, db_session, gate)
+    slug, owner_h, job = await project_with_a_job(api_client, registration, db_session, gate)
     member_h = await member(api_client, registration, db_session, gate, owner_h, slug, "MEMBER")
     admin_h = await member(api_client, registration, db_session, gate, owner_h, slug, "ADMIN")
 
     for headers in (owner_h, member_h, admin_h):
-        response = await api_client.get(f"/v1/organizations/{slug}/projects/p/jobs", headers=headers)
+        response = await api_client.get(run_url(job, org=slug), headers=headers)
         assert response.status_code == 200, response.text
-        [row] = response.json()
+        row = response.json()
         assert row["options"] == SENSITIVE_OPTIONS
         assert row["original_request"]["auth"] == {"token": "tok-SECRET-9"}
         assert row["provenance"]["options"] == SENSITIVE_OPTIONS
@@ -659,33 +661,42 @@ async def test_a_member_and_an_owner_see_the_complete_options(
 async def test_a_user_of_another_organization_does_not_read_the_jobs(
     api_client, registration, db_session, gate  # noqa: F811
 ):
-    slug, owner_h, _ = await project_with_a_job(api_client, registration, db_session, gate)
+    slug, owner_h, job = await project_with_a_job(api_client, registration, db_session, gate)
     _, outsider_h = await make_account(api_client, registration, db_session, gate)
 
-    response = await api_client.get(f"/v1/organizations/{slug}/projects/p/jobs", headers=outsider_h)
+    listed = await api_client.get(runs_url(slug), headers=outsider_h)
+    one = await api_client.get(run_url(job, org=slug), headers=outsider_h)
 
-    # Refused exactly as before (the access matrix pins /jobs as closed to non-members).
-    assert response.status_code == 403
-    assert "random-search" not in response.text and "tok-SECRET" not in response.text
+    # A non-member learns nothing: the organization's runs read as missing.
+    assert listed.status_code == one.status_code == 404
+    for response in (listed, one):
+        assert "random-search" not in response.text and "tok-SECRET" not in response.text
 
 
-async def test_an_api_key_without_the_project_scope_is_refused(
+async def test_an_api_key_without_the_jobs_scope_is_refused_and_one_that_cannot_execute_reads_redacted(
     api_client, registration, db_session, gate  # noqa: F811
 ):
-    slug, owner_h, _ = await project_with_a_job(api_client, registration, db_session, gate)
+    slug, owner_h, job = await project_with_a_job(api_client, registration, db_session, gate)
     viewer_account, viewer_h = await make_account(api_client, registration, db_session, gate)
     assert (await put_member(api_client, owner_h, slug, viewer_account["id"], "VIEWER")).status_code == 200
     unscoped = await make_key(api_client, viewer_h, ["account:read"])
-    scoped = await make_key(api_client, viewer_h, ["projects:read"])
-    url = f"/v1/organizations/{slug}/projects/p/jobs"
+    scoped = await make_key(api_client, viewer_h, ["jobs:read"])
+    member_reader = await make_key(api_client, owner_h, ["jobs:read"])
+    member_runner = await make_key(api_client, owner_h, ["jobs:read", "engines:execute"])
+    url = run_url(job, org=slug)
 
     refused = await api_client.get(url, headers=unscoped)
     allowed = await api_client.get(url, headers=scoped)
+    read_only = await api_client.get(url, headers=member_reader)
+    runner = await api_client.get(url, headers=member_runner)
 
     assert refused.status_code == 403
     assert refused.json()["detail"]["code"] == "insufficient_api_key_permission"
-    assert allowed.status_code == 200
-    assert allowed.json()[0]["options"] == HARMLESS  # a key does not widen what a VIEWER sees
+    assert allowed.status_code == read_only.status_code == runner.status_code == 200
+    assert allowed.json()["options"] == HARMLESS  # a key does not widen what a VIEWER sees
+    # A key that cannot run engines is a read-only credential: an OWNER's reads redacted too.
+    assert read_only.json()["options"] == HARMLESS
+    assert runner.json()["options"] == SENSITIVE_OPTIONS
 
 
 def test_the_allow_list_comes_from_the_engine_manifests():

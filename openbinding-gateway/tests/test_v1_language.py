@@ -219,7 +219,7 @@ def test_jobs_fail_closed_before_parsing_an_inline_form_without_accounts() -> No
     client = TestClient(app)
     package = load_package(EXAMPLE)
     response = client.post(
-        "/v1/jobs",
+        "/v1/organizations/acme/runs",
         json={"instance": package.instance(), "engine": "random-search", "mode": "seeded"},
     )
     assert response.status_code == 503
@@ -233,7 +233,7 @@ def test_portable_jobs_do_not_restore_anonymous_execution_without_accounts() -> 
 
     def submit():
         return client.post(
-            "/v1/jobs",
+            "/v1/organizations/acme/runs",
             headers=headers,
             files={"package": ("instance.bim.zip", archive, "application/vnd.bim+zip")},
         )

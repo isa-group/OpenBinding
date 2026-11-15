@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '8682de5a3840'
+revision: str = '0a7fcc8bf015'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -589,7 +589,6 @@ def upgrade() -> None:
     sa.Column('engine_job_id', sa.String(length=128), nullable=False),
     sa.Column('service_url', sa.String(length=512), nullable=False),
     sa.Column('state', sa.Enum('queued', 'running', 'completed', 'failed', 'cancelled', name='jobstate', native_enum=False, length=16), nullable=False),
-    sa.Column('verbose', sa.Boolean(), nullable=False),
     sa.Column('original_request', sa.JSON(), nullable=True),
     sa.Column('options', sa.JSON(), nullable=True),
     sa.Column('warnings', sa.JSON(), nullable=True),
@@ -611,7 +610,6 @@ def upgrade() -> None:
     sa.Column('next_publish_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('retry_of_id', sa.Uuid(), nullable=True),
     sa.Column('organization_id', sa.Uuid(), nullable=False),
-    sa.Column('project_id', sa.Uuid(), nullable=True),
     sa.Column('study_cell_id', sa.Uuid(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('finished_at', sa.DateTime(timezone=True), nullable=True),
@@ -619,7 +617,6 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['compilation_id', 'revision_id'], ['problem_compilations.id', 'problem_compilations.revision_id'], name='fk_jobs_compilation_revision', ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_jobs_organization_id_organizations'), ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['owner_id'], ['users.id'], name=op.f('fk_jobs_owner_id_users'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['project_id'], ['projects.id'], name=op.f('fk_jobs_project_id_projects'), ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['retry_of_id'], ['jobs.id'], name=op.f('fk_jobs_retry_of_id_jobs'), ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['revision_id'], ['binding_case_revisions.id'], name=op.f('fk_jobs_revision_id_binding_case_revisions'), ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['study_cell_id'], ['study_cells.id'], name='fk_jobs_study_cell_id', ondelete='SET NULL', use_alter=True),
@@ -631,7 +628,6 @@ def upgrade() -> None:
     op.create_index(op.f('ix_jobs_idempotency_key'), 'jobs', ['idempotency_key'], unique=False)
     op.create_index(op.f('ix_jobs_organization_id'), 'jobs', ['organization_id'], unique=False)
     op.create_index(op.f('ix_jobs_owner_id'), 'jobs', ['owner_id'], unique=False)
-    op.create_index(op.f('ix_jobs_project_id'), 'jobs', ['project_id'], unique=False)
     op.create_index(op.f('ix_jobs_retry_of_id'), 'jobs', ['retry_of_id'], unique=False)
     op.create_index(op.f('ix_jobs_revision_id'), 'jobs', ['revision_id'], unique=False)
     op.create_index('ix_jobs_state_lease_until', 'jobs', ['state', 'lease_until'], unique=False)
@@ -710,17 +706,6 @@ def upgrade() -> None:
     op.create_index(op.f('ix_study_cells_binding_case_revision_id'), 'study_cells', ['binding_case_revision_id'], unique=False)
     op.create_index(op.f('ix_study_cells_job_id'), 'study_cells', ['job_id'], unique=False)
     op.create_index(op.f('ix_study_cells_study_run_id'), 'study_cells', ['study_run_id'], unique=False)
-    op.create_table('v1_job_provenance',
-    sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('job_id', sa.Uuid(), nullable=False),
-    sa.Column('document', sa.JSON(), nullable=False),
-    sa.Column('digest', sa.String(length=80), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['job_id'], ['jobs.id'], name=op.f('fk_v1_job_provenance_job_id_jobs'), ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_v1_job_provenance'))
-    )
-    op.create_index(op.f('ix_v1_job_provenance_digest'), 'v1_job_provenance', ['digest'], unique=False)
-    op.create_index(op.f('ix_v1_job_provenance_job_id'), 'v1_job_provenance', ['job_id'], unique=True)
     # Foreign keys that close a cycle: inline on SQLite, added once both tables exist elsewhere.
     if dialect != 'sqlite':
         op.create_foreign_key('fk_jobs_study_cell_id', 'jobs', 'study_cells', ['study_cell_id'], ['id'], ondelete='SET NULL')
@@ -732,9 +717,6 @@ def downgrade() -> None:
     dialect = op.get_bind().dialect.name
     if dialect != 'sqlite':
         op.drop_constraint('fk_jobs_study_cell_id', 'jobs', type_='foreignkey')
-    op.drop_index(op.f('ix_v1_job_provenance_job_id'), table_name='v1_job_provenance')
-    op.drop_index(op.f('ix_v1_job_provenance_digest'), table_name='v1_job_provenance')
-    op.drop_table('v1_job_provenance')
     op.drop_index(op.f('ix_study_cells_study_run_id'), table_name='study_cells')
     op.drop_index(op.f('ix_study_cells_job_id'), table_name='study_cells')
     op.drop_index(op.f('ix_study_cells_binding_case_revision_id'), table_name='study_cells')
@@ -754,7 +736,6 @@ def downgrade() -> None:
     op.drop_index('ix_jobs_state_lease_until', table_name='jobs')
     op.drop_index(op.f('ix_jobs_revision_id'), table_name='jobs')
     op.drop_index(op.f('ix_jobs_retry_of_id'), table_name='jobs')
-    op.drop_index(op.f('ix_jobs_project_id'), table_name='jobs')
     op.drop_index(op.f('ix_jobs_owner_id'), table_name='jobs')
     op.drop_index(op.f('ix_jobs_organization_id'), table_name='jobs')
     op.drop_index(op.f('ix_jobs_idempotency_key'), table_name='jobs')

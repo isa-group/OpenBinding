@@ -29,7 +29,7 @@ from openbinding_gateway.db.models import (
     StudyRun,
     User,
 )
-from openbinding_gateway.routes import jobs as job_routes
+from openbinding_gateway.modules.execution.adapters import routes as runs_routes
 from openbinding_gateway.routes import studies as study_routes
 
 from .test_study_cells_pg import _seed, cell_refs
@@ -67,7 +67,7 @@ async def _happens(event: asyncio.Event, what: str, seconds: float = 10.0) -> No
 def _launcher(launched: list[uuid.UUID], entered: asyncio.Event | None = None, pause: float = 0.2):
     """A ``launch_study_cell`` that takes a while to create its job, as the real one does."""
 
-    async def launch(session, cell, user, organization, project_id):
+    async def launch(session, cell, user, organization):
         launched.append(cell.id)
         if entered is not None:
             entered.set()
@@ -75,7 +75,7 @@ def _launcher(launched: list[uuid.UUID], entered: asyncio.Event | None = None, p
         job = Job(
             owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
             service_url="http://engine", state=JobState.QUEUED, study_cell_id=cell.id,
-            organization_id=organization.id, project_id=project_id, **await cell_refs(session, cell),
+            organization_id=organization.id, **await cell_refs(session, cell),
         )
         session.add(job)
         await session.flush()
@@ -216,7 +216,7 @@ async def test_two_syncs_of_the_last_two_jobs_leave_the_run_finished(two_session
     world = await _world(first)
     running = Job(
         owner_id=world.user_id, engine_id="random-search", engine_job_id="engine-2", service_url="http://engine",
-        state=JobState.RUNNING, organization_id=world.organization_id, project_id=world.project_id,
+        state=JobState.RUNNING, organization_id=world.organization_id,
         study_cell_id=world.waiting_id, **await cell_refs(first, await first.get(StudyCell, world.waiting_id)),
     )
     first.add(running)
@@ -255,7 +255,7 @@ async def test_cancelling_a_study_job_and_its_run_at_once_does_not_deadlock(two_
     world = await _world(first)
     queued = Job(
         owner_id=world.user_id, engine_id="random-search", engine_job_id="engine-2", service_url="http://engine",
-        state=JobState.QUEUED, organization_id=world.organization_id, project_id=world.project_id,
+        state=JobState.QUEUED, organization_id=world.organization_id,
         study_cell_id=world.waiting_id, **await cell_refs(first, await first.get(StudyCell, world.waiting_id)),
     )
     first.add(queued)
@@ -281,7 +281,9 @@ async def test_cancelling_a_study_job_and_its_run_at_once_does_not_deadlock(two_
         await _happens(holding, "the run cancellation taking the run lock")
         owner = await second.get(User, world.user_id)
         try:
-            return await job_routes.cancel_job(job_id=queued_id, user=owner, session=second)
+            return await runs_routes.cancel_run(
+                org=str(world.organization_id), run=queued_id, user=owner, session=second,
+            )
         finally:
             await second.commit()
 

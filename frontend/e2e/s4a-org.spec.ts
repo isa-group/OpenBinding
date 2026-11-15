@@ -117,11 +117,17 @@ const researchUsage = () => ({
   capabilities: { maxConcurrentRuns: 4, maxPrivateProjects: 10, maxProblems: null, maxRepositoryStorage: null },
 });
 
+const run = (id: string, engine: string, status: string, termination: string | null, createdAt: string, finishedAt: string | null) => ({
+  id, engine_id: engine, status, termination, cancellation_requested: false, retry_of_id: null, organization_id: 'org-isa-demo',
+  created_at: createdAt, finished_at: finishedAt,
+});
+
+/** The recent runs of the organization Home shows (`listRuns`). */
 const jobs = () => ({
-  jobs: [
-    { id: '00000000-0000-0000-0000-0000000000f2', engine_id: 'minizinc', status: 'running', termination: null, solutions: null, created_at: '2026-10-08T08:00:00Z', finished_at: null },
-    { id: '00000000-0000-0000-0000-0000000000f6', engine_id: 'random-search', status: 'completed', termination: 'INFEASIBLE', solutions: 0, created_at: '2026-10-01T09:00:00Z', finished_at: '2026-10-01T09:00:40Z' },
-    { id: '00000000-0000-0000-0000-0000000000f1', engine_id: 'evolutionary', status: 'completed', termination: 'FEASIBLE', solutions: 3, created_at: '2026-09-30T09:00:00Z', finished_at: '2026-09-30T09:01:05Z' },
+  runs: [
+    run('00000000-0000-0000-0000-0000000000f2', 'minizinc', 'running', null, '2026-10-08T08:00:00Z', null),
+    run('00000000-0000-0000-0000-0000000000f6', 'random-search', 'completed', 'INFEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:00:40Z'),
+    run('00000000-0000-0000-0000-0000000000f1', 'evolutionary', 'completed', 'FEASIBLE', '2026-09-30T09:00:00Z', '2026-09-30T09:01:05Z'),
   ],
   total: 3,
 });
@@ -172,7 +178,6 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(`${API}/v1/users/me/usage`, (route) => (state.refuse.usage ? state.refuse.usage(route) : json(researchUsage())(route)));
-  await page.route(new RegExp(`^${API}/v1/users/me/jobs(\\?.*)?$`), (route) => (state.refuse.jobs ? state.refuse.jobs(route) : json(state.jobs)(route)));
 
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), (route) => json(state.notifications)(route));
   await page.route(new RegExp(`^${API}/v1/notifications/([^/]+)/read$`), async (route) => {
@@ -216,6 +221,7 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     return found ? json(found)(route) : detail(404, 'not_found', 'Organization not found.')(route);
   });
 
+  await page.route(orgPath('/runs'), (route) => (state.refuse.jobs ? state.refuse.jobs(route) : json(state.jobs)(route)));
   await page.route(orgPath('/projects'), (route) => (state.refuse.projects ? state.refuse.projects(route) : json(state.projects[slugOf(route, '/projects')] ?? [])(route)));
   await page.route(orgPath('/members'), (route) => json(state.members[slugOf(route, '/members')] ?? [])(route));
   await page.route(orgPath('/members/batch'), async (route) => {
@@ -313,8 +319,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const activity = main.getByRole('region', { name: 'Recent activity' });
       await expect(activity.getByText('Running')).toBeVisible();
       await expect(activity.getByText('No feasible binding')).toBeVisible();
-      // There is no account-wide run history to lead to: a run is opened from its project.
-      await expect(activity.getByRole('link', { name: 'All runs' })).toHaveCount(0);
+      // The runs of the first organization, each opening in it, and the way to all of them; no account-wide run history.
+      await expect(activity.getByRole('link', { name: /^All runs of / })).toHaveAttribute('href', /^\/app\/[^/]+\/runs$/);
       const plan = main.getByRole('region', { name: 'Your plan' });
       await expect(plan.getByText('RESEARCH', { exact: true })).toBeVisible();
       await expect(plan.getByText('Up to 4')).toBeVisible();
@@ -354,7 +360,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // No organizations: the first-organization guide, with the way to the wizard and to an invitation.
       state.organizations = [];
-      state.jobs = { jobs: [], total: 0 };
+      state.jobs = { runs: [], total: 0 };
       await page.reload();
       await expect(main.getByRole('heading', { name: 'Create your first organization' })).toBeVisible();
       await expect(main.getByRole('link', { name: 'Create organization' })).toHaveAttribute('href', '/app?create=organization');

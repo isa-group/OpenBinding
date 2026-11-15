@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.settings import get_settings
 from ..db.models import EngineRegistrationRevision, EngineRevision, Job, User, utcnow
+from ..repositories import jobs as job_repository
 from ..integrations import bim
 from ..integrations.bim_host import engine_contract_diagnostics  # noqa: F401 - the platform's name for it
 from ..security.apikeys import allows_engine
@@ -691,20 +692,20 @@ async def compatible_modes(
     )
 
 
-async def owned_job(job_id: str, caller: User | None, session: AsyncSession | None):
-    if session is None:
-        return None
-    try:
-        parsed = uuid.UUID(job_id)
-    except ValueError:
-        return None
-    if caller is None:
-        return None
-    job = (
-        await session.execute(
-            select(Job).where(Job.id == parsed, Job.owner_id == caller.id)
-        )
-    ).scalars().first()
+async def run_in_org(
+    session: AsyncSession,
+    organization_id: uuid.UUID,
+    run_id: uuid.UUID,
+    caller: User,
+    *,
+    lock: bool = False,
+) -> Job | None:
+    """A run of this organization the caller may see, or ``None``.
+
+    Membership is the route's to check. An API key sees only the runs of the Engine revisions it
+    may use (``allows_engine``); any other run reads as absent.
+    """
+    job = await job_repository.get_in_org(session, organization_id, run_id, lock=lock)
     if job is None:
         return None
     provenance = job.provenance if isinstance(job.provenance, dict) else {}

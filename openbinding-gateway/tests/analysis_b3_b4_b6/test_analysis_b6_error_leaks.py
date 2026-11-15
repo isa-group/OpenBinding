@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from httpx import ASGITransport, AsyncClient
 
+from _problem_helpers import run_url
 from openbinding_gateway import space_client
 from openbinding_gateway.db.models import JobState
 from openbinding_gateway.security.redaction import GENERIC_ERROR, redact_result
@@ -32,7 +33,7 @@ PRIVATE_HOST = "private-engine.invalid"
 async def _public_view_of_the_only_job(client, db_session, headers) -> str:
     job = await only_job(db_session)
     precondition(job.state is JobState.FAILED, f"the job ended {job.state.value}, not failed")
-    response = await client.get(f"/v1/jobs/{job.id}", headers=headers)
+    response = await client.get(run_url(job), headers=headers)
     precondition(response.status_code == 200, f"GET /v1/jobs/<id> answered {response.status_code}")
     return response.text
 
@@ -151,11 +152,13 @@ async def _unhandled_500(api_client, registration, monkeypatch):
     async def boom(*_args, **_kwargs):
         raise RuntimeError("secret-internal-host.corp exploded")
 
-    monkeypatch.setattr("openbinding_gateway.repositories.jobs.list_owned", boom)
+    monkeypatch.setattr("openbinding_gateway.repositories.jobs.list_in_org", boom)
+    organization = await api_client.post("/v1/organizations", headers=headers, json={"slug": "leaky", "name": "Leaky"})
+    precondition(organization.status_code == 201, f"creating the organization answered {organization.status_code}")
     # The shared client re-raises application errors; a real client sees the 500.
     transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://gateway") as client:
-        response = await client.get("/v1/jobs", headers=headers)
+        response = await client.get("/v1/organizations/leaky/runs", headers=headers)
     precondition(response.status_code == 500, f"answered {response.status_code}")
     return response
 

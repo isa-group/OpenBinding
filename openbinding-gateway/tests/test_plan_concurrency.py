@@ -17,7 +17,7 @@ import math
 import uuid
 
 import pytest
-from _problem_helpers import compiled_run_refs
+from _problem_helpers import compiled_run_refs, run_url
 from sqlalchemy import func, select
 
 from test_concurrency_limit import a_job, make_user, set_limit, study_actors
@@ -26,12 +26,12 @@ from test_job_dispatch import _account
 from test_study_cell_launch import BASE, _cells, _study
 from test_usage_limits import plan, set_plan
 
+from openbinding_gateway.services import job_submission
 from openbinding_gateway import study_jobs
 from openbinding_gateway.db.models import Job, JobState, RunState
 from openbinding_gateway.domain.entitlements import ConcurrencyLimit, concurrency_limit
 from openbinding_gateway.jobs import limits
-from openbinding_gateway.routes import jobs as job_routes
-from openbinding_gateway.routes import v1
+from openbinding_gateway.modules.execution.adapters import routes as runs_routes
 from openbinding_gateway.space_client import PlanCaps
 
 LIMIT = "maxConcurrentRuns"
@@ -42,8 +42,8 @@ def no_dispatch(monkeypatch):
     async def queued(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(v1, "dispatch_persisted_job", queued)
-    monkeypatch.setattr(job_routes, "dispatch_persisted_job", queued)
+    monkeypatch.setattr(runs_routes, "dispatch_persisted_job", queued)
+    monkeypatch.setattr(study_jobs, "dispatch_persisted_job", queued)
 
 
 async def jobs_in_the_database(session) -> int:
@@ -143,7 +143,7 @@ async def test_a_plan_slot_is_free_again_when_the_job_ends_and_nothing_accumulat
     assert await limits.count_in_flight(db_session, user.id) == 0
 
 
-# -- POST /v1/jobs ----------------------------------------------------------------
+# -- createRun -------------------------------------------------------------------
 
 
 async def test_a_plan_limit_below_the_cap_refuses_the_next_job_and_a_finished_one_frees_the_slot(
@@ -161,7 +161,7 @@ async def test_a_plan_limit_below_the_cap_refuses_the_next_job_and_a_finished_on
     assert refused.status_code == 429, refused.text
     assert refused.json()["code"] == "concurrency_limit_exceeded"
     assert refused.headers["Retry-After"] == "15"
-    assert refused.json()["concurrency"] == {
+    assert refused.json()["detail"]["concurrency"] == {
         "limit_id": "maxConcurrentRuns", "limit": 1, "used": 1, "active": 1, "unit": "job", "source": "plan",
     }
     assert await jobs_in_the_database(db_session) == 1
@@ -182,8 +182,8 @@ async def test_a_plan_above_the_cap_is_held_to_the_cap(api_client, db_session, r
     refused = await _post(api_client, headers, _body(snapshot), key="second")
 
     assert refused.status_code == 429, refused.text
-    assert refused.json()["concurrency"]["source"] == "technical"
-    assert refused.json()["concurrency"]["limit"] == 1
+    assert refused.json()["detail"]["concurrency"]["source"] == "technical"
+    assert refused.json()["detail"]["concurrency"]["limit"] == 1
 
 
 @pytest.mark.parametrize("declared", [None, math.inf], ids=["undeclared", "unlimited"])
@@ -200,8 +200,8 @@ async def test_a_plan_without_a_usable_limit_gets_the_cap_and_not_unlimited_jobs
 
     assert [response.status_code for response in accepted] == [202, 202]
     assert refused.status_code == 429, refused.text
-    assert refused.json()["concurrency"]["source"] == "technical"
-    assert refused.json()["concurrency"]["limit"] == 2
+    assert refused.json()["detail"]["concurrency"]["source"] == "technical"
+    assert refused.json()["detail"]["concurrency"]["limit"] == 2
 
 
 async def test_the_fixture_plan_that_allows_one_job_at_a_time_is_held_to_it(
@@ -215,7 +215,7 @@ async def test_the_fixture_plan_that_allows_one_job_at_a_time_is_held_to_it(
     refused = await _post(api_client, headers, _body(snapshot), key="second")
 
     assert refused.status_code == 429, refused.text
-    assert refused.json()["concurrency"]["limit"] == 1 and refused.json()["concurrency"]["source"] == "plan"
+    assert refused.json()["detail"]["concurrency"]["limit"] == 1 and refused.json()["detail"]["concurrency"]["source"] == "plan"
 
 
 async def test_an_idempotent_replay_at_the_plan_limit_returns_the_job_and_takes_no_second_slot(
@@ -261,16 +261,16 @@ async def test_a_retry_at_the_plan_limit_is_a_429_and_a_replay_of_a_retry_is_not
     db_session.add_all([failed, busy])
     await db_session.flush()
 
-    refused = await api_client.post(f"/v1/jobs/{failed.id}/retry", headers=headers)
+    refused = await api_client.post(run_url(failed, "/retry"), headers=headers)
     assert refused.status_code == 429, refused.text
-    assert refused.json()["concurrency"]["source"] == "plan" and refused.json()["concurrency"]["limit"] == 1
+    assert refused.json()["detail"]["concurrency"]["source"] == "plan" and refused.json()["detail"]["concurrency"]["limit"] == 1
     assert refused.headers["Retry-After"] == "15"
     assert await db_session.scalar(select(func.count(Job.id)).where(Job.retry_of_id == failed.id)) == 0
 
     busy.state = JobState.COMPLETED
     await db_session.flush()
-    first = await api_client.post(f"/v1/jobs/{failed.id}/retry", headers=headers)
-    again = await api_client.post(f"/v1/jobs/{failed.id}/retry", headers=headers)
+    first = await api_client.post(run_url(failed, "/retry"), headers=headers)
+    again = await api_client.post(run_url(failed, "/retry"), headers=headers)
 
     assert first.status_code == again.status_code == 202, again.text
     assert first.json()["id"] == again.json()["id"]
@@ -296,7 +296,7 @@ async def test_a_study_cell_over_the_plan_limit_gets_the_retryable_429(
     assert launched.job_id is not None
     assert waiting.job_id is None and waiting.state is RunState.QUEUED
     with pytest.raises(study_jobs.StudyLaunchError) as refused:
-        await study_jobs.launch_study_cell(db_session, waiting, user, organization, project.id)
+        await study_jobs.launch_study_cell(db_session, waiting, user, organization)
     assert refused.value.code == "concurrency_limit_exceeded"
     assert refused.value.code in study_jobs.RETRYABLE_LAUNCH_CODES
-    assert v1.pending_launches(db_session) == []
+    assert job_submission.pending_launches(db_session) == []

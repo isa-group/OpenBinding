@@ -71,7 +71,7 @@ describe('buildCommands', () => {
     expect(commands.filter((command) => command.label === 'Problems').map((command) => command.href)).toEqual(['/app/isa-demo/problems']);
   });
 
-  it('offers New problem in the organization, New study and run in the current project, and none without them', () => {
+  it('offers New problem and New run in the organization, New study in the current project, and none without them', () => {
     const inProject = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: false });
     const inOrganization = buildCommands({ organizations: [organization], organization, isAdmin: false });
     const without = buildCommands({ organizations: [organization], isAdmin: false });
@@ -80,10 +80,11 @@ describe('buildCommands', () => {
 
     expect(created(inProject)).toEqual([
       ['New problem', '/app/isa-demo/problems?create=problem'],
+      ['New run', '/app/isa-demo/runs/new'],
       ['New study', '/app/isa-demo/qos-benchmarks/studies/new'],
-      ['New run', '/app/isa-demo/qos-benchmarks/runs/new'],
     ]);
-    expect(created(inOrganization)).toEqual([['New problem', '/app/isa-demo/problems?create=problem']]);
+    expect(created(inOrganization)).toEqual([['New problem', '/app/isa-demo/problems?create=problem'], ['New run', '/app/isa-demo/runs/new']]);
+    expect(inOrganization.filter((command) => command.label === 'Runs').map((command) => command.href)).toEqual(['/app/isa-demo/runs']);
     expect(created(without)).toEqual([]);
     expect(inProject.filter((command) => command.label === 'New job' || command.label === 'New case')).toEqual([]);
   });

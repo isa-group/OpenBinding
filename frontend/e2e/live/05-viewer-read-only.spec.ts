@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { CASE, ORG, PROJECT_PATH, capture, signInByApi, watchPageErrors } from './support';
+import { CASE, ORG, PROJECT_PATH, RUNS_PATH, capture, signInByApi, watchPageErrors } from './support';
 
 // A VIEWER reads: it sees the project, the problems and their versions, and none of the controls that change something.
 
@@ -30,7 +30,7 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
   test('starting a run is for members: the viewer is told so and has no way to send one', async ({ page }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'viewer');
-    await page.goto(`${PROJECT_PATH}/runs/new?case=${CASE}`);
+    await page.goto(`${RUNS_PATH}/new?problem=${CASE}`);
 
     await expect(page.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
     await expect(page.getByText('starting a run needs MEMBER')).toBeVisible();
@@ -41,10 +41,10 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
     expect(errors).toEqual([]);
   });
 
-  test('the list of runs of the project offers no way to start one', async ({ page }, testInfo) => {
+  test('the list of runs of the organization offers no way to start one', async ({ page }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'viewer');
-    await page.goto(`${PROJECT_PATH}/runs`);
+    await page.goto(`${RUNS_PATH}`);
 
     await expect(page.getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'New run' })).toHaveCount(0);

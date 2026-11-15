@@ -11,10 +11,10 @@ const problems = vi.hoisted(() => ({
   get: vi.fn(), revisions: vi.fn(), revision: vi.fn(), compilation: vi.fn(), ir: vi.fn(), source: vi.fn(),
   update: vi.fn(), remove: vi.fn(), createRevision: vi.fn(),
 }));
-const jobs = vi.hoisted(() => ({ mine: vi.fn() }));
+const runs = vi.hoisted(() => ({ list: vi.fn() }));
 
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../api/jobs', async () => ({ ...await vi.importActual<typeof import('../../api/jobs')>('../../api/jobs'), jobsApi: jobs }));
+vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi: runs }));
 
 const owner = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'OWNER' });
 const member = org('member-lab', { name: 'Member Lab', effective_role: 'MEMBER' });
@@ -61,7 +61,7 @@ describe('Problem page', () => {
       ...(String(revision) === '1' ? r1 : r2), document: { apiVersion: 'bim/v1', kind: 'Instance' }, files: [], resource_digests: {}, compilations: [],
     }));
     problems.source.mockRejectedValue(refusal(503, 'unavailable'));
-    jobs.mine.mockResolvedValue([]);
+    runs.list.mockResolvedValue({ runs: [], total: 0 });
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockResolvedValue(undefined) }, configurable: true });
   });
 
@@ -145,7 +145,7 @@ describe('Problem page', () => {
       expect(within(region).getAllByRole('link', { name: 'Open' })[0]).toHaveAttribute('href', `${root}/problems/flujo-checkout?version=2`);
       expect(within(region).getAllByRole('link', { name: 'Source' })[0]).toHaveAttribute('href', `${root}/problems/flujo-checkout/source?version=2`);
       expect(within(region).getByRole('link', { name: 'Compare with v1' })).toHaveAttribute('href', `${root}/problems/flujo-checkout/versions?from=1&to=2`);
-      expect(within(region).getAllByRole('link', { name: 'Run' })[0]).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/runs/new?problem=flujo-checkout&revision=2');
+      expect(within(region).getAllByRole('link', { name: 'Run' })[0]).toHaveAttribute('href', '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2');
       expect(region.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     });
 
@@ -166,16 +166,17 @@ describe('Problem page', () => {
   });
 
   describe('Runs tab', () => {
-    it('lists your runs of a version of this problem, from the revision they name', async () => {
-      jobs.mine.mockResolvedValue([
-        { id: 'job-a', engine_id: 'random-search', status: 'completed', termination: 'FEASIBLE', cancellation_requested: false, retry_of_id: null, organization_id: owner.id, project_id: null, created_at: '2026-08-21T10:00:00Z', finished_at: null, revision: { id: r2.id, revision: 2 } },
-        { id: 'job-b', engine_id: 'random-search', status: 'completed', termination: 'FEASIBLE', cancellation_requested: false, retry_of_id: null, organization_id: owner.id, project_id: null, created_at: '2026-08-21T11:00:00Z', finished_at: null, revision: { id: 'other', revision: 1 } },
-      ]);
+    it('lists the organization’s runs of a version of this problem, from the revision they name', async () => {
+      runs.list.mockResolvedValue({ total: 2, runs: [
+        { id: 'job-a', engine_id: 'random-search', status: 'completed', termination: 'FEASIBLE', cancellation_requested: false, retry_of_id: null, organization_id: owner.id, created_at: '2026-08-21T10:00:00Z', finished_at: null, revision: { id: r2.id, revision: 2 } },
+        { id: 'job-b', engine_id: 'random-search', status: 'completed', termination: 'FEASIBLE', cancellation_requested: false, retry_of_id: null, organization_id: owner.id, created_at: '2026-08-21T11:00:00Z', finished_at: null, revision: { id: 'other', revision: 1 } },
+      ] });
       renderDetail(owner, 'flujo-checkout', '/runs');
 
       const table = await screen.findByRole('region', { name: 'Runs of the problem' });
       expect(within(table).getAllByRole('row')).toHaveLength(2);
-      expect(within(table).getByRole('link', { name: 'Run 1' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/runs/job-a');
+      expect(within(table).getByRole('link', { name: 'Run 1' })).toHaveAttribute('href', '/app/isa-demo/runs/job-a');
+      expect(runs.list).toHaveBeenCalledWith('isa-demo', { problem: 'flujo-checkout', limit: 200 });
       expect(within(table).getByRole('link', { name: 'Version 2' })).toHaveAttribute('href', `${root}/problems/flujo-checkout?version=2`);
     });
   });
@@ -187,17 +188,17 @@ describe('Problem page', () => {
       await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
       expect(screen.getByRole('button', { name: 'Upload new version' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Edit in the Workbench' })).toHaveAttribute('href', '/app/member-lab/workbench?problem=flujo-checkout&revision=2');
-      expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', '/app/member-lab/qos-benchmarks/runs/new?problem=flujo-checkout&revision=2');
+      expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', '/app/member-lab/runs/new?problem=flujo-checkout&revision=2');
       expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute('href', '/app/member-lab/qos-benchmarks/studies/new?case=flujo-checkout&revision=2');
       expect(screen.queryByRole('button', { name: 'Delete problem' })).not.toBeInTheDocument();
     });
 
-    it('says where runs open when the organization has no project', async () => {
+    it('runs a version in the organization even when it has no project, and builds no study then', async () => {
       renderDetail(member, 'flujo-checkout', '', []);
 
       await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
-      expect(screen.queryByRole('link', { name: 'Run this version' })).not.toBeInTheDocument();
-      expect(screen.getByText('Runs open in a project of the organization: create one to run this problem.')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', '/app/member-lab/runs/new?problem=flujo-checkout&revision=2');
+      expect(screen.queryByRole('link', { name: 'Add to study' })).not.toBeInTheDocument();
     });
 
     it('lets a VIEWER read and compare, and nothing else', async () => {

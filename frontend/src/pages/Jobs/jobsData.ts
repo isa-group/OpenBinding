@@ -1,4 +1,4 @@
-import type { JobDetail } from '../../api/jobs';
+import type { JobDetail } from '../../api/runs';
 import type { Origin } from './JobResult';
 
 /** What a run is of, from the references it names: its organization, problem, version and compilation. `null` when it names none. */

@@ -60,22 +60,22 @@ export function problemsEntry(organization?: Organization): MenuEntry {
   return inOrganization('Problems', organization, `/${PROBLEMS_SEGMENT}`);
 }
 
-/** The entries of the Lab menu, in order: both inside the current project. */
+/** The entries of the Lab menu, in order: the runs of the organization, the studies of the current project. */
 export function labEntries(organization?: Organization, project?: Project): Array<MenuEntry & { id: LabEntryId }> {
   const root = projectRoot(organization, project);
   return [
-    { id: 'runs', ...inProject('Runs', root, `/${RUNS_SEGMENT}`) },
+    { id: 'runs', ...inOrganization('Runs', organization, `/${RUNS_SEGMENT}`) },
     { id: 'studies', ...inProject('Studies', root, `/${STUDIES_SEGMENT}`) },
   ];
 }
 
-/** Entries of the "New" menu: always these three; a problem in the organization, a study and a run in the current project. */
+/** Entries of the "New" menu: always these three; a problem and a run in the organization, a study in the current project. */
 export function createItems(organization?: Organization, project?: Project): MenuEntry[] {
   const root = projectRoot(organization, project);
   return [
     inOrganization('Problem', organization, `/${PROBLEMS_SEGMENT}?create=problem`),
     inProject('Study', root, `/${STUDIES_SEGMENT}/new`),
-    inProject('Run', root, `/${RUNS_SEGMENT}/new`),
+    inOrganization('Run', organization, `/${RUNS_SEGMENT}/new`),
   ];
 }
 
@@ -86,7 +86,7 @@ const UNMARKED_PLACES = new Set(['account']);
 /** `/app/:org/…` screens that belong to the organization, not to one of its projects. */
 const ORGANIZATION_SCREENS = new Set(['settings', 'new-project']);
 /** `/app/:org/…` sections of the organization that have an entry of their own in the header. */
-const ORGANIZATION_SECTIONS = new Set([PROBLEMS_SEGMENT, 'workbench']);
+const ORGANIZATION_SECTIONS = new Set([PROBLEMS_SEGMENT, 'workbench', RUNS_SEGMENT]);
 
 /** The segment below a project (`/app/:org/:project/<segment>`), when the address is inside one. */
 function projectSegment(pathname: string): string | undefined {
@@ -94,7 +94,7 @@ function projectSegment(pathname: string): string | undefined {
   return parts[0] === 'app' && !APP_PLACES.has(parts[1]) && !ORGANIZATION_SECTIONS.has(parts[2]) ? parts[3] : undefined;
 }
 
-/** The section of the organization the address is in (`/app/:org/problems/…`, `/app/:org/workbench`). */
+/** The section of the organization the address is in (`/app/:org/problems/…`, `/app/:org/workbench`, `/app/:org/runs/…`). */
 function organizationSection(pathname: string): string | undefined {
   const parts = pathname.split('/').filter(Boolean);
   return parts[0] === 'app' && !APP_PLACES.has(parts[1]) && ORGANIZATION_SECTIONS.has(parts[2]) ? parts[2] : undefined;
@@ -102,7 +102,7 @@ function organizationSection(pathname: string): string | undefined {
 
 /** Which entry of the Lab menu the address belongs to. */
 export function labEntryOf(pathname: string): LabEntryId | null {
-  if (sameSegment(projectSegment(pathname), RUNS_SEGMENT)) return 'runs';
+  if (organizationSection(pathname) === RUNS_SEGMENT) return 'runs';
   if (sameSegment(projectSegment(pathname), STUDIES_SEGMENT)) return 'studies';
   return null;
 }

@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, get_user_by_identifier, session_dependency
 from ..db.models import (
-    ApiKey, AuditEvent, AuthIdentity, Job, Notification, OrganizationInvitation, OrganizationMembership,
+    ApiKey, AuditEvent, AuthIdentity, Notification, OrganizationInvitation, OrganizationMembership,
     OrganizationRole, PasswordResetToken, RefreshToken, User, UserRole, utcnow,
 )
 from ..models.accounts import (
@@ -23,8 +23,6 @@ from ..models.accounts import (
     AccountDeleteRequest,
     CreateApiKeyRequest,
     CreatedApiKey,
-    JobHistory,
-    JobSummary,
     PricingTokenView,
     UpdateProfileRequest,
     UsageView,
@@ -42,7 +40,6 @@ from ..models.errors import (
 from ..modules.plans.application import entitlement_map as entitlement_ids
 from ..security.apikeys import (
     ADMIN_PERMISSIONS,
-    allows_engine,
     authenticated_api_key,
     boundary_is_subset,
     boundary_of,
@@ -437,85 +434,6 @@ async def revoke_api_key(
     api_key.revoked_at = utcnow()
     await session.flush()
     return None
-
-
-@router.get(
-    "/me/jobs",
-    response_model=JobHistory,
-    operation_id="listOwnJobs",
-    summary="Solves you have asked for",
-    responses={401: UNAUTHORIZED_RESPONSE},
-)
-async def list_own_jobs(
-    limit: int = 50,
-    offset: int = 0,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> JobHistory:
-    """Your own solves, newest first.
-
-    Summaries only. A result can be hundreds of megabytes, and a history is for
-    finding the one you want; ``GET /v1/jobs/{id}`` returns the answer itself.
-    """
-    visible = select(Job).where(Job.owner_id == user.id)
-
-    if authenticated_api_key(user) is None:
-        total = await session.scalar(select(func.count()).select_from(visible.subquery()))
-        rows = (
-            (
-                await session.execute(
-                    visible.order_by(Job.created_at.desc())
-                    .limit(max(1, min(limit, 200)))
-                    .offset(max(0, offset))
-                )
-            )
-            .scalars()
-            .all()
-        )
-    else:
-        candidates = (
-            (await session.execute(visible.order_by(Job.created_at.desc())))
-            .scalars()
-            .all()
-        )
-        permitted = [
-            job
-            for job in candidates
-            if allows_engine(
-                user,
-                (job.provenance or {}).get("engine", {})
-                if isinstance(job.provenance, dict)
-                else {},
-            )
-        ]
-        total = len(permitted)
-        start = max(0, offset)
-        rows = permitted[start : start + max(1, min(limit, 200))]
-
-    return JobHistory(
-        jobs=[_job_summary(row) for row in rows],
-        total=int(total or 0),
-    )
-
-
-def _job_summary(job: Job) -> JobSummary:
-    """What is worth showing without opening the result.
-
-    ``result`` is JSON on the row and may be enormous, so only its shape is
-    read - how many solutions, and what the canonical termination was.
-    """
-    result = job.result if isinstance(job.result, dict) else {}
-    solutions = result.get("solutions")
-
-    return JobSummary(
-        id=job.id,
-        engine_id=job.engine_id,
-        status=job.state.value,
-        termination=job.termination,
-        solutions=len(solutions) if isinstance(solutions, list) else None,
-        created_at=job.created_at,
-        finished_at=job.finished_at,
-    )
 
 
 @router.get(

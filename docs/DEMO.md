@@ -17,7 +17,7 @@ At `31b7de6f`:
 | `seed_lab` | **Closed** | Idempotent |
 | `smoke_lab` | **Closed** | **9/9**: `proxy_and_spa`, `login`, `owner_job`, `idempotency`, `authorization` (24 checks), `concurrency_limit`, `cors`, `body_limit`, `login_throttle`. `plan_usage` skipped (SPACE on hold) |
 | Playwright desktop + mobile | **Closed** | **30 passed, 0 failed, 0 skipped**, 0 visual problems (`E2E_SUMMARY passed=30`); screenshots reviewed: 131 images including `screenshots/_summary.png` |
-| Remote cancellation end to end | **Closed** | `tools/cancel_probe.py` via `lab_compose seed` with `DEMO_SEED_TOOL=cancel_probe.py`: `passed`, `ok` true, 9 checks ok, 0 findings; job `cancelled` about 1.0 s after `POST /v1/jobs/{id}/cancel` ([qa/ENGINE_CANCELLATION_E2E.md](qa/ENGINE_CANCELLATION_E2E.md)) |
+| Remote cancellation end to end | **Closed** | `tools/cancel_probe.py` via `lab_compose seed` with `DEMO_SEED_TOOL=cancel_probe.py`: `passed`, `ok` true, 9 checks ok, 0 findings; job `cancelled` about 1.0 s after the cancel request (then `POST /v1/jobs/{id}/cancel`, now `POST /v1/organizations/{org}/runs/{run}/cancel`) ([qa/ENGINE_CANCELLATION_E2E.md](qa/ENGINE_CANCELLATION_E2E.md)) |
 | Snapshot `invalid_instance` of the seed | **Cause found** | the 0.1.x package pins a contract version that 0.2.0 does not install (`contract_not_installed`); kept as evidence, 422 `snapshot_not_recompilable`; revision 2 of `simple-seq` runs ([qa/SNAPSHOT_INVALID_INSTANCE.md](qa/SNAPSHOT_INVALID_INSTANCE.md)) |
 | Two stale snapshots of other owners (`lab-member`, `lab-viewer`) | **Open, residual risk** | status `blocked` (`snapshot_conflict`); not decided to delete |
 | PostgreSQL 16 real | **Closed** | 113 passed, 0 skipped, 0 failed at `59ef9749` ([qa/PG_REAL_RUN.md](qa/PG_REAL_RUN.md)) |
@@ -449,7 +449,7 @@ and was omitted on 2026-10-13 (**not executed**); whether it was run at `b278038
 
 History: the first complete run passed 8 of 9 steps. The failing one,
 `authorization` ("viewer cannot launch"), had a wrong expectation in the smoke:
-`POST /v1/jobs` is personal work, so a viewer can launch on their own snapshot
+the launch was then personal work, so a viewer could launch on their own snapshot
 (the expectation was corrected, as described in the table above). Since then a VIEWER
 may no longer launch work (`test_viewer_read_only.py`). An earlier attempt had been
 blocked by SPACE having no contracts (503 `pricing_unavailable`) and by a job

@@ -13,7 +13,6 @@ import { REGISTRATION, detailOf } from '../src/test/fixtures/jobs';
 // The first screens are slow to open under load (the problem page reads the problem and then its compilation), so a wait is generous.
 const expect = baseExpect.configure({ timeout: 20_000 });
 
-const ROOT = '/app/isa-demo/qos-benchmarks';
 const PROBLEMS = '/app/isa-demo/problems';
 
 function watchCriticalErrors(page: Page) {
@@ -132,12 +131,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         },
       }));
       // The engine that was left on is refused anyway at the gateway (as if its manifest said interval and the problem said otherwise).
-      await page.route(/\/v1\/jobs$/, (route) => (route.request().method() === 'POST'
+      await page.route(/\/v1\/organizations\/isa-demo\/runs$/, (route) => (route.request().method() === 'POST'
         ? route.fulfill({ status: 422, json: failureBody(422, 'unsupported_capability_value', 'featureValues interval is not declared by this mode', { diagnostics: refusal }) })
         : route.fallback()));
       const main = page.locator('#platform-main');
 
-      await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
+      await page.goto('/app/isa-demo/runs/new?problem=checkout-flow&revision=2');
       await main.getByRole('button', { name: 'Continue' }).click();
       const engines = main.getByRole('radiogroup', { name: 'Engine' });
       const off = engines.getByRole('radio', { name: /^random-search/ });
@@ -213,7 +212,7 @@ test.describe('desktop · F2 ranges in the workbench and in a failed run', () =>
     const critical = watchCriticalErrors(page);
     await installMockApi(page, 'admin');
     const pointer = '/spec/candidates/providers/candidates/authenticate-3/features/latency';
-    await page.route(/\/v1\/jobs\/job-range-failed$/, (route) => route.fulfill({
+    await page.route(/\/v1\/organizations\/isa-demo\/runs\/job-range-failed$/, (route) => route.fulfill({
       status: 200,
       json: detailOf('job-range-failed', 'failed', {
         result: { code: 'unsupported_capability_value', error: 'unsupported_capability_value: featureValues interval is not declared by this mode', diagnostics: [{ code: 'unsupported_capability_value', message: 'featureValues interval is not declared by this mode', pointer }] },
@@ -221,7 +220,7 @@ test.describe('desktop · F2 ranges in the workbench and in a failed run', () =>
     }));
     const main = page.locator('#platform-main');
 
-    await page.goto(`${ROOT}/runs/job-range-failed`);
+    await page.goto('/app/isa-demo/runs/job-range-failed');
     const alert = main.getByRole('alert').filter({ hasText: 'This engine only accepts single values' });
     await expect(alert).toContainText(`featureValues interval is not declared by this mode (${pointer})`);
     await expect(alert).not.toContainText('Nothing was started.');

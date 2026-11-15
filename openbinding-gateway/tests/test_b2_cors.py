@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 import pytest_asyncio
-from _problem_helpers import revision_of
+from _problem_helpers import revision_of, runs_url_for
 from _problem_helpers import placeholder_refs
 from pydantic import ValidationError
 
@@ -166,11 +166,11 @@ async def test_a_request_without_origin_gets_no_cors_headers(api_client):
 
 async def test_the_preflight_of_a_foreign_origin_is_refused(api_client):
     foreign = await api_client.options(
-        "/v1/jobs",
+        "/v1/organizations/acme/runs",
         headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "POST"},
     )
     local = await api_client.options(
-        "/v1/jobs",
+        "/v1/organizations/acme/runs",
         headers={"Origin": allowed_origin(), "Access-Control-Request-Method": "POST"},
     )
 
@@ -210,7 +210,7 @@ async def test_a_429_exposes_retry_after_to_the_browser(
     origin = allowed_origin()
 
     response = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers={**headers, "Origin": origin},
         json={
             "revision": revision_id,

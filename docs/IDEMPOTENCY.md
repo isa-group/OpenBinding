@@ -1,7 +1,8 @@
-# Idempotency and execution guarantees of `POST /v1/jobs`
+# Idempotency and execution guarantees of `createRun`
 
 This document states what the gateway guarantees about submitting and running
-a job, what it does not, how it can fail, and which of these claims have been
+a run (`POST /v1/organizations/{org}/runs`, `createRun`; a run is a row of the
+`jobs` table), what it does not, how it can fail, and which of these claims have been
 checked and where. Distributed exactly-once execution is **not** claimed.
 
 ## Guarantees
@@ -17,11 +18,13 @@ checked and where. Distributed exactly-once execution is **not** claimed.
 ## Where the flow lives
 
 The submission flow is `services/job_submission.py` (`JobSubmission.submit`); the
-route (`create_job` and `_create_job_core` in `routes/v1.py`) only reads the
-request into a `JobSubmissionInput`, calls the service, dispatches a job it
-reports as `created` (after the commit, so a crash still never loses the job) and
-translates the `JobSubmissionResult` (`created`, `replay` or `problem`) into a
-response. The service does the lookup of the key, the account lock, the
+route (`create_run` in `modules/execution/adapters/routes.py`) only reads the
+request into a `RunRequest` (`modules/execution/domain/run_request.py`), calls the
+service, dispatches a job it reports as `created` (after the commit, so a crash
+still never loses the job) and translates the `JobSubmissionResult` (`created`,
+`replay` or `problem`) into a response; a refusal is the platform JSON envelope.
+A study cell builds its own `RunRequest` and calls the same service
+(`study_jobs.launch_study_cell`), with no HTTP request in between. The service does the lookup of the key, the account lock, the
 fingerprint comparison (current and legacy), the concurrency check, the
 `IntegrityError` race handling and the persistence of the snapshot and the job.
 Moving the code changed none of G1-G4 or of the wire contract; the unit tests of
@@ -31,19 +34,23 @@ are `tests/test_idempotency_jobs.py` and `tests/concurrency/test_jobs_idempotenc
 ## Scope of the key
 
 An `Idempotency-Key` (1–255 characters) is scoped to the **account**: two
-accounts may use the same key and get independent jobs. A job is never visible
-across accounts. Submitting a job requires an account (`401 unauthorized`
-otherwise); every accepted job is persisted.
+accounts may use the same key and get independent runs, even in one
+organization. A run is visible to every member of its organization and to
+nobody else. Submitting a run requires an account (`401 unauthorized`
+otherwise) with MEMBER in the organization of the address, and the revision must
+belong to that organization (`409 revision_not_in_organization` otherwise); every
+accepted run is persisted.
 
 ## What the key identifies
 
 The key is bound to the **canonical request**, not to what the gateway resolved
 from it. The fingerprint is `v2:` + the canonical digest of
-`{source, body, configuration}` (`domain/idempotency.py`):
+`{source, body}` (`domain/idempotency.py`):
 
-- `source`: digest of the package (uploaded, or the snapshot's archive);
-- `body`: the JSON body exactly as the client sent it;
-- `configuration`: the pinned ExecutionConfiguration reference, if any.
+- `source`: the package digest of the revision the run names;
+- `body`: the request as a document (`RunRequest.body()`): `revision`, `engine`
+  and `options`, plus `registration`, `mode` and `optimization` when given, so a
+  field left out and one sent as `null` read the same.
 
 It is 74 characters long and is stored in `jobs.idempotency_fingerprint`
 (`String(80)`). Because it describes what the client **sent**, it does not change
@@ -133,7 +140,7 @@ early on PostgreSQL; this is only checked by the PG tests listed below.
 `JOB_DISPATCH_MODE=inline` (tests, single-process development) runs the runner
 inside the request. With `JOB_DISPATCH_MODE=dramatiq`:
 
-- **Immediate publication.** `POST /v1/jobs` and retry commit the `queued` row
+- **Immediate publication.** `createRun` and retry commit the `queued` row
   and then send the message. This is unchanged and is the normal path. It is
   *after* the commit, so a crash or a Redis outage can lose the message but never
   the job.
@@ -292,11 +299,11 @@ minute, so the raw answer is no longer lost when BIM fails.
 - **Retention.** `EVIDENCE_RETENTION_DAYS` (default 14, from 1 to 90). The
   reconciler's cycle deletes expired rows in a bounded batch (500 per cycle,
   `FOR UPDATE SKIP LOCKED`), comparing with the database clock like the leases.
-- **Re-evaluating: `POST /v1/jobs/{id}/reevaluate`.** Only the owner of the job,
-  with MEMBER in its organization when it has one (`require_work_role`); an API key
-  needs `engines:execute`, so a read-only key is refused, and a key inherits the
-  role of its user (a VIEWER's key is refused). A job that is not the caller's is
-  `404`. It does not run the Engine again; it uses only the row whose `attempt`
+- **Re-evaluating: `POST /v1/organizations/{org}/runs/{run}/reevaluate`.** Any
+  member with MEMBER or above in the organization of the run (`require_work_role`),
+  not only who launched it; an API key needs `engines:execute`, so a read-only key
+  is refused, and a key inherits the role of its user (a VIEWER's key is refused).
+  A run of an organization the caller is not in is `404`. It does not run the Engine again; it uses only the row whose `attempt`
   equals `jobs.attempt`. Refusals, all `409` unless said: `job_in_study` (the job
   has a `study_cell_id`: `study_jobs.py` protects only `FAILED`, and a cell of a
   cancelled run must not become `COMPLETED`), `job_already_retried` (a `retry`

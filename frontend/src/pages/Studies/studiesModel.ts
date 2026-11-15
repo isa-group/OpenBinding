@@ -2,7 +2,7 @@ import type { Study, StudyCell, StudyRun } from '../../api/platform';
 import type { ProblemRevision } from '../../api/problems';
 import type { BimResourceRef, EngineCatalogEntry, EngineMode } from '../../api/client';
 import { bimResourceKey } from '../../api/client';
-import type { ExecutionOptimization } from '../../api/jobs';
+import type { ExecutionOptimization } from '../../api/runs';
 import type { CaseContent } from '../../features/workspace/model';
 import { criteriaCountOf, optimizationFor, optimizationTypeOf } from '../Jobs/launchModel';
 

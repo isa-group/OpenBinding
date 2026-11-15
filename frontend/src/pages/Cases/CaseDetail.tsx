@@ -19,7 +19,7 @@ import { UploadVersionDialog } from './dialogs';
 import { CaseFrame, CaseMissing, ReadOnlyNote } from './parts';
 import { ProblemSettings } from './ProblemSettings';
 import { VersionSource } from './RevisionSource';
-import { runLaunchOf, runRootOf } from './runTarget';
+import { projectRootOf, runLaunchOf } from './runTarget';
 import { useRouteProblem, type RouteProblemContent } from './useRouteProblem';
 import { useRouteOrganization } from '../Organization/useRouteOrganization';
 import { VersionHistory } from './VersionHistory';
@@ -50,9 +50,9 @@ function ProblemBody({ organization, content, revision, tab, canCreate, canAdmin
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState<string>(() => (location.state as { toast?: string } | null)?.toast ?? '');
   const open = (id: TabId, show: { version?: string } = { version: named }) => void navigate(problemPath(org, item.slug, id === 'overview' ? undefined : id, show), { viewTransition: true });
-  const runRoot = runRootOf(context, org);
-  const runHref = revision ? runLaunchOf(context, org, item.slug, revision.revision) : null;
-  const studyHref = revision && runRoot ? `${runRoot}/studies/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}` : null;
+  const projectRoot = projectRootOf(context, org);
+  const runHref = revision ? runLaunchOf(org, item.slug, revision.revision) : null;
+  const studyHref = revision && projectRoot ? `${projectRoot}/studies/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}` : null;
 
   return (
     <CaseFrame organization={organization} trail={[{ label: 'Problems', to: problemsPath(org) }, { label: item.name }]}>
@@ -88,7 +88,6 @@ function ProblemBody({ organization, content, revision, tab, canCreate, canAdmin
         </div>
       )}
       {!canCreate && <ReadOnlyNote role={role}>You can read and compare versions. New versions need MEMBER; deleting needs ADMIN.</ReadOnlyNote>}
-      {canCreate && revision && !runHref && <p className="org-muted">Runs open in a project of the organization: create one to run this problem.</p>}
 
       <TabBar items={TABS} value={active} onChange={(id) => open(id as TabId)} ariaLabel="Problem sections" prefix="pp-tab" />
       <TabPanel prefix="pp-tab" active={active}>
@@ -114,7 +113,7 @@ function ProblemBody({ organization, content, revision, tab, canCreate, canAdmin
         {revision && active === 'overview' && <VersionOverview key={revision.id} organization={organization} content={content} revision={revision} />}
         {revision && active === 'versions' && (
           <>
-            <VersionHistory org={org} content={content} runOf={(number) => runLaunchOf(context, org, item.slug, number)} canCreate={canCreate} />
+            <VersionHistory org={org} content={content} runOf={(number) => runLaunchOf(org, item.slug, number)} canCreate={canCreate} />
             <VersionCompare org={org} content={content} canCreate={canCreate} />
           </>
         )}

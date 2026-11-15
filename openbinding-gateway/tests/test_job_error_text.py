@@ -16,7 +16,7 @@ import logging
 import re
 import time
 import uuid
-from _problem_helpers import placeholder_refs
+from _problem_helpers import placeholder_refs, run_url
 from datetime import timedelta
 
 import httpx
@@ -312,7 +312,7 @@ async def test_an_unreachable_engine_shows_its_sentence_and_not_its_host(
     monkeypatch.setattr(execution, "solve_remote", solve)
 
     headers, job = await a_submitted_job(api_client, db_session, registration)
-    response = await api_client.get(f"/v1/jobs/{job.id}", headers=headers)
+    response = await api_client.get(run_url(job), headers=headers)
 
     assert response.status_code == 200
     assert_a_catalog_failure(response.json()["result"], "engine_unreachable")
@@ -343,7 +343,7 @@ async def test_an_unexpected_exception_is_an_internal_error_and_its_text_stays_o
     engine_says(monkeypatch, RuntimeError(f"connection to server at {INTERNAL_HOST} ({INTERNAL_ADDRESS}), port 5432 failed"))
 
     headers, job = await a_submitted_job(api_client, db_session, registration)
-    body = (await api_client.get(f"/v1/jobs/{job.id}", headers=headers)).text
+    body = (await api_client.get(run_url(job), headers=headers)).text
 
     assert_a_catalog_failure(job.result, "internal_error")
     for leak in (INTERNAL_HOST, INTERNAL_ADDRESS, "RuntimeError", "connection to server at", "Traceback"):
@@ -388,7 +388,7 @@ async def test_a_failure_event_for_the_administration_holds_the_sentence_and_not
     _, job = await a_submitted_job(api_client, db_session, registration)
 
     events = (await db_session.execute(select(ApiErrorEvent))).scalars().all()
-    failures = [event for event in events if event.endpoint == f"/v1/jobs/{job.id}"]
+    failures = [event for event in events if event.endpoint == run_url(job)]
     assert len(failures) == 1
     assert JOB_FAILURES[job.result["code"]] in repr(failures[0].detail)
     assert PRIVATE_HOST not in repr(failures[0].detail)

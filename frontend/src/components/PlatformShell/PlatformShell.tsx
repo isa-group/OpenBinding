@@ -8,6 +8,7 @@ import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { AppHeader } from './AppHeader';
 import { RouteFallback } from './RouteFallback';
 import { workspaceSlugs } from './workspacePath';
+import { rememberOrganization } from '../../features/workspace/lastOrganization';
 import './PlatformShell.css';
 
 export interface PlatformOutletContext {
@@ -59,6 +60,10 @@ export function PlatformShell() {
   }, [org]);
 
   useEffect(() => { void load(); }, [load]);
+  // The organization the address names, once it is one of the account's: Home shows its recent runs.
+  useEffect(() => {
+    if (org && organizations.some((item) => item.slug === org)) rememberOrganization(org);
+  }, [org, organizations]);
 
   const organization = (org ? organizations.find((item) => item.slug === org) : null) ?? organizations[0];
   const orgProjects = useMemo(

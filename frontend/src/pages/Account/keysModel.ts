@@ -131,7 +131,7 @@ export function describeEngineAccess(access: ApiKeyEngineAccess): string {
 
 type Boundary = NonNullable<CreateApiKeyRequest['boundary']>;
 
-/** One short label per restriction: `GET only`, `org isa-demo`, `jobs, studies`. Empty when there is none. */
+/** One short label per restriction: `GET only`, `org isa-demo`, `runs, studies`. Empty when there is none. */
 export function boundaryLabels(boundary: ApiKeySummary['boundary'] | undefined): string[] {
   const value: Partial<Record<keyof Boundary, readonly string[] | null | undefined>> = boundary ?? {};
   const labels: string[] = [];

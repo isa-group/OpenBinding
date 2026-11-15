@@ -105,7 +105,6 @@ from openbinding_gateway.db.platform_models import (
 )
 from openbinding_gateway.models.platform import StudyDefinition
 from openbinding_gateway.integrations import bim, packages
-from openbinding_gateway.routes import v1 as routes_v1
 from openbinding_gateway.security.apikeys import ADMIN_PERMISSIONS, ALL_PERMISSIONS, hash_key
 from openbinding_gateway.security.passwords import hash_password
 from openbinding_gateway.services.engines import manifest as engine_manifest, protocol_digest
@@ -714,7 +713,7 @@ async def execute_real_studies(
             await session.flush()
             # One coordinator: sync_study_job dispatches later cells. Launching them here too races its worker.
             try:
-                await launch_study_cell(session, cells[0], user, org, project.id)
+                await launch_study_cell(session, cells[0], user, org)
                 await session.commit()
             except StudyLaunchError as exc:
                 cells[0].state = RunState.FAILED
@@ -739,14 +738,14 @@ async def execute_real_studies(
 async def ensure_standalone_jobs(
     session: AsyncSession,
     org: Organization,
-    project: Project,
     user: User,
     problems: dict[str, tuple[BindingCase, BindingCaseRevision]] | None = None,
     all_states: bool = False,
 ) -> list[Job]:
-    """Execute bounded real jobs of a problem revision; unchanged scenarios reuse their persisted outcomes."""
+    """Execute bounded real runs of a problem revision of ``org``; unchanged scenarios reuse their persisted outcomes."""
     from openbinding_gateway.job_dispatch import _execute
-    from openbinding_gateway.study_jobs import _job_request, _response_payload
+    from openbinding_gateway.modules.execution.application import RunRequest
+    from openbinding_gateway.services.job_submission import JobSubmission
 
     chosen = (problems or {}).get("simple-seq") or next(iter((problems or {}).values()), None)
     if chosen is None:
@@ -764,18 +763,18 @@ async def ensure_standalone_jobs(
             optimization = {"type": "SINGLE", "scalarization": "weighted-sum"}
             identity = digest({"generator": 4, "package": revision.package_digest, "evaluator": bim.toolchain_digest(),
                                "engine": ref, "mode": mode, "optimization": optimization, "options": options})
-            key = f"development-live-{project.id}-{identity}"
+            key = f"development-live-{org.id}-{identity}"
             existing = (await session.execute(select(Job).where(Job.owner_id == user.id, Job.idempotency_key == key))).scalars().first()
             if existing is not None:
                 jobs.append(existing)
                 logger.info("Reused live scenario %s: %s (%s)", engine, existing.id, existing.state.value)
                 continue
-            request = _job_request({"revision": str(revision.id), "engine": ref, "mode": mode,
-                                    "optimization": optimization, "options": options})
-            request.scope["headers"].append((b"idempotency-key", key.encode()))
-            response = _response_payload(await routes_v1.create_job(request, caller=user, session=session))
-            job = await session.get(Job, uuid.UUID(str(response["id"])))
-            job.project_id = project.id
+            request = RunRequest(organization_id=org.id, revision_id=str(revision.id), engine=ref, mode=mode,
+                                 optimization=optimization, options=options, idempotency_key=key)
+            result = await JobSubmission(session, user).submit(request)
+            if result.kind == "problem":
+                raise RuntimeError(f"{result.body.get('code')}: {result.body.get('detail')}")
+            job = await session.get(Job, uuid.UUID(str(result.body["id"])))
             await session.commit()
             await _execute(str(job.id))
             await session.refresh(job)
@@ -937,7 +936,7 @@ async def main() -> int:
             case_map = await ensure_cases(session, org_map["score-ai"], user_map["alice"], examples_dir)
 
             # 5. Standalone solve jobs
-            await ensure_standalone_jobs(session, org_map["score-ai"], qos_project, user_map["alice"], problems=case_map, all_states=True)
+            await ensure_standalone_jobs(session, org_map["score-ai"], user_map["alice"], problems=case_map, all_states=True)
 
             # 6. Studies & Real Job Executions
             await execute_real_studies(session, org_map["score-ai"], qos_project, user_map["alice"], case_map)

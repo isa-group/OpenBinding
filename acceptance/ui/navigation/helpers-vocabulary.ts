@@ -5,15 +5,14 @@ import { PROBLEM_SLUG } from './helpers-problems';
 // Mocks and locators of the vocabulary acceptance specs. There is no backend: the API origin is answered by page.route();
 // routes added here win over the catch-all of mockApi() because they are registered later.
 //
-// The addresses of these specs are the LITERAL final ones, which match the constants of helpers.ts: the problems of the
-// organization (`/app/acme/problems`) and the runs of a project (`/app/acme/demo/runs`). The HTTP API reads the problems
-// from the organization and still keeps `jobs` for the runs of a project.
+// The addresses of these specs are the LITERAL final ones, which match the constants of helpers.ts: the problems and the
+// runs of the organization (`/app/acme/problems`, `/app/acme/runs`). The HTTP API reads both from the organization.
 
 export const PROBLEMS_FINAL = '/app/acme/problems';
-export const RUNS_FINAL = '/app/acme/demo/runs';
+export const RUNS_FINAL = '/app/acme/runs';
 
 export const API_PROBLEMS = '/v1/organizations/acme/problems';
-export const API_JOBS = '/v1/organizations/acme/projects/demo/jobs';
+export const API_RUNS = '/v1/organizations/acme/runs';
 
 const NOW = '2026-09-01T00:00:00Z';
 
@@ -50,7 +49,7 @@ export async function mockGateway(page: Page, options: MockOptions = {}): Promis
   };
   await answer(page, API_PROBLEMS, { problems: [problem], total: 1, limit: 200, offset: 0 });
   await answer(page, `${API_PROBLEMS}/${PROBLEM_SLUG}`, problem);
-  await answer(page, API_JOBS, []);
+  await answer(page, API_RUNS, { runs: [], total: 0 });
   await answer(page, '/v1/organizations/acme/projects/demo/studies', []);
   return { writes, gets };
 }

@@ -3,12 +3,12 @@ import uuid
 
 import jsonschema
 
-from _problem_helpers import make_org, upload_problem
+from _problem_helpers import make_org, runs_url_for, upload_problem
 from _repo import REPO_ROOT
 
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.main import app
-from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.modules.execution.adapters import routes as runs_routes
 from openbinding_gateway.services import execution
 from bim_core.canonical import digest_bytes
 from bim_core.package import InstancePackage, load_package, strict_json_loads
@@ -80,14 +80,14 @@ async def test_v1_revision_and_job_are_persisted(
     assert all(item["apiVersion"] and item["kind"] for item in compilation.json()["resources"].values())
 
     unknown_field = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers=headers,
         json={"revision": revision_id, "unexpected": True},
     )
     assert unknown_field.status_code == 422
     assert unknown_field.json()["title"] == "invalid_request_fields"
     oversized_key = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers={**headers, "Idempotency-Key": "x" * 256},
         json={"revision": revision_id},
     )
@@ -95,21 +95,21 @@ async def test_v1_revision_and_job_are_persisted(
     assert oversized_key.json()["title"] == "invalid_idempotency_key"
 
     job = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers={**headers, "Idempotency-Key": "persisted-v1-job"},
         json={"revision": revision_id, "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION},
     )
     assert job.status_code == 202, job.text
     _assert_component("JobAccepted", job.json())
     job_id = job.json()["id"]
-    result = await api_client.get(f"/v1/jobs/{job_id}", headers=headers)
+    result = await api_client.get(f"{runs_url_for(revision_id)}/{job_id}", headers=headers)
     assert result.status_code == 200
-    _assert_component("JobView", result.json())
+    _assert_component("RunView", result.json())
     assert result.json()["status"] == "completed"
     assert result.json()["result"]["termination"] in {"FEASIBLE", "INFEASIBLE", "UNKNOWN"}
 
     replay = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers={**headers, "Idempotency-Key": "persisted-v1-job"},
         json={"revision": revision_id, "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION},
     )
@@ -180,9 +180,9 @@ async def test_persisted_job_is_committed_before_the_background_session(
                 await dispatch_persisted_job(job_id, request_session)
 
             monkeypatch.setattr(db_base, "get_session", observed_get_session)
-            monkeypatch.setattr(routes, "dispatch_persisted_job", observed_dispatch)
+            monkeypatch.setattr(runs_routes, "dispatch_persisted_job", observed_dispatch)
             response = await client.post(
-                "/v1/jobs",
+                runs_url_for(revision_id),
                 headers=headers,
                 json={
                     "revision": revision_id,
@@ -234,7 +234,7 @@ async def test_v1_plan_limits_are_persisted_in_options_and_provenance(
     revision_id = (await upload_problem(api_client, headers))["revision_id"]
 
     response = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers=headers,
         json={
             "revision": revision_id,
@@ -246,7 +246,7 @@ async def test_v1_plan_limits_are_persisted_in_options_and_provenance(
     )
     assert response.status_code == 202, response.text
 
-    job =await api_client.get(f"/v1/jobs/{response.json()['id']}", headers=headers)
+    job = await api_client.get(f"{runs_url_for(revision_id)}/{response.json()['id']}", headers=headers)
     assert job.status_code == 200, job.text
     provenance = job.json()["provenance"]
     assert provenance["options"]["max_evaluations"] == 10_000

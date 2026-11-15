@@ -55,12 +55,12 @@ from .models.problem import (
     summarize,
     validation_diagnostics,
 )
+from .modules.execution.adapters.routes import router as runs_router
 from .modules.problems.adapters.bim_routes import router as bim_router
 from .modules.problems.adapters.routes import router as problems_router
 from .routes.admin import router as admin_router
 from .routes.auth import router as auth_router
 from .routes.cas import identity_router, router as cas_router
-from .routes.jobs import router as jobs_router
 from .routes.library import router as library_router
 from .routes.notifications import router as notifications_router
 from .routes.organizations import invitation_router, router as organizations_router
@@ -227,7 +227,7 @@ TAGS_METADATA = [
     {"name": "Projects", "description": "Collaborative projects."},
     {"name": "Problems", "description": "BIM problems of an organization, their revisions and compilations."},
     {"name": "Studies", "description": "Reproducible comparative studies."},
-    {"name": "Jobs", "description": "Durable job lifecycle, retries and events."},
+    {"name": "Runs", "description": "Runs of an organization's problem revisions: launch, follow, cancel, retry and re-evaluate."},
     {"name": "Notifications", "description": "Account inbox and preferences."},
     {
         "name": "Pricing",
@@ -242,7 +242,6 @@ _BIM_PATH_PREFIXES = (
     "/v1/bim/",
     "/v1/engines",
     "/v1/engine-registrations",
-    "/v1/jobs",
 )
 
 
@@ -427,21 +426,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(library_router)
     app.include_router(problems_router)
     app.include_router(bim_router)
-    app.include_router(jobs_router)
+    app.include_router(runs_router)
     app.include_router(notifications_router)
 
     generated_openapi = app.openapi
     app.openapi = lambda: openapi_with_security_contract(app, settings, generated_openapi)
     return app
-
-
-_UUID = {"type": "string", "format": "uuid"}
-_STRING = {"type": "string"}
-
-
-def _job_ref(properties: dict) -> dict:
-    """One reference of a run (``refs_for``): every field present, nothing else."""
-    return {"type": "object", "required": list(properties), "properties": properties, "additionalProperties": False}
 
 
 def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_openapi) -> dict:
@@ -879,53 +869,6 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
         },
         "additionalProperties": False,
     }
-    schemas["JobView"] = {
-        "type": "object",
-        "required": ["id", "status", "provenance"],
-        "properties": {
-            "id": {"type": "string", "format": "uuid"},
-            "status": {
-                "type": "string",
-                "enum": ["queued", "running", "completed", "failed"],
-            },
-            "provenance": {"type": "object"},
-            "result": {"$ref": "#/components/schemas/GatewayBindingResult"},
-            # What the run is of: the organization, problem, revision and compilation it names.
-            "organization": _job_ref({"id": _UUID, "slug": _STRING}),
-            "problem": _job_ref({"id": _UUID, "slug": _STRING, "name": _STRING}),
-            "revision": _job_ref({"id": _UUID, "revision": {"type": "integer"}}),
-            "compilation": _job_ref({"id": _UUID, "compilation_digest": _STRING, "ir_digest": _STRING}),
-        },
-        "additionalProperties": False,
-    }
-    schemas["JobReport"] = {
-        "type": "object",
-        "required": ["id", "gatewayEvaluation", "remote", "provenance"],
-        "properties": {
-            "id": {"type": "string", "format": "uuid"},
-            "gatewayEvaluation": {
-                "type": "object",
-                "required": ["termination", "solutions"],
-                "properties": {
-                    "termination": {
-                        "oneOf": [
-                            {
-                                "type": "string",
-                                "enum": ["OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"],
-                            },
-                            {"type": "null"},
-                        ]
-                    },
-                    "solutions": {"type": "array", "items": {"type": "object"}},
-                },
-                "additionalProperties": False,
-            },
-            "remote": {"type": "object"},
-            "provenance": {"type": "object"},
-        },
-        "additionalProperties": False,
-    }
-
     def refusal(description: str) -> dict:
         return {
             "description": description,
@@ -1155,11 +1098,11 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
         "AnalysisResult", "Compiled identities, analysis and the engine modes visible to the caller."
     )
 
-    jobs = paths["/v1/jobs"]
-    jobs["post"]["requestBody"] = json_body(
+    runs = paths["/v1/organizations/{org}/runs"]
+    runs["post"]["requestBody"] = json_body(
         "JobRequest", "The problem revision to run, and the exact Engine, deployment and settings."
     )
-    jobs["post"].setdefault("parameters", []).append(
+    runs["post"].setdefault("parameters", []).append(
         {
             "name": "Idempotency-Key",
             "in": "header",
@@ -1168,16 +1111,8 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             "schema": {"type": "string", "minLength": 1, "maxLength": 255},
         }
     )
-    jobs["post"]["responses"]["202"] = json_response(
-        "JobAccepted", "Private asynchronous solve accepted."
-    )
-    job = paths["/v1/jobs/{job_id}"]["get"]
-    job["responses"]["200"] = json_response(
-        "JobView", "Owned job status, provenance and optional result."
-    )
-    job_report = paths["/v1/jobs/{job_id}/report"]["get"]
-    job_report["responses"]["200"] = json_response(
-        "JobReport", "Gateway reevaluation, remote provenance and immutable execution pins."
+    runs["post"]["responses"]["202"] = json_response(
+        "JobAccepted", "The run is queued (or, with a replayed Idempotency-Key, the first run of that key)."
     )
 
     def add_problem(operation: dict, status_code: int, description: str) -> None:
@@ -1215,15 +1150,6 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     add_problem(analysis, 413, "The BIM source package exceeds the request size limit.")
     add_problem(analysis, 415, "The request media type is not a supported BIM package type.")
     add_problem(analysis, 422, "The BIM source package is invalid, or its binding space exceeds the limit.")
-    for operation in (job, job_report):
-        add_problem(operation, 404, "The exact owned job or related artifact does not exist.")
-    add_problem(jobs["post"], 404, "The problem revision, Engine or deployment is not visible.")
-    add_problem(jobs["post"], 409, "An immutable selection or idempotency key conflicts.")
-    add_problem(jobs["post"], 413, "The request exceeds the transport size limit.")
-    add_problem(jobs["post"], 415, "The request is not JSON.")
-    add_problem(jobs["post"], 422, "The revision, selection, mode or options are invalid, or the binding space exceeds the limit.")
-    add_problem(jobs["post"], 429, "The caller already has the maximum number of queued and running jobs.")
-    add_problem(jobs["post"], 403, "The requested feature or engine is not entitled in the caller's plan.")
 
     # The per-client budgets of the routes open to anybody (docs/ACCESS_POLICY.md). The table
     # that decides which routes are counted is the one that declares them.

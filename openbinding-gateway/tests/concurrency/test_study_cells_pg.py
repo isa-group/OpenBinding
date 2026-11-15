@@ -32,6 +32,7 @@ from openbinding_gateway.db.models import (
 )
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services.engines import engine_ref
+from openbinding_gateway.services.job_submission import JobSubmission
 from _problem_helpers import problem_for, run_refs, seed_problem_run
 
 
@@ -113,7 +114,7 @@ async def _seed(session, prepare=None, owner_role=OrganizationRole.OWNER):
     await session.flush()
     finished = Job(
         owner_id=user.id, engine_id="random-search", engine_job_id="engine-1", service_url="http://engine",
-        state=JobState.COMPLETED, organization_id=organization.id, project_id=project.id,
+        state=JobState.COMPLETED, organization_id=organization.id,
         study_cell_id=cells[0].id, revision_id=refs["revision_id"], compilation_id=refs["compilation_id"],
     )
     session.add(finished)
@@ -130,13 +131,13 @@ async def test_two_concurrent_syncs_launch_the_next_cell_once(two_sessions, monk
     finished_id, waiting_id = await _seed(first)
     launched: list[uuid.UUID] = []
 
-    async def launch(session, cell, user, organization, project_id):
+    async def launch(session, cell, user, organization):
         launched.append(cell.id)
         await asyncio.sleep(0.2)  # long enough for the other worker to arrive
         job = Job(
             owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
             service_url="http://engine", state=JobState.QUEUED, study_cell_id=cell.id,
-            organization_id=organization.id, project_id=project_id, **await cell_refs(session, cell),
+            organization_id=organization.id, **await cell_refs(session, cell),
         )
         session.add(job)
         await session.flush()
@@ -172,7 +173,7 @@ async def test_two_concurrent_syncs_of_a_demoted_owner_launch_nothing_and_fail_t
     await first.commit()
     launched: list[uuid.UUID] = []
 
-    async def launch(session, cell, user, organization, project_id):
+    async def launch(session, cell, user, organization):
         launched.append(cell.id)
         raise AssertionError("a VIEWER's run must not launch a cell")
 
@@ -220,22 +221,21 @@ async def test_two_sessions_launching_one_cell_create_one_job_and_one_reservatio
     user_id = user.id
     organization = (await first.execute(select(Organization))).scalars().one()
     organization_id = organization.id
-    project_id = (await first.execute(select(Project.id))).scalar_one()
 
     dispatched: list[str] = []
 
     async def dispatch(job_id, request_session=None):
         dispatched.append(job_id)
 
-    monkeypatch.setattr(routes, "dispatch_persisted_job", dispatch)
-    real_core = routes._create_job_core
+    monkeypatch.setattr(study_jobs, "dispatch_persisted_job", dispatch)
 
-    async def paused_core(*args, **kwargs):
-        outcome = await real_core(*args, **kwargs)
-        await asyncio.sleep(0.5)  # long enough for the other session to arrive
-        return outcome
+    class PausedSubmission(JobSubmission):
+        async def submit(self, request):
+            outcome = await super().submit(request)
+            await asyncio.sleep(0.5)  # long enough for the other session to arrive
+            return outcome
 
-    monkeypatch.setattr(routes, "_create_job_core", paused_core)
+    monkeypatch.setattr(study_jobs, "JobSubmission", PausedSubmission)
 
     async def launch(session):
         mine = await session.get(StudyCell, waiting_id)
@@ -244,7 +244,6 @@ async def test_two_sessions_launching_one_cell_create_one_job_and_one_reservatio
             mine,
             await session.get(User, user_id),
             await session.get(Organization, organization_id),
-            project_id,
         )
         await study_jobs.commit_launched(session)
         return job.id

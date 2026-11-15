@@ -129,11 +129,15 @@ Routes keep raising `api_error(422, code, message)`; they need not know the shap
 
 ### Media type
 
-BIM routes (`/v1/bim/…`, `/v1/jobs`, `/v1/engines`,
+BIM routes (`/v1/bim/…`, `/v1/engines`,
 `/v1/engine-registrations` — the prefixes in `_BIM_PATH_PREFIXES`) answer
 `application/problem+json`, as they always did. The platform routes
-(accounts, organizations and their problems, projects, studies, artifacts, pricing, …)
-keep `application/json`. The body is identical; only the media type differs, and
+(accounts, organizations and their problems and runs, projects, studies, artifacts, pricing, …)
+keep `application/json`. The runs moved to `/v1/organizations/{org}/runs` in F0b and
+answer the platform envelope since: a refusal other than a 422 carries `code` beside
+`detail: {code, error, …}`, with the extras of a limit (`quota`, `concurrency`,
+`binding_space`) inside `detail`; a 422 keeps the problem document (`diagnostics`, extras
+at the top level) as `application/json`. The body is identical; only the media type differs, and
 the OpenAPI document declares the right one per path. Nothing was changed here
 on purpose: switching the platform routes would be harmless to a JSON client but
 is not needed.
@@ -150,7 +154,8 @@ is not needed.
 | `problem_has_runs` | 409 | `DELETE …/problems/{problem}`: a run, a study cell or a sealed study names one of its revisions, which are kept as their evidence |
 | `revision_not_recompilable` | 422 | the installed toolchain refuses a stored revision (or reads it as another package); `reason` carries the refusal |
 | `content_unavailable` | 409 | the stored package of a revision cannot be read |
-| `revision_required` | 422 | `POST /v1/jobs` without `revision` |
+| `revision_required` | 422 | `createRun` (`POST /v1/organizations/{org}/runs`) without `revision` |
+| `revision_not_in_organization` | 409 | `createRun` names a revision of another organization the caller can see: launch it from that organization |
 | `contract_not_installed` | 422 | a retry of a run whose compilation needs a contract the installed toolchain does not have |
 
 ## Accounts and plans

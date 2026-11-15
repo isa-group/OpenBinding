@@ -3,7 +3,7 @@
 The answer is written and committed before BIM is called; a BIM failure leaves
 the job FAILED with the stable code ``bim_evaluation_failed`` and a reference to
 the kept answer (never its body); any success deletes every row of the job; and
-``POST /v1/jobs/{id}/reevaluate`` evaluates the kept answer without running the
+``POST /v1/organizations/{org}/runs/{run}/reevaluate`` evaluates the kept answer without running the
 engine again. Everything here is SQLite with a stubbed engine transport; the
 row locks are exercised in ``tests/concurrency/test_job_evidence_pg.py``.
 """
@@ -24,6 +24,7 @@ from sqlalchemy import func, select, update
 from _b1_helpers import gate, make_key  # noqa: F401
 from _paths import GATEWAY_ROOT
 from _pricing import pricing_catalog
+from _problem_helpers import run_url, runs_url
 from analysis_b3_b4_b6._helpers import account_with_revision, answer, only_job, precondition, submit
 from openbinding_gateway.core.public_errors import JOB_FAILURES
 from openbinding_gateway.core.settings import Settings, get_settings
@@ -32,7 +33,7 @@ from openbinding_gateway.integrations import bim
 from openbinding_gateway.jobs import evidence as job_evidence
 from openbinding_gateway.jobs import reconciler
 from openbinding_gateway.jobs.leases import aware
-from openbinding_gateway.routes import jobs as jobs_routes
+from openbinding_gateway.modules.execution.adapters import routes as jobs_routes
 from openbinding_gateway.services import execution
 from test_viewer_read_only import (  # noqa: F401
     EXECUTE_SCOPES,
@@ -97,12 +98,12 @@ def bim_back(monkeypatch) -> list[int]:
 
 @pytest.fixture
 async def failed(api_client, db_session, registration, engine, bim_down):
-    """A personal job whose solve worked and whose evaluation failed because BIM was down."""
+    """A run of the caller's own organization whose solve worked and whose evaluation failed because BIM was down."""
     headers, revision_id = await account_with_revision(api_client, registration)
     await submit(api_client, headers, revision_id)
     job = await only_job(db_session)
     precondition(job.state is JobState.FAILED, f"the job ended {job.state.value}, not failed")
-    return SimpleNamespace(headers=headers, job=job, url=f"/v1/jobs/{job.id}/reevaluate")
+    return SimpleNamespace(headers=headers, job=job, url=run_url(job, "/reevaluate"))
 
 
 @pytest.fixture
@@ -183,8 +184,8 @@ async def test_a_bim_failure_keeps_the_answer_and_fails_the_job_with_a_stable_co
 
 
 async def test_the_kept_answer_is_in_no_view_of_the_job(api_client, failed):
-    one = await api_client.get(f"/v1/jobs/{failed.job.id}", headers=failed.headers)
-    listed = await api_client.get("/v1/jobs", headers=failed.headers)
+    one = await api_client.get(run_url(failed.job), headers=failed.headers)
+    listed = await api_client.get(runs_url(failed.job), headers=failed.headers)
 
     assert one.status_code == listed.status_code == 200
     assert MARKER not in one.text and MARKER not in listed.text
@@ -193,7 +194,7 @@ async def test_the_kept_answer_is_in_no_view_of_the_job(api_client, failed):
 async def test_the_evidence_is_not_exposed_by_a_route(api_client, failed):
     from openbinding_gateway.main import app
 
-    response = await api_client.get(f"/v1/jobs/{failed.job.id}/evidence", headers=failed.headers)
+    response = await api_client.get(run_url(failed.job, "/evidence"), headers=failed.headers)
 
     assert response.status_code in (404, 405)
     assert not [path for path in app.openapi()["paths"] if path.endswith("/evidence")]
@@ -444,7 +445,7 @@ async def test_another_user_gets_the_404_of_a_job_that_does_not_exist(api_client
     stranger = await account_headers(api_client, registration)
 
     foreign = await api_client.post(failed.url, headers=stranger)
-    missing = await api_client.post(f"/v1/jobs/{uuid.uuid4()}/reevaluate", headers=stranger)
+    missing = await api_client.post(run_url(uuid.uuid4(), "/reevaluate", org=failed.job.organization_id), headers=stranger)
     anonymous = await api_client.post(failed.url)
 
     assert foreign.status_code == missing.status_code == 404
@@ -491,7 +492,7 @@ async def test_a_member_or_above_retries_the_evaluation_of_their_job(
 ):
     job = await failed_org_job(db_session, lab, lab.people[role])
 
-    response = await api_client.post(f"/v1/jobs/{job.id}/reevaluate", headers=lab.people[role].headers)
+    response = await api_client.post(run_url(job, "/reevaluate"), headers=lab.people[role].headers)
 
     assert response.status_code == 200, response.text
     await db_session.refresh(job)
@@ -501,7 +502,7 @@ async def test_a_member_or_above_retries_the_evaluation_of_their_job(
 async def test_a_viewer_cannot_retry_the_evaluation(api_client, db_session, lab, evaluation):  # noqa: F811
     job = await failed_org_job(db_session, lab, lab.people["VIEWER"])
 
-    response = await api_client.post(f"/v1/jobs/{job.id}/reevaluate", headers=lab.people["VIEWER"].headers)
+    response = await api_client.post(run_url(job, "/reevaluate"), headers=lab.people["VIEWER"].headers)
 
     assert response.status_code == 403 and code_of(response) == "insufficient_role"
     await db_session.refresh(job)
@@ -509,21 +510,28 @@ async def test_a_viewer_cannot_retry_the_evaluation(api_client, db_session, lab,
     assert await count_evidence(db_session, job.id) == 1
 
 
-async def test_a_member_who_does_not_own_the_job_gets_a_404(api_client, db_session, lab, evaluation):  # noqa: F811
+async def test_another_member_reevaluates_a_teammates_run_and_an_outsider_gets_a_404(
+    api_client, db_session, lab, evaluation  # noqa: F811
+):
     job = await failed_org_job(db_session, lab, lab.people["MEMBER"])
 
-    response = await api_client.post(f"/v1/jobs/{job.id}/reevaluate", headers=lab.people["ADMIN"].headers)
-    outsider = await api_client.post(f"/v1/jobs/{job.id}/reevaluate", headers=lab.outsider.headers)
+    outsider = await api_client.post(run_url(job, "/reevaluate"), headers=lab.outsider.headers)
+    missing = await api_client.post(run_url(uuid.uuid4(), "/reevaluate", org=lab.slug), headers=lab.outsider.headers)
+    response = await api_client.post(run_url(job, "/reevaluate"), headers=lab.people["ADMIN"].headers)
 
-    assert response.status_code == outsider.status_code == 404
-    assert response.json() == outsider.json()
+    assert outsider.status_code == missing.status_code == 404
+    assert outsider.json() == missing.json()
+    # A run is the organization's: any member may re-evaluate it, not only who launched it.
+    assert response.status_code == 200, response.text
+    await db_session.refresh(job)
+    assert job.state is JobState.COMPLETED
 
 
 async def test_a_read_only_key_cannot_retry_the_evaluation(api_client, db_session, lab, evaluation):  # noqa: F811
     job = await failed_org_job(db_session, lab, lab.people["MEMBER"])
     key = await make_key(api_client, lab.people["MEMBER"].headers, READ_SCOPES)
 
-    response = await api_client.post(f"/v1/jobs/{job.id}/reevaluate", headers=key)
+    response = await api_client.post(run_url(job, "/reevaluate"), headers=key)
 
     assert response.status_code == 403 and code_of(response) == "insufficient_api_key_permission"
     await db_session.refresh(job)
@@ -538,8 +546,8 @@ async def test_a_key_that_may_execute_retries_the_evaluation_with_the_role_of_it
     member_key = await make_key(api_client, lab.people["MEMBER"].headers, EXECUTE_SCOPES)
     viewer_key = await make_key(api_client, lab.people["VIEWER"].headers, EXECUTE_SCOPES)
 
-    allowed = await api_client.post(f"/v1/jobs/{member_job.id}/reevaluate", headers=member_key)
-    denied = await api_client.post(f"/v1/jobs/{viewer_job.id}/reevaluate", headers=viewer_key)
+    allowed = await api_client.post(run_url(member_job, "/reevaluate"), headers=member_key)
+    denied = await api_client.post(run_url(viewer_job, "/reevaluate"), headers=viewer_key)
 
     assert allowed.status_code == 200, allowed.text
     assert denied.status_code == 403 and code_of(denied) == "insufficient_role"

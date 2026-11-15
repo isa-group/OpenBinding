@@ -1,20 +1,22 @@
-"""POST /v1/jobs is idempotent per account and per canonical request."""
+"""createRun (``POST /v1/organizations/{org}/runs``) is idempotent per account and per canonical request."""
 
 from __future__ import annotations
 
 import json
+import uuid
 
 import pytest
 from sqlalchemy import func, select
 
 from _pricing import roomy_plan
-from _problem_helpers import revision_of
+from _problem_helpers import revision_of, runs_url_for
 
-from openbinding_gateway import space_client, study_jobs
+from openbinding_gateway import space_client
 from openbinding_gateway.core.settings import get_settings
-from openbinding_gateway.db.models import Job, User
+from openbinding_gateway.db.models import BindingCase, BindingCaseRevision, Job, User
 from openbinding_gateway.domain import idempotency
-from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.modules.execution.adapters import routes as runs_routes
+from openbinding_gateway.modules.execution.application import RunRequest
 from openbinding_gateway.services import job_submission
 from openbinding_gateway.services.entitlements import entitlement_service
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
@@ -48,7 +50,7 @@ def _body(revision, **extra):
 
 
 async def _post(client, headers, body, key=KEY):
-    return await client.post("/v1/jobs", headers={**headers, "Idempotency-Key": key}, json=body)
+    return await client.post(runs_url_for(body["revision"]), headers={**headers, "Idempotency-Key": key}, json=body)
 
 
 async def _job_count(db_session):
@@ -60,7 +62,7 @@ def no_dispatch(monkeypatch):
     async def queued(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(routes, "dispatch_persisted_job", queued)
+    monkeypatch.setattr(runs_routes, "dispatch_persisted_job", queued)
 
 
 @pytest.fixture
@@ -134,8 +136,8 @@ async def test_a_key_shared_by_two_accounts_is_independent(api_client, db_sessio
     assert second.json()["id"] != first.json()["id"]
     assert "idempotent" not in second.json()
     assert await _job_count(db_session) == 2
-    assert (await api_client.get(f"/v1/jobs/{first.json()['id']}", headers=bob)).status_code == 404
-    assert (await api_client.get(f"/v1/jobs/{second.json()['id']}", headers=alice)).status_code == 404
+    assert (await api_client.get(f"{runs_url_for(alice_revision)}/{first.json()['id']}", headers=bob)).status_code == 404
+    assert (await api_client.get(f"{runs_url_for(bob_revision)}/{second.json()['id']}", headers=alice)).status_code == 404
 
 
 @pytest.mark.parametrize("engine", ["auto", "no-such-engine"])
@@ -224,19 +226,21 @@ async def test_clients_cannot_claim_the_study_cell_key_prefix(api_client, db_ses
 
 
 async def test_study_launches_replay_with_an_idempotency_key(api_client, db_session, account):
+    # A study cell launch hands the submission a typed RunRequest (no HTTP request); its key replays too.
     headers, revision = account
     user = (await db_session.execute(select(User))).scalars().one()
-    payload = _body(revision)
+    organization_id = await db_session.scalar(
+        select(BindingCase.organization_id)
+        .join(BindingCaseRevision, BindingCaseRevision.binding_case_id == BindingCase.id)
+        .where(BindingCaseRevision.id == uuid.UUID(revision))
+    )
+    request = RunRequest.from_document(organization_id, _body(revision), idempotency_key="study-launch-1")
 
-    def request():
-        built = study_jobs._job_request(payload)
-        built.scope["headers"].append((b"idempotency-key", b"study-launch-1"))
-        return built
+    first = await job_submission.JobSubmission(db_session, user).submit(request)
+    second = await job_submission.JobSubmission(db_session, user).submit(request)
 
-    first = study_jobs._response_payload(await routes.create_job(request(), caller=user, session=db_session))
-    second = study_jobs._response_payload(await routes.create_job(request(), caller=user, session=db_session))
-
-    assert second["id"] == first["id"]
-    assert second["idempotent"] is True
+    assert (first.kind, second.kind) == ("created", "replay")
+    assert second.body["id"] == first.body["id"]
+    assert second.body["idempotent"] is True
     assert await _job_count(db_session) == 1
-    json.dumps(second)
+    json.dumps(second.body)

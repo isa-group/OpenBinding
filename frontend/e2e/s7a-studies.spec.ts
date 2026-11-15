@@ -79,10 +79,10 @@ const liveRun = (done: boolean): StudyRun => runFixture({
 // --- the jobs an account could attach to a cell
 
 const mineJobs: Job[] = [
-  jobOf('job-mine-a', 'random-search', 'completed', 'FEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:01:05Z', { project_id: 'project-1' }),
-  jobOf('job-mine-b', 'evolutionary', 'failed', 'UNKNOWN', '2026-10-02T09:00:00Z', '2026-10-02T09:00:20Z', { project_id: 'project-1' }),
+  jobOf('job-mine-a', 'random-search', 'completed', 'FEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:01:05Z', { created_by: { id: 'user-1', username: 'lucia' } }),
+  jobOf('job-mine-b', 'evolutionary', 'failed', 'UNKNOWN', '2026-10-02T09:00:00Z', '2026-10-02T09:00:20Z', { created_by: { id: 'user-1', username: 'lucia' } }),
 ];
-const otherJobs: Job[] = [jobOf('job-theirs', 'minizinc', 'completed', 'OPTIMAL', '2026-10-03T09:00:00Z', '2026-10-03T09:02:00Z', { project_id: 'project-1' })];
+const otherJobs: Job[] = [jobOf('job-theirs', 'minizinc', 'completed', 'OPTIMAL', '2026-10-03T09:00:00Z', '2026-10-03T09:02:00Z', { created_by: { id: 'user-2', username: 'ana' } })];
 
 // --- what the gateway answers
 
@@ -173,10 +173,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     return json([version(artifactId === 'artifact-engines-vs-seeds' ? VERSION_ID : `${artifactId}-v1`, artifactId, 1), version(`${artifactId}-v2`, artifactId, 2)])(route);
   });
 
-  // The jobs of this account, to attach one to a cell.
-  await page.route(new RegExp(`^${API}/v1/jobs(\\?.*)?$`), json(mineJobs));
-  await page.route(new RegExp(`^${API}/v1/jobs/[^/]+$`), json({ id: 'job-mine-a', status: 'completed', result: { termination: 'FEASIBLE', solutions: [] } }));
-
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
     const url = new URL(route.request().url());
     const parts = url.pathname.split('/').filter(Boolean);
@@ -192,6 +188,11 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       ])(route);
     }
     if (section === 'members') return json([])(route);
+    if (section === 'runs') {
+      // The runs of the organization: the attach dialog keeps the account's finished ones; a cell's run opens here.
+      if (!projectSlug) return json({ runs: [...mineJobs, ...otherJobs], total: mineJobs.length + otherJobs.length })(route);
+      return json({ ...mineJobs[0], id: projectSlug, status: 'completed', provenance: {}, result: { termination: 'FEASIBLE', solutions: [] } })(route);
+    }
     if (section === 'problems') {
       // The study builder and the matrices name the problem versions of the organization.
       const [, , , , problemSlug, problemSub] = parts;
@@ -207,7 +208,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     if (!current) return detail(404, 'not_found', 'Project not found.')(route);
     if (!sub) return json(current)(route);
 
-    if (sub === 'jobs') return json([...mineJobs, ...otherJobs])(route);
     if (sub === 'reports') {
       if (method === 'POST') {
         state.sent.report = bodyOf(route);
@@ -821,7 +821,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const result = main.getByRole('region', { name: 'Result' });
       await expect(result.getByText('0.121')).toBeVisible();
       await expect(result.getByText('430')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open run' })).toHaveAttribute('href', `${ROOT}/runs/00000000-0000-4000-8000-000000000302`);
+      await expect(main.getByRole('link', { name: 'Open run' })).toHaveAttribute('href', '/app/isa-demo/runs/00000000-0000-4000-8000-000000000302');
       const rivals = main.getByRole('list', { name: 'Cost of each engine on this input' });
       await expect(rivals.getByRole('listitem')).toHaveCount(2);
       await expect(rivals.getByRole('link', { name: 'evolutionary' })).toHaveAttribute('href', cellPath(0));

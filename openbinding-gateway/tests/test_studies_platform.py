@@ -381,7 +381,7 @@ async def test_study_run_persists_the_exact_cartesian_matrix(
 async def test_study_cancel_and_cell_retry_are_http_idempotent(
     api_client, db_session, registration, study_gate, monkeypatch
 ) -> None:
-    async def leave_queued(session, cell, user, organization, project_id):
+    async def leave_queued(session, cell, user, organization):
         job = Job(
             owner_id=user.id,
             engine_id=cell.engine_ref["name"],
@@ -392,7 +392,7 @@ async def test_study_cancel_and_cell_retry_are_http_idempotent(
             options={},
             provenance={},
             organization_id=organization.id,
-            project_id=project_id, **placeholder_refs('organization_id'),
+            **placeholder_refs('organization_id'),
         )
         session.add(job)
         await session.flush()

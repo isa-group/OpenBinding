@@ -24,11 +24,11 @@ describe('OrgFrame', () => {
   });
 
   it('frames a screen inside a project with the project crumb and tabs, the current one marked', () => {
-    inRouter(<OrgFrame organization={isa} project={qos} section="jobs" trail={[{ label: 'New run' }]} width="lg" bodyClassName="x-body"><p>content</p></OrgFrame>);
+    inRouter(<OrgFrame organization={isa} project={qos} section="studies" trail={[{ label: 'New study' }]} width="lg" bodyClassName="x-body"><p>content</p></OrgFrame>);
 
-    expect(crumbs()).toEqual(['Home', 'ISA Demo Group', 'QoS Benchmarks', 'New run']);
+    expect(crumbs()).toEqual(['Home', 'ISA Demo Group', 'QoS Benchmarks', 'New study']);
     expect(screen.getByRole('link', { name: 'QoS Benchmarks' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks');
-    expect(screen.getByRole('link', { name: 'Runs' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Studies' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByText('content').parentElement).toHaveClass('proj-body', 'x-body', 'is-lg');
   });
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lab latency probe: p95 of the problem upload, ``POST /v1/jobs`` (accept) and ``POST /v1/bim/validate`` on corpus packages.
+"""Lab latency probe: p95 of the problem upload, ``createRun`` (accept) and ``POST /v1/bim/validate`` on corpus packages.
 
 It talks only HTTP (httpx) to the ``web`` service as a seeded synthetic user, one client, one request at a time. Only
 the request itself is timed (the Idempotency-Key is built before the clock starts); the answers that are not the
@@ -8,7 +8,7 @@ the ``--org`` organization (slug ``latency-<package>``; a problem left by an ear
 
 * the upload is timed as ``POST /v1/organizations/{org}/problems/{problem}/revisions`` of the same package, which
   compiles it and answers ``200`` (it already is that problem's revision, so nothing is stored);
-* ``POST /v1/jobs`` is timed as the accept of a run of that revision; every accepted job is cancelled and drained to a
+* ``POST /v1/organizations/{org}/runs`` is timed as the accept of a run of that revision; every accepted run is cancelled and drained to a
   terminal state before the next accept (the lab allows 3 concurrent jobs per account), which is not timed;
 * ``POST /v1/bim/validate`` is timed on the same package.
 
@@ -60,7 +60,9 @@ JOB_BODY = {
 }
 TOP = 3
 DRAIN_ATTEMPTS, DRAIN_POLL_S = 120, 0.5
-UPLOAD, JOBS, VALIDATE = "POST /v1/organizations/{org}/problems/{problem}/revisions", "POST /v1/jobs", "POST /v1/bim/validate"
+UPLOAD, JOBS, VALIDATE = (
+    "POST /v1/organizations/{org}/problems/{problem}/revisions", "POST /v1/organizations/{org}/runs", "POST /v1/bim/validate",
+)
 
 
 class Blocked(Exception):
@@ -181,9 +183,10 @@ class Probe:
 
     def drain(self, job_id: str) -> None:
         """Cancel a job and wait for a terminal state (not timed); bounded, so a stuck job cannot hang the run."""
-        self.call("POST", f"/v1/jobs/{job_id}/cancel")
+        runs = f"/v1/organizations/{self.config.org}/runs"
+        self.call("POST", f"{runs}/{job_id}/cancel")
         for _ in range(DRAIN_ATTEMPTS):
-            response = self.call("GET", f"/v1/jobs/{job_id}")
+            response = self.call("GET", f"{runs}/{job_id}")
             if response.status_code == 200 and response.json().get("status") in TERMINAL:
                 return
             self.sleep(DRAIN_POLL_S)
@@ -253,7 +256,7 @@ class Probe:
 
         def prepare() -> Callable[[], httpx.Response]:
             headers = {"Idempotency-Key": f"lat-{uuid.uuid4().hex}"}
-            return lambda: self.call("POST", "/v1/jobs", headers=headers, **request)
+            return lambda: self.call("POST", f"/v1/organizations/{self.config.org}/runs", headers=headers, **request)
 
         return prepare
 
@@ -348,7 +351,7 @@ def markdown(report: Mapping[str, Any]) -> str:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Lab latency probe of the problem upload, POST /v1/jobs and POST /v1/bim/validate.")
+    parser = argparse.ArgumentParser(description="Lab latency probe of the problem upload, createRun and POST /v1/bim/validate.")
     parser.add_argument("--base-url", default=None, help=f"proxy origin (default $SMOKE_BASE_URL or {DEFAULT_BASE_URL})")
     parser.add_argument("--user", default="lab-member", help="seeded user to sign in as")
     parser.add_argument("--org", default="lab-main", help="organization (the user a MEMBER of it) the packages are uploaded to")
@@ -356,7 +359,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--warmup", type=int, default=3, help="untimed requests before the samples")
     parser.add_argument("--examples", default="top3", help="top3 (the 3 largest packages), all, or comma-separated example paths")
     parser.add_argument("--upload-target-ms", type=float, default=2000.0, help="p95 target of the problem upload")
-    parser.add_argument("--jobs-target-ms", type=float, default=500.0, help="p95 target of POST /v1/jobs")
+    parser.add_argument("--jobs-target-ms", type=float, default=500.0, help="p95 target of createRun")
     parser.add_argument("--validate-target-ms", type=float, default=2000.0, help="p95 target of POST /v1/bim/validate")
     parser.add_argument("--markdown", action="store_true", help="print a Markdown report instead of JSON")
     return parser

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Organization, Project } from '../../api/platform';
+import type { Organization } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Gate, type Crumb } from '../Organization/parts';
@@ -13,23 +13,22 @@ import './Jobs.css';
 
 interface JobFrameProps {
   organization: Organization;
-  project: Project;
-  /** The crumbs below the project: `Jobs`, then the screen. The last one is where you are. */
+  /** The crumbs below the organization: `Runs`, then the screen. The last one is where you are. */
   trail: Crumb[];
   width?: 'md' | 'lg' | 'wide';
   children: ReactNode;
 }
 
-/** The frame of every project screen about runs: breadcrumb, the project tabs with Jobs current, and one live content column. */
-export function JobFrame({ organization, project, trail, width = 'wide', children }: JobFrameProps) {
+/** The frame of every screen about the runs of an organization: breadcrumb and one live content column. */
+export function JobFrame({ organization, trail, width = 'wide', children }: JobFrameProps) {
   return (
-    <OrgFrame organization={organization} project={project} section="jobs" trail={trail} width={width}>
+    <OrgFrame organization={organization} trail={trail} width={width}>
       {children}
     </OrgFrame>
   );
 }
 
-/** A run is not there, or is not the account's: one card with the way out. The words are the same for both. */
+/** A run is not there, or the account is not in its organization: one card with the way out. The words are the same for both. */
 export function JobMissing({ title, children, actions }: { title: string; children: ReactNode; actions: ReactNode }) {
   return <Gate title={title} action={actions}>{children}</Gate>;
 }

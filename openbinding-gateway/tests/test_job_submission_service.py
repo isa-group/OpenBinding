@@ -1,12 +1,13 @@
 """The job submission service, called directly: no HTTP, no router.
 
 ``tests/test_idempotency_jobs.py`` and ``tests/test_concurrency_limit.py`` cover
-the same rules through ``POST /v1/jobs``; these pin the service's own contract
+the same rules through ``createRun``; these pin the service's own contract
 (result kind, status, body, headers) and the one translation the route adds.
 """
 
 from __future__ import annotations
 
+import json
 import uuid
 
 import pytest
@@ -20,12 +21,11 @@ from _pricing import pricing_catalog, roomy_plan
 from openbinding_gateway import space_client, study_jobs
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import Job, User, UserRole
-from openbinding_gateway.models.problem import PROBLEM_MEDIA_TYPE
-from openbinding_gateway.routes import v1
+from openbinding_gateway.modules.execution.adapters import routes as runs_routes
+from openbinding_gateway.modules.execution.application import RunRequest
 from openbinding_gateway.services import job_submission
 from openbinding_gateway.services.job_submission import (
     JobSubmission,
-    JobSubmissionInput,
     JobSubmissionResult,
     discard_pending_launches,
     pending_launches,
@@ -33,6 +33,8 @@ from openbinding_gateway.services.job_submission import (
 from _problem_helpers import problem_for
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
 KEY = "service-key-1"
+#: The organization of each revision the fixtures upload, which a run request names.
+ORGANIZATIONS: dict[str, uuid.UUID] = {}
 
 
 @pytest_asyncio.fixture
@@ -53,6 +55,7 @@ async def user(db_session) -> User:
 async def revision_id(db_session, user) -> str:
     """A revision of a problem of the user's organization (the name is the fixture the tests ask for)."""
     upload = await problem_for(db_session, user)
+    ORGANIZATIONS[str(upload.revision.id)] = upload.problem.organization_id
     return str(upload.revision.id)
 
 
@@ -60,11 +63,12 @@ def payload_for(revision: str, **extra) -> dict:
     return {"revision": revision, "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION, **extra}
 
 
-def request_for(revision: str, payload: dict | None = None, key: str | None = KEY) -> JobSubmissionInput:
-    return JobSubmissionInput(
-        payload=payload if payload is not None else payload_for(revision),
+def request_for(revision: str, payload: dict | None = None, key: str | None = KEY) -> RunRequest:
+    """The run request of ``payload`` in the revision's organization (any organization for a missing revision)."""
+    return RunRequest.from_document(
+        ORGANIZATIONS.get(revision, uuid.uuid4()),
+        payload if payload is not None else payload_for(revision),
         idempotency_key=key,
-        revision_id=revision,
     )
 
 
@@ -129,7 +133,9 @@ async def test_a_key_is_scoped_to_the_account(db_session, user, revision_id):
     )
     db_session.add(other)
     await db_session.commit()
-    other_snapshot = str((await problem_for(db_session, other)).revision.id)
+    other_upload = await problem_for(db_session, other)
+    other_snapshot = str(other_upload.revision.id)
+    ORGANIZATIONS[other_snapshot] = other_upload.problem.organization_id
 
     first = await submit(db_session, user, request_for(revision_id))
     second = await submit(db_session, other, request_for(other_snapshot))
@@ -309,20 +315,34 @@ async def test_a_failing_compilation_leaves_no_job(db_session, user, revision_id
 # -- The route's translation --------------------------------------------------
 
 
-def test_the_route_answers_a_problem_result_as_problem_json_with_its_headers():
-    result = job_submission.problem(429, "concurrency_limit_exceeded", "busy", headers={"Retry-After": "15"})
+def test_the_route_answers_a_refused_submission_in_the_platform_envelope_with_its_headers():
+    result = job_submission.problem(
+        429, "concurrency_limit_exceeded", "busy", extra={"concurrency": {"limit": 1}}, headers={"Retry-After": "15"},
+    )
 
-    response = v1._job_response(result)
+    response = runs_routes._refusal(result)
+    body = json.loads(response.body)
 
-    assert response.status_code == 429
-    assert response.media_type == PROBLEM_MEDIA_TYPE
+    assert (response.status_code, response.media_type) == (429, "application/json")
     assert response.headers["Retry-After"] == "15"
+    assert body["code"] == body["title"] == body["detail"]["code"] == "concurrency_limit_exceeded"
+    assert body["detail"]["error"] == "busy"
+    assert body["detail"]["concurrency"] == {"limit": 1}
 
 
-def test_the_route_answers_a_replay_as_plain_json_and_a_new_job_as_its_document():
-    body = {"id": "j", "status": "queued", "profile": "p", "irDigest": "d", "idempotent": True}
-    replay = v1._job_response(JobSubmissionResult("replay", 202, body))
-    new = v1._job_response(job_submission.created({"id": "j"}))
+def test_a_refused_422_keeps_the_problem_document_and_its_diagnostics_as_json():
+    result = job_submission.problem(422, "engine_mode_incompatible", "cannot run it", [{"code": "x", "message": "m"}])
 
-    assert (replay.status_code, replay.media_type) == (202, "application/json")
-    assert new == {"id": "j"}
+    response = runs_routes._refusal(result)
+    body = json.loads(response.body)
+
+    assert (response.status_code, response.media_type) == (422, "application/json")
+    assert (body["code"], body["detail"]) == ("engine_mode_incompatible", "cannot run it")
+    assert body["diagnostics"]
+
+
+def test_the_cell_refusal_carries_the_code_a_launch_retries_on():
+    refused = job_submission.problem(429, "concurrency_limit_exceeded", "busy")
+
+    assert refused.body["code"] in study_jobs.RETRYABLE_LAUNCH_CODES
+    assert isinstance(JobSubmissionResult("replay", 202, {"id": "j"}).body, dict)

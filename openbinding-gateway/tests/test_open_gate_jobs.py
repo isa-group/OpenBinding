@@ -9,12 +9,12 @@ from __future__ import annotations
 
 import pytest
 
-from _problem_helpers import revision_of
+from _problem_helpers import revision_of, runs_url_for
 from _repo import REPO_ROOT
 
 from openbinding_gateway import space_client
 from openbinding_gateway.core.settings import get_settings
-from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.modules.execution.adapters import routes as runs_routes
 from openbinding_gateway.space_client import OpenCaps, OpenGate, PlanCaps
 from bim_core.package import load_package
 
@@ -36,7 +36,7 @@ def no_dispatch(monkeypatch):
     async def queued(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(routes, "dispatch_persisted_job", queued)
+    monkeypatch.setattr(runs_routes, "dispatch_persisted_job", queued)
 
 
 async def _account_and_revision(client, registration):
@@ -67,7 +67,7 @@ async def test_a_job_launches_through_the_open_gate(api_client, registration, no
     space_client.set_gate(OpenGate())
     headers, revision = await _account_and_revision(api_client, registration)
 
-    launched = await api_client.post("/v1/jobs", headers=headers, json=_job(revision))
+    launched = await api_client.post(runs_url_for(revision), headers=headers, json=_job(revision))
 
     assert launched.status_code == 202, launched.text
 
@@ -80,7 +80,7 @@ async def test_the_open_gate_still_clamps_a_time_budget_beyond_the_technical_tim
     beyond = int(get_settings().engine_solve_timeout_s * 1000) + 1
 
     launched = await api_client.post(
-        "/v1/jobs", headers=headers, json=_job(revision, options={"time_budget_ms": beyond})
+        runs_url_for(revision), headers=headers, json=_job(revision, options={"time_budget_ms": beyond})
     )
 
     assert launched.status_code == 202, launched.text
@@ -92,7 +92,7 @@ async def test_a_real_plan_without_run_minutes_fails_closed_with_a_controlled_pr
     space_client.set_gate(NoRunMinutesGate())
     headers, revision = await _account_and_revision(api_client, registration)
 
-    launched = await api_client.post("/v1/jobs", headers=headers, json=_job(revision))
+    launched = await api_client.post(runs_url_for(revision), headers=headers, json=_job(revision))
 
     assert launched.status_code == 503, launched.text
     assert "pricing_misconfigured" in launched.text

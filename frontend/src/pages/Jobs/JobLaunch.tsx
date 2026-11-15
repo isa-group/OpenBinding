@@ -3,8 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 import type { PricingCatalog, UsageView } from '../../api/auth';
 import { apiClient, type EngineCatalogEntry } from '../../api/client';
-import { jobsApi, type JobReceipt } from '../../api/jobs';
-import type { Organization, Project } from '../../api/platform';
+import { runsApi, type JobReceipt } from '../../api/runs';
+import type { Organization } from '../../api/platform';
 import { problemsApi } from '../../api/problems';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
@@ -16,10 +16,11 @@ import { classifyAuthError } from '../Account/accountErrors';
 import { irHasRanges } from '../Cases/bindingModel';
 import { loadProblems } from '../Cases/problemsData';
 import { problemsPath } from '../../routes/paths/problems';
-import { canOpenSection } from '../Project/accessLevel';
-import { MembersOnlyGate, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
+import { runPath, runsPath } from '../../routes/paths/runs';
+import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import type { CaseContent } from '../../features/workspace/model';
-import { useRouteProject } from '../Project/useRouteProject';
+import { problemAccess } from '../Cases/useRouteProblem';
+import { useRouteOrganization } from '../Organization/useRouteOrganization';
 import { refusalOf, type Refusal } from './jobErrors';
 import { EngineStep, ForecastBars, SettingsStep, SlotCountdown, SourceStep, type Prepared } from './LaunchSteps';
 import {
@@ -43,15 +44,13 @@ async function readCompiled(org: string, problem: string, revision: number, comp
   }
 }
 
-function LaunchBody({ organization, project, canLaunch, role }: { organization: Organization; project: Project; canLaunch: boolean; role: Organization['effective_role'] }) {
+function LaunchBody({ organization, canLaunch, role }: { organization: Organization; canLaunch: boolean; role: Organization['effective_role'] }) {
   const { user } = useAuth();
   const [params] = useSearchParams();
   const problemParam = params.get('problem');
   const revisionParam = params.get('revision');
   const engineParam = parseEngineParam(params.get('engine'));
   const org = organization.slug;
-  const slug = project.slug;
-  const root = `/app/${org}/${slug}`;
 
   const cases = useResource<CaseContent[]>(`launch-problems:${org}`, () => loadProblems(org));
   const usage = useResource<UsageView | null>('launch-usage', () => apiClient.getOwnUsage().catch(() => null));
@@ -134,7 +133,7 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
     setSending(true);
     setRefusal(null);
     try {
-      setReceipt(await jobsApi.launch(request, key));
+      setReceipt(await runsApi.create(org, request, key));
     } catch (caught) {
       setRefusal(refusalOf(caught, 'launch'));
     } finally {
@@ -156,9 +155,9 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   ];
 
   if (receipt) {
-    const followed = `${root}/runs/${receipt.id}`;
+    const followed = runPath(org, receipt.id);
     return (
-      <JobFrame organization={organization} project={project} trail={[{ label: 'Runs', to: `${root}/runs` }, { label: 'New run' }]} width="lg">
+      <JobFrame organization={organization} trail={[{ label: 'Runs', to: runsPath(org) }, { label: 'New run' }]} width="lg">
         <section className="job-sent" aria-live="polite" aria-label="Run accepted">
           <span className="job-sent-mark" aria-hidden="true">✓</span>
           <div>
@@ -179,7 +178,7 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   const casesFailure = cases.status === 'error' ? classifyAuthError(cases.error) : null;
 
   return (
-    <JobFrame organization={organization} project={project} trail={[{ label: 'Runs', to: `${root}/runs` }, { label: 'New run' }]} width="lg">
+    <JobFrame organization={organization} trail={[{ label: 'Runs', to: runsPath(org) }, { label: 'New run' }]} width="lg">
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>New run</h1>
@@ -271,7 +270,7 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
 
             <div className="job-footer">
               <span className="job-footer-side">
-                <Action to={`${root}/runs`} variant="ghost">Cancel</Action>
+                <Action to={runsPath(org)} variant="ghost">Cancel</Action>
                 {step > 1 && <Action variant="secondary" onClick={() => setStep(step - 1)}>Back</Action>}
               </span>
               <span className="job-footer-side">
@@ -296,13 +295,11 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   );
 }
 
-/** Start a run (`job-launch`, `/app/:org/:project/runs/new`): what to solve, the exact engine, its settings, and what the plan reduces. */
+/** Start a run (`job-launch`, `/app/:org/runs/new`): which problem version of the organization, the exact engine, its settings, and what the plan reduces. */
 export function JobLaunch() {
-  const { organization, project, access, waiting, failure, reload } = useRouteProject();
-  if (waiting) return <OrgSkeleton label="Loading project…" />;
-  if (!organization || !project) {
-    return <OrgGate failure={organization ? failure : null} organizationName={organization?.name} onRetry={reload} />;
-  }
-  if (!canOpenSection(access.level, 'jobs')) return <MembersOnlyGate root={`/app/${organization.slug}/${project.slug}`} />;
-  return <LaunchBody key={`${organization.slug}/${project.slug}`} organization={organization} project={project} canLaunch={access.canCreate} role={access.role} />;
+  const { organization, waiting } = useRouteOrganization();
+  if (waiting) return <OrgSkeleton label="Loading organization…" />;
+  if (!organization) return <OrgGate failure={null} subject="organization" />;
+  const access = problemAccess(organization);
+  return <LaunchBody key={organization.slug} organization={organization} canLaunch={access.canCreate} role={access.role} />;
 }

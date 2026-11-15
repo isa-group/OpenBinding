@@ -3,7 +3,8 @@
 Not a test module (no ``test_`` prefix). A run names a problem revision and its compilation, and belongs to
 the problem's organization (``jobs.revision_id``, ``compilation_id`` and ``organization_id`` are NOT NULL),
 so every test that writes a ``Job`` row gets its references from ``seed_problem_run``; every test that runs
-one through ``POST /v1/jobs`` gets a revision from ``upload_problem``.
+one through ``createRun`` gets a revision (and its organization) from ``upload_problem``. ``runs_url`` and
+``run_url`` build the addresses of the runs API.
 """
 
 from __future__ import annotations
@@ -34,6 +35,11 @@ async def make_org(client, headers, slug: str | None = None) -> str:
     return slug
 
 
+#: The organization of every revision ``upload_problem`` made, so a test holding only the revision id can
+#: address the runs of its organization (``runs_url_for``).
+_REVISION_ORGS: dict[str, str] = {}
+
+
 async def upload_problem(
     client,
     headers: dict[str, str],
@@ -58,6 +64,7 @@ async def upload_problem(
     )
     assert response.status_code == 201, response.text
     body = response.json()
+    _REVISION_ORGS[body["revision"]["id"]] = org
     return {
         "org": org,
         "problem": body["problem"],
@@ -65,6 +72,23 @@ async def upload_problem(
         "revision_id": body["revision"]["id"],
         "compilation": body["compilation"],
     }
+
+
+def runs_url(org: Any) -> str:
+    """The runs of an organization (a slug, an id, or anything with an ``organization_id``)."""
+    reference = getattr(org, "organization_id", org)
+    return f"/v1/organizations/{reference}/runs"
+
+
+def run_url(job: Any, suffix: str = "", *, org: Any = None) -> str:
+    """One run's address (``suffix`` like ``"/cancel"``): a ``Job`` row names its organization; else pass ``org``."""
+    run_id = getattr(job, "id", job)
+    return f"{runs_url(org if org is not None else job)}/{run_id}{suffix}"
+
+
+def runs_url_for(revision_id: Any) -> str:
+    """The runs of the organization of a revision ``upload_problem`` made in this process."""
+    return runs_url(_REVISION_ORGS[str(revision_id)])
 
 
 async def revision_of(client, headers, org: str | None = None, **kwargs) -> str:

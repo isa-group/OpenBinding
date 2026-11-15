@@ -5,7 +5,7 @@ It does what a user does and then looks where only the laboratory can look. As t
 ``tools/seed_lab.py`` it signs in through the proxy, uploads a deliberately hard package (the one of
 ``tools/engine_e2e.py``: 150 tasks x 30 candidates) and launches a LONG ``minizinc-csp`` job over the gateway's
 HTTP API, exactly as ``tools/smoke_lab.py`` does. When the job is running and the engine id of its attempt has been
-recorded (``job_engine_attempts``) it cancels the job (``POST /v1/jobs/{id}/cancel``) and checks, in this order:
+recorded (``job_engine_attempts``) it cancels the job (``POST /v1/organizations/{org}/runs/{run}/cancel``) and checks, in this order:
 
 1. the job ends ``cancelled``, and the cancellation reached the solver while it was still working (an engine
    that finished by itself before the gateway sent the ``DELETE`` is a failure, not a pass);
@@ -237,6 +237,11 @@ class Probe:
         self.reason = ""
         self.started = clock()
 
+    @property
+    def runs(self) -> str:
+        """The runs of the organization the package is uploaded to."""
+        return f"/v1/organizations/{self.config.org}/runs"
+
     # -- bookkeeping --------------------------------------------------------
 
     def check(self, name: str, ok: bool, detail: str = "") -> bool:
@@ -271,9 +276,9 @@ class Probe:
         return reply
 
     def gateway_job(self) -> Mapping[str, Any]:
-        reply = self.api("GET", f"/v1/jobs/{self.job_id}")
+        reply = self.api("GET", f"{self.runs}/{self.job_id}")
         if reply.status_code != 200:
-            raise Inconclusive(f"GET /v1/jobs/{{id}} answered {describe(reply)}")
+            raise Inconclusive(f"GET .../runs/{{run}} answered {describe(reply)}")
         return mapping(body_of(reply))
 
     def engine_job(self) -> httpx.Response:
@@ -340,7 +345,7 @@ class Probe:
 
         launch = self.api(
             "POST",
-            "/v1/jobs",
+            self.runs,
             headers={"Idempotency-Key": f"cancel-probe-{uuid.uuid4().hex[:12]}"},
             json={
                 "revision": revision,
@@ -410,11 +415,11 @@ class Probe:
         self.check("the engine job is running when it is cancelled", True, f"id {self.engine_id}")
 
     def cancel(self) -> None:
-        reply = self.api("POST", f"/v1/jobs/{self.job_id}/cancel")
+        reply = self.api("POST", f"{self.runs}/{self.job_id}/cancel")
         if reply.status_code == 409:
             raise Inconclusive(f"the job was already terminal when it was cancelled ({describe(reply)})")
         self.cancel_requested = reply.status_code == 200
-        self.check("the gateway accepts the cancellation (POST /v1/jobs/{id}/cancel)", reply.status_code == 200, describe(reply))
+        self.check("the gateway accepts the cancellation (POST .../runs/{run}/cancel)", reply.status_code == 200, describe(reply))
         self.mark("cancel-requested")
         if reply.status_code != 200:
             raise Inconclusive("the cancellation was refused; nothing more can be said")
@@ -538,7 +543,7 @@ class Probe:
         if self.job_id is not None and self.token is not None:
             try:
                 if not self.cancel_requested:
-                    reply = self.api("POST", f"/v1/jobs/{self.job_id}/cancel")
+                    reply = self.api("POST", f"{self.runs}/{self.job_id}/cancel")
                     self.cleanup["jobCancel"] = reply.status_code
             except (Inconclusive, httpx.HTTPError) as exc:
                 self.cleanup["jobCancel"] = f"{type(exc).__name__}"

@@ -1,7 +1,7 @@
 """Follow-up of finding M1: a role lost after the work was started still stops the work.
 
 Two paths kept running on a role that was checked once, at the start. A study run launches its next cells
-when the previous one ends, as the user who started the run; and ``POST /v1/jobs/{id}/retry`` looked only at
+when the previous one ends, as the user who started the run; and the retry of a run looked only at
 the job. A run whose owner is no longer MEMBER (demoted or removed) launches nothing more, and a retry or a
 cancel of a run needs MEMBER in the organization of its problem, whoever started it.
 """
@@ -14,7 +14,7 @@ import uuid
 from sqlalchemy import select
 
 from _b1_helpers import gate, put_member  # noqa: F401
-from _problem_helpers import compiled_run_refs
+from _problem_helpers import compiled_run_refs, run_url
 from openbinding_gateway import study_jobs
 from openbinding_gateway.db.models import (
     AuditEvent,
@@ -59,7 +59,7 @@ async def a_run(db_session, lab: Lab, owner: Person, run_number: int) -> tuple[S
     await db_session.flush()
     finished = Job(
         owner_id=owner.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
-        state=JobState.COMPLETED, organization_id=lab.org_id, project_id=lab.project_id, study_cell_id=cells[0].id,
+        state=JobState.COMPLETED, organization_id=lab.org_id, study_cell_id=cells[0].id,
         revision_id=uuid.UUID(lab.snapshot), compilation_id=lab.compilation_id,
         original_request={}, provenance={}, result={"solutions": []}, finished_at=utcnow(),
     )
@@ -168,7 +168,7 @@ async def test_a_retry_on_a_shared_snapshot_is_denied_once_the_owner_was_demoted
     job = await shared_snapshot_job(db_session, lab, member)
     assert (await put_member(api_client, lab.owner_headers, lab.slug, str(member.id), "VIEWER")).status_code == 200
 
-    denied = await api_client.post(f"/v1/jobs/{job.id}/retry", headers=member.headers)
+    denied = await api_client.post(run_url(job, "/retry"), headers=member.headers)
 
     assert denied.status_code == 403, denied.text
     assert code_of(denied) == "insufficient_role"
@@ -183,7 +183,7 @@ async def test_a_cancel_on_a_shared_snapshot_is_denied_once_the_owner_was_demote
     await db_session.flush()
     assert (await put_member(api_client, lab.owner_headers, lab.slug, str(member.id), "VIEWER")).status_code == 200
 
-    denied = await api_client.post(f"/v1/jobs/{job.id}/cancel", headers=member.headers)
+    denied = await api_client.post(run_url(job, "/cancel"), headers=member.headers)
 
     assert denied.status_code == 403, denied.text
     assert code_of(denied) == "insufficient_role"
@@ -196,7 +196,7 @@ async def test_a_retry_on_a_shared_snapshot_is_allowed_for_a_member(api_client, 
     member = lab.people["MEMBER"]
     job = await shared_snapshot_job(db_session, lab, member)
 
-    allowed = await api_client.post(f"/v1/jobs/{job.id}/retry", headers=member.headers)
+    allowed = await api_client.post(run_url(job, "/retry"), headers=member.headers)
 
     assert allowed.status_code == 202, allowed.text
     assert allowed.json()["id"] != str(job.id)
@@ -213,6 +213,6 @@ async def test_a_viewer_here_retries_a_run_in_an_organization_of_their_own(api_c
     db_session.add(job)
     await db_session.flush()
 
-    allowed = await api_client.post(f"/v1/jobs/{job.id}/retry", headers=viewer.headers)
+    allowed = await api_client.post(run_url(job, "/retry"), headers=viewer.headers)
 
     assert allowed.status_code == 202, allowed.text

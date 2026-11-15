@@ -26,6 +26,8 @@ JOB = "11111111-1111-4111-8111-111111111111"
 ENGINE_JOB = "engine-job-1"
 ENDPOINT = "http://engine-minizinc:3000"
 ENGINE_PATH = f"/internal/v1/jobs/{ENGINE_JOB}"
+#: The runs of the organization the probe uploads to (its default).
+RUNS = f"/v1/organizations/{cancel_probe.ORG}/runs"
 
 
 @dataclass
@@ -131,7 +133,7 @@ class World:
         if path == "/api/v1/organizations/lab-main/problems" and method == "POST":
             assert request.url.params["slug"] == "cancel-probe"
             return httpx.Response(self.upload_status, json={"revision": {"id": "revision-1"}})
-        if path == "/api/v1/jobs" and method == "POST":
+        if path == f"/api{RUNS}" and method == "POST":
             body = json.loads(request.content)
             assert body["revision"] == "revision-1"
             assert body["engine"] == "minizinc-csp" and body["mode"] == "exact-weighted"
@@ -141,12 +143,12 @@ class World:
             if self.launch_status != 202:
                 return httpx.Response(self.launch_status, json={"code": "binding_space_too_large"})
             return httpx.Response(202, json={"id": JOB, "status": "queued"})
-        if path == f"/api/v1/jobs/{JOB}" and method == "GET":
+        if path == f"/api{RUNS}/{JOB}" and method == "GET":
             return httpx.Response(
                 200,
                 json={"id": JOB, "status": self.job_status(), "cancellation_requested": self.cancel_at is not None},
             )
-        if path == f"/api/v1/jobs/{JOB}/cancel" and method == "POST":
+        if path == f"/api{RUNS}/{JOB}/cancel" and method == "POST":
             if self.job_status() in ("completed", "failed", "cancelled"):
                 return httpx.Response(409, json={"code": "terminal_job"})
             if self.cancel_status != 200:
@@ -397,7 +399,7 @@ def test_a_cancel_refused_by_the_gateway_is_inconclusive():
     report = run(world)
 
     assert report["classification"] == "inconclusive"
-    assert checks(report)["the gateway accepts the cancellation (POST /v1/jobs/{id}/cancel)"] is False
+    assert checks(report)["the gateway accepts the cancellation (POST .../runs/{run}/cancel)"] is False
 
 
 def test_an_engine_that_does_not_know_the_recorded_id_is_inconclusive():

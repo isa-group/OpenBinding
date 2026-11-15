@@ -15,12 +15,12 @@ from bim_core.compiler import ir_digest
 from sqlalchemy import func, select
 
 from _b1_helpers import gate, make_account  # noqa: F401,F811
-from _problem_helpers import EXAMPLE, upload_problem
+from _problem_helpers import EXAMPLE, run_url, runs_url_for, upload_problem
 from analysis_b3_b4_b6._helpers import persisted_anywhere
 from openbinding_gateway.db.models import Job, JobState, ProblemCompilation
 from openbinding_gateway.integrations import packages
 from openbinding_gateway.job_dispatch import dispatch_persisted_job
-from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.modules.execution.adapters import routes as runs_routes
 from openbinding_gateway.services import execution
 from openbinding_gateway.v1.remote import RemoteEngineError
 
@@ -53,7 +53,7 @@ def engine(monkeypatch):
 
 async def submit(api_client, headers, revision_id: str):
     response = await api_client.post(
-        "/v1/jobs", headers=headers,
+        runs_url_for(revision_id), headers=headers,
         json={"revision": revision_id, "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION},
     )
     assert response.status_code == 202, response.text
@@ -80,7 +80,7 @@ async def test_runs_reference_the_compilation_and_the_ir_is_stored_once(
         assert set(job.original_request) <= {"timeout", "mode", "optimization", "registration"}
         assert job.provenance["compilationId"] == str(compilation.id)
         assert job.provenance["irDigest"] == compilation.ir_digest
-    detail = (await api_client.get(f"/v1/jobs/{job_ids[0]}", headers=headers)).json()
+    detail = (await api_client.get(run_url(job_ids[0], org=uploaded["org"]), headers=headers)).json()
     assert detail["organization"]["slug"] == uploaded["org"]
     assert detail["problem"]["slug"] == uploaded["problem"]["slug"]
     assert detail["revision"] == {"id": uploaded["revision_id"], "revision": 1}
@@ -98,7 +98,7 @@ async def test_a_retry_keeps_the_compilation(api_client, registration, db_sessio
     await db_session.refresh(original)
     assert original.state is JobState.FAILED
 
-    retried = await api_client.post(f"/v1/jobs/{original_id}/retry", headers=headers)
+    retried = await api_client.post(run_url(original_id, "/retry", org=uploaded["org"]), headers=headers)
 
     assert retried.status_code == 202, retried.text
     replacement = await db_session.get(Job, uuid.UUID(retried.json()["id"]))
@@ -114,7 +114,7 @@ async def test_a_compilation_whose_ir_digest_differs_from_the_run_fails_the_run(
 
     _, headers = await make_account(api_client, registration, db_session, gate)
     uploaded = await upload_problem(api_client, headers)
-    monkeypatch.setattr(routes, "dispatch_persisted_job", queued)
+    monkeypatch.setattr(runs_routes, "dispatch_persisted_job", queued)
     job_id = await submit(api_client, headers, uploaded["revision_id"])
     job = await db_session.get(Job, job_id)
     job.provenance = {**job.provenance, "irDigest": "sha256-" + "0" * 64}

@@ -11,7 +11,7 @@ import {
   EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, QOS_PROFILE,
   REPORT_FAILED, REPORT_PENDING, REPORT_VERIFIED, SHARED_SOLVER, SOLVER_IN_REVIEW, reportOf as registrationReport,
 } from '../../src/test/fixtures/engines';
-import { NEIGHBORHOOD, REGISTRATION, REPORT as JOB_REPORT, RUN_REFS, SOLUTION, detailOf as jobDetailOf, jobOf } from '../../src/test/fixtures/jobs';
+import { NEIGHBORHOOD, REGISTRATION, RUN_REFS, SOLUTION, detailOf as jobDetailOf, jobOf } from '../../src/test/fixtures/jobs';
 import { resourceOf, resourceRevisionOf } from '../../src/test/fixtures/resources';
 import {
   RANDOM_SEARCH, REVISION_2, VERSION_ID, analyticsFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
@@ -140,7 +140,7 @@ const API_KEYS = [
   {
     id: 'k1', name: 'ci-read-results', prefix: 'obk_demo0001', created_at: '2026-09-01T00:00:00Z', last_used_at: '2026-10-08T00:00:00Z', expires_at: '2099-12-31T00:00:00Z',
     permissions: ['jobs:read', 'projects:read', 'studies:read'], engine_access: { all: true, engines: [] },
-    boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['jobs', 'studies'], slugs: null },
+    boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['runs', 'studies'], slugs: null },
   },
   {
     id: 'k2', name: 'run-fixed-engine', prefix: 'obk_demo0002', created_at: '2026-09-10T00:00:00Z', last_used_at: null, expires_at: null,
@@ -264,7 +264,7 @@ const uploadOf = (problem: typeof PROBLEM, revision: number, created: boolean) =
 // -- Jobs
 
 const JOB_ID = (n: number) => `00000000-0000-4000-8000-0000000000a${n}`;
-const mine = { project_id: 'project-qos-benchmarks', organization_id: 'org-isa-demo', ...RUN_REFS };
+const mine = { organization_id: 'org-isa-demo', ...RUN_REFS };
 const JOBS = {
   feasible: jobOf(JOB_ID(1), 'random-search', 'completed', 'FEASIBLE', '2026-09-30T09:00:00Z', '2026-09-30T09:01:05Z', mine),
   running: jobOf(JOB_ID(2), 'minizinc', 'running', null, '2026-10-09T08:00:00Z', null, mine),
@@ -273,17 +273,19 @@ const JOBS = {
   cancelled: jobOf(JOB_ID(5), 'random-search', 'cancelled', null, '2026-10-06T12:00:00Z', '2026-10-06T12:00:03Z', mine),
   infeasible: jobOf(JOB_ID(6), 'minizinc', 'completed', 'INFEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:00:40Z', mine),
   routed: jobOf(JOB_ID(7), 'evolutionary-heuristics', 'completed', 'OPTIMAL', '2026-10-03T11:00:00Z', '2026-10-03T11:00:12Z', mine),
-  theirs: jobOf(JOB_ID(8), 'evolutionary', 'completed', 'OPTIMAL', '2026-10-02T10:00:00Z', '2026-10-02T10:02:00Z', mine),
+  theirs: jobOf(JOB_ID(8), 'evolutionary', 'completed', 'OPTIMAL', '2026-10-02T10:00:00Z', '2026-10-02T10:02:00Z', { ...mine, created_by: { id: 'user-ana', username: 'ana' } }),
 };
-const OWN_JOBS: Job[] = [JOBS.running, JOBS.queued, JOBS.failed, JOBS.cancelled, JOBS.feasible, JOBS.infeasible, JOBS.routed];
-const PROJECT_JOBS: Job[] = [JOBS.running, JOBS.queued, JOBS.failed, JOBS.cancelled, JOBS.feasible, JOBS.infeasible, JOBS.theirs];
-const summaryOf = (row: Job) => ({
-  id: row.id, engine_id: row.engine_id, status: row.status, termination: row.termination ?? null,
-  solutions: row.status === 'completed' ? (row.termination === 'INFEASIBLE' ? 0 : 1) : null, created_at: row.created_at, finished_at: row.finished_at,
-});
+/** The runs of the organization `isa-demo`, newest first: every member reads them. */
+const ORG_JOBS: Job[] = [JOBS.queued, JOBS.running, JOBS.failed, JOBS.cancelled, JOBS.routed, JOBS.theirs, JOBS.infeasible, JOBS.feasible];
 
 const SOLUTION_EN = localize(SOLUTION);
 function jobDetail(id: string): Record<string, unknown> | null {
+  const summary = ORG_JOBS.find((row) => row.id === id);
+  const detail = jobDetailOnly(id);
+  return summary && detail ? { ...summary, ...detail } : null;
+}
+
+function jobDetailOnly(id: string): Record<string, unknown> | null {
   const completed = { termination: 'FEASIBLE', solutions: [SOLUTION_EN] };
   switch (id) {
     case JOB_ID(1): return { ...jobDetailOf(id, 'completed'), result: completed };
@@ -360,7 +362,7 @@ interface Request {
 }
 
 function projectRoutes(request: Request, orgSlug: string, projectSlug: string): Reply {
-  const { parts, query } = request;
+  const { parts } = request;
   const [, , , , , sub, subId, action, actionId, tail, tailId] = parts;
   const current = (PROJECTS[orgSlug] ?? []).find((item) => item.slug === projectSlug);
   if (!current) return notFound('Project not found.');
@@ -368,9 +370,6 @@ function projectRoutes(request: Request, orgSlug: string, projectSlug: string): 
   const filled = projectSlug === 'qos-benchmarks';
 
   switch (sub) {
-    case 'jobs':
-      if (!filled) return ok([]);
-      return ok(query.get('job_id') ? PROJECT_JOBS.filter((row) => row.id === query.get('job_id')) : PROJECT_JOBS);
     case 'studies': {
       if (!filled) return ok([]);
       if (!subId) return ok(STUDIES);
@@ -456,8 +455,25 @@ function organizationRoutes(request: Request): Reply {
       if (!projectSlug) return ok(PROJECTS[found.slug] ?? []);
       return projectRoutes(request, found.slug, projectSlug);
     case 'problems': return problemRoutes(request, found.slug);
+    case 'runs': return runRoutes(request, found.slug);
     default: return notFound('Not mocked.');
   }
+}
+
+/** `/v1/organizations/{org}/runs*`: the runs of `isa-demo`; another organization has none. */
+function runRoutes(request: Request, orgSlug: string): Reply {
+  const { method, parts, query } = request;
+  const [, , , , runId, action] = parts;
+  const rows = orgSlug === 'isa-demo' ? ORG_JOBS : [];
+  if (!runId) {
+    if (method === 'POST') return ok({ id: JOB_ID(9), status: 'queued', irDigest: caseDigest('c') }, 202);
+    const filtered = rows.filter((row) => (!query.get('revision') || row.revision?.id === query.get('revision')) && (!query.get('problem') || row.problem?.slug === query.get('problem')));
+    const limit = Number(query.get('limit') ?? 50);
+    return ok({ runs: filtered.slice(0, limit), total: filtered.length });
+  }
+  if (action === 'neighborhood') return ok(localize({ ...NEIGHBORHOOD, jobId: runId }));
+  const detail = orgSlug === 'isa-demo' ? jobDetail(runId) : null;
+  return detail ? ok(localize(detail)) : notFound('Run not found.');
 }
 
 function artifactRoutes(request: Request): Reply {
@@ -496,7 +512,6 @@ function userRoutes(request: Request): Reply {
   switch (sub) {
     case 'pricing-token': return ok({ pricing_token: PRICING_TOKEN });
     case 'usage': return ok(USAGE);
-    case 'jobs': return ok({ jobs: OWN_JOBS.map(summaryOf), total: OWN_JOBS.length });
     case 'api-keys': return subId ? { status: 204 } : ok({ api_keys: API_KEYS });
     case 'identities': return ok([{ id: 'i1', provider: 'us-cas', subject: 'arivera1', verifiedAt: '2026-09-01T00:00:00Z' }]);
     default: return method === 'GET' ? notFound() : { status: 204 };
@@ -560,10 +575,10 @@ function adminRoutes(request: Request): Reply {
 }
 
 /** The first path segments the gateway only answers to a session. */
-const SESSION_ONLY = new Set(['users', 'admin', 'notifications', 'organizations', 'jobs', 'engines', 'engine-registrations', 'artifacts']);
+const SESSION_ONLY = new Set(['users', 'admin', 'notifications', 'organizations', 'engines', 'engine-registrations', 'artifacts']);
 
 function route(request: Request): Reply | null {
-  const { method, parts } = request;
+  const { parts } = request;
   const [first, area, second, third] = parts;
 
   if (first === 'health') return parts[1] === 'ready'
@@ -601,13 +616,6 @@ function route(request: Request): Reply | null {
         });
       }
       return null;
-    case 'jobs': {
-      if (!second) return method === 'POST' ? ok({ id: JOB_ID(9), status: 'queued', irDigest: caseDigest('c') }, 202) : ok(OWN_JOBS);
-      if (third === 'report') return ok(localize({ ...JOB_REPORT, id: second }));
-      if (third === 'analysis') return ok(localize({ ...NEIGHBORHOOD, jobId: second }));
-      const detail = jobDetail(second);
-      return detail ? ok(localize(detail)) : notFound('Job not found.');
-    }
     default: return null;
   }
 }

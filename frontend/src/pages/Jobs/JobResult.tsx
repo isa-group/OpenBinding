@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { apiClient } from '../../api/client';
-import { jobsApi, type JobDetail, type JobReport, type JobSolution } from '../../api/jobs';
+import { runsApi, type JobDetail, type JobSolution } from '../../api/runs';
 import { RunResult } from '../../components/rendering/RunResult';
 import { SourceView } from '../../components/rendering/SourceView';
 import { Action } from '../../components/ui/Action';
@@ -77,7 +76,7 @@ const COMPARISON: Record<string, { label: string; tone: 'success' | 'warning' | 
 };
 
 /** What if one task used another provider? The bounded, single-task swaps the gateway can check without running the engine again. */
-function NeighborhoodPanel({ jobId }: { jobId: string }) {
+function NeighborhoodPanel({ org, jobId }: { org: string; jobId: string }) {
   const [result, setResult] = useState<Neighborhood | null>(null);
   const [state, setState] = useState<'idle' | 'busy' | 'failed'>('idle');
   const [problem, setProblem] = useState('');
@@ -86,7 +85,7 @@ function NeighborhoodPanel({ jobId }: { jobId: string }) {
     setState('busy');
     setProblem('');
     try {
-      setResult(await apiClient.getBindingNeighborhood(jobId, 0, '', 128));
+      setResult(await runsApi.neighborhood(org, jobId, 0, '', 128));
       setState('idle');
     } catch (caught) {
       const failure = classifyAuthError(caught);
@@ -146,28 +145,21 @@ function NeighborhoodPanel({ jobId }: { jobId: string }) {
 
 interface ResultSectionProps {
   detail: JobDetail;
+  /** The organization the run belongs to. */
+  org: string;
   jobId: string;
   origin: Origin | null;
 }
 
 /** The authoritative result: what the gateway re-evaluated, in the shape of the state the run ended in. */
-export function ResultSection({ detail, jobId, origin }: ResultSectionProps) {
+export function ResultSection({ detail, org, jobId, origin }: ResultSectionProps) {
   const state = normalizeStatus(detail.status);
   const result = detail.result ?? null;
   const solutions = Array.isArray(result?.solutions) ? result.solutions.filter(isRecord) as JobSolution[] : [];
   const completed = state !== 'queued' && state !== 'running' && state !== 'cancelled' && state !== 'failed';
   const { problem, constraints } = useRunProblem(origin, completed);
-  const [report, setReport] = useState<JobReport | null>(null);
-
-  useEffect(() => {
-    if (!completed) return undefined;
-    let cancelled = false;
-    jobsApi.report(jobId).then(
-      (loaded) => { if (!cancelled) setReport(loaded); },
-      () => { if (!cancelled) setReport(null); },
-    );
-    return () => { cancelled = true; };
-  }, [jobId, completed]);
+  // What the engine said about itself comes with the run (`remote`), beside the gateway's re-evaluation.
+  const report = completed && detail.remote ? { remote: detail.remote } : null;
 
   if (state === 'queued' || state === 'running') {
     return <div className="job-empty">No result yet. It appears here when the run finishes.</div>;
@@ -193,7 +185,7 @@ export function ResultSection({ detail, jobId, origin }: ResultSectionProps) {
       {solutions.length > 0 && !infeasible && (
         <>
           <p className="org-muted job-footnote">Numbers are OpenBinding’s own re-check of the engine’s answer.</p>
-          <NeighborhoodPanel jobId={jobId} />
+          <NeighborhoodPanel org={org} jobId={jobId} />
         </>
       )}
     </RunResult>

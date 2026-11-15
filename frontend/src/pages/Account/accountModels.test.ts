@@ -48,8 +48,8 @@ describe('API-key permissions', () => {
   it('turns a boundary into short labels, ignoring the nulls the API sends for what is not set', () => {
     expect(boundaryLabels(undefined)).toEqual([]);
     expect(boundaryLabels({ methods: null, organizations: null } as never)).toEqual([]);
-    expect(boundaryLabels({ methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['jobs', 'studies'], slugs: ['latency'] }))
-      .toEqual(['GET only', 'org isa-demo', 'project qos-benchmarks', 'jobs, studies', 'slug latency']);
+    expect(boundaryLabels({ methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['runs', 'studies'], slugs: ['latency'] }))
+      .toEqual(['GET only', 'org isa-demo', 'project qos-benchmarks', 'runs, studies', 'slug latency']);
   });
 });
 

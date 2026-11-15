@@ -3,12 +3,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { platformApi } from '../../api/platform';
 import { problemsApi } from '../../api/problems';
 import { problemPath, problemsPath } from '../../routes/paths/problems';
+import { runsApi } from '../../api/runs';
+import { launchPath, runPath, runsPath } from '../../routes/paths/runs';
+import { jobStatus } from '../../features/workspace/model';
 import type { Organization, Project } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { formatDate } from '../../utils/format';
+import { formatDate, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { ProjectCreate } from '../Project/ProjectCreate';
 import { createAddress, useCreateDialog } from './createDialog';
@@ -62,6 +65,39 @@ function ProblemsPanel({ slug, canCreate }: { slug: string; canCreate: boolean }
         </Link>
       ))}
       <Link to={problemsPath(slug)} viewTransition>All problems</Link>
+    </section>
+  );
+}
+
+/** How many runs the overview lists. */
+const RUNS_SHOWN = 5;
+
+/** The organization's newest runs, whoever launched them, and the way to all of them. */
+function RunsPanel({ slug, canCreate }: { slug: string; canCreate: boolean }) {
+  const runs = useResource(`org-runs:${slug}`, () => runsApi.list(slug, { limit: RUNS_SHOWN }));
+  const failure = runs.status === 'error' ? classifyAuthError(runs.error) : null;
+  const rows = runs.data?.runs ?? [];
+  return (
+    <section className="org-card" aria-labelledby="org-runs-title" aria-busy={runs.status === 'loading'}>
+      <div className="org-card-head">
+        <h2 id="org-runs-title">Runs{runs.data && <span className="org-count">{runs.data.total}</span>}</h2>
+        {canCreate && <Link to={launchPath(slug)} viewTransition>+ New run</Link>}
+      </div>
+      {runs.status === 'loading' && <Skeleton variant="tile" />}
+      {failure && <span className="org-muted">Runs couldn’t be loaded{marker(failure)}.</span>}
+      {runs.status === 'ready' && rows.length === 0 && <span className="org-muted">None yet. A run solves a problem version with an engine.</span>}
+      {rows.map((job) => {
+        const status = jobStatus(job.status, job.termination);
+        return (
+          <Link key={job.id} to={runPath(slug, job.id)} viewTransition className="org-sub">
+            <span>
+              <strong>{job.problem?.name ?? job.engine_id}</strong>
+              <small>{status.label} · {job.engine_id} · {formatDateTime(job.created_at) ?? '—'}</small>
+            </span>
+          </Link>
+        );
+      })}
+      <Link to={runsPath(slug)} viewTransition>All runs</Link>
     </section>
   );
 }
@@ -154,7 +190,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
             <div className="org-empty">
               <strong>No projects yet</strong>
               <span>
-                A project groups the problems, runs and studies for one piece of work. Anybody can read a public project;
+                A project groups the studies for one piece of work. Anybody can read a public project;
                 private ones are only for members.
               </span>
               {canCreate && <Action to={createAddress(`/app/${slug}`, 'project')} variant="primary" size="sm">Create the first project</Action>}
@@ -177,6 +213,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
 
         <aside className="org-aside">
           <ProblemsPanel slug={slug} canCreate={canCreate} />
+          <RunsPanel slug={slug} canCreate={canCreate} />
           <section className="org-card" aria-labelledby="org-subs-title">
             <div className="org-card-head">
               <h2 id="org-subs-title">Sub-organizations</h2>
@@ -201,7 +238,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
   );
 }
 
-/** An organization (`org-overview`, `/app/:org`): its projects, its problems and its sub-organizations. */
+/** An organization (`org-overview`, `/app/:org`): its projects, its problems, its runs and its sub-organizations. */
 export function OrgOverview() {
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <div className="org-page"><PageSkeleton /></div>;

@@ -274,7 +274,7 @@ def classify_job_failure(error: BaseException) -> str:
 
 # -- Evaluating the kept answer of an engine again --------------------------------
 
-#: Why ``POST /v1/jobs/{id}/reevaluate`` refuses; every sentence is fixed.
+#: Why ``POST /v1/organizations/{org}/runs/{run}/reevaluate`` refuses; every sentence is fixed.
 JOB_NOT_REEVALUABLE = PublicProblem(
     409,
     "job_not_reevaluable",

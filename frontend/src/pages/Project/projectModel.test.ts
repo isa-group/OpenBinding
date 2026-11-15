@@ -57,8 +57,8 @@ describe('access levels', () => {
     expect(levelOf(undefined, null)).toBeNull();
   });
 
-  it('keeps the runs and the settings from a visitor, and everything else open to them', () => {
-    for (const section of ['jobs', 'settings']) {
+  it('keeps the settings from a visitor, and everything else open to them', () => {
+    for (const section of ['settings']) {
       expect(canOpenSection('public_read', section)).toBe(false);
       expect(canOpenSection('VIEWER', section)).toBe(true);
     }

@@ -202,10 +202,12 @@ The gateway exposes the stateless BIM services (`/v1/bim/validate`,
 `/v1/bim/templates`), the problems of each organization
 (`/v1/organizations/{org}/problems`, with their sealed revisions and
 compilations), `/v1/engines` (and `/v1/engines/protocol` for federated engines),
-`/v1/engine-registrations` and `/v1/jobs`. BIM source uploads are complete
-`.bim.zip` packages; a job names a problem revision. Jobs always return
-`202`. Results use `OPTIMAL`, `FEASIBLE`, `INFEASIBLE`, or `UNKNOWN`, and
-errors use `application/problem+json` with source-located diagnostics.
+`/v1/engine-registrations` and the runs of each organization
+(`/v1/organizations/{org}/runs`). BIM source uploads are complete
+`.bim.zip` packages; a run names a problem revision of its organization. A new run
+always returns `202`. Results use `OPTIMAL`, `FEASIBLE`, `INFEASIBLE`, or `UNKNOWN`;
+the BIM services answer errors as `application/problem+json` with source-located
+diagnostics, and the organization's routes as the platform JSON envelope.
 
 The React workbench is a single transactional `InstanceWorkspace` over the
 same package and compiler contracts used by API clients. Its surrounding

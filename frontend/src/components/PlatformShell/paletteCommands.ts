@@ -49,6 +49,11 @@ export function buildCommands({ organizations = [], projects = [], organization,
       commands.push(command('Organization', 'Problems', `Binding problems and their versions · ${organization.name}`, problems.to));
       commands.push(command('Create', 'New problem', `Upload a BIM package in ${organization.name}`, `${problems.to}?create=problem`, '+'));
     }
+    const runs = labEntries(organization, project).find((entry) => entry.id === 'runs');
+    if (runs?.to) {
+      commands.push(command('Organization', 'Runs', `Every run of the organization · ${organization.name}`, runs.to));
+      commands.push(command('Create', 'New run', `Launch an engine run in ${organization.name}`, `${runs.to}/new`, '+'));
+    }
   }
   if (root && project) {
     const studies = labEntries(organization, project).find((entry) => entry.id === 'studies');
@@ -62,11 +67,11 @@ export function buildCommands({ organizations = [], projects = [], organization,
     const where = `in ${project.name}`;
     const created = createItems(organization, project);
     const describe: Record<string, string> = {
-      Study: 'Compare engines on problems', Run: 'Launch an engine run',
+      Study: 'Compare engines on problems',
     };
     for (const item of created) {
-      // The problem belongs to the organization: its command is above.
-      if (item.to && item.label !== 'Problem') commands.push(command('Create', `New ${item.label.toLowerCase()}`, `${describe[item.label]} ${where}`, item.to, '+'));
+      // The problem and the run belong to the organization: their commands are above.
+      if (item.to && item.label !== 'Problem' && item.label !== 'Run') commands.push(command('Create', `New ${item.label.toLowerCase()}`, `${describe[item.label]} ${where}`, item.to, '+'));
     }
   }
 

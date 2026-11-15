@@ -76,14 +76,14 @@ revision_id="$(
 jq -n --arg revision "$revision_id" \
   '{revision:$revision, engine:"many-heuristic", mode:"pareto-sampling", options:{iterations:1000},
     optimization:{type:"MANY", scalarization:"pareto-front"}}' |
-  curl -sS -X POST "http://localhost:8000/v1/jobs" \
+  curl -sS -X POST "http://localhost:8000/v1/organizations/my-lab/runs" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
     -H "Idempotency-Key: demo-12" \
     --data-binary @-
 ```
 
-The job answers `202 Accepted`. To check a package without storing it, post it
+The run is accepted with `202 Accepted`. To check a package without storing it, post it
 to `POST /v1/bim/validate`, which needs no account and answers its digests,
 analysis and compatible Engine modes.
 

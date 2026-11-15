@@ -6,19 +6,21 @@ import { config } from '../../config';
 import { addressNow, org, renderScreen, researchUsage } from '../Organization/testKit';
 import { AppHome } from './AppHome';
 
-const api = vi.hoisted(() => ({ listOwnJobs: vi.fn(), getOwnUsage: vi.fn(), listNotifications: vi.fn(), markNotificationRead: vi.fn() }));
+const api = vi.hoisted(() => ({ getOwnUsage: vi.fn(), listNotifications: vi.fn(), markNotificationRead: vi.fn() }));
 const platform = vi.hoisted(() => ({ organizations: vi.fn(), createOrganization: vi.fn(), members: vi.fn() }));
+const runsApi = vi.hoisted(() => ({ list: vi.fn() }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const lab = org('qos-lab', { name: 'QoS Lab (sub-organización)', parent_id: group.id });
 const consultora = org('consultora-demo', { name: 'Consultora Demo', effective_role: 'VIEWER' });
 
 const job = (over: Record<string, unknown> = {}) => ({
-  id: '00000000-0000-0000-0000-0000000000f2', engine_id: 'minizinc', status: 'running', termination: null, solutions: null,
-  created_at: '2026-10-08T08:00:00Z', finished_at: null, ...over,
+  id: '00000000-0000-0000-0000-0000000000f2', engine_id: 'minizinc', status: 'running', termination: null, cancellation_requested: false,
+  retry_of_id: null, organization_id: group.id, created_at: '2026-10-08T08:00:00Z', finished_at: null, ...over,
 });
 
 const contractNotice = {
@@ -34,7 +36,8 @@ describe('Home', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.organizations.mockResolvedValue([group, lab, consultora]);
-    api.listOwnJobs.mockResolvedValue({ jobs: [job(), job({ id: '00000000-0000-0000-0000-0000000000f6', status: 'completed', termination: 'INFEASIBLE', finished_at: '2026-10-08T08:00:40Z' })], total: 2 });
+    localStorage.clear();
+    runsApi.list.mockResolvedValue({ runs: [job(), job({ id: '00000000-0000-0000-0000-0000000000f6', status: 'completed', termination: 'INFEASIBLE', finished_at: '2026-10-08T08:00:40Z' })], total: 2 });
     api.getOwnUsage.mockResolvedValue(researchUsage());
     api.listNotifications.mockResolvedValue([contractNotice]);
     api.markNotificationRead.mockResolvedValue({ ...contractNotice, read_at: '2026-10-09T00:00:00Z' });
@@ -47,8 +50,8 @@ describe('Home', () => {
     expect(await screen.findByText('Pick up where you left off.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/app/isa-demo?create=project');
     expect(screen.queryByRole('link', { name: 'Verify a digest' })).not.toBeInTheDocument();
-    // No project is selected in the workspace, so there is nothing to run or to add a problem to.
-    expect(screen.queryByRole('link', { name: 'Run' })).not.toBeInTheDocument();
+    // Runs belong to the organization: the workspace's organization is enough to start one.
+    expect(screen.getByRole('link', { name: 'Run' })).toHaveAttribute('href', '/app/isa-demo/runs/new');
   });
 
   it('shows the organization tree with the role of each, own or inherited', async () => {
@@ -71,7 +74,7 @@ describe('Home', () => {
     expect(screen.getByText(/the highest of your own role there and the one inherited from above/)).toBeInTheDocument();
   });
 
-  it('lists recent jobs, your plan with the native consoles, and the unread notifications', async () => {
+  it('lists the recent runs of the first organization, your plan with the native consoles, and the unread notifications', async () => {
     renderHome();
 
     const activity = await screen.findByRole('region', { name: 'Recent activity' });
@@ -80,8 +83,12 @@ describe('Home', () => {
     expect(within(activity).getByText(/finished in 40 s/)).toBeInTheDocument();
     expect(within(activity).getAllByText('minizinc').length).toBeGreaterThan(0);
     expect(activity).not.toHaveTextContent('00000000');
-    // There is no account-wide run history to link to: a run is opened from its project.
-    expect(within(activity).queryAllByRole('link').filter((link) => link.getAttribute('href') === '/app/runs')).toEqual([]);
+    expect(runsApi.list).toHaveBeenCalledWith('isa-demo', { limit: 5 });
+    // Each run opens its page in the organization; there is no account-wide run history.
+    const rows = within(activity).getAllByRole('link').map((link) => link.getAttribute('href'));
+    expect(rows).toContain('/app/isa-demo/runs/00000000-0000-0000-0000-0000000000f2');
+    expect(within(activity).getByRole('link', { name: 'All runs of ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo/runs');
+    expect(rows).not.toContain('/app/runs');
 
     const plan = screen.getByRole('region', { name: 'Your plan' });
     expect(await within(plan).findByText('RESEARCH')).toBeInTheDocument();
@@ -115,7 +122,7 @@ describe('Home', () => {
   });
 
   it('lets a block fail on its own: the others keep working and the failed one can be retried', async () => {
-    api.listOwnJobs.mockRejectedValueOnce(new HttpError(503, 'down'));
+    runsApi.list.mockRejectedValueOnce(new HttpError(503, 'down'));
     renderHome();
 
     const activity = await screen.findByRole('region', { name: 'Recent activity' });
@@ -126,7 +133,7 @@ describe('Home', () => {
 
     fireEvent.click(within(activity).getByRole('button', { name: 'Retry' }));
     expect(await within(activity).findByText('Running')).toBeInTheDocument();
-    expect(api.listOwnJobs).toHaveBeenCalledTimes(2);
+    expect(runsApi.list).toHaveBeenCalledTimes(2);
   });
 
   it('explains a pricing outage in the plan block alone, and a pending contract', async () => {
@@ -146,18 +153,30 @@ describe('Home', () => {
 
   it('says the block is not available when the credential lacks the permission (403)', async () => {
     platform.organizations.mockRejectedValue(Object.assign(new HttpError(403, 'forbidden'), { code: 'forbidden' }));
-    api.listOwnJobs.mockRejectedValue(Object.assign(new HttpError(403, 'forbidden'), { code: 'forbidden' }));
-    renderHome([]);
+    const view = renderHome([]);
 
     expect(await screen.findByText('Not available with this key (needs organizations: read).')).toBeInTheDocument();
-    expect((await screen.findByText('jobs:read')).closest('p')).toHaveTextContent('Not available with this key (needs jobs:read).');
     // A refusal is not an empty account: the first-organization guide must not appear.
     expect(screen.queryByRole('heading', { name: 'Create your first organization' })).not.toBeInTheDocument();
+    view.unmount();
+
+    platform.organizations.mockResolvedValue([group]);
+    runsApi.list.mockRejectedValue(Object.assign(new HttpError(403, 'forbidden'), { code: 'forbidden' }));
+    renderHome();
+    expect((await screen.findByText('jobs:read')).closest('p')).toHaveTextContent('Not available with this key (needs jobs:read).');
+  });
+
+  it('shows the recent runs of the organization last visited', async () => {
+    localStorage.setItem('openbinding.lastOrganization', 'qos-lab');
+    renderHome();
+
+    await screen.findByRole('region', { name: 'Recent activity' });
+    await waitFor(() => expect(runsApi.list).toHaveBeenCalledWith('qos-lab', { limit: 5 }));
   });
 
   it('guides an account without organizations to create the first one', async () => {
     platform.organizations.mockResolvedValue([]);
-    api.listOwnJobs.mockResolvedValue({ jobs: [], total: 0 });
+    runsApi.list.mockResolvedValue({ runs: [], total: 0 });
     renderHome([]);
 
     expect(await screen.findByRole('heading', { name: 'Create your first organization' })).toBeInTheDocument();

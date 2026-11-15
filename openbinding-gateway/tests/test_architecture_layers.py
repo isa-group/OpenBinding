@@ -16,15 +16,10 @@ ROUTES = f"{PACKAGE}.routes"
 #: the container and their own modules, and nothing above them.
 PROTECTED_LAYERS = ("services", "domain", "jobs", "composition")
 
-#: Modules outside ``routes/`` that import ``routes`` at the time of writing,
-#: relative to the package (``study_jobs`` is ``openbinding_gateway/study_jobs.py``).
-#: This is frozen debt: shrink it by moving the imported code into a service,
-#: never grow it.  ``main`` is the composition root and is exempt.
-ALLOWED_LEGACY = frozenset(
-    {
-        "study_jobs",
-    }
-)
+#: Modules outside ``routes/`` that import ``routes``, relative to the package. The last one,
+#: ``study_jobs``, went in F0b B6 (study cells submit a typed ``RunRequest``): the set is empty and
+#: must stay so.  ``main`` is the composition root and is exempt.
+ALLOWED_LEGACY: frozenset[str] = frozenset()
 COMPOSITION_ROOT = frozenset({"main"})
 
 
@@ -283,7 +278,7 @@ def test_gate_lifecycle_legacy_has_no_stale_entries() -> None:
 #: ceiling is the size of ``routes/v1.py`` rounded up to the hundred, and it can only go down.  Lower it when an
 #: extraction brings the file under the previous hundred; never raise it.
 V1_ROUTER = SOURCE / "routes" / "v1.py"
-MAX_LINES = 700
+MAX_LINES = 500
 RATCHET_STEP = 100
 
 

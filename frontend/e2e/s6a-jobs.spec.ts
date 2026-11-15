@@ -2,7 +2,7 @@ import { expect as baseExpect, test, type Locator, type Page, type Route, type T
 import { failureBody } from './helpers/problems';
 import type { Job } from '../src/api/platform';
 import type { Problem, ProblemRevision } from '../src/api/problems';
-import { ENGINE, NEIGHBORHOOD, PROBLEM, REGISTRATION, REPORT, detailOf, jobOf, provenanceOf } from '../src/test/fixtures/jobs';
+import { ENGINE, NEIGHBORHOOD, PROBLEM, REGISTRATION, detailOf, jobOf, provenanceOf } from '../src/test/fixtures/jobs';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
 
@@ -47,6 +47,7 @@ const project = (n: number, orgId: string, slug: string, name: string) => ({
 const projectsOf: Record<string, ReturnType<typeof project>[]> = {
   'isa-demo': [project(1, 'org-isa-demo', 'qos-benchmarks', 'QoS Benchmarks'), project(2, 'org-isa-demo', 'checkout-privado', 'Checkout (privado)')],
   'read-lab': [project(4, 'org-4', 'bench', 'Bench')],
+  'empty-lab': [],
 };
 
 // --- the problem a run can start from (the one the runs of the fixtures name)
@@ -63,7 +64,7 @@ const problemRevision = (n: number): ProblemRevision => ({
 
 // --- the runs
 
-const mine = { project_id: 'project-1', organization_id: 'org-isa-demo' };
+const mine = { organization_id: 'org-isa-demo', created_by: { id: 'user-1', username: 'lucia.vega' } };
 const rows = {
   feasible: jobOf('job-feasible-1', 'random-search', 'completed', 'FEASIBLE', '2026-09-30T09:00:00Z', '2026-09-30T09:01:05Z', mine),
   running: jobOf('job-running-2', 'minizinc', 'running', null, '2026-10-08T08:00:00Z', null, mine),
@@ -72,14 +73,20 @@ const rows = {
   cancelled: jobOf('job-cancelled-5', 'random-search', 'cancelled', null, '2026-10-06T12:00:00Z', '2026-10-06T12:00:03Z', mine),
   infeasible: jobOf('job-infeasible-6', 'minizinc', 'completed', 'INFEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:00:40Z', mine),
   routed: jobOf('job-routed-7', 'evolutionary-heuristics', 'completed', 'OPTIMAL', '2026-10-03T11:00:00Z', '2026-10-03T11:00:12Z', mine),
-  theirs: jobOf('job-theirs-8', 'evolutionary', 'completed', 'OPTIMAL', '2026-10-02T10:00:00Z', '2026-10-02T10:02:00Z', mine),
+  theirs: jobOf('job-theirs-8', 'evolutionary', 'completed', 'OPTIMAL', '2026-10-02T10:00:00Z', '2026-10-02T10:02:00Z', { ...mine, created_by: { id: 'user-2', username: 'ana' } }),
   live: jobOf('job-live-10', 'minizinc', 'running', null, '2026-10-09T08:00:00Z', null, mine),
 };
 
-const projectRows: Job[] = [rows.running, rows.queued, rows.failed, rows.cancelled, rows.feasible, rows.infeasible, rows.theirs];
-const ownRows: Job[] = [rows.running, rows.queued, rows.failed, rows.cancelled, rows.feasible, rows.infeasible, rows.routed, rows.live];
+/** The runs of ISA Demo Group, as `listRuns` lists them: every member sees all of them. */
+const orgRows: Job[] = [rows.running, rows.queued, rows.failed, rows.cancelled, rows.feasible, rows.infeasible, rows.routed, rows.theirs];
 
-/** What `GET /v1/jobs/{id}` answers for each run, given the state of the test; `null` is a 404. */
+/** What `getRun` answers for each run of ISA Demo Group (its summary and its detail), given the state of the test; `null` is a 404. */
+function runOf(id: string, state: State): Record<string, unknown> | null {
+  const found = detailTable[id]?.(state);
+  const summary = [...Object.values(rows)].find((row) => row.id === id) ?? jobOf(id, 'random-search', 'queued', null, '2026-10-09T09:00:00Z', null, mine);
+  return found ? { ...summary, ...found } : null;
+}
+
 const detailTable: Record<string, (state: State) => ReturnType<typeof detailOf> | null> = {
   'job-feasible-1': () => detailOf('job-feasible-1', 'completed'),
   'job-running-2': () => detailOf('job-running-2', 'running'),
@@ -90,6 +97,7 @@ const detailTable: Record<string, (state: State) => ReturnType<typeof detailOf> 
     result: { termination: 'INFEASIBLE', solutions: [{ violations: [{ constraint: 'sla-latencia', message: 'Total latency is 742 ms; at most 600 ms is allowed.' }] }] },
   }),
   'job-routed-7': () => detailOf('job-routed-7', 'completed'),
+  'job-theirs-8': () => detailOf('job-theirs-8', 'completed'),
   'job-live-10': (state) => detailOf('job-live-10', state.liveDone ? 'completed' : 'running'),
   'job-new-9': () => detailOf('job-new-9', 'queued', { provenance: provenanceOf({ requestedOptions: { time_budget_ms: 600000 }, options: { time_budget_ms: 60000 } }) }),
 };
@@ -123,13 +131,7 @@ const analysisBody = () => ({
   analysis: { tasks: 6, candidates: 24, constraints: 2, placement: false, bindingSpace: '125892' },
 });
 
-
-const summaryOf = (row: Job) => ({
-  id: row.id, engine_id: row.engine_id, status: row.status, termination: row.termination ?? null,
-  solutions: row.status === 'completed' ? (row.termination === 'INFEASIBLE' ? 0 : 1) : null, created_at: row.created_at, finished_at: row.finished_at,
-});
-
-type Overridable = 'launch' | 'cancel' | 'retry' | 'compilation' | 'projectJobs' | 'history' | 'detail' | 'neighborhood';
+type Overridable = 'launch' | 'cancel' | 'retry' | 'compilation' | 'runs' | 'detail' | 'neighborhood';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
@@ -138,8 +140,6 @@ interface State {
   sent: { launch?: unknown; key?: string; cancel?: string; retry?: string };
   /** The live run has finished: the next time it is asked about it says so. */
   liveDone: boolean;
-  /** How many days the plan keeps finished runs; `null` is the gateway not saying. */
-  history: Job[];
 }
 
 interface MockOptions {
@@ -151,10 +151,11 @@ const bodyOf = (route: Route) => route.request().postDataJSON() as Record<string
 
 /** Everything these screens read and write, answered; anything else on the API origin is an empty 404. */
 async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
-  const state: State = { refuse: {}, sent: {}, liveDone: false, history: ownRows };
+  const state: State = { refuse: {}, sent: {}, liveDone: false };
   const organizations = [
     org('org-isa-demo', 'isa-demo', 'ISA Demo Group', options.role ?? 'OWNER'),
     org('org-4', 'read-lab', 'Read Lab', 'VIEWER'),
+    org('org-5', 'empty-lab', 'Empty Lab', 'MEMBER'),
   ];
   await page.addInitScript(() => {
     localStorage.setItem('openbinding-access-token', 's6a-access');
@@ -175,41 +176,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
   await page.route(`${API}/v1/engines`, json({ engines }));
 
-  // The jobs of this account across projects, with how long they are kept.
-  await page.route(new RegExp(`^${API}/v1/users/me/jobs(\\?.*)?$`), (route) => {
-    if (state.refuse.history) return state.refuse.history(route);
-    const limit = Number(new URL(route.request().url()).searchParams.get('limit') ?? 50);
-    return json({ jobs: state.history.slice(0, limit).map(summaryOf), total: state.history.length })(route);
-  });
-
-
-  await page.route(new RegExp(`^${API}/v1/jobs(/.*)?(\\?.*)?$`), async (route) => {
-    const url = new URL(route.request().url());
-    const [, , , id, action, sub] = url.pathname.split('/');
-    const method = route.request().method();
-    if (!id) {
-      if (method === 'POST') {
-        state.sent.launch = bodyOf(route);
-        state.sent.key = route.request().headers()['idempotency-key'];
-        return (state.refuse.launch ?? json({ id: 'job-new-9', status: 'queued', profile: 'qos-binding/v1', irDigest: digestOf('c') }, 202))(route);
-      }
-      return json(ownRows)(route);
-    }
-    if (action === 'cancel') {
-      state.sent.cancel = id;
-      return (state.refuse.cancel ?? json({ ...rows.running, id, cancellation_requested: true }))(route);
-    }
-    if (action === 'retry') {
-      state.sent.retry = id;
-      return (state.refuse.retry ?? json(jobOf('job-new-9', 'evolutionary', 'queued', null, '2026-10-09T09:00:00Z', null, { ...mine, retry_of_id: id }), 202))(route);
-    }
-    if (action === 'report') return json({ ...REPORT, id })(route);
-    if (action === 'analysis' && sub === 'neighborhood') return (state.refuse.neighborhood ?? json({ ...NEIGHBORHOOD, jobId: id }))(route);
-    if (state.refuse.detail) return state.refuse.detail(route);
-    const found = detailTable[id]?.(state) ?? null;
-    return found ? json(found)(route) : detail(404, 'not_found', 'Job not found.')(route);
-  });
-
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
     const url = new URL(route.request().url());
     const parts = url.pathname.split('/').filter(Boolean);
@@ -218,6 +184,35 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
 
     if (!orgSlug) return json(organizations)(route);
     if (section === 'members' || section === 'library') return json([])(route);
+    if (section === 'runs') {
+      // The runs of the organization: the list, one run, and what a member does to one.
+      const [, , , , id, action] = parts;
+      const method = route.request().method();
+      if (!found) return detail(404, 'not_found', 'Organization not found.')(route);
+      const own = orgSlug === 'isa-demo' ? orgRows : [];
+      if (!id) {
+        if (method === 'POST') {
+          state.sent.launch = bodyOf(route);
+          state.sent.key = route.request().headers()['idempotency-key'];
+          return (state.refuse.launch ?? json({ id: 'job-new-9', status: 'queued', profile: 'qos-binding/v1', irDigest: digestOf('c') }, 202))(route);
+        }
+        if (state.refuse.runs) return state.refuse.runs(route);
+        const limit = Number(url.searchParams.get('limit') ?? 50);
+        return json({ runs: own.slice(0, limit), total: own.length })(route);
+      }
+      if (action === 'cancel') {
+        state.sent.cancel = id;
+        return (state.refuse.cancel ?? json({ ...rows.running, id, cancellation_requested: true }))(route);
+      }
+      if (action === 'retry') {
+        state.sent.retry = id;
+        return (state.refuse.retry ?? json(jobOf('job-new-9', 'evolutionary', 'queued', null, '2026-10-09T09:00:00Z', null, { ...mine, retry_of_id: id }), 202))(route);
+      }
+      if (action === 'neighborhood') return (state.refuse.neighborhood ?? json({ ...NEIGHBORHOOD, jobId: id }))(route);
+      if (state.refuse.detail) return state.refuse.detail(route);
+      const run = orgSlug === 'isa-demo' ? runOf(id, state) : null;
+      return run ? json(run)(route) : detail(404, 'not_found', 'Run not found.')(route);
+    }
     if (section === 'problems') {
       // The problems of the organization: the list, the versions of one, its compilation and the IR of that.
       const [, , , , problemSlug, , revisionRef, tail] = parts;
@@ -236,13 +231,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     const current = list.find((item) => item.slug === projectSlug);
     if (!current) return detail(404, 'not_found', 'Project not found.')(route);
     if (!sub) return json(current)(route);
-
-    if (sub === 'jobs') {
-      if (state.refuse.projectJobs) return state.refuse.projectJobs(route);
-      if (projectSlug !== 'qos-benchmarks') return json([])(route);
-      const wanted = url.searchParams.get('job_id');
-      return json(wanted ? projectRows.filter((row) => row.id === wanted) : projectRows)(route);
-    }
     return json([])(route);
   });
   return state;
@@ -293,36 +281,36 @@ const viewports = [
   { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 2 },
 ] as const;
 
-const ROOT = '/app/isa-demo/qos-benchmarks';
+const ROOT = '/app/isa-demo';
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S6a execution`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('job-list /app/:org/:project/runs · summaries, owner actions, filters and retry', async ({ page }, testInfo) => {
+    test('job-list /app/:org/runs · every run of the organization, who launched it, filters and retry', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/runs`);
       const main = page.locator('#platform-main');
-      const table = main.getByRole('region', { name: 'Runs of the project' });
+      const table = main.getByRole('region', { name: 'Runs of the organization' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
-      await expect(main.getByText(/Every run in QoS Benchmarks\. Anyone in the project sees the summary/)).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Runs', exact: true })).toHaveAttribute('aria-current', 'page');
+      await expect(main.getByText(/Every run in ISA Demo Group\. Every member opens them/)).toBeVisible();
+      await expect(main.getByRole('navigation', { name: 'Project sections' })).toHaveCount(0);
       await expect(main.getByRole('link', { name: 'New run' })).toHaveAttribute('href', `${ROOT}/runs/new`);
-      await expect(table.getByRole('row')).toHaveCount(8);
-      await expect(table.getByRole('link', { name: /^Open run/ })).toHaveCount(6);
-      await expect(table.getByText('Owner only')).toHaveCount(1);
-      await expect(table.getByText('Another member')).toHaveCount(1);
+      await expect(table.getByRole('row')).toHaveCount(9);
+      await expect(table.getByRole('link', { name: /^Open run/ })).toHaveCount(8);
+      await expect(table.getByText('Owner only')).toHaveCount(0);
+      await expect(table.getByRole('cell', { name: /^ana/ })).toHaveCount(1);
       await expect(table.getByRole('button', { name: 'Retry' })).toHaveCount(2);
-      await expect(main.getByRole('button', { name: 'All (7)' })).toHaveAttribute('aria-pressed', 'true');
+      await expect(main.getByRole('button', { name: 'All (8)' })).toHaveAttribute('aria-pressed', 'true');
       await capture(page, testInfo, `list-${name}-rows`);
 
       // Narrowing by status and by engine.
       await main.getByRole('button', { name: 'Running (1)' }).click();
       await expect(table.getByRole('row')).toHaveCount(2);
       await capture(page, testInfo, `list-${name}-filtered`);
-      await main.getByRole('button', { name: 'All (7)' }).click();
+      await main.getByRole('button', { name: 'All (8)' }).click();
       await main.getByRole('combobox', { name: 'Engine' }).selectOption('evolutionary');
       await expect(table.getByRole('row')).toHaveCount(3);
       await main.getByRole('combobox', { name: 'Engine' }).selectOption('');
@@ -343,41 +331,41 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-list /app/:org/:project/runs · empty, 503, a viewer and a project that is not there', async ({ page }, testInfo) => {
+    test('job-list /app/:org/runs · empty, 503, a viewer and an organization that is not there', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
-      await page.goto('/app/isa-demo/checkout-privado/runs');
+      await page.goto('/app/empty-lab/runs');
       await expect(main.getByText('No runs yet')).toBeVisible();
       await expect(main.getByText('Pick a problem version and an engine to run it.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Start a run' })).toHaveAttribute('href', '/app/isa-demo/checkout-privado/runs/new');
+      await expect(main.getByRole('link', { name: 'Start a run' })).toHaveAttribute('href', '/app/empty-lab/runs/new');
       await capture(page, testInfo, `list-${name}-empty`);
 
-      state.refuse.projectJobs = unavailable;
+      state.refuse.runs = unavailable;
       await page.goto(`${ROOT}/runs`);
       await expect(main.getByRole('alert').filter({ hasText: 'Runs can’t be loaded right now' })).toContainText('(503)');
       await expect(main.getByText('No runs yet')).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-503`);
-      state.refuse.projectJobs = undefined;
+      state.refuse.runs = undefined;
       await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('region', { name: 'Runs of the project' })).toBeVisible();
+      await expect(main.getByRole('region', { name: 'Runs of the organization' })).toBeVisible();
 
-      // A viewer reads the summaries; nothing on the screen starts a run.
-      await page.goto('/app/read-lab/bench/runs');
+      // A viewer reads the runs; nothing on the screen starts one.
+      await page.goto('/app/read-lab/runs');
       await expect(main.getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
       await expect(main.getByRole('link', { name: 'New run' })).toHaveCount(0);
       await expect(main.getByText('No runs yet')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Start a run' })).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-viewer`);
 
-      await page.goto('/app/isa-demo/ghost/runs');
-      await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
+      await page.goto('/app/ghost/runs');
+      await expect(main.getByRole('heading', { name: 'Organization not available' })).toBeVisible();
       await capture(page, testInfo, `list-${name}-404`);
       expect(critical).toEqual([]);
     });
 
-    test('job-detail /app/:org/:project/runs/:job · a finished run, its result and what it ran on', async ({ page }, testInfo) => {
+    test('job-detail /app/:org/runs/:job · a finished run, its result and what it ran on', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
       await page.goto(`${ROOT}/runs/job-feasible-1`);
@@ -427,7 +415,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-detail /app/:org/:project/runs/:job · a live run follows its state until it finishes', async ({ page }, testInfo) => {
+    test('job-detail /app/:org/runs/:job · a live run follows its state until it finishes', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/runs/job-live-10`);
@@ -448,7 +436,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-detail /app/:org/:project/runs/:job · cancel, retry and the ways a run ends without a result', async ({ page }, testInfo) => {
+    test('job-detail /app/:org/runs/:job · cancel, retry and the ways a run ends without a result', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
@@ -492,13 +480,18 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-detail /app/:org/:project/runs/:job · a run that is not yours and a key without access', async ({ page }, testInfo) => {
+    test('job-detail /app/:org/runs/:job · a teammate’s run, a run that is not there and a key without access', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
-      // A run of another member, or one that does not exist: the same neutral answer, even for an administrator.
+      // A teammate's run opens for every member, with who launched it.
       await page.goto(`${ROOT}/runs/job-theirs-8`);
+      await expect(main.getByRole('heading', { level: 1, name: 'evolutionary run' })).toBeVisible();
+      await expect(main.getByText(/by ana/)).toBeVisible();
+
+      // A run of another organization, or one that does not exist: the same neutral answer, even for an administrator.
+      await page.goto(`${ROOT}/runs/job-ghost-11`);
       await expect(main.getByRole('heading', { name: 'Run not found' })).toBeVisible();
       await expect(main.getByText(/Everyone else, including platform administrators, gets this same answer\./)).toBeVisible();
       await expect(main.getByRole('link', { name: 'All runs' })).toHaveAttribute('href', `${ROOT}/runs`);
@@ -517,7 +510,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-launch /app/:org/:project/runs/new · from a revision: four steps, what the plan reduces, accepted', async ({ page }, testInfo) => {
+    test('job-launch /app/:org/runs/new · from a revision: four steps, what the plan reduces, accepted', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
@@ -525,7 +518,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const next = main.getByRole('button', { name: 'Continue' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Runs', exact: true })).toHaveAttribute('aria-current', 'page');
+      await expect(main.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Runs' })).toHaveAttribute('href', `${ROOT}/runs`);
       const source = main.getByRole('radiogroup', { name: 'Source' });
       await expect(source.getByRole('radio', { name: /Checkout flow · version 2/ })).toBeChecked();
       await expect(source.getByRole('radio')).toHaveCount(2);
@@ -569,7 +562,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-launch /app/:org/:project/runs/new · an exact engine from the latest version and every way the gateway refuses', async ({ page }, testInfo) => {
+    test('job-launch /app/:org/runs/new · an exact engine from the latest version and every way the gateway refuses', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/runs/new`);
@@ -645,12 +638,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-launch /app/:org/:project/runs/new · a viewer, a version that is gone and a problem too big for the deployment', async ({ page }, testInfo) => {
+    test('job-launch /app/:org/runs/new · a viewer, a version that is gone and a problem too big for the deployment', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
-      await page.goto('/app/read-lab/bench/runs/new');
+      await page.goto('/app/read-lab/runs/new');
       await expect(main.getByRole('note')).toContainText('You’re a VIEWER of Read Lab. You can look through the steps, but starting a run needs MEMBER.');
       await expect(main.getByText(/Nothing to solve yet\./)).toBeVisible();
       await capture(page, testInfo, `launch-${name}-viewer`);

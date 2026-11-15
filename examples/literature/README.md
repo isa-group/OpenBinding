@@ -59,7 +59,7 @@ revision_id="$(
        -H "Content-Type: application/vnd.bim+zip" \
        --data-binary @benatallah.bim.zip | jq -r .revision.id
 )"
-curl -X POST "http://localhost:8000/v1/jobs" \
+curl -X POST "http://localhost:8000/v1/organizations/my-lab/runs" \
      -H "Authorization: Bearer $TOKEN" \
      -H "Idempotency-Key: literature-benatallah" \
      -H "Content-Type: application/json" \

@@ -11,7 +11,7 @@ import zipfile
 import pytest
 from sqlalchemy import select
 
-from _problem_helpers import upload_problem
+from _problem_helpers import runs_url_for, upload_problem
 from _repo import REPO_ROOT
 from openbinding_gateway.db.models import ProblemCompilation
 from bim_core.compiler import compile_instance
@@ -83,7 +83,7 @@ async def test_a_job_over_open_or_finite_ranges_is_refused_with_unsupported_capa
     created = await upload_problem(api_client, headers, archive=package_with(latency).to_zip())
 
     job = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(created["revision_id"]),
         headers={**headers, "Idempotency-Key": f"b5-{uuid.uuid4()}"},
         json={
             "revision": created["revision_id"],

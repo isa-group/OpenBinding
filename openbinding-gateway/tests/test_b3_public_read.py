@@ -148,7 +148,7 @@ VISITORS = ("anonymous", "outsider", "api_key")
 
 def test_the_route_table_has_the_project_surface():
     methods = {method for method, _ in ROUTES}
-    assert len(ROUTES) >= 18
+    assert len(ROUTES) >= 17
     # M9.6 removed the project library association, the only PUT under a project.
     assert {"GET", "POST", "PATCH", "DELETE"} <= methods
 
@@ -195,8 +195,11 @@ async def test_every_route_follows_the_matrix_for_non_members(ctx, who):
 
 async def test_denied_reads_look_exactly_like_a_private_project(ctx):
     c = ctx
+    # Every GET under a project is a public read since runs left the project (F0b B6); a route added to
+    # PUBLIC_READ_DENIED_GET later is checked here.
+    denied = [path.removeprefix(PROJECT) for path in PUBLIC_READ_DENIED_GET]
     for who, status in (("outsider", 403), ("api_key", 403), ("anonymous", 401)):
-        for suffix in ("/jobs",):
+        for suffix in denied:
             public = await get(c, who, f"{c.url}{suffix}")
             private = await get(c, who, f"{c.closed_url}{suffix}")
             ghost = await get(c, who, f"/v1/organizations/{c.slug}/projects/ghost{suffix}")
@@ -411,7 +414,7 @@ async def test_members_only_endpoints_stay_closed_around_a_public_project(ctx):
         f"/v1/organizations/{c.slug}/members",
         f"/v1/organizations/{c.slug}/audit",
         f"/v1/organizations/{c.slug}/library",
-        f"{c.url}/jobs",
+        f"/v1/organizations/{c.slug}/runs",
         f"/v1/organizations/{c.slug}/problems",
     ]
     for url in closed_for_visitors:
@@ -465,7 +468,7 @@ async def test_a_refused_read_does_not_spend_the_visitors_allowance(ctx, monkeyp
     c = ctx
     monkeypatch.setattr(get_settings(), "public_read_rate_per_minute", 2)
     for _ in range(5):  # denied routes and private projects are not public reads
-        assert (await get(c, "outsider", f"{c.url}/jobs")).status_code == 403
+        assert (await get(c, "outsider", f"/v1/organizations/{c.slug}/runs")).status_code == 404
         assert (await get(c, "outsider", f"{c.closed_url}/studies")).status_code == 403
     assert (await get(c, "outsider", f"{c.url}/studies")).status_code == 200
     assert (await get(c, "outsider", f"{c.url}/studies")).status_code == 200

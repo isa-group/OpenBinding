@@ -1,20 +1,19 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { apiClient } from '../../api/client';
-import { platformApi } from '../../api/platform';
-import type { Job, Organization, Project } from '../../api/platform';
+import type { Organization, Project } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
 import { problemsPath, workbenchPath } from '../../routes/paths/problems';
-import { formatDate, formatDateTime } from '../../utils/format';
+import { launchPath } from '../../routes/paths/runs';
+import { formatDate } from '../../utils/format';
 import { useResource, type Resource } from '../../utils/useResource';
 import { roleSource } from '../Organization/orgModel';
 import { RoleChip } from '../Organization/parts';
 import { loadStudies } from './projectData';
 import { classifyAuthError, marker } from '../../features/workspace/errors';
-import { jobStatus, type StudyContent } from '../../features/workspace/model';
+import type { StudyContent } from '../../features/workspace/model';
 import { cellBreakdown, countWord, integrityOf, latestRun, sealedShare, type IntegrityItem } from './projectModel';
 import { OrgFrame, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { VisibilityChip } from './parts';
@@ -62,51 +61,6 @@ function Card({ id, title, allLabel, allTo, resource, noun, children }: CardProp
       {resource.status === 'error' && <CardFailure resource={resource} noun={noun} />}
       {resource.status === 'ready' && children}
     </section>
-  );
-}
-
-interface JobsData {
-  rows: Job[];
-  /** The ids of the jobs this account launched; `null` when its history could not be read. */
-  mine: Set<string> | null;
-}
-
-function duration(job: Job): string | null {
-  if (!job.finished_at) return null;
-  const seconds = Math.max(0, Math.round((Date.parse(job.finished_at) - Date.parse(job.created_at)) / 1000));
-  if (Number.isNaN(seconds)) return null;
-  return seconds >= 60 ? `${Math.floor(seconds / 60)} min ${seconds % 60} s` : `${seconds} s`;
-}
-
-function JobsCard({ root, resource, platformAdmin }: { root: string; resource: Resource<JobsData>; platformAdmin: boolean }) {
-  const rows = (resource.data?.rows ?? []).slice(0, 5);
-  const mine = resource.data?.mine ?? null;
-  return (
-    <Card id="po-jobs" title="Recent runs" allLabel="All runs" allTo={`${root}/runs`} resource={resource} noun="runs">
-      {rows.length === 0 && <p className="org-muted">No runs in this project yet.</p>}
-      {rows.length > 0 && (
-        <ul className="proj-jobs" aria-label="Recent runs">
-          {rows.map((job) => {
-            const status = jobStatus(job.status, job.termination);
-            const own = platformAdmin || Boolean(mine?.has(job.id));
-            const took = duration(job);
-            return (
-              <li key={job.id} className="proj-job">
-                <span className={`proj-dot is-${status.tone}`} aria-hidden="true" />
-                <span className="proj-job-body">
-                  <strong>{job.engine_id}</strong>
-                  <small>{formatDateTime(job.created_at) ?? '—'}{took ? ` · ${took}` : ''}</small>
-                </span>
-                <span className={`proj-status is-${status.tone}`}>{status.label}</span>
-                {own
-                  ? <Link to={`${root}/runs/${job.id}`} viewTransition aria-label={`Open ${job.engine_id} run from ${formatDateTime(job.created_at) ?? 'an unknown time'}`}>Open</Link>
-                  : <small className="proj-owner-only" title="Runs open only for whoever launched them">Owner only</small>}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </Card>
   );
 }
 
@@ -173,10 +127,10 @@ function IntegrityStrip({ items }: { items: IntegrityItem[] }) {
   );
 }
 
-function GetStarted({ org, root, canCreate }: { org: string; root: string; canCreate: boolean }) {
+function GetStarted({ org, canCreate }: { org: string; canCreate: boolean }) {
   const steps: Array<{ title: string; detail: string; cta: string; to: string; needsMember?: boolean }> = [
     { title: 'Add a problem', detail: 'Problems belong to the organization: upload a package or write one in its Workbench.', cta: 'Open problems', to: problemsPath(org) },
-    { title: 'Start a run', detail: 'Run a problem version with an exact engine.', cta: 'New run', to: `${root}/runs/new`, needsMember: true },
+    { title: 'Start a run', detail: 'Run a problem version of the organization with an exact engine.', cta: 'New run', to: launchPath(org), needsMember: true },
     { title: 'Validate a package', detail: 'Check a .bim.zip you already have.', cta: 'Open Workbench', to: '/workbench' },
   ];
   return (
@@ -204,21 +158,14 @@ function GetStarted({ org, root, canCreate }: { org: string; root: string; canCr
 function OverviewBody({ organization, project, canCreate, publicRead, role, roleTitle }: {
   organization: Organization; project: Project; canCreate: boolean; publicRead: boolean; role: Organization['effective_role'] | 'PLATFORM ADMIN'; roleTitle?: string;
 }) {
-  const { isAdmin } = useAuth();
   const org = organization.slug;
   const slug = project.slug;
   const root = `/app/${org}/${slug}`;
 
-  // A visitor of a public project never reads its jobs (the gateway refuses them), so the card is neither asked for nor shown.
-  const jobs = useResource<JobsData>(`overview-jobs:${org}/${slug}:${publicRead ? 'public' : 'member'}`, async () => {
-    if (publicRead) return { rows: [], mine: null };
-    const [rows, own] = await Promise.all([platformApi.projectJobs(org, slug), apiClient.listOwnJobs({ limit: 100 }).catch(() => null)]);
-    return { rows, mine: own ? new Set(own.jobs.map((job) => job.id)) : null };
-  });
+  // Runs belong to the organization (its Runs page); a project holds its studies.
   const studies = useResource(`overview-studies:${org}/${slug}`, () => loadStudies(org, slug, RECENT));
 
-  const loaded = [jobs, studies].every((item) => item.status === 'ready');
-  const empty = loaded && (jobs.data?.rows.length ?? 0) === 0 && (studies.data?.length ?? 0) === 0;
+  const empty = studies.status === 'ready' && (studies.data?.length ?? 0) === 0;
   const sealed = studies.status === 'ready' ? integrityOf({ studies: studies.data }) : null;
 
   const header = (
@@ -235,7 +182,7 @@ function OverviewBody({ organization, project, canCreate, publicRead, role, role
         <div className="proj-actions">
           {!publicRead && (
             <>
-              <RoleAction allowed={canCreate} to={`${root}/runs/new`} variant="primary">Run</RoleAction>
+              <RoleAction allowed={canCreate} to={launchPath(org)} variant="primary">Run</RoleAction>
               <RoleAction allowed={canCreate} to={`${root}/studies/new`} variant="secondary">New study</RoleAction>
               <Action to={problemsPath(org)} variant="secondary">Problems</Action>
               <Action to={workbenchPath(org)} variant="secondary">Workbench</Action>
@@ -243,19 +190,18 @@ function OverviewBody({ organization, project, canCreate, publicRead, role, role
           )}
         </div>
       </div>
-      {publicRead && <small className="org-muted">Studies are open to read. Only members can change anything or see runs.</small>}
+      {publicRead && <small className="org-muted">Studies are open to read. Only members can change anything.</small>}
       {!publicRead && !canCreate && <small className="org-muted">You’re a VIEWER: you can read everything here; creating needs MEMBER.</small>}
     </>
   );
 
   return (
     <OrgFrame organization={organization} project={project} section="overview" header={header}>
-      {empty && !publicRead && <GetStarted org={org} root={root} canCreate={canCreate} />}
+      {empty && !publicRead && <GetStarted org={org} canCreate={canCreate} />}
       {empty && publicRead && <p className="org-muted">Nothing has been shared in this project yet.</p>}
       {sealed && !empty && <IntegrityStrip items={sealed} />}
       {!empty && (
         <div className="proj-grid">
-          {!publicRead && <JobsCard root={root} resource={jobs} platformAdmin={isAdmin} />}
           <StudiesCard root={root} resource={studies} />
         </div>
       )}
@@ -263,7 +209,7 @@ function OverviewBody({ organization, project, canCreate, publicRead, role, role
   );
 }
 
-/** A project (`proj-overview`, `/app/:org/:project`): its runs and studies, each card on its own. */
+/** A project (`proj-overview`, `/app/:org/:project`): its studies. Runs are the organization's (`/app/:org/runs`). */
 export function ProjectOverview() {
   const { context, organization, project, access, waiting, failure, reload } = useRouteProject();
   const { isAdmin } = useAuth();

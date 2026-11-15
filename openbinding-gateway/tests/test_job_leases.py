@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-from _problem_helpers import revision_of
+from _problem_helpers import revision_of, runs_url_for
 from _problem_helpers import placeholder_refs
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -316,7 +316,7 @@ async def _account_with_revision(client, registration) -> tuple[dict[str, str], 
 
 async def _submit(client, headers, revision_id) -> None:
     response = await client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers=headers,
         json={
             "revision": revision_id,

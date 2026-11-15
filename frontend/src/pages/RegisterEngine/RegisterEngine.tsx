@@ -8,7 +8,8 @@ import {
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { ProjectPicker } from '../../components/ui/ProjectPicker';
+import { OrganizationPicker } from '../../components/ui/OrganizationPicker';
+import { launchPath } from '../../routes/paths/runs';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
 import { useResource } from '../../utils/useResource';
@@ -527,7 +528,7 @@ function Wizard({ username, setup, allowance, allowanceLoading, onAllowanceChang
           </div>
           <div className="rg-actions">
             <Action to={registrationHref(registration)} variant="primary">Open registration</Action>
-            <ProjectPicker label="Launch a run with it" destination={(org, project) => `/app/${org}/${project}/runs/new?engine=${encodeURIComponent(bimResourceKey(engine))}`} />
+            <OrganizationPicker label="Launch a run with it" destination={(org) => launchPath(org, { engine: bimResourceKey(engine) })} />
             <Action to="/app/engines/registrations" variant="secondary">All my engines</Action>
           </div>
         </section>

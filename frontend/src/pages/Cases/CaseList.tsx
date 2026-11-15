@@ -57,7 +57,6 @@ function CaseRow({ org, entry, runHref, canCreate, canAdminister, onDelete }: {
 function ListBody({ organization }: { organization: Organization }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { context } = useRouteOrganization();
   const org = organization.slug;
   const { role, canCreate, canAdminister } = problemAccess(organization);
   const [query, setQuery] = useState('');
@@ -146,7 +145,7 @@ function ListBody({ organization }: { organization: Organization }) {
               key={entry.item.id}
               org={org}
               entry={entry}
-              runHref={entry.revisions.length > 0 ? runLaunchOf(context, org, entry.item.slug, newestFirst(entry.revisions)[0].revision) : null}
+              runHref={entry.revisions.length > 0 ? runLaunchOf(org, entry.item.slug, newestFirst(entry.revisions)[0].revision) : null}
               canCreate={canCreate}
               canAdminister={canAdminister}
               onDelete={() => setRemoving(entry)}

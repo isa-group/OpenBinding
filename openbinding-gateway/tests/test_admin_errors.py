@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from _problem_helpers import revision_of
+from _problem_helpers import revision_of, runs_url_for
 from _problem_helpers import placeholder_refs
 from datetime import timedelta
 
@@ -103,12 +103,12 @@ async def test_solve_returns_429_on_concurrency_exceeded(api_client, db_session,
     ))
     await db_session.commit()
 
-    response = await api_client.post("/v1/jobs", headers=headers, json=_job_request(revision_id))
+    response = await api_client.post(runs_url_for(revision_id), headers=headers, json=_job_request(revision_id))
 
     assert response.status_code == 429, response.text
     body = response.json()
     assert body["title"] == "concurrency_limit_exceeded"
-    assert body["concurrency"]["limit"] == body["concurrency"]["active"] == 1
+    assert body["detail"]["concurrency"]["limit"] == body["detail"]["concurrency"]["active"] == 1
     assert response.headers.get("Retry-After") == "15"
 
 
@@ -122,7 +122,7 @@ async def test_telemetry_captures_errors_and_sanitizes(api_client, db_session, r
 
     # Send a validation failure
     bad_req = await api_client.post(
-        "/v1/jobs",
+        "/v1/organizations/acme/runs",
         headers={"Content-Type": "application/json"},
         json={"invalid": "payload"},
     )

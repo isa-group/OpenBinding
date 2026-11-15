@@ -56,7 +56,7 @@ export const isCurrent = (group: Locator, name: string): Locator => group
 
 // ---- project --------------------------------------------------------------------------------------------------
 
-export const PROJECT_TABS = ['Overview', 'Runs', 'Studies', 'Settings'];
+export const PROJECT_TABS = ['Overview', 'Studies', 'Settings'];
 export const VISITOR_TABS = ['Overview', 'Studies'];
 
 export interface ProjectMockOptions extends MockOptions {
@@ -86,11 +86,9 @@ export async function mockProject(page: Page, options: ProjectMockOptions = {}):
   } else {
     await answer(page, '/v1/organizations/acme/members', orgMembers);
   }
-  for (const list of ['jobs', 'studies']) {
-    await answer(page, `/v1/organizations/acme/projects/demo/${list}`, []);
-  }
+  await answer(page, '/v1/organizations/acme/projects/demo/studies', []);
   return calls;
 }
 
-/** The project tabs: the navigation that holds all the given labels (the four of a member by default). */
+/** The project tabs: the navigation that holds all the given labels (the three of a member by default). */
 export const projectTabs = (page: Page, labels: string[] = PROJECT_TABS): Locator => sectionNav(page, labels);

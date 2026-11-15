@@ -220,6 +220,8 @@ export interface JobOrganizationRef { id: string; slug: string }
 export interface JobProblemRef { id: string; slug: string; name: string }
 export interface JobRevisionRef { id: string; revision: number }
 export interface JobCompilationRef { id: string; compilation_digest: string; ir_digest: string }
+/** The member who launched (or retried) a run. */
+export interface JobCreatorRef { id: string; username: string }
 
 export interface Job {
   id: string;
@@ -228,12 +230,13 @@ export interface Job {
   cancellation_requested: boolean;
   retry_of_id: string | null;
   organization_id: string;
-  project_id: string | null;
   /** What the run is of: the organization, problem, revision and compilation it names. */
   organization?: JobOrganizationRef | null;
   problem?: JobProblemRef | null;
   revision?: JobRevisionRef | null;
   compilation?: JobCompilationRef | null;
+  /** Who launched it. */
+  created_by?: JobCreatorRef | null;
   created_at: string;
   finished_at: string | null;
   result?: {
@@ -382,8 +385,6 @@ export const platformApi = {
   /** Needs ADMIN. 409 `study_history_retained` once the study has runs: archive it instead. */
   deleteStudy: (org: string, project: string, study: string) =>
     apiClient.request<void>(`${root(org, project)}/studies/${encodeURIComponent(study)}`, { method: 'DELETE' }, undefined, true, true),
-  projectJobs: (org: string, project: string, jobId?: string) =>
-    apiClient.request<Job[]>(`${root(org, project)}/jobs?${jobId ? `job_id=${encodeURIComponent(jobId)}` : 'include_results=false'}`),
   engineRevisions: () =>
     apiClient.request<{ revisions: EngineRevision[] }>('/v1/engines/revisions'),
   engineRevision: (namespace: string, name: string, version: string) =>

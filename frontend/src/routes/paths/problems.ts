@@ -49,8 +49,3 @@ export interface WorkbenchTarget {
 export function workbenchPath(org: string, target: WorkbenchTarget = {}): string {
   return withQuery(`${organizationPath(org)}/workbench`, { problem: target.problem, revision: target.revision, template: target.template });
 }
-
-/** The launcher of a run of a problem revision (`job-launch`): `?problem=&revision=`. */
-export function launchPath(root: string, problem: string, revision?: number | string): string {
-  return withQuery(`${root}/runs/new`, { problem, revision });
-}

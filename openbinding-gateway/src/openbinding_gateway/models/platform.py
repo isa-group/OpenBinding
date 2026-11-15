@@ -301,19 +301,27 @@ class JobCompilationRef(BaseModel):
     ir_digest: str
 
 
+class JobCreatorRef(BaseModel):
+    id: uuid.UUID
+    username: str
+
+
 class JobView(BaseModel):
+    """A run of an organization, as a list shows it; ``RunView`` adds what one run's page shows."""
+
     id: uuid.UUID
     engine_id: str
     status: str
     cancellation_requested: bool
     retry_of_id: Optional[uuid.UUID]
     organization_id: uuid.UUID
-    project_id: Optional[uuid.UUID]
     #: What the run is of: the organization, problem, revision and compilation it names.
     organization: Optional[JobOrganizationRef] = None
     problem: Optional[JobProblemRef] = None
     revision: Optional[JobRevisionRef] = None
     compilation: Optional[JobCompilationRef] = None
+    #: The member who launched (or retried) the run.
+    created_by: Optional[JobCreatorRef] = None
     created_at: datetime
     finished_at: Optional[datetime]
     result: Optional[dict[str, Any]] = None
@@ -350,13 +358,41 @@ def job_view(
         id=job.id, engine_id=job.engine_id, status=job.state.value,
         cancellation_requested=job.cancellation_requested,
         retry_of_id=job.retry_of_id, organization_id=job.organization_id,
-        project_id=job.project_id, created_at=job.created_at, finished_at=job.finished_at,
+        created_at=job.created_at, finished_at=job.finished_at,
         result=result, termination=job.termination,
         options=options,
         original_request=original_request,
         provenance=provenance,
         **(dict(refs) if refs else {}),
     )
+
+
+class RunList(BaseModel):
+    """A page of an organization's runs (``listRuns``) and how many match the filters."""
+
+    runs: list[JobView]
+    total: int
+
+
+class RunView(JobView):
+    """One run (``getRun``): the summary, the result and its error, and what the engine said about itself.
+
+    ``remote`` is ``result.provenance.engineReported`` (empty until the engine answered); ``error``
+    repeats ``result.error`` for a failed run. Both are redacted with the result.
+    """
+
+    error: Optional[str] = None
+    remote: dict[str, Any] = {}
+
+
+def run_view(job: Any, viewer: Any, *, redact: bool = False, refs: Optional[Mapping[str, Any]] = None) -> RunView:
+    """A ``RunView`` of an ORM job as ``viewer`` may see it (``job_view`` plus ``error`` and ``remote``)."""
+    base = job_view(job, viewer, redact=redact, refs=refs)
+    result = base.result if isinstance(base.result, dict) else {}
+    provenance = result.get("provenance") if isinstance(result.get("provenance"), dict) else {}
+    remote = provenance.get("engineReported") if isinstance(provenance.get("engineReported"), dict) else {}
+    error = result.get("error") if isinstance(result.get("error"), str) else None
+    return RunView(**base.model_dump(), error=error, remote=dict(remote))
 
 
 class SnapshotView(BaseModel):

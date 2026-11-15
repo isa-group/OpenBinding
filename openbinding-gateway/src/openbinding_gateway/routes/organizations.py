@@ -9,7 +9,7 @@ import uuid
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Query, Response, status
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..collaboration import (
@@ -47,13 +47,10 @@ from ..db.models import (
 )
 from ..core import revision
 from ..models.errors import ErrorResponse, api_error
-from ..security.redaction import must_redact_jobs
 from ..models.platform import (
     InvitationAccept,
     InvitationCreate,
     InvitationCreated,
-    JobView,
-    job_view,
     MemberBatchUpdate,
     MemberUpsert,
     MemberView,
@@ -67,7 +64,6 @@ from ..models.platform import (
     ProjectResourceView,
 )
 from ..access import public_read
-from ..repositories import jobs as job_repository
 from ..repositories import organizations as organization_repository
 from ..access.dependencies import get_current_user, session_dependency
 from ..artifacts import version_content
@@ -286,9 +282,6 @@ async def _cascade_delete_project(session: AsyncSession, project: Project) -> No
             await session.delete(run)
         await session.delete(s)
 
-    await session.execute(
-        update(Job).where(Job.project_id == project.id).values(project_id=None)
-    )
     await session.delete(project)
 
 
@@ -866,29 +859,3 @@ async def list_project_resource_revisions(
         .where(ArtifactVersion.artifact_id == found_resource.id)
         .order_by(ArtifactVersion.ordinal))).all()
     return [await _legacy_resource_revision_view(session, found_resource, row, found_project.id) for row in rows]
-
-
-@router.get(
-    "/{org}/projects/{project}/jobs",
-    response_model=list[JobView],
-    operation_id="listProjectJobs",
-)
-async def list_project_jobs(
-    org: str, project: str,
-    include_results: bool = True,
-    job_id: uuid.UUID | None = None,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> list[JobView]:
-    organization = await _required_org(session, org)
-    found_project = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
-    # A VIEWER follows the project's work (state, engine, times, result,
-    # digests) but not its inputs: options and the request are redacted for
-    # anyone below MEMBER and for API keys that cannot write projects.
-    # (Non-members never get here: /jobs is not public_read.)
-    redact = await must_redact_jobs(session, organization.id, user)
-    rows = await job_repository.list_for_project(
-        session, found_project.id, job_id=job_id, include_results=include_results
-    )
-    refs = await job_repository.refs_for(session, rows)
-    return [job_view(job, user, include_results=include_results, redact=redact, refs=refs.get(job.id)) for job in rows]

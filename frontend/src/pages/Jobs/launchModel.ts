@@ -1,6 +1,6 @@
 import type { UsageView } from '../../api/auth';
 import type { BimResourceRef, EngineCatalogEntry, EngineMode } from '../../api/client';
-import type { ExecutionOptimization, LaunchRequest } from '../../api/jobs';
+import type { ExecutionOptimization, LaunchRequest } from '../../api/runs';
 import type { ProblemRevision } from '../../api/problems';
 import type { CaseContent } from '../../features/workspace/model';
 import { planLimit } from '../../features/workspace/model';
@@ -333,7 +333,7 @@ export interface RequestInput {
   optimization?: ExecutionOptimization | null;
 }
 
-/** What `POST /v1/jobs` gets, or `null` while something is missing. */
+/** What `createRun` gets, or `null` while something is missing. */
 export function buildRequest(input: RequestInput): LaunchRequest | null {
   if (!input.revision) return null;
   if (!input.mode || input.mode.compat === 'no') return null;

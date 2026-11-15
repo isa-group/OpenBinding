@@ -177,21 +177,6 @@ describe('BIM v1 Engine API client', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://gateway.example/v1/engine-registrations?review=true');
   });
 
-  it('propagates caller cancellation to the actual fetch', async () => {
-    const caller = new AbortController();
-    fetchMock.mockImplementation((_url, options) => new Promise((_resolve, reject) => {
-      options?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
-    }));
-    const pending = client.getBindingNeighborhood('job', 0, '', 64, caller.signal);
-    caller.abort();
-    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
-    expect(fetchMock.mock.calls[0][1]?.signal?.aborted).toBe(true);
-  });
-
-  it('does not mistake a validation problem for neighborhood evidence', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: 'Selected task is invalid' }, 422));
-    await expect(client.getBindingNeighborhood('job', 0, 'unknown', 64)).rejects.toThrow('Selected task is invalid');
-  });
 });
 
 describe('a 422 is an error unless the caller asks for its body', () => {

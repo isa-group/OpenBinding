@@ -1,11 +1,13 @@
-"""Job submission: validate a job request, reserve its idempotency key and persist the Job.
+"""Job submission: validate a run request, reserve its idempotency key and persist the Job.
 
-``routes.v1.create_job`` is the HTTP face of this module. The route authenticates
-the caller and reads the request (content type, size limits, multipart, JSON)
-into a ``JobSubmissionInput``; ``JobSubmission.submit`` does the rest and answers
-with a ``JobSubmissionResult`` that the route turns into a response. Nothing here
-knows about requests or responses; dispatching the job to a worker stays with the
-caller too, after the job is committed.
+``createRun`` (``modules.execution.adapters.routes``) and the study cell launch
+(``study_jobs.launch_study_cell``) are the two callers. The route authenticates
+the caller and reads the request (content type, size limit, JSON) into a
+``RunRequest``; a study cell builds one from the cell. ``JobSubmission.submit``
+does the rest and answers with a ``JobSubmissionResult`` that the caller turns
+into a response or a cell outcome. Nothing here knows about requests or
+responses; dispatching the job to a worker stays with the caller too, after the
+job is committed.
 
 The idempotency guarantees (G1-G4, docs/IDEMPOTENCY.md) are kept by this flow:
 the account row is locked before the key is looked up again and before the
@@ -36,13 +38,14 @@ from ..db.models import (
     BindingCaseRevision,
     EngineRegistrationRevision,
     Job,
-    JobProvenance,
     JobState,
     Organization,
     ProblemCompilation,
     User,
 )
 from ..domain import idempotency
+from ..modules.execution.application import STUDY_CELL_KEY_PREFIX as STUDY_CELL_KEY_PREFIX
+from ..modules.execution.application import RunRequest
 from ..modules.plans.application import entitlement_map as ids
 from ..integrations import bim
 from ..jobs import limits as job_limits
@@ -64,9 +67,6 @@ from ..domain.binding_space import BindingSpace
 from ..modules.problems.application import compile_or_get, package_file_digests
 from .entitlements import EntitlementsUnavailable, entitlement_service
 
-#: Idempotency keys the gateway writes for study cells; clients cannot claim them.
-STUDY_CELL_KEY_PREFIX = "study-cell:"
-
 _PENDING_LAUNCHES = "pending-job-launches"
 _ACCOUNT_REQUIRED = "Submitting a job requires an account."
 
@@ -86,20 +86,6 @@ def discard_pending_launches(session: AsyncSession, only: set[uuid.UUID] | None 
 
     pending = pending_launches(session)
     pending[:] = [job_id for job_id in pending if only is not None and job_id not in only]
-
-
-@dataclass(frozen=True)
-class JobSubmissionInput:
-    """A job request already read from the transport.
-
-    ``payload`` is the JSON object of the request; ``revision_id`` names the
-    problem revision the job runs.
-    """
-
-    payload: dict[str, Any]
-    body_size: int = 0
-    idempotency_key: str | None = None
-    revision_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -191,9 +177,9 @@ async def _raced_idempotent_outcome(
 async def _key_boundary_allows(session: AsyncSession, caller: User, problem_row: BindingCase) -> bool:
     """Whether the authenticating API key's boundary covers a run of this problem.
 
-    ``POST /v1/jobs`` names the revision in its body, so the route-level boundary check sees no
-    organization or problem; the run belongs to the problem's organization, and a run is in no
-    project, so a key bounded to projects is refused.
+    ``createRun`` names the revision in its body, so the route-level boundary check sees the
+    organization of the address but not the problem; the run belongs to the problem's organization,
+    and a run is in no project, so a key bounded to projects is refused.
     """
     key = authenticated_api_key(caller)
     boundary = boundary_of(key) if key is not None else None
@@ -213,7 +199,7 @@ class _Source:
     revision: BindingCaseRevision
     problem: BindingCase
     compilation: ProblemCompilation
-    payload: dict[str, Any]
+    request: RunRequest
 
     @property
     def ir(self) -> dict[str, Any]:
@@ -291,13 +277,13 @@ class JobSubmission:
         self.commit = commit
         self.study_cell_id = study_cell_id
 
-    async def submit(self, request: JobSubmissionInput) -> JobSubmissionResult:
+    async def submit(self, request: RunRequest) -> JobSubmissionResult:
         try:
             return await self._submit(request)
         except _Finished as finished:
             return finished.result
 
-    async def _submit(self, request: JobSubmissionInput) -> JobSubmissionResult:
+    async def _submit(self, request: RunRequest) -> JobSubmissionResult:
         if self.caller is None or self.session is None:
             return problem(401, "unauthorized", _ACCOUNT_REQUIRED)
         source = await self._resolve_source(request)
@@ -327,12 +313,13 @@ class JobSubmission:
 
     # -- Stages -------------------------------------------------------------
 
-    async def _resolve_source(self, request: JobSubmissionInput) -> _Source:
+    async def _resolve_source(self, request: RunRequest) -> _Source:
         """The revision the job runs, its problem and the compilation of the installed toolchain.
 
-        The run belongs to the problem's organization, so a VIEWER, who only reads, is refused
-        before the key is looked up or anything is written. A miss compiles once per revision
-        and toolchain; later runs reuse the row.
+        The run belongs to the organization of the request, which must be the problem's: a
+        revision of another organization the caller can see is a 409. A VIEWER, who only
+        reads, is refused before the key is looked up or anything is written. A miss compiles
+        once per revision and toolchain; later runs reuse the row.
         """
         session = self.session
         try:
@@ -348,6 +335,12 @@ class JobSubmission:
         if await effective_role(session, problem_row.organization_id, self.caller) is None:
             # A non-member learns nothing about the revision.
             raise _Finished(problem(404, "not_found", "Problem revision not found"))
+        if problem_row.organization_id != request.organization_id:
+            raise _Finished(problem(
+                409,
+                "revision_not_in_organization",
+                "The problem revision belongs to another organization; launch the run from that organization",
+            ))
         if not await _key_boundary_allows(session, self.caller, problem_row):
             raise _Finished(problem(
                 403, "api_key_boundary", "This API key is restricted from the requested method or resource."
@@ -359,14 +352,14 @@ class JobSubmission:
             raise _Finished(problem_from_http(exc)) from exc
         if compilation.ir.get("apiVersion") != "bim/v1" or compilation.ir.get("kind") != "BindingProblem":
             raise _Finished(problem(422, "execution_capability_unavailable", "This output has no installed execution evaluator"))
-        return _Source(revision, problem_row, compilation, request.payload)
+        return _Source(revision, problem_row, compilation, request)
 
-    async def _precheck(self, request: JobSubmissionInput, source: _Source) -> str:
+    async def _precheck(self, request: RunRequest, source: _Source) -> str:
         """The request's fingerprint; an earlier job with the same key settles the request here (replay or 409)."""
         try:
             fingerprint = idempotency.request_fingerprint(
                 source_digest=source.revision.package_digest,
-                body=request.payload,
+                body=request.body(),
             )
         except CanonicalizationError as exc:
             raise _Finished(problem(422, "invalid_request", str(exc))) from exc
@@ -377,8 +370,8 @@ class JobSubmission:
         return fingerprint
 
     async def _select_engine(self, source: _Source) -> _Engine:
-        payload = source.payload
-        selector = payload.get("engine", "random-search")
+        request = source.request
+        selector = request.engine
         if isinstance(selector, dict):
             name = selector.get("name")
             namespace = selector.get("namespace")
@@ -393,7 +386,7 @@ class JobSubmission:
         else:
             name = selector
             namespace = version = requested_digest = None
-        requested_mode = payload.get("mode")
+        requested_mode = request.mode
         if not isinstance(name, str) or not name:
             raise _Finished(problem(422, "invalid_engine", "engine must be a name or immutable reference"))
         if not isinstance(selector, dict) and not (MANIFEST_DIR / f"{name}.json").is_file():
@@ -402,7 +395,7 @@ class JobSubmission:
                 "immutable_engine_required",
                 "non-built-in engines must be selected by namespace, name, version and digest",
             ))
-        requested_options = payload.get("options", {})
+        requested_options = request.options
         try:
             selection = await select_engine(
                 name,
@@ -418,7 +411,7 @@ class JobSubmission:
             manifest, mode, options = selection.manifest, selection.mode, selection.options
             manifest_digest = digest(manifest)
             optimization = await _resolve_execution_optimization(
-                source.ir, manifest, mode["id"], payload.get("optimization"),
+                source.ir, manifest, mode["id"], request.optimization,
             )
         except HTTPException as exc:
             raise _Finished(problem_from_http(exc)) from exc
@@ -430,7 +423,7 @@ class JobSubmission:
             manifest_digest, optimization, reference,
         )
 
-    async def _plan_terms(self, request: JobSubmissionInput, source: _Source, engine: _Engine) -> _PlanTerms:
+    async def _plan_terms(self, request: RunRequest, source: _Source, engine: _Engine) -> _PlanTerms:
         """What the caller's plan allows: payload and complexity ceilings, clamped options, solve timeout."""
         settings = get_settings()
         caps = None
@@ -456,7 +449,7 @@ class JobSubmission:
 
     async def _registration(self, source: _Source, engine: _Engine) -> _Registration:
         """The EngineRegistration that pins the selected Engine revision and where it runs."""
-        requested = source.payload.get("registration")
+        requested = source.request.registration
         if requested is not None and (
             not isinstance(requested, dict)
             or set(requested) != {"namespace", "name", "version", "digest"}
@@ -559,7 +552,7 @@ class JobSubmission:
 
     async def _persist(
         self,
-        request: JobSubmissionInput,
+        request: RunRequest,
         source: _Source,
         engine: _Engine,
         terms: _PlanTerms,
@@ -621,7 +614,7 @@ class JobSubmission:
             },
             revision_id=source.revision.id,
             compilation_id=compilation.id,
-            organization_id=source.problem.organization_id,
+            organization_id=request.organization_id,
             provenance=provenance,
             idempotency_key=key,
             idempotency_fingerprint=fingerprint,
@@ -631,7 +624,6 @@ class JobSubmission:
         try:
             async with session.begin_nested():
                 session.add(db_job)
-                session.add(JobProvenance(job_id=db_job.id, document=provenance, digest=digest(provenance)))
                 await session.flush()
         except IntegrityError:
             if self.study_cell_id is not None:

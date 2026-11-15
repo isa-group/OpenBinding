@@ -113,7 +113,7 @@ async def test_study_patch_and_delete(api_client, registration, platform_gate):
 
 
 @pytest.mark.asyncio
-async def test_project_jobs_and_engine_revisions(api_client, registration, db_session, platform_gate):
+async def test_organization_runs_and_engine_revisions(api_client, registration, db_session, platform_gate):
     headers = await _auth_headers(api_client, registration, platform_gate, username=f"user-{uuid.uuid4().hex[:6]}")
     org_slug = f"org-{uuid.uuid4().hex[:6]}"
     proj_slug = "test-proj"
@@ -121,27 +121,24 @@ async def test_project_jobs_and_engine_revisions(api_client, registration, db_se
     await api_client.post("/v1/organizations", headers=headers, json={"slug": org_slug, "name": "Test Org"})
     await api_client.post(f"/v1/organizations/{org_slug}/projects", headers=headers, json={"slug": proj_slug, "name": "Test Proj", "visibility": "private"})
 
-    # Large result payloads are omitted from the summary request and fetched only for the selected job.
+    # Large result payloads are omitted from the run list and fetched only for the selected run.
     from sqlalchemy import select
-    from openbinding_gateway.db.models import Job, JobState, Project
-    project = (await db_session.execute(select(Project).where(Project.slug == proj_slug))).scalars().first()
-    job = Job(owner_id=project.created_by_id, project_id=project.id, organization_id=project.organization_id,
+    from openbinding_gateway.db.models import Job, JobState, Organization
+    organization = (await db_session.execute(select(Organization).where(Organization.slug == org_slug))).scalars().first()
+    job = Job(owner_id=organization.created_by_id, organization_id=organization.id,
               engine_id="diagnostic", engine_job_id="metadata-fixture", service_url="https://example.invalid",
               state=JobState.COMPLETED, original_request={"evidence": "pinned"}, result={"solutions": [{"large": "evidence"}]},
+              provenance={"engine": {"namespace": "bim.builtin", "name": "diagnostic", "version": "1", "digest": "sha256-d"}},
               **placeholder_refs("organization_id"))
     db_session.add(job)
     await db_session.commit()
-    metadata = await api_client.get(f"/v1/organizations/{org_slug}/projects/{proj_slug}/jobs?include_results=false", headers=headers)
+    metadata = await api_client.get(f"/v1/organizations/{org_slug}/runs", headers=headers)
     assert metadata.status_code == 200
-    assert metadata.json()[0]["result"] is None and metadata.json()[0]["original_request"] is None
-    detail = await api_client.get(f"/v1/organizations/{org_slug}/projects/{proj_slug}/jobs?job_id={job.id}", headers=headers)
-    assert [row["id"] for row in detail.json()] == [str(job.id)]
-    assert detail.json()[0]["result"] == job.result
-
-    # GET project jobs
-    jobs_resp = await api_client.get(f"/v1/organizations/{org_slug}/projects/{proj_slug}/jobs", headers=headers)
-    assert jobs_resp.status_code == 200
-    assert isinstance(jobs_resp.json(), list)
+    assert metadata.json()["total"] == 1
+    assert metadata.json()["runs"][0]["result"] is None and metadata.json()["runs"][0]["original_request"] is None
+    detail = await api_client.get(f"/v1/organizations/{org_slug}/runs/{job.id}", headers=headers)
+    assert detail.json()["id"] == str(job.id)
+    assert detail.json()["result"] == job.result
 
     # GET engine revisions
     eng_revs = await api_client.get("/v1/engines/revisions", headers=headers)

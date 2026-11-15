@@ -1,16 +1,15 @@
 import { expect, test } from '@playwright/test';
-import { RUNS_SEGMENT } from './helpers';
 import { MEMBER_NAMES, PROJECT_TABS, VISITOR_TABS, isCurrent, mockProject, navEntry, projectTabs, sectionNav } from './helpers-hub';
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
 const PROJECT = '/app/acme/demo';
-// The problems belong to the organization, so a project has no Problems tab.
-const TAB_HREFS = [PROJECT, `${PROJECT}/${RUNS_SEGMENT}`, `${PROJECT}/studies`, `${PROJECT}/settings`];
+// The problems and the runs belong to the organization, so a project has no Problems tab and no Runs tab.
+const TAB_HREFS = [PROJECT, `${PROJECT}/studies`, `${PROJECT}/settings`];
 
 // ---- frontend-nav-project-tabs ----------------------------------------------------------------------------------
 
-test('the project tabs of a member read Overview, Runs, Studies, Settings', async ({ page }) => {
+test('the project tabs of a member read Overview, Studies, Settings', async ({ page }) => {
   await mockProject(page);
   await page.goto(`${PROJECT}/studies`);
   await expect(projectTabs(page).getByRole('link')).toHaveText(PROJECT_TABS);
@@ -58,13 +57,13 @@ test('the settings section Members lists the members of acme and links to manage
   await expect(page.getByRole('link', { name: 'Manage members', exact: true })).toHaveAttribute('href', '/app/acme/settings/members');
 });
 
-test('the former tabs Problems, Cases, Jobs, Publications, Published, Files and Package are gone', async ({ page }) => {
+test('the former tabs Problems, Runs, Cases, Jobs, Publications, Published, Files and Package are gone', async ({ page }) => {
   await mockProject(page);
   await page.goto(PROJECT);
   const tabs = projectTabs(page, ['Overview', 'Settings']);
   await expect(navEntry(tabs, 'Overview')).toBeVisible();
   await expect(tabs.getByRole('link')).toHaveText(PROJECT_TABS);
-  for (const former of ['Problems', 'Cases', 'Jobs', 'Publications', 'Published', 'Files', 'Package']) {
+  for (const former of ['Problems', 'Runs', 'Cases', 'Jobs', 'Publications', 'Published', 'Files', 'Package']) {
     await expect(navEntry(tabs, former), `tab ${former}`).toHaveCount(0);
   }
 });

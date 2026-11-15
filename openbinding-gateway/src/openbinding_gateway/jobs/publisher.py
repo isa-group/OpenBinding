@@ -1,6 +1,6 @@
 """Handing queued jobs to the broker without losing or flooding them.
 
-The job row is the outbox. ``POST /v1/jobs`` commits it as QUEUED and then sends
+The job row is the outbox. ``createRun`` commits it as QUEUED and then sends
 the message straight away; if that send is lost (the process dies, Redis is
 down) the row is still there, and this module is the safety net that sends it
 again. A batch of due rows is claimed in one UPDATE that also pushes each row's

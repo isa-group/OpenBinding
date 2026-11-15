@@ -57,6 +57,8 @@ RETIRED_TABLES = frozenset({
     "v1_binding_ir",
     "v1_instance_resources",
     "v1_instance_snapshots",
+    # F0b B6: runs move under the organization; the write-only run provenance copy goes (D28).
+    "v1_job_provenance",
 })
 
 VERSIONS = GATEWAY_ROOT / "alembic" / "versions"

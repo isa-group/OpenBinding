@@ -72,7 +72,8 @@ def test_every_422_is_the_problem_document_in_the_media_type_its_routes_answer_w
         assert set(response["content"]) == {expected}, f"{method.upper()} {path}"
         assert response["content"][expected]["schema"] == PROBLEM, f"{method.upper()} {path}"
         assert response["description"], f"{method.upper()} {path}"
-    assert seen > 100
+    # Runs answer the platform envelope since F0b B6 (D9), so their 422 is the Problem as application/json.
+    assert seen > 90
 
 
 def test_problem_and_diagnostic_are_components(document):

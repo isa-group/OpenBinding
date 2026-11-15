@@ -4871,27 +4871,23 @@
         "title": "JobCompilationRef",
         "type": "object"
       },
-      "JobHistory": {
-        "description": "A page of an account's own solves.",
+      "JobCreatorRef": {
         "properties": {
-          "jobs": {
-            "items": {
-              "$ref": "#/components/schemas/JobSummary"
-            },
-            "title": "Jobs",
-            "type": "array"
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
           },
-          "total": {
-            "description": "How many are visible in total.",
-            "title": "Total",
-            "type": "integer"
+          "username": {
+            "title": "Username",
+            "type": "string"
           }
         },
         "required": [
-          "jobs",
-          "total"
+          "id",
+          "username"
         ],
-        "title": "JobHistory",
+        "title": "JobCreatorRef",
         "type": "object"
       },
       "JobOrganizationRef": {
@@ -4935,60 +4931,6 @@
           "name"
         ],
         "title": "JobProblemRef",
-        "type": "object"
-      },
-      "JobReport": {
-        "additionalProperties": false,
-        "properties": {
-          "gatewayEvaluation": {
-            "additionalProperties": false,
-            "properties": {
-              "solutions": {
-                "items": {
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              "termination": {
-                "oneOf": [
-                  {
-                    "enum": [
-                      "OPTIMAL",
-                      "FEASIBLE",
-                      "INFEASIBLE",
-                      "UNKNOWN"
-                    ],
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              }
-            },
-            "required": [
-              "termination",
-              "solutions"
-            ],
-            "type": "object"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "provenance": {
-            "type": "object"
-          },
-          "remote": {
-            "type": "object"
-          }
-        },
-        "required": [
-          "id",
-          "gatewayEvaluation",
-          "remote",
-          "provenance"
-        ],
         "type": "object"
       },
       "JobRequest": {
@@ -5057,13 +4999,37 @@
         "title": "JobState",
         "type": "string"
       },
-      "JobSummary": {
-        "description": "One solve this account asked for.\n\nDeliberately a summary: the result of a job can be hundreds of megabytes,\nand a history is for finding the one you want rather than for reading them\nall. ``GET /v1/jobs/{id}`` is where the answer itself lives.",
+      "JobView": {
+        "description": "A run of an organization, as a list shows it; ``RunView`` adds what one run's page shows.",
         "properties": {
+          "cancellation_requested": {
+            "title": "Cancellation Requested",
+            "type": "boolean"
+          },
+          "compilation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobCompilationRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobCreatorRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "engine_id": {
             "title": "Engine Id",
@@ -5086,39 +5052,114 @@
             "title": "Id",
             "type": "string"
           },
-          "solutions": {
+          "options": {
             "anyOf": [
               {
-                "type": "integer"
+                "additionalProperties": true,
+                "type": "object"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "How many solutions came back.",
-            "title": "Solutions"
+            "title": "Options"
           },
-          "status": {
-            "description": "queued, running, completed or failed.",
-            "title": "Status",
-            "type": "string"
-          },
-          "termination": {
+          "organization": {
             "anyOf": [
               {
-                "enum": [
-                  "OPTIMAL",
-                  "FEASIBLE",
-                  "INFEASIBLE",
-                  "UNKNOWN"
-                ],
+                "$ref": "#/components/schemas/JobOrganizationRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "original_request": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Request"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobProblemRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provenance"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "retry_of_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Canonical BIM v1 termination, once the result is available.",
+            "title": "Retry Of Id"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobRevisionRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "termination": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Termination"
           }
         },
@@ -5126,115 +5167,13 @@
           "id",
           "engine_id",
           "status",
-          "created_at"
+          "cancellation_requested",
+          "retry_of_id",
+          "organization_id",
+          "created_at",
+          "finished_at"
         ],
-        "title": "JobSummary",
-        "type": "object"
-      },
-      "JobView": {
-        "additionalProperties": false,
-        "properties": {
-          "compilation": {
-            "additionalProperties": false,
-            "properties": {
-              "compilation_digest": {
-                "type": "string"
-              },
-              "id": {
-                "format": "uuid",
-                "type": "string"
-              },
-              "ir_digest": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id",
-              "compilation_digest",
-              "ir_digest"
-            ],
-            "type": "object"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "organization": {
-            "additionalProperties": false,
-            "properties": {
-              "id": {
-                "format": "uuid",
-                "type": "string"
-              },
-              "slug": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id",
-              "slug"
-            ],
-            "type": "object"
-          },
-          "problem": {
-            "additionalProperties": false,
-            "properties": {
-              "id": {
-                "format": "uuid",
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              },
-              "slug": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id",
-              "slug",
-              "name"
-            ],
-            "type": "object"
-          },
-          "provenance": {
-            "type": "object"
-          },
-          "result": {
-            "$ref": "#/components/schemas/GatewayBindingResult"
-          },
-          "revision": {
-            "additionalProperties": false,
-            "properties": {
-              "id": {
-                "format": "uuid",
-                "type": "string"
-              },
-              "revision": {
-                "type": "integer"
-              }
-            },
-            "required": [
-              "id",
-              "revision"
-            ],
-            "type": "object"
-          },
-          "status": {
-            "enum": [
-              "queued",
-              "running",
-              "completed",
-              "failed"
-            ],
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "status",
-          "provenance"
-        ],
+        "title": "JobView",
         "type": "object"
       },
       "LatestRevision": {
@@ -7281,6 +7220,222 @@
         ],
         "title": "RoleName",
         "type": "string"
+      },
+      "RunList": {
+        "description": "A page of an organization's runs (``listRuns``) and how many match the filters.",
+        "properties": {
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/JobView"
+            },
+            "title": "Runs",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "runs",
+          "total"
+        ],
+        "title": "RunList",
+        "type": "object"
+      },
+      "RunView": {
+        "description": "One run (``getRun``): the summary, the result and its error, and what the engine said about itself.\n\n``remote`` is ``result.provenance.engineReported`` (empty until the engine answered); ``error``\nrepeats ``result.error`` for a failed run. Both are redacted with the result.",
+        "properties": {
+          "cancellation_requested": {
+            "title": "Cancellation Requested",
+            "type": "boolean"
+          },
+          "compilation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobCompilationRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobCreatorRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "engine_id": {
+            "title": "Engine Id",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobOrganizationRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "original_request": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Request"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobProblemRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provenance"
+          },
+          "remote": {
+            "additionalProperties": true,
+            "default": {},
+            "title": "Remote",
+            "type": "object"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "retry_of_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Of Id"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobRevisionRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "termination": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Termination"
+          }
+        },
+        "required": [
+          "id",
+          "engine_id",
+          "status",
+          "cancellation_requested",
+          "retry_of_id",
+          "organization_id",
+          "created_at",
+          "finished_at"
+        ],
+        "title": "RunView",
+        "type": "object"
       },
       "StudyArtifactContent": {
         "additionalProperties": false,
@@ -12632,940 +12787,6 @@
         ]
       }
     },
-    "/v1/jobs": {
-      "get": {
-        "operationId": "listJobs",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "state",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/JobState"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "State"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 100,
-              "title": "Limit",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/JobView"
-                  },
-                  "title": "Response Listjobs",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the BIM v1 contract."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "List Jobs",
-        "tags": [
-          "Jobs"
-        ],
-        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
-        "x-required-api-key-permissions": [
-          "jobs:read"
-        ]
-      },
-      "post": {
-        "operationId": "create_job_v1_jobs_post",
-        "parameters": [
-          {
-            "description": "Reuse the first response only when the complete request fingerprint matches.",
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": false,
-            "schema": {
-              "maxLength": 255,
-              "minLength": 1,
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/JobRequest"
-              }
-            }
-          },
-          "description": "The problem revision to run, and the exact Engine, deployment and settings.",
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobAccepted"
-                }
-              }
-            },
-            "description": "Private asynchronous solve accepted."
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The requested feature or engine is not entitled in the caller's plan."
-          },
-          "404": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The problem revision, Engine or deployment is not visible."
-          },
-          "409": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "An immutable selection or idempotency key conflicts."
-          },
-          "413": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request exceeds the transport size limit."
-          },
-          "415": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request is not JSON."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The revision, selection, mode or options are invalid, or the binding space exceeds the limit."
-          },
-          "429": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The caller already has the maximum number of queued and running jobs."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Create Job",
-        "tags": [
-          "BIM v1"
-        ],
-        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
-        "x-required-api-key-permissions": [
-          "engines:execute"
-        ]
-      }
-    },
-    "/v1/jobs/{job_id}": {
-      "get": {
-        "operationId": "get_v1_job_v1_jobs__job_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "job_id",
-            "required": true,
-            "schema": {
-              "title": "Job Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobView"
-                }
-              }
-            },
-            "description": "Owned job status, provenance and optional result."
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "404": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The exact owned job or related artifact does not exist."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the BIM v1 contract."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Get V1 Job",
-        "tags": [
-          "BIM v1"
-        ],
-        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
-        "x-required-api-key-permissions": [
-          "jobs:read"
-        ]
-      }
-    },
-    "/v1/jobs/{job_id}/analysis/neighborhood": {
-      "get": {
-        "description": "Owner-scoped counterfactual evaluation against the pinned job IR. At most 128 eligible substitutions, with a cooperative two-second budget between evaluations. Does not invoke an Engine, mutate the job, or claim global optimality.",
-        "operationId": "get_v1_job_neighborhood_v1_jobs__job_id__analysis_neighborhood_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "job_id",
-            "required": true,
-            "schema": {
-              "title": "Job Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "solution_index",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "minimum": 0,
-              "title": "Solution Index",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "task",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "maxLength": 256,
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Task"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 64,
-              "maximum": 128,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NeighborhoodResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the BIM v1 contract."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Evaluate bounded one-task binding alternatives",
-        "tags": [
-          "BIM v1"
-        ],
-        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
-        "x-required-api-key-permissions": [
-          "jobs:read"
-        ]
-      }
-    },
-    "/v1/jobs/{job_id}/cancel": {
-      "post": {
-        "operationId": "cancelJob",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "job_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Job Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobView"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the BIM v1 contract."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Cancel Job",
-        "tags": [
-          "Jobs"
-        ],
-        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
-        "x-required-api-key-permissions": [
-          "engines:execute"
-        ]
-      }
-    },
-    "/v1/jobs/{job_id}/events": {
-      "get": {
-        "operationId": "streamJobEvents",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "job_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Job Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "text/event-stream": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the BIM v1 contract."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Stream Job Events",
-        "tags": [
-          "Jobs"
-        ],
-        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
-        "x-required-api-key-permissions": [
-          "jobs:read"
-        ]
-      }
-    },
-    "/v1/jobs/{job_id}/reevaluate": {
-      "post": {
-        "description": "Evaluate again the engine answer kept for a job that failed with ``bim_evaluation_failed``.\n\nThe engine does not run again. BIM is called with no transaction open; the\njob then goes FAILED -> COMPLETED in one conditional UPDATE, so of two\nsimultaneous calls (or a call and a cancellation or a retry) one wins and the\nothers answer 409. If BIM fails again the job and its evidence are untouched.",
-        "operationId": "reevaluateJob",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "job_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Job Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobView"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "The credential is valid but not allowed to do this."
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "No such resource, or none this caller may see."
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "The request conflicts with something that already exists."
-          },
-          "410": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "The kept answer of the engine has expired."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the BIM v1 contract."
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "A service the gateway depends on is not reachable."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Reevaluate Job",
-        "tags": [
-          "Jobs"
-        ],
-        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
-        "x-required-api-key-permissions": [
-          "engines:execute"
-        ]
-      }
-    },
-    "/v1/jobs/{job_id}/report": {
-      "get": {
-        "operationId": "get_v1_job_report_v1_jobs__job_id__report_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "job_id",
-            "required": true,
-            "schema": {
-              "title": "Job Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobReport"
-                }
-              }
-            },
-            "description": "Gateway reevaluation, remote provenance and immutable execution pins."
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "404": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The exact owned job or related artifact does not exist."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the BIM v1 contract."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Get V1 Job Report",
-        "tags": [
-          "BIM v1"
-        ],
-        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
-        "x-required-api-key-permissions": [
-          "jobs:read"
-        ]
-      }
-    },
-    "/v1/jobs/{job_id}/retry": {
-      "post": {
-        "operationId": "retryJob",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "job_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Job Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "202": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobView"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the BIM v1 contract."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Retry Job",
-        "tags": [
-          "Jobs"
-        ],
-        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
-        "x-required-api-key-permissions": [
-          "engines:execute"
-        ]
-      }
-    },
     "/v1/notifications": {
       "get": {
         "operationId": "listNotifications",
@@ -17147,129 +16368,6 @@
         ]
       }
     },
-    "/v1/organizations/{org}/projects/{project}/jobs": {
-      "get": {
-        "operationId": "listProjectJobs",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "include_results",
-            "required": false,
-            "schema": {
-              "default": true,
-              "title": "Include Results",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "query",
-            "name": "job_id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Job Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/JobView"
-                  },
-                  "title": "Response Listprojectjobs",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "List Project Jobs",
-        "tags": [
-          "Organizations"
-        ],
-        "x-required-api-key-permissions": [
-          "projects:read"
-        ]
-      }
-    },
     "/v1/organizations/{org}/projects/{project}/resources": {
       "get": {
         "operationId": "listProjectResources",
@@ -18898,6 +17996,1086 @@
         ]
       }
     },
+    "/v1/organizations/{org}/runs": {
+      "get": {
+        "description": "The organization's runs, newest first: summaries only, results load with ``getRun``.",
+        "operationId": "listRuns",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/JobState"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "description": "A problem slug or id.",
+            "in": "query",
+            "name": "problem",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A problem slug or id.",
+              "title": "Problem"
+            }
+          },
+          {
+            "in": "query",
+            "name": "revision",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Revision"
+            }
+          },
+          {
+            "in": "query",
+            "name": "engine",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Engine"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Runs",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read"
+        ]
+      },
+      "post": {
+        "description": "Run a revision of one of the organization's problems on an engine (MEMBER).\n\n``Idempotency-Key`` makes sending twice by accident start one run: the same key and the same\nrequest answer the first run again (202, ``idempotent``), the same key with another request 409.",
+        "operationId": "createRun",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Reuse the first response only when the complete request fingerprint matches.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobRequest"
+              }
+            }
+          },
+          "description": "The problem revision to run, and the exact Engine, deployment and settings.",
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobAccepted"
+                }
+              }
+            },
+            "description": "The run is queued (or, with a replayed Idempotency-Key, the first run of that key)."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The plan has no room for another run."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Below MEMBER, or the feature or engine is not in the plan."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The organization, revision, engine or deployment is not visible."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The revision belongs to another organization (`revision_not_in_organization`), or an immutable selection or the idempotency key conflicts."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request exceeds the transport size limit."
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is not JSON."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The revision, selection, mode or options are invalid, or the binding space exceeds the limit."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The account already has the maximum number of queued and running runs."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Create Run",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "engines:execute"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/runs/{run}": {
+      "get": {
+        "description": "One run: its state, settings, result and provenance, and what the engine reported about itself.",
+        "operationId": "getRun",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Run",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/runs/{run}/cancel": {
+      "post": {
+        "operationId": "cancelRun",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The credential is valid but not allowed to do this."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with something that already exists."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Cancel Run",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "engines:execute"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/runs/{run}/events": {
+      "get": {
+        "operationId": "streamRunEvents",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Stream Run Events",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/runs/{run}/neighborhood": {
+      "get": {
+        "description": "Counterfactual evaluation against the run's compiled problem, for any member. At most 128 eligible substitutions, with a cooperative two-second budget between evaluations. Does not invoke an Engine, change the run, or claim global optimality.",
+        "operationId": "getRunNeighborhood",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "solution_index",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Solution Index",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "task",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Task"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 64,
+              "maximum": 128,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NeighborhoodResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with something that already exists."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The evaluator is busy."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Evaluate bounded one-task binding alternatives",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/runs/{run}/reevaluate": {
+      "post": {
+        "description": "Evaluate again the engine answer kept for a run that failed with ``bim_evaluation_failed``.\n\nThe engine does not run again. BIM is called with no transaction open; the run then goes\nFAILED -> COMPLETED in one conditional UPDATE, so of two simultaneous calls (or a call and a\ncancellation or a retry) one wins and the others answer 409. If BIM fails again the run and\nits evidence are untouched.",
+        "operationId": "reevaluateRun",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The credential is valid but not allowed to do this."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with something that already exists."
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The kept answer of the engine has expired."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Reevaluate Run",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "engines:execute"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/runs/{run}/retry": {
+      "post": {
+        "description": "Run a failed or cancelled run again, as a new run launched by the caller.\n\nThe new run is the caller's (its concurrency slot and plan), on the same compilation, engine and\ndeployment. A private engine resolves for the caller, so retrying a teammate's run on that\nteammate's private engine is refused at dispatch (``registration_changed``, D10).",
+        "operationId": "retryRun",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The credential is valid but not allowed to do this."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with something that already exists."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Retry Run",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "engines:execute"
+        ]
+      }
+    },
     "/v1/pricing/catalog": {
       "get": {
         "description": "Return the published, digest-verified Pricing2Yaml document unchanged, as JSON.",
@@ -19748,102 +19926,6 @@
         ]
       }
     },
-    "/v1/users/me/jobs": {
-      "get": {
-        "description": "Your own solves, newest first.\n\nSummaries only. A result can be hundreds of megabytes, and a history is for\nfinding the one you want; ``GET /v1/jobs/{id}`` returns the answer itself.",
-        "operationId": "listOwnJobs",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 50,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "offset",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "title": "Offset",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobHistory"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "No usable credential was supplied."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Solves you have asked for",
-        "tags": [
-          "Users"
-        ],
-        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
-        "x-required-api-key-permissions": [
-          "jobs:read"
-        ]
-      }
-    },
     "/v1/users/me/pricing-token": {
       "get": {
         "description": "Mint the token the interface gates features with.\n\nThe browser never talks to the pricing service directly - it is not\npublished, and it holds every account's contract. It gets this instead: a\nsigned statement of what this one account may do, which the frontend\nevaluates locally.",
@@ -20013,8 +20095,8 @@
       "name": "Studies"
     },
     {
-      "description": "Durable job lifecycle, retries and events.",
-      "name": "Jobs"
+      "description": "Runs of an organization's problem revisions: launch, follow, cancel, retry and re-evaluate.",
+      "name": "Runs"
     },
     {
       "description": "Account inbox and preferences.",

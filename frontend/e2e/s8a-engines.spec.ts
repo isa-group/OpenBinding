@@ -641,9 +641,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('button', { name: 'Launch a run with it' })).toBeVisible();
       await capture(page, testInfo, `detail-${name}-readonly`, { height: tall(1800) });
 
-      // The project picker is the way into a run with this engine.
+      // The organization picker is the way into a run with this engine.
       await main.getByRole('button', { name: 'Launch a run with it' }).click();
-      await expect(main.getByRole('link', { name: /ISA Demo Group \/ QoS Benchmarks/ })).toHaveAttribute('href', /\/app\/isa-demo\/qos-benchmarks\/runs\/new\?engine=/);
+      await expect(main.getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', /\/app\/isa-demo\/runs\/new\?engine=/);
 
       // Someone else’s private registration, or one that does not exist, answer the same.
       state.refuse.detail = problem(404, 'not_found', 'Engine registration not found');

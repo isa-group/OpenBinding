@@ -122,7 +122,6 @@ async function mockApi(page: Page): Promise<State> {
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(`${API}/v1/users/me/usage`, json(researchUsage()));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
-  await page.route(new RegExp(`^${API}/v1/jobs(\\?.*)?$`), json([]));
 
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
     const url = new URL(route.request().url());
@@ -135,6 +134,7 @@ async function mockApi(page: Page): Promise<State> {
     if (!orgSlug) return json(organizations)(route);
     if (!found) return detail(403, 'organization_forbidden', 'Not a member.')(route);
     if (section === 'members' || section === 'library') return json([])(route);
+    if (section === 'runs') return json({ runs: [], total: 0 })(route);
     if (section === 'projects') return json(problemSlug ? projectsOf[orgSlug][0] : projectsOf[orgSlug])(route);
     if (section !== 'problems') return json(found)(route);
 
@@ -258,7 +258,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(list.getByRole('listitem')).toHaveCount(2);
       await expect(list.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', `${PROBLEMS}/flujo-checkout`);
       await expect(list.getByText('2 versions')).toBeVisible();
-      await expect(list.getByRole('link', { name: 'Run latest' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/runs/new?problem=flujo-checkout&revision=2');
+      await expect(list.getByRole('link', { name: 'Run latest' })).toHaveAttribute('href', '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2');
       await expect(main.getByRole('link', { name: 'Write one in the Workbench' })).toHaveAttribute('href', '/app/isa-demo/workbench');
       await expect(main.getByRole('link', { name: 'Start from a template' })).toHaveAttribute('href', '/app/isa-demo/workbench?template=demo%2F01_simple_seq');
       await expect(main.getByRole('navigation', { name: 'Project sections' })).toHaveCount(0);
@@ -309,7 +309,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'Flujo de checkout' })).toBeVisible();
       await expect(main.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
       await expect(main.getByRole('link', { name: 'Edit in the Workbench' })).toHaveAttribute('href', '/app/isa-demo/workbench?problem=flujo-checkout&revision=2');
-      await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/runs/new?problem=flujo-checkout&revision=2');
+      await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2');
       const workflow = main.getByRole('region', { name: 'How the service works' });
       await expect(workflow.getByRole('img', { name: /^Workflow: authenticate, then inventory and shipping in parallel/ })).toBeVisible();
       await expect(main.getByRole('region', { name: 'Candidates' }).getByRole('table')).toBeVisible();

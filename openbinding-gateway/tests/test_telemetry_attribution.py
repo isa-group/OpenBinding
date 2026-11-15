@@ -75,16 +75,19 @@ async def test_request_state_is_the_scope_state_the_middleware_reads():
     assert seen["user_id"] == uuid.UUID(int=7)
 
 
+#: Runs of an organization nobody here belongs to: an authenticated read of one is a 404, an anonymous one a 401.
+RUNS = "/v1/organizations/acme/runs"
+
 async def test_a_forged_bearer_with_a_foreign_sub_is_not_attributed(
     api_client, registration, db_session, gate  # noqa: F811
 ):
     victim, _ = await make_account(api_client, registration, db_session, gate)
     forged = jwt.encode({"sub": victim["id"]}, "not-the-signing-secret-0123456789", algorithm="HS256")
 
-    response = await api_client.get("/v1/jobs", headers={"Authorization": f"Bearer {forged}"})
+    response = await api_client.get(RUNS, headers={"Authorization": f"Bearer {forged}"})
 
     assert response.status_code == 401
-    events = await _events(db_session, "/v1/jobs")
+    events = await _events(db_session, RUNS)
     assert len(events) == 1
     assert events[0].user_id is None
 
@@ -95,10 +98,10 @@ async def test_a_valid_credential_is_attributed_to_its_user(
     user, headers = await make_account(api_client, registration, db_session, gate)
     missing = uuid.uuid4()
 
-    response = await api_client.get(f"/v1/jobs/{missing}", headers=headers)
+    response = await api_client.get(f"{RUNS}/{missing}", headers=headers)
 
     assert response.status_code == 404
-    events = await _events(db_session, f"/v1/jobs/{missing}")
+    events = await _events(db_session, f"{RUNS}/{missing}")
     assert len(events) == 1
     assert events[0].user_id == uuid.UUID(user["id"])
 
@@ -107,18 +110,18 @@ async def test_anonymous_401_events_are_limited_per_client(api_client, db_sessio
     monkeypatch.setattr(get_settings(), "anonymous_error_events_per_minute", 3)
 
     for _ in range(5):
-        assert (await api_client.get("/v1/jobs")).status_code == 401
+        assert (await api_client.get(RUNS)).status_code == 401
 
-    assert len(await _events(db_session, "/v1/jobs")) == 3
+    assert len(await _events(db_session, RUNS)) == 3
 
 
 async def test_anonymous_events_are_unlimited_when_the_limit_is_zero(api_client, db_session, monkeypatch):
     monkeypatch.setattr(get_settings(), "anonymous_error_events_per_minute", 0)
 
     for _ in range(5):
-        assert (await api_client.get("/v1/jobs")).status_code == 401
+        assert (await api_client.get(RUNS)).status_code == 401
 
-    assert len(await _events(db_session, "/v1/jobs")) == 5
+    assert len(await _events(db_session, RUNS)) == 5
 
 
 async def test_the_limit_does_not_apply_to_authenticated_users(
@@ -129,9 +132,9 @@ async def test_the_limit_does_not_apply_to_authenticated_users(
     missing = uuid.uuid4()
 
     for _ in range(3):
-        assert (await api_client.get(f"/v1/jobs/{missing}", headers=headers)).status_code == 404
+        assert (await api_client.get(f"{RUNS}/{missing}", headers=headers)).status_code == 404
 
-    assert len(await _events(db_session, f"/v1/jobs/{missing}")) == 3
+    assert len(await _events(db_session, f"{RUNS}/{missing}")) == 3
 
 
 def test_the_client_table_stays_bounded(monkeypatch):

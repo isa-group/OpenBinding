@@ -25,7 +25,7 @@ const reader: ApiKeySummary = {
   id: 'k1', name: 'ci-lectura-resultados', prefix: 'obk_demo0001', created_at: '2026-09-01T00:00:00Z', last_used_at: '2026-10-08T00:00:00Z',
   expires_at: '2099-12-31T00:00:00Z', permissions: ['jobs:read', 'studies:read'], engine_access: { all: true, engines: [] },
   // The API sends null for every restriction that is not set.
-  boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: null, resource_kinds: ['jobs', 'studies'], slugs: null } as unknown as ApiKeySummary['boundary'],
+  boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: null, resource_kinds: ['runs', 'studies'], slugs: null } as unknown as ApiKeySummary['boundary'],
 };
 
 const runner: ApiKeySummary = {
@@ -179,7 +179,7 @@ describe('API keys', () => {
     expect(first.getByText('created Sep 1, 2026').parentElement?.textContent).not.toMatch(/·/);
     expect(first.getByText('jobs:read')).toBeInTheDocument();
     expect(first.getByText('All engines, including future ones')).toBeInTheDocument();
-    for (const label of ['GET only', 'org isa-demo', 'jobs, studies']) expect(first.getByText(label)).toBeInTheDocument();
+    for (const label of ['GET only', 'org isa-demo', 'runs, studies']) expect(first.getByText(label)).toBeInTheDocument();
 
     const second = within(await card('ejecucion-engine-fijo'));
     expect(second.getByText('last used never')).toBeInTheDocument();

@@ -41,8 +41,8 @@ class FakeLab:
         self.revisions = {"rev-1"}
         self.jobs: dict[str, dict] = {}
         self.keys: dict[tuple[str, str], tuple[str, str]] = {}
-        self.project_jobs: list[dict] = []
         self.studies: set[str] = set()
+        self.study_runs = 0
         self.job_bodies: list[dict] = []
         self.study_definitions: list[dict] = []
 
@@ -66,11 +66,12 @@ class FakeLab:
                           media="application/problem+json")
 
     def pricing_unavailable(self, shape: str = "platform") -> httpx.Response:
-        """What the gateway answers when SPACE cannot tell the plan: platform shape on /users/*, problem+json on /v1/jobs."""
+        """What the gateway answers when SPACE cannot tell the plan: the platform shape, on /users/* and on the runs alike."""
         message = "SPACE has no contract for this account."
-        if shape == "problem":
+        if shape == "run":
             return self.reply(503, {"type": "pricing_unavailable", "title": "pricing_unavailable", "status": 503,
-                                    "code": "pricing_unavailable", "detail": message}, media="application/problem+json")
+                                    "code": "pricing_unavailable",
+                                    "detail": {"code": "pricing_unavailable", "error": message}})
         return self.reply(503, {"detail": {"code": "pricing_unavailable", "error": f"Entitlements cannot be read right now: {message}"}})
 
     def user_of(self, request: httpx.Request) -> str | None:
@@ -122,10 +123,6 @@ class FakeLab:
             return self.reply(200, {"engines": [{"name": "random-search", "namespace": "bim.builtin", "version": "1.0.0", "digest": "sha256-e"}]})
         if sub.startswith("/v1/organizations"):
             return self.organizations(request, sub, user)
-        if sub == "/v1/jobs" and method == "POST":
-            return self.create_job(request, user)
-        if sub.startswith("/v1/jobs/"):
-            return self.job(sub, method, user)
         return self.problem(404, "not_found")
 
     def login(self, request: httpx.Request) -> httpx.Response:
@@ -170,6 +167,16 @@ class FakeLab:
         role = self.role_in_org(user)
         if sub == "/v1/organizations":
             return self.reply(200, [{"slug": "lab-main", "effective_role": role}] if role else [])
+        runs = "/v1/organizations/lab-main/runs"
+        if sub == runs or sub.startswith(f"{runs}/"):
+            # The runs of an organization read as missing to a non-member.
+            if role is None:
+                return self.problem(404, "not_found")
+            if sub == runs and request.method == "POST":
+                return self.create_job(request, user)
+            if sub == runs:
+                return self.reply(200, {"runs": [], "total": 0})
+            return self.job(sub, request.method, user, role)
         if role is None:
             return self.problem(403, "organization_forbidden")
         base = "/v1/organizations/lab-main/projects"
@@ -177,9 +184,6 @@ class FakeLab:
             return self.reply(200, [{"slug": "bim-demo"}])
         if sub == "/v1/organizations/lab-main/problems/simple-seq/revisions":
             return self.reply(200, [{"id": "rev-1", "revision": 1}])
-        if sub == f"{base}/bim-demo/jobs":
-            return self.reply(200, [self.project_job_view(job, role, request) for job in self.project_jobs
-                                    if request.url.params.get("job_id") in (None, job["id"])])
         if sub == f"{base}/bim-demo/studies" and request.method == "POST":
             if role == "VIEWER":
                 return self.problem(403, "organization_forbidden")
@@ -195,11 +199,12 @@ class FakeLab:
         if sub == f"{base}/bim-demo/studies/smoke-lab/runs" and request.method == "POST":
             if role == "VIEWER" and "viewer_run_open" not in self.faults:
                 return self.problem(403, "organization_forbidden")
-            self.project_jobs.append({"id": str(uuid.uuid4()), "project_id": "project-1"})
+            self.study_runs += 1
             return self.reply(202, {"id": "run-1", "state": "running"})
         return self.reply(200, {})
 
-    def project_job_view(self, job: dict, role: str, request: httpx.Request) -> dict:
+    def viewer_job_view(self, job_id: str) -> dict:
+        """A run as a VIEWER reads it: completed, with the options and the request redacted (unless a fault leaks them)."""
         options = {"iterations": 10, "seed": 1}
         original = {"timeout": 30, "mode": {}, "registration": {"name": "random-search"}}
         provenance = {"registration": {"name": "random-search", "version": "1.0.0"}, "options": options}
@@ -207,16 +212,15 @@ class FakeLab:
             options = {**options, "engine_url": "http://engine-random-search:8080"}
             original["auth"] = {"token": "secret"}
             provenance["registration"] = {"name": "random-search", "endpoint": "http://engine:8080"}
-        return {"id": job["id"], "status": "completed", "project_id": job["project_id"], "options": options,
-                "original_request": original, "provenance": provenance, "result": {"termination": "FEASIBLE", "solutions": []},
-                "role": role}
+        return {"id": job_id, "status": "completed", "options": options,
+                "original_request": original, "provenance": provenance, "result": {"termination": "FEASIBLE", "solutions": []}}
 
     # -- jobs --------------------------------------------------------------
 
     def create_job(self, request: httpx.Request, user: str) -> httpx.Response:
         body = json.loads(request.content)
         role = self.role_in_org(user)
-        if body.get("revision") not in self.revisions or role is None:
+        if body.get("revision") not in self.revisions:
             return self.problem(404, "not_found")
         if role == "VIEWER":
             return self.problem(403, "insufficient_role")
@@ -227,7 +231,7 @@ class FakeLab:
         if body.get("mode") != "seeded":
             return self.problem(422, "engine_mode_incompatible")
         if "pricing_blocked" in self.faults:
-            return self.pricing_unavailable("problem")
+            return self.pricing_unavailable("run")
         key = request.headers.get("idempotency-key")
         fingerprint = json.dumps(body, sort_keys=True)
         if key and (user, key) in self.keys and "broken_idempotency" not in self.faults:
@@ -245,14 +249,20 @@ class FakeLab:
             self.keys[(user, key)] = (job_id, fingerprint)
         return self.reply(202, {"id": job_id, "status": "queued", "profile": "qos-binding/v1", "irDigest": "sha256-ir"})
 
-    def job(self, sub: str, method: str, user: str) -> httpx.Response:
+    def job(self, sub: str, method: str, user: str, role: str) -> httpx.Response:
         parts = sub.split("/")
-        job = self.jobs.get(parts[3])
-        if job is None or job["owner"] != user:
+        job_id = parts[5]
+        job = self.jobs.get(job_id)
+        if job is None:
             return self.problem(404, "not_found")
         if method == "POST" and parts[-1] == "cancel":
+            if role == "VIEWER":
+                return self.problem(403, "insufficient_role")
             job["status"] = "cancelled"
-            return self.reply(200, {"id": parts[3], "status": "cancelled"})
+            return self.reply(200, {"id": job_id, "status": "cancelled"})
+        if job["owner"] != user:
+            # Another member's run: what it ended as; a VIEWER reads it redacted.
+            return self.reply(200, self.viewer_job_view(job_id) if role == "VIEWER" else {"id": job_id, "status": job["status"]})
         job["polls"] += 1
         if "stuck" in self.faults:
             job["status"] = "running"
@@ -260,7 +270,7 @@ class FakeLab:
             job["status"] = "completed"
         elif job["status"] == "queued":
             job["status"] = "running"
-        body: dict = {"id": parts[3], "status": job["status"]}
+        body: dict = {"id": job_id, "status": job["status"]}
         if job["status"] == "completed":
             body.update(self.finished())
         return self.reply(200, body)
@@ -336,9 +346,8 @@ def test_jobs_and_study_engines_carry_the_mode_and_the_execution_optimization():
         body["mode"] == "seeded" and body["optimization"] == {"type": "SINGLE", "scalarization": "weighted-sum"}
         for body in fake.job_bodies
     )
-    assert len(fake.study_definitions) == 1
-    assert all(engine["mode"] == "seeded" and engine["optimization"]["scalarization"] == "weighted-sum"
-               for engine in fake.study_definitions[0]["engines"])
+    # The viewer reads the owner's run: no study is created to have a run to read.
+    assert fake.study_definitions == []
 
 
 def test_a_job_without_the_execution_optimization_is_what_the_gateway_refuses_with_422():
@@ -346,7 +355,7 @@ def test_a_job_without_the_execution_optimization_is_what_the_gateway_refuses_wi
     token = "access-token-lab-owner-0"
     fake.tokens[token] = "lab-owner"
     with httpx.Client(transport=fake.transport(), base_url="http://web:8080") as client:
-        refused = client.post("/api/v1/jobs", headers={"Authorization": f"Bearer {token}"},
+        refused = client.post("/api/v1/organizations/lab-main/runs", headers={"Authorization": f"Bearer {token}"},
                               json={"revision": "rev-1", "engine": "random-search", "options": smoke_lab.MIN_OPTIONS})
     assert refused.status_code == 422 and smoke_lab.code_of(refused) == "optimization_required"
 
@@ -371,8 +380,8 @@ def test_missing_spaces_contracts_block_the_steps_that_need_a_plan_and_are_not_f
         assert "pricing_unavailable" in step["detail"]
     for name in ("proxy_and_spa", "cors", "body_limit", "login_throttle"):
         assert by_name[name]["ok"] is True and by_name[name]["blockedByRemote"] is False
-    # the study run would be accepted and then just sit queued: no study is started
-    assert fake.studies == set() and fake.project_jobs == []
+    # no study is started either
+    assert fake.studies == set() and fake.study_runs == 0
 
 
 def test_a_blocked_step_still_judges_what_does_not_depend_on_the_plan():
@@ -578,18 +587,19 @@ def test_the_same_key_of_another_account_gives_another_job():
 # -- step 5 --------------------------------------------------------------------
 
 
-def test_the_viewer_reads_the_project_job_with_redacted_options():
+def test_the_viewer_reads_the_owners_run_with_redacted_options():
     fake = FakeLab()
     step = steps_of(smoke(fake))["authorization"]
     assert step["ok"], step["detail"]
-    assert fake.studies == {"smoke-lab"} and len(fake.project_jobs) == 1
+    assert fake.studies == set() and fake.study_runs == 0
 
 
-def test_a_second_run_reuses_the_project_job_instead_of_starting_another_study():
+def test_without_a_run_of_the_owner_the_viewer_read_fails_the_authorization_step():
     fake = FakeLab()
-    smoke(fake, skip=frozenset({6, 7, 8, 9}))
-    smoke(fake, skip=frozenset({6, 7, 8, 9}))
-    assert len(fake.project_jobs) == 1
+    fake.revisions = set()  # every launch is refused, so the owner_job step leaves no run to read
+    step = steps_of(smoke(fake, skip=frozenset({6, 7, 8, 9})))["authorization"]
+    assert not step["ok"]
+    assert "no run of the owner" in step["detail"]
 
 
 def test_the_viewer_can_neither_launch_a_run_of_the_organizations_problem_nor_start_a_study_run():

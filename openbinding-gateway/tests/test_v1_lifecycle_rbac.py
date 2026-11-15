@@ -109,10 +109,10 @@ def _engine_document(namespace: str, name: str, version: str) -> dict:
     return document
 
 
-def _assert_same_not_found(hidden, missing) -> None:
+def _assert_same_not_found(hidden, missing, media_type: str = "application/problem+json") -> None:
     assert hidden.status_code == missing.status_code == 404
-    assert hidden.headers["content-type"].startswith("application/problem+json")
-    assert missing.headers["content-type"].startswith("application/problem+json")
+    assert hidden.headers["content-type"].startswith(media_type)
+    assert missing.headers["content-type"].startswith(media_type)
     assert hidden.json() == missing.json()
     assert hidden.json()["title"] == "not_found"
 
@@ -128,23 +128,25 @@ def _assert_component(component: str, payload: dict) -> None:
 
 
 @pytest.mark.parametrize(
-    ("method", "path"),
+    ("method", "path", "media_type"),
     [
-        ("GET", "/v1/engine-registrations"),
-        ("POST", "/v1/jobs"),
-        ("POST", "/v1/engines"),
-        ("POST", "/v1/engine-registrations"),
+        ("GET", "/v1/engine-registrations", "application/problem+json"),
+        # Runs answer the platform envelope (D9).
+        ("POST", "/v1/organizations/acme/runs", "application/json"),
+        ("POST", "/v1/engines", "application/problem+json"),
+        ("POST", "/v1/engine-registrations", "application/problem+json"),
     ],
 )
 async def test_engine_discovery_and_execution_never_allow_anonymous_callers(
     api_client,
     method: str,
     path: str,
+    media_type: str,
 ) -> None:
     response = await api_client.request(method, path, json={})
     assert response.status_code == 401, response.text
     assert response.headers["www-authenticate"].startswith("Bearer")
-    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.headers["content-type"].startswith(media_type)
 
 
 async def test_the_engine_catalogue_is_public_and_lists_only_public_engines(api_client) -> None:
@@ -258,14 +260,12 @@ async def test_second_user_cannot_distinguish_private_v1_resources(
         assert hidden.status_code == missing.status_code == 403
         assert hidden.json() == missing.json()
 
-    for suffix in ("", "/report"):
-        hidden = await api_client.get(
-            f"/v1/jobs/{job.id}{suffix}", headers=other_headers
-        )
-        missing = await api_client.get(
-            f"/v1/jobs/{missing_id}{suffix}", headers=other_headers
-        )
-        _assert_same_not_found(hidden, missing)
+    runs = f"/v1/organizations/{uploaded['org']}/runs"
+    for suffix in ("", "/events", "/neighborhood"):
+        # Not a member (a platform administrator neither): the run and a missing one read the same.
+        hidden = await api_client.get(f"{runs}/{job.id}{suffix}", headers=other_headers)
+        missing = await api_client.get(f"{runs}/{missing_id}{suffix}", headers=other_headers)
+        _assert_same_not_found(hidden, missing, "application/json")
 
     for suffix in ("", "/report"):
         hidden = await api_client.get(

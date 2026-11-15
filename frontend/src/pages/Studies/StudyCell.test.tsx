@@ -10,16 +10,16 @@ import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
   project: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), studyCell: vi.fn(), retryStudyCell: vi.fn(),
-  attachStudyCellResult: vi.fn(), projectJobs: vi.fn(),
+  attachStudyCellResult: vi.fn(),
 }));
-const jobs = vi.hoisted(() => ({ jobsApi: { mine: vi.fn() } }));
+const runsApi = vi.hoisted(() => ({ list: vi.fn() }));
 const library = vi.hoisted(() => ({ libraryApi: { versions: vi.fn().mockResolvedValue([]) } }));
 
 const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../api/library', () => library);
-vi.mock('../../api/jobs', () => jobs);
+vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
@@ -52,8 +52,7 @@ describe('One cell of a run, inside the Results tab', () => {
     });
     problems.list.mockResolvedValue({ problems: [CHECKOUT], total: 1, limit: 200, offset: 0 });
     problems.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
-    platform.projectJobs.mockResolvedValue([]);
-    jobs.jobsApi.mine.mockResolvedValue([]);
+    runsApi.list.mockResolvedValue({ runs: [], total: 0 });
   });
 
   it('shows what the cell ran on and how it ended', async () => {
@@ -74,7 +73,7 @@ describe('One cell of a run, inside the Results tab', () => {
     expect(within(result).getByText('0.121')).toBeInTheDocument();
     expect(within(result).getByText('430')).toBeInTheDocument();
     expect(within(result).getByText('58 s')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open run' })).toHaveAttribute('href', `${ROOT}/runs/00000000-0000-4000-8000-000000000302`);
+    expect(screen.getByRole('link', { name: 'Open run' })).toHaveAttribute('href', `/app/isa-demo/runs/00000000-0000-4000-8000-000000000302`);
     expect(screen.getByRole('link', { name: 'Back to the results' })).toHaveAttribute('href', RESULTS);
     expect(screen.getByRole('link', { name: 'Back to the progress' })).toHaveAttribute('href', `${STUDY}/progress?run=${RUN_ID}`);
     expect(screen.getByRole('tab', { name: 'Results' })).toHaveAttribute('aria-selected', 'true');
@@ -143,8 +142,7 @@ describe('One cell of a run, inside the Results tab', () => {
       jobOf('job-mine-b', 'evolutionary', 'failed', 'UNKNOWN', '2026-10-02T09:00:00Z', '2026-10-02T09:00:20Z'),
       jobOf('job-mine-c', 'minizinc', 'running', null, '2026-10-03T09:00:00Z', null),
     ];
-    platform.projectJobs.mockResolvedValue([...mine, jobOf('job-theirs', 'random-search', 'completed', 'FEASIBLE', '2026-10-04T09:00:00Z', '2026-10-04T09:01:00Z')]);
-    jobs.jobsApi.mine.mockResolvedValue(mine);
+    runsApi.list.mockResolvedValue({ total: 4, runs: [...mine, jobOf('job-theirs', 'random-search', 'completed', 'FEASIBLE', '2026-10-04T09:00:00Z', '2026-10-04T09:01:00Z', { created_by: { id: 'user-ana', username: 'ana' } })] });
     platform.attachStudyCellResult.mockResolvedValue({ id: cells[5].id, state: 'completed', metrics: {} });
     renderCell(5);
 
@@ -163,8 +161,7 @@ describe('One cell of a run, inside the Results tab', () => {
 
   it('says when a job cannot be attached', async () => {
     const mine = [jobOf('job-mine-a', 'random-search', 'completed', 'FEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:01:00Z')];
-    platform.projectJobs.mockResolvedValue(mine);
-    jobs.jobsApi.mine.mockResolvedValue(mine);
+    runsApi.list.mockResolvedValue({ runs: mine, total: mine.length });
     platform.attachStudyCellResult.mockRejectedValue(refusal(409, 'job_already_attached'));
     renderCell(5);
 
@@ -178,8 +175,7 @@ describe('One cell of a run, inside the Results tab', () => {
 
   it('names what differs when the job is not a run of this cell (409 cell_job_mismatch)', async () => {
     const mine = [jobOf('job-mine-a', 'random-search', 'completed', 'FEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:01:00Z')];
-    platform.projectJobs.mockResolvedValue(mine);
-    jobs.jobsApi.mine.mockResolvedValue(mine);
+    runsApi.list.mockResolvedValue({ runs: mine, total: mine.length });
     platform.attachStudyCellResult.mockRejectedValue(Object.assign(refusal(409, 'cell_job_mismatch'), {
       problem: { detail: { code: 'cell_job_mismatch', fields: ['case_revision', 'engine', 'mode', 'seed'], details: { seed: { cell: 2, job: 9 }, engine: { cell: 'evolutionary', job: 'random-search' } } } },
     }));
@@ -202,8 +198,7 @@ describe('One cell of a run, inside the Results tab', () => {
     ['job_already_attached', 'That run is already the result of another cell (409 · job_already_attached)'],
   ])('says why a job can not be attached: %s', async (code, title) => {
     const mine = [jobOf('job-mine-a', 'random-search', 'completed', 'FEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:01:00Z')];
-    platform.projectJobs.mockResolvedValue(mine);
-    jobs.jobsApi.mine.mockResolvedValue(mine);
+    runsApi.list.mockResolvedValue({ runs: mine, total: mine.length });
     platform.attachStudyCellResult.mockRejectedValue(refusal(409, code));
     renderCell(5);
 
@@ -220,7 +215,7 @@ describe('One cell of a run, inside the Results tab', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Use an existing run’s result' }));
 
-    expect(await screen.findByText('You have no finished run in this project to attach.')).toBeInTheDocument();
+    expect(await screen.findByText('You have no finished run in this organization to attach.')).toBeInTheDocument();
   });
 
   it('is read-only for a viewer', async () => {

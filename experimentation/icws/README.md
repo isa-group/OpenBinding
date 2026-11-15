@@ -3,8 +3,8 @@
 This benchmark contains modular BIM v1 Instance packages derived from the
 literature scenarios. Each package is a readable directory rooted at
 `instance.json`; the runner exports it as a deterministic `.bim.zip`, uploads it
-as a problem of your organization, and submits jobs for its revision through the
-OpenBinding `/v1` API.
+as a problem of your organization, and launches runs of its revision through the
+organization's runs API (`/v1/organizations/{org}/runs`).
 
 `run_experiments.py` selects the current immutable Engine modes and checks each
 mode's advertised compatibility before interpreting an outcome:

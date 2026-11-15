@@ -370,7 +370,7 @@ async def run_study(
     _audit(session, user, "study.run.created", run, organization.id, matrixDigest=matrix_digest)
     for cell in cells:
         try:
-            await launch_study_cell(session, cell, user, organization, found_project.id)
+            await launch_study_cell(session, cell, user, organization)
             # The cell now points at its job; only a committed job is queued.
             await commit_launched(session)
         except StudyLaunchError as exc:
@@ -637,9 +637,7 @@ async def retry_study_cell(
     run.state = RunState.QUEUED
     run.finished_at = None
     try:
-        replacement = await launch_study_cell(
-            session, cell, user, organization, found_project.id
-        )
+        replacement = await launch_study_cell(session, cell, user, organization)
     except StudyLaunchError as exc:
         raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, exc.code, exc.detail) from exc
     replacement.retry_of_id = previous_job_id

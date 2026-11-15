@@ -216,7 +216,6 @@ class Job(Base):
     service_url: Mapped[str] = mapped_column(String(512), nullable=False)
     state: Mapped[JobState] = _enum_column(JobState, JobState.QUEUED)
 
-    verbose: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     #: What the engine was asked, and what it answered. Kept whole so a job can
     #: be re-canonicalized later without asking the engine again.
     original_request: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
@@ -262,9 +261,6 @@ class Job(Base):
     #: The organization of the problem the run is of: every revision has one, so every run does.
     organization_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True
-    )
-    project_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
     )
     #: The study cell this job was launched for. The partial unique index below
     #: is what keeps two racing launches from both creating a job for one cell.
@@ -381,16 +377,6 @@ class ManifestPublication(Base):
     resource_digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     publisher_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     state: Mapped[str] = mapped_column(String(32), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
-
-
-class JobProvenance(Base):
-    __tablename__ = "v1_job_provenance"
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    job_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
-    document: Mapped[dict] = mapped_column(JSON, nullable=False)
-    digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
 
 

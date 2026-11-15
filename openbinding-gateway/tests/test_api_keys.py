@@ -14,6 +14,7 @@ from datetime import timedelta
 import pytest
 import pytest_asyncio
 
+from _problem_helpers import runs_url_for
 from openbinding_gateway.security import apikeys
 from openbinding_gateway.db.models import ApiKey, utcnow
 
@@ -789,12 +790,12 @@ def test_the_templates_and_the_engine_protocol_need_no_permission(path):
 
 @pytest.fixture
 def no_dispatch(monkeypatch):
-    from openbinding_gateway.routes import v1 as routes
+    from openbinding_gateway.modules.execution.adapters import routes as runs_routes
 
     async def queued(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(routes, "dispatch_persisted_job", queued)
+    monkeypatch.setattr(runs_routes, "dispatch_persisted_job", queued)
 
 
 @pytest.mark.parametrize(
@@ -832,7 +833,7 @@ async def test_a_run_obeys_the_key_boundary_on_the_problem_in_the_body(
     )
 
     launched = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(uploaded["revision_id"]),
         headers={"X-API-Key": key["secret"]},
         json={
             "revision": uploaded["revision_id"],

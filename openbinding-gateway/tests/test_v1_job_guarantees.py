@@ -2,7 +2,7 @@ from copy import deepcopy
 import uuid
 
 import pytest
-from _problem_helpers import revision_of
+from _problem_helpers import revision_of, run_url, runs_url_for
 from sqlalchemy import select
 
 from _repo import REPO_ROOT
@@ -177,7 +177,7 @@ async def test_job_options_must_be_an_object(api_client, registration) -> None:
 
     for invalid in (None, [], "fast", 1):
         response = await api_client.post(
-            "/v1/jobs",
+            runs_url_for(revision_id),
             headers=headers,
             json={
                 "revision": revision_id,
@@ -226,7 +226,7 @@ async def test_persisted_builtin_job_pins_registration_and_mode_guarantees(
     monkeypatch.setattr(execution, "solve_remote", solve)
     headers, revision_id = await _authenticated_revision(api_client, registration)
     response = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers={**headers, "Idempotency-Key": "builtin-registration-persistence"},
         json={
             "revision": revision_id,
@@ -281,6 +281,6 @@ async def test_persisted_builtin_job_pins_registration_and_mode_guarantees(
     assert transports and transports[0].allow_internal_http is True
     assert transports[0].mappings == engines.BUILTIN_ENGINE_MAPPINGS
 
-    fetched = await api_client.get(f"/v1/jobs/{stored.id}", headers=headers)
+    fetched = await api_client.get(run_url(stored), headers=headers)
     assert fetched.status_code == 200, fetched.text
     assert fetched.json()["result"]["termination"] == "UNKNOWN"

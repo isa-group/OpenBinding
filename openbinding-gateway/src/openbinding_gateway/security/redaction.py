@@ -211,12 +211,12 @@ def redact_result(result: Optional[Mapping[str, Any]]) -> Optional[dict[str, Any
 
 
 async def must_redact_jobs(session: Any, organization_id: Any, user: Any) -> bool:
-    """Whether ``user`` may follow a project's jobs but not read their inputs.
+    """Whether ``user`` may follow an organization's runs but not read their inputs.
 
     True below MEMBER (and for anyone without a role) and for an API key that
-    cannot write projects: such a key is a read-only credential and must not
-    carry out the options or request a member chose. Shared by every route that
-    serialises a project's jobs.
+    cannot run engines (no ``engines:execute``): such a key is a read-only
+    credential and must not carry out the options or request a member chose.
+    Shared by every route that serialises an organization's runs.
     """
     # Imported here: ``collaboration`` imports models that import this module.
     from ..collaboration import ROLE_STRENGTH, effective_role
@@ -227,7 +227,7 @@ async def must_redact_jobs(session: Any, organization_id: Any, user: Any) -> boo
     if role is None or ROLE_STRENGTH[role] < ROLE_STRENGTH[OrganizationRole.MEMBER]:
         return True
     api_key = authenticated_api_key(user)
-    return api_key is not None and ApiKeyPermission.PROJECTS_WRITE.value not in permissions_of(api_key)
+    return api_key is not None and ApiKeyPermission.ENGINES_EXECUTE.value not in permissions_of(api_key)
 
 
 __all__ = [

@@ -22,13 +22,13 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy import func, select
 
-from _problem_helpers import compiled_run_refs
+from _problem_helpers import compiled_run_refs, run_url
 from test_concurrency_limit import a_job, set_limit
 from test_idempotency_jobs import _body, _login, _post, _revision
 from test_job_dispatch import _account
 from test_study_cell_launch import BASE, _study
 
-from openbinding_gateway import space_client
+from openbinding_gateway import space_client, study_jobs
 from openbinding_gateway.access import policy
 from openbinding_gateway.core.settings import Settings, get_settings
 from openbinding_gateway.db.models import Job, JobState, ProblemCompilation, StudyCell, StudyRun, User
@@ -45,8 +45,7 @@ from openbinding_gateway.domain.binding_space import (
 )
 from openbinding_gateway.jobs import limits as job_limits
 from openbinding_gateway.models.problem import problem_body
-from openbinding_gateway.routes import jobs as job_routes
-from openbinding_gateway.routes import v1
+from openbinding_gateway.modules.execution.adapters import routes as runs_routes
 from openbinding_gateway.modules.problems.application import ir_analysis
 from openbinding_gateway.space_client import OpenCaps, OpenGate, PlanCaps
 from openbinding_gateway.space_client.open import OPEN_FEATURES
@@ -317,8 +316,8 @@ def dispatched(monkeypatch):
     async def record(job_id, *args, **kwargs):
         calls.append(str(job_id))
 
-    monkeypatch.setattr(v1, "dispatch_persisted_job", record)
-    monkeypatch.setattr(job_routes, "dispatch_persisted_job", record)
+    monkeypatch.setattr(runs_routes, "dispatch_persisted_job", record)
+    monkeypatch.setattr(study_jobs, "dispatch_persisted_job", record)
     return calls
 
 
@@ -424,7 +423,7 @@ async def test_retrying_a_job_holds_its_size_against_the_limit_and_a_refusal_wri
     db_session.add(failed)
     await db_session.flush()
 
-    refused = await api_client.post(f"/v1/jobs/{failed.id}/retry", headers=headers)
+    refused = await api_client.post(run_url(failed, "/retry"), headers=headers)
 
     assert refused.status_code == 422, refused.text
     assert refused.json()["code"] == OVER_TECHNICAL
@@ -434,8 +433,8 @@ async def test_retrying_a_job_holds_its_size_against_the_limit_and_a_refusal_wri
 
     # 10 ** 6 against a ceiling of 6 is exactly at the limit.
     size_limit(monkeypatch, 6)
-    retried = await api_client.post(f"/v1/jobs/{failed.id}/retry", headers=headers)
-    again = await api_client.post(f"/v1/jobs/{failed.id}/retry", headers=headers)
+    retried = await api_client.post(run_url(failed, "/retry"), headers=headers)
+    again = await api_client.post(run_url(failed, "/retry"), headers=headers)
     assert retried.status_code == again.status_code == 202, retried.text
     assert retried.json()["id"] == again.json()["id"]
     assert await count(db_session, Job) == 2
@@ -450,7 +449,7 @@ async def test_a_retry_of_a_job_with_no_recorded_size_is_not_measured(
     db_session.add(failed)
     await db_session.flush()
 
-    retried = await api_client.post(f"/v1/jobs/{failed.id}/retry", headers=headers)
+    retried = await api_client.post(run_url(failed, "/retry"), headers=headers)
 
     assert retried.status_code == 202, retried.text
 
@@ -517,6 +516,6 @@ async def test_the_concurrency_refusal_names_its_limit_for_the_frontend(
 
     assert refused.status_code == 429, refused.text
     assert refused.headers["Retry-After"] == "15"
-    assert refused.json()["concurrency"]["limit_id"] == "maxConcurrentRuns"
-    assert refused.json()["concurrency"]["limit"] == refused.json()["concurrency"]["used"] == 1
+    assert refused.json()["detail"]["concurrency"]["limit_id"] == "maxConcurrentRuns"
+    assert refused.json()["detail"]["concurrency"]["limit"] == refused.json()["detail"]["concurrency"]["used"] == 1
     assert await count(db_session, Job) == 1

@@ -1,7 +1,7 @@
 import copy
 import json
 import math
-from _problem_helpers import revision_of
+from _problem_helpers import revision_of, runs_url_for
 from types import SimpleNamespace
 
 import pytest
@@ -626,6 +626,9 @@ async def test_jobs_name_a_revision_and_never_take_a_package(
     registration,
 ) -> None:
     headers = await _account_headers(api_client, registration())
+    created = await api_client.post("/v1/organizations", headers=headers, json={"slug": "runs-here", "name": "Runs"})
+    assert created.status_code == 201, created.text
+    runs = "/v1/organizations/runs-here/runs"
     package = load_package(EXAMPLE)
     body = (
         {"instance": package.instance()}
@@ -639,15 +642,16 @@ async def test_jobs_name_a_revision_and_never_take_a_package(
     )
     body.update({"engine": "random-search", "mode": "seeded"})
     response = await api_client.post(
-        "/v1/jobs",
+        runs,
         headers=headers,
         json=body,
     )
     assert response.status_code == 422
-    assert response.headers["content-type"].startswith("application/problem+json")
+    # Runs answer the platform envelope (D9): a 422 keeps the problem document, as JSON.
+    assert response.headers["content-type"].startswith("application/json")
     assert response.json()["title"] == "revision_required"
     uploaded = await api_client.post(
-        "/v1/jobs", headers={**headers, "Content-Type": "application/vnd.bim+zip"}, content=package.to_zip(),
+        runs, headers={**headers, "Content-Type": "application/vnd.bim+zip"}, content=package.to_zip(),
     )
     assert uploaded.status_code == 415, uploaded.text
 
@@ -966,7 +970,7 @@ async def test_validate_and_solve_refuse_instance_exceeding_the_size_limit(
     assert validate_resp.json()["title"] == "binding_space_over_technical_limit"
 
     job_resp = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         json={
             "revision": revision_id,
             "engine": "random-search",

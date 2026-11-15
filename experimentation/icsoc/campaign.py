@@ -268,8 +268,9 @@ def solve_via_gateway(
         revision_id, error = _problem_revision(client, base_url, org, instance, archive)
         if error is not None:
             return {"error": error}, time.time() - started
+        runs = f"{base_url}/v1/organizations/{org}/runs"
         response = client.post(
-            f"{base_url}/v1/jobs",
+            runs,
             headers={"Idempotency-Key": idempotency_key},
             json={
                 "engine": engine_id,
@@ -286,7 +287,7 @@ def solve_via_gateway(
             if time.time() - started > max_poll_s:
                 return {"error": f"polling timed out after {max_poll_s}s"}, time.time() - started
             time.sleep(poll_interval)
-            data = client.get(f"{base_url}/v1/jobs/{job_id}").json()
+            data = client.get(f"{runs}/{job_id}").json()
     return data, time.time() - started
 
 

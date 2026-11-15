@@ -71,7 +71,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Run all BIM experimentation packages against advertised engine modes using "
-            "POST /v1/jobs and validate routing expectations."
+            "POST /v1/organizations/{org}/runs and validate routing expectations."
         )
     )
     parser.add_argument(
@@ -97,7 +97,7 @@ def parse_args() -> argparse.Namespace:
         "--solve-timeout",
         type=int,
         default=900,
-        help="Read timeout in seconds for /v1/jobs request (default: 900)",
+        help="Read timeout in seconds for the run request (default: 900)",
     )
     parser.add_argument(
         "--max-poll-seconds",
@@ -109,7 +109,7 @@ def parse_args() -> argparse.Namespace:
         "--poll-response-timeout",
         type=int,
         default=30,
-        help="Read timeout in seconds for each /v1/jobs/{job_id} poll (default: 30)",
+        help="Read timeout in seconds for each poll of the run (default: 30)",
     )
     parser.add_argument(
         "--poll-interval",
@@ -294,6 +294,7 @@ def parse_validation_violations(resp_json: dict[str, Any]) -> tuple[bool, list[s
 def poll_job_until_terminal(
     session: requests.Session,
     base_url: str,
+    org: str,
     job_id: str,
     connect_timeout: float,
     poll_response_timeout: int,
@@ -308,7 +309,7 @@ def poll_job_until_terminal(
         polls += 1
         try:
             response = session.get(
-                f"{sanitize_base_url(base_url)}/v1/jobs/{job_id}",
+                f"{sanitize_base_url(base_url)}/v1/organizations/{org}/runs/{job_id}",
                 timeout=(connect_timeout, poll_response_timeout),
             )
             response.raise_for_status()
@@ -526,6 +527,7 @@ def _handle_async_case(
     result: CaseResult,
     session: requests.Session,
     base_url: str,
+    org: str,
     job_id: str,
     connect_timeout: float,
     poll_response_timeout: int,
@@ -537,6 +539,7 @@ def _handle_async_case(
     final_status, poll_payload, poll_count, poll_error = poll_job_until_terminal(
         session=session,
         base_url=base_url,
+        org=org,
         job_id=job_id,
         connect_timeout=connect_timeout,
         poll_response_timeout=poll_response_timeout,
@@ -660,7 +663,7 @@ def run_single_case(
             "options": {},
         }
         response = session.post(
-            f"{sanitize_base_url(base_url)}/v1/jobs",
+            f"{sanitize_base_url(base_url)}/v1/organizations/{org}/runs",
             json=request_payload,
             timeout=(connect_timeout, solve_timeout),
         )
@@ -694,6 +697,7 @@ def run_single_case(
                 result=result,
                 session=session,
                 base_url=base_url,
+                org=org,
                 job_id=job_id,
                 connect_timeout=connect_timeout,
                 poll_response_timeout=poll_response_timeout,

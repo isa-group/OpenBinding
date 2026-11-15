@@ -33,7 +33,7 @@ class EngineCase:
     example: str
     endpoint: str
     options: dict[str, object]
-    # POST /v1/jobs answers 422 optimization_required without it; the weights
+    # createRun answers 422 optimization_required without it; the weights
     # are omitted and the toolchain assigns equal ones.
     optimization: dict[str, str]
     algorithm: str
@@ -117,12 +117,13 @@ def _register_and_login(client: httpx.Client) -> dict[str, str]:
 
 def _wait_for_job(
     client: httpx.Client,
+    org: str,
     job_id: str,
     headers: dict[str, str],
     *,
     timeout_s: float = 45.0,
 ) -> dict:
-    return wait_for_job(client, job_id, headers, timeout_s=timeout_s)
+    return wait_for_job(client, org, job_id, headers, timeout_s=timeout_s)
 
 
 @pytest.mark.integration
@@ -177,8 +178,9 @@ def test_every_builtin_engine_executes_only_canonical_ir_and_returns_a_reevaluat
             "digest",
         }
 
+        runs = f"/v1/organizations/{upload['org']}/runs"
         accepted = client.post(
-            "/v1/jobs",
+            runs,
             headers={**headers, "Idempotency-Key": f"conformance-{case.name}-{uuid.uuid4()}"},
             json={
                 "revision": revision["id"],
@@ -193,7 +195,7 @@ def test_every_builtin_engine_executes_only_canonical_ir_and_returns_a_reevaluat
         accepted_body = accepted.json()
         assert accepted_body["irDigest"] == validated["irDigest"]
 
-        job = _wait_for_job(client, accepted_body["id"], headers)
+        job = _wait_for_job(client, upload["org"], accepted_body["id"], headers)
         assert job["status"] == "completed", json.dumps(job, sort_keys=True)
         # The run names the revision it was launched from and the compilation the upload stored.
         assert job["revision"]["id"] == revision["id"]
@@ -263,18 +265,9 @@ def test_every_builtin_engine_executes_only_canonical_ir_and_returns_a_reevaluat
         assert result_provenance["registration"] == provenance["registration"]
         assert result_provenance["engineReported"]["algorithm"] == case.reported_algorithm
 
-        report_response = client.get(
-            f"/v1/jobs/{accepted_body['id']}/report",
-            headers=headers,
-        )
-        assert report_response.status_code == 200, report_response.text
-        report = report_response.json()
-        assert report["gatewayEvaluation"] == {
-            "termination": result["termination"],
-            "solutions": result["solutions"],
-        }
-        assert report["remote"]["algorithm"] == case.reported_algorithm
-        assert report["provenance"] == provenance
+        # The run's page folds the old report: what the engine said about itself is ``remote``.
+        assert job["remote"]["algorithm"] == case.reported_algorithm
+        assert job["remote"] == result_provenance["engineReported"]
 
         source_response = client.get(f"{revision_path}", headers=headers)
         assert source_response.status_code == 200, source_response.text

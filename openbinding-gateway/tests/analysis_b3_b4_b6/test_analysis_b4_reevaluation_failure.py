@@ -16,6 +16,7 @@ import json
 import pytest
 from bim_client import BimServiceError
 
+from _problem_helpers import run_url
 from openbinding_gateway.db.models import JobState
 from openbinding_gateway.integrations import bim
 from openbinding_gateway.services import execution
@@ -98,6 +99,6 @@ async def test_there_is_an_authorized_way_to_retry_the_evaluation(
     headers, job = await _failed_job(api_client, db_session, registration)
     monkeypatch.setattr(bim.AsyncBim, "reevaluate", REAL_REEVALUATE)
 
-    response = await api_client.post(f"/v1/jobs/{job.id}/reevaluate", headers=headers)
+    response = await api_client.post(run_url(job, "/reevaluate"), headers=headers)
 
     assert response.status_code in (200, 202)

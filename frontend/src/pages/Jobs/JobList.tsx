@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Play, RefreshCw } from 'lucide-react';
-import { jobsApi } from '../../api/jobs';
-import { platformApi, type Job, type Organization, type Project } from '../../api/platform';
+import { runsApi } from '../../api/runs';
+import type { Job, Organization } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { DataTable } from '../../components/ui/DataTable';
@@ -11,39 +11,38 @@ import { FilterPills } from '../../components/ui/FilterPills';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
+import { problemPath } from '../../routes/paths/problems';
+import { launchPath, runPath } from '../../routes/paths/runs';
 import { runLabel } from '../../shared/lib/identity';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
-import { canOpenSection } from '../Project/accessLevel';
-import { MembersOnlyGate, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
-import { useRouteProject } from '../Project/useRouteProject';
+import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
+import { problemAccess } from '../Cases/useRouteProblem';
+import { useRouteOrganization } from '../Organization/useRouteOrganization';
 import { refusalOf, type Refusal } from './jobErrors';
 import { STATUS_FILTERS, canRetryState, formatTook, isActive, normalizeStatus, statusCounts, tookOf, tookPercent, type StatusFilter } from './jobsModel';
 import { JobFrame, OutcomeChip, RefusalNotice, StatusChip } from './parts';
 
 const PAGE = 20;
 const REFRESH_MS = 8000;
+/** How many of the organization's runs the list reads (the newest); the filters and pages work on these. */
+const READ = 200;
 
 interface ListData {
   rows: Job[];
-  /** The ids of the runs this account launched; `null` when its own list could not be read. */
-  mine: Set<string> | null;
+  /** How many runs the organization has, read or not. */
+  total: number;
 }
 
 type Outcome = { tone: 'success'; text: string; follow?: string } | { tone: 'error'; refusal: Refusal };
 
-function JobListBody({ organization, project, canLaunch }: { organization: Organization; project: Project; canLaunch: boolean }) {
-  const { isAdmin } = useAuth();
+function JobListBody({ organization, canLaunch }: { organization: Organization; canLaunch: boolean }) {
+  const { user } = useAuth();
   const org = organization.slug;
-  const slug = project.slug;
-  const root = `/app/${org}/${slug}`;
-  const jobs = useResource<ListData>(`jobs:${org}/${slug}`, async () => {
-    const [rows, mine] = await Promise.all([
-      platformApi.projectJobs(org, slug),
-      jobsApi.mine().then((own) => new Set(own.map((job) => job.id)), () => null),
-    ]);
-    return { rows, mine };
+  const jobs = useResource<ListData>(`runs:${org}`, async () => {
+    const { runs, total } = await runsApi.list(org, { limit: READ });
+    return { rows: runs, total };
   });
   const [status, setStatus] = useState<StatusFilter>('');
   const [engine, setEngine] = useState('');
@@ -53,7 +52,6 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
 
   const data = jobs.data ?? jobs.stale;
   const rows = data?.rows ?? [];
-  const mine = data?.mine ?? null;
   const reload = jobs.reload;
   const anyActive = rows.some((row) => isActive(normalizeStatus(row.status)));
 
@@ -72,16 +70,12 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
   const visible = filtered.slice(current * PAGE, (current + 1) * PAGE);
   const failure = jobs.status === 'error' ? classifyAuthError(jobs.error) : null;
 
-  // A run is the launcher's: its owner opens it. When the account's own list could not be read the detail screen decides.
-  const isOwn = (job: Job) => mine === null || mine.has(job.id);
-  const canOpen = (job: Job) => isAdmin || isOwn(job);
-
   const retry = async (job: Job) => {
     setRetrying(job.id);
     setOutcome(null);
     try {
-      const made = await jobsApi.retry(job.id);
-      setOutcome({ tone: 'success', text: 'Retry queued.', follow: `${root}/runs/${made.id}` });
+      const made = await runsApi.retry(org, job.id);
+      setOutcome({ tone: 'success', text: 'Retry queued.', follow: runPath(org, made.id) });
       reload();
     } catch (caught) {
       setOutcome({ tone: 'error', refusal: refusalOf(caught, 'retry') });
@@ -93,14 +87,14 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
   const loadingFirst = jobs.status === 'loading' && !data;
 
   return (
-    <JobFrame organization={organization} project={project} trail={[{ label: 'Runs' }]}>
+    <JobFrame organization={organization} trail={[{ label: 'Runs' }]}>
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>Runs</h1>
-          <p>Every run in {project.name}. Anyone in the project sees the summary; opening, cancelling or retrying a run is for whoever launched it.</p>
+          <p>Every run in {organization.name}. Every member opens them; launching, cancelling and retrying need MEMBER.</p>
         </div>
         <div className="proj-actions">
-          {canLaunch && <Action to={`${root}/runs/new`} variant="primary"><Play aria-hidden="true" className="job-icon" />New run</Action>}
+          {canLaunch && <Action to={launchPath(org)} variant="primary"><Play aria-hidden="true" className="job-icon" />New run</Action>}
         </div>
       </header>
 
@@ -135,7 +129,7 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
           icon={<Play />}
           title="No runs yet"
           dashed
-          action={canLaunch ? <Action to={`${root}/runs/new`} variant="primary">Start a run</Action> : undefined}
+          action={canLaunch ? <Action to={launchPath(org)} variant="primary">Start a run</Action> : undefined}
         >
           Pick a problem version and an engine to run it.
         </EmptyState>
@@ -145,10 +139,11 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
         <>
           {filtered.length === 0 && <EmptyState icon={<Play />} title="No runs match these filters">Try another status or engine.</EmptyState>}
           {filtered.length > 0 && (
-            <DataTable label="Runs of the project" minWidth={860}>
+            <DataTable label="Runs of the organization" minWidth={960}>
               <thead>
                 <tr>
                   <th scope="col">Status</th>
+                  <th scope="col">Problem</th>
                   <th scope="col">Engine</th>
                   <th scope="col">Outcome</th>
                   <th scope="col">Took</th>
@@ -159,11 +154,17 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
               <tbody>
                 {visible.map((job) => {
                   const state = normalizeStatus(job.status);
-                  const own = mine !== null && mine.has(job.id);
+                  const own = Boolean(user && job.created_by?.id === user.id);
                   const took = tookOf(job);
                   return (
                     <tr key={job.id}>
                       <td><StatusChip status={state} /></td>
+                      <td>
+                        {job.problem
+                          ? <Link to={problemPath(org, job.problem.slug)} viewTransition>{job.problem.name}</Link>
+                          : <span className="org-muted">—</span>}
+                        {job.revision && <small className="org-muted">version {job.revision.revision}</small>}
+                      </td>
                       <td>
                         <strong className="job-engine">{job.engine_id}</strong>
                         {job.retry_of_id && <small className="org-muted">Retry of an earlier run</small>}
@@ -176,15 +177,13 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
                         </span>
                       </td>
                       <td>
-                        {own ? 'You' : mine === null ? 'Unknown' : 'Another member'}
+                        {own ? 'You' : job.created_by?.username ?? 'Another member'}
                         <small className="org-muted">{formatDateTime(job.created_at) ?? '—'}</small>
                       </td>
                       <td className="job-actions-cell">
                         <span className="job-row-actions">
-                          {canOpen(job)
-                            ? <Link to={`${root}/runs/${job.id}`} viewTransition aria-label={`Open ${runLabel({ engine: { name: job.engine_id }, createdAt: job.created_at })}`}>Open</Link>
-                            : <small className="proj-owner-only" title="Runs open only for whoever launched them">Owner only</small>}
-                          {own && canRetryState(state) && (
+                          <Link to={runPath(org, job.id)} viewTransition aria-label={`Open ${runLabel({ engine: { name: job.engine_id }, createdAt: job.created_at })}`}>Open</Link>
+                          {canLaunch && canRetryState(state) && (
                             <button type="button" className="job-link-button" onClick={() => void retry(job)} disabled={retrying === job.id}>
                               {retrying === job.id ? 'Retrying…' : 'Retry'}
                             </button>
@@ -209,20 +208,17 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
 
       {data && (
         <p className="org-muted job-footnote">
-          Only summaries load here; results load when a run is opened. <Chip>{rows.length} in this project</Chip>
+          Only summaries load here; results load when a run is opened. <Chip>{data.total} in this organization</Chip>
         </p>
       )}
     </JobFrame>
   );
 }
 
-/** The runs of a project (`job-list`, `/app/:org/:project/runs`): summaries for every member, the actions for whoever launched each run. */
+/** The runs of an organization (`job-list`, `/app/:org/runs`): every member reads them; MEMBER and above launch and retry. */
 export function JobList() {
-  const { organization, project, access, waiting, failure, reload } = useRouteProject();
-  if (waiting) return <OrgSkeleton label="Loading project…" />;
-  if (!organization || !project) {
-    return <OrgGate failure={organization ? failure : null} organizationName={organization?.name} onRetry={reload} />;
-  }
-  if (!canOpenSection(access.level, 'jobs')) return <MembersOnlyGate root={`/app/${organization.slug}/${project.slug}`} />;
-  return <JobListBody key={`${organization.slug}/${project.slug}`} organization={organization} project={project} canLaunch={access.canCreate} />;
+  const { organization, waiting } = useRouteOrganization();
+  if (waiting) return <OrgSkeleton label="Loading organization…" />;
+  if (!organization) return <OrgGate failure={null} subject="organization" />;
+  return <JobListBody key={organization.slug} organization={organization} canLaunch={problemAccess(organization).canCreate} />;
 }

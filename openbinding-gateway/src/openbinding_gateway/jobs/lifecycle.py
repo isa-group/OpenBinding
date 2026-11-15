@@ -30,8 +30,8 @@ async def sync_study_cell(session: AsyncSession, job_id: uuid.UUID) -> None:
         logger.warning("Could not sync the study cell of job %s", job_id, exc_info=True)
 
 
-async def lock_study_run(session: AsyncSession, job_id: uuid.UUID, owner_id: uuid.UUID) -> None:
-    """Row-lock the study run behind a job of ``owner_id``, if there is one.
+async def lock_study_run(session: AsyncSession, job_id: uuid.UUID, organization_id: uuid.UUID) -> None:
+    """Row-lock the study run behind a run of this organization, if there is one.
 
     Call it before locking the job: cancelling a study's job synchronises its
     cell, which locks the run, and cancelling the whole run locks the run before
@@ -42,7 +42,7 @@ async def lock_study_run(session: AsyncSession, job_id: uuid.UUID, owner_id: uui
     run_id = await session.scalar(
         select(StudyCell.study_run_id)
         .join(Job, Job.study_cell_id == StudyCell.id)
-        .where(Job.id == job_id, Job.owner_id == owner_id)
+        .where(Job.id == job_id, Job.organization_id == organization_id)
     )
     if run_id is not None:
         await lock_run(session, run_id)

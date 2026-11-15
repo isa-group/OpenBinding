@@ -9,14 +9,14 @@ const platform = vi.hoisted(() => ({
   project: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), analytics: vi.fn(),
  
 }));
-const client = vi.hoisted(() => ({ getJobStatus: vi.fn() }));
+const runsApi = vi.hoisted(() => ({ get: vi.fn() }));
 const library = vi.hoisted(() => ({ libraryApi: { versions: vi.fn().mockResolvedValue([]) } }));
 
 const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../api/library', () => library);
-vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
+vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi }));
 // The decision workspace is not what is under test here.
 vi.mock('../../components/BindingAnalysis/BindingAnalysis', async () => {
   const { createElement } = await import('react');
@@ -52,7 +52,7 @@ describe('Analytics of a run, in the Results tab', () => {
     platform.analytics.mockResolvedValue(analyticsFixture());
     problems.list.mockResolvedValue({ problems: [CHECKOUT], total: 1, limit: 200, offset: 0 });
     problems.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
-    client.getJobStatus.mockResolvedValue({ id: 'job', status: 'completed', result: { solutions: [] } });
+    runsApi.get.mockResolvedValue({ id: 'job', status: 'completed', result: { solutions: [] } });
   });
 
   it('counts the cells and compares the engines on the cost they found', async () => {
@@ -156,22 +156,22 @@ describe('Analytics of a run, in the Results tab', () => {
     renderAnalytics();
 
     const select = await screen.findByRole('combobox', { name: 'Analysis study cell' });
-    expect(client.getJobStatus).not.toHaveBeenCalled();
+    expect(runsApi.get).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Load the solutions' }));
 
     expect(await screen.findByText('Binding analysis of 00000000-0000-4000-8000-000000000300')).toBeInTheDocument();
-    expect(client.getJobStatus).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000300');
+    expect(runsApi.get).toHaveBeenCalledWith('isa-demo', '00000000-0000-4000-8000-000000000300');
     fireEvent.change(select, { target: { value: '00000000-0000-4000-8000-000000000302' } });
     expect(screen.queryByText('Binding analysis of 00000000-0000-4000-8000-000000000300')).not.toBeInTheDocument();
   });
 
-  it('says a job that is not the account’s cannot be opened', async () => {
-    client.getJobStatus.mockRejectedValue(refusal(404, 'not_found'));
+  it('says a run that cannot be found cannot be opened', async () => {
+    runsApi.get.mockRejectedValue(refusal(404, 'not_found'));
     renderAnalytics();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Load the solutions' }));
 
-    expect(await screen.findByText(/That run opens only for whoever launched it \(404 · not_found\)\./)).toBeInTheDocument();
+    expect(await screen.findByText(/That run isn’t in this organization any more \(404 · not_found\)\./)).toBeInTheDocument();
   });
 
   it('explains there is nothing to chart before any cell completes', async () => {

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { CASE, PROJECT_PATH, capture, signInByApi, watchPageErrors } from './support';
+import { CASE, ORG, RUNS_PATH, capture, signInByApi, watchPageErrors } from './support';
 
 // This spec starts one real job (random-search, a few iterations) as the owner of lab-main and waits for its result: the engine runs in
 // the lab's worker. With DEMO_SPACE_ENABLED=false (the open gate of the lab) the plan needs no contract; with SPACE enabled and no
@@ -19,7 +19,7 @@ test.describe('live · a random-search job and its result', () => {
     test.setTimeout(300_000);
     const errors = watchPageErrors(page);
     await signInByApi(page, 'owner');
-    await page.goto(`${PROJECT_PATH}/runs/new?case=${CASE}`);
+    await page.goto(`${RUNS_PATH}/new?problem=${CASE}`);
 
     // 1 · what to solve: the case, at its latest revision.
     await expect(page.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
@@ -57,10 +57,10 @@ test.describe('live · a random-search job and its result', () => {
     const send = page.getByRole('button', { name: 'Send run' });
     // A disabled button would make the click wait for 30 s and then look like a request that never left: say what the page shows instead.
     await expect(send, `"Send run" is disabled; the review says: ${(await page.locator('.job-review').innerText()).replace(/\s+/g, ' ')}`).toBeEnabled();
-    // The API is under /api of the same origin (`API` in support.ts), so the path ends in /v1/jobs; a query or a prefix does not matter.
-    const isLaunch = (response: { url(): string; request(): { method(): string } }) => response.request().method() === 'POST' && new URL(response.url()).pathname.endsWith('/v1/jobs');
+    // The API is under /api of the same origin (`API` in support.ts), so the path ends in the organization's runs; a query or a prefix does not matter.
+    const isLaunch = (response: { url(): string; request(): { method(): string } }) => response.request().method() === 'POST' && new URL(response.url()).pathname.endsWith(`/v1/organizations/${ORG}/runs`);
     const [response] = await Promise.all([page.waitForResponse(isLaunch), send.click()]);
-    expect(response.status(), `POST /v1/jobs answered ${response.status()}: ${await response.text()}`).toBe(202);
+    expect(response.status(), `createRun answered ${response.status()}: ${await response.text()}`).toBe(202);
     const sent = response.request().postDataJSON() as Record<string, unknown>;
     expect(sent.optimization, 'the launch must carry the execution optimization').toMatchObject({ type: expect.stringMatching(/^(SINGLE|MULTI|MANY)$/), scalarization: expect.any(String) });
 
@@ -68,7 +68,7 @@ test.describe('live · a random-search job and its result', () => {
     await page.getByRole('link', { name: 'Follow the run' }).click();
 
     // The run page: it moves from queued to completed and shows what the engine found.
-    await expect(page).toHaveURL(new RegExp(`${PROJECT_PATH}/runs/[0-9a-f-]+$`));
+    await expect(page).toHaveURL(new RegExp(`${RUNS_PATH}/[0-9a-f-]+$`));
     await expect(page.getByRole('heading', { level: 1, name: /random-search run/ })).toBeVisible();
     await expect(finishedResult(page)).toBeVisible({ timeout: 180_000 });
     await capture(page, testInfo, 'job-result');

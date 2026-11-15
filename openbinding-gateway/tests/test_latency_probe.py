@@ -1,4 +1,4 @@
-"""``tools/latency_probe.py``: the lab latency probe of the problem upload, ``POST /v1/jobs`` and ``POST /v1/bim/validate``.
+"""``tools/latency_probe.py``: the lab latency probe of the problem upload, ``createRun`` and ``POST /v1/bim/validate``.
 
 The gateway is a fake behind ``httpx.MockTransport`` and the clock is injected, so the durations are chosen by the test
 and nothing here depends on the wall clock.
@@ -104,7 +104,7 @@ class Gateway:
         if path == "/v1/bim/validate":
             status = next(self.validate_statuses, 200)
             return httpx.Response(status, json={"valid": True})
-        if path == "/v1/jobs":
+        if path == RUNS:
             if self.pricing:
                 return httpx.Response(503, json={"code": "pricing_unavailable", "detail": "SPACE"})
             self.count += 1
@@ -116,14 +116,15 @@ class Gateway:
         if path.endswith("/cancel"):
             self.cancelled.add(path.split("/")[-2])
             return httpx.Response(202, json={})
-        if path.startswith("/v1/jobs/"):
+        if path.startswith(f"{RUNS}/"):
             job = path.rsplit("/", 1)[-1]
             return httpx.Response(200, json={"status": "cancelled" if job in self.cancelled else "running"})
         return httpx.Response(404)
 
 
 UPLOAD = "POST /v1/organizations/{org}/problems/{problem}/revisions"
-ROUTES = [(UPLOAD, "package"), ("POST /v1/jobs", "revision"), ("POST /v1/bim/validate", "package")]
+RUNS = "/v1/organizations/lab-main/runs"
+ROUTES = [(UPLOAD, "package"), ("POST /v1/organizations/{org}/runs", "revision"), ("POST /v1/bim/validate", "package")]
 
 
 def run(probe, gateway, durations=(0.1,), argv=("--samples", "4", "--warmup", "1", "--examples", "a"), env=ENV):
@@ -317,13 +318,13 @@ def test_each_job_is_cancelled_and_drained_before_the_next_accept(probe, capsys)
     gateway = Gateway()
     run(probe, gateway)
     capsys.readouterr()
-    job_posts = [i for i, call in enumerate(gateway.calls) if call == ("POST", "/v1/jobs")]
+    job_posts = [i for i, call in enumerate(gateway.calls) if call == ("POST", RUNS)]
     assert len(job_posts) == 5  # 1 warmup + 4 samples
     for number, (first, following) in enumerate(zip(job_posts, job_posts[1:] + [len(gateway.calls)], strict=True), start=1):
         between = gateway.calls[first + 1:following]
-        assert ("POST", f"/v1/jobs/job-{number}/cancel") in between
-        assert ("GET", f"/v1/jobs/job-{number}") in between
-        assert between.index(("POST", f"/v1/jobs/job-{number}/cancel")) < between.index(("GET", f"/v1/jobs/job-{number}"))
+        assert ("POST", f"{RUNS}/job-{number}/cancel") in between
+        assert ("GET", f"{RUNS}/job-{number}") in between
+        assert between.index(("POST", f"{RUNS}/job-{number}/cancel")) < between.index(("GET", f"{RUNS}/job-{number}"))
     assert len(set(gateway.job_headers)) == 5
 
 

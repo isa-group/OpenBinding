@@ -65,18 +65,18 @@ async def test_a_viewer_does_not_read_the_error_a_member_does(
     await failed(db_session, job)
     viewer_h = await member(api_client, registration, db_session, gate, owner_h, slug, "VIEWER")
     member_h = await member(api_client, registration, db_session, gate, owner_h, slug, "MEMBER")
-    url = f"/v1/organizations/{slug}/projects/p/jobs"
+    url = f"/v1/organizations/{slug}/runs/{job.id}"
 
     seen_by_viewer = await api_client.get(url, headers=viewer_h)
     seen_by_member = await api_client.get(url, headers=member_h)
     seen_by_owner = await api_client.get(url, headers=owner_h)
 
     assert seen_by_viewer.status_code == 200, seen_by_viewer.text
-    [row] = seen_by_viewer.json()
+    row = seen_by_viewer.json()
     assert row["status"] == "failed"
-    assert row["result"]["error"] == GENERIC_ERROR
+    assert row["result"]["error"] == row["error"] == GENERIC_ERROR
     for leaked in ("10.0.0.5", "private-engine", "ConnectError"):
         assert leaked not in seen_by_viewer.text, leaked
     for response in (seen_by_member, seen_by_owner):
         assert response.status_code == 200, response.text
-        assert response.json()[0]["result"]["error"] == PRIVATE_ERROR
+        assert response.json()["result"]["error"] == response.json()["error"] == PRIVATE_ERROR

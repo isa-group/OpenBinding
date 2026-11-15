@@ -2,26 +2,23 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError, type EngineCatalogEntry, type EngineMode } from '../../api/client';
-import { caseOf, org, project, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
+import { caseOf, org, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
 import { ENGINE, REGISTRATION, digestOf } from '../../test/fixtures/jobs';
 import { usageOf } from '../../test/fixtures/resources';
 import { JobLaunch } from './JobLaunch';
 
-const jobsApi = vi.hoisted(() => ({ launch: vi.fn() }));
+const runsApi = vi.hoisted(() => ({ create: vi.fn() }));
 const client = vi.hoisted(() => ({ getOwnUsage: vi.fn(), getPricingCatalog: vi.fn(), getEngines: vi.fn() }));
-const platform = vi.hoisted(() => ({ project: vi.fn() }));
 const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
 
-vi.mock('../../api/jobs', () => ({ jobsApi }));
+vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi }));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
-vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
-const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const flujo = caseOf('flujo', 'Flujo de checkout');
-const ROOT = '/app/isa-demo/qos-benchmarks';
+const ROOT = '/app/isa-demo';
 
 const MINIZINC = { namespace: 'bim.builtin', name: 'minizinc', version: '1.0.0', digest: digestOf('m') };
 const MINIZINC_REGISTRATION = { namespace: 'bim.builtin', name: 'minizinc-deployment', version: '1', digest: digestOf('n') };
@@ -53,7 +50,7 @@ const analysis = (over: Record<string, unknown> = {}) => ({
 
 function renderLaunch(search = '?problem=flujo&revision=2', slug = 'isa-demo') {
   return renderProjectScreen(<JobLaunch />, {
-    path: '/app/:org/:project/runs/new', url: `/app/${slug}/qos-benchmarks/runs/new${search}`, organizations: [group, viewing],
+    path: '/app/:org/runs/new', url: `/app/${slug}/runs/new${search}`, organizations: [group, viewing],
   });
 }
 
@@ -73,7 +70,6 @@ async function toReview() {
 describe('Start a run', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    platform.project.mockResolvedValue(qos);
     problems.list.mockResolvedValue({ problems: [flujo], total: 1, limit: 200, offset: 0 });
     problems.revisions.mockResolvedValue([revisionOf(flujo, 1), revisionOf(flujo, 2)]);
     client.getOwnUsage.mockResolvedValue(usageOf({
@@ -84,7 +80,7 @@ describe('Start a run', () => {
     client.getEngines.mockResolvedValue(engines);
     problems.compilation.mockResolvedValue(analysis());
     problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), source_map: {}, ir: { spec: { candidates: { providers: { candidates: { a: { features: { latency: 40 } } } } } } } });
-    jobsApi.launch.mockResolvedValue({ id: 'job-new-7', status: 'queued', irDigest: digestOf('c') });
+    runsApi.create.mockResolvedValue({ id: 'job-new-7', status: 'queued', irDigest: digestOf('c') });
   });
 
   it('opens on the revision the address names and walks four steps', async () => {
@@ -103,7 +99,8 @@ describe('Start a run', () => {
     expect(within(source).getByRole('radio', { name: /Flujo de checkout · version 1/ })).not.toBeChecked();
     expect(screen.getByRole('link', { name: 'Upload a problem' })).toHaveAttribute('href', '/app/isa-demo/problems');
     expect(screen.getByRole('link', { name: 'Cancel' })).toHaveAttribute('href', `${ROOT}/runs`);
-    expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Runs' })).toHaveAttribute('aria-current', 'page');
+    expect(within(screen.getByRole('navigation', { name: 'Breadcrumb' })).getByRole('link', { name: 'Runs' })).toHaveAttribute('href', `${ROOT}/runs`);
+    expect(screen.queryByRole('navigation', { name: 'Project sections' })).not.toBeInTheDocument();
   });
 
   it('checks which engines can run the version and lists the ones that cannot, with the reason', async () => {
@@ -181,7 +178,7 @@ describe('Start a run', () => {
     it('explains a launch the engine refused for ranges, with the pointers and the way forward', async () => {
       problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), source_map: {}, ir: ranged });
       problems.compilation.mockResolvedValue(analysis({ compatible_modes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }] }));
-      jobsApi.launch.mockRejectedValue(refused(422, 'engine_mode_incompatible', { diagnostics: [{ ...RANGE_DIAGNOSTIC }] }));
+      runsApi.create.mockRejectedValue(refused(422, 'engine_mode_incompatible', { diagnostics: [{ ...RANGE_DIAGNOSTIC }] }));
       renderLaunch();
       await toReview();
 
@@ -197,7 +194,7 @@ describe('Start a run', () => {
       problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), source_map: {}, ir: ranged });
       problems.compilation.mockResolvedValue(analysis({ compatible_modes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }] }));
       const withoutPointer = { ...RANGE_DIAGNOSTIC, resource: undefined, pointer: undefined };
-      jobsApi.launch.mockRejectedValue(refused(422, 'engine_mode_incompatible', { diagnostics: [{ code: 'profile_incompatible', message: 'mode profile differs' }, withoutPointer] }));
+      runsApi.create.mockRejectedValue(refused(422, 'engine_mode_incompatible', { diagnostics: [{ code: 'profile_incompatible', message: 'mode profile differs' }, withoutPointer] }));
       renderLaunch();
       await toReview();
 
@@ -253,8 +250,9 @@ describe('Start a run', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
     expect(await screen.findByRole('heading', { name: 'Run accepted · queued' })).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
-    expect(jobsApi.launch).toHaveBeenCalledTimes(1);
-    expect(jobsApi.launch).toHaveBeenCalledWith(
+    expect(runsApi.create).toHaveBeenCalledTimes(1);
+    expect(runsApi.create).toHaveBeenCalledWith(
+      'isa-demo',
       { revision: 'case-flujo-r2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling', options: { time_budget_ms: 30000, iterations: 100000 } },
       expect.any(String),
     );
@@ -277,7 +275,8 @@ describe('Start a run', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
     await screen.findByRole('heading', { name: 'Run accepted · queued' });
-    expect(jobsApi.launch).toHaveBeenCalledWith(
+    expect(runsApi.create).toHaveBeenCalledWith(
+      'isa-demo',
       expect.objectContaining({ engine: ENGINE, mode: 'sampling', optimization: { type: 'SINGLE', scalarization: 'weighted-sum' } }),
       expect.any(String),
     );
@@ -289,7 +288,7 @@ describe('Start a run', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
     await screen.findByRole('heading', { name: 'Run accepted · queued' });
-    expect(jobsApi.launch.mock.calls[0][0]).not.toHaveProperty('optimization');
+    expect(runsApi.create.mock.calls[0][1]).not.toHaveProperty('optimization');
   });
 
   it('says what the plan reduced once the run is accepted', async () => {
@@ -304,7 +303,7 @@ describe('Start a run', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
     expect(await screen.findByText(/Time budget was reduced to 60 s, what your plan allows; the run carries that note\./)).toBeInTheDocument();
     // The request carries what was asked; the gateway reduces it and records that on the job.
-    expect(jobsApi.launch).toHaveBeenCalledWith(expect.objectContaining({ options: { time_budget_ms: 600000, iterations: 100000 } }), expect.any(String));
+    expect(runsApi.create).toHaveBeenCalledWith('isa-demo', expect.objectContaining({ options: { time_budget_ms: 600000, iterations: 100000 } }), expect.any(String));
   });
 
   it('only offers the engine modes the gateway or the catalog lists, and always sends an exact engine', async () => {
@@ -317,7 +316,7 @@ describe('Start a run', () => {
     await next();
     fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
     await screen.findByRole('heading', { name: 'Run accepted · queued' });
-    expect(jobsApi.launch).toHaveBeenCalledWith(expect.objectContaining({ engine: ENGINE }), expect.any(String));
+    expect(runsApi.create).toHaveBeenCalledWith('isa-demo', expect.objectContaining({ engine: ENGINE }), expect.any(String));
   });
 
   it('offers no saved settings: the settings are set here', async () => {
@@ -370,7 +369,7 @@ describe('Start a run', () => {
     }
 
     it('402 out of an allowance: what the plan allows and where to look', async () => {
-      jobsApi.launch.mockRejectedValue(new QuotaError('quota_exceeded', 'Storage exhausted.', { limit_id: 'maxRepositoryStorage', limit: 50, used: 50 }));
+      runsApi.create.mockRejectedValue(new QuotaError('quota_exceeded', 'Storage exhausted.', { limit_id: 'maxRepositoryStorage', limit: 50, used: 50 }));
       await send();
 
       const alert = await screen.findByRole('alert');
@@ -382,7 +381,7 @@ describe('Start a run', () => {
     });
 
     it('422 over the deployment’s size limit, which no plan changes', async () => {
-      jobsApi.launch.mockRejectedValue(refused(422, 'binding_space_over_technical_limit', {
+      runsApi.create.mockRejectedValue(refused(422, 'binding_space_over_technical_limit', {
         notice: { limit_id: 'MAX_BINDING_SPACE_LOG10', state: 'exhausted', source: 'technical', limit: 20, used: 23 },
       }));
       await send();
@@ -392,7 +391,7 @@ describe('Start a run', () => {
     });
 
     it('429 job slots busy, counting down', async () => {
-      jobsApi.launch.mockRejectedValue(refused(429, 'concurrency_limit_exceeded', { retryAfter: 15, concurrency: { limit_id: 'maxConcurrentRuns', limit: 3, used: 3 } }));
+      runsApi.create.mockRejectedValue(refused(429, 'concurrency_limit_exceeded', { retryAfter: 15, concurrency: { limit_id: 'maxConcurrentRuns', limit: 3, used: 3 } }));
       await send();
 
       const alert = await screen.findByRole('alert');
@@ -402,18 +401,18 @@ describe('Start a run', () => {
     });
 
     it('403 feature not in the plan, and 403 key without the permission', async () => {
-      jobsApi.launch.mockRejectedValueOnce(refused(403, 'feature_not_entitled'));
+      runsApi.create.mockRejectedValueOnce(refused(403, 'feature_not_entitled'));
       await send();
       expect(await screen.findByText('Not included in your plan (403 · feature_not_entitled)')).toBeInTheDocument();
 
-      jobsApi.launch.mockRejectedValueOnce(new HttpError(403, 'The API key does not include engines:execute'));
+      runsApi.create.mockRejectedValueOnce(new HttpError(403, 'The API key does not include engines:execute'));
       fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
       expect(await screen.findByText('This credential can’t start runs (403)')).toBeInTheDocument();
       expect(screen.getByText('engines:execute')).toBeInTheDocument();
     });
 
     it('422 mode incompatible lists what the gateway said', async () => {
-      jobsApi.launch.mockRejectedValue(refused(422, 'engine_mode_incompatible', { diagnostics: [{ message: 'The mode cannot place a RoutingOverlay.' }] }));
+      runsApi.create.mockRejectedValue(refused(422, 'engine_mode_incompatible', { diagnostics: [{ message: 'The mode cannot place a RoutingOverlay.' }] }));
       await send();
 
       expect(await screen.findByText('This engine can’t run this problem (422 · engine_mode_incompatible)')).toBeInTheDocument();
@@ -421,36 +420,36 @@ describe('Start a run', () => {
     });
 
     it('404 engine not allowed by the key, 409 and 503', async () => {
-      jobsApi.launch.mockRejectedValueOnce(refused(404, 'not_found'));
+      runsApi.create.mockRejectedValueOnce(refused(404, 'not_found'));
       await send();
       expect(await screen.findByText('Engine not available with this key (404 · not_found)')).toBeInTheDocument();
 
-      jobsApi.launch.mockRejectedValueOnce(refused(409, 'engine_reference_mismatch'));
+      runsApi.create.mockRejectedValueOnce(refused(409, 'engine_reference_mismatch'));
       fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
       expect(await screen.findByText('The selection conflicts with a sealed one (409 · engine_reference_mismatch)')).toBeInTheDocument();
 
-      jobsApi.launch.mockRejectedValueOnce(new PricingUnavailableError('SPACE is down'));
+      runsApi.create.mockRejectedValueOnce(new PricingUnavailableError('SPACE is down'));
       fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
       expect(await screen.findByText('Limits can’t be checked right now (503 · pricing_unavailable)')).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: /Run accepted/ })).not.toBeInTheDocument();
     });
 
     it('sends the same one-time key again for the same request, and a new one when the settings change', async () => {
-      jobsApi.launch.mockRejectedValueOnce(refused(503, 'unavailable'));
+      runsApi.create.mockRejectedValueOnce(refused(503, 'unavailable'));
       await send();
       await screen.findByRole('alert');
-      jobsApi.launch.mockRejectedValueOnce(refused(503, 'unavailable'));
+      runsApi.create.mockRejectedValueOnce(refused(503, 'unavailable'));
       fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
-      await waitFor(() => expect(jobsApi.launch).toHaveBeenCalledTimes(2));
-      expect(jobsApi.launch.mock.calls[1][1]).toBe(jobsApi.launch.mock.calls[0][1]);
+      await waitFor(() => expect(runsApi.create).toHaveBeenCalledTimes(2));
+      expect(runsApi.create.mock.calls[1][2]).toBe(runsApi.create.mock.calls[0][2]);
 
       fireEvent.click(screen.getByRole('button', { name: /Settings/ }));
       fireEvent.change(await screen.findByLabelText('Time budget'), { target: { value: '20' } });
       fireEvent.click(screen.getByRole('button', { name: /Send/ }));
       await screen.findByRole('heading', { name: 'Before you send' });
       fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
-      await waitFor(() => expect(jobsApi.launch).toHaveBeenCalledTimes(3));
-      expect(jobsApi.launch.mock.calls[2][1]).not.toBe(jobsApi.launch.mock.calls[0][1]);
+      await waitFor(() => expect(runsApi.create).toHaveBeenCalledTimes(3));
+      expect(runsApi.create.mock.calls[2][2]).not.toBe(runsApi.create.mock.calls[0][2]);
     });
   });
 
@@ -461,14 +460,13 @@ describe('Start a run', () => {
     expect(note).toHaveTextContent('You’re a VIEWER of Read Lab. You can look through the steps, but starting a run needs MEMBER.');
     await toReview();
     expect(screen.getByRole('button', { name: 'Send run' })).toBeDisabled();
-    expect(jobsApi.launch).not.toHaveBeenCalled();
+    expect(runsApi.create).not.toHaveBeenCalled();
   });
 
-  it('gives a project the account is not in the neutral not-found answer', async () => {
-    platform.project.mockRejectedValue(refused(404, 'not_found'));
-    renderLaunch();
+  it('gives an organization the account is not in the neutral answer', async () => {
+    renderLaunch('?problem=flujo&revision=2', 'elsewhere');
 
-    expect(await screen.findByRole('heading', { name: 'Project not found' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Organization not available' })).toBeInTheDocument();
     expect(problems.list).not.toHaveBeenCalled();
   });
 });

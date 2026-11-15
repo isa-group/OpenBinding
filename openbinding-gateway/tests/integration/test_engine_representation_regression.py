@@ -210,10 +210,11 @@ def _ensure_multi_registration(
 
 def _wait_for_job(
     client: httpx.Client,
+    org: str,
     job_id: str,
     headers: dict[str, str],
 ) -> dict:
-    return wait_for_job(client, job_id, headers, timeout_s=60)
+    return wait_for_job(client, org, job_id, headers, timeout_s=60)
 
 
 def _solve(
@@ -236,7 +237,7 @@ def _solve(
     assert len(matches) == 1, json.dumps(matches, sort_keys=True)
     selection = matches[0]
     accepted = client.post(
-        "/v1/jobs",
+        f"/v1/organizations/{upload['org']}/runs",
         headers={**headers, "Idempotency-Key": f"representation-{uuid.uuid4()}"},
         json={
             "revision": upload["revision"]["id"],
@@ -248,7 +249,7 @@ def _solve(
         },
     )
     assert accepted.status_code == 202, accepted.text
-    job = _wait_for_job(client, accepted.json()["id"], headers)
+    job = _wait_for_job(client, upload["org"], accepted.json()["id"], headers)
     assert job["status"] == "completed", json.dumps(job, sort_keys=True)
     return upload["compilation"]["ir_digest"], job["result"]
 

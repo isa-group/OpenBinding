@@ -44,7 +44,8 @@ test('a cell inside Results links Open run to the run it ran as', async ({ page 
   await page.goto(`${STUDY}/results?run=r1&cell=c7`);
   const open = page.getByRole('link', { name: 'Open run', exact: true }).first();
   await expect(open).toBeVisible();
-  await expect(open).toHaveAttribute('href', `/app/acme/demo/${RUNS_SEGMENT}/j9`);
+  // Runs belong to the organization: the run of a cell opens under it, not under the project.
+  await expect(open).toHaveAttribute('href', `/app/acme/${RUNS_SEGMENT}/j9`);
 });
 
 test('an unknown study tab shows Page not found', async ({ page }) => {

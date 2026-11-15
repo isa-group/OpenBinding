@@ -6,10 +6,10 @@ import { caseOf, org, project, renderProjectScreen, revisionOf } from '../../fea
 import { CaseDetail } from './CaseDetail';
 
 const problems = vi.hoisted(() => ({ get: vi.fn(), revisions: vi.fn() }));
-const jobs = vi.hoisted(() => ({ mine: vi.fn() }));
+const runsApi = vi.hoisted(() => ({ list: vi.fn() }));
 
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
-vi.mock('../../api/jobs', async () => ({ ...await vi.importActual<typeof import('../../api/jobs')>('../../api/jobs'), jobsApi: jobs }));
+vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi }));
 
 const member = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
 const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
@@ -17,11 +17,11 @@ const checkout = caseOf('flujo-checkout', 'Flujo de checkout');
 const r1 = revisionOf(checkout, 1);
 const r2 = revisionOf(checkout, 2);
 const root = '/app/isa-demo';
-const runs = '/app/isa-demo/qos-benchmarks';
+const runs = '/app/isa-demo';
 
 const jobOf = (id: string, created: string, revision: { id: string; revision: number }): Job => ({
   id, engine_id: 'multi-heuristic', status: 'completed', cancellation_requested: false, retry_of_id: null, organization_id: 'org-isa-demo',
-  project_id: null, created_at: created, finished_at: created, termination: 'OPTIMAL', revision,
+  created_at: created, finished_at: created, termination: 'OPTIMAL', revision,
 });
 
 function renderRuns() {
@@ -38,14 +38,14 @@ describe('Runs tab of the problem page', () => {
     vi.clearAllMocks();
     problems.get.mockResolvedValue(checkout);
     problems.revisions.mockResolvedValue([r1, r2]);
-    jobs.mine.mockResolvedValue([
+    runsApi.list.mockResolvedValue({ total: 3, runs: [
       jobOf('job-old', '2026-09-01T00:00:00Z', { id: r1.id, revision: 1 }),
       jobOf('job-other', '2026-09-02T00:00:00Z', { id: 'rev-elsewhere', revision: 4 }),
       jobOf('job-new', '2026-09-03T00:00:00Z', { id: r2.id, revision: 2 }),
-    ]);
+    ] });
   });
 
-  it('lists your runs of a version of the problem by the revision they name, newest first, each linking to its page', async () => {
+  it('lists the organization’s runs of a version of the problem by the revision they name, newest first, each linking to its page', async () => {
     renderRuns();
 
     const table = await runsTable();
@@ -56,11 +56,12 @@ describe('Runs tab of the problem page', () => {
     expect(within(rows[1]).getByRole('link', { name: 'Run 1' })).toHaveAttribute('href', `${runs}/runs/job-old`);
     expect(within(rows[1]).getByRole('link', { name: 'Version 1' })).toHaveAttribute('href', `${root}/problems/flujo-checkout?version=1`);
     expect(table.textContent).not.toMatch(/job-|sha256-|[0-9a-f]{12}/);
-    expect(jobs.mine).toHaveBeenCalledTimes(1);
+    expect(runsApi.list).toHaveBeenCalledTimes(1);
+    expect(runsApi.list).toHaveBeenCalledWith('isa-demo', { problem: 'flujo-checkout', limit: 200 });
   });
 
   it('says so when no run is of the problem, and offers to start one to a MEMBER', async () => {
-    jobs.mine.mockResolvedValue([]);
+    runsApi.list.mockResolvedValue({ runs: [], total: 0 });
     renderRuns();
 
     expect(await screen.findByText('No runs of this problem yet')).toBeInTheDocument();
@@ -68,7 +69,7 @@ describe('Runs tab of the problem page', () => {
   });
 
   it('says the runs cannot be loaded, and retries', async () => {
-    jobs.mine.mockRejectedValueOnce(new HttpError(503, 'unavailable'));
+    runsApi.list.mockRejectedValueOnce(new HttpError(503, 'unavailable'));
     renderRuns();
 
     const alert = await screen.findByRole('alert');

@@ -270,7 +270,8 @@ async def record_job_failure(
     """Hook called when a Job transitions to JobState.FAILED."""
     return await record_api_error(
         status_code=500,
-        endpoint=f"/v1/jobs/{job.id}",
+        # The run's address, with the organization by id (the API takes an id or a slug): the hook reads nothing more.
+        endpoint=f"/v1/organizations/{job.organization_id}/runs/{job.id}",
         http_method="POST",
         error_code="solver_crashed",
         category="solver_failure",
