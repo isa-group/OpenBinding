@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '84d122514043'
+revision: str = '45f517beeb26'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -23,6 +23,7 @@ SQLITE_TRIGGERS = (
     "CREATE TRIGGER immutable_problem_compilations_update BEFORE UPDATE ON problem_compilations BEGIN SELECT RAISE(ABORT, 'problem_compilations rows are sealed and immutable'); END",
     "CREATE TRIGGER immutable_composition_versions_update BEFORE UPDATE ON composition_versions BEGIN SELECT RAISE(ABORT, 'composition_versions rows are sealed and immutable'); END",
     "CREATE TRIGGER immutable_composition_evaluations_update BEFORE UPDATE ON composition_evaluations BEGIN SELECT RAISE(ABORT, 'composition_evaluations rows are sealed and immutable'); END",
+    "CREATE TRIGGER immutable_composition_derivations_update BEFORE UPDATE ON composition_derivations BEGIN SELECT RAISE(ABORT, 'composition_derivations rows are sealed and immutable'); END",
     "CREATE TRIGGER protect_study_runs BEFORE UPDATE ON study_runs WHEN OLD.study_id IS NOT NEW.study_id OR OLD.run_number IS NOT NEW.run_number OR OLD.matrix_digest IS NOT NEW.matrix_digest OR OLD.definition IS NOT NEW.definition OR OLD.definition_digest IS NOT NEW.definition_digest BEGIN SELECT RAISE(ABORT, 'the protected columns of study_runs are immutable'); END",
     "CREATE TRIGGER retain_study_runs BEFORE DELETE ON study_runs BEGIN SELECT RAISE(ABORT, 'study_runs history is retained'); END",
     "CREATE TRIGGER protect_study_cells BEFORE UPDATE ON study_cells WHEN OLD.study_run_id IS NOT NEW.study_run_id OR OLD.ordinal IS NOT NEW.ordinal OR OLD.binding_case_revision_id IS NOT NEW.binding_case_revision_id OR OLD.compilation_id IS NOT NEW.compilation_id OR OLD.engine_ref IS NOT NEW.engine_ref OR OLD.parameters IS NOT NEW.parameters OR OLD.seed IS NOT NEW.seed OR OLD.fingerprint IS NOT NEW.fingerprint BEGIN SELECT RAISE(ABORT, 'the protected columns of study_cells are immutable'); END",
@@ -37,6 +38,8 @@ POSTGRESQL_TRIGGERS = (
     'CREATE TRIGGER immutable_composition_versions_update BEFORE UPDATE ON composition_versions FOR EACH ROW EXECUTE FUNCTION immutable_composition_versions_update()',
     "CREATE OR REPLACE FUNCTION immutable_composition_evaluations_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'composition_evaluations rows are sealed and immutable'; END $$",
     'CREATE TRIGGER immutable_composition_evaluations_update BEFORE UPDATE ON composition_evaluations FOR EACH ROW EXECUTE FUNCTION immutable_composition_evaluations_update()',
+    "CREATE OR REPLACE FUNCTION immutable_composition_derivations_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'composition_derivations rows are sealed and immutable'; END $$",
+    'CREATE TRIGGER immutable_composition_derivations_update BEFORE UPDATE ON composition_derivations FOR EACH ROW EXECUTE FUNCTION immutable_composition_derivations_update()',
     "CREATE OR REPLACE FUNCTION protect_study_runs() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF OLD.study_id IS DISTINCT FROM NEW.study_id OR OLD.run_number IS DISTINCT FROM NEW.run_number OR OLD.matrix_digest IS DISTINCT FROM NEW.matrix_digest OR OLD.definition::jsonb IS DISTINCT FROM NEW.definition::jsonb OR OLD.definition_digest IS DISTINCT FROM NEW.definition_digest THEN RAISE EXCEPTION 'the protected columns of study_runs are immutable'; END IF; RETURN NEW; END $$",
     'CREATE TRIGGER protect_study_runs BEFORE UPDATE ON study_runs FOR EACH ROW EXECUTE FUNCTION protect_study_runs()',
     "CREATE OR REPLACE FUNCTION retain_study_runs() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'study_runs history is retained'; END $$",
@@ -51,6 +54,7 @@ POSTGRESQL_TRIGGER_FUNCTIONS = (
     'immutable_problem_compilations_update',
     'immutable_composition_versions_update',
     'immutable_composition_evaluations_update',
+    'immutable_composition_derivations_update',
     'protect_study_runs',
     'retain_study_runs',
     'protect_study_cells',
@@ -585,6 +589,33 @@ def upgrade() -> None:
     op.create_index(op.f('ix_study_cells_compilation_id'), 'study_cells', ['compilation_id'], unique=False)
     op.create_index(op.f('ix_study_cells_job_id'), 'study_cells', ['job_id'], unique=False)
     op.create_index(op.f('ix_study_cells_study_run_id'), 'study_cells', ['study_run_id'], unique=False)
+    op.create_table('composition_derivations',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('version_id', sa.Uuid(), nullable=False),
+    sa.Column('source', sa.Enum('run', 'binding', name='derivationsource', native_enum=False, length=16), nullable=False),
+    sa.Column('revision_id', sa.Uuid(), nullable=False),
+    sa.Column('compilation_id', sa.Uuid(), nullable=False),
+    sa.Column('job_id', sa.Uuid(), nullable=True),
+    sa.Column('point', sa.Integer(), nullable=True),
+    sa.Column('binding', sa.JSON(), nullable=False),
+    sa.Column('binding_digest', sa.String(length=80), nullable=False),
+    sa.Column('provenance', sa.JSON(), nullable=False),
+    sa.Column('created_by_id', sa.Uuid(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint("(source = 'run') = (job_id IS NOT NULL)", name=op.f('ck_composition_derivations_composition_derivation_run_job')),
+    sa.CheckConstraint("source IN ('run', 'binding')", name=op.f('ck_composition_derivations_composition_derivation_source_known')),
+    sa.CheckConstraint('point IS NULL OR job_id IS NOT NULL', name=op.f('ck_composition_derivations_composition_derivation_point_of_run')),
+    sa.CheckConstraint('point IS NULL OR point >= 0', name=op.f('ck_composition_derivations_composition_derivation_point_nonnegative')),
+    sa.ForeignKeyConstraint(['compilation_id', 'revision_id'], ['problem_compilations.id', 'problem_compilations.revision_id'], name='fk_composition_derivations_compilation', ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_composition_derivations_created_by_id_users'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['job_id'], ['jobs.id'], name=op.f('fk_composition_derivations_job_id_jobs'), ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['version_id'], ['composition_versions.id'], name=op.f('fk_composition_derivations_version_id_composition_versions'), ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_composition_derivations')),
+    sa.UniqueConstraint('version_id', name=op.f('uq_composition_derivations_version_id'))
+    )
+    op.create_index('ix_composition_derivations_binding', 'composition_derivations', ['revision_id', 'compilation_id', 'binding_digest'], unique=False)
+    op.create_index(op.f('ix_composition_derivations_created_by_id'), 'composition_derivations', ['created_by_id'], unique=False)
+    op.create_index(op.f('ix_composition_derivations_job_id'), 'composition_derivations', ['job_id'], unique=False)
     op.create_table('composition_evaluations',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('version_id', sa.Uuid(), nullable=False),
@@ -630,6 +661,10 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_composition_evaluations_revision_id'), table_name='composition_evaluations')
     op.drop_index(op.f('ix_composition_evaluations_created_by_id'), table_name='composition_evaluations')
     op.drop_table('composition_evaluations')
+    op.drop_index(op.f('ix_composition_derivations_job_id'), table_name='composition_derivations')
+    op.drop_index(op.f('ix_composition_derivations_created_by_id'), table_name='composition_derivations')
+    op.drop_index('ix_composition_derivations_binding', table_name='composition_derivations')
+    op.drop_table('composition_derivations')
     op.drop_index(op.f('ix_study_cells_study_run_id'), table_name='study_cells')
     op.drop_index(op.f('ix_study_cells_job_id'), table_name='study_cells')
     op.drop_index(op.f('ix_study_cells_compilation_id'), table_name='study_cells')

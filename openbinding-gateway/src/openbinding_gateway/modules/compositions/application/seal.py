@@ -10,7 +10,8 @@ Sealing is two-phase. Everything slow (reading, compiling on a miss, evaluating)
 lock the composition row, deduplicate by content digest (the same meaning sealed twice is one version),
 refuse a label another content holds, number the version, insert it with its evaluation, and let the
 composition's ``kind`` follow it. The row lock serialises the seals of one composition and orders them
-against deleting it or its organization.
+against deleting it or its organization. A derived version stores, in the same transaction, the edge that
+says what it was derived from (:func:`insert_derivation`).
 
 :func:`insert_evaluation` is the only code that inserts evaluation rows, for a new version, for a version
 sealed again and for a re-evaluation (:mod:`.evaluate`). The diagnostics it stores are located in the version's own
@@ -37,9 +38,11 @@ from ....composition.document import Document
 from ....core.settings import get_settings
 from ....db.models import (
     Composition,
+    CompositionDerivation,
     CompositionEvaluation,
     CompositionKind,
     CompositionVersion,
+    DerivationSource,
     EvaluationBasis,
     EvaluationOutcome,
     Job,
@@ -51,7 +54,7 @@ from ....db.models import (
 from ....models.errors import api_error
 from ...shared.application import audit
 from ..domain.analytics import analytics
-from ..domain.records import EvaluationDraft
+from ..domain.records import DerivationDraft, EvaluationDraft
 from .assess import Assessment, assess
 from .compositions import TARGET
 from .language import decode, diagnostic_view
@@ -80,11 +83,15 @@ class Checked:
 
 @dataclass(frozen=True, slots=True)
 class Sealed:
-    """A sealed version and the evaluation stored for it; ``created`` is false when the bytes already were."""
+    """A sealed version and the evaluation stored for it; ``created`` is false when the bytes already were.
+
+    ``derivation`` is the version's derivation edge, when the seal was a derivation.
+    """
 
     version: CompositionVersion
     evaluation: CompositionEvaluation
     created: bool
+    derivation: CompositionDerivation | None = None
 
 
 # --------------------------------------------------------------------------- phase 1: judging
@@ -194,6 +201,47 @@ async def insert_evaluation(
     return row, True
 
 
+async def _derivation_of(session: AsyncSession, version_id: uuid.UUID) -> CompositionDerivation | None:
+    return await session.scalar(select(CompositionDerivation).where(CompositionDerivation.version_id == version_id))
+
+
+async def insert_derivation(
+    session: AsyncSession, version: CompositionVersion, draft: DerivationDraft, *, actor: User,
+) -> tuple[CompositionDerivation, bool]:
+    """The derivation edge of ``version``: stored now (``True``), or the one it already has (``False``).
+
+    A version has at most one: the same bytes derived again keep the edge they were first derived with. It
+    runs in its caller's transaction, which holds the composition's row lock; a concurrent insert is caught
+    in a savepoint and answered with the row that won.
+    """
+    existing = await _derivation_of(session, version.id)
+    if existing is not None:
+        return existing, False
+    row = CompositionDerivation(
+        version_id=version.id,
+        source=DerivationSource(draft.source),
+        revision_id=draft.revision_id,
+        compilation_id=draft.compilation_id,
+        job_id=draft.job_id,
+        point=draft.point,
+        binding={task: dict(ref) for task, ref in draft.binding.items()},
+        binding_digest=draft.binding_digest,
+        provenance=dict(draft.provenance),
+        created_by_id=actor.id,
+    )
+    try:
+        async with session.begin_nested():
+            session.add(row)
+            await session.flush()
+    except IntegrityError:
+        won = await _derivation_of(session, version.id)
+        if won is None:
+            raise
+        return won, False
+    await session.refresh(row, ["created_at"])
+    return row, True
+
+
 # --------------------------------------------------------------------------- phase 2: storing
 
 
@@ -249,12 +297,14 @@ async def persist(
     *,
     actor: User,
     based_on: dict[str, Any] | None = None,
+    derivation: DerivationDraft | None = None,
 ) -> Sealed:
     """Store the valid ``assessment`` as a version of ``composition``: one short transaction, committed.
 
     The same canonical bytes again answer the version that holds them (``created`` false), with an
     evaluation added when this toolchain had none. A label another content holds is 409
-    ``version_label_taken``. A problem deleted meanwhile is 422 ``c2y_problem_not_found``.
+    ``version_label_taken``. A problem deleted meanwhile is 422 ``c2y_problem_not_found``. ``derivation``
+    is stored with the version, or added to the existing one when it has no derivation yet.
     """
     _sealable(assessment)
     # Phase 1 read in a transaction of its own; nothing it holds is kept across this one.
@@ -266,7 +316,7 @@ async def persist(
     )
     if locked is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Composition not found.")
-    sealed = await seal_into(session, locked, assessment, actor=actor, based_on=based_on)
+    sealed = await seal_into(session, locked, assessment, actor=actor, based_on=based_on, derivation=derivation)
     await session.commit()
     return sealed
 
@@ -279,6 +329,7 @@ async def seal_into(
     actor: User,
     based_on: dict[str, Any] | None = None,
     forked_from: dict[str, Any] | None = None,
+    derivation: DerivationDraft | None = None,
 ) -> Sealed:
     """Store the valid ``assessment`` as a version of ``composition``, in the caller's transaction.
 
@@ -295,7 +346,8 @@ async def seal_into(
     existing = await _version_where(session, composition.id, CompositionVersion.content_digest == digest)
     if existing is not None:
         evaluation, _ = await insert_evaluation(session, existing, draft, actor=actor)
-        return Sealed(existing, evaluation, False)
+        edge = await _derived(session, composition, existing, derivation, actor=actor)
+        return Sealed(existing, evaluation, False, edge)
     taken = await _version_where(session, composition.id, CompositionVersion.label == effective.version)
     if taken is not None:
         raise _label_taken(taken)
@@ -334,6 +386,7 @@ async def seal_into(
         raise refusal from error
     await session.refresh(version, ["created_at"])
     evaluation, _ = await insert_evaluation(session, version, draft, actor=actor)
+    edge = await _derived(session, composition, version, derivation, actor=actor)
 
     if composition.kind != version.kind:
         composition.kind = version.kind
@@ -343,7 +396,28 @@ async def seal_into(
         version_id=str(version.id), ordinal=version.ordinal, label=version.label,
         values_status=version.values_status.value,
     )
-    return Sealed(version, evaluation, True)
+    return Sealed(version, evaluation, True, edge)
+
+
+async def _derived(
+    session: AsyncSession,
+    composition: Composition,
+    version: CompositionVersion,
+    derivation: DerivationDraft | None,
+    *,
+    actor: User,
+) -> CompositionDerivation | None:
+    """The derivation edge of ``version``, stored now when ``derivation`` is given and it has none."""
+    if derivation is None:
+        return None
+    edge, created = await insert_derivation(session, version, derivation, actor=actor)
+    if created:
+        audit(
+            session, actor, "composition.derived", TARGET, composition.id, composition.organization_id,
+            version_id=str(version.id), label=version.label, source=derivation.source,
+            job_id=None if derivation.job_id is None else str(derivation.job_id), point=derivation.point,
+        )
+    return edge
 
 
 async def _lost_race(session: AsyncSession, version: CompositionVersion) -> HTTPException | None:
@@ -370,6 +444,7 @@ __all__ = [
     "Checked",
     "Sealed",
     "check",
+    "insert_derivation",
     "insert_evaluation",
     "judge",
     "persist",

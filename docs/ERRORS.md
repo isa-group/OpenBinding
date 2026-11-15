@@ -246,7 +246,7 @@ Against a compiled problem (the organization's routes, from F1 B8):
 | `c2y_evaluation_failed` | the toolchain could not evaluate the binding |
 | `c2y_run_not_found` | the organization has no run `evidence.run` names (or the caller may not see it) |
 | `c2y_run_foreign_revision` | the run solved another revision, or a compilation that reads it differently |
-| `c2y_run_point_invalid` | the run has no binding to cite, or `evidence.point` is not one of its solutions |
+| `c2y_run_point_invalid` | the run has no binding to cite, or `evidence.point` is not one of its solutions (`deriveComposition`: the request's `point`) |
 | `c2y_run_binding_mismatch` | the binding is not the run's solution (`point`) or none of them; the message lists the tasks that differ |
 
 ## Compositions
@@ -257,7 +257,7 @@ composition, never `403`. A member whose role is too weak for a write gets `403 
 
 | `code` | Status | Meaning |
 |---|---|---|
-| `not_found` | 404 | no such organization or composition, or the caller cannot read it |
+| `not_found` | 404 | no such organization or composition, or the caller cannot read it; `deriveComposition`: no such run or problem revision in the organization (or the caller may not see the run) |
 | `organization_forbidden` | 403 | the caller reads the organization but its role is too weak: MEMBER creates and edits, ADMIN deletes |
 | `feature_not_entitled` | 403 | `createComposition`, `forkComposition`: the caller's plan lacks the `repository` feature |
 | `slug_conflict` | 409 | the composition slug is in use in the organization (`forkComposition`: the `slug` given is in use in the target; without one, a taken slug answers 200 `{nameTaken: true, existingComposition}` and nothing is forked) |
@@ -266,13 +266,14 @@ composition, never `403`. A member whose role is too weak for a write gets `403 
 | `composition_fork_problem_unreadable` | 409 | `forkComposition` of a version that links a problem, which the target organization cannot read. Set `dropProblem` to fork it without `problem` and `evidence`, its values declared |
 | `api_key_boundary` | 403 | `forkComposition`: the API key's boundary does not reach the target organization or slug |
 | `composition_invalid` | 422 | `createCompositionVersion` read or judged a document with at least one error; `diagnostics` lists every finding (the `c2y_*` codes above), located in the submitted text. `checkCompositionVersion` answers the same findings with 200. `forkComposition`: the forked copy was refused as a new seal would be (for example `c2y_from_registry_unknown` once a registry left `SPHERE_REGISTRIES`) |
-| `version_label_taken` | 409 | `createCompositionVersion`: another content of the composition holds this `version:`; `version` names it (`id`, `ordinal`, `label`) |
-| `composition_busy` | 429 | `createCompositionVersion`, `checkCompositionVersion`, `forkComposition`, `diffCompositionVersions`, `reevaluateCompositionVersion`, `evaluateComposition`, `getCompositionNeighborhood`: every Composition2Yaml or evaluation slot of this process is taken (`COMPOSITION_EVALUATION_SLOTS`, 2); `Retry-After: 1` |
+| `version_label_taken` | 409 | `createCompositionVersion`, `deriveComposition`: another content of the composition holds this `version:`; `version` names it (`id`, `ordinal`, `label`) |
+| `composition_busy` | 429 | `createCompositionVersion`, `checkCompositionVersion`, `forkComposition`, `diffCompositionVersions`, `reevaluateCompositionVersion`, `evaluateComposition`, `getCompositionNeighborhood`, `deriveComposition`: every Composition2Yaml or evaluation slot of this process is taken (`COMPOSITION_EVALUATION_SLOTS`, 2); `Retry-After: 1` |
 | `composition_empty` | 409 | `evaluateComposition`, `getCompositionNeighborhood` without `version`: the composition has no version yet |
 | `composition_not_linked` | 422 | `evaluateComposition`, `getCompositionNeighborhood`: the version links no problem, so its values are declared and the toolchain has nothing to evaluate. `reevaluateCompositionVersion` of such a version answers its declared evaluation |
 | `evaluation_invalid` | 422 | `evaluateComposition`: the toolchain could not evaluate the binding (an unknown candidate, its refusal, a problem it reads differently); `diagnostics` lists the `c2y_*` findings, and one about a task the request rebinds points at `/binding/<task>`. A binding it evaluated answers 200, `valid` false on a hard violation. `reevaluateCompositionVersion`: the installed toolchain could not evaluate the version (its package no longer compiles, the evaluation failed); nothing is stored |
 | `analysis_invalid` | 422 | `getCompositionNeighborhood`: the toolchain cannot analyse the version's binding or the task named |
 | `c2y_compilation_semantics_changed` | 422 | `getCompositionNeighborhood`: the installed toolchain reads the linked revision differently from the compilation the version names; derive the composition again |
+| `derivation_invalid` | 422 | `deriveComposition`: the binding cannot be derived; `diagnostics` lists the `c2y_*` findings. Those about the request point into it: `/point` (`c2y_run_point_invalid`: a run that did not complete, a point out of range, a solution that is not a binding), `/binding/<task>` (an unknown task or candidate, a task left unbound, the toolchain's refusal) and `/offering/...` (an offering that is not one). The others point into the derived document: `c2y_constraint_violated` (a binding with a hard violation is not derivable), `c2y_compilation_semantics_changed` (the run solved a compilation the installed toolchain reads differently: run the problem again) |
 | `payload_too_large` | 413 | a document longer than 262 144 bytes; `limitBytes` says the limit |
 | `unsupported_media_type` | 415 | a document not sent as `application/yaml`, `text/yaml` or `application/x-yaml` |
 | `rate_limit_exceeded` | 429 | past the `evaluate` budget of the caller ([ACCESS_POLICY.md](ACCESS_POLICY.md)) |

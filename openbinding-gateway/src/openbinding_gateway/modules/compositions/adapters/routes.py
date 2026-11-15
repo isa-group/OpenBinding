@@ -14,11 +14,16 @@ first version is sealed through the same pipeline (also the ``evaluate`` budget)
 A sealed version is evaluated again from its stored bytes: by the installed toolchain, whose evaluation is
 stored (one per toolchain release), with some tasks bound otherwise (nothing stored), and around its binding
 (the toolchain's one-task alternatives). The three count against the ``evaluate`` budget.
+
+A version is also derived from a binding of a problem: a run's solution, or a binding given with a revision.
+The derived document is written from the toolchain's evaluation, and stored with an edge naming what it was
+derived from; the same binding derived again answers the version that holds its bytes (the ``evaluate``
+budget too).
 """
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Literal, Union
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from fastapi.responses import JSONResponse
@@ -26,9 +31,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....access.dependencies import get_current_user, session_dependency
 from ....access.work_limits import limit_work
+from ....composition.text import document as text_document
 from ....core import revision as etags
 from ....db.models import (
     Composition,
+    CompositionDerivation,
     CompositionEvaluation,
     CompositionKind,
     CompositionVersion,
@@ -45,7 +52,7 @@ from ....models.errors import (
     api_error,
 )
 from ....security.apikeys import authenticated_api_key, boundary_of
-from ..application import compositions, evaluate, language, seal, versions
+from ..application import compositions, derive, evaluate, language, seal, versions
 from ..application.fork import NameTaken, fork_composition
 from ..application.language import diagnostic_view
 from ..domain.records import values_json
@@ -53,6 +60,7 @@ from .language_routes import MAX_DOCUMENT_BYTES, YAML_BODY, YAML_MEDIA_TYPES, do
 from .schemas import (
     CheckResult,
     CompositionCreate,
+    CompositionDerive,
     CompositionEvaluate,
     CompositionKindName,
     CompositionList,
@@ -65,6 +73,9 @@ from .schemas import (
     CompositionVersionSummary,
     CompositionVersionView,
     CompositionView,
+    DerivationView,
+    DeriveDraft,
+    DeriveResult,
     EvaluateResult,
     EvaluationCompilation,
     EvaluationView,
@@ -780,3 +791,97 @@ async def get_composition_neighborhood(
         session, organization, found, version_ref=version, task=task, limit=limit,
     )
     return {**result, "version": _name(row)}
+
+
+# -- Derivation ------------------------------------------------------------------------------------------
+
+
+def _derivation_view(row: CompositionDerivation) -> DerivationView:
+    return DerivationView(
+        id=row.id, source=row.source.value, revision_id=row.revision_id, compilation_id=row.compilation_id,
+        job_id=row.job_id, point=row.point, binding=row.binding, binding_digest=row.binding_digest,
+        provenance=row.provenance, created_by_id=row.created_by_id, created_at=row.created_at,
+    )
+
+
+@router.post(
+    "/{composition}/derive",
+    status_code=status.HTTP_201_CREATED,
+    response_model=DeriveResult,
+    operation_id="deriveComposition",
+    summary="Derive a version from a binding of a problem",
+    description=(
+        "Write the Composition2Yaml document of a binding the problem already has (a run's solution at "
+        "`point`, or `binding` given with `revision`), evaluated by the toolchain on the installed "
+        "compilation, and seal it as a new version with an edge naming what it was derived from. The "
+        "document links the compilation the run solved (the installed one for a binding), states the "
+        "toolchain's values and writes no offering unless one is given. The same binding derived again gives "
+        "the same bytes: 200 with the version that holds them. With `seal: false` nothing is stored and the "
+        "document is answered instead."
+    ),
+    dependencies=[Depends(limit_work)],
+    responses={
+        200: {
+            "model": Union[DeriveResult, DeriveDraft],
+            "description": (
+                "The bytes were already sealed: the version that holds them (its derivation edge added when it "
+                "had none). Or, with `seal: false`, the document a seal would store (`DeriveDraft`)."
+            ),
+        },
+        201: {"headers": {"Location": {"description": "The new version.", "schema": {"type": "string"}}, **_VERSION_ETAG}},
+        404: {
+            **NOT_FOUND_RESPONSE,
+            "description": "No such organization, composition, run or problem revision, or the caller cannot read it.",
+        },
+        409: {**CONFLICT_RESPONSE, "description": "Another content holds this `version` (`version_label_taken`)."},
+        422: {
+            **_ERROR,
+            "description": (
+                "The binding cannot be derived (`derivation_invalid`): `diagnostics` lists the `c2y_*` findings, "
+                "those about the request at `/point`, `/binding/<task>` or `/offering/...`, the others in the "
+                "derived document."
+            ),
+        },
+        **_BUSY,
+        **_TOOLCHAIN_DOWN,
+    },
+)
+async def derive_composition(
+    org: str,
+    composition: str,
+    payload: CompositionDerive,
+    response: Response,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> Any:
+    organization = await compositions.organization_for(session, org, user, OrganizationRole.MEMBER)
+    found = await compositions.required_composition(session, organization, composition)
+    derived = await derive.derive_version(
+        session, organization, found,
+        caller=user, label=payload.version, kind=payload.kind, offering=payload.offering,
+        run=payload.run, point=payload.point or 0, revision=payload.revision, binding=payload.binding,
+    )
+    diagnostics = [diagnostic_view(item) for item in derived.diagnostics]
+    if not payload.seal:
+        draft = DeriveDraft(
+            content=derived.content,
+            document=text_document(derived.document),
+            values=values_json(derived.document.values),
+            diagnostics=diagnostics,
+        )
+        return JSONResponse(status_code=status.HTTP_200_OK, content=draft.model_dump(mode="json"))
+    sealed = await seal.persist(session, found, derived.assessment, actor=user, derivation=derived.derivation)
+    assert sealed.derivation is not None
+    (detail,) = await versions.details(session, [sealed.version])
+    response.status_code = status.HTTP_201_CREATED if sealed.created else status.HTTP_200_OK
+    response.headers["ETag"] = _content_tag(sealed.version)
+    if sealed.created:
+        response.headers["Location"] = (
+            f"/v1/organizations/{organization.slug}/compositions/{found.slug}/versions/{sealed.version.id}"
+        )
+    return DeriveResult(
+        version=_version_view(detail),
+        evaluation=_evaluation_view(sealed.evaluation, detail.current, detail),
+        derivation=_derivation_view(sealed.derivation),
+        diagnostics=diagnostics,
+    )

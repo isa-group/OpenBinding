@@ -117,6 +117,7 @@ TRIGGERS: tuple[Trigger, ...] = (
     *immutable("problem_compilations", delete=False),
     *immutable("composition_versions", delete=False),
     *immutable("composition_evaluations", delete=False),
+    *immutable("composition_derivations", delete=False),
     protect("study_runs", ("study_id", "run_number", "matrix_digest", "definition", "definition_digest"),
             json_columns=("definition",)),
     retain("study_runs"),

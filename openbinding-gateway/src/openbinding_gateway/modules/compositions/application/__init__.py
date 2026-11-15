@@ -4,7 +4,15 @@ Code outside ``modules/compositions`` reaches the module through this package on
 (``tests/test_modules_skeleton.py``); the composition root mounts the router of ``adapters``.
 """
 
-from .assess import STRICTER_THAN_TOOLCHAIN, Assessment, Resolved, StoredLink, assess, resolve_link
+from .assess import (
+    STRICTER_THAN_TOOLCHAIN,
+    Assessment,
+    Resolved,
+    StoredLink,
+    assess,
+    installed_compilation,
+    resolve_link,
+)
 from .compositions import (
     composition_by_ref,
     create_composition,
@@ -13,10 +21,11 @@ from .compositions import (
     organization_for,
     update_composition,
 )
+from .derive import DerivationBug, Derived, derive_version
 from .evaluate import Evaluated, Reevaluated, evaluate_binding, neighbourhood, reevaluate
 from .fork import Forked, NameTaken, fork_composition
 from .language import LanguageRefusal, diff, diff_stored, parse, serialise, validate
-from .seal import Checked, Sealed, check, insert_evaluation, judge, persist, seal_into
+from .seal import Checked, Sealed, check, insert_derivation, insert_evaluation, judge, persist, seal_into
 from .slots import evaluation_slot, language_slot
 from .versions import diff_pair, list_versions, required_version, summaries, version_by_ref
 
@@ -24,6 +33,8 @@ __all__ = [
     "STRICTER_THAN_TOOLCHAIN",
     "Assessment",
     "Checked",
+    "DerivationBug",
+    "Derived",
     "Evaluated",
     "Forked",
     "LanguageRefusal",
@@ -37,13 +48,16 @@ __all__ = [
     "composition_by_ref",
     "create_composition",
     "delete_composition",
+    "derive_version",
     "diff",
     "diff_pair",
     "diff_stored",
     "evaluate_binding",
     "evaluation_slot",
     "fork_composition",
+    "insert_derivation",
     "insert_evaluation",
+    "installed_compilation",
     "judge",
     "language_slot",
     "list_compositions",

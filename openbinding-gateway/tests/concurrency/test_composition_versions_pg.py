@@ -170,7 +170,7 @@ async def test_a_seal_committed_after_the_delete_checked_is_caught_by_the_foreig
         nonlocal checks
         value = await original_scalar(statement, *args, **kwargs)
         checks += 1
-        if checks == 4:  # the last reference check (runs, study cells, versions, evaluations): seal one now
+        if checks == 4:  # the evaluations check (runs, study cells, versions, evaluations, derivations): seal one now
             await _seal(second, org, user.id, composition_id, source)
         return value
 

@@ -3,7 +3,7 @@
 Organizations own problems (``binding_cases``), whose revisions are uploaded
 packages kept as blobs, the compilations of those revisions, studies whose
 runs freeze the definition they ran, and compositions with their sealed
-versions and evaluations.
+versions, their evaluations and how they were derived.
 """
 
 from __future__ import annotations
@@ -492,6 +492,63 @@ class CompositionEvaluation(Base):
     #: What the toolchain's evaluation returned, as it returned it.
     result: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     diagnostics: Mapped[list] = mapped_column(JSON, nullable=False)
+    created_by_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
+class DerivationSource(str, enum.Enum):
+    """What a version was derived from: a solution of a run, or a binding given with a problem revision."""
+
+    RUN = "run"
+    BINDING = "binding"
+
+
+class CompositionDerivation(Base):
+    """How a version was derived: the problem binding it was built from, and the run that found it. Insert only.
+
+    A version has at most one. The binding is kept besides the point, in BIM form, because a solution index
+    means something only within the run's stored result. ``compilation_id`` is the compilation the document
+    links (the run's, for a run); ``provenance`` names the compilation the toolchain evaluated.
+    """
+
+    __tablename__ = "composition_derivations"
+    __table_args__ = (
+        CheckConstraint("source IN ('run', 'binding')", name="composition_derivation_source_known"),
+        CheckConstraint("(source = 'run') = (job_id IS NOT NULL)", name="composition_derivation_run_job"),
+        CheckConstraint("point IS NULL OR job_id IS NOT NULL", name="composition_derivation_point_of_run"),
+        CheckConstraint("point IS NULL OR point >= 0", name="composition_derivation_point_nonnegative"),
+        ForeignKeyConstraint(
+            ["compilation_id", "revision_id"],
+            ["problem_compilations.id", "problem_compilations.revision_id"],
+            ondelete="RESTRICT",
+            name="fk_composition_derivations_compilation",
+        ),
+        Index("ix_composition_derivations_binding", "revision_id", "compilation_id", "binding_digest"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    version_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("composition_versions.id", ondelete="RESTRICT"), nullable=False, unique=True
+    )
+    source: Mapped[DerivationSource] = enum_column(DerivationSource, DerivationSource.BINDING, length=16)
+    revision_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    #: The compilation the derived document links: the run's, for a run.
+    compilation_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    job_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("jobs.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    #: The solution of the run's stored result (``result.solutions[point]``).
+    point: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    #: ``{task: {resource, id}}``, as the toolchain was given it.
+    binding: Mapped[dict] = mapped_column(JSON, nullable=False)
+    binding_digest: Mapped[str] = mapped_column(String(80), nullable=False)
+    #: ``{toolchain, irDigest, semanticDigest, evaluatedCompilationId, run: {engine, engineDigest, mode,
+    #: evaluatorDigest} | null}``.
+    provenance: Mapped[dict] = mapped_column(JSON, nullable=False)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
     )

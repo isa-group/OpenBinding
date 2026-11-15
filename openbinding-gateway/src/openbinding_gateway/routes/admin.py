@@ -37,6 +37,7 @@ from ..db.models import (
     AuthIdentity,
     BindingCase,
     BindingCaseRevision,
+    CompositionDerivation,
     CompositionVersion,
     EngineRegistrationRevision,
     EngineRevision,
@@ -110,17 +111,19 @@ def _aware(value):
 def _purgeable_jobs(cutoff) -> tuple:
     """The terminal jobs older than ``cutoff`` that nothing keeps.
 
-    A study cell's job and the run a sealed composition version cites as evidence are kept: the version's
-    foreign key would refuse the delete.
+    A study cell's job, the run a sealed composition version cites as evidence and the run a version was
+    derived from are kept: the version's or the derivation's foreign key would refuse the delete.
     """
     study_job_ids = select(StudyCell.job_id).where(StudyCell.job_id.is_not(None))
     evidence_job_ids = select(CompositionVersion.evidence_job_id).where(CompositionVersion.evidence_job_id.is_not(None))
+    derivation_job_ids = select(CompositionDerivation.job_id).where(CompositionDerivation.job_id.is_not(None))
     return (
         Job.state.in_([JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED]),
         Job.finished_at.is_not(None),
         Job.finished_at <= cutoff,
         Job.id.not_in(study_job_ids),
         Job.id.not_in(evidence_job_ids),
+        Job.id.not_in(derivation_job_ids),
     )
 
 

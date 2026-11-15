@@ -95,7 +95,9 @@ def _expected(name: str, compiled: dict[str, Any]) -> str:
 
 
 def test_every_golden_has_its_case() -> None:
-    assert sorted(path.stem for path in GOLDEN.glob("*.yaml")) == sorted(CASES)
+    # ``<name>.run.yaml`` is the same binding derived from a run through the API (test_composition_derive_api).
+    derived = [path for path in GOLDEN.glob("*.yaml") if not path.name.endswith(".run.yaml")]
+    assert sorted(path.stem for path in derived) == sorted(CASES)
 
 
 @pytest.mark.parametrize("name", sorted(CASES))

@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 129
+    assert len(ROUTES) == 130
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -218,6 +218,7 @@ def test_the_compositions_of_an_organization_have_their_own_permissions():
     assert required_permissions(f"{compositions}/{{composition}}/evaluate", "POST") == read
     assert required_permissions(f"{compositions}/{{composition}}/neighborhood", "GET") == read
     assert required_permissions(f"{compositions}/{{composition}}/versions/{{version}}/evaluations", "POST") == write
+    assert required_permissions(f"{compositions}/{{composition}}/derive", "POST") == write
     # The organizations fallthrough does not reach them: an org-admin key gains no composition write.
     assert "organizations:write" not in required_permissions(compositions, "POST")
     # A composition-scoped key reaches them, by kind and by slug; a problem-scoped one does not.
@@ -243,6 +244,7 @@ def test_the_compositions_of_an_organization_are_composition_reads_and_writes():
         ("GET", f"{compositions}/{{composition}}/versions/{{version}}/content"),
         ("PATCH", f"{compositions}/{{composition}}"),
         ("POST", compositions),
+        ("POST", f"{compositions}/{{composition}}/derive"),
         ("POST", f"{compositions}/{{composition}}/evaluate"),
         ("POST", f"{compositions}/{{composition}}/fork"),
         ("POST", f"{compositions}/{{composition}}/versions"),
@@ -251,7 +253,7 @@ def test_the_compositions_of_an_organization_are_composition_reads_and_writes():
     ]
     for method, path in routes:
         # Checking a document against its problem, or evaluating another binding, writes nothing;
-        # re-evaluating a version stores its evaluation.
+        # re-evaluating a version stores its evaluation, and deriving one seals it.
         reads = method == "GET" or path.endswith(("/versions/check", "/evaluate"))
         expected = "compositions:read" if reads else "compositions:write"
         assert required_permissions(path, method) == frozenset({expected}), (method, path)

@@ -381,6 +381,11 @@ def test_a_quota_refusal_says_which_limit_and_where_it_stands(document):
         ),
         ("/v1/organizations/{org}/compositions/{composition}/evaluate", "post", {"200", "404", "409", "422", "429", "503"}),
         ("/v1/organizations/{org}/compositions/{composition}/neighborhood", "get", {"200", "404", "409", "422", "429", "503"}),
+        # A version derived from a run's solution or a binding, sealed as a seal is.
+        (
+            "/v1/organizations/{org}/compositions/{composition}/derive", "post",
+            {"200", "201", "403", "404", "409", "422", "429", "503"},
+        ),
     ],
 )
 def test_the_failures_an_endpoint_can_produce_are_declared(document, path, method, statuses):

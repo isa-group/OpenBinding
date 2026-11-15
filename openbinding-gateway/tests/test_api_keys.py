@@ -821,6 +821,7 @@ def test_the_templates_the_engine_protocol_and_the_composition_schema_need_no_pe
     ('/v1/organizations/{org}/compositions/{composition}/evaluate', 'POST', 'compositions:read'),
     ('/v1/organizations/{org}/compositions/{composition}/neighborhood', 'GET', 'compositions:read'),
     ('/v1/organizations/{org}/compositions/{composition}/versions/{version}/evaluations', 'POST', 'compositions:write'),
+    ('/v1/organizations/{org}/compositions/{composition}/derive', 'POST', 'compositions:write'),
 ])
 def test_the_composition_routes_need_the_composition_permissions(path, method, permission):
     assert apikeys.required_permissions(path, method) == frozenset({permission})

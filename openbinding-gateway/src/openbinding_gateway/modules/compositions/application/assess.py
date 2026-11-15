@@ -137,6 +137,7 @@ async def assess(
     run_evidence: bool = True,
     binding_override: Mapping[str, Entry] | None = None,
     stored: StoredLink | None = None,
+    resolved_link: tuple[Resolved | None, tuple[Diagnostic, ...]] | None = None,
 ) -> Assessment:
     """``document`` judged in ``organization`` against the problem it links, by the toolchain.
 
@@ -146,6 +147,8 @@ async def assess(
     anything is judged (another binding of a stored version). ``run_evidence`` false skips the check of the
     run the evidence names. ``stored`` is the link a sealed version stores: the problem is then the one it
     names by id, whatever slugs the document's ref spells (a rename does not break a stored version).
+    ``resolved_link`` is what :func:`resolve_link` answered for the document's link, when the caller has
+    already resolved it (a derivation reads the problem's facts before it writes the document).
 
     A document problem is a diagnostic, never an exception. A busy evaluation pool is 429
     ``composition_busy``; a toolchain that cannot answer is its own problem (503 ``bim_unavailable``).
@@ -157,7 +160,9 @@ async def assess(
         evidence = replace(doc.evidence or Evidence(), evaluated_by="declared")
         return conclude(effective=replace(doc, evidence=evidence), evaluation=EvaluationDraft.declared(doc.values))
 
-    resolved, found = await resolve_link(session, organization, link, stored=stored)
+    if resolved_link is None:
+        resolved_link = await resolve_link(session, organization, link, stored=stored)
+    resolved, found = resolved_link
     conclude.add(*found)
     if resolved is None:
         return conclude()
@@ -268,13 +273,9 @@ async def resolve_link(
         if problem is None or revision is None or linked is None:
             # The version's foreign keys keep them; only a bug reaches this.
             return None, (at(_REF, codes.PROBLEM_NOT_FOUND, "the problem this version links no longer exists"),)
-    try:
-        installed = await compile_or_get(session, revision, release_transaction=True)
-    except HTTPException as error:
-        refusal = _not_recompilable(error)
-        if refusal is None:
-            raise
-        return None, (refusal,)
+    installed, refusal = await installed_compilation(session, revision)
+    if installed is None:
+        return None, ((refusal,) if refusal is not None else ())
 
     found: tuple[Diagnostic, ...] = ()
     if installed.id != linked.id:
@@ -295,6 +296,20 @@ async def resolve_link(
         raise api_error(422, "contract_not_installed", bim.STALE_IR_MESSAGE)
     facts = ProblemFacts.from_ir(installed.ir, installed.source_map or None)
     return Resolved(problem, revision, linked, installed, facts), found
+
+
+async def installed_compilation(
+    session: AsyncSession, revision: BindingCaseRevision,
+) -> tuple[ProblemCompilation | None, Diagnostic | None]:
+    """The installed toolchain's compilation of ``revision`` (compiled once on a miss, with no transaction held
+    across the compile), or ``c2y_problem_not_recompilable`` when that toolchain refuses its stored package."""
+    try:
+        return await compile_or_get(session, revision, release_transaction=True), None
+    except HTTPException as error:
+        refusal = _not_recompilable(error)
+        if refusal is None:
+            raise
+        return None, refusal
 
 
 # --------------------------------------------------------------------------- the steps
@@ -475,4 +490,12 @@ class _Conclusion:
         )
 
 
-__all__ = ["STRICTER_THAN_TOOLCHAIN", "Assessment", "Resolved", "StoredLink", "assess", "resolve_link"]
+__all__ = [
+    "STRICTER_THAN_TOOLCHAIN",
+    "Assessment",
+    "Resolved",
+    "StoredLink",
+    "assess",
+    "installed_compilation",
+    "resolve_link",
+]

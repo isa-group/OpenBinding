@@ -9,8 +9,9 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from ....composition import ids
 from ....models.analysis import CounterfactualMove, NeighborhoodDocument
 from ....models.platform import SLUG
 
@@ -477,3 +478,91 @@ class CompositionNeighborhoodResponse(NeighborhoodDocument):
 
     moves: list[CompositionMove]
     version: VersionName
+
+
+# -- Derivation ------------------------------------------------------------------------------------------
+
+
+class CompositionDerive(BaseModel):
+    """A binding of a problem to derive a version from: a run's solution, or a binding given with a revision."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    run: Optional[uuid.UUID] = Field(default=None, description="The run whose solution is derived (with `point`).")
+    point: Optional[int] = Field(
+        default=None, ge=0, description="The solution of the run: its index in the run's result; 0 by default.",
+    )
+    revision: Optional[str] = Field(
+        default=None, min_length=3, max_length=200,
+        description="The problem revision to derive from (with `binding`): `<problem>@<revision>`, each by slug, id or number.",
+    )
+    binding: Optional[dict[str, str]] = Field(
+        default=None, max_length=1024,
+        description=(
+            "With `revision`: each service task's candidate, as a document names it (its id, or `<resource>/<id>`). "
+            "Local tasks are bound `local: true` on their own."
+        ),
+    )
+    version: str = Field(
+        min_length=5, max_length=ids.MAX_SEMVER_CHARS, pattern=ids.SEMVER.pattern,
+        description="The derived version's `version:` (Semantic Versioning). Required: it is part of the bytes.",
+    )
+    kind: Optional[CompositionKindName] = Field(default=None, description="The composition's by default.")
+    offering: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="The composition's offering, `{sphere, registry?}` or `{url}`; a derivation writes none by default.",
+    )
+    seal: bool = Field(default=True, description="Store the version (`true`), or only answer the document it would be.")
+
+    @model_validator(mode="after")
+    def _one_source(self) -> "CompositionDerive":
+        if (self.run is None) == (self.revision is None):
+            raise ValueError("give exactly one source: `run` (and `point`), or `revision` and `binding`")
+        if self.run is not None and self.binding is not None:
+            raise ValueError("`binding` goes with `revision`; a run's binding is its solution at `point`")
+        if self.revision is not None and self.binding is None:
+            raise ValueError("`revision` needs `binding`: each service task's candidate")
+        if self.revision is not None and self.point is not None:
+            raise ValueError("`point` goes with `run`")
+        return self
+
+
+class DerivationView(BaseModel):
+    """How a version was derived: the binding, where it came from and where the toolchain evaluated it."""
+
+    id: uuid.UUID
+    source: Literal["run", "binding"]
+    revision_id: uuid.UUID
+    compilation_id: uuid.UUID = Field(description="The compilation the derived document links (the run's, for a run).")
+    job_id: Optional[uuid.UUID] = Field(description="The run it was derived from.")
+    point: Optional[int] = Field(description="The solution of the run.")
+    binding: dict[str, dict[str, str]] = Field(description="`{task: {resource, id}}`, as the toolchain was given it.")
+    binding_digest: str
+    provenance: dict[str, Any] = Field(
+        description=(
+            "`{toolchain, irDigest, semanticDigest, evaluatedCompilationId, run}`: the compilation evaluated and, "
+            "for a run, its `{engine, engineDigest, mode, evaluatorDigest}`."
+        ),
+    )
+    created_by_id: uuid.UUID
+    created_at: datetime
+
+
+class DeriveResult(BaseModel):
+    """A derived version, sealed: the version, its evaluation, its derivation and what deriving found."""
+
+    version: CompositionVersionView
+    evaluation: EvaluationView
+    derivation: DerivationView
+    diagnostics: list[CompositionDiagnosticView] = Field(
+        description="Every warning and info, located in the version's content.",
+    )
+
+
+class DeriveDraft(BaseModel):
+    """The version a derivation would seal (`seal: false`); nothing is stored."""
+
+    content: str = Field(description="The exact canonical text a seal would store.")
+    document: dict[str, Any] = Field(description="The same document, as JSON.")
+    values: dict[str, ValueView] = Field(description="The values the toolchain computed for the binding.")
+    diagnostics: list[CompositionDiagnosticView] = Field(description="Every warning and info, located in `content`.")

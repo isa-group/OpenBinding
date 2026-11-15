@@ -26,6 +26,7 @@ from ..db.models import (
     BindingCase,
     BindingCaseRevision,
     Composition,
+    CompositionDerivation,
     CompositionEvaluation,
     CompositionVersion,
     Job,
@@ -313,6 +314,7 @@ async def _delete_subtree(session: AsyncSession, organization: Organization, uni
         await session.execute(delete(Study).where(Study.organization_id == oid))
         held = select(Composition.id).where(Composition.organization_id == oid)
         versions = select(CompositionVersion.id).where(CompositionVersion.composition_id.in_(held))
+        await session.execute(delete(CompositionDerivation).where(CompositionDerivation.version_id.in_(versions)))
         await session.execute(delete(CompositionEvaluation).where(CompositionEvaluation.version_id.in_(versions)))
         await session.execute(delete(CompositionVersion).where(CompositionVersion.composition_id.in_(held)))
         await session.execute(delete(Composition).where(Composition.organization_id == oid))

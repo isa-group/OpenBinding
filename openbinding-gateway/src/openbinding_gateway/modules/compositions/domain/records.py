@@ -5,6 +5,9 @@ belongs to and who stored it, which only sealing knows. A linked version is eval
 (``basis = "bim"``), once per toolchain release (its ``compiler_digest`` is the ``basis_key``); a declared
 one is not evaluated at all (``basis = "declared"``, ``basis_key = "declared"``), and its values are the
 author's. The values are kept as the toolchain returned them, never recomputed.
+
+A :class:`DerivationDraft` is the edge a derived version stores: the source it was derived from (a run's
+solution, or a binding given with a problem revision), the binding in BIM form and where it was evaluated.
 """
 
 from __future__ import annotations
@@ -18,6 +21,7 @@ from ....composition.document import Value
 
 Basis = Literal["bim", "declared"]
 Outcome = Literal["verified", "binding_invalid", "semantics_changed", "declared"]
+Source = Literal["run", "binding"]
 
 #: The basis key of an evaluation that is not the toolchain's.
 DECLARED = "declared"
@@ -65,4 +69,30 @@ class EvaluationDraft:
         )
 
 
-__all__ = ["DECLARED", "Basis", "EvaluationDraft", "Outcome", "basis_key", "values_json"]
+@dataclass(frozen=True, slots=True)
+class DerivationDraft:
+    """How a version was derived, every column but its id, its version and who stored it."""
+
+    source: Source
+    revision_id: uuid.UUID
+    #: The compilation the derived document links: the run's, for a run.
+    compilation_id: uuid.UUID
+    #: ``{task: {resource, id}}``, as the toolchain was given it.
+    binding: Mapping[str, Mapping[str, str]]
+    binding_digest: str
+    #: ``{toolchain, irDigest, semanticDigest, evaluatedCompilationId, run}``.
+    provenance: Mapping[str, Any]
+    job_id: uuid.UUID | None = None
+    point: int | None = None
+
+
+__all__ = [
+    "DECLARED",
+    "Basis",
+    "DerivationDraft",
+    "EvaluationDraft",
+    "Outcome",
+    "Source",
+    "basis_key",
+    "values_json",
+]

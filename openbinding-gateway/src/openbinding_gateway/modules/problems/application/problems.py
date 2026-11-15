@@ -27,6 +27,7 @@ from ....db.models import (
     BindingCase,
     BindingCaseRevision,
     Blob,
+    CompositionDerivation,
     CompositionEvaluation,
     CompositionVersion,
     Job,
@@ -443,7 +444,7 @@ async def delete_problem(session: AsyncSession, problem: BindingCase, actor: Use
     """Delete ``problem``, its revisions and compilations, unless something names them.
 
     A run or a study cell that names one of its revisions keeps the problem (409 ``problem_has_runs``), and
-    so does a sealed composition version or evaluation (409 ``problem_has_compositions``); runs are checked
+    so does a sealed composition version, evaluation or derivation (409 ``problem_has_compositions``); runs are checked
     first. Blob rows and files stay (D14). A run launched or a version sealed while the delete runs is caught
     by the ``RESTRICT`` foreign keys, and the references are checked again to answer with the right code.
     """
@@ -484,7 +485,9 @@ async def _named(session: AsyncSession, revision_ids: list[uuid.UUID]) -> HTTPEx
     for column in (Job.revision_id, StudyCell.binding_case_revision_id):
         if await session.scalar(select(column).where(column.in_(revision_ids)).limit(1)) is not None:
             return _has_runs()
-    for column in (CompositionVersion.revision_id, CompositionEvaluation.revision_id):
+    for column in (
+        CompositionVersion.revision_id, CompositionEvaluation.revision_id, CompositionDerivation.revision_id,
+    ):
         if await session.scalar(select(column).where(column.in_(revision_ids)).limit(1)) is not None:
             return api_error(
                 409, "problem_has_compositions", "Delete the compositions that link this problem first.",
