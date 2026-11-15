@@ -5,5 +5,6 @@ Code outside ``modules/execution`` reaches the module through this package only
 """
 
 from ..domain.run_request import STUDY_CELL_KEY_PREFIX, RunRequest
+from .runs import RunSolutions, run_solutions
 
-__all__ = ["STUDY_CELL_KEY_PREFIX", "RunRequest"]
+__all__ = ["STUDY_CELL_KEY_PREFIX", "RunRequest", "RunSolutions", "run_solutions"]

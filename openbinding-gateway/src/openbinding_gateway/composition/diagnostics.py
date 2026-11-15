@@ -127,6 +127,34 @@ CONSTRAINT_VIOLATED = "c2y_constraint_violated"
 #: The binding does not meet a soft constraint of the problem; a warning, with its penalty.
 CONSTRAINT_SOFT = "c2y_constraint_soft"
 
+# Assessing a document against the problem it links, in an organization: finding the problem and
+# its compilation, the toolchain's verdict on the binding, and the run the evidence names.
+
+#: ``problem.ref`` names a problem of another organization than the one the document is judged in.
+PROBLEM_FOREIGN = "c2y_problem_foreign"
+#: ``problem.ref`` names no problem, or no revision of it, in the organization.
+PROBLEM_NOT_FOUND = "c2y_problem_not_found"
+#: The installed toolchain does not accept the stored package of the linked revision.
+PROBLEM_NOT_RECOMPILABLE = "c2y_problem_not_recompilable"
+#: ``problem.compilation`` names no stored compilation of the linked revision.
+COMPILATION_NOT_FOUND = "c2y_compilation_not_found"
+#: The linked compilation was made by another toolchain release that reads the problem alike; an info.
+COMPILATION_SUPERSEDED = "c2y_compilation_superseded"
+#: The installed toolchain reads the linked revision differently from the linked compilation.
+COMPILATION_SEMANTICS_CHANGED = "c2y_compilation_semantics_changed"
+#: The toolchain refused the binding; its message is carried as it gave it.
+BINDING_INVALID = "c2y_binding_invalid"
+#: The toolchain could not evaluate a binding it accepted.
+EVALUATION_FAILED = "c2y_evaluation_failed"
+#: ``evidence.run`` names no run of the organization the caller may see.
+RUN_NOT_FOUND = "c2y_run_not_found"
+#: The run of ``evidence.run`` solved another revision, or a compilation that reads it differently.
+RUN_FOREIGN_REVISION = "c2y_run_foreign_revision"
+#: The run of ``evidence.run`` did not finish with solutions, or ``evidence.point`` is not a binding of it.
+RUN_POINT_INVALID = "c2y_run_point_invalid"
+#: The document's binding is not a solution of the run (or not the one ``evidence.point`` names).
+RUN_BINDING_MISMATCH = "c2y_run_binding_mismatch"
+
 Severity = Literal["error", "warning", "info"]
 
 #: The order diagnostics are listed in: what refuses the document first.

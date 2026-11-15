@@ -253,6 +253,16 @@ def _pointed(item: Diagnostic) -> Diagnostic:
     return replace(item, pointer="") if item.pointer is None and item.path == "" else item
 
 
+def located(found: Iterable[Diagnostic], text: str) -> tuple[Diagnostic, ...]:
+    """``found`` with the spans of the elements they name in ``text``, the document they are about.
+
+    For findings made after reading -- against a problem, say -- by the same rule as the reader's
+    own: a path the text does not have is underlined at its nearest ancestor that it does have.
+    A diagnostic that already has a span keeps it.
+    """
+    return _located(tuple(found), text)
+
+
 def _located(found: tuple[Diagnostic, ...], text: str) -> tuple[Diagnostic, ...]:
     """The diagnostics with their spans: one composition of the text for all of them.
 
