@@ -14,6 +14,21 @@ from typing import Any, Mapping
 
 from bim_core.canonical import digest
 
+#: The members of an IR's ``spec`` that record where and how the problem was written, not what it means.
+NON_SEMANTIC = frozenset({"profile", "dialects", "instance", "sourceMap"})
+
+
+def semantic_digest(ir: Mapping[str, Any]) -> str:
+    """The digest of what a compiled problem means, the same across toolchain releases that read it alike.
+
+    The canonical digest of the IR's ``spec`` without its ``NON_SEMANTIC`` members: the toolchain's own
+    formula (bim-toolchain v0.2.0 ``tools/baseline_core.py:239-241``, ``semantic_digest``), which its corpus
+    golden records as ``semanticDigest``. ``tests/test_bim_consumer_contract.py`` and
+    ``tests/test_bim_zip_dir_equivalence.py`` pin this function against those goldens.
+    """
+    spec = ir.get("spec", {}) if isinstance(ir, Mapping) else {}
+    return digest({key: value for key, value in spec.items() if key not in NON_SEMANTIC})
+
 
 def decimal_digits(value: int) -> str:
     """``str(value)`` for a non-negative integer of any size (``str`` refuses past the digit limit)."""
@@ -192,6 +207,10 @@ class Compilation:
     def binding_space_text(self) -> str:
         """``bindingSpaceCardinality`` as the decimal string it is on the wire (``"0"`` when unreadable)."""
         return cardinality_text(self.analysis)
+
+    @cached_property
+    def semantic_digest(self) -> str:
+        return semantic_digest(self.ir)
 
     @cached_property
     def file_digests(self) -> dict[str, str]:

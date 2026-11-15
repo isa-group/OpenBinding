@@ -24,6 +24,8 @@ revision_not_recompilable`.
 - `GET …/compilation` is in the compile work class, since it may compile.
 - Tests swap the BIM port (`set_bim` / `bim_override`) to simulate a toolchain release instead of monkeypatching the
   cached digest.
-- F1 adds `semantic_digest` to `problem_compilations` (deferred).
+- Every row also stores the `semantic_digest` of its IR (added in F1): the toolchain's digest of the IR `spec`
+  without `profile`, `dialects`, `instance` and `sourceMap`, equal across releases that read the problem alike.
+  `compilation_by_digest` finds a row by `(revision_id, compilation_digest)`.
 
 Where: `modules/problems/application/problems.py`, `tests/test_problem_compilations.py`.

@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = 'ec7a1627dc0c'
+revision: str = '0ec174837dc9'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -400,6 +400,7 @@ def upgrade() -> None:
     sa.Column('revision_id', sa.Uuid(), nullable=False),
     sa.Column('compiler_digest', sa.String(length=80), nullable=False),
     sa.Column('compilation_digest', sa.String(length=80), nullable=False),
+    sa.Column('semantic_digest', sa.String(length=80), nullable=False),
     sa.Column('toolchain', sa.JSON(), nullable=False),
     sa.Column('ir_digest', sa.String(length=80), nullable=False),
     sa.Column('ir', sa.JSON(), nullable=False),
@@ -414,6 +415,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_problem_compilations_ir_digest'), 'problem_compilations', ['ir_digest'], unique=False)
     op.create_index(op.f('ix_problem_compilations_revision_id'), 'problem_compilations', ['revision_id'], unique=False)
+    op.create_index('ix_problem_compilations_revision_semantic', 'problem_compilations', ['revision_id', 'semantic_digest'], unique=False)
     op.create_table('jobs',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('owner_id', sa.Uuid(), nullable=True),
@@ -553,6 +555,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_jobs_created_at'), table_name='jobs')
     op.drop_index(op.f('ix_jobs_compilation_id'), table_name='jobs')
     op.drop_table('jobs')
+    op.drop_index('ix_problem_compilations_revision_semantic', table_name='problem_compilations')
     op.drop_index(op.f('ix_problem_compilations_revision_id'), table_name='problem_compilations')
     op.drop_index(op.f('ix_problem_compilations_ir_digest'), table_name='problem_compilations')
     op.drop_table('problem_compilations')

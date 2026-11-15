@@ -299,7 +299,8 @@ slugs.
 **As built after F0b.** The organization is the only container; the schema has 25 tables. An organization owns its
 problems (`binding_cases`), their revisions (`binding_case_revisions`: the uploaded package, held by a `blobs` row of
 that organization, with its digests) and their compilations (`problem_compilations`: the IR of a revision by one
-toolchain, insert-only and unique by `(revision_id, compiler_digest)` and by `(revision_id, compilation_digest)`). A run
+toolchain, insert-only and unique by `(revision_id, compiler_digest)` and by `(revision_id, compilation_digest)`;
+since F1 each row also stores the `semantic_digest` of its IR, which two toolchains that read the problem alike share). A run
 (`jobs`) belongs to the organization and names a revision and a compilation through a composite foreign key, so it cannot
 run another revision's IR. A study (`studies`) holds the editable definition; a study run (`study_runs`) holds the frozen
 copy and its digest, and each cell (`study_cells`) pins the compilation it runs. There are no projects, no artifact store,

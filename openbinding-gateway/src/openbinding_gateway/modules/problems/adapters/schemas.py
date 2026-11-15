@@ -21,6 +21,9 @@ class CompilationSummary(BaseModel):
     id: uuid.UUID
     compilation_digest: str
     compiler_digest: str
+    semantic_digest: str = Field(
+        description="The digest of what the compiled problem means; equal across toolchains that read it alike.",
+    )
     ir_digest: str
     binding_space: str
     created_at: datetime

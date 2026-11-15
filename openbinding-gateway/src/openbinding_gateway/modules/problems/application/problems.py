@@ -152,6 +152,18 @@ async def _compilation_for(session: AsyncSession, revision_id: uuid.UUID, compil
     )
 
 
+async def compilation_by_digest(
+    session: AsyncSession, revision_id: uuid.UUID, compilation_digest: str
+) -> ProblemCompilation | None:
+    """The stored compilation of a revision with that ``compilation_digest`` (whichever toolchain made it)."""
+    return await session.scalar(
+        select(ProblemCompilation).where(
+            ProblemCompilation.revision_id == revision_id,
+            ProblemCompilation.compilation_digest == compilation_digest,
+        )
+    )
+
+
 # -- Compile or get ----------------------------------------------------------------------------------
 
 
@@ -175,6 +187,7 @@ async def store_compilation(
         revision_id=revision_id,
         compiler_digest=compiler,
         compilation_digest=compilation.compilation_digest,
+        semantic_digest=compilation.semantic_digest,
         toolchain=dict(compilation.toolchain),
         ir_digest=compilation.ir_digest,
         ir=compilation.ir,

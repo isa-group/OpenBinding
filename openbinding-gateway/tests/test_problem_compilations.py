@@ -11,11 +11,14 @@ from sqlalchemy.exc import IntegrityError
 from _problem_helpers import problem_for, seed_problem_run
 from openbinding_gateway.db.models import Job, JobState, ProblemCompilation, User
 from openbinding_gateway.integrations import bim
-from openbinding_gateway.modules.problems.application import compile_or_get
+from openbinding_gateway.modules.problems.application import compilation_by_digest, compile_or_get, semantic_digest
 
 pytestmark = pytest.mark.asyncio
 
 OTHER_COMPILER = "sha256-" + "e" * 64
+#: ``semanticDigest`` of ``examples/demo/01_simple_seq`` in the bim-toolchain v0.2.0 corpus golden
+#: (``golden/bim_normalized/corpus.json``), written out so that this module needs no kit.
+SIMPLE_SEQ_SEMANTIC = "sha256-ffc9ca032d7e3afbe7a0e94ab574a60324e94c0376ac3284bdf70bbb00ca5cc1"
 
 
 class OtherToolchain:
@@ -76,6 +79,41 @@ async def test_another_toolchain_adds_a_row_and_leaves_the_first(db_session):
     assert added.compiler_digest == OTHER_COMPILER
     assert [row.id for row in rows] == [before.id, added.id]
     assert (await db_session.get(ProblemCompilation, before.id)).compilation_digest == before.compilation_digest
+
+
+async def test_a_compilation_stores_the_semantic_digest_of_its_ir(db_session):
+    upload = await problem_for(db_session, await a_user(db_session))
+
+    row = await db_session.get(ProblemCompilation, upload.compilation.id)
+
+    assert row.semantic_digest == semantic_digest(row.ir) == SIMPLE_SEQ_SEMANTIC
+
+
+async def test_another_toolchain_that_reads_the_problem_alike_gives_the_same_semantic_digest(db_session):
+    upload = await problem_for(db_session, await a_user(db_session))
+    before = upload.compilation
+
+    with bim.bim_override(OtherToolchain(bim.get_bim())):
+        added = await compile_or_get(db_session, upload.revision)
+
+    assert added.compiler_digest != before.compiler_digest
+    assert added.compilation_digest != before.compilation_digest
+    assert added.semantic_digest == before.semantic_digest == SIMPLE_SEQ_SEMANTIC
+
+
+async def test_a_compilation_is_found_by_its_digest_within_its_revision(db_session):
+    user = await a_user(db_session)
+    upload = await problem_for(db_session, user)
+    before = upload.compilation
+    with bim.bim_override(OtherToolchain(bim.get_bim())):
+        added = await compile_or_get(db_session, upload.revision)
+    other = await seed_problem_run(db_session, owner_id=user.id)
+
+    assert (await compilation_by_digest(db_session, upload.revision.id, before.compilation_digest)).id == before.id
+    assert (await compilation_by_digest(db_session, upload.revision.id, added.compilation_digest)).id == added.id
+    assert await compilation_by_digest(db_session, other["revision_id"], before.compilation_digest) is None
+    other_digest = (await db_session.get(ProblemCompilation, other["compilation_id"])).compilation_digest
+    assert await compilation_by_digest(db_session, upload.revision.id, other_digest) is None
 
 
 async def test_a_compilation_cannot_be_updated(db_session):

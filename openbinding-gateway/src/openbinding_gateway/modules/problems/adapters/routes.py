@@ -119,7 +119,7 @@ def _provenance(request: Request, producer: str | None) -> dict[str, Any] | None
 def _summary(row: ProblemCompilation) -> CompilationSummary:
     return CompilationSummary(
         id=row.id, compilation_digest=row.compilation_digest, compiler_digest=row.compiler_digest,
-        ir_digest=row.ir_digest, binding_space=analysis_summary(row.ir, row.analysis)["bindingSpace"],
+        semantic_digest=row.semantic_digest, ir_digest=row.ir_digest, binding_space=analysis_summary(row.ir, row.analysis)["bindingSpace"],
         created_at=row.created_at, current=row.compiler_digest == bim.toolchain_digest(),
     )
 

@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 
 from _b1_helpers import make_account, put_member, gate  # noqa: F401,F811
 from _problem_helpers import EXAMPLE, ZIP, make_org, package_bytes, seed_problem_run, upload_problem
+from openbinding_gateway.modules.problems.application import semantic_digest
 from openbinding_gateway.space_client import PlanCaps
 from openbinding_gateway.db.models import (
     BindingCase,
@@ -60,6 +61,7 @@ async def test_an_upload_creates_the_problem_its_first_revision_one_compilation_
     assert body["revision"]["package_size"] == len(archive)
     assert body["problem"]["latest_revision"]["id"] == body["revision"]["id"]
     assert body["compilation"]["current"] is True
+    assert body["compilation"]["semantic_digest"].startswith("sha256-")
     assert (await count(db_session, BindingCase), await count(db_session, BindingCaseRevision)) == (1, 1)
     assert (await count(db_session, ProblemCompilation), await count(db_session, Blob)) == (1, 1)
     blob = await db_session.scalar(select(Blob))
@@ -269,6 +271,8 @@ async def test_a_revision_describes_its_files_and_compilations(api_client, regis
     assert compilation["compatible_modes"]
     assert ir.status_code == 200 and ir.json()["ir"]["kind"] == "BindingProblem"
     assert ir.json()["ir_digest"] == compilation["ir_digest"]
+    assert compilation["semantic_digest"] == semantic_digest(ir.json()["ir"])
+    assert [item["semantic_digest"] for item in detail["compilations"]] == [compilation["semantic_digest"]]
 
 
 async def test_an_edit_needs_the_current_etag(api_client, registration, db_session, gate):  # noqa: F811

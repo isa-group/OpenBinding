@@ -21,6 +21,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -252,6 +253,8 @@ class ProblemCompilation(Base):
         UniqueConstraint("revision_id", "compiler_digest", name="uq_problem_compilations_revision_compiler"),
         # The target of the composite foreign keys that tie a run's compilation to its revision.
         UniqueConstraint("id", "revision_id", name="uq_problem_compilations_id_revision"),
+        # A composition's link holds while the compilation it names and the installed one mean the same.
+        Index("ix_problem_compilations_revision_semantic", "revision_id", "semantic_digest"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -260,6 +263,8 @@ class ProblemCompilation(Base):
     )
     compiler_digest: Mapped[str] = mapped_column(String(80), nullable=False)
     compilation_digest: Mapped[str] = mapped_column(String(80), nullable=False)
+    #: The digest of what the IR means (``domain.compilation.semantic_digest``), written at insert.
+    semantic_digest: Mapped[str] = mapped_column(String(80), nullable=False)
     toolchain: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     ir_digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     ir: Mapped[dict] = mapped_column(JSON, nullable=False)

@@ -2529,12 +2529,18 @@
           "ir_digest": {
             "title": "Ir Digest",
             "type": "string"
+          },
+          "semantic_digest": {
+            "description": "The digest of what the compiled problem means; equal across toolchains that read it alike.",
+            "title": "Semantic Digest",
+            "type": "string"
           }
         },
         "required": [
           "id",
           "compilation_digest",
           "compiler_digest",
+          "semantic_digest",
           "ir_digest",
           "binding_space",
           "created_at",
@@ -2600,6 +2606,11 @@
             "title": "Revision Id",
             "type": "string"
           },
+          "semantic_digest": {
+            "description": "The digest of what the compiled problem means; equal across toolchains that read it alike.",
+            "title": "Semantic Digest",
+            "type": "string"
+          },
           "toolchain": {
             "additionalProperties": true,
             "title": "Toolchain",
@@ -2610,6 +2621,7 @@
           "id",
           "compilation_digest",
           "compiler_digest",
+          "semantic_digest",
           "ir_digest",
           "binding_space",
           "created_at",

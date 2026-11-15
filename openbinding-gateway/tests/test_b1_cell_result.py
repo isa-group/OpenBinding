@@ -212,7 +212,8 @@ async def test_a_job_of_the_same_revision_on_another_compilation_is_refused(api_
     pinned = await db_session.get(ProblemCompilation, cell.compilation_id)
     newer = ProblemCompilation(
         revision_id=pinned.revision_id, compiler_digest="sha256-" + "d" * 64,
-        compilation_digest="sha256-" + uuid.uuid4().hex + uuid.uuid4().hex, toolchain={},
+        compilation_digest="sha256-" + uuid.uuid4().hex + uuid.uuid4().hex,
+        semantic_digest=pinned.semantic_digest, toolchain={},
         ir_digest=pinned.ir_digest, ir=pinned.ir, source_map={}, analysis={},
     )
     db_session.add(newer)
