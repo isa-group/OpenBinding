@@ -31,11 +31,16 @@ IN_FLIGHT = (JobState.QUEUED, JobState.RUNNING)
 async def lock_owner(session: AsyncSession, user_id: uuid.UUID) -> None:
     """Serialise job creation for one account until the transaction ends.
 
-    ``FOR UPDATE`` on the user's row makes a second creation wait here, so it
-    counts the first one's job instead of racing it past the limit. SQLite has
-    no row locks and ignores the clause; there the count alone is the check.
+    ``FOR NO KEY UPDATE`` on the user's row makes a second creation wait here,
+    so it counts the first one's job instead of racing it past the limit. It is
+    not ``FOR UPDATE`` on purpose: that mode also blocks the ``KEY SHARE`` lock
+    of every foreign-key check on a row that references the account, and a
+    worker writing the outcome of one of the account's jobs takes that lock
+    while it may wait for a study cell this transaction holds (a deadlock).
+    SQLite has no row locks and ignores the clause; there the count alone is
+    the check.
     """
-    await session.execute(select(User.id).where(User.id == user_id).with_for_update())
+    await session.execute(select(User.id).where(User.id == user_id).with_for_update(key_share=True))
 
 
 async def count_in_flight(session: AsyncSession, user_id: uuid.UUID) -> int:

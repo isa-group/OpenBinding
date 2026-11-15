@@ -1,7 +1,7 @@
 """The plan's ``maxFederatedEngines`` limit on a real PostgreSQL 16: owners, races, replays and rollbacks.
 
 ``test_federated_engines_limit.py`` pins the rule on SQLite, with one session. The rule there is "count the owner's
-active registrations and activate", serialised by a ``SELECT ... FOR UPDATE`` on the owner's row: a promise only a
+active registrations and activate", serialised by a ``SELECT ... FOR NO KEY UPDATE`` on the owner's row: a promise only a
 server with row locks can keep, and one SQLite cannot even state. Here several sessions on distinct connections
 (``pg_backend_pid`` says so) run the real service and the real route against the migrated schema.
 

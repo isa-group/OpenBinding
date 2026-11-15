@@ -65,7 +65,7 @@ example options trimmed by the caller's plan.
   is created and nothing is dispatched.
 - Same key, different request: `409 idempotency_conflict`.
 - Concurrent requests with one key: the account row is locked
-  (`jobs/limits.lock_owner`, `FOR UPDATE`) before the check, so a request that
+  (`jobs/limits.lock_owner`, `FOR NO KEY UPDATE`) before the check, so a request that
   waited behind the one that created the job sees it and replays. The unique
   constraint is the last line of defence: the loser of an `IntegrityError`
   re-reads the winner and replays (`_raced_idempotent_outcome` in

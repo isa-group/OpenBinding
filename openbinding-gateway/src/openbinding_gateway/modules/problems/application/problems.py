@@ -267,7 +267,9 @@ async def _compile_upload(archive: bytes) -> Compilation:
 
 
 async def _lock_account(session: AsyncSession, user_id: uuid.UUID) -> None:
-    await session.execute(select(User.id).where(User.id == user_id).with_for_update())
+    # FOR NO KEY UPDATE, like ``jobs.limits.lock_owner``: it serialises the account's uploads without
+    # blocking the foreign-key checks of rows that reference the account.
+    await session.execute(select(User.id).where(User.id == user_id).with_for_update(key_share=True))
 
 
 async def _check_storage(session: AsyncSession, actor: User, incoming: int) -> None:

@@ -329,7 +329,7 @@ async def create_api_key(
         # Serialize this user's count-and-insert on PostgreSQL. Without the
         # row lock, concurrent requests could both observe nine live keys and
         # both exceed the active contract's dynamic allowance.
-        await session.execute(select(User.id).where(User.id == user.id).with_for_update())
+        await session.execute(select(User.id).where(User.id == user.id).with_for_update(key_share=True))
         live = len(await _own_active_keys(session, user))
         if live >= api_keys_limit:
             raise api_error(

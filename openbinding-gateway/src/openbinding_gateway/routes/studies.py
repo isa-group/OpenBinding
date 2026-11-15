@@ -523,7 +523,7 @@ async def attach_cell_result(
         await session.execute(
             select(StudyCell)
             .where(StudyCell.id == cell_id, StudyCell.study_run_id == run.id)
-            .with_for_update()
+            .with_for_update(key_share=True)
             .execution_options(populate_existing=True)
         )
     ).scalars().first()
@@ -578,7 +578,7 @@ async def retry_study_cell(
         await session.execute(
             select(StudyCell)
             .where(StudyCell.id == cell_id, StudyCell.study_run_id == run.id)
-            .with_for_update()
+            .with_for_update(key_share=True)
             .execution_options(populate_existing=True)
         )
     ).scalars().first() if run is not None else None

@@ -441,20 +441,26 @@ async def lock_run(session: AsyncSession, run_id: uuid.UUID) -> StudyRun | None:
     first, then the locks of the cells (``lock_cells``), then those of the jobs,
     so that two of them cannot wait for each other. The lock is held until the
     transaction ends. SQLite ignores it.
+
+    The run and its cells are locked ``FOR NO KEY UPDATE``, which serialises
+    their writers as well as ``FOR UPDATE`` does but lets foreign-key checks
+    through: a worker writing a job's outcome checks the job's cell with
+    ``KEY SHARE`` and must not wait for a ``_sync`` of another cell, which may
+    in turn be waiting for the account that worker's check already holds.
     """
 
     return (
         await session.execute(
             select(StudyRun)
             .where(StudyRun.id == run_id)
-            .with_for_update()
+            .with_for_update(key_share=True)
             .execution_options(populate_existing=True)
         )
     ).scalars().first()
 
 
 async def lock_cells(session: AsyncSession, run_id: uuid.UUID) -> list[StudyCell]:
-    """Row-lock every cell of a run, in ordinal order, reloaded as the lock saw them."""
+    """Row-lock every cell of a run, in ordinal order, reloaded as the lock saw them (``FOR NO KEY UPDATE``)."""
 
     return list(
         (
@@ -462,7 +468,7 @@ async def lock_cells(session: AsyncSession, run_id: uuid.UUID) -> list[StudyCell
                 select(StudyCell)
                 .where(StudyCell.study_run_id == run_id)
                 .order_by(StudyCell.ordinal)
-                .with_for_update()
+                .with_for_update(key_share=True)
                 .execution_options(populate_existing=True)
             )
         ).scalars().all()

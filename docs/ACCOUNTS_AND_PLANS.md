@@ -511,7 +511,8 @@ that creates a job (`createRun`, `POST /v1/organizations/{org}/runs`; retry; stu
 cells) calls
 `jobs/limits.enforce_concurrency_limit` inside the transaction that inserts the
 job, after an idempotent replay has been ruled out, so a replay does not take a
-second slot. The check locks the account row (`FOR UPDATE`) so that two
+second slot. The check locks the account row (`FOR NO KEY UPDATE`, which does not hold up
+the foreign-key checks of rows that reference the account) so that two
 concurrent creations count each other; SQLite has no row locks, and there the
 count alone is the check (see [IDEMPOTENCY.md](IDEMPOTENCY.md)). A refused
 request is `429 concurrency_limit_exceeded`; a slot is released simply by the

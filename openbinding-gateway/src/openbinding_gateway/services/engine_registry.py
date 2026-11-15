@@ -1042,7 +1042,7 @@ async def change_registration(
     if action == "activate":
         if max_active is not None and not registration.is_active:
             # Serialise this owner's count-and-activate, as the API-key limit does.
-            await session.execute(select(User.id).where(User.id == registration.owner_id).with_for_update())
+            await session.execute(select(User.id).where(User.id == registration.owner_id).with_for_update(key_share=True))
             # The row was read before the lock was got, and a request that held the lock may have activated this
             # very registration meanwhile: that is a repeated activation, not a second place, so it is answered
             # with the active registration instead of being counted against the limit.
