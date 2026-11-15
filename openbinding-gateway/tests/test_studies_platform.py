@@ -150,8 +150,7 @@ def test_pareto_and_stability_aggregates_are_deterministic() -> None:
     assert aggregate["cells"] == 4
     assert aggregate["completed"] == 3
     assert aggregate["failed"] == 1
-    assert aggregate["pareto"] == []
-    assert "incompatible" in aggregate["paretoStatus"]
+    assert "pareto" not in aggregate and "paretoStatus" not in aggregate
     assert aggregate["runtimes_s"] == [1.0, 2.0, 3.0]
 
 

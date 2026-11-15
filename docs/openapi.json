@@ -400,9 +400,9 @@
             "type": "object"
           },
           "pareto": {
+            "description": "One front per problem revision and objective-name set, from the feasible solutions of completed cells.",
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/ParetoFront"
             },
             "title": "Pareto",
             "type": "array"
@@ -428,7 +428,6 @@
           "infeasible",
           "objective_distributions",
           "runtimes_s",
-          "pareto",
           "stability"
         ],
         "title": "AnalyticsView",
@@ -7490,6 +7489,99 @@
           "media_type"
         ],
         "title": "PackageFile",
+        "type": "object"
+      },
+      "ParetoFront": {
+        "description": "The non-dominated points of one problem revision and one set of objective names (minimisation).",
+        "properties": {
+          "objectives": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Objectives",
+            "type": "array"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ParetoPoint"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "problem": {
+            "$ref": "#/components/schemas/ParetoProblem"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "revision_id": {
+            "format": "uuid",
+            "title": "Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision_id",
+          "problem",
+          "revision",
+          "objectives",
+          "points"
+        ],
+        "title": "ParetoFront",
+        "type": "object"
+      },
+      "ParetoPoint": {
+        "description": "A feasible solution no other solution of its front dominates.",
+        "properties": {
+          "cell_id": {
+            "format": "uuid",
+            "title": "Cell Id",
+            "type": "string"
+          },
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "objectives": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Objectives",
+            "type": "object"
+          },
+          "solution_index": {
+            "description": "The run solution the point is: the `point` to derive a composition from.",
+            "title": "Solution Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cell_id",
+          "job_id",
+          "solution_index",
+          "engine",
+          "objectives"
+        ],
+        "title": "ParetoPoint",
+        "type": "object"
+      },
+      "ParetoProblem": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "title": "ParetoProblem",
         "type": "object"
       },
       "ParseResult": {

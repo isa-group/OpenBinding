@@ -2446,10 +2446,11 @@ export interface components {
             objective_distributions: {
                 [key: string]: number[];
             };
-            /** Pareto */
-            pareto: {
-                [key: string]: unknown;
-            }[];
+            /**
+             * Pareto
+             * @description One front per problem revision and objective-name set, from the feasible solutions of completed cells.
+             */
+            pareto?: components["schemas"]["ParetoFront"][];
             /** Runtimes S */
             runtimes_s: number[];
             /** Stability */
@@ -5092,6 +5093,56 @@ export interface components {
             resource_id?: string | null;
             /** Role */
             role: string;
+        };
+        /**
+         * ParetoFront
+         * @description The non-dominated points of one problem revision and one set of objective names (minimisation).
+         */
+        ParetoFront: {
+            /** Objectives */
+            objectives: string[];
+            /** Points */
+            points: components["schemas"]["ParetoPoint"][];
+            problem: components["schemas"]["ParetoProblem"];
+            /** Revision */
+            revision: number;
+            /**
+             * Revision Id
+             * Format: uuid
+             */
+            revision_id: string;
+        };
+        /**
+         * ParetoPoint
+         * @description A feasible solution no other solution of its front dominates.
+         */
+        ParetoPoint: {
+            /**
+             * Cell Id
+             * Format: uuid
+             */
+            cell_id: string;
+            /** Engine */
+            engine: string;
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /** Objectives */
+            objectives: {
+                [key: string]: number;
+            };
+            /**
+             * Solution Index
+             * @description The run solution the point is: the `point` to derive a composition from.
+             */
+            solution_index: number;
+        };
+        /** ParetoProblem */
+        ParetoProblem: {
+            /** Slug */
+            slug: string;
         };
         /**
          * ParseResult

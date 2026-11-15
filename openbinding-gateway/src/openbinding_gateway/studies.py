@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import itertools
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from .models.platform import StudyDefinition
@@ -117,7 +117,51 @@ def aggregate_metrics(metrics: list[dict[str, Any]]) -> dict[str, Any]:
         "infeasible": infeasible,
         "objective_distributions": {key: sorted(values) for key, values in sorted(objectives.items())},
         "runtimes_s": sorted(runtimes),
-        "pareto": [],
-        "paretoStatus": "unavailable: study cells may use incompatible models; open a compatible binding archive",
         "stability": stability,
     }
+
+
+def pareto_fronts(cells: Iterable[Mapping[str, Any]], problems: Mapping[str, Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """The Pareto front of each problem revision and objective set of a study run (minimisation).
+
+    ``cells`` holds, in cell order, ``cellId``, ``jobId``, ``revisionId`` and the cell's ``metrics``; ``problems``
+    maps the id of every revision the cells run to ``{"slug", "revision"}``. Only feasible solutions of completed
+    cells count. Cells whose objectives are named alike are compared, so a revision has one front per
+    objective-name set. Fronts are ordered by problem slug, revision number and objective names; points by their
+    objective values (in name order), then by cell order.
+    """
+    groups: dict[tuple[str, tuple[str, ...]], list[tuple[dict[str, float], dict[str, Any]]]] = defaultdict(list)
+    for cell in cells:
+        metrics = cell.get("metrics") or {}
+        if metrics.get("status") != "completed" or metrics.get("feasible") is not True or not cell.get("jobId"):
+            continue
+        values = metrics.get("objectives")
+        if not isinstance(values, dict):
+            continue
+        point = {
+            str(key): float(value)
+            for key, value in values.items()
+            if isinstance(value, (int, float)) and not isinstance(value, bool)
+        }
+        if not point or len(point) != len(values):
+            continue
+        index = metrics.get("solutionIndex")
+        groups[(str(cell["revisionId"]), tuple(sorted(point)))].append((point, {
+            "cell_id": str(cell["cellId"]),
+            "job_id": str(cell["jobId"]),
+            "solution_index": index if isinstance(index, int) else 0,
+            "engine": str(metrics.get("engine", "unknown")),
+            "objectives": point,
+        }))
+    fronts = []
+    for (revision_id, names), entries in groups.items():
+        by_point = {id(point): entry for point, entry in entries}
+        problem = problems[revision_id]
+        fronts.append({
+            "revision_id": revision_id,
+            "problem": {"slug": problem["slug"]},
+            "revision": problem["revision"],
+            "objectives": list(names),
+            "points": [by_point[id(point)] for point in nondominated([point for point, _ in entries])],
+        })
+    return sorted(fronts, key=lambda front: (front["problem"]["slug"], front["revision"], front["objectives"]))

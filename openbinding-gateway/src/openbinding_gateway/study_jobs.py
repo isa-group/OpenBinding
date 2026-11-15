@@ -52,6 +52,8 @@ class StudyLaunchError(RuntimeError):
 
 
 def metrics_from_job(job: Job, cell: StudyCell) -> dict[str, Any]:
+    """What a cell keeps of its run. ``objectives`` are those of the run's first solution, so ``solutionIndex``
+    is 0: the ``point`` a composition derived from this cell names (``deriveComposition``)."""
     result = job.result if isinstance(job.result, dict) else {}
     solutions = result.get("solutions") if isinstance(result.get("solutions"), list) else []
     first = solutions[0] if solutions and isinstance(solutions[0], dict) else {}
@@ -65,6 +67,7 @@ def metrics_from_job(job: Job, cell: StudyCell) -> dict[str, Any]:
         "feasible": job.state is JobState.COMPLETED and job.termination != "INFEASIBLE",
         "termination": job.termination,
         "objectives": objectives,
+        "solutionIndex": 0 if first else None,
         "runtimeSeconds": runtime,
         "engine": (
             f"{cell.engine_ref.get('namespace')}/{cell.engine_ref.get('name')}"

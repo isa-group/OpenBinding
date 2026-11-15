@@ -64,7 +64,7 @@ from ..study_jobs import (
     lock_run,
     metrics_from_job,
 )
-from ..studies import aggregate_metrics
+from ..studies import aggregate_metrics, pareto_fronts
 from bim_core.canonical import digest
 
 router = APIRouter(prefix="/v1/organizations/{org}", tags=["Studies"])
@@ -645,6 +645,19 @@ async def get_study_analytics(
     run = await _run(session, found_study.id, run_id, user)
     cells = (await session.execute(select(StudyCell).where(StudyCell.study_run_id == run.id).order_by(StudyCell.ordinal))).scalars().all()
     metrics_data = aggregate_metrics([cell.metrics for cell in cells])
+    revisions = list(dict.fromkeys(cell.binding_case_revision_id for cell in cells))
+    named = (await session.execute(
+        select(BindingCaseRevision.id, BindingCaseRevision.revision, BindingCase.slug)
+        .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
+        .where(BindingCaseRevision.id.in_(revisions))
+    )).all() if revisions else []
+    pareto = pareto_fronts(
+        [
+            {"cellId": cell.id, "jobId": cell.job_id, "revisionId": cell.binding_case_revision_id, "metrics": cell.metrics}
+            for cell in cells
+        ],
+        {str(row.id): {"slug": row.slug, "revision": row.revision} for row in named},
+    )
 
     # The binding space of each problem as the compilation the run pinned reads it.
     compilation_ids = list(dict.fromkeys(cell.compilation_id for cell in cells))
@@ -699,4 +712,4 @@ async def get_study_analytics(
                 "cases": cases_detail,
             }
 
-    return AnalyticsView(**metrics_data, binding_space=binding_space_info)
+    return AnalyticsView(**metrics_data, pareto=pareto, binding_space=binding_space_info)

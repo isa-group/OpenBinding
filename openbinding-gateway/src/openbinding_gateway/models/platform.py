@@ -362,6 +362,30 @@ def run_view(job: Any, viewer: Any, *, redact: bool = False, refs: Optional[Mapp
     return RunView(**base.model_dump(), error=error, remote=dict(remote))
 
 
+class ParetoProblem(BaseModel):
+    slug: str
+
+
+class ParetoPoint(BaseModel):
+    """A feasible solution no other solution of its front dominates."""
+
+    cell_id: uuid.UUID
+    job_id: uuid.UUID
+    solution_index: int = Field(description="The run solution the point is: the `point` to derive a composition from.")
+    engine: str
+    objectives: dict[str, float]
+
+
+class ParetoFront(BaseModel):
+    """The non-dominated points of one problem revision and one set of objective names (minimisation)."""
+
+    revision_id: uuid.UUID
+    problem: ParetoProblem
+    revision: int
+    objectives: list[str]
+    points: list[ParetoPoint]
+
+
 class AnalyticsView(BaseModel):
     cells: int
     completed: int
@@ -370,6 +394,10 @@ class AnalyticsView(BaseModel):
     infeasible: int
     objective_distributions: dict[str, list[float]]
     runtimes_s: list[float]
-    pareto: list[dict[str, Any]]
+    pareto: list[ParetoFront] = Field(
+        default_factory=list,
+        description="One front per problem revision and objective-name set, from the feasible solutions of "
+        "completed cells.",
+    )
     stability: dict[str, Any]
     binding_space: Optional[dict[str, Any]] = None
