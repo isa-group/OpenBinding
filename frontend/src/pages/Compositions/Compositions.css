@@ -1,0 +1,32 @@
+/* The composition screens: list and composition page. The organization frame (proj-*) and the organization screens' classes
+   (org-*) are reused for the band, the body, toasts and forms. */
+
+.cmp-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-sm); }
+.cmp-search { min-width: 200px; max-width: 360px; flex: 1; }
+.cmp-skeletons { display: flex; flex-direction: column; gap: 10px; }
+
+.cmp-name { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 600; overflow-wrap: anywhere; }
+.cmp-slug { display: block; color: var(--tp-steel); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 400; overflow-wrap: anywhere; }
+.cmp-number { font-variant-numeric: tabular-nums; }
+.cmp-linked { color: var(--tp-slate); font-size: 0.8125rem; }
+
+.cmp-select {
+  height: 38px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--tp-input-border);
+  border-radius: var(--tp-radius-md);
+  background: var(--tp-input-bg);
+  color: var(--tp-ink);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+/* Composition page */
+.cmp-badges { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cmp-description { max-width: 720px; margin: 0; color: var(--tp-slate); overflow-wrap: anywhere; }
+.cmp-version { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-xs); color: var(--tp-steel); font-size: 0.8125rem; }
+.cmp-version .cmp-select { max-width: 100%; }
+.cmp-lineage { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; color: var(--tp-slate); font-size: 0.8125rem; }
+.cmp-lineage li { overflow-wrap: anywhere; }
+.cmp-panel-loading { display: flex; flex-direction: column; gap: 10px; }

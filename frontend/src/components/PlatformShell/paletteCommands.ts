@@ -38,6 +38,10 @@ export function buildCommands({ organizations = [], organization, isAdmin }: Pal
   }
   if (organization) {
     const entries = Object.fromEntries(organizationEntries(organization).map((entry) => [entry.id, entry.to]));
+    if (entries.compositions) {
+      commands.push(command('Organization', 'Compositions', `Compositions and their versions · ${organization.name}`, entries.compositions));
+      commands.push(command('Create', 'New composition', `Start a composition in ${organization.name}`, `${entries.compositions}?create=composition`, '+'));
+    }
     if (entries.problems) {
       commands.push(command('Organization', 'Problems', `Binding problems and their versions · ${organization.name}`, entries.problems));
       commands.push(command('Create', 'New problem', `Upload a BIM package in ${organization.name}`, `${entries.problems}?create=problem`, '+'));

@@ -40,6 +40,8 @@ const HEADING: Record<string, RegExp> = {
   'app-home': /Hello, alex\.rivera/,
   'org-overview': /ISA Demo Group/,
   'org-settings': /^Settings$/,
+  'composition-list': /^Compositions$/,
+  'composition-detail': /Fleet routing/,
   'case-list': /^Problems$/,
   'case-detail': /Checkout flow/,
   'wb-workbench': /Workbench/,

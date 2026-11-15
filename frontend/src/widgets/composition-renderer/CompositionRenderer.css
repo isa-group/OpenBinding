@@ -1,0 +1,56 @@
+/* The composition renderer: a column of sections, each with a small heading. Light tokens only. */
+.cr { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-lg); }
+.cr.is-compact { gap: var(--tp-spacing-md); }
+
+.cr-section { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-xs); }
+.cr-section > h2 { margin: 0; color: var(--tp-ink); font-family: var(--font-body); font-size: 0.9375rem; font-weight: 600; }
+.cr-muted { margin: 0; color: var(--tp-steel); font-size: 0.8125rem; }
+
+.cr-identity { display: flex; flex-direction: column; gap: 4px; }
+.cr-identity h2 { margin: 0; font-size: 1.25rem; overflow-wrap: anywhere; }
+.cr-identity p { margin: 0; color: var(--tp-slate); overflow-wrap: anywhere; }
+.cr-kind { color: var(--tp-steel); font-size: 0.8125rem; }
+
+.cr-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-xs) var(--tp-spacing-sm); }
+.cr-status p { margin: 0; color: var(--tp-slate); font-size: 0.875rem; }
+
+.cr-values {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--tp-spacing-sm);
+  margin: 0;
+}
+
+.cr-values > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--tp-spacing-sm);
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-lg);
+  background: var(--tp-canvas);
+}
+
+.cr-values dt { color: var(--tp-steel); font-size: 0.75rem; overflow-wrap: anywhere; }
+.cr-values dd { margin: 0; color: var(--tp-ink); font-size: 1rem; font-weight: 600; overflow-wrap: anywhere; }
+
+.cr-binding { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+
+.cr-binding > li {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--tp-hairline-soft);
+}
+
+.cr-binding code { font-family: var(--font-mono); font-size: 0.8125rem; overflow-wrap: anywhere; }
+.cr-binding .cr-arrow { color: var(--tp-steel); }
+.cr-from { flex-basis: 100%; color: var(--tp-steel); font-size: 0.75rem; overflow-wrap: anywhere; }
+
+.cr-lines { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; color: var(--tp-slate); font-size: 0.875rem; }
+.cr-lines li { overflow-wrap: anywhere; }
+.cr-lines code { font-family: var(--font-mono); font-size: 0.8125rem; }

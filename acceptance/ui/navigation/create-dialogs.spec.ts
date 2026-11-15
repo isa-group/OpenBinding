@@ -43,3 +43,33 @@ test('the organization overview offers no New project, and its upload opens the 
   await expect(page.getByRole('dialog', { name: 'Upload a BIM package' })).toBeVisible();
 });
 
+test('New composition opens a dialog over the Compositions list, and creating lab-flow opens it with no version yet', async ({ page }) => {
+  const requests = await mockApi(page);
+  await page.goto('/app/acme/compositions');
+  await page.locator('#platform-main').getByRole('button', { name: 'New composition', exact: true }).first().click();
+  await expect.poll(() => pathAndSearch(page)).toBe('/app/acme/compositions?create=composition');
+  const dialog = page.getByRole('dialog', { name: 'New composition' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('Name').fill('Lab flow');
+  await expect(dialog.getByLabel('Address')).toHaveValue('lab-flow');
+  await dialog.getByRole('button', { name: 'Create composition' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(() => pathAndSearch(page)).toBe('/app/acme/compositions/lab-flow');
+  await expect(page.getByRole('heading', { level: 1, name: 'Lab flow' })).toBeVisible();
+  await expect(page.locator('#platform-main').getByText(/No version yet/).first()).toBeVisible();
+  expect(requests.filter((request) => request.method === 'POST').map((request) => [request.path, JSON.parse(request.body)])).toEqual([
+    ['/v1/organizations/acme/compositions', { slug: 'lab-flow', name: 'Lab flow', kind: 'application', description: '' }],
+  ]);
+});
+
+test('cancelling the composition dialog returns to the list, restores focus and creates nothing', async ({ page }) => {
+  const requests = await mockApi(page);
+  await page.goto('/app/acme/compositions?create=composition');
+  const dialog = page.getByRole('dialog', { name: 'New composition' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(() => pathAndSearch(page)).toBe('/app/acme/compositions');
+  await expect(page.locator('#platform-main').getByRole('button', { name: 'New composition', exact: true }).first()).toBeFocused();
+  expect(requests.filter((request) => request.method === 'POST')).toEqual([]);
+});

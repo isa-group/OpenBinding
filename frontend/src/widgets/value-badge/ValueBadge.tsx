@@ -1,14 +1,8 @@
 import { BadgeCheck, CircleDashed, FileText, TriangleAlert } from 'lucide-react';
 import type { ValueOrigin } from '../../entities/binding/candidateMatrix';
+import type { ValueStatus } from '../../entities/composition/values';
 import { originText } from './originText';
 import './ValueBadge.css';
-
-/**
- * How far a value can be trusted: `verified` (the gateway evaluated it against the problem), `declared` (written in a
- * document that links no problem), or `unverified` (a linked version whose current evaluation is `binding_invalid` or
- * `semantics_changed`, or is not the verified outcome).
- */
-export type ValueStatus = 'verified' | 'declared' | 'unverified';
 
 const STATUS: Record<ValueStatus, { text: string; Icon: typeof BadgeCheck }> = {
   verified: { text: 'Verified', Icon: BadgeCheck },
@@ -23,7 +17,10 @@ interface ValueBadgeProps {
   compact?: boolean;
 }
 
-/** A value's status and origin. It always prints its words; colour and icon only repeat them. */
+/**
+ * A value's status and origin. The status (`entities/composition/values`) says how far a value can be trusted: `verified`,
+ * `declared` or `unverified`. It always prints its words; colour and icon only repeat them.
+ */
 export function ValueBadge({ status, origin, compact = false }: ValueBadgeProps) {
   const shown = status ? STATUS[status] : null;
   return (

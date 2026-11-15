@@ -6,7 +6,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 /** The registry order of the areas; an area file that is not listed comes after them, by name. */
 const AREA_ORDER = [
-  'public', 'auth', 'engines', 'account', 'organizations', 'problems', 'runs', 'studies',
+  'public', 'auth', 'engines', 'account', 'organizations', 'compositions', 'problems', 'runs', 'studies',
   'admin',
 ];
 
@@ -55,6 +55,7 @@ export interface GalleryScreen {
 
 export const EXAMPLE = {
   org: 'isa-demo',
+  composition: 'fleet-routing',
   case: 'checkout-flow',
   revision: '2',
   artifact: 'providers-eu',

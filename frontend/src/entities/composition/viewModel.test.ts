@@ -85,6 +85,10 @@ describe('compositionViewModel for a member', () => {
     for (const value of model.values) expect(value.value).toBe(fmsVersion.values[value.name as keyof typeof fmsVersion.values].value);
   });
 
+  it('carries the evidence the document records', () => {
+    expect(model.evidence).toEqual(fmsVersion.document.evidence);
+  });
+
   it('offers the calculator and the configurator on a linked problem it may read', () => {
     expect(model.modes).toEqual(['catalog', 'architecture', 'workflow', 'comparison', 'calculator', 'configurator']);
   });
@@ -184,6 +188,7 @@ describe('a composition without versions', () => {
     expect(model.workflow.root).toEqual({ kind: 'empty' });
     expect(model.tasks).toEqual([]);
     expect(model.values).toEqual([]);
+    expect(model.evidence).toBeNull();
     expect(model.modes).toEqual(['catalog']);
   });
 });

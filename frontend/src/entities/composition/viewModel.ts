@@ -3,7 +3,7 @@ import type {
 } from '../../shared/api/types';
 import { fromC2y, type Located } from '../../shared/diagnostics/located';
 import { workflowGraph, type WorkflowGraph } from '../binding/workflowGraph';
-import { readDocument, type CompositionDocument, type Kind, type Provenance } from './document';
+import { readDocument, type CompositionDocument, type Evidence, type Kind, type Provenance } from './document';
 import { valueModels, valueStatus, type ValueModel, type ValueStatus } from './values';
 
 /**
@@ -77,6 +77,8 @@ export interface CompositionViewModel {
   tasks: TaskModel[];
   values: ValueModel[];
   offering: OfferingModel | null;
+  /** How the values were obtained, as the document records it (`evidence`); null when it records nothing. */
+  evidence: Evidence | null;
   /** Task to candidate key (`<resource>/<id>`), from the current evaluation's binding; empty for a public reader. */
   selection: Record<string, string>;
   /** What the current evaluation found, located in the version's text; members only. */
@@ -190,6 +192,7 @@ export function compositionViewModel(input: CompositionViewModelInput): Composit
     tasks: tasksOf(graph, document, selection, facts),
     values: version ? valueModels(version) : [],
     offering: offeringModel(version ? version.offering : null) ?? offeringModel(document?.offering as Record<string, string> | undefined),
+    evidence: document?.evidence ?? null,
     selection,
     diagnostics,
     modes,

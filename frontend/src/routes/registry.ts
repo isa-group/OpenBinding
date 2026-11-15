@@ -1,6 +1,7 @@
 import * as account from './areas/account';
 import * as admin from './areas/admin';
 import * as auth from './areas/auth';
+import * as compositions from './areas/compositions';
 import * as engines from './areas/engines';
 import * as organizations from './areas/organizations';
 import * as problems from './areas/problems';
@@ -16,6 +17,7 @@ const areas = {
   engines,
   account,
   organizations,
+  compositions,
   problems,
   runs,
   studies,

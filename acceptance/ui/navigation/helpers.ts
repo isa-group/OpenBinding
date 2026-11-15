@@ -36,7 +36,9 @@ const members = [
   { id: 'm1', organization_id: 'org-acme', user_id: 'user-1', username: 'lucia', email: 'lucia@example.org', role: 'OWNER', created_at: NOW },
 ];
 
-// The problems, the runs and the studies belong to the organization (`/app/acme/problems`, `/app/acme/runs`, `/app/acme/studies`).
+// The compositions, the problems, the runs and the studies belong to the organization (`/app/acme/compositions`, `/app/acme/problems`,
+// `/app/acme/runs`, `/app/acme/studies`).
+export const COMPOSITIONS = '/app/acme/compositions';
 export const PROBLEMS_SEGMENT = 'problems';
 export const RUNS_SEGMENT = 'runs';
 export const PROBLEMS = `/app/acme/${PROBLEMS_SEGMENT}`;
@@ -45,9 +47,17 @@ export const RUNS = `/app/acme/${RUNS_SEGMENT}`;
 
 const TEMPLATES = ['demo/01_simple_seq', 'demo/02_parallel', 'placement/01_small_placement'];
 
+/** The composition `New composition` creates in `acme`: it has no version yet. */
+const LAB_FLOW = {
+  id: 'composition-lab-flow', slug: 'lab-flow', name: 'Lab flow', description: '', kind: 'application', archived: false, visibility: 'private',
+  organization: { id: 'org-acme', slug: 'acme', name: 'Acme' }, created_by_id: 'user-1', created_at: NOW, updated_at: NOW,
+  version_count: 0, latest_version: null,
+};
+
 /**
- * Answers the API origin: the user, the organization `acme` with no problems, runs or studies, notifications and the
- * few public lists the screens read. Anything else is a 404 `not mocked`. Returns the non-GET requests that reached it.
+ * Answers the API origin: the user, the organization `acme` with no compositions, problems, runs or studies, notifications and
+ * the few public lists the screens read; a composition created in `acme` (`lab-flow`) can then be opened. Anything else is a 404
+ * `not mocked`. Returns the non-GET requests that reached it.
  */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<Recorded[]> {
   const role = options.role === undefined ? 'user' : options.role;
@@ -81,6 +91,11 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Re
   await page.route(`${API}/v1/organizations/acme`, json(organization('acme', 'Acme')));
   await page.route(`${API}/v1/organizations/lab-two`, json(organization('lab-two', 'lab-two')));
   await page.route(`${API}/v1/organizations/acme/members`, json(members));
+  await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/compositions`, (route) => (route.request().method() === 'POST'
+    ? route.fulfill({ status: 201, json: LAB_FLOW })
+    : route.fulfill({ json: { compositions: [], total: 0, limit: 200, offset: 0 } })));
+  await page.route(`${API}/v1/organizations/acme/compositions/lab-flow`, json(LAB_FLOW));
+  await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/compositions/lab-flow/versions`, json({ versions: [], total: 0, limit: 200, offset: 0 }));
   await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/problems`, json({ problems: [], total: 0, limit: 200, offset: 0 }));
   await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/runs`, json({ runs: [], total: 0 }));
   await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/studies`, json([]));

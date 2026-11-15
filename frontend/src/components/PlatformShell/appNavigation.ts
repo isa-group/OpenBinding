@@ -1,4 +1,5 @@
 import type { Organization } from '../../api/platform';
+import { COMPOSITIONS_SEGMENT } from '../../routes/paths/compositions';
 import { PROBLEMS_SEGMENT } from '../../routes/paths/problems';
 import { RUNS_SEGMENT } from '../../routes/paths/runs';
 import { STUDIES_SEGMENT } from '../../routes/paths/studies';
@@ -22,7 +23,7 @@ const under = (pathname: string, root: string) => pathname === root || pathname.
 
 export type MainSection = 'home' | OrganizationSectionId | 'engines' | 'admin' | null;
 /** The sections of the organization that have an entry of their own in the header. */
-export type OrganizationSectionId = 'problems' | 'runs' | 'studies';
+export type OrganizationSectionId = 'compositions' | 'problems' | 'runs' | 'studies';
 
 /** The entries of the header that do not depend on the organization. */
 export const mainLinks = {
@@ -44,18 +45,20 @@ function inOrganization(label: string, organization: Organization | undefined, s
   return organization ? { label, to: `/app/${organization.slug}${suffix}` } : { label, hint: NEEDS_ORGANIZATION };
 }
 
-/** The entries of the header that lead into the organization, in order: its problems, runs and studies. */
+/** The entries of the header that lead into the organization, in order: its compositions, problems, runs and studies. */
 export function organizationEntries(organization?: Organization): Array<MenuEntry & { id: OrganizationSectionId }> {
   return [
+    { id: 'compositions', ...inOrganization('Compositions', organization, `/${COMPOSITIONS_SEGMENT}`) },
     { id: 'problems', ...inOrganization('Problems', organization, `/${PROBLEMS_SEGMENT}`) },
     { id: 'runs', ...inOrganization('Runs', organization, `/${RUNS_SEGMENT}`) },
     { id: 'studies', ...inOrganization('Studies', organization, `/${STUDIES_SEGMENT}`) },
   ];
 }
 
-/** Entries of the "New" menu: always these three, each in the organization. */
+/** Entries of the "New" menu: always these four, each in the organization. */
 export function createItems(organization?: Organization): MenuEntry[] {
   return [
+    inOrganization('Composition', organization, `/${COMPOSITIONS_SEGMENT}?create=composition`),
     inOrganization('Problem', organization, `/${PROBLEMS_SEGMENT}?create=problem`),
     inOrganization('Study', organization, `/${STUDIES_SEGMENT}/new`),
     inOrganization('Run', organization, `/${RUNS_SEGMENT}/new`),
@@ -70,13 +73,14 @@ const UNMARKED_PLACES = new Set(['account']);
 const ORGANIZATION_SCREENS = new Set(['settings']);
 /** The second segment of each organization section, and the entry it belongs to (the Workbench edits problems). */
 const SECTION_OF: Record<string, OrganizationSectionId> = {
+  [COMPOSITIONS_SEGMENT]: 'compositions',
   [PROBLEMS_SEGMENT]: 'problems',
   workbench: 'problems',
   [RUNS_SEGMENT]: 'runs',
   [STUDIES_SEGMENT]: 'studies',
 };
 
-/** The section of the organization the address is in (`/app/:org/problems/…`, `/app/:org/workbench`, `/app/:org/runs/…`, `/app/:org/studies/…`). */
+/** The section of the organization the address is in (`/app/:org/compositions/…`, `/app/:org/problems/…`, `/app/:org/workbench`, `/app/:org/runs/…`, `/app/:org/studies/…`). */
 export function organizationSectionOf(pathname: string): OrganizationSectionId | null {
   const parts = pathname.split('/').filter(Boolean);
   if (parts[0] !== 'app' || APP_PLACES.has(parts[1])) return null;

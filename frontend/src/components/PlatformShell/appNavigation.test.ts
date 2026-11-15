@@ -40,26 +40,28 @@ describe('mainLinks', () => {
 });
 
 describe('organizationEntries', () => {
-  it('lead into the organization (problems, runs, studies), in this order', () => {
+  it('lead into the organization (compositions, problems, runs, studies), in this order', () => {
     expect(organizationEntries(organization).map(({ id, label, to }) => [id, label, to])).toEqual([
-      ['problems', 'Problems', '/app/isa-demo/problems'], ['runs', 'Runs', '/app/isa-demo/runs'], ['studies', 'Studies', '/app/isa-demo/studies'],
+      ['compositions', 'Compositions', '/app/isa-demo/compositions'], ['problems', 'Problems', '/app/isa-demo/problems'], ['runs', 'Runs', '/app/isa-demo/runs'], ['studies', 'Studies', '/app/isa-demo/studies'],
     ]);
     for (const address of addressesOf(organizationEntries(organization))) {
       expect(matchRoutes(routed, address), address).not.toBeNull();
     }
   });
 
-  it('disables Problems, Runs and Studies without an organization', () => {
+  it('disables Compositions, Problems, Runs and Studies without an organization', () => {
     expect(NEEDS_ORGANIZATION).toBe('Needs an organization');
     expect(organizationEntries().map(({ label, to, hint }) => [label, to, hint])).toEqual([
+      ['Compositions', undefined, 'Needs an organization'],
       ['Problems', undefined, 'Needs an organization'], ['Runs', undefined, 'Needs an organization'], ['Studies', undefined, 'Needs an organization'],
     ]);
   });
 });
 
 describe('createItems', () => {
-  it('offers Problem, Study and Run in the organization, in this order', () => {
+  it('offers Composition, Problem, Study and Run in the organization, in this order', () => {
     expect(createItems(organization).map((item) => [item.label, item.to])).toEqual([
+      ['Composition', '/app/isa-demo/compositions?create=composition'],
       ['Problem', '/app/isa-demo/problems?create=problem'],
       ['Study', '/app/isa-demo/studies/new'],
       ['Run', '/app/isa-demo/runs/new'],
@@ -71,6 +73,7 @@ describe('createItems', () => {
 
   it('disables every item without an organization', () => {
     expect(createItems().map((item) => [item.label, item.to, item.hint])).toEqual([
+      ['Composition', undefined, 'Needs an organization'],
       ['Problem', undefined, 'Needs an organization'], ['Study', undefined, 'Needs an organization'], ['Run', undefined, 'Needs an organization'],
     ]);
   });
@@ -97,6 +100,8 @@ describe('currentSection', () => {
     ['/app/isa-demo', 'home'],
     ['/app/isa-demo/qos', null],
     ['/app/isa-demo/settings/members', 'home'],
+    ['/app/isa-demo/compositions', 'compositions'],
+    ['/app/isa-demo/compositions/order-desk', 'compositions'],
     ['/app/isa-demo/problems', 'problems'],
     ['/app/isa-demo/problems/routing', 'problems'],
     ['/app/isa-demo/workbench', 'problems'],
@@ -140,6 +145,7 @@ describe('organizationSectionOf', () => {
     expect(organizationSectionOf('/app/isa-demo/qos/runs/job-1')).toBeNull();
     expect(organizationSectionOf('/app/isa-demo/studies/s1')).toBe('studies');
     expect(organizationSectionOf('/app/isa-demo/problems')).toBe('problems');
+    expect(organizationSectionOf('/app/isa-demo/compositions/order-desk')).toBe('compositions');
     expect(organizationSectionOf('/app/isa-demo/workbench')).toBe('problems');
     expect(organizationSectionOf('/app/engines/registrations')).toBeNull();
     expect(organizationSectionOf('/app')).toBeNull();

@@ -113,11 +113,10 @@ organization's blob.
 An organization slug is the first segment of its screens (`/app/<slug>`), so the
 slugs of the fixed places and of the sections under an organization are refused at
 creation with `422 slug_reserved`: `admin`, `account`, `engines`, `organizations`,
-`invitations`, `runs`, `problems`, `studies`, `settings`, `workbench` and `new`
-(`RESERVED_ORGANIZATION_SLUGS` in `models/platform.py`, mirrored by
-`frontend/src/components/PlatformShell/workspacePath.ts`). A slug cannot be changed
-after creation. `compositions` and `presets` join the list in F2, with the screens that
-use them as sections.
+`invitations`, `compositions`, `presets`, `runs`, `problems`, `studies`, `settings`,
+`workbench` and `new` (`RESERVED_ORGANIZATION_SLUGS` in `models/platform.py`, mirrored by
+`frontend/src/components/PlatformShell/workspacePath.ts`, whose test reads the Python
+list and keeps the two equal). A slug cannot be changed after creation.
 
 ## The runs of an organization (`/v1/organizations/{org}/runs`)
 

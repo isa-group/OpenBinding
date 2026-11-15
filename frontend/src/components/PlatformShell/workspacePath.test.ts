@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { routeDefinitions } from '../../routes/registry';
 import { RESERVED_SLUGS, workspaceSlugs } from './workspacePath';
@@ -6,6 +8,14 @@ import { RESERVED_SLUGS, workspaceSlugs } from './workspacePath';
  * The first segment after /app of every address the application answers with something other than an organization: its screens.
  * A segment that is a `:param` names an organization and is not listed.
  */
+/** The gateway's list (`RESERVED_ORGANIZATION_SLUGS` in models/platform.py), read as text: the two lists must stay equal. */
+function gatewayReservedSlugs(): string[] {
+  const source = readFileSync(join(process.cwd(), '../openbinding-gateway/src/openbinding_gateway/models/platform.py'), 'utf8');
+  const block = /RESERVED_ORGANIZATION_SLUGS = frozenset\(\{([^}]*)\}\)/.exec(source);
+  expect(block, 'RESERVED_ORGANIZATION_SLUGS in models/platform.py').not.toBeNull();
+  return [...block![1].matchAll(/"([a-z0-9-]+)"/g)].map((match) => match[1]).sort();
+}
+
 const FIXED_SEGMENTS = [...new Set(
   routeDefinitions.flatMap((route) => {
     const [, root, first] = route.path.split('/');
@@ -22,11 +32,13 @@ describe('workspaceSlugs', () => {
 
   it('reserves the slugs the gateway refuses (slug_reserved), and only those', () => {
     expect([...RESERVED_SLUGS].sort()).toEqual([
-      'account', 'admin', 'engines', 'invitations', 'new', 'organizations', 'problems', 'runs', 'settings', 'studies', 'workbench',
+      'account', 'admin', 'compositions', 'engines', 'invitations', 'new', 'organizations', 'presets', 'problems', 'runs', 'settings',
+      'studies', 'workbench',
     ]);
+    expect([...RESERVED_SLUGS].sort()).toEqual(gatewayReservedSlugs());
   });
 
-  it.each(['runs', 'problems', 'studies', 'workbench'])('never reads the section name %s as an organization', (segment) => {
+  it.each(['compositions', 'presets', 'runs', 'problems', 'studies', 'workbench'])('never reads the section name %s as an organization', (segment) => {
     expect(workspaceSlugs(`/app/${segment}`)).toEqual({});
     expect(workspaceSlugs(`/app/${segment}/new`)).toEqual({});
   });

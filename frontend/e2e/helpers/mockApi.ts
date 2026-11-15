@@ -18,9 +18,10 @@ import { NEIGHBORHOOD, REGISTRATION, RESULT, RUN_REFS, SOLUTION, detailOf as job
 import {
   RANDOM_SEARCH, REVISION_2, analyticsFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
 } from '../../src/test/fixtures/studies';
+import { compositionStore, type CompositionStore } from './mockCompositions';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
-// with problems, runs and studies, and everything the public screens read.
+// with compositions, problems, runs and studies, and everything the public screens read.
 // Every date is fixed, so two runs of the gallery draw the same pictures. A request nobody answers is a 404 and is recorded.
 
 export const API = 'http://localhost:8000';
@@ -313,6 +314,8 @@ interface Request {
   body: () => Record<string, unknown>;
   /** A small package, for every download. */
   archive: Buffer;
+  /** The compositions of this page (e2e/helpers/mockCompositions.ts): the seeded ones and what the page creates. */
+  compositions: CompositionStore;
 }
 
 /** `/v1/organizations/{org}/studies/…`: the studies of `isa-demo`, the one run of the first and its cells; another organization has none. */
@@ -381,6 +384,7 @@ function organizationRoutes(request: Request): Reply {
     case 'problems': return problemRoutes(request, found.slug);
     case 'runs': return runRoutes(request, found.slug);
     case 'studies': return studyRoutes(request, found.slug);
+    case 'compositions': return request.compositions.route(request, found.slug);
     default: return notFound('Not mocked.');
   }
 }
@@ -529,13 +533,14 @@ export async function installMockApi(page: Page, session: Session): Promise<Mock
   zip.file('instance.json', '{"apiVersion":"bim/v1","kind":"Instance"}');
   zip.file('application.json', '{"kind":"Application"}');
   const archive = await zip.generateAsync({ type: 'nodebuffer' });
+  const compositions = compositionStore();
 
   await page.route(`${API}/**`, async (call: Route) => {
     const request = call.request();
     const url = new URL(request.url());
     const parts = url.pathname.split('/').filter(Boolean);
     const known: Request = {
-      method: request.method(), parts, query: url.searchParams, archive,
+      method: request.method(), parts, query: url.searchParams, archive, compositions,
       body: () => {
         try {
           return (request.postDataJSON() ?? {}) as Record<string, unknown>;
@@ -624,6 +629,7 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
   const runs = new Map<string, WalkRun>();
   const studies: Study[] = [];
   const studyRuns = new Map<string, WalkStudyRun[]>();
+  const compositions = compositionStore();
   let serial = 0;
   const nextId = (prefix: string) => {
     serial += 1;
@@ -880,7 +886,7 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
     const parts = url.pathname.split('/').filter(Boolean);
     const body = request.postDataBuffer();
     const known: Request = {
-      method: request.method(), parts, query: url.searchParams, archive: template,
+      method: request.method(), parts, query: url.searchParams, archive: template, compositions,
       body: () => {
         try {
           return (request.postDataJSON() ?? {}) as Record<string, unknown>;
