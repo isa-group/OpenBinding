@@ -12,18 +12,19 @@ import { compositionsApi } from '../../entities/composition/api';
 import { kindLabel } from '../../entities/composition/kinds';
 import { pickVersion } from '../../entities/composition/versionRef';
 import { compositionViewModel } from '../../entities/composition/viewModel';
+import { problemFactsApi } from '../../entities/problem/facts';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { Gate } from '../../features/workspace/parts';
 import { NotFoundScreen } from '../../routes/NotFoundScreen';
 import { compositionPath, compositionsPath, isCompositionTabSegment, type CompositionTabSegment } from '../../routes/paths/compositions';
 import { runPath } from '../../routes/paths/runs';
 import { classifyAuthError, marker } from '../../shared/api/errors';
-import type { CompositionVersionView } from '../../shared/api/types';
+import type { CompositionVersionView, ProblemFacts } from '../../shared/api/types';
 import { useResource } from '../../utils/useResource';
 import { ReadOnlyNote } from '../Cases/parts';
 import { CompositionMissing } from './CompositionMissing';
 import { CompositionFrame } from './parts';
-import { OverviewTab } from './tabs/OverviewTab';
+import { OverviewTab, type CandidatesState } from './tabs/OverviewTab';
 import { relativeTime } from './time';
 import { useRouteComposition, type CompositionAccess, type RouteCompositionContent } from './useRouteComposition';
 
@@ -46,6 +47,26 @@ const findsInText = (version: CompositionVersionView) => version.evaluations.som
 ));
 
 const shortId = (id: string) => id.slice(0, 8);
+
+interface FactsSource {
+  problem: string;
+  revision: number;
+  /** The compilation the current evaluation used (its id, else its digest): the values shown were evaluated on it. */
+  compilation: string;
+}
+
+/**
+ * Where the candidates of the shown version's problem are read: the facts of the compilation its values were evaluated on, not
+ * of the one it links, so values and candidates never mix two compilations. None for a declared version, or when the gateway
+ * did not name the problem (the reader may not read it).
+ */
+function factsSource(version: CompositionVersionView | null): FactsSource | null {
+  const link = version?.problem;
+  if (!version || !link || link.problem.id === null) return null;
+  const evaluation = version.evaluations.find((item) => item.current) ?? null;
+  const compilation = evaluation?.compilation?.id ?? version.current_evaluation?.compilation?.compilation_digest ?? null;
+  return compilation ? { problem: link.problem.slug, revision: link.revision.revision, compilation } : null;
+}
 
 /** Where the shown version comes from: the composition it was forked from, the run or the binding it was derived from. */
 function Lineage({ org, version, mine }: { org: string; version: CompositionVersionView; mine: (org: string) => boolean }) {
@@ -103,7 +124,16 @@ function CompositionBody({ organization, organizations, access, content, tab, re
   );
   const updated = relativeTime(composition.updated_at);
   const version = shown.data?.version ?? null;
-  const model = compositionViewModel({ composition, version, reader: 'member', content: shown.data?.content });
+  const source = factsSource(version);
+  const facts = useResource<ProblemFacts | null>(
+    `composition-facts:${org}/${source ? `${source.problem}@${source.revision}/${source.compilation}` : 'none'}`,
+    async () => (source ? problemFactsApi.get(org, source.problem, source.revision, source.compilation) : null),
+  );
+  const model = compositionViewModel({ composition, version, facts: facts.data ?? null, reader: 'member', content: shown.data?.content });
+  const factsFailure = facts.status === 'error' ? classifyAuthError(facts.error) : null;
+  const candidates: CandidatesState | null = !source || facts.status === 'ready' ? null : {
+    status: facts.status, marker: factsFailure ? marker(factsFailure) : '', retry: facts.reload,
+  };
   const versionFailure = shown.status === 'error' ? classifyAuthError(shown.error) : null;
   const mine = (slug: string) => organizations.some((item) => item.slug === slug);
 
@@ -154,7 +184,7 @@ function CompositionBody({ organization, organizations, access, content, tab, re
             {`Version ${picked?.label ?? ''} couldn’t be loaded${marker(versionFailure)}.`}
           </Notice>
         )}
-        {active === 'overview' && (!picked || shown.status === 'ready') && <OverviewTab org={org} model={model} version={version} />}
+        {active === 'overview' && (!picked || shown.status === 'ready') && <OverviewTab org={org} model={model} version={version} candidates={candidates} />}
       </TabPanel>
     </CompositionFrame>
   );

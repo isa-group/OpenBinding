@@ -1,5 +1,7 @@
 import type { CompositionViewModel } from '../../entities/composition/viewModel';
+import { ArchitectureMode } from './modes/architecture';
 import { CatalogMode } from './modes/catalog';
+import { WorkflowMode } from './modes/workflow';
 import { sectionsOf, type Density, type RendererMode, type Section } from './presets';
 import './CompositionRenderer.css';
 
@@ -27,6 +29,8 @@ export function CompositionRenderer({ model, mode, hideSections = [], density = 
   return (
     <div className={`cr is-${density}`} data-mode={mode}>
       {mode === 'catalog' && <CatalogMode model={model} sections={sections} problemHref={problemHref} runHref={runHref} />}
+      {mode === 'architecture' && <ArchitectureMode model={model} sections={sections} />}
+      {mode === 'workflow' && <WorkflowMode model={model} sections={sections} />}
     </div>
   );
 }

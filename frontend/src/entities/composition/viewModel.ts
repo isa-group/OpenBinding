@@ -2,8 +2,10 @@ import type {
   CompositionVersionView, CompositionView, EvaluationView, ForkedFrom, ProblemFacts, VersionDerivation,
 } from '../../shared/api/types';
 import { fromC2y, type Located } from '../../shared/diagnostics/located';
+import { candidateMatrix, type CandidateMatrix } from '../binding/candidateMatrix';
 import { workflowGraph, type WorkflowGraph } from '../binding/workflowGraph';
 import { readDocument, type CompositionDocument, type Evidence, type Kind, type Provenance } from './document';
+import { readAnalytics, type Analytics } from './evolution';
 import { valueModels, valueStatus, type ValueModel, type ValueStatus } from './values';
 
 /**
@@ -81,6 +83,13 @@ export interface CompositionViewModel {
   evidence: Evidence | null;
   /** Task to candidate key (`<resource>/<id>`), from the current evaluation's binding; empty for a public reader. */
   selection: Record<string, string>;
+  /**
+   * The candidates of the linked problem, from the facts of the compilation the values were evaluated on, with the
+   * `selection` marked; null without facts, and always for a public reader.
+   */
+  matrix: CandidateMatrix | null;
+  /** The counts the gateway stored for the version's document (`analytics`); null when the version view carries none. */
+  analytics: Analytics | null;
   /** What the current evaluation found, located in the version's text; members only. */
   diagnostics: Located[];
   modes: Mode[];
@@ -194,6 +203,8 @@ export function compositionViewModel(input: CompositionViewModelInput): Composit
     offering: offeringModel(version ? version.offering : null) ?? offeringModel(document?.offering as Record<string, string> | undefined),
     evidence: document?.evidence ?? null,
     selection,
+    matrix: member && version && facts ? candidateMatrix(facts, { selection }) : null,
+    analytics: readAnalytics(version?.analytics),
     diagnostics,
     modes,
   };

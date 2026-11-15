@@ -80,6 +80,17 @@ describe('compositionViewModel for a member', () => {
     expect(model.selection).toEqual(fmsVersion.evaluations[0].binding);
   });
 
+  it('draws the candidates of the problem from the facts, with the evaluated candidate of each task selected', () => {
+    expect(model.matrix?.rows.map((row) => row.task)).toEqual(facts.tasks.map((task) => task.id));
+    const t1 = model.matrix?.rows.find((row) => row.task === 'T1');
+    expect(t1?.candidates.map((candidate) => [candidate.key, candidate.selected])).toEqual([['catalog/cand_t1_aws', true], ['catalog/cand_t1_google_cloud', false]]);
+    expect(compositionViewModel({ composition: composition(), version: version(), reader: 'member' }).matrix).toBeNull();
+  });
+
+  it('carries the counts the gateway stored for the document', () => {
+    expect(model.analytics).toMatchObject({ tasks: 6, boundTasks: 5, localTasks: 1, upstreamPricings: 0, hasOffering: false });
+  });
+
   it('places the gateway values as they are, computing none', () => {
     expect(model.values).toEqual(Object.entries(fmsVersion.values).map(([name, { value, unit }]) => ({ name, value, unit, status: 'verified' })));
     for (const value of model.values) expect(value.value).toBe(fmsVersion.values[value.name as keyof typeof fmsVersion.values].value);
@@ -123,6 +134,7 @@ describe('compositionViewModel for a public reader', () => {
 
   it('has no selection, no findings and no modes that need the problem', () => {
     expect(model.selection).toEqual({});
+    expect(compositionViewModel({ composition: composition(), version: publicVersion(), facts, reader: 'public' }).matrix).toBeNull();
     expect(model.diagnostics).toEqual([]);
     expect(model.modes).toEqual(['catalog', 'architecture', 'workflow', 'comparison', 'showcase']);
   });
@@ -189,6 +201,8 @@ describe('a composition without versions', () => {
     expect(model.tasks).toEqual([]);
     expect(model.values).toEqual([]);
     expect(model.evidence).toBeNull();
+    expect(model.matrix).toBeNull();
+    expect(model.analytics).toBeNull();
     expect(model.modes).toEqual(['catalog']);
   });
 });

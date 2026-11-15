@@ -4,12 +4,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { org, renderOrgScreen } from '../../features/workspace/testKit';
 import type { CompositionVersionView, CompositionView } from '../../shared/api/types';
+import fmsFacts from '../../test/fixtures/core/fms.facts.json';
 import fmsVersion from '../../test/fixtures/core/fms.version.json';
 import { CompositionDetail } from './CompositionDetail';
 
 const api = vi.hoisted(() => ({ get: vi.fn(), allVersions: vi.fn(), version: vi.fn(), content: vi.fn() }));
 
 vi.mock('../../entities/composition/api', () => ({ compositionsApi: api }));
+
+const factsApi = vi.hoisted(() => ({ get: vi.fn() }));
+
+vi.mock('../../entities/problem/facts', () => ({ problemFactsApi: factsApi }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
 const partner = org('partner-lab', { name: 'Partner Lab', effective_role: 'VIEWER' });
@@ -56,6 +61,7 @@ describe('Composition page', () => {
     api.get.mockResolvedValue({ value: composition, etag: 'W/"7"' });
     api.allVersions.mockResolvedValue(versions);
     api.version.mockImplementation(async (_org: string, _slug: string, id: string) => versions.find((version) => version.id === id));
+    factsApi.get.mockResolvedValue(fmsFacts);
   });
 
   it('shows the composition, its badges and the latest version in its Overview', async () => {
@@ -74,6 +80,41 @@ describe('Composition page', () => {
     expect(screen.getByText('Verified')).toBeInTheDocument();
     // The header names the composition: the catalog leaves its identity out.
     expect(screen.queryByRole('heading', { level: 2, name: 'Fleet routing' })).toBeNull();
+  });
+
+  it('draws the providers, the workflow and the linked problem’s candidates, read from the compilation the values were evaluated on', async () => {
+    renderDetail();
+
+    const providers = await screen.findByRole('region', { name: 'Providers' });
+    expect(await within(providers).findByRole('heading', { level: 3, name: 'amazon 2 tasks' })).toBeInTheDocument();
+    expect(factsApi.get).toHaveBeenCalledWith('isa-demo', fmsVersion.problem.problem.slug, fmsVersion.problem.revision.revision, fmsVersion.evaluations[0].compilation.id);
+    expect(screen.getByRole('region', { name: 'Upstream plans' })).toHaveTextContent('No candidate names the SPHERE plan it comes from.');
+    expect(within(screen.getByRole('region', { name: 'Workflow' })).getByRole('group', { name: 'The workflow of Fleet routing' })).toBeInTheDocument();
+    const candidates = screen.getByRole('region', { name: 'Problem candidates' });
+    expect(within(candidates).getByRole('row', { name: /^cand_t1_aws/ })).toHaveAttribute('aria-current', 'true');
+  });
+
+  it('keeps the rest of the Overview when the candidates cannot be read, and reads them again on request', async () => {
+    factsApi.get.mockRejectedValueOnce(new HttpError(503, 'unavailable'));
+    renderDetail();
+
+    expect(await screen.findByText(/^The candidates of the linked problem couldn’t be loaded \(503/)).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Workflow' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Problem candidates' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByRole('region', { name: 'Problem candidates' })).toBeInTheDocument();
+  });
+
+  it('reads no candidates for a declared version', async () => {
+    const declared = versionOf('v3', '1.2.0', 3, { problem: null, values_status: 'declared' });
+    api.allVersions.mockResolvedValue([declared]);
+    api.version.mockResolvedValue(declared);
+    renderDetail();
+
+    expect(await screen.findByRole('region', { name: 'Workflow' })).toBeInTheDocument();
+    expect(factsApi.get).not.toHaveBeenCalled();
+    expect(screen.queryByRole('region', { name: 'Problem candidates' })).toBeNull();
+    expect(screen.queryByText(/candidates of the linked problem/)).toBeNull();
   });
 
   it('says where a forked version comes from, linking a source in one of the account’s organizations', async () => {

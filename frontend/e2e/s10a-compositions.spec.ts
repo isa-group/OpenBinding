@@ -2,7 +2,7 @@ import { expect as baseExpect, test, type Page } from '@playwright/test';
 import { installMockApi } from './helpers/mockApi';
 
 // S10a · the compositions of an organization: composition-list (/app/:org/compositions) and the composition page composition-detail
-// with its Overview, the catalog of the version shown. The smoke grows with the blocks that build the composition screens: list,
+// with its Overview: the catalog of the version shown, its architecture and its workflow. The smoke grows with the blocks that build the composition screens: list,
 // create and overview here; the editor, the comparison of versions, analysis and settings later.
 // There is no backend: e2e/helpers/mockApi.ts answers the API origin, with the compositions of e2e/helpers/mockCompositions.ts.
 
@@ -91,7 +91,7 @@ test.describe('S10a · compositions', () => {
     expect(mock.unmocked).toEqual([]);
   });
 
-  test('the Overview of a linked composition shows its verified values, binding, evidence and problem, version by version', async ({ page }) => {
+  test('the Overview of a linked composition shows its verified values, binding, evidence, problem, providers, workflow and the problem’s candidates, version by version', async ({ page }) => {
     const mock = await installMockApi(page, 'admin');
     await page.goto(`${LIST}/fleet-routing`);
 
@@ -107,6 +107,18 @@ test.describe('S10a · compositions', () => {
     await expect(region(page, 'Problem').getByRole('link', { name: 'isa-demo/checkout-flow@2' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow?version=2');
     await expect(region(page, 'Evaluation findings')).toContainText('No issues');
 
+    const providers = region(page, 'Providers');
+    await expect(providers.getByRole('heading', { level: 3, name: 'amazon 2 tasks' })).toBeVisible();
+    await expect(providers.getByRole('heading', { level: 3, name: 'In-house 1 task' })).toBeVisible();
+    await expect(region(page, 'Upstream plans')).toContainText('No candidate names the SPHERE plan it comes from.');
+    const workflow = region(page, 'Workflow');
+    await expect(workflow.getByRole('group', { name: 'The workflow of Fleet routing' })).toBeVisible();
+    await expect(workflow).toContainText('candidate cand_t1_aws');
+    await expect(workflow).toContainText('local task · not bound');
+    const candidates = region(page, 'Problem candidates');
+    await expect(candidates.getByRole('row', { name: /^cand_t1_aws/ })).toHaveAttribute('aria-current', 'true');
+    await expect(candidates.getByRole('row', { name: /^cand_t1_google_cloud/ })).not.toHaveAttribute('aria-current', 'true');
+
     await version.selectOption({ label: '1.1.0' });
     await expect(page).toHaveURL(`${LIST}/fleet-routing?version=1.1.0`);
     await expect(region(page, 'Value status')).toContainText('Unverified');
@@ -115,7 +127,7 @@ test.describe('S10a · compositions', () => {
     expect(mock.unmocked).toEqual([]);
   });
 
-  test('the Overview of a declared composition shows the author’s values and its offering as a reference', async ({ page }) => {
+  test('the Overview of a declared composition shows the author’s values, its offering and its upstream plan as references', async ({ page }) => {
     const mock = await installMockApi(page, 'admin');
     await page.goto(`${LIST}/order-desk?version=1`);
 
@@ -125,6 +137,20 @@ test.describe('S10a · compositions', () => {
     await expect(region(page, 'Binding')).toContainText('From brevo/brevo · plan STARTER · version 665f1c2e9b1d4a0012ab34cd');
     await expect(region(page, 'Offering').getByRole('link')).toHaveAttribute('href', 'https://pricings.example.org/order-desk/pricing.yml');
     await expect(region(page, 'Problem')).toHaveCount(0);
+
+    const providers = region(page, 'Providers');
+    await expect(providers).toContainText('The candidates come from 1 SPHERE pricing.');
+    await expect(providers.getByRole('heading', { level: 3, name: 'brevo/brevo SPHERE pricing 1 task' })).toBeVisible();
+    await expect(providers.getByRole('heading', { level: 3, name: 'Provider not known 3 tasks' })).toBeVisible();
+    await expect(providers.getByRole('heading', { level: 3, name: 'In-house 1 task' })).toBeVisible();
+    const plans = region(page, 'Upstream plans');
+    const starter = plans.getByRole('article', { name: 'Plan STARTER' });
+    await expect(starter).toContainText('brevo/brevo');
+    await expect(starter).toContainText('665f1c2e9b1d4a0012ab34cd');
+    await expect(plans).toContainText('For notify');
+    await expect(plans.getByRole('link')).toHaveCount(0);
+    await expect(region(page, 'Workflow').getByRole('group', { name: 'Choice, 2 branches, probabilities 0.7, 0.3' })).toBeVisible();
+    await expect(region(page, 'Problem candidates')).toHaveCount(0);
     expect(mock.unmocked).toEqual([]);
   });
 

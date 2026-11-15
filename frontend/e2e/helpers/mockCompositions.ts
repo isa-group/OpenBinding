@@ -5,6 +5,7 @@ import type { CompositionVersionView, CompositionView } from '../../src/shared/a
 // to the problem `checkout-flow`, three versions each, with evaluations and analytics, and an archived one with no version. The
 // linked versions are the gateway's own fixture (src/test/fixtures/core/fms.version.json) under other ids, labels and values; the
 // declared ones follow src/test/fixtures/compositions/declared.yaml. A composition created through the mock is kept for the page.
+// The facts of the compilation the linked versions were evaluated on are core/fms.facts.json, which mockApi.ts serves for it.
 
 /** The organization that has compositions; every other one has none. */
 export const COMPOSITIONS_ORG = 'isa-demo';

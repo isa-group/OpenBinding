@@ -54,3 +54,15 @@
 .cr-lines { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; color: var(--tp-slate); font-size: 0.875rem; }
 .cr-lines li { overflow-wrap: anywhere; }
 .cr-lines code { font-family: var(--font-mono); font-size: 0.8125rem; }
+
+.cr-plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--tp-spacing-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cr-plans > li { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.cr-plans code { font-family: var(--font-mono); font-size: 0.75rem; overflow-wrap: anywhere; }

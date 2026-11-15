@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Notice } from '../../../components/ui/Notice';
 import type { Evidence, Provenance } from '../../../entities/composition/document';
@@ -9,6 +9,7 @@ import { ProblemsPanel } from '../../problems-panel/ProblemsPanel';
 import { ValueBadge } from '../../value-badge/ValueBadge';
 import type { RendererLinks } from '../CompositionRenderer';
 import type { Section } from '../presets';
+import { RendererSection } from '../RendererSection';
 
 /**
  * The catalog mode: what a composition is and what it says, read top to bottom. Every value is the gateway's, placed as it came;
@@ -37,16 +38,6 @@ function provenanceText(from: Provenance): string {
   const parts = [`${from.sphere}${from.registry ? ` on ${from.registry}` : ''}`, `plan ${from.plan}`, `version ${from.version}`];
   if (from.addons?.length) parts.push(`add-ons ${from.addons.join(', ')}`);
   return parts.join(' · ');
-}
-
-function CatalogSection({ title, children }: { title: string; children: ReactNode }) {
-  const id = useId();
-  return (
-    <section className="cr-section" aria-labelledby={id}>
-      <h2 id={id}>{title}</h2>
-      {children}
-    </section>
-  );
 }
 
 function RunLink({ run, runHref }: { run: string; runHref: RendererLinks['runHref'] }) {
@@ -115,7 +106,7 @@ export function CatalogMode({ model, sections, problemHref = null, runHref = nul
       {identityBlock}
 
       {shows('status') && status.values && (
-        <CatalogSection title="Value status">
+        <RendererSection title="Value status">
           <div className="cr-status">
             <ValueBadge status={status.values} />
             <p>{statusText(model)}</p>
@@ -125,11 +116,11 @@ export function CatalogMode({ model, sections, problemHref = null, runHref = nul
               These values were evaluated on a compilation of the problem other than the one this version links.
             </Notice>
           )}
-        </CatalogSection>
+        </RendererSection>
       )}
 
       {shows('values') && (
-        <CatalogSection title="Values">
+        <RendererSection title="Values">
           {model.values.length === 0 ? <p className="cr-muted">This version records no values.</p> : (
             <dl className="cr-values">
               {model.values.map((value) => (
@@ -140,46 +131,46 @@ export function CatalogMode({ model, sections, problemHref = null, runHref = nul
               ))}
             </dl>
           )}
-        </CatalogSection>
+        </RendererSection>
       )}
 
       {shows('binding') && (
-        <CatalogSection title="Binding">
+        <RendererSection title="Binding">
           {model.tasks.length === 0 ? <p className="cr-muted">This version binds no task.</p> : (
             <ul className="cr-binding" aria-label="Task bindings">
               {model.tasks.map((task) => <TaskLine key={task.id} task={task} />)}
             </ul>
           )}
-        </CatalogSection>
+        </RendererSection>
       )}
 
       {shows('offering') && (
-        <CatalogSection title="Offering">
+        <RendererSection title="Offering">
           {!model.offering ? <p className="cr-muted">This version names no pricing of its own.</p> : (
             <p className="cr-muted">
               {model.offering.href ? <a href={model.offering.href} rel="noreferrer" target="_blank">{model.offering.label}</a> : <code>{model.offering.label}</code>}
               {model.offering.source !== 'url' && ' (SPHERE pricing)'}
             </p>
           )}
-        </CatalogSection>
+        </RendererSection>
       )}
 
       {shows('evidence') && (evidence.length > 0 || derivation) && (
-        <CatalogSection title="Evidence">
+        <RendererSection title="Evidence">
           <ul className="cr-lines">
             {evidence.map((line, index) => <li key={index}>{line}</li>)}
             {derivation && <li>{derivation}</li>}
           </ul>
-        </CatalogSection>
+        </RendererSection>
       )}
 
       {shows('problem') && status.problemRef && (
-        <CatalogSection title="Problem">
+        <RendererSection title="Problem">
           <p className="cr-muted">
             {problemHref && status.problemReadable ? <Link to={problemHref}><code>{status.problemRef}</code></Link> : <code>{status.problemRef}</code>}
             {!member && ' — the problem itself is not shared.'}
           </p>
-        </CatalogSection>
+        </RendererSection>
       )}
 
       {shows('diagnostics') && member && (

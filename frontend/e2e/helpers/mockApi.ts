@@ -183,6 +183,12 @@ const coreFixture = (file: string): Record<string, unknown> => JSON.parse(readFi
 /** The facts of each version's compilation: what the problem page, the run result and the launcher read. Version 1 and 2 differ. */
 const FACTS_OF: Record<string, string> = { 1: 'fms', 2: 'json-complete' };
 const factsOf = (revision: number | string) => coreFixture(`${FACTS_OF[String(revision)] ?? 'json-complete'}.facts.json`);
+/** The compilation the linked compositions of mockCompositions.ts were evaluated on (core/fms.version.json): its facts are FMS's. */
+const FLEET_COMPILATION = (coreFixture('fms.version.json').evaluations as Array<{ compilation: { id: string } }>)[0].compilation.id;
+/** The facts of a compilation of a problem version: the fleet's compilation has its own, any other its version's. */
+const factsOfCompilation = (compilation: string, revision: number | string) => (
+  compilation === FLEET_COMPILATION ? coreFixture('fms.facts.json') : factsOf(revision)
+);
 /** What `validate?include=…` adds to the analysis: the IR bytes (shown, never read) and the facts of the package. */
 const included = (include: string | null): Record<string, unknown> => {
   const parts = (include ?? '').split(',');
@@ -367,7 +373,7 @@ function problemRoutes(request: Request, orgSlug: string): Reply {
   if (tail === 'compilations' && compilationId && last === 'ir') {
     return ok({ id: compilationId, ir_digest: caseDigest('c'), ir: compiledDocument(), source_map: {} });
   }
-  if (tail === 'compilations' && compilationId && last === 'facts') return ok(factsOf(revision.revision));
+  if (tail === 'compilations' && compilationId && last === 'facts') return ok(factsOfCompilation(compilationId, revision.revision));
   return notFound('Not mocked.');
 }
 
