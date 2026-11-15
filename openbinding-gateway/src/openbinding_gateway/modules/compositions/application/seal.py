@@ -13,7 +13,7 @@ composition's ``kind`` follow it. The row lock serialises the seals of one compo
 against deleting it or its organization.
 
 :func:`insert_evaluation` is the only code that inserts evaluation rows, for a new version, for a version
-sealed again and, later, for a re-evaluation. The diagnostics it stores are located in the version's own
+sealed again and for a re-evaluation (:mod:`.evaluate`). The diagnostics it stores are located in the version's own
 content, which is what an editor shows of a stored version; the seal and check responses keep the spans of
 the text that was submitted, which is what the author is looking at.
 """

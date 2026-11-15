@@ -2800,6 +2800,44 @@
         "title": "CompositionDiagnosticView",
         "type": "object"
       },
+      "CompositionEvaluate": {
+        "additionalProperties": false,
+        "description": "A version of a composition to evaluate, with some of its tasks bound otherwise.",
+        "properties": {
+          "binding": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "maxProperties": 1024,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tasks to bind otherwise, each to a candidate as a document names it (its id, or `<resource>/<id>`); the other tasks keep the version's binding.",
+            "title": "Binding"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version to evaluate: its id, label or ordinal; the latest by default.",
+            "title": "Version"
+          }
+        },
+        "title": "CompositionEvaluate",
+        "type": "object"
+      },
       "CompositionFork": {
         "additionalProperties": false,
         "description": "A version of a composition to fork into another organization, as a new composition there.",
@@ -2902,6 +2940,187 @@
           "offset"
         ],
         "title": "CompositionList",
+        "type": "object"
+      },
+      "CompositionMove": {
+        "description": "One alternative of the version's binding: one task bound to another candidate.",
+        "properties": {
+          "candidate": {
+            "description": "The candidate the move binds (`to`), as a document names it.",
+            "title": "Candidate",
+            "type": "string"
+          },
+          "comparison": {
+            "enum": [
+              "better",
+              "worse",
+              "equal",
+              "trade-off",
+              "infeasible",
+              "repairs-feasibility"
+            ],
+            "title": "Comparison",
+            "type": "string"
+          },
+          "componentDeltas": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Componentdeltas",
+            "type": "array"
+          },
+          "decision": {
+            "additionalProperties": true,
+            "title": "Decision",
+            "type": "object"
+          },
+          "feasible": {
+            "title": "Feasible",
+            "type": "boolean"
+          },
+          "features": {
+            "additionalProperties": true,
+            "title": "Features",
+            "type": "object"
+          },
+          "from": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "From",
+            "type": "object"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "title": "Metrics",
+            "type": "object"
+          },
+          "objectives": {
+            "additionalProperties": true,
+            "title": "Objectives",
+            "type": "object"
+          },
+          "penaltyDelta": {
+            "title": "Penaltydelta",
+            "type": "number"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          },
+          "to": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "To",
+            "type": "object"
+          },
+          "violations": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task",
+          "from",
+          "to",
+          "decision",
+          "objectives",
+          "violations",
+          "feasible",
+          "comparison",
+          "componentDeltas",
+          "penaltyDelta",
+          "candidate"
+        ],
+        "title": "CompositionMove",
+        "type": "object"
+      },
+      "CompositionNeighborhoodResponse": {
+        "description": "The toolchain's one-task alternatives of a version's binding.",
+        "properties": {
+          "base": {
+            "additionalProperties": true,
+            "title": "Base",
+            "type": "object"
+          },
+          "conclusion": {
+            "title": "Conclusion",
+            "type": "string"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/NeighborhoodCoverage"
+          },
+          "failures": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Failures",
+            "type": "array"
+          },
+          "irDigest": {
+            "title": "Irdigest",
+            "type": "string"
+          },
+          "kind": {
+            "const": "canonical-one-task-counterfactuals",
+            "title": "Kind",
+            "type": "string"
+          },
+          "moves": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionMove"
+            },
+            "title": "Moves",
+            "type": "array"
+          },
+          "scope": {
+            "enum": [
+              "all-service-tasks",
+              "selected-service-task"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "semantics": {
+            "title": "Semantics",
+            "type": "string"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          },
+          "version": {
+            "$ref": "#/components/schemas/VersionName"
+          }
+        },
+        "required": [
+          "kind",
+          "irDigest",
+          "scope",
+          "task",
+          "base",
+          "moves",
+          "failures",
+          "coverage",
+          "conclusion",
+          "semantics",
+          "version"
+        ],
+        "title": "CompositionNeighborhoodResponse",
         "type": "object"
       },
       "CompositionOrganization": {
@@ -5015,6 +5234,53 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "EvaluateResult": {
+        "description": "A binding of a version as the toolchain evaluated it; nothing is stored.",
+        "properties": {
+          "diagnostics": {
+            "description": "What the evaluation found; a finding about a task the request rebinds points at `/binding/<task>`.",
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "valid": {
+            "description": "Whether the binding holds: the toolchain reports no hard violation.",
+            "title": "Valid",
+            "type": "boolean"
+          },
+          "values": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ValueView"
+            },
+            "description": "The global values the toolchain computed for this binding.",
+            "title": "Values",
+            "type": "object"
+          },
+          "version": {
+            "$ref": "#/components/schemas/VersionName"
+          },
+          "violations": {
+            "description": "The constraint violations the toolchain reported.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "version",
+          "valid",
+          "values",
+          "violations",
+          "diagnostics"
+        ],
+        "title": "EvaluateResult",
+        "type": "object"
+      },
       "EvaluationCompilation": {
         "description": "The compilation an evaluation evaluated: the toolchain's of that release.",
         "properties": {
@@ -6286,6 +6552,7 @@
         "type": "object"
       },
       "NeighborhoodResponse": {
+        "description": "The counterfactuals of one solution of a run.",
         "properties": {
           "base": {
             "additionalProperties": true,
@@ -6356,8 +6623,6 @@
           }
         },
         "required": [
-          "jobId",
-          "solutionIndex",
           "kind",
           "irDigest",
           "scope",
@@ -6367,7 +6632,9 @@
           "failures",
           "coverage",
           "conclusion",
-          "semantics"
+          "semantics",
+          "jobId",
+          "solutionIndex"
         ],
         "title": "NeighborhoodResponse",
         "type": "object"
@@ -15720,6 +15987,148 @@
         ]
       }
     },
+    "/v1/organizations/{org}/compositions/{composition}/evaluate": {
+      "post": {
+        "description": "Have the installed toolchain evaluate the binding of a version (the latest by default) with the tasks `binding` names bound to those candidates, the others as the version binds them. Nothing is stored. A binding the toolchain evaluated answers 200, `valid` false when it reports a hard violation; one it could not evaluate is 422 `evaluation_invalid`.",
+        "operationId": "evaluateComposition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionEvaluate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluateResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The composition has no version to default to (`composition_empty`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The binding could not be evaluated (`evaluation_invalid`; a finding about a rebound task points at `/binding/<task>`), or the version links no problem (`composition_not_linked`)."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The toolchain does not answer (`bim_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Evaluate another binding of a version",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
     "/v1/organizations/{org}/compositions/{composition}/fork": {
       "post": {
         "description": "Create a new composition in `targetOrganization` whose first version is the source version's document with `composition:` set to the new slug, sealed again through the same pipeline. The caller must read the source and be a MEMBER of the target. Without `slug` the fork takes the source's, and when the target holds it already nothing is written: 200 `nameTaken` names the composition that holds it. A version that links a problem is forked only with `dropProblem`, which removes its `problem` and `evidence` and declares its values.",
@@ -15883,6 +16292,190 @@
         ],
         "x-required-api-key-permissions": [
           "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/neighborhood": {
+      "get": {
+        "description": "The toolchain's canonical one-task counterfactuals of a version's binding (the latest version by default), on the installed toolchain's compilation of the problem it links: at most `limit` alternatives, within a cooperative two-second budget. Each move also names its candidate as a document does. Nothing is stored.",
+        "operationId": "getCompositionNeighborhood",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The version: id, label or ordinal; the latest by default.",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The version: id, label or ordinal; the latest by default.",
+              "title": "Version"
+            }
+          },
+          {
+            "description": "Only the alternatives of this task.",
+            "in": "query",
+            "name": "task",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only the alternatives of this task.",
+              "title": "Task"
+            }
+          },
+          {
+            "description": "At most this many alternatives are evaluated.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 32,
+              "description": "At most this many alternatives are evaluated.",
+              "maximum": 128,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionNeighborhoodResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The composition has no version to default to (`composition_empty`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The toolchain cannot analyse the binding or the task (`analysis_invalid`), the version links no problem (`composition_not_linked`), or the installed toolchain reads the problem differently (`c2y_compilation_semantics_changed`)."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The toolchain does not answer (`bim_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Evaluate the one-task alternatives of a version's binding",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
         ]
       }
     },
@@ -16653,6 +17246,147 @@
         ],
         "x-required-api-key-permissions": [
           "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/versions/{version}/evaluations": {
+      "post": {
+        "description": "Store the installed toolchain's evaluation of the version, read from its stored bytes and the problem it links: one per toolchain release, whatever its outcome (`verified`, `binding_invalid`, `semantics_changed`). 200 with the evaluation when it already exists; a version linked to no problem answers its declared evaluation. The version itself never changes.",
+        "operationId": "reevaluateCompositionVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationView"
+                }
+              }
+            },
+            "description": "The installed toolchain had evaluated the version already."
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The installed toolchain could not evaluate the version, for example its package no longer compiles (`evaluation_invalid`); `diagnostics` says why."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The toolchain does not answer (`bim_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Evaluate a version with the installed toolchain",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write"
         ]
       }
     },

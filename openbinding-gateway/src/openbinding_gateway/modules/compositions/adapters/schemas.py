@@ -11,6 +11,7 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from ....models.analysis import CounterfactualMove, NeighborhoodDocument
 from ....models.platform import SLUG
 
 #: What a composition composes, as Composition2Yaml's ``kind`` spells it.
@@ -430,3 +431,49 @@ class ForkNameTaken(BaseModel):
 
     name_taken: Literal[True] = Field(alias="nameTaken")
     existing_composition: ExistingComposition = Field(alias="existingComposition")
+
+
+# -- Re-evaluation, other bindings and the neighbourhood --------------------------------------------------
+
+
+class CompositionEvaluate(BaseModel):
+    """A version of a composition to evaluate, with some of its tasks bound otherwise."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    version: Optional[str] = Field(
+        default=None, min_length=1, max_length=64,
+        description="The version to evaluate: its id, label or ordinal; the latest by default.",
+    )
+    binding: Optional[dict[str, str]] = Field(
+        default=None, max_length=1024,
+        description=(
+            "Tasks to bind otherwise, each to a candidate as a document names it (its id, or `<resource>/<id>`); "
+            "the other tasks keep the version's binding."
+        ),
+    )
+
+
+class EvaluateResult(BaseModel):
+    """A binding of a version as the toolchain evaluated it; nothing is stored."""
+
+    version: VersionName
+    valid: bool = Field(description="Whether the binding holds: the toolchain reports no hard violation.")
+    values: dict[str, ValueView] = Field(description="The global values the toolchain computed for this binding.")
+    violations: list[dict[str, Any]] = Field(description="The constraint violations the toolchain reported.")
+    diagnostics: list[CompositionDiagnosticView] = Field(
+        description="What the evaluation found; a finding about a task the request rebinds points at `/binding/<task>`.",
+    )
+
+
+class CompositionMove(CounterfactualMove):
+    """One alternative of the version's binding: one task bound to another candidate."""
+
+    candidate: str = Field(description="The candidate the move binds (`to`), as a document names it.")
+
+
+class CompositionNeighborhoodResponse(NeighborhoodDocument):
+    """The toolchain's one-task alternatives of a version's binding."""
+
+    moves: list[CompositionMove]
+    version: VersionName

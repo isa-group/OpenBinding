@@ -29,9 +29,9 @@ class CounterfactualMove(BaseModel):
     penaltyDelta: float
 
 
-class NeighborhoodResponse(BaseModel):
-    jobId: str
-    solutionIndex: int
+class NeighborhoodDocument(BaseModel):
+    """The toolchain's canonical one-task counterfactuals of a binding, as it returns them."""
+
     kind: Literal["canonical-one-task-counterfactuals"]
     irDigest: str
     scope: Literal["all-service-tasks", "selected-service-task"]
@@ -42,3 +42,10 @@ class NeighborhoodResponse(BaseModel):
     coverage: NeighborhoodCoverage
     conclusion: str
     semantics: str
+
+
+class NeighborhoodResponse(NeighborhoodDocument):
+    """The counterfactuals of one solution of a run."""
+
+    jobId: str
+    solutionIndex: int

@@ -374,6 +374,13 @@ def test_a_quota_refusal_says_which_limit_and_where_it_stands(document):
             "/v1/organizations/{org}/compositions/{composition}/fork", "post",
             {"200", "201", "403", "404", "409", "422", "429"},
         ),
+        # A stored version evaluated again, with another binding, and around its binding.
+        (
+            "/v1/organizations/{org}/compositions/{composition}/versions/{version}/evaluations", "post",
+            {"200", "201", "403", "404", "422", "429", "503"},
+        ),
+        ("/v1/organizations/{org}/compositions/{composition}/evaluate", "post", {"200", "404", "409", "422", "429", "503"}),
+        ("/v1/organizations/{org}/compositions/{composition}/neighborhood", "get", {"200", "404", "409", "422", "429", "503"}),
     ],
 )
 def test_the_failures_an_endpoint_can_produce_are_declared(document, path, method, statuses):

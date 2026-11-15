@@ -34,6 +34,9 @@ EMPTY_JSON = {"content": b"{}", "headers": {"content-type": "application/json"}}
 LANGUAGE = "/v1/compositions"
 VERSIONS = "/v1/organizations/{org}/compositions/{composition}/versions"
 FORK = "/v1/organizations/{org}/compositions/{composition}/fork"
+REEVALUATE = "/v1/organizations/{org}/compositions/{composition}/versions/{version}/evaluations"
+EVALUATE = "/v1/organizations/{org}/compositions/{composition}/evaluate"
+NEIGHBORHOOD = "/v1/organizations/{org}/compositions/{composition}/neighborhood"
 
 #: A request for every route that reaches the limiter: ``(method, template) -> (method, concrete path, body)``,
 #: the concrete path filled in by the ``member`` fixture's organization and problem.
@@ -52,6 +55,9 @@ REQUESTS = {
     ("POST", f"{VERSIONS}"): ("POST", "/v1/organizations/{org}/compositions/none/versions", EMPTY_YAML),
     ("POST", f"{VERSIONS}/check"): ("POST", "/v1/organizations/{org}/compositions/none/versions/check", EMPTY_YAML),
     ("POST", FORK): ("POST", "/v1/organizations/{org}/compositions/none/fork", EMPTY_JSON),
+    ("POST", REEVALUATE): ("POST", "/v1/organizations/{org}/compositions/none/versions/1/evaluations", {}),
+    ("POST", EVALUATE): ("POST", "/v1/organizations/{org}/compositions/none/evaluate", EMPTY_JSON),
+    ("GET", NEIGHBORHOOD): ("GET", "/v1/organizations/{org}/compositions/none/neighborhood", {}),
 }
 
 #: The stateless language services: open to anybody, and answering ``application/problem+json``.
@@ -145,6 +151,7 @@ def test_a_route_added_under_the_compiling_prefixes_has_to_be_classified():
             "/v1/organizations/{org}/compositions/{composition}/",
         )))
         or path.endswith("/compilation")
+        or (path.startswith("/v1/organizations/{org}/compositions/{composition}/") and path.endswith("/neighborhood"))
     }
     assert found == set(WORK_ROUTES)
 
@@ -159,6 +166,7 @@ def test_compile_read_and_evaluate_are_the_classes_the_policy_states():
     assert {route for route, work_class in WORK_ROUTES.items() if work_class == "read"} == LANGUAGE_ROUTES
     assert {route for route, work_class in WORK_ROUTES.items() if work_class == "evaluate"} == {
         ("POST", VERSIONS), ("POST", f"{VERSIONS}/check"), ("POST", FORK),
+        ("POST", REEVALUATE), ("POST", EVALUATE), ("GET", NEIGHBORHOOD),
     }
 
 

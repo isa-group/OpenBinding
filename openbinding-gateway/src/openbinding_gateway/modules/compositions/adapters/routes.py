@@ -10,6 +10,10 @@ and, when it links a problem, evaluated by the toolchain; its canonical bytes an
 stored, immutable. Sealing and checking count against the caller's ``evaluate`` budget. Two versions are
 compared from their stored bytes; a version is forked into another organization as a new composition, whose
 first version is sealed through the same pipeline (also the ``evaluate`` budget).
+
+A sealed version is evaluated again from its stored bytes: by the installed toolchain, whose evaluation is
+stored (one per toolchain release), with some tasks bound otherwise (nothing stored), and around its binding
+(the toolchain's one-task alternatives). The three count against the ``evaluate`` budget.
 """
 
 from __future__ import annotations
@@ -41,7 +45,7 @@ from ....models.errors import (
     api_error,
 )
 from ....security.apikeys import authenticated_api_key, boundary_of
-from ..application import compositions, language, seal, versions
+from ..application import compositions, evaluate, language, seal, versions
 from ..application.fork import NameTaken, fork_composition
 from ..application.language import diagnostic_view
 from ..domain.records import values_json
@@ -49,8 +53,10 @@ from .language_routes import MAX_DOCUMENT_BYTES, YAML_BODY, YAML_MEDIA_TYPES, do
 from .schemas import (
     CheckResult,
     CompositionCreate,
+    CompositionEvaluate,
     CompositionKindName,
     CompositionList,
+    CompositionNeighborhoodResponse,
     CompositionOrganization,
     CompositionFork,
     CompositionUpdate,
@@ -59,6 +65,7 @@ from .schemas import (
     CompositionVersionSummary,
     CompositionVersionView,
     CompositionView,
+    EvaluateResult,
     EvaluationCompilation,
     EvaluationView,
     EvidenceRun,
@@ -67,6 +74,7 @@ from .schemas import (
     SealResult,
     VersionCompilation,
     VersionLink,
+    VersionName,
     VersionProblem,
     VersionRevision,
 )
@@ -632,3 +640,143 @@ async def fork_composition_version(
         version=_version_view(detail),
         droppedProblem=outcome.dropped_problem,
     )
+
+
+# -- Re-evaluation, other bindings and the neighbourhood ------------------------------------------------
+
+_NOT_LINKED = "the version links no problem (`composition_not_linked`)"
+_EMPTY = {409: {**CONFLICT_RESPONSE, "description": "The composition has no version to default to (`composition_empty`)."}}
+
+
+@router.post(
+    "/{composition}/versions/{version}/evaluations",
+    status_code=status.HTTP_201_CREATED,
+    response_model=EvaluationView,
+    operation_id="reevaluateCompositionVersion",
+    summary="Evaluate a version with the installed toolchain",
+    description=(
+        "Store the installed toolchain's evaluation of the version, read from its stored bytes and the "
+        "problem it links: one per toolchain release, whatever its outcome (`verified`, `binding_invalid`, "
+        "`semantics_changed`). 200 with the evaluation when it already exists; a version linked to no "
+        "problem answers its declared evaluation. The version itself never changes."
+    ),
+    dependencies=[Depends(limit_work)],
+    responses={
+        200: {"model": EvaluationView, "description": "The installed toolchain had evaluated the version already."},
+        **_UNREADABLE,
+        422: {
+            **_ERROR,
+            "description": (
+                "The installed toolchain could not evaluate the version, for example its package no longer "
+                "compiles (`evaluation_invalid`); `diagnostics` says why."
+            ),
+        },
+        **_BUSY,
+        **_TOOLCHAIN_DOWN,
+    },
+)
+async def reevaluate_composition_version(
+    org: str,
+    composition: str,
+    version: str,
+    response: Response,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> EvaluationView:
+    organization = await compositions.organization_for(session, org, user, OrganizationRole.MEMBER)
+    found = await compositions.required_composition(session, organization, composition)
+    row = await versions.required_version(session, found, version)
+    outcome = await evaluate.reevaluate(session, organization, found, row, actor=user)
+    (detail,) = await versions.details(session, [row])
+    response.status_code = status.HTTP_201_CREATED if outcome.created else status.HTTP_200_OK
+    return _evaluation_view(outcome.evaluation, detail.current, detail)
+
+
+@router.post(
+    "/{composition}/evaluate",
+    response_model=EvaluateResult,
+    operation_id="evaluateComposition",
+    summary="Evaluate another binding of a version",
+    description=(
+        "Have the installed toolchain evaluate the binding of a version (the latest by default) with the "
+        "tasks `binding` names bound to those candidates, the others as the version binds them. Nothing is "
+        "stored. A binding the toolchain evaluated answers 200, `valid` false when it reports a hard "
+        "violation; one it could not evaluate is 422 `evaluation_invalid`."
+    ),
+    dependencies=[Depends(limit_work)],
+    responses={
+        **_UNREADABLE,
+        **_EMPTY,
+        422: {
+            **_ERROR,
+            "description": (
+                f"The binding could not be evaluated (`evaluation_invalid`; a finding about a rebound task points "
+                f"at `/binding/<task>`), or {_NOT_LINKED}."
+            ),
+        },
+        **_BUSY,
+        **_TOOLCHAIN_DOWN,
+    },
+)
+async def evaluate_composition(
+    org: str,
+    composition: str,
+    payload: CompositionEvaluate,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> EvaluateResult:
+    organization = await compositions.organization_for(session, org, user, OrganizationRole.VIEWER)
+    found = await compositions.required_composition(session, organization, composition)
+    evaluated = await evaluate.evaluate_binding(
+        session, organization, found, version_ref=payload.version, binding=payload.binding, caller=user,
+    )
+    return EvaluateResult(
+        version=VersionName(**_name(evaluated.version)),
+        valid=evaluated.valid,
+        values=_values(dict(evaluated.values)),
+        violations=evaluated.violations,
+        diagnostics=[diagnostic_view(item) for item in evaluated.diagnostics],
+    )
+
+
+@router.get(
+    "/{composition}/neighborhood",
+    response_model=CompositionNeighborhoodResponse,
+    operation_id="getCompositionNeighborhood",
+    summary="Evaluate the one-task alternatives of a version's binding",
+    description=(
+        "The toolchain's canonical one-task counterfactuals of a version's binding (the latest version by "
+        "default), on the installed toolchain's compilation of the problem it links: at most `limit` "
+        "alternatives, within a cooperative two-second budget. Each move also names its candidate as a "
+        "document does. Nothing is stored."
+    ),
+    dependencies=[Depends(limit_work)],
+    responses={
+        **_UNREADABLE,
+        **_EMPTY,
+        422: {
+            **_ERROR,
+            "description": (
+                f"The toolchain cannot analyse the binding or the task (`analysis_invalid`), {_NOT_LINKED}, or the "
+                "installed toolchain reads the problem differently (`c2y_compilation_semantics_changed`)."
+            ),
+        },
+        **_BUSY,
+        **_TOOLCHAIN_DOWN,
+    },
+)
+async def get_composition_neighborhood(
+    org: str,
+    composition: str,
+    version: str | None = Query(default=None, max_length=64, description="The version: id, label or ordinal; the latest by default."),
+    task: str | None = Query(default=None, max_length=256, description="Only the alternatives of this task."),
+    limit: int = Query(default=32, ge=1, le=128, description="At most this many alternatives are evaluated."),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> dict[str, Any]:
+    organization = await compositions.organization_for(session, org, user, OrganizationRole.VIEWER)
+    found = await compositions.required_composition(session, organization, composition)
+    row, result = await evaluate.neighbourhood(
+        session, organization, found, version_ref=version, task=task, limit=limit,
+    )
+    return {**result, "version": _name(row)}

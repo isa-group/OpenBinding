@@ -4,7 +4,7 @@ Code outside ``modules/compositions`` reaches the module through this package on
 (``tests/test_modules_skeleton.py``); the composition root mounts the router of ``adapters``.
 """
 
-from .assess import STRICTER_THAN_TOOLCHAIN, Assessment, Resolved, assess
+from .assess import STRICTER_THAN_TOOLCHAIN, Assessment, Resolved, StoredLink, assess, resolve_link
 from .compositions import (
     composition_by_ref,
     create_composition,
@@ -13,6 +13,7 @@ from .compositions import (
     organization_for,
     update_composition,
 )
+from .evaluate import Evaluated, Reevaluated, evaluate_binding, neighbourhood, reevaluate
 from .fork import Forked, NameTaken, fork_composition
 from .language import LanguageRefusal, diff, diff_stored, parse, serialise, validate
 from .seal import Checked, Sealed, check, insert_evaluation, judge, persist, seal_into
@@ -23,11 +24,14 @@ __all__ = [
     "STRICTER_THAN_TOOLCHAIN",
     "Assessment",
     "Checked",
+    "Evaluated",
     "Forked",
     "LanguageRefusal",
     "NameTaken",
+    "Reevaluated",
     "Resolved",
     "Sealed",
+    "StoredLink",
     "assess",
     "check",
     "composition_by_ref",
@@ -36,6 +40,7 @@ __all__ = [
     "diff",
     "diff_pair",
     "diff_stored",
+    "evaluate_binding",
     "evaluation_slot",
     "fork_composition",
     "insert_evaluation",
@@ -43,10 +48,13 @@ __all__ = [
     "language_slot",
     "list_compositions",
     "list_versions",
+    "neighbourhood",
     "organization_for",
     "parse",
     "persist",
+    "reevaluate",
     "required_version",
+    "resolve_link",
     "seal_into",
     "serialise",
     "summaries",

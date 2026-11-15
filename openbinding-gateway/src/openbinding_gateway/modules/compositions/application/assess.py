@@ -45,7 +45,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....composition import diagnostics as codes
 from ....composition import text
 from ....composition.diagnostics import CompositionError, Diagnostic, Path, at
-from ....composition.document import Document, Entry, Evidence, Value
+from ....composition.document import Document, Entry, Evidence, ProblemLink, Value
 from ....composition.problem import (
     ProblemFacts,
     against,
@@ -97,6 +97,14 @@ class Resolved:
 
 
 @dataclass(frozen=True, slots=True)
+class StoredLink:
+    """The problem link a sealed version stores: the revision and the compilation its document names."""
+
+    revision_id: uuid.UUID
+    compilation_id: uuid.UUID
+
+
+@dataclass(frozen=True, slots=True)
 class Assessment:
     """What assessing a document found. It writes nothing.
 
@@ -128,6 +136,7 @@ async def assess(
     language: Iterable[Diagnostic] = (),
     run_evidence: bool = True,
     binding_override: Mapping[str, Entry] | None = None,
+    stored: StoredLink | None = None,
 ) -> Assessment:
     """``document`` judged in ``organization`` against the problem it links, by the toolchain.
 
@@ -135,7 +144,8 @@ async def assess(
     ``language`` are the reading's own findings (warnings and infos: a document with an error is not
     assessed), listed with the rest. ``binding_override`` replaces the binding of the tasks it names before
     anything is judged (another binding of a stored version). ``run_evidence`` false skips the check of the
-    run the evidence names.
+    run the evidence names. ``stored`` is the link a sealed version stores: the problem is then the one it
+    names by id, whatever slugs the document's ref spells (a rename does not break a stored version).
 
     A document problem is a diagnostic, never an exception. A busy evaluation pool is 429
     ``composition_busy``; a toolchain that cannot answer is its own problem (503 ``bim_unavailable``).
@@ -147,60 +157,13 @@ async def assess(
         evidence = replace(doc.evidence or Evidence(), evaluated_by="declared")
         return conclude(effective=replace(doc, evidence=evidence), evaluation=EvaluationDraft.declared(doc.values))
 
-    reference = link.ref
-    if not _names(organization, reference.organization):
-        return conclude(at(
-            _REF, codes.PROBLEM_FOREIGN,
-            f"the problem {str(reference)!r} is of organization {reference.organization!r}: a composition of "
-            f"{organization.slug!r} links a problem of its own organization",
-        ))
-    problem = await problem_by_ref(session, organization.id, reference.problem)
-    revision = None if problem is None else await revision_by_ref(session, problem, reference.revision)
-    if problem is None or revision is None:
-        missing = "problem" if problem is None else "revision"
-        return conclude(at(
-            _REF, codes.PROBLEM_NOT_FOUND,
-            f"organization {organization.slug!r} has no {missing} {str(reference)!r}",
-        ))
-    linked = await compilation_by_digest(session, revision.id, link.compilation)
-    if linked is None:
-        return conclude(at(
-            _COMPILATION, codes.COMPILATION_NOT_FOUND,
-            f"revision {reference.revision} of {reference.problem!r} has no compilation {link.compilation}: "
-            "derive the composition again, or copy the compilation digest from the revision",
-        ))
-    try:
-        installed = await compile_or_get(session, revision, release_transaction=True)
-    except HTTPException as error:
-        refusal = _not_recompilable(error)
-        if refusal is None:
-            raise
-        return conclude(refusal)
-
-    if installed.id != linked.id:
-        if installed.semantic_digest != linked.semantic_digest:
-            resolved = Resolved(problem, revision, linked, installed, None)
-            return conclude(
-                at(
-                    _COMPILATION, codes.COMPILATION_SEMANTICS_CHANGED,
-                    "the installed toolchain reads this revision differently from the compilation the document "
-                    "names: derive the composition again",
-                ),
-                problem=resolved,
-                evaluation=_draft(revision, installed, "semantics_changed"),
-            )
-        conclude.add(at(
-            _COMPILATION, codes.COMPILATION_SUPERSEDED,
-            f"the compilation {link.compilation} was made by another toolchain release; the binding is evaluated "
-            f"on the installed one's compilation {installed.compilation_digest}, which reads the problem alike",
-            severity="info",
-        ))
-    if not bim.ir_is_installed(installed.ir):
-        # ``compile_or_get`` returns the installed toolchain's compilation; kept as the runs routes keep it.
-        raise api_error(422, "contract_not_installed", bim.STALE_IR_MESSAGE)
-
-    facts = ProblemFacts.from_ir(installed.ir, installed.source_map or None)
-    resolved = Resolved(problem, revision, linked, installed, facts)
+    resolved, found = await resolve_link(session, organization, link, stored=stored)
+    conclude.add(*found)
+    if resolved is None:
+        return conclude()
+    if resolved.facts is None:
+        return conclude(problem=resolved, evaluation=_draft(resolved.revision, resolved.installed, "semantics_changed"))
+    facts, revision, installed = resolved.facts, resolved.revision, resolved.installed
     resolution = against(doc, facts)
     if resolution.blocking or resolution.bim_binding is None:
         return conclude(*resolution.blocking, problem=resolved)
@@ -255,6 +218,83 @@ async def assess(
         ),
         evidence_run=run,
     )
+
+
+# --------------------------------------------------------------------------- the link
+
+
+async def resolve_link(
+    session: AsyncSession,
+    organization: Organization,
+    link: ProblemLink,
+    *,
+    stored: StoredLink | None = None,
+) -> tuple[Resolved | None, tuple[Diagnostic, ...]]:
+    """The problem ``link`` names in ``organization``, and what resolving it found.
+
+    ``None`` when the link does not resolve (the findings say why). A ``Resolved`` whose ``facts`` are
+    ``None`` is a compilation the installed toolchain reads differently (the findings hold the error);
+    otherwise the findings hold at most the info that the installed toolchain's compilation is evaluated
+    instead of the linked one. ``stored`` resolves the link by the ids a sealed version keeps, not by the
+    document's ref.
+    """
+    if stored is None:
+        reference = link.ref
+        if not _names(organization, reference.organization):
+            return None, (at(
+                _REF, codes.PROBLEM_FOREIGN,
+                f"the problem {str(reference)!r} is of organization {reference.organization!r}: a composition of "
+                f"{organization.slug!r} links a problem of its own organization",
+            ),)
+        problem = await problem_by_ref(session, organization.id, reference.problem)
+        revision = None if problem is None else await revision_by_ref(session, problem, reference.revision)
+        if problem is None or revision is None:
+            missing = "problem" if problem is None else "revision"
+            return None, (at(
+                _REF, codes.PROBLEM_NOT_FOUND,
+                f"organization {organization.slug!r} has no {missing} {str(reference)!r}",
+            ),)
+        linked = await compilation_by_digest(session, revision.id, link.compilation)
+        if linked is None:
+            return None, (at(
+                _COMPILATION, codes.COMPILATION_NOT_FOUND,
+                f"revision {reference.revision} of {reference.problem!r} has no compilation {link.compilation}: "
+                "derive the composition again, or copy the compilation digest from the revision",
+            ),)
+    else:
+        revision = await session.get(BindingCaseRevision, stored.revision_id)
+        problem = None if revision is None else await session.get(BindingCase, revision.binding_case_id)
+        linked = await session.get(ProblemCompilation, stored.compilation_id)
+        if problem is None or revision is None or linked is None:
+            # The version's foreign keys keep them; only a bug reaches this.
+            return None, (at(_REF, codes.PROBLEM_NOT_FOUND, "the problem this version links no longer exists"),)
+    try:
+        installed = await compile_or_get(session, revision, release_transaction=True)
+    except HTTPException as error:
+        refusal = _not_recompilable(error)
+        if refusal is None:
+            raise
+        return None, (refusal,)
+
+    found: tuple[Diagnostic, ...] = ()
+    if installed.id != linked.id:
+        if installed.semantic_digest != linked.semantic_digest:
+            return Resolved(problem, revision, linked, installed, None), (at(
+                _COMPILATION, codes.COMPILATION_SEMANTICS_CHANGED,
+                "the installed toolchain reads this revision differently from the compilation the document "
+                "names: derive the composition again",
+            ),)
+        found = (at(
+            _COMPILATION, codes.COMPILATION_SUPERSEDED,
+            f"the compilation {link.compilation} was made by another toolchain release; the binding is evaluated "
+            f"on the installed one's compilation {installed.compilation_digest}, which reads the problem alike",
+            severity="info",
+        ),)
+    if not bim.ir_is_installed(installed.ir):
+        # ``compile_or_get`` returns the installed toolchain's compilation; kept as the runs routes keep it.
+        raise api_error(422, "contract_not_installed", bim.STALE_IR_MESSAGE)
+    facts = ProblemFacts.from_ir(installed.ir, installed.source_map or None)
+    return Resolved(problem, revision, linked, installed, facts), found
 
 
 # --------------------------------------------------------------------------- the steps
@@ -435,4 +475,4 @@ class _Conclusion:
         )
 
 
-__all__ = ["STRICTER_THAN_TOOLCHAIN", "Assessment", "Resolved", "assess"]
+__all__ = ["STRICTER_THAN_TOOLCHAIN", "Assessment", "Resolved", "StoredLink", "assess", "resolve_link"]

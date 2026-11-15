@@ -402,6 +402,12 @@ def document_binding(bim_binding: Mapping[str, Mapping[str, Any]], facts: Proble
     return tuple(found)
 
 
+def written_candidate(task: str, reference: Mapping[str, Any], facts: ProblemFacts) -> str:
+    """How a document names the BIM ``reference`` (``{resource, id}``) bound to ``task``: its id, or
+    ``<resource>/<id>`` when two catalogs give the task that id."""
+    return _short(_ref(reference), facts.eligibility.get(task, ()))
+
+
 def _short(reference: CandidateRef, eligible: tuple[CandidateRef, ...]) -> str:
     """How a document names ``reference`` for a task: its id, unless the id is ambiguous there."""
     if sum(1 for other in eligible if other.id == reference.id) > 1:
