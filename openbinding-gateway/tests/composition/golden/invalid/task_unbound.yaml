@@ -1,0 +1,10 @@
+# ship is in the workflow and has no binding entry.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: {seq: [pick, pack, ship]}
+binding:
+  pick: {candidate: c_pick}
+  pack: {candidate: c_pack}
+values: {}

@@ -57,6 +57,45 @@ TASK_ID_INVALID = "c2y_task_id_invalid"
 PROPERTY_ID_INVALID = "c2y_property_id_invalid"
 #: A binding's candidate that is neither an id nor ``<resource>/<id>``.
 CANDIDATE_REF_INVALID = "c2y_candidate_ref_invalid"
+#: A task of the workflow has no binding entry.
+TASK_UNBOUND = "c2y_task_unbound"
+#: A binding entry names a task the workflow does not have.
+BINDING_UNKNOWN_TASK = "c2y_binding_unknown_task"
+#: A binding entry that is not exactly one of a candidate or ``local: true``, or a ``from``
+#: beside ``local: true``.
+BINDING_ENTRY = "c2y_binding_entry"
+#: Some branches of an ``xor`` state a probability and some do not, or ``uniform: true`` is
+#: written beside stated probabilities.
+XOR_PROBABILITIES = "c2y_xor_probabilities"
+#: The stated probabilities of an ``xor`` do not add up to exactly 1.
+XOR_SUM = "c2y_xor_sum"
+#: A ``from`` without the version it pins.
+FROM_VERSION_MISSING = "c2y_from_version_missing"
+#: A ``from`` without its ``sphere`` or its ``plan``.
+FROM_INCOMPLETE = "c2y_from_incomplete"
+#: A ``from`` field that is not well formed, or an add-on listed twice.
+FROM_SHAPE = "c2y_from_shape"
+#: A ``from`` on a registry the deployment does not define.
+FROM_REGISTRY_UNKNOWN = "c2y_from_registry_unknown"
+#: An offering with no source, or with more than one.
+OFFERING_SOURCES = "c2y_offering_sources"
+#: An offering that is not a well-formed reference: a key, a type or a value it may not have.
+OFFERING_SHAPE = "c2y_offering_shape"
+#: An offering URL that is not an absolute ``https://`` URL.
+OFFERING_URL_NOT_HTTPS = "c2y_offering_url_not_https"
+#: An offering on a registry the deployment does not define; a warning.
+OFFERING_REGISTRY_UNKNOWN = "c2y_offering_registry_unknown"
+#: A value that is a boolean, or a unit that is empty.
+VALUE_SHAPE = "c2y_value_shape"
+#: Evidence that does not hold together: a run and ``manual``, a point without a run, a run
+#: that is not a UUID, an unknown ``evaluatedBy``.
+EVIDENCE_SHAPE = "c2y_evidence_shape"
+#: ``evaluatedBy: gateway`` on a composition linked to no problem.
+EVIDENCE_GATEWAY_WITHOUT_PROBLEM = "c2y_evidence_gateway_without_problem"
+#: A run on a composition linked to no problem.
+EVIDENCE_RUN_WITHOUT_PROBLEM = "c2y_evidence_run_without_problem"
+#: The document's slug is not the slug of the composition it is submitted to; an info.
+SLUG_MISMATCH = "c2y_slug_mismatch"
 
 Severity = Literal["error", "warning", "info"]
 

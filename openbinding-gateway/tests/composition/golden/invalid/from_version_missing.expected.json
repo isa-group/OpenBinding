@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_from_version_missing", "severity": "error", "path": "binding.pick.from.version", "pointer": "/binding/pick/from/version", "span": [8, 29, 8, 70]}
+]

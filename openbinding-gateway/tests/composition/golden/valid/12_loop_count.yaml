@@ -1,0 +1,11 @@
+# A body run a fixed number of times.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: {seq: [pick, {loop: {seq: [pack, label]}, count: 3}]}
+binding:
+  pick: {candidate: c_pick}
+  pack: {candidate: c_pack}
+  label: {local: true}
+values: {}

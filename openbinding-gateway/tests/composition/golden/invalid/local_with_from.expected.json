@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_binding_entry", "severity": "error", "path": "binding.pick.from", "pointer": "/binding/pick/from", "span": [8, 23, 8, 77]}
+]

@@ -1,9 +1,10 @@
 """The JSON Schema of Composition2Yaml 1.0 agrees with the readers.
 
 The schema ships for editors (it is what the F2 editor autocompletes from) and runs as the
-readers' backstop. Every valid golden passes it, every invalid golden that loads fails it,
-and no golden expects ``c2y_schema``: the readers cover the language, and the schema only
-catches what a reader would have missed.
+readers' backstop. Every valid golden passes it, every invalid golden that loads fails it --
+except those refused by a coherence rule no JSON Schema can state, which pass it -- and no
+golden expects ``c2y_schema``: the readers and the coherence checks cover the language, and
+the schema only catches what they would have missed.
 """
 
 from __future__ import annotations
@@ -48,17 +49,29 @@ def _structural(path: Path) -> bool:
     return True
 
 
-STRUCTURAL = [path for path in INVALID if _structural(path)]
+#: Goldens refused by a coherence rule the schema cannot state: how the workflow and the
+#: binding agree, the exact sum of an xor, the deployment's registries, and whether the evidence
+#: needs a problem.
+BEYOND_THE_SCHEMA = {
+    "task_unbound", "binding_unknown_task", "xor_mixed", "xor_sum_thirds", "xor_uniform_with_probabilities",
+    "from_registry_unknown", "evidence_gateway_without_problem", "evidence_run_without_problem",
+}
+STRUCTURAL = [path for path in INVALID if _structural(path) and path.stem not in BEYOND_THE_SCHEMA]
 
 
 def test_the_syntax_goldens_are_the_only_ones_left_out() -> None:
-    left_out = {path.stem for path in INVALID} - {path.stem for path in STRUCTURAL}
+    left_out = {path.stem for path in INVALID} - {path.stem for path in STRUCTURAL} - BEYOND_THE_SCHEMA
     assert left_out == {"alias", "duplicate_key", "integer_past_2_53", "on_as_task_key"}
 
 
 @pytest.mark.parametrize("source", STRUCTURAL, ids=lambda path: path.stem)
 def test_every_structural_invalid_golden_fails_the_schema(source: Path) -> None:
     assert list(text._validator().iter_errors(_loaded(source))) != []
+
+
+@pytest.mark.parametrize("source", sorted(BEYOND_THE_SCHEMA), ids=str)
+def test_a_golden_beyond_the_schema_passes_it_and_only_coherence_refuses_it(source: str) -> None:
+    assert list(text._validator().iter_errors(_loaded(GOLDEN / "invalid" / f"{source}.yaml"))) == []
 
 
 def test_no_golden_expects_the_backstop() -> None:

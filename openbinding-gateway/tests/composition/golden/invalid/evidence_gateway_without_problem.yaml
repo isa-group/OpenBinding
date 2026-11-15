@@ -1,0 +1,10 @@
+# The gateway evaluates a composition against its problem, and this one links none.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: pick
+binding:
+  pick: {candidate: c_pick}
+values: {cost: {value: 4.5, unit: EUR/month}}
+evidence: {evaluatedBy: gateway, toolchain: bim-core 0.2.0}

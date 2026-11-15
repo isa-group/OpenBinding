@@ -1,0 +1,9 @@
+# A provenance on a registry this deployment does not define.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: pick
+binding:
+  pick: {candidate: c_pick, from: {sphere: acme/picking, registry: lab, version: v1, plan: Basic}}
+values: {}

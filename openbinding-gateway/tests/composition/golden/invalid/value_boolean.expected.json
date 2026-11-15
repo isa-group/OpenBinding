@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_value_shape", "severity": "error", "path": "values.encrypted", "pointer": "/values/encrypted", "span": [9, 47, 9, 61]}
+]

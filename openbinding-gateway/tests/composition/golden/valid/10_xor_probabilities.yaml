@@ -1,0 +1,19 @@
+# Three branches of 0.7, 0.2 and 0.1: added as floats in that order they make 0.9999999999999999,
+# as the decimals they are written as they make exactly 1, which is how the sum is compared.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow:
+  seq:
+    - pick
+    - xor:
+        - {probability: 0.7, flow: post}
+        - {probability: 0.2, flow: courier}
+        - {probability: 0.1, flow: express}
+binding:
+  pick: {candidate: c_pick}
+  express: {candidate: c_express}
+  courier: {candidate: c_courier}
+  post: {candidate: c_post}
+values: {}

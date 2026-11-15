@@ -1,0 +1,22 @@
+syntaxVersion: '1.0'
+composition: shop
+version: 1.0.0
+kind: application
+workflow:
+  seq:
+  - pick
+  - xor:
+    - express
+    - courier
+    - post
+    uniform: true
+binding:
+  pick:
+    candidate: c_pick
+  express:
+    candidate: c_express
+  courier:
+    candidate: c_courier
+  post:
+    candidate: c_post
+values: {}

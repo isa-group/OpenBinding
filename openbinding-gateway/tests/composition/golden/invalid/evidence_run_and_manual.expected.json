@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_evidence_shape", "severity": "error", "path": "evidence.manual", "pointer": "/evidence/manual", "span": [11, 55, 11, 67]}
+]

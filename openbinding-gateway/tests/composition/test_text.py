@@ -16,7 +16,7 @@ import pytest
 
 from _paths import TESTS_DIR
 from openbinding_gateway.composition import diagnostics as codes
-from openbinding_gateway.composition import spans, syntax, text
+from openbinding_gateway.composition import checks, spans, syntax, text
 from openbinding_gateway.composition.diagnostics import CompositionError, Path
 from openbinding_gateway.composition.document import Entry, Evidence, Offering, Provenance, Value
 from openbinding_gateway.composition.workflow import Branch, EmptyNode, Exclusive, Sequence, TaskNode
@@ -28,6 +28,16 @@ VALID = sorted(
 
 HEAD = 'syntaxVersion: "1.0"\ncomposition: shop\nversion: 1.0.0\nkind: application\n'
 MINIMAL = HEAD + "workflow: pick\nbinding: {pick: {candidate: c_pick}}\nvalues: {}\n"
+LAB = text.Context(registries=frozenset({"lab"}))
+
+
+def _context(source: FilePath) -> text.Context:
+    """The deployment and entity a golden is read in: its ``.context.json``, if it has one."""
+    path = source.with_name(source.name.removesuffix(".yaml") + ".context.json")
+    if not path.is_file():
+        return text.Context()
+    given = json.loads(path.read_text(encoding="utf-8"))
+    return text.Context(registries=frozenset(given.get("registries", ())), entity_slug=given.get("entity_slug"))
 
 
 def _codes(reading: text.Reading) -> list[tuple[str, str]]:
@@ -45,7 +55,7 @@ def _big(count: int, plan: str = "basic", *, flow: bool = True, registry: bool =
     source = HEAD + f"workflow: {{and: [{', '.join(names)}]}}\nbinding: {{{entries}}}\nvalues: {{}}\n"
     if registry:
         source += "offering: {sphere: acme/offer, registry: lab}\n"
-    return source if flow else text.serialise(text.parse(source))
+    return source if flow else text.serialise(text.parse(source, context=LAB))
 
 
 # --------------------------------------------------------------------------- canonical bytes
@@ -53,20 +63,24 @@ def _big(count: int, plan: str = "basic", *, flow: bool = True, registry: bool =
 
 @pytest.mark.parametrize("source", VALID, ids=lambda path: path.stem)
 def test_the_canonical_bytes_are_a_fixed_point(source: FilePath) -> None:
-    document = text.parse(source.read_text(encoding="utf-8"))
+    context = _context(source)
+    document = text.parse(source.read_text(encoding="utf-8"), context=context)
     canonical = text.serialise(document)
-    again = text.parse(canonical)
+    again = text.parse(canonical, context=context)
     assert again == document
     assert text.serialise(again) == canonical
 
 
 @pytest.mark.parametrize("source", VALID, ids=lambda path: path.stem)
 def test_a_json_body_is_the_same_document_as_its_text(source: FilePath) -> None:
-    document = text.parse(source.read_text(encoding="utf-8"))
-    body = json.loads(json.dumps(text.document(document)))
-    reading = text.compose(body)
-    assert reading.diagnostics == ()
-    assert reading.document == document
+    context = _context(source)
+    read = text.read(source.read_text(encoding="utf-8"), context=context)
+    body = json.loads(json.dumps(text.document(read.document)))
+    reading = text.compose(body, context=context)
+    assert [(item.code, item.severity, item.path) for item in reading.diagnostics] == [
+        (item.code, item.severity, item.path) for item in read.diagnostics
+    ]
+    assert reading.document == read.document
 
 
 def test_the_binding_follows_the_workflow_and_the_values_are_sorted() -> None:
@@ -239,6 +253,13 @@ def test_a_stored_version_reads_without_the_deployment_checks() -> None:
     assert document.entry("t0").source == Provenance(sphere="acme/pricing", registry="lab", version="v1", plan="basic")
     reading = text.read(canonical, context=text.Context(stored=True, entity_slug="other"))
     assert reading.diagnostics == ()
+    plain = text.read(canonical, context=text.Context(entity_slug="other"))
+    assert sorted({(item.code, item.severity) for item in plain.diagnostics}) == [
+        (codes.FROM_REGISTRY_UNKNOWN, "error"),
+        (codes.OFFERING_REGISTRY_UNKNOWN, "warning"),
+        (codes.SLUG_MISMATCH, "info"),
+    ]
+    assert [item.path for item in plain.errors] == [f"binding.t{position}.from.registry" for position in range(3)]
 
 
 def test_a_stored_version_that_does_not_read_is_a_bug() -> None:
@@ -286,8 +307,11 @@ def test_more_findings_than_are_listed_end_with_a_note() -> None:
     assert {item.code for item in reading.errors} == {codes.TASK_ID_INVALID}
 
 
-def test_the_schema_backstops_what_no_reader_covers_yet() -> None:
-    reading = text.read(MINIMAL + "evidence: {evaluatedBy: robot}\n")
+def test_the_schema_backstops_what_the_checks_miss(monkeypatch: pytest.MonkeyPatch) -> None:
+    source = MINIMAL + "evidence: {evaluatedBy: robot}\n"
+    assert _codes(text.read(source)) == [(codes.EVIDENCE_SHAPE, "evidence.evaluatedBy")]
+    monkeypatch.setattr(checks, "coherence", lambda *_, **__: ())
+    reading = text.read(source)
     assert _codes(reading) == [(codes.SCHEMA, "evidence.evaluatedBy")]
     assert reading.diagnostics[0].span.line == 8
 

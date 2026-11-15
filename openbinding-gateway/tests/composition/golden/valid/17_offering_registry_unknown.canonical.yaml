@@ -1,0 +1,12 @@
+syntaxVersion: '1.0'
+composition: shop
+version: 1.0.0
+kind: application
+workflow: pick
+binding:
+  pick:
+    candidate: c_pick
+values: {}
+offering:
+  sphere: isa/shop
+  registry: lab

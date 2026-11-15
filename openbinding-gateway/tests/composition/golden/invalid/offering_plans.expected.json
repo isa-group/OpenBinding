@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_offering_shape", "severity": "error", "path": "offering.plans", "pointer": "/offering/plans", "span": [12, 3, 14, 1]}
+]

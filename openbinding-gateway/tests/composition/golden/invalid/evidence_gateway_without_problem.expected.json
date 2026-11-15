@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_evidence_gateway_without_problem", "severity": "error", "path": "evidence.evaluatedBy", "pointer": "/evidence/evaluatedBy", "span": [10, 12, 10, 32]}
+]

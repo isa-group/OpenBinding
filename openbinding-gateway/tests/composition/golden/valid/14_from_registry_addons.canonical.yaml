@@ -1,0 +1,26 @@
+syntaxVersion: '1.0'
+composition: shop
+version: 1.0.0
+kind: application
+workflow:
+  seq:
+  - pick
+  - ship
+binding:
+  pick:
+    candidate: c_pick
+    from:
+      sphere: acme/picking
+      registry: lab
+      version: 2024-05:r3
+      plan: Pro
+      addons:
+      - Priority support
+      - SSO
+  ship:
+    candidate: c_ship
+    from:
+      sphere: acme/shipping
+      version: v7
+      plan: Basic
+values: {}

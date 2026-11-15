@@ -1,0 +1,16 @@
+# One branch states its probability and the other does not.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow:
+  seq:
+    - pick
+    - xor:
+        - {probability: 0.4, flow: express}
+        - post
+binding:
+  pick: {candidate: c_pick}
+  express: {candidate: c_express}
+  post: {candidate: c_post}
+values: {}

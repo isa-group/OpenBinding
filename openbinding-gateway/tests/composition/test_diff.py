@@ -38,7 +38,9 @@ values: {{cost: {{value: 4.5, unit: EUR/month}}, availability: 0.99}}
 offering: {{sphere: isa/shop}}
 evidence: {{run: {RUN}, point: 2, evaluatedBy: gateway, toolchain: bim-core 0.2.0}}
 """
-BASE = text.parse(SOURCE)
+#: The deployment the documents are read in: it defines the registry ``pick``'s provenance names.
+LAB = text.Context(registries=frozenset({"lab"}))
+BASE = text.parse(SOURCE, context=LAB)
 
 
 def _entry(document: Document, task: str, **changes: object) -> Document:
@@ -250,7 +252,7 @@ def test_one_mutation_gives_exactly_its_changes(key: tuple[str, str]) -> None:
 
 def test_a_document_does_not_differ_from_itself() -> None:
     assert diff(BASE, BASE) == ()
-    assert diff(BASE, text.parse(text.serialise(BASE))) == ()
+    assert diff(BASE, text.parse(text.serialise(BASE), context=LAB)) == ()
 
 
 def test_a_choice_whose_probabilities_changed_is_reported_at_the_choice() -> None:
@@ -267,7 +269,7 @@ def test_a_choice_whose_probabilities_changed_is_reported_at_the_choice() -> Non
 def test_a_new_block_changes_the_shape_and_the_invocations() -> None:
     after = text.parse(SOURCE.replace(
         "workflow: {seq: [pick, ", "workflow: {seq: [{loop: pick, count: 2}, ",
-    ))
+    ), context=LAB)
     found = diff(BASE, after)
     assert found == (
         Change("workflow", "pick", "moved", was=["workflow.seq[0]"], now=["workflow.seq[0].loop"]),
@@ -281,7 +283,7 @@ def test_a_new_block_changes_the_shape_and_the_invocations() -> None:
 def test_a_task_added_to_the_workflow_and_the_binding() -> None:
     after = text.parse(SOURCE.replace("ship]}", "ship, bill]}").replace(
         "  ship: {candidate: c_ship}\n", "  ship: {candidate: c_ship}\n  bill: {candidate: c_bill}\n",
-    ))
+    ), context=LAB)
     found = diff(BASE, after)
     assert Change("workflow", "bill", "added", now=["workflow.seq[3]"]) in found
     assert Change("binding", "bill", "added", now={"candidate": "c_bill"}) in found

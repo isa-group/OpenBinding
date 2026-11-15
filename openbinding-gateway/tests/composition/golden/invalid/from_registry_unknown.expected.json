@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_from_registry_unknown", "severity": "error", "path": "binding.pick.from.registry", "pointer": "/binding/pick/from/registry", "span": [8, 58, 8, 71]}
+]

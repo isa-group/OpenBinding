@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_binding_unknown_task", "severity": "error", "path": "binding.bill", "pointer": "/binding/bill", "span": [10, 3, 10, 28]}
+]

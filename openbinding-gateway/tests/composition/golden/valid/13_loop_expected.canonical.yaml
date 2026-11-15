@@ -1,0 +1,15 @@
+syntaxVersion: '1.0'
+composition: shop
+version: 1.0.0
+kind: application
+workflow:
+  seq:
+  - pick
+  - loop: retry
+    expected: 2.5
+binding:
+  pick:
+    candidate: c_pick
+  retry:
+    candidate: c_retry
+values: {}

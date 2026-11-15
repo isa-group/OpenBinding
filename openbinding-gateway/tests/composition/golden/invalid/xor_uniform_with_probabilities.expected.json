@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_xor_probabilities", "severity": "error", "path": "workflow.uniform", "pointer": "/workflow/uniform", "span": [10, 3, 10, 16]}
+]

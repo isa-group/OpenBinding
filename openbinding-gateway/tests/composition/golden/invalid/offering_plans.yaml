@@ -1,0 +1,13 @@
+# The offering's plans live outside the document.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: pick
+binding:
+  pick: {candidate: c_pick}
+values: {}
+offering:
+  sphere: isa/shop
+  plans:
+    basic: {price: 10}

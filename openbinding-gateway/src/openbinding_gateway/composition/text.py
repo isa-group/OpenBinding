@@ -17,7 +17,9 @@ and every finding of a stage is collected before the next one runs:
    alternatives, constraints and objectives are the BIM problem's), keys the language does
    not have, required keys that are absent, values of the wrong JSON type, and then each
    section's own codes. They build the workflow tree and keep the source path of every node;
-5. the JSON Schema, as a backstop: a finding at, above or below the path of an earlier error
+5. the coherence checks of :mod:`.checks`, only when the readers built a document: how its
+   sections agree with one another, and the rules that depend on the deployment or the entity;
+6. the JSON Schema, as a backstop: a finding at, above or below the path of an earlier error
    is the same problem said less precisely, so it is dropped.
 
 The readers come before the schema on purpose, as measured in the layer this replaces:
@@ -27,7 +29,8 @@ language does not have is reported at the key itself, where the schema's
 
 Spans are filled once, on the way out, and only when there is something to report, so a
 clean document never pays for locating. A missing key has no text of its own: it is reported
-at its own path and underlined at its parent.
+at its own path and underlined at its parent, and so is any finding whose path the text does
+not have, at its nearest ancestor that it does.
 
 **Writing is canonical** (:func:`document`, :func:`serialise`): one key order, the binding in
 the order a depth-first walk of the workflow first meets each task, the values sorted by
@@ -56,12 +59,13 @@ from typing import Any, Iterable, Mapping
 from jsonschema import Draft202012Validator
 
 from . import diagnostics as codes
-from . import ids, spans, syntax
-from .diagnostics import MAX_LISTED, CompositionError, Diagnostic, Path, Severity, at, clipped, listed
+from . import checks, ids, spans, syntax
+from .diagnostics import MAX_LISTED, CompositionError, Diagnostic, Path, Severity, Span, at, clipped, listed
 from .document import (
     DIMENSIONLESS,
     ENTRY_PROBLEM_KEYS,
     KINDS,
+    OFFERING_CONTENT_KEYS,
     PROBLEM_KEYS,
     REQUIRED_KEYS,
     ROOT_KEYS,
@@ -205,10 +209,13 @@ def compose(source: Any, *, context: Context = _PLAIN) -> Reading:
 
 
 def _judge(source: Any, context: Context) -> tuple[Document | None, tuple[Diagnostic, ...]]:
-    """The readers, then the schema, over a loaded document; the diagnostics listed, errors first."""
+    """The readers, the coherence checks and the schema over a loaded document; the diagnostics
+    listed, errors first."""
     reader = _Reader()
     document = reader.document(source)
     found = reader.diagnostics()
+    if document is not None:
+        found += checks.coherence(document, context=context)
     errors = [item for item in found if item.severity == "error"]
     more = False
     if len(errors) <= MAX_LISTED:
@@ -249,18 +256,27 @@ def _pointed(item: Diagnostic) -> Diagnostic:
 def _located(found: tuple[Diagnostic, ...], text: str) -> tuple[Diagnostic, ...]:
     """The diagnostics with their spans: one composition of the text for all of them.
 
-    A missing key is underlined at its parent, the nearest element the text has.
+    A path the text does not have -- a missing key, a ``from`` without its version -- is
+    underlined at its nearest ancestor that it does have; the root always has a span.
     """
     wanted: dict[int, Path] = {}
     for position, item in enumerate(found):
         if item.span is None and item.pointer is not None and item.code != codes.MORE:
-            path = Path.from_pointer(item.pointer)
-            wanted[position] = Path(path[:-1]) if item.code == codes.MISSING_KEY else path
+            wanted[position] = Path.from_pointer(item.pointer)
     if not wanted:
         return found
-    placed = spans.locate(text, wanted.values())
+    asked = {Path(path[:end]) for path in wanted.values() for end in range(len(path) + 1)}
+    placed = spans.locate(text, asked)
+
+    def nearest(path: Path) -> Span | None:
+        for end in range(len(path), -1, -1):
+            span = placed.get(Path(path[:end]))
+            if span is not None:
+                return span
+        return None
+
     return tuple(
-        replace(item, span=placed.get(wanted[position])) if position in wanted else item
+        replace(item, span=nearest(wanted[position])) if position in wanted else item
         for position, item in enumerate(found)
     )
 
@@ -278,6 +294,7 @@ _FROM_KEYS = ("sphere", "registry", "version", "plan", "addons")
 _VALUE_KEYS = ("value", "unit")
 _PROBLEM_LINK_KEYS = ("ref", "compilation")
 _EVIDENCE_KEYS = ("run", "point", "manual", "evaluatedBy", "toolchain")
+_OFFERING_KEYS = ("sphere", "registry", "url")
 
 #: What an unknown key most likely meant, said in its message.
 _HINTS: Mapping[str, str] = {
@@ -748,6 +765,12 @@ class _Reader:
         if not isinstance(local, bool):
             self._type(path.child("local"), "true", local)
             clean = False
+        elif "local" in value and not local:
+            self._report(
+                _SECTION, path.child("local"), codes.BINDING_ENTRY,
+                "local is only ever true: leave it out when a candidate is bound",
+            )
+            clean = False
         source = None
         if "from" in value:
             source = self._provenance(value["from"], path.child("from"))
@@ -831,15 +854,44 @@ class _Reader:
     # ------------------------------------------------------------------ offering and evidence
 
     def _offering(self, value: Any) -> tuple[Offering | None, bool]:
-        # The offering's rules -- one source, its shape, an HTTPS URL, a configured registry --
-        # are the coherence checks'; here it is only read.
+        """The offering's keys and their types, all ``c2y_offering_shape``.
+
+        Its other rules -- exactly one source, a pricing or an HTTPS URL, a configured
+        registry -- are the coherence checks'. These two need the mapping as written, which
+        the document does not keep.
+        """
+        path = Path(("offering",))
         if not isinstance(value, dict):
-            return None, True
-        return Offering(
-            sphere=value["sphere"] if isinstance(value.get("sphere"), str) else None,
-            registry=value["registry"] if isinstance(value.get("registry"), str) else None,
-            url=value["url"] if isinstance(value.get("url"), str) else None,
-        ), True
+            self._report(
+                _TYPE, path, codes.OFFERING_SHAPE,
+                "an offering is a mapping {sphere: <owner>/<name>} or {url: https://...}, "
+                f"not {_what(value)}",
+            )
+            return None, False
+        clean = True
+        for key, item in value.items():
+            if key in _OFFERING_KEYS:
+                if not isinstance(item, str):
+                    self._report(
+                        _TYPE, path.child(key), codes.OFFERING_SHAPE,
+                        f"the offering's {key} is a string, not {_what(item)}",
+                    )
+                    clean = False
+                continue
+            clean = False
+            if key == "version":
+                message = (
+                    "the offering has no version in the document; the version used is stored with "
+                    "each evaluation"
+                )
+            elif key in OFFERING_CONTENT_KEYS:
+                message = f"{key!r}: the offering's plans, prices and limits live outside the document"
+            else:
+                message = f"{key!r} is not a key of an offering; its keys are {', '.join(_OFFERING_KEYS)}"
+            self._report(_UNKNOWN, path.child(key), codes.OFFERING_SHAPE, message)
+        if not clean:
+            return None, False
+        return Offering(sphere=value.get("sphere"), registry=value.get("registry"), url=value.get("url")), True
 
     def _evidence(self, value: Any) -> tuple[Evidence | None, bool]:
         path = Path(("evidence",))

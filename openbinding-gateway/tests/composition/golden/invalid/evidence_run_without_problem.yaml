@@ -1,0 +1,10 @@
+# A run solves a problem revision, and this composition links none.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: pick
+binding:
+  pick: {candidate: c_pick}
+values: {}
+evidence: {run: 3f2b8c1e-7d4a-4e9b-9c1f-2a6d8e5b7c90, point: 0, evaluatedBy: declared}
