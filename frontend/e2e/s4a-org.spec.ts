@@ -77,17 +77,15 @@ const membersOf = (): Record<string, Member[]> => ({
   'partner-lab': [person(partnerLab, 'nora', 'user-nora', 'ADMIN'), person(partnerLab, 'lucia.vega', 'user-1', 'OWNER')],
 });
 
-const project = (n: number, orgId: string, slug: string, name: string, description: string, visibility: 'public' | 'private') => ({
-  id: `project-${n}`, organization_id: orgId, slug, name, description, visibility, created_by_id: 'user-1',
-  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z', access: 'member' as const, effective_role: 'OWNER' as Role,
+const problem = (n: number, orgId: string, slug: string, name: string) => ({
+  id: `problem-${n}`, organization_id: orgId, slug, name, description: '', created_by_id: 'user-1',
+  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
+  latest_revision: { id: `revision-${n}`, revision: 2, package_digest: `sha256-${String(n).repeat(64)}`, created_at: '2026-10-08T00:00:00Z' },
 });
 
-const projectsOf = (): Record<string, unknown[]> => ({
-  'isa-demo': [
-    project(1, 'org-1', 'qos-benchmarks', 'QoS Benchmarks', 'Reference binding cases with workflow and placement.', 'public'),
-    project(2, 'org-1', 'checkout-privado', 'Checkout (privado)', 'Internal payments case with proprietary candidates.', 'private'),
-  ],
-  'qos-lab': [project(3, 'org-2', 'placement-edge', 'Placement at the edge', 'Exploration with pools and latencies.', 'private')],
+const problemsOf = (): Record<string, ReturnType<typeof problem>[]> => ({
+  'isa-demo': [problem(1, 'org-1', 'checkout-flow', 'Checkout flow'), problem(2, 'org-1', 'edge-placement', 'Edge placement')],
+  'qos-lab': [problem(3, 'org-2', 'placement-edge', 'Placement at the edge')],
 });
 
 const auditEvents = [
@@ -100,8 +98,8 @@ const auditEvents = [
     targetId: 'org-1', detail: { changes: [{ user_id: 'user-marco', role: 'ADMIN' }, { user_id: 'user-sofia', role: null }] }, createdAt: '2026-09-25T10:00:00Z',
   },
   {
-    id: 'e0000000-0000-0000-0000-0000000000e3', organizationId: 'org-1', actorId: 'user-1', action: 'project.created', targetType: 'Project',
-    targetId: 'project-1', detail: {}, createdAt: '2026-04-01T08:30:00Z',
+    id: 'e0000000-0000-0000-0000-0000000000e3', organizationId: 'org-1', actorId: 'user-1', action: 'problem.created', targetType: 'BindingCase',
+    targetId: 'problem-1', detail: {}, createdAt: '2026-04-01T08:30:00Z',
   },
   {
     id: 'e0000000-0000-0000-0000-0000000000e2', organizationId: 'org-1', actorId: 'user-1', action: 'organization.created', targetType: 'Organization',
@@ -138,12 +136,12 @@ const notifications = () => [{
   read_at: null as string | null, created_at: hoursAgo(5),
 }];
 
-type Refusable = 'jobs' | 'create' | 'patch' | 'remove' | 'projects' | 'batch' | 'invite' | 'audit' | 'usage';
+type Refusable = 'jobs' | 'create' | 'patch' | 'remove' | 'problems' | 'batch' | 'invite' | 'audit' | 'usage';
 
 interface State {
   organizations: Org[];
   members: Record<string, Member[]>;
-  projects: Record<string, unknown[]>;
+  problems: Record<string, ReturnType<typeof problem>[]>;
   jobs: ReturnType<typeof jobs>;
   notifications: ReturnType<typeof notifications>;
   /** A refusal for one action; unset means the action succeeds. */
@@ -159,7 +157,7 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
   const state: State = {
     organizations: [isaDemo, qosLab, consultora, researchHub, partnerLab],
     members: membersOf(),
-    projects: projectsOf(),
+    problems: problemsOf(),
     jobs: jobs(),
     notifications: notifications(),
     refuse: {},
@@ -222,7 +220,12 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
   });
 
   await page.route(orgPath('/runs'), (route) => (state.refuse.jobs ? state.refuse.jobs(route) : json(state.jobs)(route)));
-  await page.route(orgPath('/projects'), (route) => (state.refuse.projects ? state.refuse.projects(route) : json(state.projects[slugOf(route, '/projects')] ?? [])(route)));
+  await page.route(orgPath('/problems'), (route) => {
+    if (state.refuse.problems) return state.refuse.problems(route);
+    const rows = state.problems[slugOf(route, '/problems')] ?? [];
+    return json({ problems: rows, total: rows.length, limit: 200, offset: 0 })(route);
+  });
+  await page.route(orgPath('/studies'), json([]));
   await page.route(orgPath('/members'), (route) => json(state.members[slugOf(route, '/members')] ?? [])(route));
   await page.route(orgPath('/members/batch'), async (route) => {
     if (state.refuse.batch) return state.refuse.batch(route);
@@ -306,7 +309,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(page.locator('header.app-header')).toBeVisible();
       await expect(main.getByRole('heading', { level: 1, name: 'Hello, lucia.vega' })).toBeVisible();
       await expect(main.getByText('Pick up where you left off.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/app/isa-demo?create=project');
+      await expect(main.getByRole('link', { name: 'New problem' })).toHaveAttribute('href', '/app/isa-demo/problems?create=problem');
+      await expect(main.getByRole('link', { name: 'New project' })).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'New organization' })).toBeVisible();
 
       const tree = main.getByRole('list', { name: 'Organizations' });
@@ -433,15 +437,19 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const hero = title.locator('xpath=ancestor::header[1]');
       await expect(hero.getByText('/app/isa-demo')).toBeVisible();
       await expect(hero.getByText('OWNER')).toBeVisible();
-      await expect(hero.getByRole('button', { name: 'New project' })).toBeVisible();
+      await expect(hero.getByRole('link', { name: 'Upload BIM package' })).toHaveAttribute('href', '/app/isa-demo/problems?create=problem');
       await expect(hero.getByRole('link', { name: 'Members' })).toHaveAttribute('href', '/app/isa-demo/settings/members');
       await expect(hero.getByRole('link', { name: 'Audit' })).toHaveAttribute('href', '/app/isa-demo/settings/audit');
       await expect(hero.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/app/isa-demo/settings');
 
-      const card = main.getByRole('link', { name: /QoS Benchmarks/ });
-      await expect(card).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks');
-      await expect(card.getByText('Public')).toBeVisible();
-      await expect(main.getByRole('link', { name: /Checkout \(privado\)/ }).getByText('Private', { exact: true })).toBeVisible();
+      // The problems, runs and studies of the organization, each with the way to all of them; no projects.
+      const problems = main.getByRole('heading', { name: /^Problems/ }).locator('xpath=ancestor::section[1]');
+      await expect(problems.getByRole('link', { name: /Checkout flow/ })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow');
+      await expect(problems.getByRole('link', { name: 'All problems' })).toHaveAttribute('href', '/app/isa-demo/problems');
+      await expect(main.getByRole('heading', { name: /^Runs/ })).toBeVisible();
+      await expect(main.getByRole('heading', { name: /^Studies/ })).toBeVisible();
+      await expect(main.getByRole('heading', { name: /^Projects/ })).toHaveCount(0);
+      await expect(main.getByRole('searchbox', { name: 'Find a project' })).toHaveCount(0);
       const subs = main.getByRole('heading', { name: 'Sub-organizations' }).locator('xpath=ancestor::section[1]');
       await expect(subs.getByRole('link', { name: /QoS Lab/ })).toHaveAttribute('href', '/app/qos-lab');
       await expect(subs.getByText('Inherited from ISA Demo Group')).toBeVisible();
@@ -449,13 +457,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(hero.getByText(/sponsor/i)).toHaveCount(0);
       await capture(page, testInfo, `overview-${name}-success`);
 
-      // A VIEWER sees the organization, has no button to create, and is told why.
+      // A VIEWER sees the organization, has no way to upload or launch, and is told why.
       await page.goto('/app/consultora-demo');
       await expect(main.getByRole('heading', { level: 1, name: 'Consultora Demo' })).toBeVisible();
-      await expect(main.getByText('No projects yet')).toBeVisible();
-      await expect(main.getByText('You’re a VIEWER here, so you can’t create projects. A MEMBER or above can.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'New project' })).toHaveCount(0);
-      await expect(main.getByRole('link', { name: 'Create the first project' })).toHaveCount(0);
+      await expect(main.getByText(/You’re a VIEWER here: you read everything/)).toBeVisible();
+      await expect(main.getByRole('link', { name: 'Upload BIM package' })).toHaveCount(0);
+      await expect(main.getByRole('link', { name: '+ Upload' })).toHaveCount(0);
       await expect(main.getByRole('link', { name: 'Audit' })).toHaveCount(0);
       await capture(page, testInfo, `overview-${name}-viewer-empty`);
 
@@ -470,22 +477,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         return;
       }
 
-      // The projects block fails on its own: the rest of the page is there. The workspace shell reads the same list, so its
-      // own banner appears too; that is what a real outage looks like.
-      state.refuse.projects = unavailable;
+      // The problems panel fails on its own: the rest of the page is there.
+      state.refuse.problems = unavailable;
       await page.goto('/app/isa-demo');
-      await expect(main.getByText('Projects couldn’t be loaded (503). Sub-organizations are unaffected.')).toBeVisible();
+      await expect(main.getByText('Problems couldn’t be loaded (503).')).toBeVisible();
       await expect(main.getByRole('heading', { name: 'Sub-organizations' })).toBeVisible();
-      await capture(page, testInfo, `overview-${name}-projects-503`);
-      state.refuse.projects = undefined;
-      await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('link', { name: /QoS Benchmarks/ })).toBeVisible();
+      await expect(main.getByRole('heading', { name: /^Runs/ })).toBeVisible();
+      await capture(page, testInfo, `overview-${name}-problems-503`);
+      state.refuse.problems = undefined;
 
-      // Search, and the selector that moves to another organization.
-      await main.getByRole('searchbox', { name: 'Find a project' }).fill('checkout');
-      await expect(main.getByRole('link', { name: /QoS Benchmarks/ })).toHaveCount(0);
-      await main.getByRole('searchbox', { name: 'Find a project' }).fill('zzz');
-      await expect(main.getByText('No project matches “zzz”.')).toBeVisible();
+      // The selector that moves to another organization.
       await main.getByLabel('Switch organization').selectOption('qos-lab');
       await expect(page).toHaveURL(/\/app\/qos-lab$/);
       await expect(main.getByRole('heading', { level: 1, name: /QoS Lab/ })).toBeVisible();
@@ -506,7 +507,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText(/sponsor/i)).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'Save name' })).toBeDisabled();
       const impact = main.getByLabel('What deleting removes');
-      await expect(impact).toContainText('projects2');
+      await expect(impact).toContainText('problems2');
+      await expect(impact).toContainText('studies0');
       await expect(impact).toContainText('sub-organization1');
       await expect(impact).toContainText('direct members3');
       await capture(page, testInfo, `settings-${name}-success`);
@@ -570,7 +572,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
-      // Deleting asks for the address and the gateway refuses sealed history.
+      // Deleting asks for the address and the gateway refuses an organization with runs or study runs.
       await page.goto('/app/isa-demo/settings');
       await main.getByRole('button', { name: 'Delete organization' }).click();
       const dialog = page.getByRole('dialog', { name: 'Delete ISA Demo Group?' });
@@ -582,7 +584,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(confirm).toBeEnabled();
       state.refuse.remove = detail(409, 'historical_references', 'Organizations with runs or study runs cannot be deleted; their history is kept.');
       await confirm.click();
-      await expect(dialog.getByRole('alert')).toContainText('It has sealed history, so it can’t be deleted (409 · historical_references).');
+      await expect(dialog.getByRole('alert')).toContainText('It has runs or study runs, so it can’t be deleted (409 · historical_references).');
       await capture(page, testInfo, `settings-${name}-delete-409`);
       state.refuse.remove = undefined;
       const deleted = request(page, 'DELETE', '/v1/organizations/isa-demo');
@@ -754,11 +756,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The action filter is the server's: the request carries it.
       await page.goto('/app/isa-demo/settings/audit');
-      const filtered = page.waitForRequest((candidate) => candidate.url().startsWith(`${API}/v1/organizations/isa-demo/audit`) && candidate.url().includes('action=project.created'));
-      await main.getByLabel('Action').selectOption('project.created');
+      const filtered = page.waitForRequest((candidate) => candidate.url().startsWith(`${API}/v1/organizations/isa-demo/audit`) && candidate.url().includes('action=problem.created'));
+      await main.getByLabel('Action').selectOption('problem.created');
       await filtered;
       await expect(timeline.getByRole('listitem')).toHaveCount(1);
-      await expect(timeline.getByRole('listitem').first()).toContainText('Project created');
+      await expect(timeline.getByRole('listitem').first()).toContainText('Problem created');
       await capture(page, testInfo, `audit-${name}-filtered`);
 
       // Actor in the view; and a filter nothing matches.
@@ -767,7 +769,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByLabel('Actor').selectOption('__none');
       await expect(timeline.getByRole('listitem')).toHaveCount(1);
       await main.getByLabel('Actor').selectOption('');
-      await main.getByLabel('Action').selectOption('project.deleted');
+      await main.getByLabel('Action').selectOption('problem.deleted');
       await expect(main.getByText(/No events match these filters\./)).toBeVisible();
       await capture(page, testInfo, `audit-${name}-empty`);
       await main.getByRole('button', { name: 'Clear filters' }).click();

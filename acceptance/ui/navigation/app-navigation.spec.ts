@@ -10,8 +10,8 @@ const PUBLIC_LINKS: Array<[string, string]> = [
 
 const banner = (page: Page) => page.getByRole('banner');
 
-async function signedIn(page: Page, path: string, role: Role = 'user', projects?: unknown[]) {
-  await mockApi(page, { role, projects });
+async function signedIn(page: Page, path: string, role: Role = 'user') {
+  await mockApi(page, { role });
   await page.goto(path);
   await expect(banner(page)).toBeVisible();
 }
@@ -44,27 +44,24 @@ test('public header has no link or menu of the former header', async ({ page }) 
   }
 });
 
-test('application header lists its entries with a current project and a Lab menu', async ({ page }) => {
+test('application header lists Home, Problems, Runs, Studies, Engines and Admin, with the organization\'s sections', async ({ page }) => {
   await signedIn(page, PROBLEMS, 'admin');
   const header = banner(page);
   await expectInOrder([
-    entry(header, 'Home'), entry(header, 'Problems'), header.getByRole('button', { name: 'Lab' }),
+    entry(header, 'Home'), entry(header, 'Problems'), entry(header, 'Runs'), entry(header, 'Studies'),
     entry(header, 'Engines'), entry(header, 'Admin'),
   ]);
   await expect(entry(header, 'Problems')).toHaveAttribute('href', PROBLEMS);
   await expect(entry(header, 'Problems')).toHaveAttribute('aria-current', 'page');
-  await header.getByRole('button', { name: 'Lab' }).click();
-  await expect(entry(menuScope(page), 'Runs')).toHaveAttribute('href', RUNS);
-  await expect(entry(menuScope(page), 'Studies')).toHaveAttribute('href', '/app/acme/studies');
+  await expect(entry(header, 'Runs')).toHaveAttribute('href', RUNS);
+  await expect(entry(header, 'Studies')).toHaveAttribute('href', '/app/acme/studies');
+  await expect(header.getByRole('button', { name: 'Lab' })).toHaveCount(0);
 });
 
-test('Problems, Runs and Studies stay with the organization without a current project', async ({ page }) => {
-  await signedIn(page, '/app', 'user', []);
-  const header = banner(page);
-  await expect(entry(header, 'Problems')).toHaveAttribute('href', PROBLEMS);
-  await header.getByRole('button', { name: 'Lab' }).click();
-  await expect(entry(menuScope(page), 'Runs')).toHaveAttribute('href', RUNS);
-  await expect(entry(menuScope(page), 'Studies')).toHaveAttribute('href', '/app/acme/studies');
+test('Runs and Studies mark themselves when their screens are open', async ({ page }) => {
+  await signedIn(page, RUNS);
+  await expect(current(page, 'Runs')).toBeVisible();
+  await expect(entry(banner(page), 'Problems')).not.toHaveAttribute('aria-current', 'page');
 });
 
 test('a person whose role is user sees no Admin entry', async ({ page }) => {
@@ -76,14 +73,14 @@ test('a person whose role is user sees no Admin entry', async ({ page }) => {
 test('application header has none of the former entries', async ({ page }) => {
   await signedIn(page, '/app', 'admin');
   await expect(entry(banner(page), 'Home')).toBeVisible();
-  for (const name of ['Jobs', 'Explore', 'Tools', 'Verifier', 'Engine catalog', 'Language']) {
+  for (const name of ['Jobs', 'Explore', 'Tools', 'Verifier', 'Engine catalog', 'Language', 'Lab', 'Projects']) {
     await expect(banner(page).getByRole('link', { name, exact: true })).toHaveCount(0);
     await expect(banner(page).getByRole('button', { name, exact: true })).toHaveCount(0);
   }
 });
 
 test('New menu offers a Problem, a Study and a Run of the organization', async ({ page }) => {
-  await signedIn(page, '/app/acme/demo');
+  await signedIn(page, '/app/acme');
   await banner(page).getByRole('button', { name: 'New', exact: true }).click();
   const items: Array<[string, string]> = [
     ['Problem', `${PROBLEMS}?create=problem`], ['Study', '/app/acme/studies/new'], ['Run', RUN_NEW],
@@ -92,8 +89,8 @@ test('New menu offers a Problem, a Study and a Run of the organization', async (
   for (const [name, href] of items) await expect(entry(menuScope(page), name)).toHaveAttribute('href', href);
 });
 
-test('every New menu item stays with the organization without a current project', async ({ page }) => {
-  await signedIn(page, '/app', 'user', []);
+test('every New menu item stays with the organization from Home', async ({ page }) => {
+  await signedIn(page, '/app', 'user');
   await banner(page).getByRole('button', { name: 'New', exact: true }).click();
   await expect(entry(menuScope(page), 'Problem')).toHaveAttribute('href', `${PROBLEMS}?create=problem`);
   await expect(entry(menuScope(page), 'Study')).toHaveAttribute('href', '/app/acme/studies/new');
@@ -107,7 +104,7 @@ test('the problem dialog opens from the address over the Problems screen', async
 });
 
 test('New menu has none of the former items', async ({ page }) => {
-  await signedIn(page, '/app/acme/demo');
+  await signedIn(page, '/app/acme');
   await banner(page).getByRole('button', { name: 'New', exact: true }).click();
   await expect(entry(menuScope(page), 'Problem')).toBeVisible();
   for (const name of ['Organization', 'Project', 'Case', 'Job', 'API key', 'Engine']) await expect(entry(menuScope(page), name)).toHaveCount(0);

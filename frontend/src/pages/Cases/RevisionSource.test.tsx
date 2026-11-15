@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import JSZip from 'jszip';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { caseOf, org, project, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
+import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseDetail } from './CaseDetail';
 import { digestOf, irDocument } from './fixtures';
 
@@ -16,7 +16,6 @@ const { saveText } = rendering;
 vi.mock('../../components/rendering/download', () => rendering);
 
 const group = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
-const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const checkout = caseOf('flujo-checkout', 'Flujo de checkout');
 const r2 = revisionOf(checkout, 2, { package_digest: digestOf('b'), instance_digest: digestOf('a'), package_size: 48_213 });
 const root = '/app/isa-demo';
@@ -39,7 +38,7 @@ const compilationOf = (over: Record<string, unknown> = {}) => ({
 
 /** The Source tab of the problem page, showing version 2. */
 function renderSource(address = '/source?version=2') {
-  return renderProjectScreen(<CaseDetail />, { path: '/app/:org/problems/:case/:tab?', url: `${root}/problems/flujo-checkout${address}`, organizations: [group], projects: [qos] });
+  return renderOrgScreen(<CaseDetail />, { path: '/app/:org/problems/:case/:tab?', url: `${root}/problems/flujo-checkout${address}`, organizations: [group] });
 }
 
 async function zipBuffer() {

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CheckCircle2, Lock, TriangleAlert } from 'lucide-react';
 import { platformApi } from '../../api/platform';
 import type { Organization } from '../../api/platform';
+import { problemsApi } from '../../api/problems';
 import { Action } from '../../components/ui/Action';
 import { FormField } from '../../components/ui/FormField';
 import { Modal } from '../../components/ui/Modal';
@@ -42,7 +43,8 @@ function SettingsBody({ organization }: { organization: Organization }) {
   const canEdit = atLeast(role, 'ADMIN');
 
   const people = useResource(`settings-people:${slug}`, () => platformApi.members(slug).catch(() => null));
-  const projects = useResource(`settings-projects:${slug}`, () => platformApi.projects(slug).catch(() => null));
+  const problems = useResource(`settings-problems:${slug}`, () => problemsApi.list(slug, { limit: 1 }).catch(() => null));
+  const studies = useResource(`settings-studies:${slug}`, () => platformApi.studies(slug, true).catch(() => null));
 
   const [draftName, setDraftName] = useState<string | null>(null);
   const [moveTo, setMoveTo] = useState<string | null>(null);
@@ -112,7 +114,8 @@ function SettingsBody({ organization }: { organization: Organization }) {
     : targetOrg ? `Members of ${targetOrg.name} will inherit their roles here.` : 'Only direct members will have roles here.';
 
   const impact: Array<{ n: string; l: string }> = [
-    { n: projects.data ? String(projects.data.length) : '—', l: 'projects' },
+    { n: problems.data ? String(problems.data.total) : '—', l: problems.data?.total === 1 ? 'problem' : 'problems' },
+    { n: studies.data ? String(studies.data.length) : '—', l: studies.data?.length === 1 ? 'study' : 'studies' },
     { n: String(below.length), l: below.length === 1 ? 'sub-organization' : 'sub-organizations' },
     { n: people.data ? String(people.data.length) : '—', l: people.data?.length === 1 ? 'direct member' : 'direct members' },
   ];
@@ -228,8 +231,9 @@ function SettingsBody({ organization }: { organization: Organization }) {
         <div className="org-card is-danger org-stack">
           <strong>Delete this organization</strong>
           <span className="org-muted">
-            Deletes everything inside it, including sub-organizations. An organization with sealed history (published reports,
-            study runs, problem versions or library versions) can’t be deleted. This can’t be undone.
+            Deletes everything inside it, including sub-organizations: problems and their versions, studies, members and
+            invitations. Runs and study runs are history, so an organization that has any, here or below, can’t be deleted.
+            This can’t be undone.
           </span>
           <dl className="org-impact" aria-label="What deleting removes">
             {impact.map((item) => <div key={item.l}><dt>{item.l}</dt><dd>{item.n}</dd></div>)}
@@ -241,7 +245,7 @@ function SettingsBody({ organization }: { organization: Organization }) {
       {deleting && (
         <DeleteDialog
           organization={organization}
-          summary={`This removes ${projects.data?.length ?? 'its'} project(s) and ${below.length} sub-organization(s). It is refused (409) if anything inside has sealed history.`}
+          summary={`This removes ${problems.data?.total ?? 'its'} problem(s), ${studies.data?.length ?? 'its'} study(ies) and ${below.length} sub-organization(s). It is refused (409) if anything inside has runs or study runs.`}
           onClose={() => setDeleting(false)}
           onDeleted={async () => {
             await context.reload();
@@ -276,7 +280,7 @@ function DeleteDialog({ organization, summary, onClose, onDeleted }: {
     } catch (caught) {
       const failure = classifyAuthError(caught);
       if (failure.code === 'historical_references') {
-        setError(`It has sealed history, so it can’t be deleted${marker(failure)}. ${failure.message ?? ''}`.trim());
+        setError(`It has runs or study runs, so it can’t be deleted${marker(failure)}. ${failure.message ?? ''}`.trim());
       } else if (failure.status === 403) {
         setError(`You need ADMIN here to delete it${marker(failure)}. Nothing was deleted.`);
       } else if (failure.kind === 'not-found') {

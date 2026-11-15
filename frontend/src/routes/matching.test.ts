@@ -16,11 +16,10 @@ const areaAt = (path: string) => {
   return id === null ? null : areaOfScreen.get(id) ?? null;
 };
 
-/** An address the path leads to: an optional segment dropped, the organization and project of the examples, any other parameter filled. */
+/** An address the path leads to: an optional segment dropped, the organization of the examples, any other parameter filled. */
 const example = (path: string) => path
   .replace(/\/:[A-Za-z]+\?/g, '')
   .replace(':org', 'acme')
-  .replace(':project', 'atlas')
   .replace(/:[A-Za-z]+/g, 'sample') || '/';
 
 describe('address resolution across the registry', () => {
@@ -35,8 +34,8 @@ describe('address resolution across the registry', () => {
   });
 
   // A fixed segment under /app (`/app/account`, `/app/admin`, …) is the first segment of a screen of some area. An address one level below
-  // it that no screen of that area claims is read as an organization and a project: the screen of the plain `/app/:org/:project` address,
-  // or a screen of the area itself when the area takes any section there.
+  // it that no screen of that area claims resolves to no screen (there are no projects to read it as), or to a screen of the area itself
+  // when the area takes any section there.
   const fixedSegments = [...new Set(routeDefinitions.flatMap((definition) => {
     const [, root, first] = definition.path.split('/');
     return root === 'app' && first && !first.startsWith(':') ? [first] : [];
@@ -46,41 +45,42 @@ describe('address resolution across the registry', () => {
     expect(fixedSegments).toEqual(expect.arrayContaining(['account', 'admin', 'engines']));
   });
 
-  it.each(fixedSegments)('reads an unknown address below /app/%s as an organization and a project, or as a screen of its own area', (segment) => {
+  it.each(fixedSegments)('reads an unknown address below /app/%s as no screen, or as a screen of its own area', (segment) => {
     const owners = new Set(routeDefinitions.filter((definition) => definition.path.split('/')[2] === segment).map((definition) => areaOfScreen.get(definition.id)));
-    const fallback = areaAt('/app/zz-organization/zz-project');
-    expect(fallback).not.toBeNull();
+    expect(areaAt('/app/zz-organization/zz-unknown')).toBeNull();
     const area = areaAt(`/app/${segment}/zz-unknown`);
-    expect(area === null ? 'no screen' : [fallback, ...owners].includes(area), `/app/${segment}/zz-unknown -> ${area}`).toBe(true);
+    expect(area === null || owners.has(area), `/app/${segment}/zz-unknown -> ${area}`).toBe(true);
   });
 
   it.each([
     ['/', 'public'],
     ['/app', 'organizations'],
     ['/app/acme', 'organizations'],
-    // The fixed `settings` segment wins over a project called `settings`.
     ['/app/acme/settings', 'organizations'],
     ['/app/settings/settings', 'organizations'],
-    // No screen is fixed at the old creation addresses, so they read as an organization and a project.
-    ['/app/acme/new-project', 'project'],
-    ['/app/organizations/new', 'project'],
-    ['/app/acme/atlas', 'project'],
+    // Projects are gone: an organization has only its own sections, and the old creation addresses lead nowhere.
+    ['/app/acme/new-project', null],
+    ['/app/organizations/new', null],
+    ['/app/acme/atlas', null],
+    ['/app/acme/atlas/settings', null],
   ] as const)('%s -> the area %s', (path, area) => {
     expect(areaAt(path)).toBe(area);
   });
 
-  it('has no screen called org-create or proj-create', () => {
+  it('has no screen called org-create, proj-create or any proj-*', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('org-create');
     expect(ids).not.toContain('proj-create');
+    expect(ids.filter((id) => id.startsWith('proj-'))).toEqual([]);
+    expect(routeDefinitions.filter((definition) => definition.path.includes(':project'))).toEqual([]);
   });
 
   it.each([
     // Engines are only addressed by namespace, name and version.
     '/engines/new',
-    // Below a project, only the sections of the screens are routed.
-    '/app/acme/atlas/zz-no-such-section',
-    '/app/acme/atlas/zz-no-such-section/zz',
+    // Below an organization, only the sections of the screens are routed.
+    '/app/acme/zz-no-such-section',
+    '/app/acme/zz-no-such-section/zz',
   ])('resolves %s to no screen', (path) => {
     expect(resolve(path)).toBeNull();
   });

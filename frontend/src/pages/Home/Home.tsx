@@ -92,7 +92,7 @@ function Hero({ signedIn, name, plan, runtime }: { signedIn: boolean; name: stri
           <Link to="/app" viewTransition className="home-card is-accent">
             <span className="home-card-top"><span className="home-card-icon is-round">{name.slice(0, 2).toUpperCase()}</span><span className="home-card-go is-filled" aria-hidden="true">↗</span></span>
             <strong>Go to your workspace</strong>
-            <span>Signed in as {name} · {plan} plan. Organizations, projects and runs live there.</span>
+            <span>Signed in as {name} · {plan} plan. Organizations, problems and runs live there.</span>
           </Link>
         ) : (
           <Link to="/register" viewTransition className="home-card is-accent">

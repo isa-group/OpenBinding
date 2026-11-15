@@ -42,16 +42,6 @@ const organizations = [
   org(3, 'consultora-demo', 'Consultora Demo', 'VIEWER'),
 ];
 
-const project = (n: number, orgId: string, slug: string, name: string) => ({
-  id: `project-${n}`, organization_id: orgId, slug, name, description: '', visibility: 'private', created_by_id: 'user-1',
-  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z', access: 'member' as const, effective_role: 'OWNER' as Role,
-});
-
-const projectsOf: Record<string, ReturnType<typeof project>[]> = {
-  'isa-demo': [project(1, 'org-1', 'qos-benchmarks', 'QoS Benchmarks')],
-  'consultora-demo': [],
-};
-
 // --- problems, versions and compilations
 
 interface Revision {
@@ -135,7 +125,6 @@ async function mockApi(page: Page): Promise<State> {
     if (!found) return detail(403, 'organization_forbidden', 'Not a member.')(route);
     if (section === 'members' || section === 'library') return json([])(route);
     if (section === 'runs') return json({ runs: [], total: 0 })(route);
-    if (section === 'projects') return json(problemSlug ? projectsOf[orgSlug][0] : projectsOf[orgSlug])(route);
     if (section !== 'problems') return json(found)(route);
 
     const rows = state.problems[orgSlug] ?? [];
@@ -261,7 +250,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(list.getByRole('link', { name: 'Run latest' })).toHaveAttribute('href', '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2');
       await expect(main.getByRole('link', { name: 'Write one in the Workbench' })).toHaveAttribute('href', '/app/isa-demo/workbench');
       await expect(main.getByRole('link', { name: 'Start from a template' })).toHaveAttribute('href', '/app/isa-demo/workbench?template=demo%2F01_simple_seq');
-      await expect(main.getByRole('navigation', { name: 'Project sections' })).toHaveCount(0);
       await expect(main).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await capture(page, testInfo, `list-${name}`);
 

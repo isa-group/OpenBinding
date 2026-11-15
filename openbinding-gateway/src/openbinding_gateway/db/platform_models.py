@@ -55,11 +55,6 @@ class OrganizationRole(str, enum.Enum):
     VIEWER = "VIEWER"
 
 
-class Visibility(str, enum.Enum):
-    PRIVATE = "private"
-    PUBLIC = "public"
-
-
 class StudyState(str, enum.Enum):
     DRAFT = "draft"
     READY = "ready"
@@ -174,29 +169,6 @@ class OrganizationInvitation(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-
-
-class Project(Base):
-    __tablename__ = "projects"
-    __table_args__ = (UniqueConstraint("organization_id", "slug", name="uq_project_org_slug"),)
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    organization_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    slug: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    name: Mapped[str] = mapped_column(String(160), nullable=False)
-    description: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
-    visibility: Mapped[Visibility] = enum_column(Visibility, Visibility.PRIVATE)
-    created_by_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow, server_default=func.now()
     )
 
 

@@ -3,31 +3,30 @@ import { render } from '@testing-library/react';
 import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom';
 import { vi } from 'vitest';
 import type { UsageView, UserProfile } from '../../api/auth';
-import type { Organization, Project, Study, StudyRun } from '../../api/platform';
+import type { Organization, Study, StudyRun } from '../../api/platform';
 import type { Problem, ProblemRevision } from '../../api/problems';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { AuthContext } from '../../contexts/auth';
-import { iker, lucia, org, project } from '../../pages/Organization/testKit';
+import { iker, lucia, org } from '../../pages/Organization/testKit';
 
-export { iker, lucia, org, project };
+export { iker, lucia, org };
 
-/** Shared by the tests of the project screens: the organization kit plus a router that knows the project, and its contents. */
+/** Shared by the tests of the organization's screens: the organization kit plus a router, and the problems, studies and runs. */
 export interface RenderOptions {
   path: string;
   url: string;
   organizations?: Organization[];
-  projects?: Project[];
   user?: UserProfile;
   loading?: boolean;
   reload?: () => Promise<void>;
 }
 
-export function renderProjectScreen(ui: ReactElement, options: RenderOptions) {
+export function renderOrgScreen(ui: ReactElement, options: RenderOptions) {
   const user = options.user ?? lucia;
   const organizations = options.organizations ?? [];
   const reload = options.reload ?? vi.fn().mockResolvedValue(undefined);
   const context: PlatformOutletContext = {
-    organizations, projects: options.projects ?? [], organization: organizations[0], project: undefined, loading: options.loading ?? false, reload,
+    organizations, organization: organizations[0], loading: options.loading ?? false, reload,
   };
   const view = render(
     <MemoryRouter initialEntries={[options.url]}>
@@ -52,7 +51,7 @@ export async function ensureSubtleCrypto(): Promise<void> {
   vi.stubGlobal('crypto', webcrypto);
 }
 
-export function usageWithProjects(): UsageView {
+export function researchPlanUsage(): UsageView {
   return {
     plan: 'RESEARCH',
     contract_pending: false,

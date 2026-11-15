@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { CASE, ORG, PROJECT_PATH, capture, signInByApi, watchPageErrors } from './support';
+import { CASE, ORG, ORG_PATH, capture, signInByApi, watchPageErrors } from './support';
 
-test.describe('live · organizations and the project lab-main/bim-demo', () => {
-  test('the owner goes from Home to the organization lab-main and to its project bim-demo', async ({ page }, testInfo) => {
+test.describe('live · the organization lab-main and its problems', () => {
+  test('the owner goes from Home to the organization lab-main and to its problems', async ({ page }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'owner');
     await page.goto('/app');
@@ -17,22 +17,19 @@ test.describe('live · organizations and the project lab-main/bim-demo', () => {
     await main.click();
     await expect(page).toHaveURL(new RegExp(`/app/${ORG}/?$`));
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
-    // The header carries project links too (a menu that may be closed): the card of the project is in the main area.
-    const project = page.locator('#platform-main').locator(`a[href="${PROJECT_PATH}"]`).first();
-    await expect(project).toBeVisible();
+    // The header leads to the problems too: the panel's link is the one in the main area.
+    const problems = page.locator('#platform-main').getByRole('link', { name: 'All problems' });
+    await expect(problems).toHaveAttribute('href', `${ORG_PATH}/problems`);
     await capture(page, testInfo, 'navigation-organization');
 
-    await project.click();
-    await expect(page).toHaveURL(new RegExp(`${PROJECT_PATH}/?$`));
-    await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
-    const sections = page.getByRole('navigation', { name: 'Project sections' });
-    await expect(sections).toBeVisible();
-    await expect(sections.locator(`a[href="${PROJECT_PATH}/problems"]`)).toBeVisible();
-    await capture(page, testInfo, 'navigation-project');
+    await problems.click();
+    await expect(page).toHaveURL(new RegExp(`${ORG_PATH}/problems/?$`));
+    await expect(page.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
+    await capture(page, testInfo, 'navigation-problems');
     expect(errors).toEqual([]);
   });
 
-  test('a member sees the same organization with the role it has, and opens the list of problems of the project', async ({ page }, testInfo) => {
+  test('a member sees the same organization with the role it has, and opens its list of problems', async ({ page }, testInfo) => {
     const errors = watchPageErrors(page);
     await signInByApi(page, 'member');
     await page.goto('/app');
@@ -41,9 +38,9 @@ test.describe('live · organizations and the project lab-main/bim-demo', () => {
     await expect(main).toBeVisible();
     await expect(main).toContainText('MEMBER');
 
-    await page.goto(`${PROJECT_PATH}/problems`);
+    await page.goto(`${ORG_PATH}/problems`);
     await expect(page.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
-    await expect(page.getByRole('list', { name: 'Problems' }).locator(`a[href="${PROJECT_PATH}/problems/${CASE}"]`).first()).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Problems' }).locator(`a[href="${ORG_PATH}/problems/${CASE}"]`).first()).toBeVisible();
     await capture(page, testInfo, 'navigation-cases-member');
     expect(errors).toEqual([]);
   });

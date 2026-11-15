@@ -1,4 +1,4 @@
-/* The study screens: list, builder, study, run, cell and analytics. The project frame (proj-*), the organization classes (org-*), the job classes (job-*) and the ui-* components are reused. */
+/* The study screens: list, builder, study, run, cell and analytics. The organization frame (proj-*), the organization classes (org-*), the job classes (job-*) and the ui-* components are reused. */
 
 /* Links inside the study screens read as links; the cards that are links as a whole keep their own look. */
 .st-body a:not(.ui-action):not(.st-run-link):not(.st-row-main):not(.st-heat) { color: var(--tp-primary); font-weight: 500; }

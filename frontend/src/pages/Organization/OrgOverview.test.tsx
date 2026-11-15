@@ -1,11 +1,11 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { addressNow, lucia, member, org, project, renderScreen, researchUsage } from './testKit';
+import { lucia, member, org, renderScreen, researchUsage } from './testKit';
 import { OrgOverview } from './OrgOverview';
 
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn() }));
-const platform = vi.hoisted(() => ({ projects: vi.fn(), members: vi.fn(), createProject: vi.fn(), studies: vi.fn() }));
+const platform = vi.hoisted(() => ({ members: vi.fn(), studies: vi.fn() }));
 const problems = vi.hoisted(() => ({ list: vi.fn() }));
 const runsApi = vi.hoisted(() => ({ list: vi.fn() }));
 
@@ -17,9 +17,6 @@ vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import(
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const lab = org('qos-lab', { name: 'QoS Lab (sub-organización)', parent_id: group.id });
 
-const benchmarks = project('qos-benchmarks', { name: 'QoS Benchmarks', description: 'Reference binding cases.', visibility: 'public', updated_at: '2026-10-08T00:00:00Z' });
-const checkout = project('checkout-privado', { name: 'Checkout (privado)', description: 'Internal payments case.' });
-
 function renderOverview(organizations = [group, lab], slug = 'isa-demo', loading = false) {
   return renderScreen(<OrgOverview />, { path: '/app/:org', url: `/app/${slug}`, organizations, loading });
 }
@@ -27,7 +24,6 @@ function renderOverview(organizations = [group, lab], slug = 'isa-demo', loading
 describe('Organization overview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    platform.projects.mockResolvedValue([benchmarks, checkout]);
     platform.members.mockResolvedValue([member('lucia.vega', 'OWNER', { user_id: lucia.id })]);
     api.getOwnUsage.mockResolvedValue(researchUsage());
     problems.list.mockResolvedValue({ problems: [], total: 0, limit: 5, offset: 0 });
@@ -52,7 +48,7 @@ describe('Organization overview', () => {
 
     const title = await screen.findByRole('heading', { level: 1, name: 'ISA Demo Group' });
     const hero = within(title.closest('header')!);
-    expect(hero.getByRole('button', { name: 'New project' })).toBeInTheDocument();
+    expect(hero.getByRole('link', { name: 'Upload BIM package' })).toHaveAttribute('href', '/app/isa-demo/problems?create=problem');
     expect(hero.queryByRole('link', { name: 'Library' })).toBeNull();
     for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/(library|resources)([/?#]|$)/);
     expect(hero.getByRole('link', { name: 'Members' })).toHaveAttribute('href', '/app/isa-demo/settings/members');
@@ -60,100 +56,37 @@ describe('Organization overview', () => {
     expect(hero.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/app/isa-demo/settings');
   });
 
-  it('gives a MEMBER the button to create but not the audit log, and a VIEWER neither', async () => {
+  it('gives a MEMBER the upload but not the audit log, and a VIEWER neither', async () => {
     const { unmount } = renderOverview([{ ...group, effective_role: 'MEMBER' }]);
-    expect(await screen.findByRole('button', { name: 'New project' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Upload BIM package' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Audit' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: '+ Add' })).not.toBeInTheDocument();
     unmount();
 
-    platform.projects.mockResolvedValue([]);
     renderOverview([{ ...group, effective_role: 'VIEWER' }]);
-    expect(await screen.findByText('No projects yet')).toBeInTheDocument();
+    expect(await screen.findByText(/You’re a VIEWER here: you read everything/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Upload BIM package' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '+ Upload' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '+ New run' })).not.toBeInTheDocument();
+  });
+
+  it('has no projects: no grid, no search and no New project', async () => {
+    renderOverview();
+
+    await screen.findByRole('heading', { level: 1, name: 'ISA Demo Group' });
+    expect(screen.queryByRole('heading', { name: /^Projects/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('searchbox', { name: 'Find a project' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'New project' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Create the first project' })).not.toBeInTheDocument();
-    expect(screen.getByText('You’re a VIEWER here, so you can’t create projects. A MEMBER or above can.')).toBeInTheDocument();
+    for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/create=project/);
   });
 
-  it('lists the projects as cards and narrows them with the search box', async () => {
+  it('lets one panel fail without taking the rest of the page with it', async () => {
+    problems.list.mockRejectedValueOnce(new HttpError(500, 'boom'));
     renderOverview();
 
-    const card = await screen.findByRole('link', { name: /QoS Benchmarks/ });
-    expect(card).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks');
-    expect(within(card).getByText('Public')).toBeInTheDocument();
-    expect(within(card).getByText('Reference binding cases.')).toBeInTheDocument();
-    expect(within(card).getByText(/Updated Oct 8, 2026/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Checkout \(privado\)/ })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /^Projects/ })).toHaveTextContent('Projects2');
-
-    const search = screen.getByRole('searchbox', { name: 'Find a project' });
-    fireEvent.change(search, { target: { value: 'checkout' } });
-    expect(screen.queryByRole('link', { name: /QoS Benchmarks/ })).not.toBeInTheDocument();
-    fireEvent.change(search, { target: { value: 'zzz' } });
-    expect(screen.getByText('No project matches “zzz”.')).toBeInTheDocument();
-  });
-
-  it('invites an ADMIN to create the first project when there are none', async () => {
-    platform.projects.mockResolvedValue([]);
-    renderOverview([{ ...group, effective_role: 'ADMIN' }]);
-
-    expect(await screen.findByText('No projects yet')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Create the first project' })).toHaveAttribute('href', '/app/isa-demo?create=project');
-  });
-
-  describe('the dialog New project', () => {
-    beforeEach(() => {
-      platform.createProject.mockImplementation(async (_org: string, value: { slug: string; name: string }) => project(value.slug, { name: value.name }));
-    });
-
-    it('opens from the New project button with create=project in the address', async () => {
-      renderOverview();
-      fireEvent.click(await screen.findByRole('button', { name: 'New project' }));
-
-      expect(await screen.findByRole('dialog', { name: 'New project' })).toBeInTheDocument();
-      expect(addressNow()).toBe('/app/isa-demo?create=project');
-    });
-
-    it('is open when the address holds create=project', async () => {
-      renderScreen(<OrgOverview />, { path: '/app/:org', url: '/app/isa-demo?create=project', organizations: [group, lab] });
-
-      expect(await screen.findByRole('dialog', { name: 'New project' })).toBeInTheDocument();
-    });
-
-    it('goes back to the organization on Cancel, returns the focus to New project and creates nothing', async () => {
-      renderScreen(<OrgOverview />, { path: '/app/:org', url: '/app/isa-demo?create=project', organizations: [group, lab] });
-      const dialog = await screen.findByRole('dialog', { name: 'New project' });
-
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-      expect(addressNow()).toBe('/app/isa-demo');
-      expect(screen.getByRole('button', { name: 'New project' })).toHaveFocus();
-      expect(platform.createProject).not.toHaveBeenCalled();
-    });
-
-    it('creating demo-two closes the dialog and opens the project', async () => {
-      renderScreen(<OrgOverview />, { path: '/app/:org', url: '/app/isa-demo?create=project', organizations: [group, lab] });
-      const dialog = await screen.findByRole('dialog', { name: 'New project' });
-
-      fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'demo-two' } });
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Create project' }));
-
-      await waitFor(() => expect(addressNow()).toBe('/app/isa-demo/demo-two'));
-      expect(platform.createProject).toHaveBeenCalledWith('isa-demo', expect.objectContaining({ name: 'demo-two', slug: 'demo-two' }));
-    });
-  });
-
-  it('lets the projects block fail without taking the rest of the page with it', async () => {
-    platform.projects.mockRejectedValueOnce(new HttpError(500, 'boom'));
-    renderOverview();
-
-    expect(await screen.findByText('Projects couldn’t be loaded (500). Sub-organizations are unaffected.')).toBeInTheDocument();
+    expect(await screen.findByText('Problems couldn’t be loaded (500).')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Sub-organizations' })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByRole('link', { name: /QoS Benchmarks/ })).toBeInTheDocument();
-    expect(platform.projects).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('heading', { name: /^Runs/ })).toBeInTheDocument();
   });
 
   it('shows the sub-organizations with their role and where it comes from, and the way up', async () => {
@@ -187,7 +120,7 @@ describe('Organization overview', () => {
     expect(screen.getByText(/It doesn’t exist, or you’re not a member\. We show the same message either way/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Back to Home' })).toHaveAttribute('href', '/app');
     expect(screen.queryByRole('link', { name: /Explore/ })).not.toBeInTheDocument();
-    expect(platform.projects).not.toHaveBeenCalled();
+    expect(problems.list).not.toHaveBeenCalled();
   });
 
   it('waits for the workspace instead of answering “not available” too early', async () => {

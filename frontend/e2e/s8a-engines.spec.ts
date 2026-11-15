@@ -102,9 +102,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     if (parts.length === 2) {
       return json([{ id: 'org-isa-demo', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'OWNER', created_at: '2026-03-03T00:00:00Z' }])(route);
     }
-    if (parts[3] === 'projects' && parts.length === 4) {
-      return json([{ id: 'project-1', organization_id: 'org-isa-demo', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: '', visibility: 'private', created_by_id: 'user-1', created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z', access: 'member', effective_role: 'OWNER' }])(route);
-    }
     return json([])(route);
   });
 

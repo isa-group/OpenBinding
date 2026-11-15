@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError, type EngineCatalogEntry, type EngineMode } from '../../api/client';
-import { caseOf, org, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
+import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspace/testKit';
 import { ENGINE, REGISTRATION, digestOf } from '../../test/fixtures/jobs';
 import { usageOf } from '../../test/fixtures/resources';
 import { JobLaunch } from './JobLaunch';
@@ -49,7 +49,7 @@ const analysis = (over: Record<string, unknown> = {}) => ({
 });
 
 function renderLaunch(search = '?problem=flujo&revision=2', slug = 'isa-demo') {
-  return renderProjectScreen(<JobLaunch />, {
+  return renderOrgScreen(<JobLaunch />, {
     path: '/app/:org/runs/new', url: `/app/${slug}/runs/new${search}`, organizations: [group, viewing],
   });
 }

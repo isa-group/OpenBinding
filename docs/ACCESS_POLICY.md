@@ -1,78 +1,60 @@
-# Access policy: members, and read-only visitors of public projects
+# Access policy: the organization and its members
 
-Two ways reach a project under `/v1/organizations/{org}/projects/{project}/...`:
+The organization is the only container. Everything a person works on lives under
+`/v1/organizations/{org}/...`: its members, invitations and audit log, its problems
+(with their revisions and compilations), its runs and its studies. There are no
+projects, and there is no public read: every route under an organization is for its
+members.
 
-| `access` | Who | What |
-|---|---|---|
-| `member` | a member of the organization (or of an ancestor) | their role (`VIEWER` < `MEMBER` < `ADMIN` < `OWNER`) decides, exactly as before |
-| `public_read` | **anybody else**, including a caller with no credentials | GET only, only on a project whose `visibility` is `public`, only on the routes of the matrix below |
+## Who reaches an organization
 
-`public_read` is an **access level, not a membership role**. It never appears as
-an `OrganizationRole`, never counts as a member and never grants a write. The
-project answer says which one applies:
+A member of the organization, or of one of its ancestors, has a role there
+(`VIEWER` < `MEMBER` < `ADMIN` < `OWNER`); the strongest of the roles held along
+the chain applies (`collaboration.effective_role`). Anybody else is refused:
 
-```json
-{ "slug": "open", "visibility": "public", "access": "public_read", "effective_role": null, "created_by_id": null, ... }
-{ "slug": "open", "visibility": "public", "access": "member", "effective_role": "VIEWER", "created_by_id": "<uuid>", ... }
-```
+- a signed-in non-member gets `403 organization_forbidden`; a slug that names no
+  organization is `404 not_found`; the runs routes answer `404` to a non-member too
+  (below);
+- a caller with no credential gets `401` on every route under `/v1/organizations`;
+- a platform administrator is a non-member like anybody else unless invited.
 
-`access` and `effective_role` are new fields; for members every pre-existing
-field is unchanged. A visitor does not get `created_by_id` (`null`).
+API keys keep their own rules: the permission the route needs
+(`x-required-api-key-permissions` in the OpenAPI document), the Engine allow-list,
+and the optional boundary (methods, organizations, resource kinds and slugs). A key
+cannot be bounded to projects any more; a stored boundary that still names them is
+malformed, and a malformed boundary denies everything.
 
-## Rules
+## Matrix (relative to `/v1/organizations/{org}`)
 
-1. **deny-by-default.** A request is eligible for `public_read` only if its
-   method is `GET` *and* its route template is listed as allowed below. A route
-   that is not listed — a write, a sensitive read, or a route added tomorrow —
-   is refused exactly as it is for any non-member. A test walks the real FastAPI
-   route table and fails when a project route is not classified
-   (`tests/test_b3_public_read.py`).
-2. **Private projects do not change.** A non-member asking for a private project
-   (or one that does not exist) gets `403 organization_forbidden`, the same body
-   for both, so existence is not disclosed; an anonymous caller gets `401`.
-3. **Anonymous reads are allowed on these routes only.** The matrix routes may be
-   called without credentials, and only on public projects. A malformed or
-   revoked credential is still `401`. Outside the project path, the public engine
-   catalogue `GET /v1/engines` answers a visitor with the built-in and published
-   Engines.
-4. **API keys** keep their own rules (permission, engine and boundary checks run
-   first); the key's owner is then a visitor like anybody else.
-5. **Abuse limits.** Public reads are counted per *caller* — the account (a
-   key and its account are one caller) or, anonymously, the client address — in a
-   sliding one-minute window of `PUBLIC_READ_RATE_PER_MINUTE` (default 240, `0`
-   switches it off). Beyond it: `429 rate_limit_exceeded` with `Retry-After`.
-   Members are not limited by this, a refused request is not counted, and nothing
-   a visitor does is ever charged to anybody's plan (a read meters nothing).
-6. **Implementation.** One central layer, not per-endpoint exceptions:
-   `openbinding_gateway/access/public_read.py` holds the matrix and the limiter;
-   `get_current_user` binds eligibility to the request; `collaboration.require_project`
-   is the single place that grants `public_read`. Handlers whose data is only
-   partly public narrow what they return when `public_read.is_public_read(session)`.
-   OpenAPI marks the allowed operations with `x-public-read: true`.
+| Routes | Read | Write | API key permission |
+|---|---|---|---|
+| `` (the organization), `/members`, `/members/batch`, `/members/{member}`, `/invitations` | VIEWER (members list) | ADMIN; owner changes need OWNER; deleting needs ADMIN (below) | `organizations:read` / `organizations:write` |
+| `/audit` | ADMIN | — | `organizations:read` |
+| `/problems`, `/problems/{problem}`, `/problems/{problem}/revisions/...` | VIEWER | MEMBER uploads, adds revisions and edits; ADMIN deletes | `problems:read` / `problems:write` |
+| `/runs/...` | VIEWER (redacted below MEMBER) | MEMBER | `jobs:read` / `engines:execute` |
+| `/studies/...` (study runs and cells included) | VIEWER | MEMBER creates, edits and runs; ADMIN deletes | `studies:read` / `studies:write` |
 
-## Matrix of allowed reads (relative to `/v1/organizations/{org}/projects/{project}`)
+## Deleting an organization
 
-| Route (GET) | What a visitor gets |
-|---|---|
-| `` (the project itself) | public metadata; `access: "public_read"` |
+`DELETE /v1/organizations/{org}` needs ADMIN (or OWNER) of the organization, or a
+platform administrator. It takes the organization and every organization below it in
+one transaction. Runs and study runs are history: a subtree that holds any is refused
+with `409 historical_references`, including a run or study run that starts while the
+delete is in progress (the subtree's studies, problems and organizations are locked
+before the check). Otherwise its studies, problems (revisions and
+compilations), blob rows, invitations, memberships and audit events go with it. The
+stored files are not unlinked: they are content addressed and may back another
+organization's blob.
 
-*Problems*, *runs* and *studies* belong to the organization, not to a project:
-`/v1/organizations/{org}/problems/...`, `/v1/organizations/{org}/studies/...` and
-`/v1/organizations/{org}/runs/...` (below) are members-only (VIEWER and up), and
-this policy does not open them. The artifact library and the project resources
-were removed in F0b.
+## Reserved organization slugs
 
-## Always denied to visitors
-
-| Route | Why |
-|---|---|
-| every `POST`, `PUT`, `PATCH`, `DELETE` under the project | writes (changing settings or visibility, deleting the project) |
-
-Outside the project path nothing changes either: members, invitations,
-organization settings, quota/usage/billing, API keys, problems, studies and runs
-stay members-only (or owner-only).
-The refusal is the ordinary one: `403 organization_forbidden` for a signed-in
-non-member, `401` without credentials.
+An organization slug is the first segment of its screens (`/app/<slug>`), so the
+slugs of the fixed places and of the sections under an organization are refused at
+creation with `422 slug_reserved`: `admin`, `account`, `engines`, `organizations`,
+`invitations`, `runs`, `problems`, `studies`, `settings`, `workbench` and `new`
+(`RESERVED_ORGANIZATION_SLUGS` in `models/platform.py`, mirrored by
+`frontend/src/components/PlatformShell/workspacePath.ts`). A slug cannot be changed
+after creation.
 
 ## The runs of an organization (`/v1/organizations/{org}/runs`)
 
@@ -90,15 +72,6 @@ An API key that cannot run engines (no `engines:execute`) reads redacted whateve
 the role of its user, and a key only sees the runs of the Engine revisions it may
 use. The `organizations:*` permissions do not reach the runs. A retry is a new run
 of the caller: it takes the caller's concurrency slot and plan.
-
-## Roles at a glance
-
-| Caller | Public project | Private project |
-|---|---|---|
-| anonymous | matrix routes, `access: "public_read"`; everything else `401` | `401` |
-| signed-in non-member (session or API key) | the same, counted against their own allowance | `403 organization_forbidden` |
-| `VIEWER` | read as a member (`access: "member"`, `effective_role: "VIEWER"`) | same |
-| `MEMBER` / `ADMIN` / `OWNER` | as before | as before |
 
 ## How often: the budgets of the routes open to anybody
 
@@ -141,11 +114,3 @@ and counts: how many diagnostics it listed and how many failures went unrecorded
 before it, plus a 5xx's correlation id. Never a message, because a refusal quotes what
 it refuses and an anonymous caller chooses that. A signed-in caller's failures are
 kept whole, as before.
-
-## Frontend notes
-
-- `GET .../projects/{project}` is now the way to open a public project: render it
-  read-only when `access === "public_read"` (there is no role to read).
-- Expect `429` with `Retry-After` while browsing other people's public projects
-  quickly, and from the routes above when one client asks too often; show the
-  countdown the way other `429`s are shown.

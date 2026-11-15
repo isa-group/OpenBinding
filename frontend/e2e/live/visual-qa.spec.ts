@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { measurePage, prepareCapture, waitUntilSettled } from '../helpers/pageChecks';
-import { API, CASE, ORG, PROJECT_PATH, RESULTS_DIR, RUNS_PATH, signInByApi } from './support';
+import { API, CASE, ORG, ORG_PATH, RESULTS_DIR, RUNS_PATH, signInByApi } from './support';
 
 /**
  * Visual QA of the main screens at the two sizes of the project (`desktop` 1280x800 and `mobile` 390x844 with touch: see
@@ -237,10 +237,9 @@ const LOGIN: Stop = { slug: 'login', path: '/login', ready: (page) => page.getBy
 
 const OWNER_STOPS: Stop[] = [
   { slug: 'panel', path: '/app', ready: (page) => page.getByRole('heading', { level: 1, name: /^Hello, / }) },
-  { slug: 'organization-projects', path: `/app/${ORG}`, ready: (page) => page.locator('#platform-main').locator(`a[href="${PROJECT_PATH}"]`).first() },
-  { slug: 'project', path: PROJECT_PATH, ready: (page) => page.getByRole('navigation', { name: 'Project sections' }) },
-  { slug: 'cases', path: `${PROJECT_PATH}/problems`, ready: (page) => page.getByRole('list', { name: 'Problems' }) },
-  { slug: 'case', path: `${PROJECT_PATH}/problems/${CASE}`, ready: (page) => page.locator('code.case-slug') },
+  { slug: 'organization', path: `/app/${ORG}`, ready: (page) => page.locator('#platform-main').getByRole('link', { name: 'All problems' }) },
+  { slug: 'cases', path: `${ORG_PATH}/problems`, ready: (page) => page.getByRole('list', { name: 'Problems' }) },
+  { slug: 'case', path: `${ORG_PATH}/problems/${CASE}`, ready: (page) => page.locator('code.case-slug') },
   { slug: 'jobs', path: `${RUNS_PATH}`, ready: (page) => page.getByRole('heading', { level: 1, name: 'Runs' }) },
   { slug: 'plan-permissions', path: '/app/account/usage', ready: (page) => page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Plan & permissions' }) },
   { slug: 'team-organization', path: `/app/${ORG}/settings/members`, ready: (page) => page.locator('#platform-main').getByRole('heading', { level: 1 }) },
@@ -250,7 +249,7 @@ const OWNER_STOPS: Stop[] = [
 const VIEWER_STOPS: Stop[] = [
   {
     slug: 'viewer-cases',
-    path: `${PROJECT_PATH}/problems`,
+    path: `${ORG_PATH}/problems`,
     ready: (page) => page.getByRole('list', { name: 'Problems' }),
     extra: async (page, label) => {
       await expect.soft(page.getByRole('button', { name: 'New problem' }), `${label}: a viewer sees "New problem"`).toHaveCount(0);

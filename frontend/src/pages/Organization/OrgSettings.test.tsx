@@ -2,14 +2,16 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingUnavailableError } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { lucia, member, org, project, renderScreen } from './testKit';
+import { lucia, member, org, renderScreen } from './testKit';
 import { OrgSettings } from './OrgSettings';
 
 const api = vi.hoisted(() => ({ adminListUsers: vi.fn() }));
-const platform = vi.hoisted(() => ({ updateOrganization: vi.fn(), deleteOrganization: vi.fn(), members: vi.fn(), projects: vi.fn() }));
+const platform = vi.hoisted(() => ({ updateOrganization: vi.fn(), deleteOrganization: vi.fn(), members: vi.fn(), studies: vi.fn() }));
+const problems = vi.hoisted(() => ({ list: vi.fn() }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const lab = org('qos-lab', { name: 'QoS Lab', parent_id: group.id });
@@ -26,7 +28,8 @@ describe('Organization settings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.members.mockResolvedValue([member('lucia.vega', 'OWNER', { user_id: lucia.id }), member('marco', 'MEMBER')]);
-    platform.projects.mockResolvedValue([project('qos-benchmarks'), project('checkout')]);
+    problems.list.mockResolvedValue({ problems: [], total: 3, limit: 1, offset: 0 });
+    platform.studies.mockResolvedValue([{ id: 's1' }, { id: 's2' }]);
     platform.updateOrganization.mockResolvedValue(group);
     platform.deleteOrganization.mockResolvedValue(undefined);
     api.adminListUsers.mockResolvedValue({ users: [] });
@@ -146,7 +149,9 @@ describe('Organization settings', () => {
     it('asks for the address, says what goes with it, and leaves for Home once it is gone', async () => {
       const { reload } = renderSettings();
       const impact = await screen.findByLabelText('What deleting removes');
-      await waitFor(() => expect(impact).toHaveTextContent('projects2'));
+      await waitFor(() => expect(impact).toHaveTextContent('problems3'));
+      await waitFor(() => expect(impact).toHaveTextContent('studies2'));
+      expect(impact).not.toHaveTextContent('project');
       expect(impact).toHaveTextContent('sub-organization1');
       expect(impact).toHaveTextContent('direct members2');
 
@@ -164,7 +169,7 @@ describe('Organization settings', () => {
       expect(await screen.findByText('elsewhere')).toBeInTheDocument();
     });
 
-    it('keeps the dialog open and explains a refusal for sealed history (409)', async () => {
+    it('keeps the dialog open and explains a refusal for runs or study runs (409)', async () => {
       platform.deleteOrganization.mockRejectedValue(refusal(409, 'historical_references'));
       renderSettings();
 
@@ -173,7 +178,7 @@ describe('Organization settings', () => {
       fireEvent.change(within(dialog).getByLabelText('Type isa-demo to confirm'), { target: { value: 'isa-demo' } });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }));
 
-      expect(await within(dialog).findByRole('alert')).toHaveTextContent('It has sealed history, so it can’t be deleted (409 · historical_references).');
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('It has runs or study runs, so it can’t be deleted (409 · historical_references).');
       expect(screen.queryByText('elsewhere')).not.toBeInTheDocument();
       fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

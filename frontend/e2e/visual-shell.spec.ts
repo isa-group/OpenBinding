@@ -13,12 +13,6 @@ const organization = {
   id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
 };
 
-const project = {
-  id: 'project-1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: 'Checkout flow benchmarks',
-  visibility: 'private', created_by_id: 'shell-user-id', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z',
-  access: 'member', effective_role: 'OWNER',
-};
-
 const notifications = [
   {
     id: 'n1', kind: 'agreement', subject: 'Your OpenBinding agreement changed', body: 'Plan: FREE → RESEARCH. Reason: institutional_agreement.',
@@ -37,7 +31,6 @@ async function signIn(page: Page, persona: keyof typeof personas) {
   await page.route(`${API}/v1/users/me`, (route) => route.fulfill({ json: personas[persona] }));
   await page.route(`${API}/v1/users/me/pricing-token`, (route) => route.fulfill({ json: { pricing_token: 'visual-token' } }));
   await page.route(`${API}/v1/organizations`, (route) => route.fulfill({ json: [organization] }));
-  await page.route(`${API}/v1/organizations/isa-demo/projects`, (route) => route.fulfill({ json: [project] }));
   await page.route(`${API}/v1/notifications**`, (route) => route.fulfill({ json: notifications }));
 }
 
@@ -115,27 +108,18 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         } else {
           const nav = header.getByRole('navigation', { name: 'Main' });
           await expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/app');
-          // A project screen is not the workspace home: its own tabs say where you are, and Home is not marked.
+          // The studies of the organization mark Studies, not Home.
           await expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current', 'page');
+          await expect(nav.getByRole('link', { name: 'Studies' })).toHaveAttribute('aria-current', 'page');
           await expect(nav.getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/problems');
+          await expect(nav.getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/isa-demo/runs');
+          await expect(nav.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
           await expect(nav.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
           for (const label of ['Language', 'Jobs', 'Analysis', 'Explore', 'Admin']) await expect(nav.getByRole('link', { name: label })).toHaveCount(0);
           await expect(nav.getByRole('button', { name: /Tools/ })).toHaveCount(0);
-          await expect(header.getByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' })).toHaveAttribute('href', '/app');
+          await expect(nav.getByRole('button', { name: /^Lab/ })).toHaveCount(0);
+          await expect(header.getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app');
           await expect(header.getByRole('button', { name: 'Open menu' })).toBeHidden();
-
-          // Lab, opened and closed with the keyboard.
-          const lab = nav.getByRole('button', { name: /^Lab/ });
-          await lab.focus();
-          await page.keyboard.press('Enter');
-          await expect(lab).toHaveAttribute('aria-expanded', 'true');
-          const labMenu = header.locator('#app-lab-menu');
-          await expect(labMenu.getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/isa-demo/runs');
-          await expect(labMenu.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
-          await shot('menu-lab');
-          await page.keyboard.press('Escape');
-          await expect(lab).toHaveAttribute('aria-expanded', 'false');
-          await expect(lab).toBeFocused();
 
           // New.
           const create = header.getByRole('button', { name: /^New/ });
@@ -173,8 +157,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         const search = page.getByRole('textbox', { name: 'Search commands and loaded items' });
         await expect(search).toBeFocused();
         await shot('palette');
-        await search.fill('qos');
-        await expect(page.getByRole('dialog').getByRole('link', { name: /^QoS Benchmarks/ })).toBeVisible();
+        await search.fill('isa');
+        await expect(page.getByRole('dialog').getByRole('link', { name: /^ISA Demo Group/ })).toBeVisible();
         await shot('palette-filtered');
         await search.fill('zzzz-nothing');
         await expect(page.getByText('Search only covers data already loaded on this device.')).toBeVisible();

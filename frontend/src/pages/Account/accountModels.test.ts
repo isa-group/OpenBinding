@@ -9,7 +9,7 @@ import { exactValueText, usageRows } from './usageModel';
 describe('API-key permissions', () => {
   it('offers every permission of the closed set exactly once', () => {
     const listed = PERMISSION_GROUPS.flatMap((group) => group.permissions.map((permission) => permission.id));
-    expect(ALL_PERMISSIONS).toHaveLength(22);
+    expect(ALL_PERMISSIONS).toHaveLength(20);
     expect(new Set(listed).size).toBe(listed.length);
     expect([...listed].sort()).toEqual([...ALL_PERMISSIONS].sort());
   });
@@ -48,8 +48,8 @@ describe('API-key permissions', () => {
   it('turns a boundary into short labels, ignoring the nulls the API sends for what is not set', () => {
     expect(boundaryLabels(undefined)).toEqual([]);
     expect(boundaryLabels({ methods: null, organizations: null } as never)).toEqual([]);
-    expect(boundaryLabels({ methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['runs', 'studies'], slugs: ['latency'] }))
-      .toEqual(['GET only', 'org isa-demo', 'project qos-benchmarks', 'runs, studies', 'slug latency']);
+    expect(boundaryLabels({ methods: ['GET'], organizations: ['isa-demo'], resource_kinds: ['runs', 'studies'], slugs: ['latency'] }))
+      .toEqual(['GET only', 'org isa-demo', 'runs, studies', 'slug latency']);
   });
 });
 

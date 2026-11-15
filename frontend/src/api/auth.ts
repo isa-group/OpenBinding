@@ -24,8 +24,6 @@ export type ApiKeyPermission =
   | 'engines:moderate'
   | 'organizations:read'
   | 'organizations:write'
-  | 'projects:read'
-  | 'projects:write'
   | 'studies:read'
   | 'studies:write'
   | 'notifications:read'
@@ -52,7 +50,6 @@ export interface CreateApiKeyRequest {
   boundary?: {
     methods?: Array<'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'>;
     organizations?: string[];
-    projects?: string[];
     resource_kinds?: string[];
     slugs?: string[];
   };

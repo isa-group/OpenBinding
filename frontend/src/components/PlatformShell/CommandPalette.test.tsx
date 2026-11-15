@@ -1,16 +1,12 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import type { Organization, Project } from '../../api/platform';
+import type { Organization } from '../../api/platform';
 import { CommandPalette, OPEN_COMMAND_PALETTE_EVENT } from './CommandPalette';
 import { buildCommands } from './paletteCommands';
 
 const organization: Organization = {
   id: 'org-1', name: 'ISA Demo Group', slug: 'isa-demo', parent_id: null, effective_role: 'OWNER', created_at: '2026-01-01T00:00:00Z',
-};
-const project: Project = {
-  id: 'project-1', organization_id: 'org-1', slug: 'qos', name: 'QoS Benchmarks', description: '',
-  visibility: 'private', created_by_id: 'user-1', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
 };
 
 function Location() {
@@ -19,14 +15,14 @@ function Location() {
 
 // What the palette offers comes from the commands under test, not from names written here: a change to the screens a command leads to
 // edits paletteCommands.ts and leaves these tests alone.
-const commandsOf = (isAdmin: boolean) => buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin });
+const commandsOf = (isAdmin: boolean) => buildCommands({ organizations: [organization], organization, isAdmin });
 const pathOf = (href: string) => new URL(href, 'http://localhost').pathname;
 
 function renderPalette(isAdmin = false) {
   return render(
     <MemoryRouter initialEntries={['/app']}>
       <button type="button">Opener</button>
-      <CommandPalette organizations={[organization]} projects={[project]} organization={organization} project={project} isAdmin={isAdmin} />
+      <CommandPalette organizations={[organization]} organization={organization} isAdmin={isAdmin} />
       <Location />
     </MemoryRouter>,
   );
@@ -93,15 +89,9 @@ describe('CommandPalette', () => {
     expect(resultLabels()).toEqual([]);
   });
 
-  it('finds the organizations and projects that are already loaded', () => {
+  it('finds the organizations that are already loaded', () => {
     renderPalette();
     openWithShortcut();
-
-    fireEvent.change(search(), { target: { value: 'qos' } });
-    const labels = resultLabels();
-    expect(labels).toContain('QoS Benchmarks');
-    const projectLink = within(dialog()).getByRole('link', { name: /^QoS Benchmarks/ });
-    expect(projectLink).toHaveAttribute('href', '/app/isa-demo/qos');
 
     fireEvent.change(search(), { target: { value: 'ISA Demo' } });
     expect(within(dialog()).getByRole('link', { name: /^ISA Demo Group/ })).toHaveAttribute('href', '/app/isa-demo');

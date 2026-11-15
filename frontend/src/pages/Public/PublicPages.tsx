@@ -21,7 +21,7 @@ import './PublicPages.css';
 interface Selected {
   name: string;
   bytes: Uint8Array;
-  /** The official example it came from, which a signed-in account can carry into a project. */
+  /** The official example it came from, which a signed-in account can open in the Workbench of an organization. */
   example: string | null;
 }
 

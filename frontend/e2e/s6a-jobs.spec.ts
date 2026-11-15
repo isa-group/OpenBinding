@@ -37,19 +37,6 @@ const org = (id: string, slug: string, name: string, role: Role) => ({
   id, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z',
 });
 
-const project = (n: number, orgId: string, slug: string, name: string) => ({
-  id: `project-${n}`, organization_id: orgId, slug, name, description: '', visibility: 'private', created_by_id: 'user-1',
-  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
-  // The contract's `ProjectView.access`: these specs reach every project as a member.
-  access: 'member' as const, effective_role: 'OWNER' as Role,
-});
-
-const projectsOf: Record<string, ReturnType<typeof project>[]> = {
-  'isa-demo': [project(1, 'org-isa-demo', 'qos-benchmarks', 'QoS Benchmarks'), project(2, 'org-isa-demo', 'checkout-privado', 'Checkout (privado)')],
-  'read-lab': [project(4, 'org-4', 'bench', 'Bench')],
-  'empty-lab': [],
-};
-
 // --- the problem a run can start from (the one the runs of the fixtures name)
 
 const checkout: Problem = {
@@ -179,7 +166,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
     const url = new URL(route.request().url());
     const parts = url.pathname.split('/').filter(Boolean);
-    const [, , orgSlug, section, projectSlug, sub] = parts;
+    const [, , orgSlug, section] = parts;
     const found = organizations.find((item) => item.slug === orgSlug);
 
     if (!orgSlug) return json(organizations)(route);
@@ -224,13 +211,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       if (tail === 'compilations') return json({ id: 'compilation-2', ir_digest: digestOf('c'), ir: PROBLEM, source_map: {} })(route);
       return json({ ...problemRevision(Number(revisionRef)), document: {}, files: [], resource_digests: {}, compilations: [] })(route);
     }
-    if (section !== 'projects') return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
-
-    const list = projectsOf[orgSlug] ?? [];
-    if (!projectSlug) return json(list)(route);
-    const current = list.find((item) => item.slug === projectSlug);
-    if (!current) return detail(404, 'not_found', 'Project not found.')(route);
-    if (!sub) return json(current)(route);
+    if (!section) return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
     return json([])(route);
   });
   return state;
@@ -296,7 +277,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
       await expect(main.getByText(/Every run in ISA Demo Group\. Every member opens them/)).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' })).toHaveCount(0);
       await expect(main.getByRole('link', { name: 'New run' })).toHaveAttribute('href', `${ROOT}/runs/new`);
       await expect(table.getByRole('row')).toHaveCount(9);
       await expect(table.getByRole('link', { name: /^Open run/ })).toHaveCount(8);

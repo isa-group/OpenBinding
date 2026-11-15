@@ -54,14 +54,13 @@ class Person:
 
 @dataclass
 class Lab:
-    """One organization with a project, a problem, its studies, and one person of each role.
+    """One organization with a problem, its studies, and one person of each role.
 
     The problem was uploaded by ``author`` (a MEMBER), so every role reaches it only through the organization.
     """
 
     slug: str
     org_id: uuid.UUID
-    project_id: uuid.UUID
     snapshot: str
     compilation_id: uuid.UUID
     definition: dict
@@ -72,10 +71,6 @@ class Lab:
     failed: dict[str, uuid.UUID] = field(default_factory=dict)
     queued: dict[str, uuid.UUID] = field(default_factory=dict)
     doomed: dict[str, str] = field(default_factory=dict)
-
-    @property
-    def base(self) -> str:
-        return f"/v1/organizations/{self.slug}/projects"
 
     @property
     def studies(self) -> str:
@@ -145,11 +140,6 @@ async def lab(api_client, registration, db_session, gate, no_dispatch):  # noqa:
     outsider_account, outsider_headers = await make_account(api_client, registration, db_session, gate)
     outsider_org = await make_org(api_client, outsider_headers)
 
-    base = f"/v1/organizations/{slug}/projects"
-    project = await api_client.post(
-        base, headers=owner_headers, json={"slug": "p", "name": "P", "description": "d", "visibility": "private"}
-    )
-    assert project.status_code == 201, project.text
     uploaded = await upload_problem(api_client, author.headers, slug, slug="c")
     compilation = await db_session.scalar(
         select(ProblemCompilation).where(ProblemCompilation.revision_id == uuid.UUID(uploaded["revision_id"]))
@@ -161,7 +151,7 @@ async def lab(api_client, registration, db_session, gate, no_dispatch):  # noqa:
         "parameter_sets": [{"iterations": 100}], "seeds": [1],
     }
     built = Lab(
-        slug=slug, org_id=uuid.UUID(organization["id"]), project_id=uuid.UUID(project.json()["id"]),
+        slug=slug, org_id=uuid.UUID(organization["id"]),
         snapshot=uploaded["revision_id"], compilation_id=compilation.id,
         definition=definition, owner_headers=owner_headers, people=people,
         outsider=Person(uuid.UUID(outsider_account["id"]), outsider_headers), outsider_org=outsider_org["slug"],
@@ -420,7 +410,7 @@ async def test_a_user_of_another_organization_cannot_touch_the_work_of_this_one(
 # -- API keys: the role of the user and the scopes of the key -----------------
 
 
-READ_SCOPES = ["jobs:read", "problems:read", "projects:read", "studies:read"]
+READ_SCOPES = ["jobs:read", "problems:read", "studies:read"]
 EXECUTE_SCOPES = [*READ_SCOPES, "engines:execute", "studies:write"]
 
 

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Idempotent local seed for the demo: synthetic users with the real roles, two
-organizations, one project, and a small BIM package from ``examples/`` as a problem
-of the main organization.
+organizations, and a small BIM package from ``examples/`` as a problem of the main
+organization.
 
 Safe to run on an empty or an already seeded database: every row is looked up by
 a stable key (UUIDv5 ids by username/slug, the problem by its slug and package digest)
 and created only when missing; there is no ``--reset`` and no user, organization,
-project, problem or revision is ever deleted. It also compiles, with the installed
+problem or revision is ever deleted. It also compiles, with the installed
 bim-toolchain, every problem revision that has no compilation of it yet (a new row;
 the older compilations stay). It launches no jobs, no studies and no solvers.
 Importing this module has no side effects.
@@ -69,8 +69,6 @@ from openbinding_gateway.db.platform_models import (
     Organization,
     OrganizationMembership,
     OrganizationRole,
-    Project,
-    Visibility,
 )
 from openbinding_gateway.integrations import packages
 from openbinding_gateway.modules.problems.application import (
@@ -89,7 +87,7 @@ logger = logging.getLogger("seed_lab")
 SEED_NAMESPACE = uuid.UUID("6f1d3a52-8c0e-4b7a-9d21-0f5e7c3a9b10")
 EMAIL_DOMAIN = "example.org"
 DEMO_PACKAGE = "01_simple_seq"
-PROJECT_REF = ("lab-main", "bim-demo")
+MAIN_ORG = "lab-main"
 CASE_SLUG = "simple-seq"
 KNOWN_PRODUCTION_SERVICES = ("openbinding",)
 
@@ -203,26 +201,6 @@ async def ensure_organizations(session: AsyncSession, users: dict[str, User], cr
     return organizations
 
 
-async def ensure_project(session: AsyncSession, organizations: dict[str, Organization], users: dict[str, User], created: list[str]) -> Project:
-    org_slug, slug = PROJECT_REF
-    organization = organizations[org_slug]
-    project = await session.scalar(select(Project).where(Project.organization_id == organization.id, Project.slug == slug))
-    if project is None:
-        project = Project(
-            id=stable_id("project", f"{org_slug}/{slug}"),
-            organization_id=organization.id,
-            slug=slug,
-            name="BIM demo",
-            description="Synthetic lab project with one small BIM package.",
-            visibility=Visibility.PRIVATE,
-            created_by_id=users["lab-owner"].id,
-        )
-        session.add(project)
-        await session.flush()
-        created.append(f"project:{org_slug}/{slug}")
-    return project
-
-
 async def ensure_case(
     session: AsyncSession, organization: Organization, user: User, examples_dir: Path, created: list[str]
 ) -> BindingCaseRevision:
@@ -295,7 +273,6 @@ async def count_rows(session: AsyncSession, users: dict[str, User], organization
         "apiKeys": await count(ApiKey, ApiKey.user_id.in_(user_ids)),
         "organizations": await count(Organization, Organization.id.in_(org_ids)),
         "memberships": await count(OrganizationMembership, OrganizationMembership.organization_id.in_(org_ids)),
-        "projects": await count(Project, Project.organization_id.in_(org_ids)),
         "cases": await count(BindingCase, BindingCase.organization_id.in_(org_ids)),
         "caseRevisions": await count(BindingCaseRevision, BindingCaseRevision.created_by_id.in_(user_ids)),
         "compilations": await count(
@@ -321,8 +298,7 @@ async def seed(session: AsyncSession, password: str, examples_dir: Path, *, plan
     try:
         users = await ensure_users(session, password, plan, created)
         organizations = await ensure_organizations(session, users, created)
-        project = await ensure_project(session, organizations, users, created)
-        revision = await ensure_case(session, organizations[PROJECT_REF[0]], users["lab-owner"], examples_dir, created)
+        revision = await ensure_case(session, organizations[MAIN_ORG], users["lab-owner"], examples_dir, created)
         recompile = await ensure_current_toolchain(session, created)
         await session.commit()
     finally:
@@ -337,7 +313,6 @@ async def seed(session: AsyncSession, password: str, examples_dir: Path, *, plan
         "ids": {
             "users": {name: str(user.id) for name, user in users.items()},
             "organizations": {slug: str(item.id) for slug, item in organizations.items()},
-            "project": str(project.id),
             "caseRevision": str(revision.id),
         },
         "roles": {

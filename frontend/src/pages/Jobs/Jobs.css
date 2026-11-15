@@ -1,4 +1,4 @@
-/* The job screens: new run, jobs of a project, one run, and my jobs. The project frame (proj-*), the organization classes (org-*) and the ui-* components are reused. */
+/* The run screens: new run, the runs of an organization and one run. The organization frame (proj-*), the organization classes (org-*) and the ui-* components are reused. */
 
 .job-icon { width: 14px; height: 14px; flex: none; }
 
@@ -31,7 +31,7 @@
   font-size: 0.75rem;
 }
 
-/* The table of a project's jobs */
+/* The table of an organization's runs */
 .ui-table td small, .ui-table td .job-engine + small { display: block; }
 .job-engine { overflow-wrap: anywhere; font-weight: 600; }
 .job-took { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }

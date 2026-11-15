@@ -51,7 +51,7 @@ async def _solve(*args, **kwargs):
 
 
 async def _study(client, registration, seeds):
-    """Create org, project, case and a study with one cell per seed; return headers."""
+    """Create org, problem and a study with one cell per seed; return headers."""
     details = registration()
     assert (await client.post("/v1/auth/register", json=details)).status_code == 201
     login = await client.post(
@@ -60,11 +60,6 @@ async def _study(client, registration, seeds):
     )
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
     await client.post("/v1/organizations", headers=headers, json={"slug": "lab", "name": "Lab"})
-    await client.post(
-        "/v1/organizations/lab/projects",
-        headers=headers,
-        json={"slug": "routing", "name": "Routing", "visibility": "private"},
-    )
     revision = await upload_problem(client, headers, "lab", slug="checkout")
     reference = engine_ref(routes._manifest("random-search"), "bim.builtin")
     created = await client.post(

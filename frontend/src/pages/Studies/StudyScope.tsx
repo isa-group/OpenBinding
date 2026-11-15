@@ -91,6 +91,6 @@ function StudyLoader({ organization, children }: LoaderProps) {
 export function StudyScope({ children }: { children: (scope: StudyScopeValue) => ReactNode }) {
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <OrgSkeleton label="Loading organization…" />;
-  if (!organization) return <OrgGate failure={null} subject="organization" />;
+  if (!organization) return <OrgGate failure={null} />;
   return <StudyLoader key={organization.slug} organization={organization}>{children}</StudyLoader>;
 }

@@ -52,8 +52,6 @@ class ApiKeyPermission(str, Enum):
     ENGINES_MODERATE = "engines:moderate"
     ORGANIZATIONS_READ = "organizations:read"
     ORGANIZATIONS_WRITE = "organizations:write"
-    PROJECTS_READ = "projects:read"
-    PROJECTS_WRITE = "projects:write"
     STUDIES_READ = "studies:read"
     STUDIES_WRITE = "studies:write"
     NOTIFICATIONS_READ = "notifications:read"
@@ -148,7 +146,7 @@ def matches(credential: str, stored_hash: str) -> bool:
     return hmac.compare_digest(hash_key(credential), stored_hash)
 
 
-BOUNDARY_FIELDS = ("methods", "organizations", "projects", "resourceKinds", "slugs")
+BOUNDARY_FIELDS = ("methods", "organizations", "resourceKinds", "slugs")
 
 
 def grants_document(
@@ -223,7 +221,6 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
         return False
     aliases = {
         "organizations": ("org", "organization", "organization_id", "org_id"),
-        "projects": ("project", "project_id"),
         "slugs": ("slug", "problem", "study"),
     }
     for field, names in aliases.items():
@@ -239,7 +236,6 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "organizations": {"organization", "organizations"},
             "members": {"member", "members"},
             "invitations": {"invitation", "invitations"},
-            "projects": {"project", "projects"},
             "problems": {"problem", "problems"},
             "studies": {"study", "studies"},
             "runs": {"run", "runs"},
@@ -376,12 +372,6 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             {ApiKeyPermission.STUDIES_READ.value}
             if method == "GET"
             else {ApiKeyPermission.STUDIES_WRITE.value}
-        )
-    if "/projects" in path:
-        return frozenset(
-            {ApiKeyPermission.PROJECTS_READ.value}
-            if method == "GET"
-            else {ApiKeyPermission.PROJECTS_WRITE.value}
         )
     if path.startswith("/v1/organizations"):
         return frozenset(

@@ -1,8 +1,8 @@
 import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { platformApi, type Organization } from '../../api/platform';
-// The picker shares the look of the project picker.
-import './ProjectPicker.css';
+// The organization picker (styles in OrganizationPicker.css).
+import './OrganizationPicker.css';
 
 interface OrganizationPickerProps {
   /** The button label: "Save to an organization", "Run with this engine". */
@@ -38,13 +38,13 @@ export function OrganizationPicker({ label, destination, variant = 'secondary' }
   };
 
   return (
-    <div className="ui-project-picker">
-      <button type="button" className={`ui-project-picker-button is-${variant}`} aria-expanded={open} aria-controls={panelId} onClick={toggle}>
+    <div className="ui-org-picker">
+      <button type="button" className={`ui-org-picker-button is-${variant}`} aria-expanded={open} aria-controls={panelId} onClick={toggle}>
         {label}
       </button>
       {open && (
-        <div className="ui-project-picker-panel" id={panelId} role="group" aria-label={`${label}: choose an organization`}>
-          <span className="ui-project-picker-title">Choose an organization</span>
+        <div className="ui-org-picker-panel" id={panelId} role="group" aria-label={`${label}: choose an organization`}>
+          <span className="ui-org-picker-title">Choose an organization</span>
           {load.status === 'loading' && <span role="status">Loading your organizations…</span>}
           {load.status === 'failed' && (
             <span role="alert">

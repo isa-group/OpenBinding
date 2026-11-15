@@ -10,7 +10,7 @@ const api = vi.hoisted(() => ({
   listApiKeys: vi.fn(), getOwnUsage: vi.fn(), revokeApiKey: vi.fn(), rotateApiKey: vi.fn(),
   getEngines: vi.fn(), createApiKey: vi.fn(),
 }));
-const platform = vi.hoisted(() => ({ organizations: vi.fn(), projects: vi.fn() }));
+const platform = vi.hoisted(() => ({ organizations: vi.fn() }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
@@ -25,7 +25,7 @@ const reader: ApiKeySummary = {
   id: 'k1', name: 'ci-lectura-resultados', prefix: 'obk_demo0001', created_at: '2026-09-01T00:00:00Z', last_used_at: '2026-10-08T00:00:00Z',
   expires_at: '2099-12-31T00:00:00Z', permissions: ['jobs:read', 'studies:read'], engine_access: { all: true, engines: [] },
   // The API sends null for every restriction that is not set.
-  boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: null, resource_kinds: ['runs', 'studies'], slugs: null } as unknown as ApiKeySummary['boundary'],
+  boundary: { methods: ['GET'], organizations: ['isa-demo'], resource_kinds: ['runs', 'studies'], slugs: null } as unknown as ApiKeySummary['boundary'],
 };
 
 const runner: ApiKeySummary = {
@@ -68,7 +68,6 @@ describe('API keys', () => {
     api.revokeApiKey.mockResolvedValue(undefined);
     api.getEngines.mockResolvedValue([]);
     platform.organizations.mockResolvedValue([]);
-    platform.projects.mockResolvedValue([]);
   });
 
   describe('the New API key dialog', () => {

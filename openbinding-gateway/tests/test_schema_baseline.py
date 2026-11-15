@@ -69,6 +69,8 @@ RETIRED_TABLES = frozenset({
     "project_artifacts",
     "project_resource_revisions",
     "project_resources",
+    # F0b B8: projects go; the organization is the only container.
+    "projects",
 })
 
 VERSIONS = GATEWAY_ROOT / "alembic" / "versions"

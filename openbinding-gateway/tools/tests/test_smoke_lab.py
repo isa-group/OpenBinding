@@ -179,9 +179,8 @@ class FakeLab:
             return self.job(sub, request.method, user, role)
         if role is None:
             return self.problem(403, "organization_forbidden")
-        base = "/v1/organizations/lab-main/projects"
-        if sub == base:
-            return self.reply(200, [{"slug": "bim-demo"}])
+        if sub == "/v1/organizations/lab-main/problems":
+            return self.reply(200, {"problems": [{"slug": "simple-seq"}], "total": 1})
         if sub == "/v1/organizations/lab-main/problems/simple-seq/revisions":
             return self.reply(200, [{"id": "rev-1", "revision": 1}])
         if sub == "/v1/organizations/lab-main/studies" and request.method == "POST":

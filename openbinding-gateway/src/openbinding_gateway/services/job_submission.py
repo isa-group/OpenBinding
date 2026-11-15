@@ -183,14 +183,13 @@ async def _key_boundary_allows(session: AsyncSession, caller: User, problem_row:
     """Whether the authenticating API key's boundary covers a run of this problem.
 
     ``createRun`` names the revision in its body, so the route-level boundary check sees the
-    organization of the address but not the problem; the run belongs to the problem's organization,
-    and a run is in no project, so a key bounded to projects is refused.
+    organization of the address but not the problem; the run belongs to the problem's organization.
     """
     key = authenticated_api_key(caller)
     boundary = boundary_of(key) if key is not None else None
     if boundary is None:
         return True
-    if not boundary or "projects" in boundary:
+    if not boundary:
         return False
     if "organizations" in boundary:
         organization = await session.get(Organization, problem_row.organization_id)

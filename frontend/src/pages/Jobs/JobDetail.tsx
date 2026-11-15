@@ -223,6 +223,6 @@ export function JobDetail() {
   const { job: jobId = '' } = useParams();
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <OrgSkeleton label="Loading organization…" />;
-  if (!organization) return <OrgGate failure={null} subject="organization" />;
+  if (!organization) return <OrgGate failure={null} />;
   return <JobDetailBody key={jobId} organization={organization} jobId={jobId} canWork={problemAccess(organization).canCreate} />;
 }

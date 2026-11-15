@@ -5,14 +5,13 @@ import type { UserProfile } from '../../api/auth';
 import { AuthContext } from '../../contexts/auth';
 import { PlatformShell, type PlatformOutletContext } from './PlatformShell';
 import { buildCommands } from './paletteCommands';
-import { platformApi, type Organization, type Project } from '../../api/platform';
+import { platformApi, type Organization } from '../../api/platform';
 import { routeDefinitions } from '../../routes/registry';
 
 vi.mock('../../api/platform', async () => ({
   ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'),
   platformApi: {
     organizations: vi.fn(),
-    projects: vi.fn(),
   },
 }));
 
@@ -50,27 +49,13 @@ const organization = (id: string, slug: string, name: string): Organization => (
   created_at: '2026-01-01T00:00:00Z',
 });
 
-const project = (id: string, organizationId: string, slug: string, name: string): Project => ({
-  id,
-  organization_id: organizationId,
-  slug,
-  name,
-  description: '',
-  visibility: 'private',
-  created_by_id: 'user-1',
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
-});
-
 /** Shows what the layout hands to a screen through the outlet context. */
 function ContextProbe() {
   const context = useOutletContext<PlatformOutletContext>();
   return (
     <section aria-label="Screen">
       <output data-testid="organizations">{context.organizations.map((item) => item.slug).join(',')}</output>
-      <output data-testid="projects">{context.projects.map((item) => item.slug).join(',')}</output>
       <output data-testid="organization">{context.organization?.slug ?? 'none'}</output>
-      <output data-testid="project">{context.project?.slug ?? 'none'}</output>
       <output data-testid="loading">{String(context.loading)}</output>
       <button type="button" onClick={() => void context.reload()}>Reload</button>
     </section>
@@ -110,11 +95,6 @@ describe('PlatformShell (application layout)', () => {
       organization('org-1', 'test-org', 'Test Org'),
       organization('org-2', 'other-org', 'Other Org'),
     ]);
-    vi.mocked(platformApi.projects).mockImplementation(async (slug: string) => (
-      slug === 'other-org'
-        ? [project('project-3', 'org-2', 'delta', 'Delta')]
-        : [project('project-1', 'org-1', 'atlas', 'Atlas'), project('project-2', 'org-1', 'borealis', 'Borealis')]
-    ));
   });
 
   it('renders the application header, the screen and the site footer', async () => {
@@ -129,34 +109,21 @@ describe('PlatformShell (application layout)', () => {
     expect(document.getElementById('platform-main')).toContainElement(screen.getByRole('region', { name: 'Screen' }));
   });
 
-  it('keeps the outlet context contract: first organization and project by default', async () => {
+  it('keeps the outlet context contract: the organizations, and the first one by default', async () => {
     renderShell(user, '/app');
     await ready();
 
     expect(screen.getByTestId('organizations')).toHaveTextContent('test-org,other-org');
     expect(screen.getByTestId('organization')).toHaveTextContent('test-org');
-    expect(screen.getByTestId('projects')).toHaveTextContent('atlas,borealis');
-    expect(screen.getByTestId('project')).toHaveTextContent('atlas');
-    expect(platformApi.projects).toHaveBeenCalledWith('test-org');
+    expect(platformApi.organizations).toHaveBeenCalledOnce();
   });
 
-  it('selects the organization and project named by the address', async () => {
-    renderShell(user, '/app/other-org/delta/problems');
+  it('selects the organization named by the address, whatever screen of it is open', async () => {
+    renderShell(user, '/app/other-org/problems');
     await ready();
 
     expect(screen.getByTestId('organization')).toHaveTextContent('other-org');
-    expect(screen.getByTestId('projects')).toHaveTextContent('delta');
-    expect(screen.getByTestId('project')).toHaveTextContent('delta');
-    expect(platformApi.projects).toHaveBeenCalledWith('other-org');
-    expect(screen.getByTitle('Switch organization or project')).toHaveTextContent('Other Org / Delta');
-  });
-
-  it('falls back to the first project when the address names an organization section', async () => {
-    renderShell(user, '/app/test-org/settings/members');
-    await ready();
-
-    expect(screen.getByTestId('organization')).toHaveTextContent('test-org');
-    expect(screen.getByTestId('project')).toHaveTextContent('atlas');
+    expect(screen.getByTitle('Switch organization')).toHaveTextContent('Other Org');
   });
 
   it('knows the fixed addresses of the registry', () => {
@@ -169,8 +136,6 @@ describe('PlatformShell (application layout)', () => {
       renderShell(user, path);
       await ready();
 
-      expect(platformApi.projects).toHaveBeenCalledOnce();
-      expect(platformApi.projects).toHaveBeenCalledWith('test-org');
       expect(screen.getByTestId('organization')).toHaveTextContent('test-org');
     },
   );
@@ -190,9 +155,7 @@ describe('PlatformShell (application layout)', () => {
     await ready();
 
     expect(screen.getByTestId('organization')).toHaveTextContent('none');
-    expect(screen.getByTestId('project')).toHaveTextContent('none');
-    expect(platformApi.projects).not.toHaveBeenCalled();
-    expect(screen.queryByTitle('Switch organization or project')).toBeNull();
+    expect(screen.queryByTitle('Switch organization')).toBeNull();
   });
 
   it('reports a workspace that cannot be loaded', async () => {
@@ -229,8 +192,8 @@ describe('PlatformShell (application layout)', () => {
     for (const link of adminLinks) expect(link).toHaveAttribute('href', '/app/admin');
   });
 
-  it('has no link to the retired report address in the header of a project, and fills the palette with the commands of the project', async () => {
-    renderShell(user, '/app/test-org/atlas');
+  it('has no link to the retired report address in the header of an organization, and fills the palette with its commands', async () => {
+    renderShell(user, '/app/test-org/problems');
     await ready();
 
     const hrefs = Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href') ?? '');
@@ -243,8 +206,7 @@ describe('PlatformShell (application layout)', () => {
     expect(links.filter((link) => /\/reports([/?#]|$)/.test(link.getAttribute('href') ?? ''))).toEqual([]);
     // The palette offers what paletteCommands.ts builds for the loaded workspace (the commands themselves are tested there).
     const organizations = [organization('org-1', 'test-org', 'Test Org'), organization('org-2', 'other-org', 'Other Org')];
-    const projects = [project('project-1', 'org-1', 'atlas', 'Atlas'), project('project-2', 'org-1', 'borealis', 'Borealis')];
-    const expected = buildCommands({ organizations, projects, organization: organizations[0], project: projects[0], isAdmin: false });
+    const expected = buildCommands({ organizations, organization: organizations[0], isAdmin: false });
     expect(links.map((link) => link.getAttribute('href'))).toEqual(expected.map((command) => command.href));
   });
 

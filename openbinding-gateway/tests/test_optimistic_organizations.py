@@ -1,4 +1,4 @@
-"""ETag / If-Match / 412 on updateOrganization, updateProject and updateProblem."""
+"""ETag / If-Match / 412 on updateOrganization and updateProblem."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from sqlalchemy import delete, func, select, update
 from openbinding_gateway import space_client
 from _problem_helpers import upload_problem
 from openbinding_gateway.core import revision
-from openbinding_gateway.db.models import AuditEvent, BindingCase, Organization, Project, utcnow
+from openbinding_gateway.db.models import AuditEvent, BindingCase, Organization, utcnow
 from _pricing import fake_pricing_gate, largest_plan
 from test_collaboration_platform import account
 
@@ -21,7 +21,7 @@ LARGER_PLAN = largest_plan()
 
 @pytest_asyncio.fixture
 async def resources(api_client, registration):
-    """An organization, a project and a problem owned by one account, with that account's headers.
+    """An organization and a problem owned by one account, with that account's headers.
 
     Also a viewer, an admin (neither is the owner) and an outsider with no membership.
     """
@@ -42,10 +42,6 @@ async def resources(api_client, registration):
             f"{base}/members/{member['id']}", headers=headers, json={"user_id": member["id"], "role": role}
         )
         assert added.status_code == 200, added.text
-    project = await api_client.post(
-        f"/v1/organizations/{slug}/projects", headers=headers, json={"slug": "routing", "name": "Routing"}
-    )
-    assert project.status_code == 201, project.text
     case = (await upload_problem(api_client, headers, slug, slug="base"))["problem"]
     yield {
         "headers": headers,
@@ -58,10 +54,6 @@ async def resources(api_client, registration):
         "admin_id": admin["id"],
         "member_url": f"{base}/members/{viewer['id']}",
         "org": {"url": base, "model": Organization, "id": org.json()["id"], "change": {"name": "Renamed"}},
-        "project": {
-            "url": f"{base}/projects/routing", "model": Project, "id": project.json()["id"],
-            "change": {"description": "Edited"},
-        },
         "case": {
             "url": f"{base}/problems/base", "model": BindingCase, "id": case["id"],
             "change": {"description": "Edited"},
@@ -70,7 +62,7 @@ async def resources(api_client, registration):
     space_client.set_gate(previous)
 
 
-KINDS = ["org", "project", "case"]
+KINDS = ["org", "case"]
 
 
 async def current_tag(client, resource, headers) -> str:
@@ -348,23 +340,16 @@ async def test_a_no_op_edit_with_if_match_still_returns_a_new_valid_etag(api_cli
     assert guarded.headers["ETag"] == await current_tag(api_client, resource, headers)
 
 
-async def test_stale_tag_is_reported_on_project_and_case_whatever_the_edit(api_client, resources) -> None:
+async def test_stale_tag_is_reported_on_a_problem_whatever_the_edit(api_client, resources) -> None:
     headers = resources["headers"]
-    project, case = resources["project"], resources["case"]
-    stale_project = await current_tag(api_client, project, headers)
+    case = resources["case"]
     stale_case = await current_tag(api_client, case, headers)
-    await api_client.patch(project["url"], headers=headers, json={"description": "Moved on"})
     await api_client.patch(case["url"], headers=headers, json={"description": "Moved on"})
 
-    # Going private is a change of visibility, the edit of a project with the widest effect.
-    project_refusal = await api_client.patch(
-        project["url"], headers={**headers, "If-Match": stale_project}, json={"visibility": "private"}
-    )
     case_refusal = await api_client.patch(
         case["url"], headers={**headers, "If-Match": stale_case}, json={"name": "Late"}
     )
 
-    assert project_refusal.status_code == 412, project_refusal.text
     assert case_refusal.status_code == 412, case_refusal.text
 
 
@@ -393,7 +378,6 @@ def test_openapi_documents_if_match_and_both_failures() -> None:
     paths = app.openapi()["paths"]
     for path, operation in [
         ("/v1/organizations/{org}", "updateOrganization"),
-        ("/v1/organizations/{org}/projects/{project}", "updateProject"),
         ("/v1/organizations/{org}/problems/{problem}", "updateProblem"),
     ]:
         patch = paths[path]["patch"]
@@ -412,7 +396,6 @@ def test_openapi_declares_the_etag_of_the_reads() -> None:
     paths = app.openapi()["paths"]
     for path in [
         "/v1/organizations/{org}",
-        "/v1/organizations/{org}/projects/{project}",
         "/v1/organizations/{org}/problems/{problem}",
     ]:
         ok = paths[path]["get"]["responses"]["200"]
@@ -580,12 +563,11 @@ async def test_without_if_match_twice_both_edits_apply_and_the_second_stays(api_
 
 async def test_a_refused_read_carries_no_etag(api_client, resources) -> None:
     owner, outsider = resources["headers"], resources["outsider"]
-    project, case = resources["project"], resources["case"]
+    case = resources["case"]
 
     refusals = [
         (await api_client.get(resources["org"]["url"], headers=outsider), 403),
         (await api_client.get("/v1/organizations/missing", headers=owner), 404),
-        (await api_client.get(missing_url("project", project), headers=owner), 404),
         (await api_client.get(missing_url("case", case), headers=owner), 404),
     ]
 

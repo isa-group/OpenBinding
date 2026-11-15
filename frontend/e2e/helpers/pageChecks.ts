@@ -50,7 +50,6 @@ export interface PageMeasure {
   brokenImages: string[];
   emptyControls: string[];
   brand: { header: number; footer: number; mobileMenu: number };
-  projectTabs: { present: boolean; scrolls: boolean; visible: number; total: number };
   textLength: number;
 }
 
@@ -194,14 +193,6 @@ export async function measurePage(page: Page): Promise<PageMeasure> {
 
     const h1 = [...document.querySelectorAll('h1')];
 
-    const tabs = document.querySelector('nav[aria-label="Project sections"]');
-    const tabLinks = tabs ? [...tabs.querySelectorAll('a')] : [];
-    const tabsBox = tabs?.getBoundingClientRect();
-    const visibleTabs = tabLinks.filter((link) => {
-      const box = link.getBoundingClientRect();
-      return tabsBox ? box.left >= tabsBox.left - 1 && box.right <= tabsBox.right + 1 : false;
-    });
-
     return {
       title: document.title,
       h1: h1.map((heading) => (heading.textContent ?? '').trim()),
@@ -225,12 +216,6 @@ export async function measurePage(page: Page): Promise<PageMeasure> {
         header: document.querySelectorAll('.app-header .institution-mark, .site-header .institution-mark').length,
         footer: document.querySelectorAll('.site-footer .institution-mark').length,
         mobileMenu: document.querySelectorAll('.app-mobile-menu .institution-mark').length,
-      },
-      projectTabs: {
-        present: Boolean(tabs),
-        scrolls: tabs ? tabs.scrollWidth > tabs.clientWidth + 1 : false,
-        visible: visibleTabs.length,
-        total: tabLinks.length,
       },
       textLength: text.length,
     };

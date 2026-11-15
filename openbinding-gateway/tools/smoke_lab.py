@@ -22,9 +22,9 @@ Environment (the ``seed`` compose service passes the gateway's, so nothing is sp
 Steps (a failure never aborts the next one; 6-9 can be dropped with ``--skip``):
     1 proxy_and_spa     /healthz, SPA index, SPA fallback on a made-up deep route, /api/health/ready
     2 login             admin, owner, member, viewer and outsider sign in (Bearer tokens)
-    3 owner_job         owner: profile, projects, a random-search run of the seeded problem, result shape
+    3 owner_job         owner: profile, problems, a random-search run of the seeded problem, result shape
     4 idempotency       same key + body -> same run; same key + other body -> 409; other account -> other run, readable by both
-    5 authorization     401 without token, the viewer/outsider/admin matrix (the viewer reads the owner's run, redacted, but launches no run and starts no study run)
+    5 authorization     401 without token, the viewer/outsider/admin matrix (the viewer reads the problem and the owner's run, redacted, but launches no run and starts no study run)
     6 concurrency_limit 5 simultaneous launches -> a 429 with Retry-After, and the slot is freed afterwards
     7 cors              preflight allowed from the lab origin, refused from another origin
     8 body_limit        a JSON body over 16 MiB -> 413 problem+json
@@ -71,7 +71,9 @@ ADMIN_ROLE = "admin"
 #: Never seeded, so the throttle step blocks nobody real.
 THROTTLE_USER = "lab-throttle-probe"
 THROTTLE_ATTEMPTS = 12
-ORG, PROJECT, CASE = "lab-main", "bim-demo", "simple-seq"
+ORG, CASE = "lab-main", "simple-seq"
+#: The seeded problem (``/v1/organizations/{org}/problems/{problem}``).
+PROBLEM = f"/v1/organizations/{ORG}/problems/{CASE}"
 #: The runs of the lab organization (``/v1/organizations/{org}/runs``).
 RUNS = f"/v1/organizations/{ORG}/runs"
 EXAMPLE_PATH = "demo/01_simple_seq"
@@ -573,8 +575,8 @@ def step_owner_job(lab: Lab) -> Checks:
     organizations = body_of(lab.call("GET", "/v1/organizations", "owner")) or []
     main = next((item for item in organizations if mapping(item).get("slug") == ORG), None)
     checks.expect(main is not None and mapping(main).get("effective_role") == "OWNER", f"owner is OWNER of {ORG}")
-    projects = body_of(lab.call("GET", f"/v1/organizations/{ORG}/projects", "owner")) or []
-    checks.expect(any(mapping(item).get("slug") == PROJECT for item in projects), f"project {ORG}/{PROJECT} is visible")
+    problems = mapping(body_of(lab.call("GET", f"/v1/organizations/{ORG}/problems", "owner"))).get("problems") or []
+    checks.expect(any(mapping(item).get("slug") == CASE for item in problems), f"problem {ORG}/{CASE} is visible")
 
     lab.revision()
     created = lab.launch("owner", key=f"smoke-{lab.run_id}-job")
@@ -653,13 +655,14 @@ def check_viewer_redaction(checks: Checks, job: Mapping[str, Any]) -> None:
 def step_authorization(lab: Lab) -> Checks:
     checks = lab.begin()
     job_id = lab.owner_job_id or str(uuid.uuid4())
-    base = f"/v1/organizations/{ORG}/projects/{PROJECT}"
 
     for method, path in (("GET", "/v1/users/me"), ("GET", "/v1/organizations"), ("GET", f"{RUNS}/{job_id}"),
                          ("POST", RUNS), ("GET", RUNS), ("GET", "/v1/admin/overview")):
         response = lab.call(method, path)
         checks.expect(response.status_code == 401, f"anonymous {method} {path[:40]} -> 401 ({response.status_code})")
 
+    problem = lab.call("GET", PROBLEM, "viewer")
+    checks.expect(problem.status_code == 200, f"viewer reads the organization's problem ({describe(problem)})")
     # A run belongs to the organization of its problem: a VIEWER of that organization reads it, and is refused
     # a launch before anything is compiled, reserved or charged to a plan.
     viewer_launch = lab.launch("viewer")
@@ -684,7 +687,7 @@ def step_authorization(lab: Lab) -> Checks:
     run = lab.call("POST", f"/v1/organizations/{ORG}/studies/{STUDY_SLUG}/runs", "viewer")
     checks.expect(run.status_code in {403, 404}, f"viewer CANNOT start a study run in the organization ({describe(run)})")
 
-    for label, path in (("project", base), ("runs", RUNS), ("organization", f"/v1/organizations/{ORG}")):
+    for label, path in (("problem", PROBLEM), ("runs", RUNS), ("organization", f"/v1/organizations/{ORG}")):
         denied = lab.call("GET", path, "outsider")
         checks.expect(denied.status_code in {403, 404}, f"outsider cannot read the {label} ({describe(denied)})")
     foreign = lab.call("GET", f"{RUNS}/{job_id}", "outsider")

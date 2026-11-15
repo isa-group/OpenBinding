@@ -1,11 +1,9 @@
-import type { Organization, Project } from '../../api/platform';
-import { accountLinks, createItems, labEntries, mainLinks, problemsEntry, projectRoot } from './appNavigation';
+import type { Organization } from '../../api/platform';
+import { accountLinks, createItems, mainLinks, organizationEntries } from './appNavigation';
 
 export interface PaletteContext {
   organizations?: Organization[];
-  projects?: Project[];
   organization?: Organization;
-  project?: Project;
   isAdmin: boolean;
 }
 
@@ -26,9 +24,8 @@ const glyphOf = (label: string) => label
   .join('') || '·';
 
 /** Everything the palette can reach comes from the screen map and from data the workspace already loaded. */
-export function buildCommands({ organizations = [], projects = [], organization, project, isAdmin }: PaletteContext): Command[] {
+export function buildCommands({ organizations = [], organization, isAdmin }: PaletteContext): Command[] {
   const command = (group: string, label: string, desc: string, href: string, glyph = glyphOf(label)): Command => ({ group, label, desc, href, glyph });
-  const root = projectRoot(organization, project);
 
   const commands: Command[] = [
     command('Go to', 'Home', 'Organizations and recent activity', mainLinks.home.to),
@@ -39,30 +36,22 @@ export function buildCommands({ organizations = [], projects = [], organization,
   for (const item of organizations) {
     commands.push(command('Organization', item.name, 'Organization', `/app/${item.slug}`));
   }
-  for (const item of projects) {
-    const owner = organizations.find((entry) => entry.id === item.organization_id);
-    if (owner) commands.push(command('Project', item.name, `Project in ${owner.name}`, `/app/${owner.slug}/${item.slug}`));
-  }
   if (organization) {
-    const problems = problemsEntry(organization);
-    if (problems.to) {
-      commands.push(command('Organization', 'Problems', `Binding problems and their versions · ${organization.name}`, problems.to));
-      commands.push(command('Create', 'New problem', `Upload a BIM package in ${organization.name}`, `${problems.to}?create=problem`, '+'));
+    const entries = Object.fromEntries(organizationEntries(organization).map((entry) => [entry.id, entry.to]));
+    if (entries.problems) {
+      commands.push(command('Organization', 'Problems', `Binding problems and their versions · ${organization.name}`, entries.problems));
+      commands.push(command('Create', 'New problem', `Upload a BIM package in ${organization.name}`, `${entries.problems}?create=problem`, '+'));
     }
-    const runs = labEntries(organization).find((entry) => entry.id === 'runs');
-    if (runs?.to) {
-      commands.push(command('Organization', 'Runs', `Every run of the organization · ${organization.name}`, runs.to));
-      commands.push(command('Create', 'New run', `Launch an engine run in ${organization.name}`, `${runs.to}/new`, '+'));
+    if (entries.runs) {
+      commands.push(command('Organization', 'Runs', `Every run of the organization · ${organization.name}`, entries.runs));
+      commands.push(command('Create', 'New run', `Launch an engine run in ${organization.name}`, `${entries.runs}/new`, '+'));
     }
-    const studies = labEntries(organization).find((entry) => entry.id === 'studies');
+    if (entries.studies) {
+      commands.push(command('Organization', 'Studies', `Problems × engines × parameters × seeds · ${organization.name}`, entries.studies));
+    }
     const study = createItems(organization).find((entry) => entry.label === 'Study');
-    if (studies?.to) {
-      commands.push(command('Organization', 'Studies', `Problems × engines × parameters × seeds · ${organization.name}`, studies.to));
-    }
     if (study?.to) commands.push(command('Create', 'New study', `Compare engines on problems in ${organization.name}`, study.to, '+'));
-  }
-  if (root && project) {
-    commands.push(command('Project', 'Project settings', `Name, visibility and members · ${project.name}`, `${root}/settings`));
+    commands.push(command('Organization', 'Organization settings', `Name, members and audit · ${organization.name}`, `/app/${organization.slug}/settings`));
   }
 
   const accountDesc: Record<string, string> = {
@@ -70,7 +59,7 @@ export function buildCommands({ organizations = [], projects = [], organization,
     Identities: 'Accounts you sign in with', Notifications: 'Everything sent to your account',
   };
   commands.push(
-    command('Create', 'New organization', 'Group projects and members', '/app?create=organization', '+'),
+    command('Create', 'New organization', 'Problems, runs and studies with their members', '/app?create=organization', '+'),
     command('Create', 'New API key', 'Scoped key for scripts and CI', '/app/account/keys?create=key', '+'),
     command('Create', 'Register an engine', 'Publish an engine you operate', '/app/engines/new', '+'),
     ...accountLinks.map((link) => command('Account', link.label, accountDesc[link.label] ?? link.label, link.to)),

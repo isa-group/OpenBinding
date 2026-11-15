@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Populate the OpenBinding database with rich development data.
 
-Seeds users, hierarchical organizations, projects, BIM problems of an
+Seeds users, hierarchical organizations, BIM problems of an
 organization (uploaded from examples/demo), comparative studies with REAL
 solver jobs executed against available engines (or gracefully handled),
 API keys, notifications, and audit records.
@@ -95,12 +95,10 @@ from openbinding_gateway.db.platform_models import (
     Organization,
     OrganizationMembership,
     OrganizationRole,
-    Project,
     RunState,
     Study,
     StudyRun,
     StudyState,
-    Visibility,
 )
 from openbinding_gateway.models.platform import StudyDefinition
 from openbinding_gateway.integrations import bim, packages
@@ -535,82 +533,6 @@ async def ensure_organizations(session: AsyncSession, users: dict[str, User]) ->
     return org_map
 
 
-async def ensure_projects(
-    session: AsyncSession, orgs: dict[str, Organization], users: dict[str, User]
-) -> dict[str, Project]:
-    """Create public and private projects across organizations."""
-    projects_spec = [
-        {
-            "org": "score-ai",
-            "slug": "qos-placement",
-            "name": "QoS-Aware Multi-Cloud Placement Benchmark",
-            "description": "Cross-engine QoS optimization benchmark suite evaluating exact and evolutionary solvers under diverse network and pricing constraints.",
-            "visibility": Visibility.PUBLIC,
-            "owner": "alice",
-        },
-        {
-            "org": "score-ai",
-            "slug": "smart-orchestration",
-            "name": "Intelligent Workflow Orchestration",
-            "description": "Predictive placement and dynamic task reallocation for enterprise AI workflows across hybrid cloud and on-premise clusters.",
-            "visibility": Visibility.PRIVATE,
-            "owner": "david",
-        },
-        {
-            "org": "score-edge",
-            "slug": "fog-latency-benchmark",
-            "name": "Fog Computing Latency Benchmark",
-            "description": "Ultra-low latency execution trade-offs for edge and fog node topologies under volatile bandwidth conditions.",
-            "visibility": Visibility.PUBLIC,
-            "owner": "elena",
-        },
-        {
-            "org": "acme-cloud",
-            "slug": "stock-trading-pipeline",
-            "name": "Real-Time Stock Trading Pipeline",
-            "description": "High-throughput, jitter-sensitive microservice binding optimization for financial market event processing pipelines.",
-            "visibility": Visibility.PUBLIC,
-            "owner": "bob",
-        },
-        {
-            "org": "acme-cloud",
-            "slug": "resilient-data-mesh",
-            "name": "Resilient Enterprise Data Mesh",
-            "description": "Data governance and multi-zone replica binding with strict regulatory residency constraints.",
-            "visibility": Visibility.PRIVATE,
-            "owner": "elena",
-        },
-    ]
-
-    project_map: dict[str, Project] = {}
-    for spec in projects_spec:
-        org = orgs[spec["org"]]
-        owner = users[spec["owner"]]
-        slug = spec["slug"]
-
-        project = (
-            await session.execute(
-                select(Project).where(Project.organization_id == org.id, Project.slug == slug)
-            )
-        ).scalars().first()
-
-        if project is None:
-            project = Project(
-                organization_id=org.id,
-                slug=slug,
-                name=spec["name"],
-                description=spec["description"],
-                visibility=spec["visibility"],
-                created_by_id=owner.id,
-            )
-            session.add(project)
-            await session.flush()
-            logger.info("Created project '%s/%s'", org.slug, slug)
-        project_map[f"{spec['org']}/{slug}"] = project
-
-    return project_map
-
-
 #: The problems of the seed: slug, name, description and the example package each one is uploaded from.
 PROBLEMS = [
     ("simple-seq", "Sequential Service Workflow", "Sequential pipeline with strict latency bounds", "01_simple_seq"),
@@ -772,7 +694,6 @@ async def ensure_standalone_jobs(
 async def ensure_notifications_and_audit(
     session: AsyncSession,
     orgs: dict[str, Organization],
-    projects: dict[str, Project],
     users: dict[str, User],
 ) -> None:
     """Create sample notifications and realistic audit records."""
@@ -785,7 +706,7 @@ async def ensure_notifications_and_audit(
         (alice.id, "study_completed", "Study 'exact-vs-heuristic' run #1 finished", "All 4 cells executed and metrics are ready for inspection.", True),
         (alice.id, "member_joined", "Bob joined SCORE AI & Optimization Lab", "Bob accepted the invitation and was granted MEMBER role.", False),
         (bob.id, "role_updated", "Promoted to OWNER in Acme Cloud Infrastructure", "Your organization role has been updated.", False),
-        (david.id, "run_dispatched", "StudyRun #1 dispatched in smart-orchestration", "Solver jobs have been queued in Dramatiq.", False),
+        (david.id, "run_dispatched", "StudyRun #1 dispatched in score-ai", "Solver jobs have been queued in Dramatiq.", False),
     ]
 
     for u_id, kind, subj, body, read in notifs:
@@ -804,7 +725,7 @@ async def ensure_notifications_and_audit(
     audit_specs = [
         (score_ai.id, alice.id, "organization.created", "Organization", score_ai.id, {"slug": score_ai.slug}),
         (score_ai.id, alice.id, "member.added", "User", bob.id, {"role": "MEMBER", "username": "bob"}),
-        (score_ai.id, alice.id, "project.created", "Project", projects["score-ai/qos-placement"].id, {"name": "QoS Placement"}),
+        (score_ai.id, alice.id, "problem.created", "BindingCase", None, {"slug": "simple-seq"}),
         (score_ai.id, alice.id, "study.run.dispatched", "StudyRun", None, {"study": "exact-vs-heuristic", "cells": 4}),
     ]
 
@@ -848,12 +769,6 @@ def print_summary_banner(users: dict[str, User]) -> None:
     print("    - score-ai problems: simple-seq, parallel-mesh, multi-objective")
     print("    - score-ai studies: exact-vs-heuristic (Real Runs & Jobs), parallel-scaling-study")
 
-    print("\n  [Projects]")
-    print("    - score-ai/qos-placement (Public)")
-    print("    - score-ai/smart-orchestration (Private)")
-    print("    - score-edge/fog-latency-benchmark (Public)")
-    print("    - acme-cloud/stock-trading-pipeline (Public)")
-    print("    - acme-cloud/resilient-data-mesh (Private)")
 
     print("\n  [Example API Requests]")
     alice_key, _, _ = dev_api_key("alice", "alice0001")
@@ -909,20 +824,17 @@ async def main() -> int:
             # 2. Hierarchical Organizations & Memberships
             org_map = await ensure_organizations(session, user_map)
 
-            # 3. Projects
-            project_map = await ensure_projects(session, org_map, user_map)
-
-            # 4. Problems of an organization, uploaded from the demo packages
+            # 3. Problems of an organization, uploaded from the demo packages
             case_map = await ensure_cases(session, org_map["score-ai"], user_map["alice"], examples_dir)
 
-            # 5. Standalone solve jobs
+            # 4. Standalone solve jobs
             await ensure_standalone_jobs(session, org_map["score-ai"], user_map["alice"], problems=case_map, all_states=True)
 
-            # 6. Studies & Real Job Executions
+            # 5. Studies & Real Job Executions
             await execute_real_studies(session, org_map["score-ai"], user_map["alice"], case_map)
 
-            # 7. Notifications & Audit
-            await ensure_notifications_and_audit(session, org_map, project_map, user_map)
+            # 6. Notifications & Audit
+            await ensure_notifications_and_audit(session, org_map, user_map)
 
             await session.commit()
 

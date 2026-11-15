@@ -16,8 +16,6 @@ export interface Recorded {
 export interface MockOptions {
   /** null: no session. */
   role?: Role | null;
-  /** The projects of `acme`; defaults to the project `demo`. */
-  projects?: unknown[];
   /** Every dependency up (default), or a gateway that does not answer. */
   gateway?: 'up' | 'down';
 }
@@ -34,11 +32,6 @@ export const organization = (slug: string, name: string) => ({
   id: `org-${slug}`, slug, name, parent_id: null, effective_role: 'OWNER', created_at: NOW,
 });
 
-export const project = (slug: string, name: string) => ({
-  id: `project-${slug}`, organization_id: 'org-acme', slug, name, description: '', visibility: 'private',
-  created_by_id: 'user-1', created_at: NOW, updated_at: NOW, access: 'member', effective_role: 'OWNER',
-});
-
 const members = [
   { id: 'm1', organization_id: 'org-acme', user_id: 'user-1', username: 'lucia', email: 'lucia@example.org', role: 'OWNER', created_at: NOW },
 ];
@@ -53,7 +46,7 @@ export const RUNS = `/app/acme/${RUNS_SEGMENT}`;
 const TEMPLATES = ['demo/01_simple_seq', 'demo/02_parallel', 'placement/01_small_placement'];
 
 /**
- * Answers the API origin: the user, the organization `acme` with its project `demo` and no problems, notifications and the
+ * Answers the API origin: the user, the organization `acme` with no problems, runs or studies, notifications and the
  * few public lists the screens read. Anything else is a 404 `not mocked`. Returns the non-GET requests that reached it.
  */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<Recorded[]> {
@@ -87,14 +80,10 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Re
     : route.fulfill({ json: [organization('acme', 'Acme')] })));
   await page.route(`${API}/v1/organizations/acme`, json(organization('acme', 'Acme')));
   await page.route(`${API}/v1/organizations/lab-two`, json(organization('lab-two', 'lab-two')));
-  await page.route(`${API}/v1/organizations/acme/projects/demo-two`, json(project('demo-two', 'demo-two')));
   await page.route(`${API}/v1/organizations/acme/members`, json(members));
-  await page.route(`${API}/v1/organizations/acme/projects`, (route) => (route.request().method() === 'POST'
-    ? route.fulfill({ status: 201, json: project('demo-two', 'demo-two') })
-    : route.fulfill({ json: options.projects ?? [project('demo', 'Demo')] })));
-  await page.route(`${API}/v1/organizations/acme/projects/demo`, json(project('demo', 'Demo')));
   await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/problems`, json({ problems: [], total: 0, limit: 200, offset: 0 }));
   await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/runs`, json({ runs: [], total: 0 }));
+  await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/studies`, json([]));
   return requests;
 }
 

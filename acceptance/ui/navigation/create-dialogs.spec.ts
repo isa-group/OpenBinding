@@ -33,17 +33,13 @@ test('cancelling the organization dialog returns to /app, restores focus and cre
   expect(requests.filter((request) => request.method === 'POST')).toEqual([]);
 });
 
-test('New project opens a dialog on the organization overview and creating demo-two opens the project', async ({ page }) => {
+test('the organization overview offers no New project, and its upload opens the problem dialog', async ({ page }) => {
   await mockApi(page);
   await page.goto('/app/acme');
-  await opener(page, 'New project').click();
-  await expect.poll(() => pathAndSearch(page)).toBe('/app/acme?create=project');
-  const dialog = page.getByRole('dialog', { name: 'New project' });
-  await expect(dialog).toBeVisible();
-  await dialog.getByLabel(/name/i).first().fill('demo-two');
-  const slug = dialog.getByLabel(/slug/i);
-  if (await slug.count()) await slug.first().fill('demo-two');
-  await dialog.getByRole('button', { name: /create/i }).click();
-  await expect.poll(() => pathAndSearch(page)).toBe('/app/acme/demo-two');
+  await expect(page.getByRole('heading', { level: 1, name: 'Acme' })).toBeVisible();
+  await expect(opener(page, 'New project')).toHaveCount(0);
+  await page.locator('#platform-main').getByRole('link', { name: 'Upload BIM package' }).click();
+  await expect.poll(() => pathAndSearch(page)).toBe('/app/acme/problems?create=problem');
+  await expect(page.getByRole('dialog', { name: 'Upload a BIM package' })).toBeVisible();
 });
 

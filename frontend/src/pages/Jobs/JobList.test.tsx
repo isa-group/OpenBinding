@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { org, renderProjectScreen } from '../../features/workspace/testKit';
+import { org, renderOrgScreen } from '../../features/workspace/testKit';
 import { jobOf } from '../../test/fixtures/jobs';
 import { JobList } from './JobList';
 
@@ -27,7 +27,7 @@ const rows = [
 ];
 
 function renderList(options: { slug?: string } = {}) {
-  return renderProjectScreen(<JobList />, {
+  return renderOrgScreen(<JobList />, {
     path: '/app/:org/runs', url: `/app/${options.slug ?? 'isa-demo'}/runs`, organizations: [group, viewing],
   });
 }

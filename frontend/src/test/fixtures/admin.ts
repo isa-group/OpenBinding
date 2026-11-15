@@ -107,7 +107,7 @@ export const EMPTY_QUEUES: AdminQueueStatus = {
 
 /** The platform in numbers: seven accounts across four plans, and one contract change on record. */
 export const OVERVIEW: AdminOverview = {
-  counts: { users: 7, apiKeys: 9, identities: 3, organizations: 3, projects: 5, problems: 4, problemRevisions: 6, studies: 2, studyRuns: 3, artifacts: 12 },
+  counts: { users: 7, apiKeys: 9, identities: 3, organizations: 3, problems: 4, problemRevisions: 6, runs: 12, studies: 2, studyRuns: 3 },
   jobs: { queued: 1, running: 1, completed: 2, failed: 1, cancelled: 1 },
   contracts: { FREE: 3, RESEARCH: 2, LAB: 2 },
   recentAudit: [

@@ -23,7 +23,6 @@ from openbinding_gateway.db.platform_models import (
     Organization,
     OrganizationMembership,
     OrganizationRole,
-    Visibility,
 )
 from openbinding_gateway.security.passwords import verify_password
 from seed_dev import (
@@ -33,7 +32,6 @@ from seed_dev import (
     ensure_engine_revisions,
     ensure_notifications_and_audit,
     ensure_organizations,
-    ensure_projects,
     ensure_standalone_jobs,
     ensure_users,
 )
@@ -82,14 +80,7 @@ async def test_seed_dev_lifecycle(db_session):
     ).scalar_one()
     assert alice_score_ai.role == OrganizationRole.OWNER
 
-    # 3. Ensure projects
-    projects = await ensure_projects(db_session, orgs, users)
-    assert len(projects) == 5
-    assert "score-ai/qos-placement" in projects
-    assert projects["score-ai/qos-placement"].visibility == Visibility.PUBLIC
-    assert projects["score-ai/smart-orchestration"].visibility == Visibility.PRIVATE
-
-    # 4. Problems of the organization, uploaded from the demo packages
+    # 3. Problems of the organization, uploaded from the demo packages
     examples_dir = REPO_ROOT / "examples"
     case_map = await ensure_cases(db_session, orgs["score-ai"], users["alice"], examples_dir)
     case, rev = case_map["simple-seq"]
@@ -112,21 +103,21 @@ async def test_seed_dev_lifecycle(db_session):
     assert jobs == []
     assert not (await db_session.scalars(select(Job))).all()
 
-    # 7. Notifications & Audit
-    await ensure_notifications_and_audit(db_session, orgs, projects, users)
+    # 4. Notifications & Audit
+    await ensure_notifications_and_audit(db_session, orgs, users)
     notifs = (await db_session.execute(select(Notification))).scalars().all()
     assert len(notifs) >= 4
 
     audits = (await db_session.execute(select(AuditEvent))).scalars().all()
     assert len(audits) >= 4
 
-    # 8. Idempotency test (calling again does not crash or duplicate orgs)
+    # 5. Idempotency test (calling again does not crash or duplicate orgs)
     users_again = await ensure_users(db_session)
     assert len(users_again) == 7
     orgs_again = await ensure_organizations(db_session, users)
     assert len(orgs_again) == 5
 
-    # 9. Reset test. A table of an older baseline, unknown to the models, goes too.
+    # 6. Reset test. A table of an older baseline, unknown to the models, goes too.
     await db_session.execute(text("CREATE TABLE reports (id INTEGER PRIMARY KEY)"))
     await db_session.commit()
     await clean_existing_data(db_session)

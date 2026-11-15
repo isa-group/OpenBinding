@@ -1,6 +1,6 @@
-"""What a project VIEWER may read of a job.
+"""What an organization VIEWER may read of a run.
 
-A VIEWER may follow a project's work - state, engine, times, result and the
+A VIEWER may follow the organization's work - state, engine, times, result and the
 digests that pin it - but never the request's credentials, the options a member
 chose beyond a short list of harmless ones, or anything that names a private
 engine endpoint. Members and above get the stored job unchanged.
@@ -172,7 +172,7 @@ def redact_provenance(provenance: Optional[Mapping[str, Any]]) -> Optional[dict[
 
 
 #: What a redacted view says of a failed job; the stored message is free text.
-GENERIC_ERROR = "The job failed. The details are visible to project members."
+GENERIC_ERROR = "The job failed. The details are visible to organization members."
 #: Where a result keeps its category: ``code`` is what the gateway writes today
 #: (``result.code``), the other two are the names older rows and engines use.
 _ERROR_CODE_KEYS = ("code", "errorCode", "error_code")

@@ -33,7 +33,6 @@ from ..core.settings import Settings, get_settings
 from ..db.models import (
     ApiErrorEvent,
     ApiKey,
-    Blob,
     AuditEvent,
     AuthIdentity,
     BindingCase,
@@ -44,7 +43,6 @@ from ..db.models import (
     JobState,
     Organization,
     OrganizationMembership,
-    Project,
     Study,
     StudyCell,
     StudyRun,
@@ -653,12 +651,11 @@ async def platform_overview(
         "identities": AuthIdentity,
         "organizations": Organization,
         "memberships": OrganizationMembership,
-        "projects": Project,
         "problems": BindingCase,
         "problemRevisions": BindingCaseRevision,
+        "runs": Job,
         "studies": Study,
         "studyRuns": StudyRun,
-        "artifacts": Blob,
         "apiKeys": ApiKey,
     }
     counts = {

@@ -48,7 +48,8 @@ describe('Home', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Hello, lucia.vega' })).toBeInTheDocument();
     expect(await screen.findByText('Pick up where you left off.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/app/isa-demo?create=project');
+    expect(screen.getByRole('link', { name: 'New problem' })).toHaveAttribute('href', '/app/isa-demo/problems?create=problem');
+    expect(screen.queryByRole('link', { name: 'New project' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Verify a digest' })).not.toBeInTheDocument();
     // Runs belong to the organization: the workspace's organization is enough to start one.
     expect(screen.getByRole('link', { name: 'Run' })).toHaveAttribute('href', '/app/isa-demo/runs/new');
@@ -186,7 +187,7 @@ describe('Home', () => {
     expect(screen.getByText('You’re not in any organization yet.')).toBeInTheDocument();
     // With no jobs either, the activity block shows a way to the first run.
     expect(await screen.findByText(/No runs yet/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open the Workbench' })).toHaveAttribute('href', '/workbench');
+    expect(screen.getByRole('link', { name: 'Check a package' })).toHaveAttribute('href', '/workbench');
     expect(screen.queryByRole('link', { name: 'New project' })).not.toBeInTheDocument();
   });
 

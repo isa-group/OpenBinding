@@ -459,13 +459,11 @@ from .platform_models import (  # noqa: E402,F401
     OrganizationInvitation,
     OrganizationMembership,
     OrganizationRole,
-    Project,
     RunState,
     Study,
     StudyCell,
     StudyRun,
     StudyState,
-    Visibility,
     PasswordResetToken,
     ProblemCompilation,
 )

@@ -3,7 +3,7 @@ import { render } from '@testing-library/react';
 import { MemoryRouter, Outlet, parsePath, Route, Routes } from 'react-router-dom';
 import { vi } from 'vitest';
 import type { UsageView, UserProfile } from '../../api/auth';
-import type { Organization, OrganizationMember, Project } from '../../api/platform';
+import type { Organization, OrganizationMember } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { AuthContext } from '../../contexts/auth';
 import { Where } from './Where';
@@ -26,13 +26,6 @@ export function member(user: string, role: OrganizationMember['role'], over: Par
   return {
     id: `m-${user}`, organization_id: 'org-isa-demo', user_id: `user-${user}`, username: user, email: `${user}@example.test`, role, created_at: '2026-03-04T00:00:00Z',
     ...over,
-  };
-}
-
-export function project(slug: string, over: Partial<Project> = {}): Project {
-  return {
-    id: `project-${slug}`, organization_id: 'org-isa-demo', slug, name: slug, description: '', visibility: 'private', created_by_id: lucia.id,
-    created_at: '2026-04-01T00:00:00Z', updated_at: '2026-04-01T00:00:00Z', ...over,
   };
 }
 
@@ -69,7 +62,7 @@ export function renderScreen(ui: ReactElement, options: RenderOptions) {
   const organizations = options.organizations ?? [];
   const reload = options.reload ?? vi.fn().mockResolvedValue(undefined);
   const context: PlatformOutletContext = {
-    organizations, projects: [], organization: organizations[0], project: undefined, loading: options.loading ?? false, reload,
+    organizations, organization: organizations[0], loading: options.loading ?? false, reload,
   };
   const view = render(
     <MemoryRouter initialEntries={[{ ...parsePath(options.url), state: options.state }]}>

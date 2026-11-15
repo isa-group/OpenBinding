@@ -4,7 +4,7 @@ import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import type { StudyCell as StudyCellView } from '../../api/platform';
 import { jobOf } from '../../test/fixtures/jobs';
-import { org, renderProjectScreen } from '../../features/workspace/testKit';
+import { org, renderOrgScreen } from '../../features/workspace/testKit';
 import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyDetail } from './StudyDetail';
 
@@ -41,7 +41,7 @@ const refusal = (status: number, code: string, message = 'refused') => Object.as
 
 /** A cell inside the Results tab of the study page: `?run=` names the study run and `?cell=` the cell. */
 function renderCell(ordinal: number, slug = 'isa-demo') {
-  return renderProjectScreen(<StudyDetail />, {
+  return renderOrgScreen(<StudyDetail />, {
     path: '/app/:org/studies/:study/:tab?', url: `/app/${slug}/studies/engines-vs-seeds/results?run=${RUN_ID}&cell=${byOrdinal(ordinal).id}`, organizations: [group, viewing],
   });
 }

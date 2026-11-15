@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import type { StudyCell } from '../../api/platform';
-import { org, renderProjectScreen } from '../../features/workspace/testKit';
+import { org, renderOrgScreen } from '../../features/workspace/testKit';
 import { CHECKOUT, EVOLUTIONARY, REVISION_1, REVISION_2, RUN_ID, cellFixture, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyDetail } from './StudyDetail';
 
@@ -38,7 +38,7 @@ const running = (cells: StudyCell[]) => cells.map((cell) => (cell.state === 'can
 
 /** The Progress tab of the study page, on the study run named by `?run=`. */
 function renderRun(options: { slug?: string; run?: string } = {}) {
-  return renderProjectScreen(<StudyDetail />, {
+  return renderOrgScreen(<StudyDetail />, {
     path: '/app/:org/studies/:study/:tab?', url: `/app/${options.slug ?? 'isa-demo'}/studies/engines-vs-seeds/progress?run=${options.run ?? RUN_ID}`, organizations: [group, viewing],
   });
 }

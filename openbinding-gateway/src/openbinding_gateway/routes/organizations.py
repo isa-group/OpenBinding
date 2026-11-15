@@ -1,4 +1,4 @@
-"""Organization trees, members and projects. Problems are ``modules.problems``."""
+"""Organization trees, members and invitations. Problems are ``modules.problems``."""
 
 from __future__ import annotations
 
@@ -8,8 +8,9 @@ import secrets
 import uuid
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..collaboration import (
@@ -17,8 +18,6 @@ from ..collaboration import (
     descendant_ids,
     effective_role,
     organization_by_ref,
-    project_by_ref,
-    require_project,
     require_role,
 )
 from ..db.models import (
@@ -32,11 +31,9 @@ from ..db.models import (
     OrganizationMembership,
     OrganizationRole,
     ProblemCompilation,
-    Project,
     Study,
     StudyRun,
     User,
-    Visibility,
     utcnow,
 )
 from ..core import revision
@@ -51,11 +48,8 @@ from ..models.platform import (
     OrganizationCreate,
     OrganizationUpdate,
     OrganizationView,
-    ProjectCreate,
-    ProjectUpdate,
-    ProjectView,
+    RESERVED_ORGANIZATION_SLUGS,
 )
-from ..access import public_read
 from ..repositories import organizations as organization_repository
 from ..access.dependencies import get_current_user, session_dependency
 
@@ -145,12 +139,24 @@ async def list_organizations(
     response_model=OrganizationView,
     status_code=status.HTTP_201_CREATED,
     operation_id="createOrganization",
+    responses={
+        409: {"model": ErrorResponse, "description": "`slug_conflict`: the slug is in use."},
+        422: {
+            "description": "`slug_reserved` (the slug names a page of the application) and request validation errors.",
+        },
+    },
 )
 async def create_organization(
     payload: OrganizationCreate,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> OrganizationView:
+    if payload.slug in RESERVED_ORGANIZATION_SLUGS:
+        raise api_error(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "slug_reserved",
+            f"The slug '{payload.slug}' names a page of the application; choose another.",
+        )
     if await organization_by_ref(session, payload.slug) is not None:
         raise api_error(status.HTTP_409_CONFLICT, "slug_conflict", "That organization slug is in use.")
     parent = await session.get(Organization, payload.parent_id) if payload.parent_id else None
@@ -233,33 +239,63 @@ async def update_organization(
     return await _org_view(session, organization, user)
 
 
-async def _cascade_delete_project(session: AsyncSession, project: Project) -> None:
-    # Problems, blobs, runs and studies belong to the organization: deleting a project leaves them.
-    await session.delete(project)
-
-
-@router.delete("/{org}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteOrganization")
+@router.delete(
+    "/{org}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="deleteOrganization",
+    responses={
+        409: {
+            "model": ErrorResponse,
+            "description": "`historical_references`: the organization or one below it has runs or study runs.",
+        },
+    },
+)
 async def delete_organization(
     org: str,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> None:
+    """Delete an organization and every organization below it, in one transaction.
+
+    Runs and study runs are history, so a subtree that holds any is refused. Otherwise its studies,
+    problems (revisions and compilations), blob rows, invitations, memberships and audit events go.
+    Stored files are not unlinked here: they are content addressed and shared (D14).
+
+    The subtree's studies, problems and organizations are locked before the history check, in the order
+    concurrent writers take them (a study-run start locks its study, a revision upload its problem, and every
+    insert into an organization takes a key-share lock on its row): a writer that got there first commits
+    before the check sees the subtree, and a later one waits for the delete. A foreign key that still catches
+    a concurrent write is answered with the same 409.
+    """
     organization = await _required_org(session, org)
     if not user.is_admin:
         await require_role(session, organization, user, OrganizationRole.ADMIN)
 
     descendants = await descendant_ids(session, organization.id)
     unique_descendants = list(dict.fromkeys(descendants))
+    for model, column in ((Study, Study.organization_id), (BindingCase, BindingCase.organization_id),
+                          (Organization, Organization.id)):
+        await session.execute(
+            select(model.id).where(column.in_(unique_descendants)).order_by(model.id).with_for_update()
+        )
     # Runs and study runs are history: an organization that has any is kept.
     if await session.scalar(select(Job.id).where(Job.organization_id.in_(unique_descendants)).limit(1)) or await session.scalar(
         select(StudyRun.id).join(Study, Study.id == StudyRun.study_id)
         .where(Study.organization_id.in_(unique_descendants)).limit(1)
     ):
-        raise api_error(409, 'historical_references', 'Organizations with runs or study runs cannot be deleted; their history is kept.')
+        raise _historical_references()
+    try:
+        await _delete_subtree(session, organization, unique_descendants)
+    except IntegrityError as exc:
+        raise _historical_references() from exc
+
+
+def _historical_references() -> HTTPException:
+    return api_error(409, "historical_references", "Organizations with runs or study runs cannot be deleted; their history is kept.")
+
+
+async def _delete_subtree(session: AsyncSession, organization: Organization, unique_descendants: list[uuid.UUID]) -> None:
     for oid in unique_descendants:
-        projects = await organization_repository.list_projects(session, oid, ordered=False)
-        for p in projects:
-            await _cascade_delete_project(session, p)
         await session.execute(
             delete(OrganizationMembership).where(OrganizationMembership.organization_id == oid)
         )
@@ -587,117 +623,3 @@ async def accept_invitation(
         username=user.username, email=user.email,
         role=membership.role.value, created_at=membership.created_at,
     )
-
-
-def _project_view(
-    project: Project, role: OrganizationRole | None = None, access: str = "member"
-) -> ProjectView:
-    public = access == public_read.PUBLIC_READ
-    return ProjectView(
-        id=project.id, organization_id=project.organization_id, slug=project.slug,
-        name=project.name, description=project.description, visibility=project.visibility.value,
-        created_by_id=None if public else project.created_by_id,
-        created_at=project.created_at, updated_at=project.updated_at,
-        effective_role=role.value if role else None, access=access,
-    )
-
-
-@router.get("/{org}/projects", response_model=list[ProjectView], operation_id="listProjects")
-async def list_projects(
-    org: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> list[ProjectView]:
-    organization = await _required_org(session, org)
-    role = await require_role(session, organization, user, OrganizationRole.VIEWER)
-    rows = await organization_repository.list_projects(session, organization.id)
-    return [_project_view(row, role) for row in rows]
-
-
-@router.post("/{org}/projects", response_model=ProjectView, status_code=201, operation_id="createProject")
-async def create_project(
-    org: str,
-    payload: ProjectCreate,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> ProjectView:
-    organization = await _required_org(session, org)
-    role = await require_role(session, organization, user, OrganizationRole.MEMBER)
-    if await organization_repository.project_slug_in_use(session, organization.id, payload.slug):
-        raise api_error(status.HTTP_409_CONFLICT, "slug_conflict", "That project slug is in use.")
-    project = Project(
-        organization_id=organization.id, slug=payload.slug, name=payload.name,
-        description=payload.description, visibility=Visibility(payload.visibility), created_by_id=user.id
-    )
-    session.add(project)
-    await session.flush()
-    _audit(session, user, "project.created", project, organization.id)
-    return _project_view(project, role)
-
-
-@router.get(
-    "/{org}/projects/{project}",
-    response_model=ProjectView,
-    operation_id="getProject",
-    summary="Read a project (members, or anyone for a public project)",
-    responses=revision.ETAG_RESPONSE,
-)
-async def get_project(
-    org: str, project: str, response: Response,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> ProjectView:
-    """A member sees their role; a non-member, even anonymous, reads a public project read-only (access public_read)."""
-    organization = await _required_org(session, org)
-    found = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
-    revision.set_etag(response, found)
-    if public_read.is_public_read(session):
-        return _project_view(found, None, public_read.PUBLIC_READ)
-    return _project_view(found, await effective_role(session, organization.id, user))
-
-
-@router.patch(
-    "/{org}/projects/{project}",
-    response_model=ProjectView,
-    operation_id="updateProject",
-    responses=revision.EDIT_RESPONSES,
-)
-async def update_project(
-    org: str, project: str, payload: ProjectUpdate, response: Response,
-    if_match: str | None = revision.IF_MATCH_HEADER,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> ProjectView:
-    organization = await _required_org(session, org)
-    found = await require_project(session, organization, project, user, OrganizationRole.ADMIN)
-    await revision.guard(session, found, if_match)
-    if payload.name is not None:
-        found.name = payload.name
-    if payload.description is not None:
-        found.description = payload.description
-    if payload.visibility is not None and payload.visibility != found.visibility.value:
-        found.visibility = Visibility(payload.visibility)
-    _audit(session, user, "project.updated", found, organization.id)
-    await session.flush()
-    revision.set_etag(response, found)
-    return _project_view(found, await effective_role(session, organization.id, user))
-
-
-@router.delete("/{org}/projects/{project}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteProject")
-async def delete_project(
-    org: str,
-    project: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> None:
-    organization = await _required_org(session, org)
-    if not user.is_admin:
-        found = await require_project(session, organization, project, user, OrganizationRole.ADMIN)
-    else:
-        found = await project_by_ref(session, organization.id, project)
-        if found is None:
-            raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Project not found.")
-
-    _audit(session, user, "project.deleted", found, organization.id)
-    await _cascade_delete_project(session, found)
-    await session.flush()

@@ -67,10 +67,7 @@ async def test_problem_patch_and_delete(api_client, registration, platform_gate)
 async def test_study_patch_and_delete(api_client, registration, platform_gate):
     headers = await _auth_headers(api_client, registration, platform_gate, username=f"user-{uuid.uuid4().hex[:6]}")
     org_slug = f"org-{uuid.uuid4().hex[:6]}"
-    proj_slug = "test-proj"
-
     await api_client.post("/v1/organizations", headers=headers, json={"slug": org_slug, "name": "Test Org"})
-    await api_client.post(f"/v1/organizations/{org_slug}/projects", headers=headers, json={"slug": proj_slug, "name": "Test Proj", "visibility": "private"})
 
     from openbinding_gateway.routes import v1 as routes
     from openbinding_gateway.services.engines import engine_ref
@@ -116,10 +113,7 @@ async def test_study_patch_and_delete(api_client, registration, platform_gate):
 async def test_organization_runs_and_engine_revisions(api_client, registration, db_session, platform_gate):
     headers = await _auth_headers(api_client, registration, platform_gate, username=f"user-{uuid.uuid4().hex[:6]}")
     org_slug = f"org-{uuid.uuid4().hex[:6]}"
-    proj_slug = "test-proj"
-
     await api_client.post("/v1/organizations", headers=headers, json={"slug": org_slug, "name": "Test Org"})
-    await api_client.post(f"/v1/organizations/{org_slug}/projects", headers=headers, json={"slug": proj_slug, "name": "Test Proj", "visibility": "private"})
 
     # Large result payloads are omitted from the run list and fetched only for the selected run.
     from sqlalchemy import select

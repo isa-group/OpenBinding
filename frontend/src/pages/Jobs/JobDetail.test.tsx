@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import type { Job } from '../../api/platform';
-import { org, renderProjectScreen } from '../../features/workspace/testKit';
+import { org, renderOrgScreen } from '../../features/workspace/testKit';
 import { saveBytes } from '../../features/workspace/download';
 import type { JobDetail as RunDetail } from '../../api/runs';
 import { NEIGHBORHOOD, PROBLEM, RESULT, S1, detailOf, jobOf } from '../../test/fixtures/jobs';
@@ -24,7 +24,7 @@ const RUN_DIGEST = `sha256-${'ab12cd34ef56'.repeat(5)}`;
 const refusal = (status: number, code = 'refused') => Object.assign(new HttpError(status, 'refused'), { code });
 
 function renderJob(id = JOB_ID, root = ROOT) {
-  return renderProjectScreen(<JobDetail />, { path: '/app/:org/runs/:job', url: `${root}/runs/${id}`, organizations: [group, reader] });
+  return renderOrgScreen(<JobDetail />, { path: '/app/:org/runs/:job', url: `${root}/runs/${id}`, organizations: [group, reader] });
 }
 
 const LUCIA = { id: 'user-lucia', username: 'lucia.vega' };

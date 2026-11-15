@@ -286,7 +286,7 @@ async def test_a_study_cell_over_the_plan_limit_gets_the_retryable_429(
     set_limit(monkeypatch, 8)
     headers = await _study(api_client, registration, [1, 2])
     set_plan(**{LIMIT: 1})
-    user, organization, project = await study_actors(db_session)
+    user, organization = await study_actors(db_session)
 
     # Nothing is dispatched, so the first cell's job keeps the plan's only slot.
     run = await api_client.post(BASE, headers=headers)

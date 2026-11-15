@@ -106,7 +106,7 @@ has the one-shot `pricing-bootstrap`, a separate compose project that prepares t
 | Module | Owns | Main ports used | Code today (to move) |
 |---|---|---|---|
 | `identity` | accounts, sessions, passwords, API keys, external identities (CAS) | `IdentityProvider` (CAS), `Mailer` | `routes/auth.py`, `routes/users.py`, `routes/cas.py`, `cas.py`, `security/*` |
-| `collaboration` | organizations (nested), projects, memberships, roles, invitations, audit, notifications, public read | — | `collaboration.py`, `routes/organizations.py` (org/project/member parts), `repositories/organizations.py`, `access/public_read.py` |
+| `collaboration` | organizations (nested, the only container), memberships, roles, invitations, audit, notifications | — | `collaboration.py`, `routes/organizations.py`, `repositories/organizations.py` |
 | `problems` | problems of an organization, their sealed revisions (the uploaded `.bim.zip` and its digests) and compilations (one per revision and toolchain, insert-only), the stateless BIM services (`/v1/bim/validate`, `/v1/bim/templates`) | `BimPort`, `BlobStore` | `modules/problems` (domain, application, adapters; F0b); `integrations/bim*.py`, the engine protocol document in `services/engines.py` |
 | `engines` | engine revisions, modes and manifests, federated deployments, conformance, capability matching | `EngineTransport` | `services/engines.py`, `services/engine_registry.py`, `services/probe.py`, `v1/remote.py` |
 | `execution` | runs of an organization: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood | `EngineTransport`, `BimPort`, `PlanPort` | `modules/execution` (the run request and the runs API `/v1/organizations/{org}/runs`; F0b); `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py` |
@@ -165,7 +165,8 @@ openbinding-gateway/src/openbinding_gateway/
    `Deprecation`/`Sunset` period because nothing ran in production, and the 41 operations are removed. The data of
    the retired features was dropped with them, and the tables they left behind (reports, publications, collections,
    report evidence) went with the one-revision baseline of F0b. The versioned-artifact store itself, the read-only
-   library and the project resources went in F0b too, once study runs froze their own definitions (D7).
+   library and the project resources went in F0b too, once study runs froze their own definitions (D7), and so did
+   projects and public read, once nothing pointed at a project: the organization is the only container (F0b B8).
 1. Create `app/`, `shared/` and `modules/` with import-linter contracts; move nothing. Packages and contracts exist
    (§4.2); the blocking CI step is pending.
 2. New capabilities land directly in modules: `plans` (M4) and the language registry (M5) are the first.
@@ -199,10 +200,11 @@ types. Enforced with `eslint-plugin-boundaries`.
 
 - **Public:** Home · Explore (Problems · Published results) · Engines · Language · Pricing · Verify ·
   About · Log in / Sign up.
-- **Signed in:** header with organization/project switcher; Home · Problems · Lab (Runs · Studies) ·
-  Engines · Language · Admin (administrators); "+ New" (problem, study, run); search; notifications;
-  account menu (Profile · Plan · API keys · Identities · Notifications).
-- **Project:** Overview · Problems · Runs · Studies · Published · Settings (General · Members).
+- **Signed in:** header with organization switcher; Home · Problems · Runs · Studies · Engines · Admin
+  (administrators); "+ New" (problem, study, run); search; notifications; account menu (Profile · Plan · API keys ·
+  Identities · Notifications). The Workbench is reached from Problems and "+ New → Problem".
+- **Organization:** overview (its problems, runs and studies, and its sub-organizations) · Settings (General ·
+  Members · Audit). There are no projects: an organization's screens are `/app/:org/{problems,runs,studies,workbench,settings}`.
 - **Problem page (the SPHERE "pricing page" analogue):** header with metrics and version selector; tabs Overview ·
   Runs · Versions · Source · Settings.
 - **Run page:** verdict, engine mode and budget first; then the binding table, QoS against bounds, the objective
@@ -266,8 +268,8 @@ characters) or a UUID rendered anywhere else.
 classDiagram
   direction LR
   Organization "1" --> "*" Organization : parent of
-  Organization "1" --> "*" Project
-  Project "1" --> "*" Problem
+  Organization "1" --> "*" Problem
+  Organization "1" --> "*" Study
   Problem "1" --> "*" ProblemVersion
   ProblemVersion "1" --> "1" CompiledForm
   Engine "1" --> "*" EngineRevision
@@ -487,8 +489,8 @@ flowchart LR
   its time budget; a run that stops early is not refunded, so the count can be checked against the budgets. A
   generation is admitted while the month's instances are not exhausted and consumes the instances it writes. The
   other limits are plan values that the gateway compares with its own counts (running runs, cells of a study run, a
-  run's budget, instances per generation request, problems and collections owned, repository storage, private
-  projects, federated engines, API keys), so no counter can drift. The repository limits apply to FREE only; the
+  run's budget, instances per generation request, problems and collections owned, repository storage, federated
+  engines, API keys), so no counter can drift. The repository limits apply to FREE only; the
   other plans declare them as `.inf`.
 - Gated operations call `evaluate(user, feature, expected_consumption)`; an operation that fails after consuming
   calls `revert_evaluation` (SPACE honours it within two minutes).

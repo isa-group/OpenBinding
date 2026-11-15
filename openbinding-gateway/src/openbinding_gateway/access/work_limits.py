@@ -35,9 +35,15 @@ from ..core.settings import Settings, get_settings
 from ..db.models import User
 from ..models.errors import api_error
 from .dependencies import counted_caller, get_optional_user
-from .public_read import route_template
 
 WorkClass = Literal["compile"]
+
+
+def route_template(request: Request) -> str:
+    """The matched route's path template (``/v1/organizations/{org}/problems``), else the raw path."""
+
+    route = request.scope.get("route")
+    return str(getattr(route, "path", request.url.path))
 
 #: Every route counted here, by its method and template. A test walks the real route table and fails when a
 #: compiling route is not listed, and the OpenAPI document declares the 429 from this table.

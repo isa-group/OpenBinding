@@ -2,18 +2,18 @@ import type { OrganizationAuditEvent } from '../../api/platform';
 import { inInterfaceWords } from '../../components/ui/interfaceWords';
 
 /** The kinds the timeline groups events into, with the dot colour of each. */
-export type AuditKind = 'organization' | 'members' | 'projects' | 'content' | 'other';
+export type AuditKind = 'organization' | 'members' | 'problems' | 'content' | 'other';
 
 export const AUDIT_KINDS: Record<AuditKind, { label: string; colour: string }> = {
   organization: { label: 'Organization', colour: 'var(--tp-primary-deep)' },
   members: { label: 'Members', colour: 'var(--tp-primary)' },
-  projects: { label: 'Projects', colour: 'var(--tp-severity-success)' },
+  problems: { label: 'Problems', colour: 'var(--tp-severity-success)' },
   content: { label: 'Content', colour: 'var(--tp-severity-warning)' },
   other: { label: 'Other', colour: 'var(--tp-stone)' },
 };
 
 /**
- * The actions the gateway records for an organization (`_audit(...)` in its organizations routes). The list is
+ * The actions the gateway records for an organization (its organizations routes and `modules.problems`). The list is
  * not part of the API contract, so any other action that arrives is still shown, and can still be filtered by.
  */
 export const KNOWN_ACTIONS: ReadonlyArray<{ action: string; label: string }> = [
@@ -24,16 +24,17 @@ export const KNOWN_ACTIONS: ReadonlyArray<{ action: string; label: string }> = [
   { action: 'organization.member.removed', label: 'Member removed' },
   { action: 'organization.invitation.created', label: 'Invitation created' },
   { action: 'organization.invitation.accepted', label: 'Invitation accepted' },
-  { action: 'project.created', label: 'Project created' },
-  { action: 'project.updated', label: 'Project updated' },
-  { action: 'project.deleted', label: 'Project deleted' },
+  { action: 'problem.created', label: 'Problem created' },
+  { action: 'problem.revision_created', label: 'Problem version uploaded' },
+  { action: 'problem.updated', label: 'Problem updated' },
+  { action: 'problem.deleted', label: 'Problem deleted' },
 ];
 
 export function kindOf(action: string): AuditKind {
   if (/^organization\.(member|members|invitation)/.test(action)) return 'members';
   if (action.startsWith('organization.')) return 'organization';
-  if (action.startsWith('project.')) return 'projects';
-  if (/^(binding_case|project_resource|study|report|publication|library|artifact)/.test(action)) return 'content';
+  if (action.startsWith('problem.')) return 'problems';
+  if (/^(binding_case|study|report|publication|library|artifact)/.test(action)) return 'content';
   return 'other';
 }
 

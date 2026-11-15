@@ -365,12 +365,6 @@ class Settings(BaseSettings):
     sphere_pricing_slug: Literal["openbinding"] = "openbinding"
     sphere_timeout_s: float = 10.0
 
-    # -- Collaboration ----------------------------------------------------
-    #: Reads of public projects by people who are not members are limited per
-    #: caller (the account, or the client address when anonymous) and per
-    #: minute (``PUBLIC_READ_RATE_PER_MINUTE``; 0 switches the limit off).
-    public_read_rate_per_minute: int = Field(default=240, ge=0)
-
     # -- Diagnostics ------------------------------------------------------
     #: Failures of anonymous callers persisted as error events per client
     #: address and minute, whatever their status; the rest are served but not

@@ -13,7 +13,6 @@ from .db.models import (
     Organization,
     OrganizationMembership,
     OrganizationRole,
-    Project,
     User,
 )
 from .models.errors import api_error
@@ -74,8 +73,6 @@ async def descendant_ids(session: AsyncSession, organization_id: uuid.UUID) -> l
 async def effective_role(
     session: AsyncSession, organization_id: uuid.UUID, user: User
 ) -> OrganizationRole | None:
-    if getattr(user, "is_anonymous", False):
-        return None
     ancestors = await ancestor_ids(session, organization_id)
     if not ancestors:
         return None
@@ -97,15 +94,6 @@ async def require_role(
     minimum: OrganizationRole,
 ) -> OrganizationRole:
     role = await effective_role(session, organization.id, user)
-    if role is None and getattr(user, "is_anonymous", False):
-        # Only eligible public reads reach a handler without credentials; for
-        # everything else (a private project, a missing one) this is still a 401.
-        raise api_error(
-            status.HTTP_401_UNAUTHORIZED,
-            "unauthorized",
-            "This endpoint needs an account. Send a session token or an API key.",
-            headers={"WWW-Authenticate": 'Bearer realm="openbinding"'},
-        )
     if role is None or ROLE_STRENGTH[role] < ROLE_STRENGTH[minimum]:
         raise api_error(
             status.HTTP_403_FORBIDDEN,
@@ -129,44 +117,6 @@ async def assert_acyclic_move(
             "organization_cycle",
             "An organization cannot be moved below one of its descendants.",
         )
-
-
-async def project_by_ref(
-    session: AsyncSession, organization_id: uuid.UUID, reference: str | uuid.UUID
-) -> Project | None:
-    try:
-        parsed = reference if isinstance(reference, uuid.UUID) else uuid.UUID(str(reference))
-    except ValueError:
-        parsed = None
-    return (
-        await session.execute(
-            select(Project).where(
-                Project.organization_id == organization_id,
-                Project.id == parsed if parsed is not None else Project.slug == str(reference),
-            )
-        )
-    ).scalars().first()
-
-
-async def require_project(
-    session: AsyncSession,
-    organization: Organization,
-    reference: str | uuid.UUID,
-    user: User,
-    minimum: OrganizationRole,
-) -> Project:
-    if minimum is OrganizationRole.VIEWER:
-        # The one central place where "public_read" is granted (see access/public_read.py).
-        from .access.public_read import admit_public_project
-
-        public = await admit_public_project(session, organization, reference, user)
-        if public is not None:
-            return public
-    await require_role(session, organization, user, minimum)
-    project = await project_by_ref(session, organization.id, reference)
-    if project is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Project not found.")
-    return project
 
 
 def strongest(roles: Iterable[OrganizationRole]) -> OrganizationRole | None:

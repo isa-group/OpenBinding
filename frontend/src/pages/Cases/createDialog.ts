@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-// The pattern of pages/Organization/createDialog.ts for the creation dialog of a project: `New problem` over the problem list. That file
-// types its kinds as organization and project, so the hook is repeated here; widening `CreateKind` there and importing it here is the follow-up.
+// The pattern of pages/Organization/createDialog.ts for the creation dialog of a problem: `New problem` over the problem list. This one
+// also takes whether the person may create (a viewer who types the address gets no dialog).
 
 export type CreateKind = 'problem';
 

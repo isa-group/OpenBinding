@@ -333,7 +333,7 @@ describe('the canonical problem document', () => {
       429,
       { 'Retry-After': '42' },
     ));
-    await expect(client.request('/v1/organizations/o/projects/p')).rejects.toMatchObject({ status: 429, code: 'rate_limit_exceeded', retryAfter: 42 });
+    await expect(client.request('/v1/organizations/o/runs')).rejects.toMatchObject({ status: 429, code: 'rate_limit_exceeded', retryAfter: 42 });
   });
 });
 

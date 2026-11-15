@@ -11,7 +11,7 @@ const P = '/app/:org/:project';
 const sample = (path: string) => path.replace(/\/:[A-Za-z]+\?/g, '').replace(/:[A-Za-z]+/g, 'sample') || '/';
 
 describe('route registry', () => {
-  it('declares none of the library catalogue and project resources screens', () => {
+  it('declares none of the library catalogue, project and project resources screens', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     const paths = routeDefinitions.map((definition) => definition.path);
     for (const id of ['lib-list', 'lib-artifact', 'lib-draft', 'lib-version', 'proj-library', 'proj-resources', 'proj-resource-detail']) {
@@ -93,10 +93,8 @@ describe('route registry', () => {
       '/app/acme/atlas/library', '/app/acme/atlas/resources', '/app/acme/atlas/resources/r1',
     ];
     for (const path of retired) expect(matchRoutes(config, path), path).toBeNull();
-    // Without its screen `/app/acme/library` reads as a project named `library`: the screen of any project, the one `/app/acme/atlas` shows.
-    const id = matchRoutes(config, '/app/acme/library')?.at(-1)?.route.id;
-    expect(id).toBeDefined();
-    expect(id).toBe(matchRoutes(config, '/app/acme/atlas')?.at(-1)?.route.id);
+    // Projects are gone too, so `/app/acme/library` is no screen either.
+    expect(matchRoutes(config, '/app/acme/library')).toBeNull();
   });
 
   it('answers the retired report addresses by no screen of the registry', () => {

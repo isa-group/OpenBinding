@@ -232,6 +232,6 @@ async function compiledForms(org: string, cases: readonly CaseContent[], ids: re
 export function StudyBuilder() {
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <OrgSkeleton label="Loading organization…" />;
-  if (!organization) return <OrgGate failure={null} subject="organization" />;
+  if (!organization) return <OrgGate failure={null} />;
   return <BuilderBody key={organization.slug} organization={organization} canCreate={problemAccess(organization).canCreate} />;
 }

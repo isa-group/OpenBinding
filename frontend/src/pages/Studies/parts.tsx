@@ -3,7 +3,7 @@ import type { Organization, StudyCell } from '../../api/platform';
 import { Gate, type Crumb } from '../Organization/parts';
 import { OrgFrame } from '../../features/workspace/OrgFrame';
 import { stateWord, countStates, breakdownText } from './studiesModel';
-import '../Project/Project.css';
+import '../../features/workspace/kit.css';
 import '../Jobs/Jobs.css';
 import './Studies.css';
 

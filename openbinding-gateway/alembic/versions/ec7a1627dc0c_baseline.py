@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '6b748e4c4d76'
+revision: str = 'ec7a1627dc0c'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -319,23 +319,6 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_organization_memberships_organization_id'), 'organization_memberships', ['organization_id'], unique=False)
     op.create_index(op.f('ix_organization_memberships_user_id'), 'organization_memberships', ['user_id'], unique=False)
-    op.create_table('projects',
-    sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('organization_id', sa.Uuid(), nullable=False),
-    sa.Column('slug', sa.String(length=64), nullable=False),
-    sa.Column('name', sa.String(length=160), nullable=False),
-    sa.Column('description', sa.String(length=2000), nullable=False),
-    sa.Column('visibility', sa.Enum('private', 'public', name='visibility', native_enum=False, length=32), nullable=False),
-    sa.Column('created_by_id', sa.Uuid(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_projects_created_by_id_users'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_projects_organization_id_organizations'), ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_projects')),
-    sa.UniqueConstraint('organization_id', 'slug', name='uq_project_org_slug')
-    )
-    op.create_index(op.f('ix_projects_organization_id'), 'projects', ['organization_id'], unique=False)
-    op.create_index(op.f('ix_projects_slug'), 'projects', ['slug'], unique=False)
     op.create_table('studies',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('organization_id', sa.Uuid(), nullable=False),
@@ -586,9 +569,6 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_studies_slug'), table_name='studies')
     op.drop_index(op.f('ix_studies_organization_id'), table_name='studies')
     op.drop_table('studies')
-    op.drop_index(op.f('ix_projects_slug'), table_name='projects')
-    op.drop_index(op.f('ix_projects_organization_id'), table_name='projects')
-    op.drop_table('projects')
     op.drop_index(op.f('ix_organization_memberships_user_id'), table_name='organization_memberships')
     op.drop_index(op.f('ix_organization_memberships_organization_id'), table_name='organization_memberships')
     op.drop_table('organization_memberships')

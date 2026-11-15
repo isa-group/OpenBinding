@@ -59,8 +59,8 @@ const engine = { ...engineRef, id: 'bim.builtin/random-search', ref: engineRef, 
 
 const reader = {
   id: 'k1', name: 'ci-lectura-resultados', prefix: 'obk_demo0001', created_at: '2026-09-01T00:00:00Z', last_used_at: '2026-10-08T00:00:00Z',
-  expires_at: '2099-12-31T00:00:00Z', permissions: ['jobs:read', 'projects:read', 'studies:read'], engine_access: { all: true, engines: [] },
-  boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['runs', 'studies'], slugs: null },
+  expires_at: '2099-12-31T00:00:00Z', permissions: ['jobs:read', 'problems:read', 'studies:read'], engine_access: { all: true, engines: [] },
+  boundary: { methods: ['GET'], organizations: ['isa-demo'], resource_kinds: ['runs', 'studies'], slugs: null },
 };
 const runner = {
   id: 'k2', name: 'ejecucion-engine-fijo', prefix: 'obk_demo0002', created_at: '2026-09-10T00:00:00Z', last_used_at: null, expires_at: null,
@@ -129,10 +129,6 @@ async function mockApi(page: Page, account: Account, overrides: Partial<State> =
   await page.route(`${API}/v1/engines`, json({ engines: [engine] }));
   await page.route(`${API}/v1/organizations`, json([{
     id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
-  }]));
-  await page.route(`${API}/v1/organizations/isa-demo/projects`, json([{
-    id: 'project-1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: '', visibility: 'private',
-    created_by_id: 'user-1', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z', access: 'member', effective_role: 'OWNER',
   }]));
   // The CAS round trip leaves the application; stand in for the university's side of it.
   await page.route('**/api/v1/auth/cas/start**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>CAS (simulated)</h1>' }));
@@ -467,7 +463,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(first.getByText('created Sep 1, 2026')).toBeVisible();
       await expect(first.getByText('last used Oct 8, 2026')).toBeVisible();
       await expect(first.getByText('expires Dec 31, 2099')).toBeVisible();
-      for (const label of ['GET only', 'org isa-demo', 'project qos-benchmarks', 'runs, studies']) await expect(first.getByText(label, { exact: true })).toBeVisible();
+      for (const label of ['GET only', 'org isa-demo', 'runs, studies']) await expect(first.getByText(label, { exact: true })).toBeVisible();
       await expect(first.getByText('All engines, including future ones')).toBeVisible();
       const second = main.getByRole('article', { name: 'ejecucion-engine-fijo' });
       await expect(second.getByText('Only bim.builtin/random-search@1.0.0', { exact: true })).toBeVisible();
@@ -567,7 +563,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The three admin-only permissions are locked with a reason, so nothing implies an admin key from the browser.
       await expect(main.getByRole('heading', { name: 'Permissions' })).toBeVisible();
-      await expect(main.getByRole('checkbox')).toHaveCount(22);
+      await expect(main.getByRole('checkbox')).toHaveCount(20);
       for (const id of ['engines:moderate', 'admin:accounts:read', 'admin:accounts:write']) {
         await expect(main.getByRole('checkbox', { name: new RegExp(`^${id}`) })).toBeDisabled();
       }
@@ -594,7 +590,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { name: /^Limits/ })).toBeVisible();
       await main.getByRole('group', { name: 'HTTP methods' }).getByRole('button', { name: 'GET' }).click();
       await main.getByRole('group', { name: 'Organizations' }).getByRole('button', { name: 'isa-demo' }).click();
-      await main.getByRole('group', { name: 'Projects' }).getByRole('button', { name: 'qos-benchmarks' }).click();
+      await expect(main.getByRole('group', { name: 'Projects' })).toHaveCount(0);
       await main.getByRole('group', { name: 'Resource kinds' }).getByRole('button', { name: 'runs' }).click();
       await main.getByRole('group', { name: 'Slugs' }).getByLabel('Add slugs').fill('latency-study');
       await main.getByRole('group', { name: 'Slugs' }).getByRole('button', { name: 'Add' }).click();
@@ -605,7 +601,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(review).toContainText('ci-nightly');
       await expect(review).toContainText('In 30 days');
       await expect(review).toContainText('Launch, cancel and retry runs (engines:execute)');
-      await expect(review).toContainText('GET · isa-demo · qos-benchmarks · runs · latency-study');
+      await expect(review).toContainText('GET · isa-demo · runs · latency-study');
       await capture(page, testInfo, `keynew-${name}-5-review`);
 
       // The gateway's refusals, one by one: 402, 403 escalation, 403 not grantable, 422 engines.
@@ -631,7 +627,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         name: 'ci-nightly',
         permissions: ['engines:read', 'engines:execute', 'jobs:read', 'problems:read'],
         engine_access: { all: false, engines: [engineRef] },
-        boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['runs'], slugs: ['latency-study'] },
+        boundary: { methods: ['GET'], organizations: ['isa-demo'], resource_kinds: ['runs'], slugs: ['latency-study'] },
       });
       const days = (Date.parse(sent.expires_at as string) - Date.now()) / 86_400_000;
       expect(days).toBeGreaterThan(29.9);
@@ -656,7 +652,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await main.getByLabel('Name').fill('admin-audit-reader');
       await main.getByRole('button', { name: 'Continue' }).click();
-      await expect(main.getByRole('checkbox')).toHaveCount(22);
+      await expect(main.getByRole('checkbox')).toHaveCount(20);
       for (const id of ['engines:moderate', 'admin:accounts:read']) {
         await expect(main.getByRole('checkbox', { name: new RegExp(`^${id}`) })).toBeEnabled();
       }

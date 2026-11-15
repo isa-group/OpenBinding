@@ -38,19 +38,6 @@ const org = (id: string, slug: string, name: string, role: Role) => ({
   id, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z',
 });
 
-const project = (n: number, orgId: string, slug: string, name: string) => ({
-  id: `project-${n}`, organization_id: orgId, slug, name, description: '', visibility: 'private', created_by_id: 'user-1',
-  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
-  // The contract's `ProjectView.access`: these specs reach every project as a member.
-  access: 'member' as const, effective_role: 'OWNER' as Role,
-});
-
-const projectsOf: Record<string, ReturnType<typeof project>[]> = {
-  'isa-demo': [project(1, 'org-isa-demo', 'qos-benchmarks', 'QoS Benchmarks'), project(2, 'org-isa-demo', 'checkout-privado', 'Checkout (privado)')],
-  'consultora-demo': [project(3, 'org-3', 'client-case', 'Client case')],
-  'member-lab': [project(4, 'org-4', 'bench', 'Bench')],
-};
-
 // --- the problem the workbench can open and save into
 
 const flujo: Problem = {
@@ -147,14 +134,13 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     const url = new URL(route.request().url());
     const parts = url.pathname.split('/').filter(Boolean);
     // /v1/organizations/{org}/problems/{problem}/revisions/{revision}/source
-    const [, , orgSlug, section, projectSlug, sub, subId, action] = parts;
+    const [, , orgSlug, section, problemSlug, sub, subId, action] = parts;
     const method = route.request().method();
     const found = organizations.find((item) => item.slug === orgSlug);
 
     if (!orgSlug) return json(organizations)(route);
     if (section === 'members' || section === 'library') return json([])(route);
     if (section === 'problems') {
-      const problemSlug = projectSlug;
       if (!found) return detail(403, 'organization_forbidden', 'Not a member.')(route);
       if (!problemSlug) {
         if (method === 'POST') {
@@ -177,14 +163,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       }
       return json(flujo)(route);
     }
-    if (section !== 'projects') return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
-
-    const list = projectsOf[orgSlug] ?? [];
-    if (!projectSlug) return json(list)(route);
-    const current = list.find((item) => item.slug === projectSlug);
-    if (!current) return detail(404, 'not_found', 'Project not found.')(route);
-    if (!sub) return json(current)(route);
-
+    if (!section) return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
     return json([])(route);
   });
   return state;
@@ -255,7 +234,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Workbench' })).toBeVisible();
       await expect(main.getByText('Write or check a package, see which engines can run it, then save it as a new problem or as a new version of one. A saved version runs from its problem page.')).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' })).toHaveCount(0);
       await expect(main.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/problems');
       await expect(main.getByRole('tab', { name: 'Problem version' })).toHaveAttribute('aria-selected', 'true');
       await expect(main.getByText(/Nothing validated yet/)).toBeVisible();

@@ -8,7 +8,7 @@ import { Chip } from '../../components/ui/Chip';
 import { normalizeStatus, outcomeOf } from './jobsModel';
 import { jobStatus } from '../../features/workspace/model';
 import type { Refusal } from './jobErrors';
-import '../Project/Project.css';
+import '../../features/workspace/kit.css';
 import './Jobs.css';
 
 interface JobFrameProps {

@@ -29,7 +29,6 @@ const screens = readRegistry();
 /** The base address of a pattern: an optional segment (`:section?`) is dropped with its slash before the parameters are filled. */
 const exampleUrl = (path: string) => dropOptionalSegments(path)
   .replace(':org', 'isa-demo')
-  .replace(':project', 'qos')
   .replace(/:[A-Za-z]+/g, 'sample');
 
 const account = (role: 'user' | 'admin') => ({
@@ -46,12 +45,6 @@ const organization = {
   id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
 };
 
-const project = {
-  id: 'project-1', organization_id: 'org-1', slug: 'qos', name: 'QoS Benchmarks', description: 'Smoke project',
-  visibility: 'private', created_by_id: 'smoke-user-id', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z',
-  access: 'member', effective_role: 'OWNER',
-};
-
 async function mockApi(page: Page, role: 'user' | 'admin' | null) {
   await page.route(`${API}/**`, (route) => route.fulfill({ status: 404, json: { detail: 'not mocked' } }));
   if (!role) return;
@@ -59,7 +52,6 @@ async function mockApi(page: Page, role: 'user' | 'admin' | null) {
   await page.route(`${API}/v1/users/me`, (route) => route.fulfill({ json: account(role) }));
   await page.route(`${API}/v1/users/me/pricing-token`, (route) => route.fulfill({ json: { pricing_token: 'smoke-token' } }));
   await page.route(`${API}/v1/organizations`, (route) => route.fulfill({ json: [organization] }));
-  await page.route(`${API}/v1/organizations/isa-demo/projects`, (route) => route.fulfill({ json: [project] }));
   await page.route(`${API}/v1/notifications**`, (route) => route.fulfill({ json: [] }));
 }
 
@@ -136,7 +128,7 @@ test.describe('route registry', () => {
 
   test('rejects the six words, whatever their letter case, except the engine registration publication text', () => {
     expect(forbiddenIn('job-list', ['Jobs', 'my case', 'Cases and JOB'])).toHaveLength(4);
-    expect(forbiddenIn('pub-home', ['Publications and public projects'])).toEqual(['"Publications" in "Publications and public projects"']);
+    expect(forbiddenIn('pub-home', ['Publications and public results'])).toEqual(['"Publications" in "Publications and public results"']);
     expect(forbiddenIn('study-detail', ['A publication'])).toHaveLength(1);
     expect(forbiddenIn('eng-registration-detail', ['Publication', 'Request publication'])).toEqual([]);
     expect(forbiddenIn('eng-registration-detail', ['Jobs'])).toHaveLength(1);

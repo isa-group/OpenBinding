@@ -2,7 +2,7 @@ import { screen } from '@testing-library/react';
 import type { UserProfile } from '../../api/auth';
 import type { Organization } from '../../api/platform';
 import { zipStore } from '../../utils/bimZip';
-import { org, renderProjectScreen } from '../../features/workspace/testKit';
+import { org, renderOrgScreen } from '../../features/workspace/testKit';
 import { Workbench } from './Workbench';
 
 /** Shared by the tests of the workbench: the answers of the gateway, a package to bring in, and the screen rendered at its address. */
@@ -96,7 +96,7 @@ interface RenderOptions {
 
 export function renderWorkbench(options: RenderOptions = {}) {
   const organization = org('isa-demo', { name: 'ISA Demo Group', effective_role: options.role ?? 'MEMBER' });
-  return renderProjectScreen(<Workbench />, {
+  return renderOrgScreen(<Workbench />, {
     path: '/app/:org/workbench', url: options.url ?? `${ROOT}/workbench${options.query ?? ''}`, organizations: [organization], user: options.user,
   });
 }

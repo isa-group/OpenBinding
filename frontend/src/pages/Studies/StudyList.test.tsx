@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { org, renderProjectScreen } from '../../features/workspace/testKit';
+import { org, renderOrgScreen } from '../../features/workspace/testKit';
 import { cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyList } from './StudyList';
 
@@ -21,7 +21,7 @@ const ROOT = '/app/isa-demo';
 const refusal = (status: number, code: string) => Object.assign(new HttpError(status, 'refused'), { code });
 
 function renderList(options: { organizations?: ReturnType<typeof org>[]; slug?: string } = {}) {
-  return renderProjectScreen(<StudyList />, {
+  return renderOrgScreen(<StudyList />, {
     path: '/app/:org/studies', url: `/app/${options.slug ?? 'isa-demo'}/studies`, organizations: options.organizations ?? [group, viewing, member],
   });
 }

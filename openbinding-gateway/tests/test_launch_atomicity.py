@@ -24,7 +24,6 @@ from openbinding_gateway.db.models import (
     Job,
     JobState,
     Organization,
-    Project,
     RunState,
     StudyCell,
     User,
@@ -52,8 +51,7 @@ async def _queued_run(api_client, registration, monkeypatch, seeds, code="concur
 async def _actors(db_session):
     user = (await db_session.execute(select(User))).scalars().one()
     organization = (await db_session.execute(select(Organization).where(Organization.slug == "lab"))).scalars().one()
-    project = (await db_session.execute(select(Project).where(Project.slug == "routing"))).scalars().one()
-    return user, organization, project
+    return user, organization
 
 
 async def _jobs_of(db_session, cell_id) -> int:
@@ -79,7 +77,7 @@ async def test_launch_links_the_cell_in_one_transaction_and_dispatches_after_the
     api_client, db_session, registration, monkeypatch, dispatched
 ) -> None:
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
-    user, organization, project = await _actors(db_session)
+    user, organization = await _actors(db_session)
     (cell,) = await _cells(db_session, run_id)
     seen = dispatched(db_session)
 
@@ -103,7 +101,7 @@ async def test_a_second_launch_of_the_same_cell_returns_the_first_job(
     api_client, db_session, registration, monkeypatch, dispatched
 ) -> None:
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
-    user, organization, project = await _actors(db_session)
+    user, organization = await _actors(db_session)
     # About the cell's unique index, which a second launch must reach: it needs a plan that allows a
     # second job in flight (the default one allows one and that limit now applies).
     space_client.get_gate().plans[user.id] = roomy_plan()
@@ -144,7 +142,7 @@ async def test_a_retry_launch_after_detaching_the_old_job_creates_a_new_one(
     api_client, db_session, registration, monkeypatch, dispatched
 ) -> None:
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
-    user, organization, project = await _actors(db_session)
+    user, organization = await _actors(db_session)
     # The detached first job is still in flight, so the new launch needs a plan that allows a second
     # one (the default plan allows one and that limit now applies).
     space_client.get_gate().plans[user.id] = roomy_plan()
@@ -169,7 +167,7 @@ async def test_a_failed_flush_after_the_job_is_created_leaves_no_job(
     api_client, db_session, registration, monkeypatch, dispatched
 ) -> None:
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
-    user, organization, project = await _actors(db_session)
+    user, organization = await _actors(db_session)
     (cell,) = await _cells(db_session, run_id)
     cell_id = cell.id
     seen = dispatched(db_session)
@@ -254,7 +252,7 @@ async def test_a_retry_whose_dispatch_fails_keeps_its_committed_job(
     assert retries == 1
 
 
-async def _attach_job(db_session, cell, user, organization, project, state=JobState.QUEUED) -> Job:
+async def _attach_job(db_session, cell, user, organization, state=JobState.QUEUED) -> Job:
     job = Job(
         owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
         state=state, original_request={}, options={}, provenance={}, result={"termination": "FEASIBLE", "solutions": []},
@@ -286,9 +284,9 @@ async def test_cancelling_a_run_respects_the_state_of_each_job(
     api_client, db_session, registration, monkeypatch, behind_its_back, state, cancellation
 ) -> None:
     headers, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
-    user, organization, project = await _actors(db_session)
+    user, organization = await _actors(db_session)
     (cell,) = await _cells(db_session, run_id)
-    job = await _attach_job(db_session, cell, user, organization, project)
+    job = await _attach_job(db_session, cell, user, organization)
     if behind_its_back is not None:
         # A worker moved the job on; this session still holds it as queued.
         await db_session.execute(
@@ -308,9 +306,9 @@ async def test_cancelling_a_queued_cell_job_through_the_job_route_cancels_its_ce
     api_client, db_session, registration, monkeypatch
 ) -> None:
     headers, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
-    user, organization, project = await _actors(db_session)
+    user, organization = await _actors(db_session)
     (cell,) = await _cells(db_session, run_id)
-    job = await _attach_job(db_session, cell, user, organization, project)
+    job = await _attach_job(db_session, cell, user, organization)
 
     cancelled = await api_client.post(run_url(job, "/cancel"), headers=headers)
 
@@ -323,9 +321,9 @@ async def test_cancelling_a_queued_cell_job_through_the_job_route_cancels_its_ce
 async def _launched_run(api_client, db_session, registration, monkeypatch, code):
     """Three cells: the first has a finished job, the others wait. Returns what a sync needs."""
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1, 2, 3])
-    user, organization, project = await _actors(db_session)
+    user, organization = await _actors(db_session)
     first, second, third = await _cells(db_session, run_id)
-    done = await _attach_job(db_session, first, user, organization, project, JobState.COMPLETED)
+    done = await _attach_job(db_session, first, user, organization, JobState.COMPLETED)
     first.state = RunState.RUNNING
     await db_session.flush()
     calls: list[int] = []

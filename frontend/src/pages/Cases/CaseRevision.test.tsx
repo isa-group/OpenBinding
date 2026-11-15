@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { caseOf, org, project, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
+import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseDetail } from './CaseDetail';
 import { digestOf, irDocument } from './fixtures';
 
@@ -11,7 +11,6 @@ vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
 const viewing = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'VIEWER' });
-const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const checkout = caseOf('flujo-checkout', 'Flujo de checkout');
 const r1 = revisionOf(checkout, 1);
 const r2 = revisionOf(checkout, 2, { package_size: 48_213 });
@@ -27,8 +26,8 @@ const irOf = (document: Record<string, unknown> = irDocument()) => ({ id: 'compi
 
 /** The Overview tab of the problem page, showing the version named by the query. */
 function renderRevision(revision = '2', organization = group) {
-  return renderProjectScreen(<CaseDetail />, {
-    path: '/app/:org/problems/:case/:tab?', url: `${root}/problems/flujo-checkout?version=${revision}`, organizations: [organization], projects: [qos],
+  return renderOrgScreen(<CaseDetail />, {
+    path: '/app/:org/problems/:case/:tab?', url: `${root}/problems/flujo-checkout?version=${revision}`, organizations: [organization],
   });
 }
 

@@ -143,7 +143,7 @@ describe('AcceptInvitation', () => {
     expect(api.acceptInvitation).toHaveBeenCalledWith(TOKEN);
     expect(screen.getByText('@isa-demo')).toBeInTheDocument();
     expect(screen.getByText('MEMBER')).toBeInTheDocument();
-    expect(screen.getByText(/As a member you can create projects and problems/)).toBeInTheDocument();
+    expect(screen.getByText(/As a member you can upload problems and launch runs and studies/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open the organization' })).toHaveAttribute('href', '/app/isa-demo');
     expect(screen.queryByLabelText('Invitation token')).not.toBeInTheDocument();
   });

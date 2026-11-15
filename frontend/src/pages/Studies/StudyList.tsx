@@ -197,7 +197,7 @@ function StudyListBody({ organization, canCreate, canAdminister }: { organizatio
 export function StudyList() {
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <OrgSkeleton label="Loading organization…" />;
-  if (!organization) return <OrgGate failure={null} subject="organization" />;
+  if (!organization) return <OrgGate failure={null} />;
   const access = problemAccess(organization);
   return <StudyListBody key={organization.slug} organization={organization} canCreate={access.canCreate} canAdminister={access.canAdminister} />;
 }

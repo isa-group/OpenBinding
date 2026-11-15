@@ -1,4 +1,4 @@
-/* The case page: its slug and description, the revision timeline. The shared pieces (drawing, figures, buttons) are in Cases.css. */
+/* The problem page: its slug and description, the version timeline. The shared pieces (drawing, figures, buttons) are in Cases.css. */
 
 .case-slug { padding: 1px 10px; border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-full); background: var(--tp-surface); color: var(--tp-steel); font-family: var(--font-mono); font-size: 0.75rem; }
 

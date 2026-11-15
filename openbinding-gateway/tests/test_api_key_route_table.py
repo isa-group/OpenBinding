@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 114
+    assert len(ROUTES) == 109
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -92,10 +92,10 @@ def test_the_analysis_workspace_is_gone_and_the_neighbourhood_stays_a_run_read()
     assert "engines:execute" in ALL_PERMISSIONS
     # A run-scoped key reads the neighbourhood: the last fixed segment is ``runs``.
     runs_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["run"]}})
-    projects_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["project"]}})
+    problems_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["problem"]}})
     request = {"method": "GET", "path_params": {"org": "acme", "run": "r1"}, "path": neighbourhood}
     assert allows_request(runs_only, **request)
-    assert not allows_request(projects_only, **request)
+    assert not allows_request(problems_only, **request)
 
 
 def test_the_runs_of_an_organization_are_jobs_reads_and_engine_executions():
@@ -120,31 +120,31 @@ def test_the_studies_of_an_organization_are_study_reads_and_writes():
     for method, path in study_routes:
         expected = "studies:read" if method == "GET" else "studies:write"
         assert required_permissions(path, method) == frozenset({expected}), (method, path)
-    assert not [route for route in ROUTES if "/projects/{project}/studies" in route[1]]
+
+
+def test_projects_are_gone_with_their_permissions_and_boundary():
+    assert not [route for route in ROUTES if "/projects" in route[1] or "{project}" in route[1]]
+    assert not {"projects:read", "projects:write"} & set(ALL_PERMISSIONS)
+    assert "projects" not in apikeys.BOUNDARY_FIELDS
+    # The organization tree holds only the organization, its members, invitations, audit, problems, runs and studies.
+    sections = {route[1].split("/")[4] for route in ROUTES if route[1].startswith("/v1/organizations/{org}/")}
+    assert sections == {"members", "invitations", "audit", "problems", "runs", "studies"}
+    # A stored boundary that still names projects is malformed, and a malformed boundary denies everything.
+    stale = SimpleNamespace(grants={"boundary": {"projects": ["p"]}})
+    assert not allows_request(stale, method="GET", path_params={"org": "acme"}, path="/v1/organizations/{org}")
 
 
 def test_the_library_reports_and_project_resources_are_gone():
-    project = "/v1/organizations/{org}/projects/{project}"
     retired = {
         ("POST", "/v1/organizations/{org}/library"),
         ("PATCH", "/v1/artifacts/{artifact_id}"),
         ("POST", "/v1/artifacts/{artifact_id}/drafts"),
         ("POST", "/v1/artifacts/{artifact_id}/versions/{version_id}/publish"),
-        ("PUT", f"{project}/library/{{artifact_id}}"),
-        ("GET", f"{project}/reports"),
-        ("POST", f"{project}/reports"),
-        ("GET", f"{project}/publications"),
-        ("POST", f"{project}/publications"),
-        ("DELETE", f"{project}/publications/{{publication}}"),
-        ("POST", f"{project}/resources"),
-        ("PATCH", f"{project}/resources/{{resource}}"),
         # The artifact store, the library and the project resources went in F0b B7.
         ("GET", "/v1/organizations/{org}/library"),
         ("GET", "/v1/artifacts/{artifact_id}/versions"),
         ("GET", "/v1/artifacts/{artifact_id}/versions/{version_id}/content"),
         ("POST", "/v1/artifacts/resolve"),
-        ("GET", f"{project}/resources"),
-        ("GET", f"{project}/resources/{{resource}}/revisions"),
     }
     assert not retired & set(ROUTES)
     assert not [route for route in ROUTES if route[1].startswith("/v1/artifacts") or "/library" in route[1]]

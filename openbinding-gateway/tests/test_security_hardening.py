@@ -1,5 +1,5 @@
 """Phase 2-3 hardening: body limits, authentication throttling, token and secret rules,
-and what a project VIEWER may read of a job."""
+and what an organization VIEWER may read of a run."""
 
 from __future__ import annotations
 
@@ -177,7 +177,6 @@ def test_the_upload_routes_are_the_package_ones():
     assert is_upload("POST", "/v1/organizations/acme/problems/p/revisions")
     assert is_upload("POST", "/v1/bim/validate")
     assert not is_upload("POST", "/v1/organizations/acme/problems/p")
-    assert not is_upload("POST", "/v1/organizations/acme/projects/p/blobs")
     assert not is_upload("GET", "/v1/organizations/acme/runs")
     assert not is_upload("POST", "/v1/organizations/acme/runs/r/retry")
     assert not is_upload("POST", "/v1/auth/login")
@@ -576,7 +575,7 @@ PROVENANCE = {
 }
 
 
-async def project_with_a_job(api_client, registration, db_session, gate):  # noqa: F811
+async def organization_with_a_job(api_client, registration, db_session, gate):  # noqa: F811
     """An organization with one run of its owner; returns the slug, the owner's headers and the run."""
     owner, owner_h = await make_account(api_client, registration, db_session, gate)
     organization = await make_org(api_client, owner_h)
@@ -612,7 +611,7 @@ async def member(api_client, registration, db_session, gate, owner_h, slug, role
 async def test_a_viewer_sees_state_engine_result_and_digests_but_not_sensitive_options(
     api_client, registration, db_session, gate  # noqa: F811
 ):
-    slug, owner_h, job = await project_with_a_job(api_client, registration, db_session, gate)
+    slug, owner_h, job = await organization_with_a_job(api_client, registration, db_session, gate)
     viewer_h = await member(api_client, registration, db_session, gate, owner_h, slug, "VIEWER")
 
     response = await api_client.get(run_url(job, org=slug), headers=viewer_h)
@@ -645,7 +644,7 @@ async def test_a_viewer_sees_state_engine_result_and_digests_but_not_sensitive_o
 async def test_a_member_and_an_owner_see_the_complete_options(
     api_client, registration, db_session, gate  # noqa: F811
 ):
-    slug, owner_h, job = await project_with_a_job(api_client, registration, db_session, gate)
+    slug, owner_h, job = await organization_with_a_job(api_client, registration, db_session, gate)
     member_h = await member(api_client, registration, db_session, gate, owner_h, slug, "MEMBER")
     admin_h = await member(api_client, registration, db_session, gate, owner_h, slug, "ADMIN")
 
@@ -661,7 +660,7 @@ async def test_a_member_and_an_owner_see_the_complete_options(
 async def test_a_user_of_another_organization_does_not_read_the_jobs(
     api_client, registration, db_session, gate  # noqa: F811
 ):
-    slug, owner_h, job = await project_with_a_job(api_client, registration, db_session, gate)
+    slug, owner_h, job = await organization_with_a_job(api_client, registration, db_session, gate)
     _, outsider_h = await make_account(api_client, registration, db_session, gate)
 
     listed = await api_client.get(runs_url(slug), headers=outsider_h)
@@ -676,7 +675,7 @@ async def test_a_user_of_another_organization_does_not_read_the_jobs(
 async def test_an_api_key_without_the_jobs_scope_is_refused_and_one_that_cannot_execute_reads_redacted(
     api_client, registration, db_session, gate  # noqa: F811
 ):
-    slug, owner_h, job = await project_with_a_job(api_client, registration, db_session, gate)
+    slug, owner_h, job = await organization_with_a_job(api_client, registration, db_session, gate)
     viewer_account, viewer_h = await make_account(api_client, registration, db_session, gate)
     assert (await put_member(api_client, owner_h, slug, viewer_account["id"], "VIEWER")).status_code == 200
     unscoped = await make_key(api_client, viewer_h, ["account:read"])

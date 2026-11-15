@@ -24,7 +24,7 @@ vi.mock('../../api/client', async () => ({
 configure({ asyncUtilTimeout: 5000 });
 
 const OVERVIEW: OverviewAnswer = {
-  counts: { users: 7, apiKeys: 9, identities: 3, organizations: 3, projects: 5, problems: 4, problemRevisions: 6, studies: 2, studyRuns: 3, artifacts: 12 },
+  counts: { users: 7, apiKeys: 9, identities: 3, organizations: 3, problems: 4, problemRevisions: 6, runs: 12, studies: 2, studyRuns: 3 },
   jobs: { queued: 1, running: 1, completed: 2, failed: 1, cancelled: 1 },
   contracts: { FREE: 3, RESEARCH: 2, LAB: 2 },
   recentAudit: [
@@ -118,8 +118,10 @@ describe('admin-overview · how the platform is doing', () => {
     renderAdmin(<AdminOverview />);
     const numbers = await screen.findByRole('region', { name: 'The platform in numbers' });
     await waitFor(() => expect(within(numbers).getByText('12')).toBeInTheDocument());
-    expect(within(numbers).getByText('Stored artifacts')).toBeInTheDocument();
+    expect(within(numbers).getByText('Runs')).toBeInTheDocument();
     expect(within(numbers).getByText('Problems')).toBeInTheDocument();
+    expect(within(numbers).queryByText('Projects')).not.toBeInTheDocument();
+    expect(within(numbers).queryByText('Stored artifacts')).not.toBeInTheDocument();
   });
 
   it('opens every administration tool, with the ids and routes of the prototype', async () => {

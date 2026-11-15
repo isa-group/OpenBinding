@@ -142,7 +142,7 @@ async def test_organizations_carry_no_sponsor_and_no_subtree_quota(
     assert named.json()["code"] == "validation_error"
 
 
-async def test_delete_project_and_organization_lifecycle(
+async def test_delete_organization_lifecycle(
     api_client, db_session, registration, platform_gate
 ) -> None:
     owner, owner_headers = await account(api_client, registration)
@@ -163,50 +163,13 @@ async def test_delete_project_and_organization_lifecycle(
         json={"user_id": viewer["id"], "role": "VIEWER"},
     )
 
-    # Create project
-    proj_res = await api_client.post(
-        f"/v1/organizations/{org['slug']}/projects",
-        headers=owner_headers,
-        json={"slug": "proj-lifecycle", "name": "Lifecycle Project", "visibility": "private"},
-    )
-    assert proj_res.status_code == 201
-
-    # A problem belongs to the organization, not to the project.
+    # A problem of the organization, with its revision and the blob behind it.
     uploaded = await upload_problem(api_client, owner_headers, org["slug"])
-    problem_slug = uploaded["problem"]["slug"]
     revision_id = uuid.UUID(uploaded["revision_id"])
     blob_id = await db_session.scalar(
         select(BindingCaseRevision.package_blob_id).where(BindingCaseRevision.id == revision_id)
     )
     assert blob_id is not None
-
-    # Viewer cannot delete project
-    del_forbidden = await api_client.delete(
-        f"/v1/organizations/{org['slug']}/projects/proj-lifecycle",
-        headers=viewer_headers,
-    )
-    assert del_forbidden.status_code == 403
-
-    # Owner can delete project
-    del_ok = await api_client.delete(
-        f"/v1/organizations/{org['slug']}/projects/proj-lifecycle",
-        headers=owner_headers,
-    )
-    assert del_ok.status_code == 204
-
-    # Verify project is gone
-    get_proj = await api_client.get(
-        f"/v1/organizations/{org['slug']}/projects/proj-lifecycle",
-        headers=owner_headers,
-    )
-    assert get_proj.status_code == 404
-
-    # Deleting the project leaves the organization's problem and its blob.
-    kept = await api_client.get(
-        f"/v1/organizations/{org['slug']}/problems/{problem_slug}", headers=owner_headers
-    )
-    assert kept.status_code == 200, kept.text
-    assert await db_session.get(Blob, blob_id) is not None
 
     # Viewer cannot delete organization
     del_org_forbidden = await api_client.delete(

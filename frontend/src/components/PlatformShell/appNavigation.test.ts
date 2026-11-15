@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Organization } from '../../api/platform';
 import { routeDefinitions } from '../../routes/registry';
 import {
-  accountLinks, createItems, currentSection, labEntries, labEntryOf, mainLinks, NEEDS_ORGANIZATION, problemsEntry,
+  accountLinks, createItems, currentSection, mainLinks, NEEDS_ORGANIZATION, organizationEntries, organizationSectionOf,
   type MenuEntry,
 } from './appNavigation';
 
@@ -26,35 +26,33 @@ describe('mainLinks', () => {
     }
   });
 
-  it('offers no entry of the header, Lab, New or account menus that leads to a report, library or resources address', () => {
+  it('offers no entry of the header, New or account menus that leads to a report, library, resources or project address', () => {
     const addresses = [
       ...Object.values(mainLinks).map((link) => link.to),
-      ...addressesOf([problemsEntry(organization)]),
-      ...addressesOf(labEntries(organization)),
+      ...addressesOf(organizationEntries(organization)),
       ...addressesOf(createItems(organization)),
       ...accountLinks.map((link) => link.to),
     ];
     expect(addresses.length).toBeGreaterThan(13);
     expect(addresses.filter((address) => /\/(reports|library|resources)([/?#]|$)/.test(address))).toEqual([]);
+    for (const address of addresses) expect(address).not.toMatch(/project/);
   });
 });
 
-describe('problemsEntry and labEntries', () => {
-  it('lead into the organization (problems, runs, studies)', () => {
-    expect(problemsEntry(organization)).toEqual({ label: 'Problems', to: '/app/isa-demo/problems' });
-    expect(labEntries(organization).map(({ id, label, to }) => [id, label, to])).toEqual([
-      ['runs', 'Runs', '/app/isa-demo/runs'], ['studies', 'Studies', '/app/isa-demo/studies'],
+describe('organizationEntries', () => {
+  it('lead into the organization (problems, runs, studies), in this order', () => {
+    expect(organizationEntries(organization).map(({ id, label, to }) => [id, label, to])).toEqual([
+      ['problems', 'Problems', '/app/isa-demo/problems'], ['runs', 'Runs', '/app/isa-demo/runs'], ['studies', 'Studies', '/app/isa-demo/studies'],
     ]);
-    for (const address of [...addressesOf([problemsEntry(organization)]), ...addressesOf(labEntries(organization))]) {
+    for (const address of addressesOf(organizationEntries(organization))) {
       expect(matchRoutes(routed, address), address).not.toBeNull();
     }
   });
 
   it('disables Problems, Runs and Studies without an organization', () => {
     expect(NEEDS_ORGANIZATION).toBe('Needs an organization');
-    expect(problemsEntry()).toEqual({ label: 'Problems', hint: 'Needs an organization' });
-    expect(labEntries().map(({ label, to, hint }) => [label, to, hint])).toEqual([
-      ['Runs', undefined, 'Needs an organization'], ['Studies', undefined, 'Needs an organization'],
+    expect(organizationEntries().map(({ label, to, hint }) => [label, to, hint])).toEqual([
+      ['Problems', undefined, 'Needs an organization'], ['Runs', undefined, 'Needs an organization'], ['Studies', undefined, 'Needs an organization'],
     ]);
   });
 });
@@ -97,16 +95,16 @@ describe('currentSection', () => {
   it.each([
     ['/app', 'home'],
     ['/app/isa-demo', 'home'],
-    ['/app/isa-demo/qos', 'home'],
+    ['/app/isa-demo/qos', null],
     ['/app/isa-demo/settings/members', 'home'],
     ['/app/isa-demo/problems', 'problems'],
     ['/app/isa-demo/problems/routing', 'problems'],
     ['/app/isa-demo/workbench', 'problems'],
-    ['/app/isa-demo/runs', 'lab'],
-    ['/app/isa-demo/runs/new', 'lab'],
-    ['/app/isa-demo/runs/job-1', 'lab'],
-    ['/app/isa-demo/studies', 'lab'],
-    ['/app/isa-demo/studies/engines-vs-seeds', 'lab'],
+    ['/app/isa-demo/runs', 'runs'],
+    ['/app/isa-demo/runs/new', 'runs'],
+    ['/app/isa-demo/runs/job-1', 'runs'],
+    ['/app/isa-demo/studies', 'studies'],
+    ['/app/isa-demo/studies/engines-vs-seeds', 'studies'],
     ['/app/isa-demo/qos/studies', null],
     ['/engines', 'engines'],
     ['/app/engines/registrations', 'engines'],
@@ -136,13 +134,14 @@ describe('currentSection', () => {
   });
 });
 
-describe('labEntryOf', () => {
-  it('tells the entry of the Lab menu an address belongs to', () => {
-    expect(labEntryOf('/app/isa-demo/runs/job-1')).toBe('runs');
-    expect(labEntryOf('/app/isa-demo/qos/runs/job-1')).toBeNull();
-    expect(labEntryOf('/app/isa-demo/studies/s1')).toBe('studies');
-    expect(labEntryOf('/app/isa-demo/qos/studies/s1')).toBeNull();
-    expect(labEntryOf('/app/isa-demo/problems')).toBeNull();
-    expect(labEntryOf('/app')).toBeNull();
+describe('organizationSectionOf', () => {
+  it('tells the organization section an address belongs to', () => {
+    expect(organizationSectionOf('/app/isa-demo/runs/job-1')).toBe('runs');
+    expect(organizationSectionOf('/app/isa-demo/qos/runs/job-1')).toBeNull();
+    expect(organizationSectionOf('/app/isa-demo/studies/s1')).toBe('studies');
+    expect(organizationSectionOf('/app/isa-demo/problems')).toBe('problems');
+    expect(organizationSectionOf('/app/isa-demo/workbench')).toBe('problems');
+    expect(organizationSectionOf('/app/engines/registrations')).toBeNull();
+    expect(organizationSectionOf('/app')).toBeNull();
   });
 });

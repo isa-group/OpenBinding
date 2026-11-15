@@ -122,6 +122,6 @@ function WorkbenchScreen({ organization, canSave }: { organization: Organization
 export function Workbench() {
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <OrgSkeleton label="Loading organization…" />;
-  if (!organization) return <OrgGate failure={null} subject="organization" />;
+  if (!organization) return <OrgGate failure={null} />;
   return <WorkbenchScreen organization={organization} canSave={problemAccess(organization).canCreate} />;
 }

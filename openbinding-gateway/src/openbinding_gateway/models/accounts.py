@@ -166,13 +166,12 @@ class ApiKeyBoundary(BaseModel):
 
     methods: Optional[List[Literal["GET", "POST", "PUT", "PATCH", "DELETE"]]] = None
     organizations: Optional[List[str]] = Field(default=None, max_length=1000)
-    projects: Optional[List[str]] = Field(default=None, max_length=1000)
     resource_kinds: Optional[List[str]] = Field(default=None, max_length=100)
     slugs: Optional[List[str]] = Field(default=None, max_length=1000)
 
     @model_validator(mode="after")
     def unique_values(self):
-        for name in ("methods", "organizations", "projects", "resource_kinds", "slugs"):
+        for name in ("methods", "organizations", "resource_kinds", "slugs"):
             values = getattr(self, name)
             if values is not None and (not values or len(values) != len(set(values))):
                 raise ValueError(f"{name} must be a non-empty list without duplicates")
@@ -182,7 +181,6 @@ class ApiKeyBoundary(BaseModel):
         fields = {
             "methods": self.methods,
             "organizations": self.organizations,
-            "projects": self.projects,
             "resourceKinds": self.resource_kinds,
             "slugs": self.slugs,
         }

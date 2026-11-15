@@ -31,7 +31,7 @@ export interface Gateway {
 }
 
 /**
- * A member of `acme` (or a visitor, with `role: null`) and a gateway that answers the lists the project screens read,
+ * A member of `acme` (or a visitor, with `role: null`) and a gateway that answers the lists the organization's screens read,
  * with synthetic data that holds none of the words the vocabulary forbids. Records the GET paths the page sends.
  */
 export async function mockGateway(page: Page, options: MockOptions = {}): Promise<Gateway> {

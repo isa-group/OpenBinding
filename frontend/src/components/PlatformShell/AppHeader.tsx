@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent } from 'react';
 import { ChevronDown, Menu, Plus, Search, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import type { Organization, Project } from '../../api/platform';
+import type { Organization } from '../../api/platform';
 import { config } from '../../config';
 import { useAuth } from '../../contexts/auth';
 import { personInitials } from '../../utils/initials';
@@ -9,30 +9,27 @@ import { InstitutionMark } from '../InstitutionMark';
 import { INSTITUTION_NAME, useInstitutionalBranding } from '../InstitutionMark/institution';
 import { NotificationDropdown } from '../NotificationDropdown/NotificationDropdown';
 import {
-  accountLinks, createItems, currentSection, labEntries, labEntryOf, mainLinks, problemsEntry,
+  accountLinks, createItems, currentSection, mainLinks, organizationEntries,
   type MenuEntry,
 } from './appNavigation';
 import { CommandPalette, OPEN_COMMAND_PALETTE_EVENT } from './CommandPalette';
 import './AppHeader.css';
 
-type MenuName = 'lab' | 'new' | 'account' | 'mobile';
+type MenuName = 'new' | 'account' | 'mobile';
 
 interface AppHeaderProps {
   organizations?: Organization[];
-  projects?: Project[];
   organization?: Organization;
-  project?: Project;
 }
 
 const shortcutLabel = () => (typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K');
 
-export function AppHeader({ organizations = [], projects = [], organization, project }: AppHeaderProps) {
+export function AppHeader({ organizations = [], organization }: AppHeaderProps) {
   const { user, isAdmin, signOut } = useAuth();
   const institutional = useInstitutionalBranding();
   const location = useLocation();
   const hintScope = useId();
   const header = useRef<HTMLElement>(null);
-  const labToggle = useRef<HTMLButtonElement>(null);
   const newToggle = useRef<HTMLButtonElement>(null);
   const accountToggle = useRef<HTMLButtonElement>(null);
   const mobileToggle = useRef<HTMLButtonElement>(null);
@@ -42,7 +39,6 @@ export function AppHeader({ organizations = [], projects = [], organization, pro
   const [shortcut] = useState(shortcutLabel);
 
   const section = currentSection(location.pathname);
-  const labEntry = labEntryOf(location.pathname);
   const current = (active: boolean) => (active ? 'page' : undefined);
   const closeMenus = () => setOpened({ menu: null, at: location.key });
   const toggleMenu = (menu: MenuName) => setOpened({ menu: openMenu === menu ? null : menu, at: location.key });
@@ -60,7 +56,7 @@ export function AppHeader({ organizations = [], projects = [], organization, pro
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key !== 'Escape' || !openMenu) return;
     closeMenus();
-    const toggle = { lab: labToggle, new: newToggle, account: accountToggle, mobile: mobileToggle }[openMenu];
+    const toggle = { new: newToggle, account: accountToggle, mobile: mobileToggle }[openMenu];
     toggle.current?.focus();
   };
   const closeWhenFocusLeaves = (event: FocusEvent<HTMLElement>) => {
@@ -78,10 +74,9 @@ export function AppHeader({ organizations = [], projects = [], organization, pro
     window.dispatchEvent(new CustomEvent(OPEN_COMMAND_PALETTE_EVENT));
   };
 
-  const contextLabel = organization ? [organization.name, project?.name].filter(Boolean).join(' / ') : '';
+  const contextLabel = organization?.name ?? '';
   const initials = personInitials(user?.username);
-  const problems = problemsEntry(organization);
-  const lab = labEntries(organization);
+  const sections = organizationEntries(organization);
   const items = createItems(organization);
 
   /** A link, or an entry that is disabled and says what it needs. `where` keeps the hint ids of the desktop and phone menus apart. */
@@ -110,31 +105,14 @@ export function AppHeader({ organizations = [], projects = [], organization, pro
           </Link>
 
           {contextLabel && (
-            <Link to="/app" viewTransition className="app-context" title="Switch organization or project">
+            <Link to="/app" viewTransition className="app-context" title="Switch organization">
               <span>{contextLabel}</span><ChevronDown aria-hidden="true" />
             </Link>
           )}
 
           <nav className="app-nav" aria-label="Main">
             {renderEntry(mainLinks.home, 'nav', 'app-nav-link', section === 'home')}
-            {renderEntry(problems, 'nav', 'app-nav-link', section === 'problems')}
-            <div className="app-menu" data-app-menu="lab" onBlur={openMenu === 'lab' ? closeWhenFocusLeaves : undefined}>
-              <button
-                ref={labToggle}
-                type="button"
-                className={`app-nav-link${section === 'lab' ? ' is-active' : ''}`}
-                aria-expanded={openMenu === 'lab'}
-                aria-controls="app-lab-menu"
-                onClick={() => toggleMenu('lab')}
-              >
-                Lab <ChevronDown aria-hidden="true" />
-              </button>
-              {openMenu === 'lab' && (
-                <div id="app-lab-menu" className="app-menu-panel app-lab-panel" onClick={closeAfterLink}>
-                  {lab.map((entry) => renderEntry(entry, 'lab', undefined, labEntry === entry.id))}
-                </div>
-              )}
-            </div>
+            {sections.map((entry) => renderEntry(entry, 'nav', 'app-nav-link', section === entry.id))}
             {renderEntry(mainLinks.engines, 'nav', 'app-nav-link', section === 'engines')}
             {isAdmin && renderEntry(mainLinks.admin, 'nav', 'app-nav-link', section === 'admin')}
           </nav>
@@ -221,11 +199,7 @@ export function AppHeader({ organizations = [], projects = [], organization, pro
       >
         {contextLabel && <Link to="/app" viewTransition className="app-mobile-context">{contextLabel}</Link>}
         {renderEntry(mainLinks.home, 'mobile', undefined, section === 'home')}
-        {renderEntry(problems, 'mobile', undefined, section === 'problems')}
-        <div className="app-mobile-group">
-          <span>Lab</span>
-          {lab.map((entry) => renderEntry(entry, 'mobile-lab', undefined, labEntry === entry.id))}
-        </div>
+        {sections.map((entry) => renderEntry(entry, 'mobile', undefined, section === entry.id))}
         {renderEntry(mainLinks.engines, 'mobile', undefined, section === 'engines')}
         {isAdmin && renderEntry(mainLinks.admin, 'mobile', undefined, section === 'admin')}
         <div className="app-mobile-group">
@@ -240,9 +214,7 @@ export function AppHeader({ organizations = [], projects = [], organization, pro
 
       <CommandPalette
         organizations={organizations}
-        projects={projects}
         organization={organization}
-        project={project}
         isAdmin={isAdmin}
       />
     </header>

@@ -17,7 +17,7 @@ import {
 } from '../../src/test/fixtures/studies';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
-// with problems, runs and studies, a project, and everything the public screens read.
+// with problems, runs and studies, and everything the public screens read.
 // Every date is fixed, so two runs of the gallery draw the same pictures. A request nobody answers is a 404 and is recorded.
 
 export const API = 'http://localhost:8000';
@@ -31,20 +31,6 @@ export type Session = 'admin' | 'none';
 export interface MockHandle {
   /** Requests the mock did not recognise, as `METHOD /path`. */
   unmocked: string[];
-}
-
-// -- The shared fixtures are already English and name neutral people (src/test/fixtures); the gallery only places the resource
-// fixtures, which belong to a project of their own in the unit tests, in the project it shows.
-
-const RENAMES: Array<[string, string]> = [
-  ['"project-qos"', '"project-qos-benchmarks"'],
-];
-
-/** The fixture placed in the gallery's project. */
-function localize<T>(value: T): T {
-  let text = JSON.stringify(value);
-  for (const [from, to] of RENAMES) text = text.split(from).join(to);
-  return JSON.parse(text) as T;
 }
 
 // -- People and organizations
@@ -71,22 +57,6 @@ const ORGANIZATIONS = [
   org('org-read-lab', 'read-lab', 'Read Lab', 'VIEWER', { created_at: '2026-05-01T00:00:00Z' }),
 ];
 
-/** A `ProjectView`: the caller reaches every project of the gallery as a member (`access`), with the role of the organization. */
-const project = (slug: string, orgId: string, name: string, description: string, visibility: 'public' | 'private', role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' = 'OWNER') => ({
-  id: `project-${slug}`, organization_id: orgId, slug, name, description, visibility, created_by_id: ME_ID,
-  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
-  access: 'member' as const, effective_role: role,
-});
-const PROJECTS: Record<string, ReturnType<typeof project>[]> = {
-  'isa-demo': [
-    project('qos-benchmarks', 'org-isa-demo', 'QoS Benchmarks', 'Reference binding cases with workflow and placement.', 'public'),
-    project('payments-checkout', 'org-isa-demo', 'Payments checkout', 'Internal payments case with proprietary candidates.', 'private'),
-  ],
-  'qos-lab': [project('edge-placement', 'org-qos-lab', 'Edge placement', 'Exploration with pools and latencies.', 'private')],
-  'partner-lab': [project('shared-corpus', 'org-partner-lab', 'Shared corpus', 'Cases the partner lab contributes.', 'private', 'ADMIN')],
-  'read-lab': [],
-};
-
 const member = (orgId: string, key: string, userId: string, role: string, created = '2026-03-04T00:00:00Z') => ({
   id: `${orgId}-${key}`, organization_id: orgId, user_id: userId, username: key, email: `${key.replace('.', '-')}@example.org`, role, created_at: created,
 });
@@ -102,7 +72,7 @@ const MEMBERS: Record<string, ReturnType<typeof member>[]> = {
 const ORG_AUDIT = [
   { id: 'e0000000-0000-0000-0000-0000000000e5', organizationId: 'org-isa-demo', actorId: ME_ID, action: 'organization.invitation.created', targetType: 'OrganizationInvitation', targetId: 'inv-1', detail: {}, createdAt: '2026-10-08T09:15:00Z' },
   { id: 'e0000000-0000-0000-0000-0000000000e4', organizationId: 'org-isa-demo', actorId: ME_ID, action: 'organization.members.batch_updated', targetType: 'Organization', targetId: 'org-isa-demo', detail: { changes: [{ user_id: '00000000-0000-4000-8000-000000000002', role: 'ADMIN' }] }, createdAt: '2026-09-25T10:00:00Z' },
-  { id: 'e0000000-0000-0000-0000-0000000000e3', organizationId: 'org-isa-demo', actorId: ME_ID, action: 'project.created', targetType: 'Project', targetId: 'project-qos-benchmarks', detail: {}, createdAt: '2026-04-01T08:30:00Z' },
+  { id: 'e0000000-0000-0000-0000-0000000000e3', organizationId: 'org-isa-demo', actorId: ME_ID, action: 'problem.created', targetType: 'BindingCase', targetId: 'case-flujo-checkout', detail: {}, createdAt: '2026-04-01T08:30:00Z' },
   { id: 'e0000000-0000-0000-0000-0000000000e2', organizationId: 'org-isa-demo', actorId: ME_ID, action: 'organization.created', targetType: 'Organization', targetId: 'org-isa-demo', detail: {}, createdAt: '2026-03-03T08:00:00Z' },
 ];
 
@@ -135,8 +105,8 @@ const ENGINE_DIGEST = `sha256-${'b2c3d4e5'.repeat(8)}`;
 const API_KEYS = [
   {
     id: 'k1', name: 'ci-read-results', prefix: 'obk_demo0001', created_at: '2026-09-01T00:00:00Z', last_used_at: '2026-10-08T00:00:00Z', expires_at: '2099-12-31T00:00:00Z',
-    permissions: ['jobs:read', 'projects:read', 'studies:read'], engine_access: { all: true, engines: [] },
-    boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['runs', 'studies'], slugs: null },
+    permissions: ['jobs:read', 'problems:read', 'studies:read'], engine_access: { all: true, engines: [] },
+    boundary: { methods: ['GET'], organizations: ['isa-demo'], resource_kinds: ['runs', 'studies'], slugs: null },
   },
   {
     id: 'k2', name: 'run-fixed-engine', prefix: 'obk_demo0002', created_at: '2026-09-10T00:00:00Z', last_used_at: null, expires_at: null,
@@ -150,7 +120,7 @@ const API_KEYS = [
 const roleOf = (kind: string, minimum: number, maximum?: number, extensionTypes: 'none' | 'installed' = 'none') => ({
   resourceTypes: [{ apiVersion: 'qos-binding/v1', kind, minimum, ...(maximum === undefined ? {} : { maximum }) }], extensionTypes,
 });
-const PROFILE = localize({
+const PROFILE = {
   ...QOS_PROFILE,
   spec: {
     ...QOS_PROFILE.spec,
@@ -161,7 +131,7 @@ const PROFILE = localize({
       optimization: roleOf('Optimization', 0, 1),
     },
   },
-});
+};
 
 // -- Engines
 
@@ -248,7 +218,7 @@ const JOBS = {
 /** The runs of the organization `isa-demo`, newest first: every member reads them. */
 const ORG_JOBS: Job[] = [JOBS.queued, JOBS.running, JOBS.failed, JOBS.cancelled, JOBS.routed, JOBS.theirs, JOBS.infeasible, JOBS.feasible];
 
-const SOLUTION_EN = localize(SOLUTION);
+const SOLUTION_EN = SOLUTION;
 function jobDetail(id: string): Record<string, unknown> | null {
   const summary = ORG_JOBS.find((row) => row.id === id);
   const detail = jobDetailOnly(id);
@@ -272,15 +242,15 @@ function jobDetailOnly(id: string): Record<string, unknown> | null {
 
 // -- Studies and the analysis
 
-const STUDY = localize(studyFixture());
-const OTHER_STUDY = localize(studyFixture({
+const STUDY = studyFixture();
+const OTHER_STUDY = studyFixture({
   id: 'study-placement', slug: 'placement-sweep', name: 'Placement sweep', description: 'Pools and latencies on the edge.',
   definition: { revision_ids: [REVISION_2.id], engines: [RANDOM_SEARCH], parameter_sets: [{}], seeds: [1, 2, 3] },
-}));
+});
 const STUDIES = [STUDY, OTHER_STUDY];
 const RUN = runFixture();
-const CELLS = localize(cellsFixture());
-const ANALYTICS = localize(analyticsFixture({
+const CELLS = cellsFixture();
+const ANALYTICS = analyticsFixture({
   binding_space: {
     cardinality: '125892', log10: 5.1, tasks: 6, breakdown: { authenticate: 4, inventory: 5, shipping: 3, 'pay-card': 8, 'pay-transfer': 4, notify: 1 },
     case_slug: 'checkout-flow', case_name: 'Checkout flow', revision: 2,
@@ -289,7 +259,7 @@ const ANALYTICS = localize(analyticsFixture({
       { id: PROBLEM.id, slug: 'checkout-flow', name: 'Checkout flow', revision: 2, cardinality: '125892', log10: 5.1, tasks: 6, breakdown: { authenticate: 4 } },
     ],
   },
-}));
+});
 
 // -- Public screens
 
@@ -298,10 +268,10 @@ const TEMPLATE_PATHS = ['demo/01_simple_seq', 'demo/02_parallel', 'demo/03_xor_c
 
 // -- Administration
 
-/** The platform in numbers, counted from the same accounts, organizations and projects the other screens list. */
+/** The platform in numbers, counted from the same accounts, organizations and problems the other screens list. */
 const ADMIN_OVERVIEW = {
   ...OVERVIEW,
-  counts: { users: ACCOUNTS.length, apiKeys: 9, identities: 3, organizations: ORGANIZATIONS.length, projects: 4, problems: 2, problemRevisions: 2, studies: 2, studyRuns: 1, artifacts: 12 },
+  counts: { users: ACCOUNTS.length, apiKeys: 9, identities: 3, organizations: ORGANIZATIONS.length, problems: 2, problemRevisions: 2, runs: 3, studies: 2, studyRuns: 1 },
   contracts: { FREE: 3, RESEARCH: 2, LAB: 1 },
 };
 const PENDING_REGISTRATION = { ...SOLVER_IN_REVIEW, namespace: 'sam.okafor' };
@@ -329,16 +299,6 @@ interface Request {
   body: () => Record<string, unknown>;
   /** A small package, for every download. */
   archive: Buffer;
-}
-
-function projectRoutes(request: Request, orgSlug: string, projectSlug: string): Reply {
-  const { parts } = request;
-  const sub = parts[5];
-  const current = (PROJECTS[orgSlug] ?? []).find((item) => item.slug === projectSlug);
-  if (!current) return notFound('Project not found.');
-  if (!sub) return ok(current);
-  // Problems, runs and studies belong to the organization: nothing else is below a project.
-  return notFound('Not mocked.');
 }
 
 /** `/v1/organizations/{org}/studies/…`: the studies of `isa-demo`, the one run of the first and its cells; another organization has none. */
@@ -395,7 +355,7 @@ function problemRoutes(request: Request, orgSlug: string): Reply {
 
 function organizationRoutes(request: Request): Reply {
   const { parts } = request;
-  const [, , orgSlug, section, projectSlug] = parts;
+  const [, , orgSlug, section] = parts;
   if (!orgSlug) return ok(ORGANIZATIONS);
   const found = ORGANIZATIONS.find((item) => item.slug === orgSlug || item.id === orgSlug);
   if (!found) return { status: 403, json: { detail: { code: 'organization_forbidden', error: 'This action requires viewer access to the organization.' } } };
@@ -403,9 +363,6 @@ function organizationRoutes(request: Request): Reply {
   switch (section) {
     case 'members': return ok(MEMBERS[found.slug] ?? []);
     case 'audit': return ok({ events: ORG_AUDIT, total: ORG_AUDIT.length, offset: 0, limit: 50 });
-    case 'projects':
-      if (!projectSlug) return ok(PROJECTS[found.slug] ?? []);
-      return projectRoutes(request, found.slug, projectSlug);
     case 'problems': return problemRoutes(request, found.slug);
     case 'runs': return runRoutes(request, found.slug);
     case 'studies': return studyRoutes(request, found.slug);
@@ -424,9 +381,9 @@ function runRoutes(request: Request, orgSlug: string): Reply {
     const limit = Number(query.get('limit') ?? 50);
     return ok({ runs: filtered.slice(0, limit), total: filtered.length });
   }
-  if (action === 'neighborhood') return ok(localize({ ...NEIGHBORHOOD, jobId: runId }));
+  if (action === 'neighborhood') return ok({ ...NEIGHBORHOOD, jobId: runId });
   const detail = orgSlug === 'isa-demo' ? jobDetail(runId) : null;
-  return detail ? ok(localize(detail)) : notFound('Run not found.');
+  return detail ? ok(detail) : notFound('Run not found.');
 }
 
 function userRoutes(request: Request): Reply {
@@ -445,7 +402,7 @@ function userRoutes(request: Request): Reply {
 function engineRegistrationRoutes(request: Request): Reply {
   const { method, parts, query } = request;
   const [, , rawName, action] = parts;
-  const all = [EDGE_SOLVER, PAUSED_SOLVER, PENDING_REGISTRATION, SHARED_SOLVER, EDGE_SOLVER_OLD].map((registration) => localize(registration));
+  const all = [EDGE_SOLVER, PAUSED_SOLVER, PENDING_REGISTRATION, SHARED_SOLVER, EDGE_SOLVER_OLD].map((registration) => registration);
   if (!rawName) return ok({ registrations: query.get('review') === 'true' ? all.filter((item) => item.status === 'pending_review') : all });
   const name = decodeURIComponent(rawName);
   const found = all.find((item) => item.name === name && item.version === query.get('version') && item.namespace === query.get('namespace'))
@@ -453,17 +410,17 @@ function engineRegistrationRoutes(request: Request): Reply {
   if (!found) return notFound('Engine registration not found');
   if (action === 'report') {
     const probe = name === 'paused-solver' ? REPORT_FAILED : name === 'region-solver' ? REPORT_PENDING : REPORT_VERIFIED;
-    return ok(localize(registrationReport(found, probe)));
+    return ok(registrationReport(found, probe));
   }
   if (!action && method === 'GET') {
-    return ok(localize({
+    return ok({
       apiVersion: 'bim/v1', kind: 'EngineRegistration', metadata: { namespace: found.namespace, name: found.name, version: found.version },
       spec: {
         engine: { namespace: found.namespace, name: found.name, version: found.version, digest: found.digest }, endpoint: 'https://edge.example.org',
         protocol: { id: 'bim-engine/v1', mediaType: 'application/json', digest: QOS_PROFILE.protocolDigest },
         mappings: { request: '/internal/v1/binding-problems', health: '/health', openapi: '/openapi.json' }, auth: { scheme: 'bearer' }, openapi: OPENAPI_DOCUMENT,
       },
-    }));
+    });
   }
   return ok(found);
 }
@@ -476,7 +433,7 @@ function adminRoutes(request: Request): Reply {
     case 'overview': return ok(ADMIN_OVERVIEW);
     case 'queues': return ok(queuesAt(Date.parse(NOW)));
     case 'moderation': return ok(MODERATION);
-    case 'errors/overview': return ok(localize(ERROR_OVERVIEW));
+    case 'errors/overview': return ok(ERROR_OVERVIEW);
     case 'maintenance/preview': return ok({ expiredApiKeys: 1, terminalJobs: 14, abandonedJobs: 1, terminalJobCutoff: '2025-10-09T00:00:00Z' });
     case 'errors': return ok({ items: ERRORS, total: ERRORS.length, limit: 50, offset: 0 });
     case 'audit': return ok({ ...AUDIT, total: AUDIT.events.length });
@@ -535,7 +492,7 @@ function route(request: Request): Reply | null {
         return ok({
           valid: true, instanceDigest: caseDigest('a'), packageDigest: caseDigest('b'), irDigest: caseDigest('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],
           compatibleModes: COMPATIBLE_MODES(), analysis: ANALYSIS,
-          ...(request.query.get('include') === 'ir' ? { ir: localize(irDocument(8)), sourceMap: {} } : {}),
+          ...(request.query.get('include') === 'ir' ? { ir: irDocument(8), sourceMap: {} } : {}),
         });
       }
       return null;

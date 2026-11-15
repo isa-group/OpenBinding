@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import type { ProblemUpload } from '../../api/problems';
-import { caseOf, org, project, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
+import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseList } from './CaseList';
 
 const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), create: vi.fn(), remove: vi.fn() }));
@@ -14,7 +14,6 @@ vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 const group = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
 const admin = org('qos-lab', { name: 'QoS Lab', effective_role: 'ADMIN' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
-const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 
 const checkout = caseOf('flujo-checkout', 'Flujo de checkout', { description: 'Payments with parallel stock and shipping.' });
 const draft = caseOf('borrador', 'Borrador', { created_at: '2026-03-01T00:00:00Z' });
@@ -34,9 +33,9 @@ function Where() {
 
 const where = () => screen.getByTestId('where').textContent;
 
-function renderList(organization = group, search = '', projects = [qos]) {
-  return renderProjectScreen(<><CaseList /><Where /></>, {
-    path: '/app/:org/problems', url: `/app/${organization.slug}/problems${search}`, organizations: [organization], projects,
+function renderList(organization = group, search = '') {
+  return renderOrgScreen(<><CaseList /><Where /></>, {
+    path: '/app/:org/problems', url: `/app/${organization.slug}/problems${search}`, organizations: [organization],
   });
 }
 
@@ -91,12 +90,6 @@ describe('Problem list', () => {
     expect(screen.getByRole('button', { name: 'Upload BIM package' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Write one in the Workbench' })).toHaveAttribute('href', `${root}/workbench`);
     expect(screen.getByRole('link', { name: 'Start from a template' })).toHaveAttribute('href', `${root}/workbench?template=demo%2F01_simple_seq`);
-  });
-
-  it('runs in the organization even when it has no project', async () => {
-    renderList(group, '', []);
-    const list = await screen.findByRole('list', { name: 'Problems' });
-    expect(within(list).getAllByRole('link', { name: 'Run latest' })[0]).toHaveAttribute('href', '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2');
   });
 
   it('finds a problem by name or address and says when none matches', async () => {
@@ -269,7 +262,7 @@ describe('Problem list', () => {
   });
 
   it('shows the organization gate when the address names an organization the account is not in', async () => {
-    renderProjectScreen(<CaseList />, { path: '/app/:org/problems', url: '/app/elsewhere/problems', organizations: [group] });
+    renderOrgScreen(<CaseList />, { path: '/app/:org/problems', url: '/app/elsewhere/problems', organizations: [group] });
     expect(await screen.findByRole('heading', { name: 'Organization not available' })).toBeInTheDocument();
   });
 });

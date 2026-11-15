@@ -144,7 +144,7 @@ describe('the Playwright specs', () => {
       expect(qa).toContain('${RESULTS_DIR}/screenshots/');
       expect(qa).toMatch(/VQA viewport=/);
       // The screens the QA walks.
-      for (const screen of ["slug: 'login'", "slug: 'panel'", "slug: 'organization-projects'", "slug: 'project'", "slug: 'case'", "slug: 'jobs'",
+      for (const screen of ["slug: 'login'", "slug: 'panel'", "slug: 'organization'", "slug: 'cases'", "slug: 'case'", "slug: 'jobs'",
         "slug: 'job-result'", "slug: 'plan-permissions'", "slug: 'team-organization'"]) {
         expect(qa, screen).toContain(screen);
       }

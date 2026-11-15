@@ -7,7 +7,7 @@ import { FormField } from '../../components/ui/FormField';
 import { Modal } from '../../components/ui/Modal';
 import { deleteRefusal, uploadRefusal, type Refusal } from './caseErrors';
 import { DESCRIPTION_MAX, NAME_MAX, SLUG_PATTERN, slugFromName } from './casesModel';
-import '../Project/Project.css';
+import '../../features/workspace/kit.css';
 
 /** A package file a person picked: `.bim.zip` (or `.zip`). */
 const PACKAGE_ACCEPT = '.zip,application/zip,application/vnd.bim+zip';

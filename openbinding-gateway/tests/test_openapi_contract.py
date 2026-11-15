@@ -333,6 +333,8 @@ def test_a_quota_refusal_says_which_limit_and_where_it_stands(document):
         # Conditional writes of the subscription: 400/412 for If-Match, 409 also `contract_changed`.
         ("/v1/admin/users/{user_id}/plan", "post", {"400", "404", "409", "412", "503"}),
         ("/v1/admin/users/{user_id}/subscription", "post", {"400", "404", "409", "412", "503"}),
+        ("/v1/organizations", "post", {"201", "409", "422"}),
+        ("/v1/organizations/{org}", "delete", {"204", "403", "409"}),
     ],
 )
 def test_the_failures_an_endpoint_can_produce_are_declared(document, path, method, statuses):
@@ -367,6 +369,13 @@ def test_the_instance_structure_is_in_the_document(document):
         {"$ref": "#/$defs/registeredRef"},
         {"$ref": "#/$defs/artifactRef"},
     ]
+
+
+def test_projects_and_public_read_are_gone(document):
+    assert not [path for path in document["paths"] if "project" in path]
+    assert "Projects" not in {tag["name"] for tag in document.get("tags", [])}
+    assert "x-public-read" not in json.dumps(document)
+    assert not [name for name in document["components"]["schemas"] if name.startswith("Project")]
 
 
 def test_v1_surface_has_no_replaced_routes(document):

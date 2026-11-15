@@ -45,7 +45,7 @@ test('a cell inside Results links Open run to the run it ran as', async ({ page 
   await page.goto(`${STUDY}/results?run=r1&cell=c7`);
   const open = page.getByRole('link', { name: 'Open run', exact: true }).first();
   await expect(open).toBeVisible();
-  // Runs belong to the organization: the run of a cell opens under it, not under the project.
+  // Runs belong to the organization: the run of a cell opens under it.
   await expect(open).toHaveAttribute('href', `/app/acme/${RUNS_SEGMENT}/j9`);
 });
 
@@ -57,7 +57,7 @@ test('the Progress tab shows the definition the selected run froze', async ({ pa
   await expect(frozen.getByRole('listitem')).toHaveCount(1);
 });
 
-test('a study is not under a project any more', async ({ page }) => {
+test('a study has no address below another segment of the organization', async ({ page }) => {
   await mockStudies(page);
   await page.goto('/app/acme/demo/studies/s1');
   await expect(page.getByRole('heading', { level: 1, name: 'Study one' })).toHaveCount(0);

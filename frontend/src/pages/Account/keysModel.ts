@@ -48,8 +48,6 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     permissions: [
       { id: 'organizations:read', description: 'Read organizations' },
       { id: 'organizations:write', description: 'Change organizations and members' },
-      { id: 'projects:read', description: 'Read projects' },
-      { id: 'projects:write', description: 'Change projects' },
       { id: 'studies:read', description: 'Read studies and runs' },
       { id: 'studies:write', description: 'Change and run studies' },
     ],
@@ -70,7 +68,7 @@ const CATALOGUED: Record<ApiKeyPermission, true> = {
   'account:read': true, 'account:write': true, 'keys:read': true, 'keys:write': true,
   'problems:read': true, 'problems:write': true,
   'jobs:read': true, 'engines:read': true, 'engines:execute': true, 'engines:register': true, 'engines:publish': true, 'engines:moderate': true,
-  'organizations:read': true, 'organizations:write': true, 'projects:read': true, 'projects:write': true,
+  'organizations:read': true, 'organizations:write': true,
   'studies:read': true, 'studies:write': true,
   'notifications:read': true, 'pricing:read': true, 'admin:accounts:read': true, 'admin:accounts:write': true,
 };
@@ -89,7 +87,7 @@ export const ENGINE_LIMITED: ReadonlySet<ApiKeyPermission> = new Set<ApiKeyPermi
 ]);
 
 export const PRESETS: Record<'read' | 'run', ApiKeyPermission[]> = {
-  read: ['jobs:read', 'studies:read', 'projects:read', 'problems:read'],
+  read: ['jobs:read', 'studies:read', 'problems:read'],
   run: ['engines:read', 'engines:execute', 'jobs:read', 'problems:read'],
 };
 
@@ -135,7 +133,6 @@ export function boundaryLabels(boundary: ApiKeySummary['boundary'] | undefined):
   const labels: string[] = [];
   if (value.methods?.length) labels.push(`${value.methods.join(', ')} only`);
   if (value.organizations?.length) labels.push(...value.organizations.map((slug) => `org ${slug}`));
-  if (value.projects?.length) labels.push(...value.projects.map((slug) => `project ${slug}`));
   if (value.resource_kinds?.length) labels.push(value.resource_kinds.join(', '));
   if (value.slugs?.length) labels.push(...value.slugs.map((slug) => `slug ${slug}`));
   return labels;

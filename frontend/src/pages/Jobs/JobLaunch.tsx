@@ -299,7 +299,7 @@ function LaunchBody({ organization, canLaunch, role }: { organization: Organizat
 export function JobLaunch() {
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <OrgSkeleton label="Loading organization…" />;
-  if (!organization) return <OrgGate failure={null} subject="organization" />;
+  if (!organization) return <OrgGate failure={null} />;
   const access = problemAccess(organization);
   return <LaunchBody key={organization.slug} organization={organization} canLaunch={access.canCreate} role={access.role} />;
 }

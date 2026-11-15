@@ -1,4 +1,4 @@
-/* The workbench. The project frame (proj-*) gives the band, the tabs and the column; everything inside the column is drawn here with the
+/* The workbench. The organization frame (proj-*) gives the band and the column; everything inside the column is drawn here with the
    same tokens. The editor forms keep the class names they always had (form-*, rename-field…) and are drawn the new way. */
 
 .wb { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-xl); }

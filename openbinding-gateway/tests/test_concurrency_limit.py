@@ -28,7 +28,7 @@ from test_study_cell_launch import BASE, _cells, _study
 from openbinding_gateway.services import job_submission
 from openbinding_gateway import space_client, study_jobs
 from openbinding_gateway.core.settings import Settings, get_settings
-from openbinding_gateway.db.models import Job, JobState, Organization, Project, RunState, User, UserRole
+from openbinding_gateway.db.models import Job, JobState, Organization, RunState, User, UserRole
 from openbinding_gateway.domain.entitlements import Refusal
 from openbinding_gateway.jobs import limits
 from openbinding_gateway.modules.execution.adapters import routes as runs_routes
@@ -284,8 +284,7 @@ async def test_cancelling_a_queued_job_frees_its_slot(api_client, db_session, re
 async def study_actors(db_session):
     user = (await db_session.execute(select(User))).scalars().one()
     organization = (await db_session.execute(select(Organization).where(Organization.slug == "lab"))).scalars().one()
-    project = (await db_session.execute(select(Project).where(Project.slug == "routing"))).scalars().one()
-    return user, organization, project
+    return user, organization
 
 
 async def test_a_study_cell_at_the_limit_gets_the_retryable_429(
@@ -293,7 +292,7 @@ async def test_a_study_cell_at_the_limit_gets_the_retryable_429(
 ):
     set_limit(monkeypatch, 1)
     headers = await _study(api_client, registration, [1, 2])
-    user, organization, project = await study_actors(db_session)
+    user, organization = await study_actors(db_session)
 
     # Nothing is dispatched, so the first cell's job keeps the account's only slot.
     run = await api_client.post(BASE, headers=headers)
@@ -313,7 +312,7 @@ async def test_a_run_started_at_the_limit_leaves_its_cells_queued_for_later(
     api_client, db_session, registration, no_dispatch, monkeypatch
 ):
     headers = await _study(api_client, registration, [1, 2])
-    user, _, _ = await study_actors(db_session)
+    user, _ = await study_actors(db_session)
     set_limit(monkeypatch, 1)
     db_session.add(a_job(user.id, JobState.QUEUED))
     await db_session.commit()

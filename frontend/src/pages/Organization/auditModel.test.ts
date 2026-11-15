@@ -3,7 +3,7 @@ import { actionLabel, detailRows, toCsv } from './auditModel';
 
 describe('actionLabel', () => {
   it('keeps the labels of the known actions', () => {
-    expect(actionLabel('project.created')).toBe('Project created');
+    expect(actionLabel('problem.created')).toBe('Problem created');
     expect(actionLabel('organization.member.removed')).toBe('Member removed');
   });
 

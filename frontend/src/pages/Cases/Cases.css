@@ -1,4 +1,4 @@
-/* Shared by the case screens: list, revision, compare and the snapshot. The project frame (proj-*) and the organization
+/* Shared by the problem screens: list, version, compare and source. The organization frame (proj-*) and the organization
    screens' classes (org-*) are reused for the band, the body, cards, toasts and forms. */
 
 .proj-note.is-info { border-color: var(--tp-severity-info-border); background: var(--tp-severity-info-bg); }

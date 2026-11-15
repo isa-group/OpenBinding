@@ -8,7 +8,7 @@ import './CommandPalette.css';
 /** Dispatched on window by the header's search button; Ctrl/Cmd+K opens the palette too. */
 export const OPEN_COMMAND_PALETTE_EVENT = 'openbinding:command';
 
-export function CommandPalette({ organizations, projects, organization, project, isAdmin }: PaletteContext) {
+export function CommandPalette({ organizations, organization, isAdmin }: PaletteContext) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -19,8 +19,8 @@ export function CommandPalette({ organizations, projects, organization, project,
   const wasOpen = useRef(false);
 
   const commands = useMemo(
-    () => buildCommands({ organizations, projects, organization, project, isAdmin }),
-    [organizations, projects, organization, project, isAdmin],
+    () => buildCommands({ organizations, organization, isAdmin }),
+    [organizations, organization, isAdmin],
   );
   const needle = query.trim().toLowerCase();
   const results = needle ? commands.filter((item) => `${item.label} ${item.desc} ${item.group}`.toLowerCase().includes(needle)) : commands;

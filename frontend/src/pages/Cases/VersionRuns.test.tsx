@@ -2,7 +2,7 @@ import { fireEvent, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import type { Job } from '../../api/platform';
-import { caseOf, org, project, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
+import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseDetail } from './CaseDetail';
 
 const problems = vi.hoisted(() => ({ get: vi.fn(), revisions: vi.fn() }));
@@ -12,7 +12,6 @@ vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi }));
 
 const member = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
-const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const checkout = caseOf('flujo-checkout', 'Flujo de checkout');
 const r1 = revisionOf(checkout, 1);
 const r2 = revisionOf(checkout, 2);
@@ -25,8 +24,8 @@ const jobOf = (id: string, created: string, revision: { id: string; revision: nu
 });
 
 function renderRuns() {
-  return renderProjectScreen(<CaseDetail />, {
-    path: '/app/:org/problems/:case/:tab?', url: `${root}/problems/flujo-checkout/runs`, organizations: [member], projects: [qos],
+  return renderOrgScreen(<CaseDetail />, {
+    path: '/app/:org/problems/:case/:tab?', url: `${root}/problems/flujo-checkout/runs`, organizations: [member],
   });
 }
 

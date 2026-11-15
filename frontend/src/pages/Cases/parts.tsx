@@ -5,7 +5,7 @@ import { useCopy } from '../../components/ui/useCopy';
 import { Gate, type Crumb } from '../Organization/parts';
 import { OrgFrame } from '../../features/workspace/OrgFrame';
 import { describeFlow, type FlowNode, type TaskInfo } from './bindingModel';
-import '../Project/Project.css';
+import '../../features/workspace/kit.css';
 import './Cases.css';
 
 interface CaseFrameProps {

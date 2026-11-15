@@ -380,11 +380,11 @@ least 10 characters). It is not documented here and has no default. Emails are
 | `lab-viewer` | `USER` | `VIEWER` of `lab-main` |
 | `lab-outsider` | `USER` | `OWNER` of `lab-other` (no access to `lab-main`) |
 
-Data: organizations `lab-main` (created by `lab-owner`) and `lab-other`; project
-`lab-main/bim-demo` (private) with case `simple-seq`, built from
-`examples/demo/01_simple_seq`. The seed launches no jobs. Observed with
-`seed_lab.py --verbose`: 6 users, 2 organizations, 1 project, 1 case with 3
-artifacts and 6 API keys. With `SPACE_ENABLED=true`
+Data: organizations `lab-main` (created by `lab-owner`) and `lab-other`; the
+problem `lab-main/simple-seq`, uploaded from `examples/demo/01_simple_seq`, with one
+revision and its compilation. The seed launches no jobs. Counted by
+`seed_lab.py --verbose`: 6 users, 2 organizations, 5 memberships, 1 problem with 1
+revision and 1 compilation, and 6 API keys. With `SPACE_ENABLED=true`
 the users also need a contract on the development service
 (`DEMO_SEED_ARGS='--space-contracts'`).
 
@@ -424,9 +424,9 @@ check `remote_probe.py` before reading it as a seeding gap.
 | --- | --- |
 | `proxy_and_spa` | `/healthz`, SPA index, SPA fallback on an unknown route, `/api/health/ready` |
 | `login` | `lab-admin`, `lab-owner`, `lab-member`, `lab-viewer` and `lab-outsider` sign in with Bearer tokens |
-| `owner_job` | `lab-owner` profile and projects; a minimal `random-search` job (`mode: seeded`, `optimization: {type: SINGLE, scalarization: weighted-sum}`, which the gateway requires in the request and the package does not carry) on a revision of the seeded problem; result shape and the gateway's reevaluation provenance |
+| `owner_job` | `lab-owner` profile and the problems of `lab-main`; a minimal `random-search` job (`mode: seeded`, `optimization: {type: SINGLE, scalarization: weighted-sum}`, which the gateway requires in the request and the package does not carry) on a revision of the seeded problem; result shape and the gateway's reevaluation provenance |
 | `idempotency` | same key and body, same job; same key and other body, 409; another account, another job |
-| `authorization` | 401 without token; viewer cannot launch a job on a problem of the organization (403 `insufficient_role`) nor start a study run in the project, and reads the project job with redacted options; outsider reads neither; non-admins get 403 on `/api/v1/admin/*` |
+| `authorization` | 401 without token; viewer reads the organization's problem, cannot launch a run of it (403 `insufficient_role`) nor start a study run in the organization, and reads the owner's run with redacted options; outsider reads none of them; non-admins get 403 on `/api/v1/admin/*` |
 | `concurrency_limit` | 5 simultaneous launches against `MAX_CONCURRENT_JOBS_PER_USER=3`: a 429 with `Retry-After`, slot freed afterwards |
 | `cors` | preflight allowed from `http://localhost:18100`, refused from `http://evil.example` |
 | `body_limit` | JSON over 16 MiB gets a 413 problem+json |
@@ -434,8 +434,7 @@ check `remote_probe.py` before reading it as a seeding gap.
 | `login_throttle` | 12 failed logins of a made-up user end in a 429 with `Retry-After`; the counter is per address and identifier |
 
 It writes to the lab database only through the API (jobs of `lab-owner` and
-`lab-member`, and once a study `smoke-lab` in `lab-main/bim-demo` so the project
-has a job the viewer can read); it never registers users and never touches
+`lab-member`; the viewer reads the owner's run directly); it never registers users and never touches
 SPACE or SPHERE. Running it again within five minutes finds the login throttle
 already tripped for its probe user, which still counts as a pass. What it does
 not cover (browser, Playwright, the visual mobile/desktop check) is

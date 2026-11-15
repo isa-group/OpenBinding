@@ -79,7 +79,7 @@ describe('the audit log', () => {
     expect(kindOf('organization.created')).toBe('organization');
     expect(kindOf('organization.members.batch_updated')).toBe('members');
     expect(kindOf('organization.invitation.created')).toBe('members');
-    expect(kindOf('project.deleted')).toBe('projects');
+    expect(kindOf('problem.deleted')).toBe('problems');
     expect(kindOf('binding_case.revision.created')).toBe('content');
     expect(kindOf('something.new')).toBe('other');
   });

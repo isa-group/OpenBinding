@@ -16,7 +16,7 @@ from openbinding_gateway.core import revision
 STAMP = datetime(2026, 10, 28, 12, 30, 15, 123456, tzinfo=timezone.utc)
 
 
-def row(stamp: datetime = STAMP, identity: uuid.UUID | None = None, table: str = "projects"):
+def row(stamp: datetime = STAMP, identity: uuid.UUID | None = None, table: str = "binding_cases"):
     return SimpleNamespace(id=identity or uuid.UUID(int=1), updated_at=stamp, __tablename__=table)
 
 

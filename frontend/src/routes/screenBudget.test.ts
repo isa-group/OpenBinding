@@ -31,12 +31,12 @@ describe('screen budget', () => {
     }
   });
 
-  it('has at most 33 screens', () => {
-    expect(routeDefinitions.length, `${routeDefinitions.length} screens against a ceiling of 33`).toBeLessThanOrEqual(33);
+  it('has at most 31 screens', () => {
+    expect(routeDefinitions.length, `${routeDefinitions.length} screens against a ceiling of 31`).toBeLessThanOrEqual(31);
   });
 
   // `pub-workbench` is registered in the public area (public 4, problems 3).
-  it('has the area sizes of the registry, 33 screens in all', () => {
+  it('has the area sizes of the registry, 31 screens in all', () => {
     const sizes = Object.fromEntries(Object.entries(routesByArea).map(([area, routes]) => [area, routes.length]));
     expect(sizes).toEqual({
       public: 4,
@@ -44,13 +44,12 @@ describe('screen budget', () => {
       engines: 5,
       account: 1,
       organizations: 3,
-      project: 2,
       problems: 3,
       runs: 3,
       studies: 3,
       admin: 4,
     });
-    expect(routeDefinitions).toHaveLength(33);
+    expect(routeDefinitions).toHaveLength(31);
   });
 
   it('keeps no per-domain route file and no mention of routesByDomain under routes/', () => {

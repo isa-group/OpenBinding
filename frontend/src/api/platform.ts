@@ -1,6 +1,5 @@
 import { apiClient, type Revised } from './client';
 
-export type Visibility = 'private' | 'public';
 export type RunState = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'partial';
 
 export interface Organization {
@@ -62,29 +61,6 @@ export interface OrganizationAuditPage {
   total: number;
   offset: number;
   limit: number;
-}
-
-/**
- * How the caller reaches a project: `member` (a role, see `effective_role`) or `public_read` (somebody who is not a member
- * reading a public project: GET only, and never a role).
- */
-export type ProjectAccessKind = 'member' | 'public_read';
-
-export interface Project {
-  id: string;
-  organization_id: string;
-  slug: string;
-  name: string;
-  description: string;
-  visibility: Visibility;
-  /** Null for a visitor of a public project. */
-  created_by_id: string | null;
-  created_at: string;
-  updated_at: string;
-  /** Absent in older answers, which were all `member`. */
-  access?: ProjectAccessKind;
-  /** The caller's membership role; null for a visitor. */
-  effective_role?: OrganizationRole | null;
 }
 
 /** One engine of a study definition: the pinned revision, the mode and the optimization the gateway requires of each. */
@@ -293,8 +269,7 @@ export interface EngineRevision {
   } | null;
 }
 
-const root = (org: string, project?: string) =>
-  `/v1/organizations/${encodeURIComponent(org)}${project ? `/projects/${encodeURIComponent(project)}` : ''}`;
+const root = (org: string) => `/v1/organizations/${encodeURIComponent(org)}`;
 
 // The mutations of an organization throw on a 422 (a refused submission) instead of handing its body back as if it were the result.
 // The report editor and the resource writes are not bound since M9.6.
@@ -349,22 +324,6 @@ export const platformApi = {
     apiClient.request<OrganizationMember>('/v1/invitations/accept', {
       method: 'POST', body: JSON.stringify({ token }),
     }, undefined, true, true),
-  projects: (org: string) => apiClient.request<Project[]>(`${root(org)}/projects`),
-  /** One project. 404 whether it does not exist or the account is not in its organization. */
-  project: (org: string, project: string) => apiClient.request<Project>(root(org, project)),
-  /** Needs MEMBER. 409 `slug_conflict`. */
-  createProject: (org: string, value: { slug: string; name: string; description: string; visibility: Visibility }) =>
-    apiClient.request<Project>(`${root(org)}/projects`, {
-      method: 'POST', body: JSON.stringify(value),
-    }, undefined, true, true),
-  /** Needs ADMIN. */
-  updateProject: (org: string, project: string, value: { name?: string; description?: string; visibility?: Visibility }) =>
-    apiClient.request<Project>(root(org, project), {
-      method: 'PATCH', body: JSON.stringify(value),
-    }, undefined, true, true),
-  /** Needs ADMIN. 409 `historical_references` while the project has sealed history. */
-  deleteProject: (org: string, project: string) =>
-    apiClient.request<void>(root(org, project), { method: 'DELETE' }, undefined, true, true),
   studies: (org: string, includeArchived = false) =>
     apiClient.request<Study[]>(`${root(org)}/studies?include_archived=${includeArchived}`),
   /** One study with its ETag: the revision an edit names as `If-Match`. 404 for a study of another organization. */

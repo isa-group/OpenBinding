@@ -19,7 +19,7 @@ import { rangeCandidates, readBindingProblem, powerText, type BindingModel } fro
 import { classifyAuthError, marker, sourceFailureKind, type AuthFailure } from './caseErrors';
 import { CaseMissing } from './parts';
 // The source styles keep the name of the page that used to hold them.
-import '../Platform/SnapshotPage.css';
+import './RevisionSource.css';
 
 type Compiled = { state: 'ok'; compilation: ProblemCompilation; ir: CompilationIr } | { state: 'failed'; failure: AuthFailure };
 type DownloadKind = 'source' | 'ir';

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
-import type { Organization, Project } from '../../api/platform';
+import type { Organization } from '../../api/platform';
 import { AuthContext } from '../../contexts/auth';
 import { AppHeader } from './AppHeader';
 
@@ -32,16 +32,12 @@ const researchUser: UserProfile = { ...user, plan: 'RESEARCH' };
 const organization: Organization = {
   id: 'org-1', name: 'ISA Demo Group', slug: 'isa-demo', parent_id: null, effective_role: 'OWNER', created_at: '2026-01-01T00:00:00Z',
 };
-const project: Project = {
-  id: 'project-1', organization_id: 'org-1', slug: 'qos', name: 'QoS Benchmarks', description: '',
-  visibility: 'private', created_by_id: 'user-1', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
-};
 
 const signOut = vi.fn();
 
 function renderHeader(
   currentUser: UserProfile = user,
-  { path = '/app', withProject = true, withOrganization = true }: { path?: string; withProject?: boolean; withOrganization?: boolean } = {},
+  { path = '/app', withOrganization = true }: { path?: string; withOrganization?: boolean } = {},
 ) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -56,12 +52,7 @@ function renderHeader(
           isAdmin: currentUser.role === 'admin',
         }}
       >
-        <AppHeader
-          organizations={[organization]}
-          projects={withProject ? [project] : []}
-          organization={withOrganization ? organization : undefined}
-          project={withProject ? project : undefined}
-        />
+        <AppHeader organizations={[organization]} organization={withOrganization ? organization : undefined} />
       </AuthContext.Provider>
     </MemoryRouter>,
   );
@@ -69,7 +60,6 @@ function renderHeader(
 
 const mainNav = () => screen.getByRole('navigation', { name: 'Main' });
 const mobileNav = () => screen.getByRole('navigation', { name: 'Mobile navigation' });
-const labToggle = () => within(mainNav()).getByRole('button', { name: /^Lab/ });
 const newToggle = () => screen.getByRole('button', { name: /^New/ });
 /** The entries of a header scope in document order: links by name and address, disabled entries by name and hint. */
 const entriesOf = (scope: HTMLElement) => [...scope.querySelectorAll<HTMLElement>('a[href], [aria-disabled="true"]')].map((item) => {
@@ -84,15 +74,17 @@ describe('AppHeader', () => {
     api.listNotifications.mockResolvedValue([]);
   });
 
-  it('lists Home, Problems, Lab, Engines and, for an administrator, Admin, in this order', () => {
+  it('lists Home, Problems, Runs, Studies, Engines and, for an administrator, Admin, in this order', () => {
     renderHeader(adminUser, { path: '/app/isa-demo/problems' });
 
     expect(screen.getByRole('link', { name: 'OpenBinding home' })).toHaveAttribute('href', '/app');
     const items = [...mainNav().children].map((item) => item.textContent?.trim());
-    expect(items).toEqual(['Home', 'Problems', 'Lab', 'Engines', 'Admin']);
+    expect(items).toEqual(['Home', 'Problems', 'Runs', 'Studies', 'Engines', 'Admin']);
     const nav = within(mainNav());
     expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/app');
     expect(nav.getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/problems');
+    expect(nav.getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/isa-demo/runs');
+    expect(nav.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
     expect(nav.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
     expect(nav.getByRole('link', { name: 'Admin' })).toHaveAttribute('href', '/app/admin');
   });
@@ -112,7 +104,7 @@ describe('AppHeader', () => {
   it('has none of the former entries', () => {
     renderHeader(adminUser);
 
-    for (const name of ['Jobs', 'Explore', 'Tools', 'Verifier', 'Engine catalog', 'Analysis']) {
+    for (const name of ['Jobs', 'Explore', 'Tools', 'Verifier', 'Engine catalog', 'Analysis', 'Lab', 'Projects']) {
       expect(screen.queryByRole('link', { name })).toBeNull();
       expect(screen.queryByRole('button', { name })).toBeNull();
     }
@@ -120,26 +112,8 @@ describe('AppHeader', () => {
     expect(retired).toEqual([]);
   });
 
-  it('opens the Lab menu with Runs and Studies, and closes it with Escape, returning focus', () => {
-    renderHeader(user);
-    const toggle = labToggle();
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-
-    toggle.focus();
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    const menu = document.getElementById('app-lab-menu') as HTMLElement;
-    expect(entriesOf(menu)).toEqual([['Runs', '/app/isa-demo/runs'], ['Studies', '/app/isa-demo/studies']]);
-
-    within(menu).getByRole('link', { name: 'Runs' }).focus();
-    fireEvent.keyDown(within(menu).getByRole('link', { name: 'Runs' }), { key: 'Escape' });
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(document.getElementById('app-lab-menu')).toBeNull();
-    expect(toggle).toHaveFocus();
-  });
-
   it('disables Problems with the hint "Needs an organization" without one', () => {
-    renderHeader(user, { withProject: false, withOrganization: false });
+    renderHeader(user, { withOrganization: false });
 
     const problems = within(mainNav()).getByText('Problems');
     expect(problems).toHaveAttribute('role', 'link');
@@ -148,35 +122,24 @@ describe('AppHeader', () => {
     expect(problems).toHaveAccessibleDescription('Needs an organization');
   });
 
-  it('keeps Problems, Runs and Studies in the organization, with or without a project', () => {
-    renderHeader(user, { withProject: false });
+  it('disables Runs and Studies with the hint "Needs an organization" without one', () => {
+    renderHeader(user, { withOrganization: false });
 
-    expect(within(mainNav()).getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/problems');
-
-    fireEvent.click(labToggle());
-    const menu = document.getElementById('app-lab-menu') as HTMLElement;
-    expect(within(menu).getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/isa-demo/runs');
-    expect(within(menu).getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
+    for (const name of ['Runs', 'Studies']) {
+      const entry = within(mainNav()).getByText(name);
+      expect(entry).toHaveAttribute('aria-disabled', 'true');
+      expect(entry).not.toHaveAttribute('href');
+      expect(entry).toHaveAccessibleDescription('Needs an organization');
+    }
   });
 
-  it('disables Studies with the hint "Needs an organization" without one', () => {
-    renderHeader(user, { withProject: false, withOrganization: false });
-
-    fireEvent.click(labToggle());
-    const menu = document.getElementById('app-lab-menu') as HTMLElement;
-    const entry = within(menu).getByText('Studies');
-    expect(entry).toHaveAttribute('aria-disabled', 'true');
-    expect(entry).not.toHaveAttribute('href');
-    expect(entry).toHaveAccessibleDescription('Needs an organization');
-  });
-
-  it('shows the organization and project as a context chip that leads to /app', () => {
+  it('shows the organization as a context chip that leads to /app', () => {
     renderHeader();
-    const chip = screen.getByTitle('Switch organization or project');
-    expect(chip).toHaveTextContent('ISA Demo Group / QoS Benchmarks');
+    const chip = screen.getByTitle('Switch organization');
+    expect(chip).toHaveTextContent('ISA Demo Group');
     expect(chip).toHaveAttribute('href', '/app');
     // The mobile menu repeats it.
-    expect(within(mobileNav()).getByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' })).toHaveAttribute('href', '/app');
+    expect(within(mobileNav()).getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app');
   });
 
   it.each([
@@ -184,11 +147,11 @@ describe('AppHeader', () => {
     ['/app/isa-demo/settings/members', 'Home'],
     ['/app/isa-demo/problems', 'Problems'],
     ['/app/isa-demo/workbench', 'Problems'],
-    ['/app/isa-demo/runs/job-1', 'Lab'],
-    ['/app/isa-demo/studies/engines-vs-seeds', 'Lab'],
+    ['/app/isa-demo/runs/job-1', 'Runs'],
+    ['/app/isa-demo/studies/engines-vs-seeds', 'Studies'],
     ['/app/engines/registrations', 'Engines'],
     ['/app/admin/moderation', 'Admin'],
-    ['/app/isa-demo/qos/published', null],
+    ['/app/isa-demo/qos', null],
     ['/app/account/usage', null],
   ] as const)('marks one entry of the header for %s: %s', (path, expected) => {
     renderHeader(adminUser, { path });
@@ -197,15 +160,6 @@ describe('AppHeader', () => {
       .filter((item) => item.getAttribute('aria-current') === 'page' || item.classList.contains('is-active'))
       .map((item) => item.textContent?.trim());
     expect(marked).toEqual(expected ? [expected] : []);
-  });
-
-  it('marks the entry of the Lab menu that matches the address', () => {
-    renderHeader(user, { path: '/app/isa-demo/studies' });
-    fireEvent.click(labToggle());
-
-    const menu = document.getElementById('app-lab-menu') as HTMLElement;
-    expect(within(menu).getByRole('link', { name: 'Studies' })).toHaveAttribute('aria-current', 'page');
-    expect(within(menu).getByRole('link', { name: 'Runs' })).not.toHaveAttribute('aria-current');
   });
 
   it('lists Problem, Study and Run in the organization from the New menu', () => {
@@ -222,17 +176,6 @@ describe('AppHeader', () => {
 
     fireEvent.keyDown(within(menu).getAllByRole('link')[0], { key: 'Escape' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  });
-
-  it('keeps Study of the New menu in the organization when there is no project', () => {
-    renderHeader(user, { withProject: false });
-    fireEvent.click(newToggle());
-
-    const menu = document.getElementById('app-new-menu') as HTMLElement;
-    expect(entriesOf(menu)).toEqual([
-      ['Problem', '/app/isa-demo/problems?create=problem'], ['Study', '/app/isa-demo/studies/new'], ['Run', '/app/isa-demo/runs/new'],
-    ]);
-    expect(menu.querySelectorAll('[aria-disabled="true"]')).toHaveLength(0);
   });
 
   it('has none of the former New items', () => {
@@ -273,11 +216,11 @@ describe('AppHeader', () => {
 
   it('closes an open menu when another menu is opened', () => {
     renderHeader();
-    const lab = labToggle();
-    fireEvent.click(lab);
+    const create = newToggle();
+    fireEvent.click(create);
     fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
 
-    expect(lab).toHaveAttribute('aria-expanded', 'false');
+    expect(create).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByRole('button', { name: 'Account menu' })).toHaveAttribute('aria-expanded', 'true');
   });
 
@@ -315,11 +258,11 @@ describe('AppHeader', () => {
       expect(screen.getByRole('button', { name: 'Open menu' })).toHaveFocus();
     });
 
-    it('mirrors the entries of the desktop header, the Lab menu and the New menu', () => {
+    it('mirrors the entries of the desktop header and the New menu', () => {
       renderHeader(adminUser);
 
       expect(entriesOf(mobileNav())).toEqual([
-        ['ISA Demo Group / QoS Benchmarks', '/app'],
+        ['ISA Demo Group', '/app'],
         ['Home', '/app'], ['Problems', '/app/isa-demo/problems'],
         ['Runs', '/app/isa-demo/runs'], ['Studies', '/app/isa-demo/studies'],
         ['Engines', '/engines'], ['Admin', '/app/admin'],
@@ -330,7 +273,7 @@ describe('AppHeader', () => {
     });
 
     it('disables the organization entries with their hint when there is no organization, with ids of their own', () => {
-      renderHeader(user, { withProject: false, withOrganization: false });
+      renderHeader(user, { withOrganization: false });
 
       const disabled = [...document.querySelectorAll<HTMLElement>('[aria-disabled="true"]')];
       // Problems, Runs, Studies and the New items, in the header menus and in the phone menu.

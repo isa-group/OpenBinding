@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { caseOf, org, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
+import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseDetail } from './CaseDetail';
 
 const problems = vi.hoisted(() => ({ get: vi.fn(), revisions: vi.fn(), update: vi.fn(), remove: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
@@ -15,7 +15,7 @@ const checkout = caseOf('flujo-checkout', 'Flujo de checkout', { description: 'P
 const refusal = (status: number, code = 'refused') => Object.assign(new HttpError(status, 'refused'), { code });
 
 function renderSettings(organization = member) {
-  return renderProjectScreen(<CaseDetail />, {
+  return renderOrgScreen(<CaseDetail />, {
     path: '/app/:org/problems/:case/:tab?', url: `/app/${organization.slug}/problems/flujo-checkout/settings`, organizations: [organization],
   });
 }

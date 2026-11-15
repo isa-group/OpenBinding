@@ -95,16 +95,11 @@ for (const route of ['/profiles', '/schemas', '/playground', '/team', '/changelo
   });
 }
 
-/** A signed-in account with one organization and one project; anything else on the API origin answers 404. */
-async function openProjectFiles(page: Page) {
+/** A signed-in account with one organization, at the members section of its settings; anything else on the API origin answers 404. */
+async function openOrganizationSettings(page: Page) {
   const API = 'http://localhost:8000';
   const organization = {
     id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
-  };
-  const project = {
-    id: 'project-1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: '',
-    visibility: 'private', created_by_id: 'resp-user-id', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z',
-    access: 'member', effective_role: 'OWNER',
   };
   const account = { id: 'resp-user-id', username: 'lucia', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'FREE', created_at: '2026-09-01T00:00:00Z' };
   await page.addInitScript(() => localStorage.setItem('openbinding-access-token', 'responsive-token'));
@@ -112,34 +107,32 @@ async function openProjectFiles(page: Page) {
   await page.route(`${API}/v1/users/me`, (route) => route.fulfill({ json: account }));
   await page.route(`${API}/v1/users/me/pricing-token`, (route) => route.fulfill({ json: { pricing_token: 'responsive-token' } }));
   await page.route(`${API}/v1/organizations`, (route) => route.fulfill({ json: [organization] }));
-  await page.route(`${API}/v1/organizations/isa-demo/projects`, (route) => route.fulfill({ json: [project] }));
-  await page.route(`${API}/v1/organizations/isa-demo/projects/qos-benchmarks`, (route) => route.fulfill({ json: project }));
+  await page.route(`${API}/v1/organizations/isa-demo/members`, (route) => route.fulfill({ json: [] }));
   await page.route(`${API}/v1/notifications**`, (route) => route.fulfill({ json: [] }));
-  await page.goto('/app/isa-demo/qos-benchmarks/settings');
-  return page.getByRole('navigation', { name: 'Project sections' });
+  await page.goto('/app/isa-demo/settings/members');
+  return page.getByRole('navigation', { name: 'Organization settings' });
 }
 
-test('on a phone the project tabs keep the open tab in view without scrolling the page sideways', async ({ page }) => {
+test('on a phone the organization settings keep the open section in view without scrolling the page sideways', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  const tabs = await openProjectFiles(page);
+  const sections = await openOrganizationSettings(page);
 
-  const settings = tabs.getByRole('link', { name: 'Settings', exact: true });
-  await expect(settings).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
-  await expect(settings).toBeInViewport();
-  // Overview, Runs, Studies and Settings: the row scrolls by itself when it does not fit, the page never does.
+  const members = sections.getByRole('link', { name: 'Members', exact: true });
+  await expect(members).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
+  await expect(members).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
 });
 
-test('a project screen does not mark Home in the application header', async ({ page }) => {
+test('the settings of an organization mark Home, and only Home, in the application header', async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
-  const tabs = await openProjectFiles(page);
+  const sections = await openOrganizationSettings(page);
 
-  await expect(tabs.getByRole('link', { name: 'Settings', exact: true })).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
+  await expect(sections.getByRole('link', { name: 'Members', exact: true })).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
   const main = page.locator('header.app-header').getByRole('navigation', { name: 'Main' });
-  await expect(main.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current', 'page');
-  await expect(main.locator('[aria-current="page"]')).toHaveCount(0);
+  await expect(main.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
+  await expect(main.locator('[aria-current="page"]')).toHaveCount(1);
 });
 
 test('reduced motion removes entry animations', async ({ page }) => {

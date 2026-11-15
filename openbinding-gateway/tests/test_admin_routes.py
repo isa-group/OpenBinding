@@ -709,7 +709,11 @@ async def test_platform_operations_are_visible_without_direct_database_access(
 
     assert overview.status_code == 200
     assert overview.json()["counts"]["users"] == 2
-    assert {"problems", "problemRevisions"} <= set(overview.json()["counts"])
+    # The organization is the only container: no projects, and blobs are file storage, not a count.
+    assert set(overview.json()["counts"]) == {
+        "users", "identities", "organizations", "memberships", "problems", "problemRevisions",
+        "runs", "studies", "studyRuns", "apiKeys",
+    }
     assert set(queues.json()["counts"]) == {
         "queued", "running", "completed", "failed", "cancelled"
     }

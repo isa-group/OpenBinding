@@ -27,7 +27,6 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import space_client
-from .access import public_read
 from .jobs import reconciler as job_reconciler
 from .access.dependencies import session_dependency
 from .access.work_limits import WORK_ROUTES
@@ -223,7 +222,6 @@ TAGS_METADATA = [
     {"name": "Users", "description": "Your account, keys and quotas."},
     {"name": "Administration", "description": "Account administration."},
     {"name": "Organizations", "description": "Nested organizations and their members."},
-    {"name": "Projects", "description": "Collaborative projects."},
     {"name": "Problems", "description": "BIM problems of an organization, their revisions and compilations."},
     {"name": "Studies", "description": "Comparative studies of an organization; each study run freezes its definition."},
     {"name": "Runs", "description": "Runs of an organization's problem revisions: launch, follow, cancel, retry and re-evaluate."},
@@ -882,10 +880,6 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             )
             permissions = sorted(required_permissions(path, method))
             operation["x-required-api-key-permissions"] = permissions
-            if public_read.eligible(method, path):
-                # Also reachable read-only, without credentials or membership,
-                # when the project is public (docs/ACCESS_POLICY.md).
-                operation["x-public-read"] = True
             if set(permissions) & ENGINE_LIMITED_PERMISSIONS:
                 operation["x-api-key-engine-access"] = "exact-revision-allow-list-or-all"
             if path == "/v1/engine-registrations" and method == "get":

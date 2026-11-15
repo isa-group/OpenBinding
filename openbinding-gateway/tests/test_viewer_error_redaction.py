@@ -15,7 +15,7 @@ from openbinding_gateway.db.models import JobState
 from openbinding_gateway.security.redaction import GENERIC_ERROR, redact_error, redact_result
 from test_security_hardening import (
     member,
-    project_with_a_job,
+    organization_with_a_job,
 )
 
 PRIVATE_ERROR = "engine request failed: ConnectError connecting to http://10.0.0.5:8080/private-engine"
@@ -61,7 +61,7 @@ async def failed(db_session, job):
 async def test_a_viewer_does_not_read_the_error_a_member_does(
     api_client, registration, db_session, gate  # noqa: F811
 ):
-    slug, owner_h, job = await project_with_a_job(api_client, registration, db_session, gate)
+    slug, owner_h, job = await organization_with_a_job(api_client, registration, db_session, gate)
     await failed(db_session, job)
     viewer_h = await member(api_client, registration, db_session, gate, owner_h, slug, "VIEWER")
     member_h = await member(api_client, registration, db_session, gate, owner_h, slug, "MEMBER")

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
-import { Building2, FilePlus2, Play, Plus, type LucideIcon } from 'lucide-react';
+import { Building2, FilePlus2, Play, type LucideIcon } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import type { Notification } from '../../api/auth';
 import { platformApi } from '../../api/platform';
@@ -108,8 +108,11 @@ function ActivityBlock({ organization }: { organization: Organization | undefine
         <div className="home-guide">
           <strong>No runs yet. Here’s a way to your first run.</strong>
           <ol>
-            <li><Link to="/workbench">Open the Workbench</Link> and validate a package, or start from one of its examples.</li>
-            <li>Save it as a problem of one of your organizations.</li>
+            <li>
+              {org
+                ? <><Link to={`${problemsPath(org)}?create=problem`}>Upload a BIM package</Link> as a problem of {organization?.name ?? org}, or write one in its Workbench.</>
+                : <>Create an organization, then upload a BIM package as one of its problems. <Link to="/workbench">Check a package</Link> first if you like.</>}
+            </li>
             <li>Launch a run of it; it appears here while it works.</li>
           </ol>
         </div>
@@ -255,7 +258,6 @@ export function AppHome() {
   const organization = context.organization ?? list[0];
   const shortcuts: Shortcut[] = [];
   if (organization) {
-    shortcuts.push({ label: 'New project', to: createAddress(`/app/${organization.slug}`, 'project'), icon: Plus });
     shortcuts.push({ label: 'New problem', to: `${problemsPath(organization.slug)}?create=problem`, icon: FilePlus2 });
   }
   if (organization) shortcuts.push({ label: 'Run', to: launchPath(organization.slug), icon: Play });
@@ -291,8 +293,8 @@ export function AppHome() {
           <div className="home-first-body">
             <h2 id="home-first-title">Create your first organization</h2>
             <span>
-              Organizations hold projects and members. You can nest them: a lab inside a group inherits the group’s roles.
-              Projects, inside an organization, hold your problems, studies and reports.
+              An organization holds your problems, runs and studies, and the people who work on them. You can nest them: a lab
+              inside a group inherits the group’s roles.
             </span>
             <span className="home-first-actions">
               <Action to={createAddress('/app', 'organization')} variant="primary">Create organization</Action>

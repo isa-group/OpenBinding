@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { caseOf, org, project, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
+import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseDetail } from './CaseDetail';
 import { digestOf, irDocument } from './fixtures';
 
@@ -10,7 +10,6 @@ const problems = vi.hoisted(() => ({ get: vi.fn(), revisions: vi.fn(), revision:
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'VIEWER' });
-const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const checkout = caseOf('flujo-checkout', 'Flujo de checkout');
 const r1 = revisionOf(checkout, 1);
 const r2 = revisionOf(checkout, 2);
@@ -25,8 +24,8 @@ const compilationOf = (revision: string) => ({
 
 /** The Versions tab of the problem page, which compares the pair named by `from` and `to`. */
 function renderCompare(query = '', organization = group) {
-  return renderProjectScreen(<CaseDetail />, {
-    path: '/app/:org/problems/:case/:tab?', url: `${root}/problems/flujo-checkout/versions${query}`, organizations: [organization], projects: [qos],
+  return renderOrgScreen(<CaseDetail />, {
+    path: '/app/:org/problems/:case/:tab?', url: `${root}/problems/flujo-checkout/versions${query}`, organizations: [organization],
   });
 }
 

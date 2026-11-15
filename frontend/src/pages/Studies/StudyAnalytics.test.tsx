@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { org, renderProjectScreen } from '../../features/workspace/testKit';
+import { org, renderOrgScreen } from '../../features/workspace/testKit';
 import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, analyticsFixture, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyDetail } from './StudyDetail';
 
@@ -41,7 +41,7 @@ const refusal = (status: number, code: string, message = 'refused') => Object.as
 
 /** The Results tab of the study page, on the study run named by `?run=`. */
 function renderAnalytics(options: { slug?: string; run?: string } = {}) {
-  return renderProjectScreen(<StudyDetail />, {
+  return renderOrgScreen(<StudyDetail />, {
     path: '/app/:org/studies/:study/:tab?', url: `/app/${options.slug ?? 'isa-demo'}/studies/engines-vs-seeds/results?run=${options.run ?? RUN_ID}`,
     organizations: [group, viewing],
   });

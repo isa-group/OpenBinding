@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import type { ProblemUpload } from '../../api/problems';
-import { caseOf, org, project, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
+import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseDetail } from './CaseDetail';
 import { digestOf, irDocument } from './fixtures';
 
@@ -20,7 +20,6 @@ const owner = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'OWNER' 
 const member = org('member-lab', { name: 'Member Lab', effective_role: 'MEMBER' });
 const viewer = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
 const admin = org('qos-lab', { name: 'QoS Lab', effective_role: 'ADMIN' });
-const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 
 const checkout = caseOf('flujo-checkout', 'Flujo de checkout', { description: 'Payments with parallel stock and shipping.' });
 const r1 = revisionOf(checkout, 1);
@@ -41,9 +40,9 @@ function Where() {
 }
 
 /** `orgSlug` other than the organization's own: the address of an organization the account is not in. */
-function renderDetail(organization = owner, slug = 'flujo-checkout', address = '', projects = [qos]) {
-  return renderProjectScreen(<><CaseDetail /><Where /></>, {
-    path: '/app/:org/problems/:case/:tab?', url: `/app/${organization.slug}/problems/${slug}${address}`, organizations: [organization], projects,
+function renderDetail(organization = owner, slug = 'flujo-checkout', address = '') {
+  return renderOrgScreen(<><CaseDetail /><Where /></>, {
+    path: '/app/:org/problems/:case/:tab?', url: `/app/${organization.slug}/problems/${slug}${address}`, organizations: [organization],
   });
 }
 
@@ -191,14 +190,6 @@ describe('Problem page', () => {
       expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', '/app/member-lab/runs/new?problem=flujo-checkout&revision=2');
       expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute('href', '/app/member-lab/studies/new?case=flujo-checkout&revision=2');
       expect(screen.queryByRole('button', { name: 'Delete problem' })).not.toBeInTheDocument();
-    });
-
-    it('runs a version and builds a study in the organization even when it has no project', async () => {
-      renderDetail(member, 'flujo-checkout', '', []);
-
-      await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
-      expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', '/app/member-lab/runs/new?problem=flujo-checkout&revision=2');
-      expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute('href', '/app/member-lab/studies/new?case=flujo-checkout&revision=2');
     });
 
     it('lets a VIEWER read and compare, and nothing else', async () => {

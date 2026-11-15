@@ -151,7 +151,7 @@ function ProblemPage({ tab }: { tab: ProblemTabSegment | undefined }) {
   );
 
   if (waiting) return <OrgSkeleton label="Loading organization…" />;
-  if (!organization) return <OrgGate failure={null} subject="organization" />;
+  if (!organization) return <OrgGate failure={null} />;
   const org = organization.slug;
   const trail = [{ label: 'Problems', to: problemsPath(org) }, { label: caseSlug }];
 

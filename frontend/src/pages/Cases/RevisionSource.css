@@ -1,4 +1,4 @@
-/* The compiled snapshot: fingerprints, what the engines receive, downloads and the source viewer. */
+/* A version's source: fingerprints, what the engines receive, downloads and the source viewer. */
 
 .snap-digests { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--tp-spacing-sm); }
 

@@ -170,12 +170,12 @@ OWNER and, with it, outvote the real owners. This covers
 
 VIEWER is a read role. It reads the authorized results of an organization and
 never starts, repeats, cancels or deletes work. Every action below is checked
-against the role in the organization that owns the problem, project or job,
+against the role in the organization that owns the problem, study or run,
 before anything is compiled, reserved or written.
 
 | Action | Route | Minimum role |
 |---|---|---|
-| Read studies, study runs, cells, artifacts and results of a project | `GET` routes of `/v1/organizations/{org}/projects/{project}/…` | VIEWER |
+| Read the organization's studies, study runs, cells and results | `GET /v1/organizations/{org}/studies/…` | VIEWER |
 | Read the organization's problems, revisions and compilations | `GET /v1/organizations/{org}/problems/…` | VIEWER |
 | Read the organization's runs, whoever launched them | `GET /v1/organizations/{org}/runs/…` | VIEWER (redacted, see below) |
 | Upload a problem or a revision, edit a problem | `POST …/problems`, `POST …/problems/{problem}/revisions`, `PATCH …/problems/{problem}` | MEMBER |
@@ -186,8 +186,8 @@ before anything is compiled, reserved or written.
 | Delete a study or a problem | `DELETE …/studies/{study}`, `DELETE …/problems/{problem}` | ADMIN |
 
 A refused role is `403` with the stable code `insufficient_role` for the runs
-(and `organization_forbidden` on the project routes, as
-before). A user who has no role at all in the organization gets `404 not_found` on
+(and `organization_forbidden` on the other routes of the
+organization). A user who has no role at all in the organization gets `404 not_found` on
 its runs, the same as for one that does not exist, and a run naming a revision of
 another organization is `409 revision_not_in_organization`. Retrying a teammate's
 run on that teammate's private engine is refused when it is dispatched
@@ -210,7 +210,7 @@ request reduced to the problem and the pinned choices, provenance without
 credentials. The `error` of a failed job is also replaced. The stored message is
 the text of the exception that stopped the job and can name the host or address
 of a private federated endpoint, so a redacted view shows the fixed text
-`The job failed. The details are visible to project members.` instead. If the
+`The job failed. The details are visible to organization members.` instead. If the
 result carries a category code (`errorCode` or `error_code`, a plain name such as
 `engine_error`) it is appended as `(category: engine_error)`; the free-text
 message is never shown. MEMBER and above read the message as stored, as before.
@@ -329,9 +329,8 @@ platform events.
 
 Every plan limit is counted for the account that does the work, never for an
 organization or the person who created it: organizations carry no billing
-sponsor, and there are no subtree quotas. Creating organizations, adding
-members, creating projects and changing their visibility are not limited by the
-plan (`maxCollections` and `maxPrivateProjects` are in the published 0.2.0 YAML
+sponsor, and there are no subtree quotas. Creating organizations and adding
+members are not limited by the plan, and there are no projects (`maxCollections` and `maxPrivateProjects` are in the published 0.2.0 YAML
 but not enforced until 0.3.0, see [pricing/README.md](pricing/README.md)).
 
 The per-account quotas are pure checks in `modules/plans/domain/quotas.py`
@@ -376,12 +375,13 @@ registration and a first CAS sign-in refuse it with `409 username_unavailable`.
 So is every username that starts with `deleted-`, the pseudonyms of deleted
 accounts.
 
-## Public projects are readable without membership
+## No public read
 
-See [`ACCESS_POLICY.md`](ACCESS_POLICY.md): a non-member (even anonymous) can read
-a *public* project through a deny-by-default matrix of GET routes
-(`access: "public_read"`), limited per caller by `PUBLIC_READ_RATE_PER_MINUTE`
-(default 240; `0` disables) and never counted against anybody's plan.
+Everything under an organization is for its members (see
+[`ACCESS_POLICY.md`](ACCESS_POLICY.md)). Public read was a property of projects, and
+projects are gone; a public showcase arrives with compositions (F1/F9). Checking a
+package without storing it (`POST /v1/bim/validate`) and the templates
+(`GET /v1/bim/templates*`) need no account and read no organization.
 
 ## Signing in with Universidad de Sevilla CAS
 

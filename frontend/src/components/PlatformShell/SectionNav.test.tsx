@@ -3,7 +3,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountNav, type AccountSection } from './AccountNav';
 import { OrgNav } from './OrgNav';
-import { ProjectTabs, type ProjectSection } from './ProjectTabs';
 
 const currentOf = (nav: HTMLElement) => within(nav).queryAllByRole('link').filter((link) => link.getAttribute('aria-current') === 'page');
 
@@ -82,86 +81,5 @@ describe('a side navigation that becomes a row that scrolls sideways', () => {
     render(<MemoryRouter><AccountNav active="notifications" /></MemoryRouter>);
 
     expect(scrolled).toEqual([]);
-  });
-});
-
-describe('ProjectTabs', () => {
-  it('links the two project tabs (problems, runs and studies belong to the organization)', () => {
-    render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
-
-    const nav = screen.getByRole('navigation', { name: 'Project sections' });
-    expect(within(nav).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
-      ['Overview', '/app/isa-demo/qos'],
-      ['Settings', '/app/isa-demo/qos/settings'],
-    ]);
-  });
-
-  it('has no Problems, Runs, Studies, Cases, Jobs, Publications, Published, Files, Package, Reports or Library tab', () => {
-    render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
-
-    const nav = screen.getByRole('navigation', { name: 'Project sections' });
-    for (const former of ['Problems', 'Runs', 'Studies', 'Cases', 'Jobs', 'Publications', 'Published', 'Files', 'Package', 'Reports', 'Library', 'Collections']) {
-      expect(within(nav).queryByRole('link', { name: former }), former).not.toBeInTheDocument();
-    }
-    for (const link of within(nav).getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/(reports|library|resources|collections|files|package|publications|published)([/?#]|$)/);
-  });
-
-  it.each([
-    ['overview', 'Overview'],
-    ['settings', 'Settings'],
-  ] as Array<[ProjectSection, string]>)('marks only %s as the current page', (active, label) => {
-    render(<MemoryRouter><ProjectTabs active={active} orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
-
-    const current = currentOf(screen.getByRole('navigation', { name: 'Project sections' }));
-    expect(current.map((link) => link.textContent)).toEqual([label]);
-  });
-
-  describe('for someone who reads a public project without being a member', () => {
-    it('drops the tabs only members can open and says the project is read-only', () => {
-      render(<MemoryRouter><ProjectTabs orgSlug="open" projectSlug="qos" access="public_read" /></MemoryRouter>);
-
-      const nav = screen.getByRole('navigation', { name: 'Project sections' });
-      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview']);
-      expect(screen.getByRole('note')).toHaveTextContent('You are viewing a public project (read-only).');
-    });
-
-    it('shows every tab and no strip to a member, or when nothing says otherwise', () => {
-      const { rerender } = render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" access="member" /></MemoryRouter>);
-      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(2);
-      expect(screen.queryByRole('note')).not.toBeInTheDocument();
-
-      rerender(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
-      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(2);
-    });
-  });
-
-  describe('on a row that scrolls', () => {
-    const scrolled: HTMLElement[] = [];
-
-    beforeEach(() => {
-      scrolled.length = 0;
-      Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
-        configurable: true,
-        value(this: HTMLElement) { scrolled.push(this); },
-      });
-    });
-
-    afterEach(() => {
-      Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
-    });
-
-    it.each(['overview', 'settings'] as ProjectSection[])('brings the current tab (%s) into view', (active) => {
-      render(<MemoryRouter><ProjectTabs active={active} orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
-
-      expect(scrolled.map((tab) => tab.getAttribute('aria-current'))).toEqual(['page']);
-      expect(scrolled[0]).toBe(currentOf(screen.getByRole('navigation', { name: 'Project sections' }))[0]);
-    });
-
-    it('follows the current tab when the section changes', () => {
-      const { rerender } = render(<MemoryRouter><ProjectTabs active="overview" orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
-      rerender(<MemoryRouter><ProjectTabs active="settings" orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
-
-      expect(scrolled.map((tab) => tab.textContent)).toEqual(['Overview', 'Settings']);
-    });
   });
 });

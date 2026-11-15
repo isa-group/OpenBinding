@@ -14,24 +14,19 @@ const FIXED_SEGMENTS = [...new Set(
 )].sort();
 
 describe('workspaceSlugs', () => {
-  it('reads the organization and project from the address', () => {
-    expect(workspaceSlugs('/app/isa-demo')).toEqual({ org: 'isa-demo', project: undefined });
-    expect(workspaceSlugs('/app/isa-demo/qos')).toEqual({ org: 'isa-demo', project: 'qos' });
-    expect(workspaceSlugs('/app/isa-demo/qos/problems/checkout')).toEqual({ org: 'isa-demo', project: 'qos' });
+  it('reads the organization from the address, whatever screen of it is open', () => {
+    expect(workspaceSlugs('/app/isa-demo')).toEqual({ org: 'isa-demo' });
+    expect(workspaceSlugs('/app/isa-demo/problems/checkout')).toEqual({ org: 'isa-demo' });
+    expect(workspaceSlugs('/app/isa-demo/settings/members')).toEqual({ org: 'isa-demo' });
   });
 
-  it('does not take organization-level sections for projects', () => {
-    expect(workspaceSlugs('/app/isa-demo/settings/members')).toEqual({ org: 'isa-demo', project: undefined });
-    expect(workspaceSlugs('/app/isa-demo/new-project')).toEqual({ org: 'isa-demo', project: undefined });
+  it('reserves the slugs the gateway refuses (slug_reserved), and only those', () => {
+    expect([...RESERVED_SLUGS].sort()).toEqual([
+      'account', 'admin', 'engines', 'invitations', 'new', 'organizations', 'problems', 'runs', 'settings', 'studies', 'workbench',
+    ]);
   });
 
-  it.each(['library', 'resources'])('keeps %s unusable as an organization slug, though its screens are retired', (segment) => {
-    expect(RESERVED_SLUGS.has(segment)).toBe(true);
-    expect(workspaceSlugs(`/app/${segment}`)).toEqual({});
-  });
-
-  it.each(['runs', 'jobs'])('keeps %s unusable as an organization slug, though no screen of its own is left', (segment) => {
-    expect(RESERVED_SLUGS.has(segment)).toBe(true);
+  it.each(['runs', 'problems', 'studies', 'workbench'])('never reads the section name %s as an organization', (segment) => {
     expect(workspaceSlugs(`/app/${segment}`)).toEqual({});
     expect(workspaceSlugs(`/app/${segment}/new`)).toEqual({});
   });

@@ -21,6 +21,14 @@ SLUG = r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$"
 DIGEST = r"^sha256-[0-9a-f]{64}$"
 
 
+#: Organization slugs that would collide with a fixed place of the application (``/app/<slug>``) or a
+#: section under an organization; the frontend mirrors them in ``PlatformShell/workspacePath.ts``.
+RESERVED_ORGANIZATION_SLUGS = frozenset({
+    "admin", "account", "engines", "organizations", "invitations",
+    "runs", "problems", "studies", "settings", "workbench", "new",
+})
+
+
 class OrganizationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     slug: str = Field(..., pattern=SLUG)
@@ -95,43 +103,6 @@ class InvitationCreated(BaseModel):
 
 class InvitationAccept(BaseModel):
     token: str = Field(..., min_length=32)
-
-
-class ProjectCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    slug: str = Field(..., pattern=SLUG)
-    name: str = Field(..., min_length=1, max_length=160)
-    description: str = Field(default="", max_length=2000)
-    visibility: Literal["private", "public"] = "private"
-
-
-class ProjectUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    name: Optional[str] = Field(default=None, min_length=1, max_length=160)
-    description: Optional[str] = Field(default=None, max_length=2000)
-    visibility: Optional[Literal["private", "public"]] = None
-
-
-class ProjectView(ProjectCreate):
-    id: uuid.UUID
-    organization_id: uuid.UUID
-    created_by_id: Optional[uuid.UUID] = Field(
-        default=None,
-        description="The creator. Null for read-only visitors of a public project (access `public_read`).",
-    )
-    created_at: datetime
-    updated_at: datetime
-    effective_role: Optional[Literal["OWNER", "ADMIN", "MEMBER", "VIEWER"]] = Field(
-        default=None,
-        description="The caller's membership role. Null when the caller is not a member (see `access`).",
-    )
-    access: Literal["member", "public_read"] = Field(
-        default="member",
-        description=(
-            "How the caller reaches the project: `member` (a membership role, see `effective_role`) "
-            "or `public_read` (a non-member reading a public project; GET only, never a role)."
-        ),
-    )
 
 
 class StudyDefinition(BaseModel):
@@ -334,7 +305,7 @@ def job_view(
     """A ``JobView`` of an ORM job as ``viewer`` may see it.
 
     Provenance is copied, never edited in place. ``redact`` is for readers who
-    may follow a project's work but not its inputs (a VIEWER): options are cut
+    may follow the organization's work but not its inputs (a VIEWER): options are cut
     to the non-sensitive allow-list, ``original_request`` to the pinned
     choices, and the options echoed in the provenance and the result likewise
     (``security/redaction.py``). The stored row is never touched. ``refs`` are

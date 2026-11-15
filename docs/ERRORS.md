@@ -132,7 +132,7 @@ Routes keep raising `api_error(422, code, message)`; they need not know the shap
 BIM routes (`/v1/bim/…`, `/v1/engines`,
 `/v1/engine-registrations` — the prefixes in `_BIM_PATH_PREFIXES`) answer
 `application/problem+json`, as they always did. The platform routes
-(accounts, organizations and their problems and runs, projects, studies, artifacts, pricing, …)
+(accounts, organizations and their problems, runs and studies, pricing, …)
 keep `application/json`. The runs moved to `/v1/organizations/{org}/runs` in F0b and
 answer the platform envelope since: a refusal other than a 422 carries `code` beside
 `detail: {code, error, …}`, with the extras of a limit (`quota`, `concurrency`,
@@ -158,6 +158,14 @@ is not needed.
 | `revision_not_in_organization` | 409 | `createRun` names a revision of another organization the caller can see: launch it from that organization |
 | `contract_not_installed` | 422 | a retry of a run whose compilation needs a contract the installed toolchain does not have |
 
+## Organizations
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `slug_reserved` | 422 | `createOrganization` with a slug that names a page of the application (`admin`, `account`, `engines`, `organizations`, `invitations`, `runs`, `problems`, `studies`, `settings`, `workbench`, `new`) |
+| `slug_conflict` | 409 | the organization slug is in use |
+| `historical_references` | 409 | `deleteOrganization`: the organization, or one below it, has runs or study runs, which are kept as history |
+
 ## Accounts and plans
 
 | `code` | Status | Meaning |
@@ -174,7 +182,6 @@ Quotas are per account: there are no billing sponsors. Deleting an account pseud
 These operations take an optional `If-Match` header:
 
 - `PATCH /v1/organizations/{org}`
-- `PATCH …/projects/{project}`
 - `PATCH …/problems/{problem}`
 - `PATCH …/studies/{study}`
 - `PATCH /v1/users/me`

@@ -5,7 +5,6 @@ import { API, mockApi, organization, PROBLEMS, type MockOptions, type Recorded }
 // answered by page.route(); routes added here win over the catch-all of mockApi() because they are registered later.
 
 const NOW = '2026-09-01T00:00:00Z';
-const ROOT = `${API}/v1/organizations/acme/projects/demo`;
 
 const json = (body: unknown, status = 200) => (route: Route) => route.fulfill({ status, json: body });
 
@@ -156,13 +155,13 @@ export function trackGets(page: Page): string[] {
   return seen;
 }
 
-export { PROBLEMS, ROOT };
+export { PROBLEMS };
 
 // ---- locators -------------------------------------------------------------------------------------------------
 
 /**
  * The tab group of a page: the innermost `nav` or tablist that holds all the given labels (links or tabs). The
- * project tabs and the application header never hold the labels of a page's own tabs together.
+ * application header never holds the labels of a page's own tabs together.
  */
 export const tabGroup = (page: Page, labels: string[]): Locator => {
   let group = page.locator('nav, [role="tablist"]');

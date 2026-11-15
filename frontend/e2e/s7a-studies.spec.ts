@@ -39,18 +39,6 @@ const org = (id: string, slug: string, name: string, role: Role) => ({
   id, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z',
 });
 
-const project = (n: number, orgId: string, slug: string, name: string) => ({
-  id: `project-${n}`, organization_id: orgId, slug, name, description: '', visibility: 'private', created_by_id: 'user-1',
-  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
-  // The contract's `ProjectView.access`: these specs reach every project as a member.
-  access: 'member' as const, effective_role: 'OWNER' as Role,
-});
-
-const projectsOf: Record<string, ReturnType<typeof project>[]> = {
-  'isa-demo': [project(1, 'org-isa-demo', 'qos-benchmarks', 'QoS Benchmarks'), project(2, 'org-isa-demo', 'checkout-privado', 'Checkout (privado)')],
-  'read-lab': [project(4, 'org-4', 'bench', 'Bench')],
-};
-
 // --- the studies of the organization
 
 const NEW_RUN_ID = '00000000-0000-4000-8000-000000000102';
@@ -157,7 +145,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
     const url = new URL(route.request().url());
     const parts = url.pathname.split('/').filter(Boolean);
-    const [, , orgSlug, section, projectSlug, sub] = parts;
+    const [, , orgSlug, section, runId] = parts;
     // /v1/organizations/{org}/studies/{study}/runs/{run}/cells/{cell}/{verb}
     const [, , , , subId, action, actionId, tail, cellId, verb] = parts;
     const method = route.request().method();
@@ -167,8 +155,8 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     if (section === 'members') return json([])(route);
     if (section === 'runs') {
       // The runs of the organization: the attach dialog offers the finished ones, whoever launched them; a cell's run opens here.
-      if (!projectSlug) return json({ runs: [...mineJobs, ...otherJobs], total: mineJobs.length + otherJobs.length })(route);
-      return json({ ...mineJobs[0], id: projectSlug, status: 'completed', provenance: {}, result: { termination: 'FEASIBLE', solutions: [] } })(route);
+      if (!runId) return json({ runs: [...mineJobs, ...otherJobs], total: mineJobs.length + otherJobs.length })(route);
+      return json({ ...mineJobs[0], id: runId, status: 'completed', provenance: {}, result: { termination: 'FEASIBLE', solutions: [] } })(route);
     }
     if (section === 'problems') {
       // The study builder and the matrices name the problem versions of the organization.
@@ -176,14 +164,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       if (!problemSlug) return json({ problems: [CHECKOUT], total: 1, limit: 200, offset: 0 })(route);
       if (problemSub === 'revisions') return json([REVISION_1, REVISION_2])(route);
       return json(CHECKOUT)(route);
-    }
-    if (section === 'projects') {
-      const list = projectsOf[orgSlug] ?? [];
-      if (!projectSlug) return json(list)(route);
-      const current = list.find((item) => item.slug === projectSlug);
-      if (!current) return detail(404, 'not_found', 'Project not found.')(route);
-      // Studies belong to the organization (F0b B7): nothing about them is below a project.
-      return sub ? detail(404, 'not_found', 'Not mocked.')(route) : json(current)(route);
     }
     if (section !== 'studies') return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
 
@@ -360,8 +340,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Studies' })).toBeVisible();
       await expect(main.getByText(/A study runs every combination of problems × engines × settings × seeds/)).toBeVisible();
-      // Studies belong to the organization: no project tabs, and the crumbs lead back to it.
-      await expect(main.getByRole('navigation', { name: 'Project sections' })).toHaveCount(0);
+      // Studies belong to the organization: the crumbs lead back to it.
       await expect(main.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', ROOT);
       await expect(main.getByRole('link', { name: 'New study' })).toHaveAttribute('href', `${ROOT}/studies/new`);
       await expect(list.getByRole('listitem')).toHaveCount(3);

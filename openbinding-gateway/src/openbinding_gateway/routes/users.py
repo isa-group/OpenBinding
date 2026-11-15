@@ -206,7 +206,6 @@ def _api_key_summary(api_key: ApiKey) -> ApiKeySummary:
     boundary_data = {} if boundary is None else {
         "methods": sorted(boundary.get("methods", [])) or None,
         "organizations": sorted(boundary.get("organizations", [])) or None,
-        "projects": sorted(boundary.get("projects", [])) or None,
         "resource_kinds": sorted(boundary.get("resourceKinds", [])) or None,
         "slugs": sorted(boundary.get("slugs", [])) or None,
     }

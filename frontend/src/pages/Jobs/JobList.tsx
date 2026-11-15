@@ -219,6 +219,6 @@ function JobListBody({ organization, canLaunch }: { organization: Organization; 
 export function JobList() {
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <OrgSkeleton label="Loading organization…" />;
-  if (!organization) return <OrgGate failure={null} subject="organization" />;
+  if (!organization) return <OrgGate failure={null} />;
   return <JobListBody key={organization.slug} organization={organization} canLaunch={problemAccess(organization).canCreate} />;
 }

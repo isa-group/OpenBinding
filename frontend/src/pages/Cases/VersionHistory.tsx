@@ -9,13 +9,13 @@ import { loadModel, modelKey, type ModelState } from './modelLoader';
 import { Power } from './parts';
 import type { RouteProblemContent } from './useRouteProblem';
 // The timeline styles keep the name of the page that used to hold them.
-import '../Platform/CaseDetailPage.css';
+import './VersionHistory.css';
 
 type Version = RouteProblemContent['revisions'][number];
 
 function VersionCard({ org, caseSlug, revision, previous, latest, model, runHref }: {
   org: string; caseSlug: string; revision: Version; previous: Version | undefined; latest: boolean; model: ModelState | undefined;
-  /** Where a run of the version is launched; `null` hides the link (a viewer, or no project to run in). */
+  /** Where a run of the version is launched; `null` hides the link (a viewer). */
   runHref: string | null;
 }) {
   const { copy, status } = useCopy();

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import type { StudyRun } from '../../api/platform';
-import { org, renderProjectScreen } from '../../features/workspace/testKit';
+import { org, renderOrgScreen } from '../../features/workspace/testKit';
 import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, analyticsFixture, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyDetail } from './StudyDetail';
 
@@ -41,7 +41,7 @@ function Where() {
 
 /** `tail` is what follows the study in the address: `/setup` unless a test is about the default tab or another one. */
 function renderDetail(slug = 'isa-demo', study = 'engines-vs-seeds', tail = '/setup') {
-  return renderProjectScreen(<><StudyDetail /><Where /></>, {
+  return renderOrgScreen(<><StudyDetail /><Where /></>, {
     path: '/app/:org/studies/:study/:tab?', url: `/app/${slug}/studies/${study}${tail}`, organizations: [group, viewing, member],
   });
 }
