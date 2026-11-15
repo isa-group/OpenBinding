@@ -1,0 +1,27 @@
+syntaxVersion: '1.0'
+composition: simple-seq
+version: 1.0.0
+kind: application
+problem:
+  ref: isa/problems/simple-seq@1
+  compilation: {compilation}
+workflow:
+  seq:
+  - t1
+  - t2
+  - t3
+binding:
+  t1:
+    candidate: c1a
+  t2:
+    candidate: c2a
+  t3:
+    candidate: c3a
+values:
+  latency:
+    value: 30.0
+    unit: ms
+evidence:
+  manual: true
+  evaluatedBy: gateway
+  toolchain: {toolchain}

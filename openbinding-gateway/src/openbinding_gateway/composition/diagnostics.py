@@ -97,6 +97,36 @@ EVIDENCE_RUN_WITHOUT_PROBLEM = "c2y_evidence_run_without_problem"
 #: The document's slug is not the slug of the composition it is submitted to; an info.
 SLUG_MISMATCH = "c2y_slug_mismatch"
 
+# Against a compiled problem (``problem``). The workflow, property, unit and untranslatable
+# candidate findings are errors whatever the toolchain says; ``c2y_candidate_not_allowed`` and
+# ``c2y_task_local_mismatch`` explain the toolchain's refusal of a binding, and are reported only
+# when it refuses.
+
+#: The workflow is not the problem's.
+WORKFLOW_MISMATCH = "c2y_workflow_mismatch"
+#: ``local: true`` on a service task of the problem, or a candidate on a task done in house.
+TASK_LOCAL_MISMATCH = "c2y_task_local_mismatch"
+#: No catalog of the problem holds the candidate.
+CANDIDATE_UNKNOWN = "c2y_candidate_unknown"
+#: The candidate exists, but the task may not take it.
+CANDIDATE_NOT_ALLOWED = "c2y_candidate_not_allowed"
+#: Two catalogs give the task the same candidate id: write ``<resource>/<id>``.
+CANDIDATE_AMBIGUOUS = "c2y_candidate_ambiguous"
+#: A value of a property the problem does not have.
+PROPERTY_UNKNOWN = "c2y_property_unknown"
+#: A bare number for a property the problem measures in a unit.
+UNIT_MISSING = "c2y_unit_missing"
+#: A unit that is not the problem's.
+UNIT_MISMATCH = "c2y_unit_mismatch"
+#: A declared value that is not the one the toolchain computes; a warning, the computed one is kept.
+VALUE_DIFFERS = "c2y_value_differs"
+#: A declared value of a property the toolchain does not compute; a warning, the value is dropped.
+VALUE_NOT_COMPUTED = "c2y_value_not_computed"
+#: The binding violates a hard constraint of the problem.
+CONSTRAINT_VIOLATED = "c2y_constraint_violated"
+#: The binding does not meet a soft constraint of the problem; a warning, with its penalty.
+CONSTRAINT_SOFT = "c2y_constraint_soft"
+
 Severity = Literal["error", "warning", "info"]
 
 #: The order diagnostics are listed in: what refuses the document first.

@@ -10,6 +10,9 @@
   canonical form; it also ships the language's JSON Schema;
 * ``checks`` judges what the document alone decides: how its sections agree, its ``from``
   and offering references, and the rules that depend on the deployment or the entity;
+* ``problem`` reads the facts of a compiled problem from its IR and judges a document against
+  them: the workflow, the candidates, the units, and the toolchain's evaluation of the binding;
+* ``derive`` builds the document of a binding of a compiled problem;
 * ``diff`` lists what changed between two documents.
 
 The library is pure: it imports neither the web layer, the database nor the toolchain.
@@ -20,7 +23,7 @@ contract ``composition-library-pure`` enforces it, and the architecture test lis
 
 from __future__ import annotations
 
-from . import checks, diff, document, ids, text, workflow
+from . import checks, derive, diff, document, ids, problem, text, workflow
 from .diagnostics import CompositionError, Diagnostic, Path, Span, at
 from .document import (
     SUPPORTED_SYNTAX_VERSIONS,
@@ -55,6 +58,7 @@ __all__ = [
     "at",
     "checks",
     "Context",
+    "derive",
     "diff",
     "document",
     "Document",
@@ -62,6 +66,7 @@ __all__ = [
     "Evidence",
     "LANGUAGE_ID",
     "Offering",
+    "problem",
     "ProblemLink",
     "ProblemRef",
     "Provenance",
