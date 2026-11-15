@@ -10,3 +10,6 @@ export type NeighborhoodResponse = Schemas['NeighborhoodResponse'];
 
 /** The facts of one compiled problem (`GET …/compilations/{compilation}/facts`; `facts` of `POST /v1/bim/validate?include=facts`). */
 export type ProblemFacts = Schemas['ProblemFactsView'];
+
+/** What changed from one version of a composition to another (`GET …/compositions/{composition}/diff`). */
+export type CompositionVersionDiff = Schemas['CompositionVersionDiff'];

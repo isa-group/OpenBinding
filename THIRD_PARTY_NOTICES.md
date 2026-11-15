@@ -13,14 +13,16 @@ OpenBinding remains an independent project. The platform adapts product and impl
 patterns from the following MIT-licensed projects:
 
 | Project | Revision inspected | Use in OpenBinding |
-|---|---|---|---|
-| [SPHERE](https://github.com/SCORELabUS/SPHERE) | `356ad1129acaee4beb3c4574e389f158cb0a2eaa` | Navigation, resource lifecycle, administration and pricing-management patterns |
+|---|---|---|
+| [SPHERE](https://github.com/SCORELabUS/SPHERE) | `73779a8af260adb4c7de981bd479327d7b82f97a` | Navigation, resource lifecycle, administration and pricing-management patterns; the composition screens rewritten after SPHERE's pricing screens follow its patterns (no code copied). The files that port SPHERE code are listed under "Code ported from SPHERE" |
 | [SPHERE docs](https://github.com/isa-group/sphere-docs) | `107c5451e464e77a87a1f8b72dd71fa9d9e93231` | Documentation structure, API explorer and deployment patterns |
 | [SPACE](https://github.com/isa-group/SPACE) | `79aea10c9acff1d85e4931d09aa21d3a253d1ce1` (`v1.5.0`) | Contract and pricing deployment integration |
 | [space-python-client](https://github.com/Alex-GF/space-python-client) | `1a61898adca73ca500eca4758c24d32f673dd790` (`v1.1.0`) | Official SPACE Python client integration |
 | [Pricing4TS](https://github.com/Alex-GF/Pricing4TS) | `0.11.1` | Pricing2Yaml 3.1 parsing and validation for TypeScript |
 | [space-react-client](https://github.com/Alex-GF/space-react-client) | `0.4.0` | Browser presentation of SPACE-evaluated feature state for React |
 | [pricing-renderer](https://github.com/javiercavlop/pricing-renderer) | `0.2.0` | Public rendering of the active iPricing for the web |
+| [lz-string](https://github.com/pieroxy/lz-string) | `1.5.0` | Compressing a composition into the `#composition=` fragment of a share link |
+| [openapi-typescript](https://github.com/openapi-ts/openapi-typescript) | `7.13.0` (development only) | Generating the frontend's API types from `docs/openapi.json` |
 
 The MIT notice applying to those projects follows:
 
@@ -39,12 +41,17 @@ must not be used to imply an endorsement.
 
 ## Code ported from SPHERE
 
-Two files port SPHERE code at revision `73779a8a`, and each names its origin in its header:
+Six files port SPHERE code at revision `73779a8a`, and each names its origin in its header. A ported test is
+listed with its module:
 
 | File | SPHERE origin |
 |---|---|
 | `openbinding-gateway/src/openbinding_gateway/composition/diff.py` | `frontend/src/modules/pricing/utils/pricing-diff.ts` (the PricingDiff shape and rules) |
 | `openbinding-gateway/src/openbinding_gateway/modules/compositions/application/fork.py` | `PricingService.forkPricing` and its `ForkedFrom` snapshot (the fork rules) |
+| `frontend/src/shared/sphere/text-diff.ts` | `frontend/src/modules/pricing/utils/text-diff.ts` (copied verbatim) |
+| `frontend/src/shared/sphere/requested-version.ts` | `frontend/src/modules/pricing/pages/card/requested-version.ts` (copied verbatim) |
+| `frontend/src/shared/sphere/change-summary.ts`, with its test `change-summary.test.ts` | `frontend/src/modules/pricing/utils/change-summary.ts` and `frontend/test/change-summary.test.ts` (adapted: composition sections, candidate and value changes, the gateway's diff) |
+| `frontend/src/shared/sphere/composition-fragment.ts`, with its test `composition-fragment.test.ts` | `frontend/src/modules/pricing-editor/services/pricing-fragment.ts`, the encoder of `frontend/src/modules/pricing-editor/services/export.service.ts` and `frontend/test/pricing-fragment.test.ts` (adapted: the `#composition=` fragment) |
 
 SPHERE's licence, verbatim:
 
