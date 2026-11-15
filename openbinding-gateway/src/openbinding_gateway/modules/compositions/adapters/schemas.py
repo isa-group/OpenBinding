@@ -18,6 +18,12 @@ from ....models.platform import SLUG
 #: What a composition composes, as Composition2Yaml's ``kind`` spells it.
 CompositionKindName = Literal["application", "workflow", "pipeline", "system"]
 
+#: Who reads a composition: its organization's members (``private``) or anybody (``public``).
+Visibility = Literal["private", "public"]
+
+#: Said of every field a public reader gets as null.
+_MEMBERS_ONLY = "Null for a reader who is not a member of the organization (a public composition's reader)."
+
 
 class CompositionSpan(BaseModel):
     """Where a finding sits in the document's text: one-based lines and columns, the end exclusive."""
@@ -166,6 +172,13 @@ class CompositionUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=160)
     description: Optional[str] = Field(default=None, max_length=2000)
     archived: Optional[bool] = None
+    visibility: Optional[Visibility] = Field(
+        default=None,
+        description=(
+            "`public`: anybody reads the composition, every version's document included; `private`: only the "
+            "organization's members. Changing it needs ADMIN."
+        ),
+    )
 
 
 class CompositionOrganization(BaseModel):
@@ -173,6 +186,7 @@ class CompositionOrganization(BaseModel):
 
     id: uuid.UUID
     slug: str
+    name: str = Field(description="The organization's display name.")
 
 
 class CompositionView(BaseModel):
@@ -184,12 +198,15 @@ class CompositionView(BaseModel):
     description: str
     kind: CompositionKindName
     archived: bool
+    visibility: Visibility = Field(
+        description="`private` (the default): the organization's members read it; `public`: anybody does.",
+    )
     organization: CompositionOrganization
     latest_version: Optional["CompositionVersionSummary"] = Field(
         default=None, description="The latest sealed version; null while it has none.",
     )
     version_count: int = Field(default=0, ge=0, description="How many versions it has.")
-    created_by_id: uuid.UUID
+    created_by_id: Optional[uuid.UUID] = Field(description=_MEMBERS_ONLY)
     created_at: datetime
     updated_at: datetime
 
@@ -217,24 +234,24 @@ class CompositionVersionSummary(BaseModel):
 
 
 class VersionProblem(BaseModel):
-    """The problem a version links."""
+    """The problem a version links. Its slug is in the document's `problem.ref`; the problem stays private."""
 
-    id: uuid.UUID
+    id: Optional[uuid.UUID] = Field(description=_MEMBERS_ONLY)
     slug: str
-    name: str
+    name: Optional[str] = Field(description=_MEMBERS_ONLY)
 
 
 class VersionRevision(BaseModel):
     """The revision of the problem a version links."""
 
-    id: uuid.UUID
+    id: Optional[uuid.UUID] = Field(description=_MEMBERS_ONLY)
     revision: int
 
 
 class VersionCompilation(BaseModel):
     """The compilation a version's document names."""
 
-    id: uuid.UUID
+    id: Optional[uuid.UUID] = Field(description=_MEMBERS_ONLY)
     compilation_digest: str
     semantic_digest: str
 
@@ -250,7 +267,7 @@ class VersionLink(BaseModel):
 class EvaluationCompilation(BaseModel):
     """The compilation an evaluation evaluated: the toolchain's of that release."""
 
-    id: uuid.UUID
+    id: Optional[uuid.UUID] = Field(description=_MEMBERS_ONLY)
     compilation_digest: str
     compiler_digest: str
     semantic_digest: str
@@ -271,9 +288,14 @@ class EvaluationView(BaseModel):
     basis: Literal["bim", "declared"]
     outcome: Literal["verified", "binding_invalid", "semantics_changed", "declared"]
     values: dict[str, ValueView]
-    violations: list[dict[str, Any]] = Field(description="The constraint violations the toolchain reported.")
+    violations: list[dict[str, Any]] = Field(
+        description="The constraint violations the toolchain reported; empty for a public composition's reader.",
+    )
     diagnostics: list[CompositionDiagnosticView] = Field(
-        description="What the evaluation found, located in the version's content (null span where it has no place there).",
+        description=(
+            "What the evaluation found, located in the version's content (null span where it has no place there); "
+            "empty for a public composition's reader."
+        ),
     )
     compilation: Optional[EvaluationCompilation]
     current: bool = Field(description="Whether this is the version's current evaluation.")
@@ -281,9 +303,40 @@ class EvaluationView(BaseModel):
 
 
 class EvidenceRun(BaseModel):
-    """The run a version's evidence names."""
+    """The run a version's evidence names (`evidence.run` in its document); the run itself stays private."""
 
     id: uuid.UUID
+
+
+class ForkedFromOrganization(BaseModel):
+    """The organization a version was forked from, as it was named then."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: uuid.UUID
+    name: str = Field(description="Its slug (SPHERE's organization `name`).")
+    display_name: str = Field(alias="displayName", description="Its display name.")
+
+
+class ForkedFrom(BaseModel):
+    """What a version was forked from, as it was named when it was forked.
+
+    For a reader who is not a member, the source is named only while it is public (or is this same
+    composition); otherwise every field but `droppedProblem` is null.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    composition_id: Optional[uuid.UUID] = Field(default=None, alias="compositionId")
+    version_id: Optional[uuid.UUID] = Field(default=None, alias="versionId")
+    label: Optional[str] = None
+    organization: Optional[ForkedFromOrganization] = None
+    slug: Optional[str] = None
+    name: Optional[str] = None
+    dropped_problem: bool = Field(
+        alias="droppedProblem",
+        description="The fork removed the source's problem link and evidence, so its values are the source's, declared.",
+    )
 
 
 class CompositionVersionView(BaseModel):
@@ -305,15 +358,13 @@ class CompositionVersionView(BaseModel):
     offering: Optional[dict[str, str]] = Field(description="The offering's source: `{sphere, registry?}` or `{url}`.")
     evidence_run: Optional[EvidenceRun]
     based_on: Optional[dict[str, Any]] = Field(
-        description="The version it was forked from, as data: `{composition_id, version_id, label}`.",
-    )
-    forked_from: Optional[dict[str, Any]] = Field(
-        default=None,
         description=(
-            "What it was forked from, as it was named when it was forked: `{compositionId, versionId, label, "
-            "organization{id, name, displayName}, slug, name, droppedProblem}`. `droppedProblem` says the fork "
-            "removed the source's problem link and evidence, so its values are the source's, declared."
+            "The version it was forked from, as data: `{composition_id, version_id, label}`. For a reader who is "
+            "not a member, null unless that source is public now."
         ),
+    )
+    forked_from: Optional[ForkedFrom] = Field(
+        default=None, description="What it was forked from; null when it was not forked.",
     )
     analytics: Optional[dict[str, Any]] = Field(
         default=None,
@@ -323,9 +374,11 @@ class CompositionVersionView(BaseModel):
             "`include=analytics`."
         ),
     )
-    evaluations: list[EvaluationView]
+    evaluations: list[EvaluationView] = Field(
+        description="Its evaluations, oldest first; only the current one for a reader who is not a member.",
+    )
     current_evaluation_id: Optional[uuid.UUID]
-    created_by_id: uuid.UUID
+    created_by_id: Optional[uuid.UUID] = Field(description=_MEMBERS_ONLY)
     created_at: datetime
 
 

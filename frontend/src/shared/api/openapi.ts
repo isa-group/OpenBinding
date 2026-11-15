@@ -1174,7 +1174,7 @@ export interface paths {
         };
         /**
          * Get Composition
-         * @description One composition, by slug or id.
+         * @description One composition, by slug or id; a public one for anybody.
          */
         get: operations["getComposition"];
         put?: never;
@@ -1188,7 +1188,7 @@ export interface paths {
         head?: never;
         /**
          * Update Composition
-         * @description Rename, describe, archive or restore a composition.
+         * @description Rename, describe, archive or restore a composition, or change who reads it (ADMIN).
          */
         patch: operations["updateComposition"];
         trace?: never;
@@ -3342,6 +3342,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Name
+             * @description The organization's display name.
+             */
+            name: string;
             /** Slug */
             slug: string;
         };
@@ -3370,6 +3375,11 @@ export interface components {
             description?: string | null;
             /** Name */
             name?: string | null;
+            /**
+             * Visibility
+             * @description `public`: anybody reads the composition, every version's document included; `private`: only the organization's members. Changing it needs ADMIN.
+             */
+            visibility?: ("private" | "public") | null;
         };
         /**
          * CompositionVersionDiff
@@ -3451,7 +3461,7 @@ export interface components {
             } | null;
             /**
              * Based On
-             * @description The version it was forked from, as data: `{composition_id, version_id, label}`.
+             * @description The version it was forked from, as data: `{composition_id, version_id, label}`. For a reader who is not a member, null unless that source is public now.
              */
             based_on: {
                 [key: string]: unknown;
@@ -3468,21 +3478,19 @@ export interface components {
             created_at: string;
             /**
              * Created By Id
-             * Format: uuid
+             * @description Null for a reader who is not a member of the organization (a public composition's reader).
              */
-            created_by_id: string;
+            created_by_id: string | null;
             /** Current Evaluation Id */
             current_evaluation_id: string | null;
-            /** Evaluations */
+            /**
+             * Evaluations
+             * @description Its evaluations, oldest first; only the current one for a reader who is not a member.
+             */
             evaluations: components["schemas"]["EvaluationView"][];
             evidence_run: components["schemas"]["EvidenceRun"] | null;
-            /**
-             * Forked From
-             * @description What it was forked from, as it was named when it was forked: `{compositionId, versionId, label, organization{id, name, displayName}, slug, name, droppedProblem}`. `droppedProblem` says the fork removed the source's problem link and evidence, so its values are the source's, declared.
-             */
-            forked_from?: {
-                [key: string]: unknown;
-            } | null;
+            /** @description What it was forked from; null when it was not forked. */
+            forked_from?: components["schemas"]["ForkedFrom"] | null;
             /**
              * Id
              * Format: uuid
@@ -3549,9 +3557,9 @@ export interface components {
             created_at: string;
             /**
              * Created By Id
-             * Format: uuid
+             * @description Null for a reader who is not a member of the organization (a public composition's reader).
              */
-            created_by_id: string;
+            created_by_id: string | null;
             /** Description */
             description: string;
             /**
@@ -3582,6 +3590,12 @@ export interface components {
              * @default 0
              */
             version_count: number;
+            /**
+             * Visibility
+             * @description `private` (the default): the organization's members read it; `public`: anybody does.
+             * @enum {string}
+             */
+            visibility: "private" | "public";
         };
         /** ContractSubscriptionView */
         ContractSubscriptionView: {
@@ -4248,9 +4262,9 @@ export interface components {
             compiler_digest: string;
             /**
              * Id
-             * Format: uuid
+             * @description Null for a reader who is not a member of the organization (a public composition's reader).
              */
-            id: string;
+            id: string | null;
             /** Semantic Digest */
             semantic_digest: string;
             /** Toolchain */
@@ -4281,7 +4295,7 @@ export interface components {
             current: boolean;
             /**
              * Diagnostics
-             * @description What the evaluation found, located in the version's content (null span where it has no place there).
+             * @description What the evaluation found, located in the version's content (null span where it has no place there); empty for a public composition's reader.
              */
             diagnostics: components["schemas"]["CompositionDiagnosticView"][];
             /**
@@ -4300,7 +4314,7 @@ export interface components {
             };
             /**
              * Violations
-             * @description The constraint violations the toolchain reported.
+             * @description The constraint violations the toolchain reported; empty for a public composition's reader.
              */
             violations: {
                 [key: string]: unknown;
@@ -4308,7 +4322,7 @@ export interface components {
         };
         /**
          * EvidenceRun
-         * @description The run a version's evidence names.
+         * @description The run a version's evidence names (`evidence.run` in its document); the run itself stays private.
          */
         EvidenceRun: {
             /**
@@ -4377,6 +4391,52 @@ export interface components {
              */
             droppedProblem: boolean;
             version: components["schemas"]["CompositionVersionView"];
+        };
+        /**
+         * ForkedFrom
+         * @description What a version was forked from, as it was named when it was forked.
+         *
+         *     For a reader who is not a member, the source is named only while it is public (or is this same
+         *     composition); otherwise every field but `droppedProblem` is null.
+         */
+        ForkedFrom: {
+            /** Compositionid */
+            compositionId?: string | null;
+            /**
+             * Droppedproblem
+             * @description The fork removed the source's problem link and evidence, so its values are the source's, declared.
+             */
+            droppedProblem: boolean;
+            /** Label */
+            label?: string | null;
+            /** Name */
+            name?: string | null;
+            organization?: components["schemas"]["ForkedFromOrganization"] | null;
+            /** Slug */
+            slug?: string | null;
+            /** Versionid */
+            versionId?: string | null;
+        };
+        /**
+         * ForkedFromOrganization
+         * @description The organization a version was forked from, as it was named then.
+         */
+        ForkedFromOrganization: {
+            /**
+             * Displayname
+             * @description Its display name.
+             */
+            displayName: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Name
+             * @description Its slug (SPHERE's organization `name`).
+             */
+            name: string;
         };
         GatewayBindingResult: {
             code?: string;
@@ -6022,9 +6082,9 @@ export interface components {
             compilation_digest: string;
             /**
              * Id
-             * Format: uuid
+             * @description Null for a reader who is not a member of the organization (a public composition's reader).
              */
-            id: string;
+            id: string | null;
             /** Semantic Digest */
             semantic_digest: string;
         };
@@ -6052,16 +6112,19 @@ export interface components {
         };
         /**
          * VersionProblem
-         * @description The problem a version links.
+         * @description The problem a version links. Its slug is in the document's `problem.ref`; the problem stays private.
          */
         VersionProblem: {
             /**
              * Id
-             * Format: uuid
+             * @description Null for a reader who is not a member of the organization (a public composition's reader).
              */
-            id: string;
-            /** Name */
-            name: string;
+            id: string | null;
+            /**
+             * Name
+             * @description Null for a reader who is not a member of the organization (a public composition's reader).
+             */
+            name: string | null;
             /** Slug */
             slug: string;
         };
@@ -6072,9 +6135,9 @@ export interface components {
         VersionRevision: {
             /**
              * Id
-             * Format: uuid
+             * @description Null for a reader who is not a member of the organization (a public composition's reader).
              */
-            id: string;
+            id: string | null;
             /** Revision */
             revision: number;
         };
@@ -10180,6 +10243,17 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Account authentication is not configured on this deployment. */
             503: {
                 headers: {
@@ -10305,13 +10379,13 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            /** @description The caller's role is too weak: MEMBER edits, ADMIN changes `visibility` (`organization_forbidden`). */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": components["schemas"]["Problem"];
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description No such organization or composition, or the caller cannot read it. */
@@ -10521,9 +10595,11 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Every Composition2Yaml slot of this process is taken (`composition_busy`). */
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
             429: {
                 headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -10897,6 +10973,17 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Account authentication is not configured on this deployment. */
             503: {
                 headers: {
@@ -11200,6 +11287,17 @@ export interface operations {
                     "application/json": components["schemas"]["Problem"];
                 };
             };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Account authentication is not configured on this deployment. */
             503: {
                 headers: {
@@ -11276,6 +11374,17 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Account authentication is not configured on this deployment. */

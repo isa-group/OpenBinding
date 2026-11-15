@@ -7,9 +7,12 @@ permissions and exact Engine boundary.
 
 ``get_current_user`` refuses anyone it cannot identify; ``get_optional_user``
 answers ``None`` instead, which is what the endpoints that stay open to visitors
-need. Both go through the same resolution, so there is one place where a
-credential turns into a user. ``counted_caller`` goes through it too, for a route
-that only needs to know whose request to count.
+need. ``get_reader`` sits between them: no credential is a visitor (``None``),
+but a credential that names nobody is refused, so an expired session is told to
+refresh instead of being served as a visitor. All go through the same
+resolution, so there is one place where a credential turns into a user.
+``counted_caller`` goes through it too, for a route that only needs to know whose
+request to count.
 """
 
 from __future__ import annotations
@@ -360,6 +363,40 @@ async def get_current_user(
 
     # An account registered while SPACE was unreachable owes a contract, and
     # nothing else ever settles it. Doing it here is what the flag was for.
+    await settle_pending_contract(user, session)
+    return user
+
+
+async def get_reader(
+    request: Request,
+    bearer: Annotated[HTTPAuthorizationCredentials | None, Security(_BEARER_AUTH)],
+    api_key: Annotated[str | None, Security(_API_KEY_AUTH)],
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+    settings: Settings = Depends(get_settings),
+) -> Optional[User]:
+    """The caller of a read that visitors may make too, such as a public composition's.
+
+    No credential is a visitor: ``None``. A credential that does not name an active account is ``401``,
+    as on ``get_current_user``, never a visitor: a member whose session expired must be told to refresh,
+    not shown what anybody sees (or a 404 for their own private composition). A key is authorised as on
+    every route, its permissions and its boundary included.
+    """
+    _record_caller(request, None)
+    credential = _credential(request, bearer, api_key)
+    if not credential:
+        return None
+
+    user = await _user_for_credential(credential, session, settings)
+    if user is None or not user.is_active:
+        raise api_error(
+            status.HTTP_401_UNAUTHORIZED,
+            "unauthorized",
+            "That credential is not valid.",
+            headers=_AUTHENTICATE_CHALLENGE,
+        )
+
+    _record_caller(request, user)
+    _authorize_api_key(request, user)
     await settle_pending_contract(user, session)
     return user
 

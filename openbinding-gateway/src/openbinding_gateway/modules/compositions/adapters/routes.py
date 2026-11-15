@@ -1,9 +1,15 @@
 """The compositions of an organization and their versions: ``/v1/organizations/{org}/compositions``.
 
 VIEWER reads and checks a document against its problem, MEMBER creates, edits and seals versions, ADMIN
-deletes. A composition the caller cannot read answers as a missing one: 404 for a non-member and for a
-composition of another organization, never 403. A member whose role is too weak for a write gets 403
-``organization_forbidden``. Edits take an optional ``If-Match`` (the ``ETag`` of a read or an earlier edit).
+deletes and changes who reads a composition. A composition the caller cannot read answers as a missing one:
+404 for a non-member and for a composition of another organization, never 403. A member whose role is too
+weak for a write gets 403 ``organization_forbidden``. Edits take an optional ``If-Match`` (the ``ETag`` of a
+read or an earlier edit).
+
+A ``public`` composition is read by anybody, with no credential too, through the five read routes (the
+composition, its versions, a version, its content and the diff): a reader who is not a member gets the
+views redacted to what the published documents say (``_public_version``), and is the only caller charged
+for these reads. Every other route stays for members, public composition or not.
 
 A version is sealed from a Composition2Yaml document sent as YAML (at most 256 KiB): it is read, judged
 and, when it links a problem, evaluated by the toolchain; its canonical bytes and the evaluation are then
@@ -23,14 +29,15 @@ budget too).
 
 from __future__ import annotations
 
+import uuid
 from typing import Any, Literal, Union
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ....access.dependencies import get_current_user, session_dependency
-from ....access.work_limits import limit_work
+from ....access.dependencies import get_current_user, get_reader, session_dependency
+from ....access.work_limits import charge_anonymous_read, limit_work
 from ....composition.text import document as text_document
 from ....core import revision as etags
 from ....db.models import (
@@ -46,6 +53,7 @@ from ....db.models import (
 )
 from ....models.errors import (
     CONFLICT_RESPONSE,
+    FORBIDDEN_RESPONSE as _FORBIDDEN,
     NOT_FOUND_RESPONSE,
     UNAVAILABLE_RESPONSE,
     ErrorResponse,
@@ -80,6 +88,7 @@ from .schemas import (
     EvaluationCompilation,
     EvaluationView,
     EvidenceRun,
+    ForkedFrom,
     ForkNameTaken,
     ForkResult,
     SealResult,
@@ -95,6 +104,16 @@ router = APIRouter(prefix="/v1/organizations/{org}/compositions", tags=["Composi
 _UNREADABLE: dict[int | str, dict[str, Any]] = {
     404: {**NOT_FOUND_RESPONSE, "description": "No such organization or composition, or the caller cannot read it."},
 }
+#: The read routes answer by credential (a member's view or the public one), so caches key on it.
+_VARY = "Authorization, X-API-Key"
+
+
+def _read_headers(headers, reader: compositions.Reader) -> None:
+    """``Vary`` on every read; and a public reader's copy is revalidated each time, as SPHERE does, so a
+    composition made private again stops being served from a cache."""
+    headers["Vary"] = _VARY
+    if reader.public:
+        headers["Cache-Control"] = "private, no-cache"
 
 
 def _summary(version: CompositionVersion | None) -> CompositionVersionSummary | None:
@@ -111,8 +130,8 @@ def _view(
 ) -> CompositionView:
     return CompositionView(
         id=composition.id, slug=composition.slug, name=composition.name, description=composition.description,
-        kind=composition.kind.value, archived=composition.archived,
-        organization=CompositionOrganization(id=organization.id, slug=organization.slug),
+        kind=composition.kind.value, archived=composition.archived, visibility=composition.visibility,
+        organization=CompositionOrganization(id=organization.id, slug=organization.slug, name=organization.name),
         latest_version=_summary(summary.latest) if summary else None,
         version_count=summary.count if summary else 0,
         created_by_id=composition.created_by_id, created_at=composition.created_at, updated_at=composition.updated_at,
@@ -180,27 +199,36 @@ async def create_composition(
     "/{composition}",
     response_model=CompositionView,
     operation_id="getComposition",
+    dependencies=[Depends(charge_anonymous_read)],
     responses={**etags.ETAG_RESPONSE, **_UNREADABLE},
 )
 async def get_composition(
     org: str,
     composition: str,
     response: Response,
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_reader),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> CompositionView:
-    """One composition, by slug or id."""
-    organization = await compositions.organization_for(session, org, user, OrganizationRole.VIEWER)
-    found = await compositions.required_composition(session, organization, composition)
+    """One composition, by slug or id; a public one for anybody."""
+    organization, found, reader = await compositions.readable_composition(session, org, composition, user)
     etags.set_etag(response, found)
-    return await _viewed(session, found, organization)
+    _read_headers(response.headers, reader)
+    view = await _viewed(session, found, organization)
+    return view.model_copy(update={"created_by_id": None}) if reader.public else view
 
 
 @router.patch(
     "/{composition}",
     response_model=CompositionView,
     operation_id="updateComposition",
-    responses={**etags.EDIT_RESPONSES, **_UNREADABLE},
+    responses={
+        **etags.EDIT_RESPONSES,
+        403: {
+            **_FORBIDDEN,
+            "description": "The caller's role is too weak: MEMBER edits, ADMIN changes `visibility` (`organization_forbidden`).",
+        },
+        **_UNREADABLE,
+    },
 )
 async def update_composition(
     org: str,
@@ -211,12 +239,15 @@ async def update_composition(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> CompositionView:
-    """Rename, describe, archive or restore a composition."""
+    """Rename, describe, archive or restore a composition, or change who reads it (ADMIN)."""
     organization = await compositions.organization_for(session, org, user, OrganizationRole.MEMBER)
     found = await compositions.required_composition(session, organization, composition)
+    if payload.visibility is not None and payload.visibility != found.visibility:
+        await compositions.require_visibility_role(session, organization, user)
     await etags.guard(session, found, if_match)
     updated = await compositions.update_composition(
         session, found, user, name=payload.name, description=payload.description, archived=payload.archived,
+        visibility=payload.visibility,
     )
     etags.set_etag(response, updated)
     return await _viewed(session, updated, organization)
@@ -321,6 +352,68 @@ def _version_view(detail: versions.Detail, *, analytics: bool = True) -> Composi
     )
 
 
+def _uuid(value: Any) -> uuid.UUID | None:
+    try:
+        return uuid.UUID(str(value)) if value is not None else None
+    except ValueError:
+        return None
+
+
+def _sources(view: CompositionVersionView) -> set[uuid.UUID]:
+    """The compositions a version's lineage names (``forked_from`` and ``based_on``)."""
+    found = {_uuid((view.based_on or {}).get("composition_id"))}
+    if view.forked_from is not None:
+        found.add(view.forked_from.composition_id)
+    return {item for item in found if item is not None}
+
+
+def _public_evaluation(view: EvaluationView) -> EvaluationView:
+    compiled = view.compilation.model_copy(update={"id": None}) if view.compilation is not None else None
+    return view.model_copy(update={"violations": [], "diagnostics": [], "compilation": compiled})
+
+
+def _public_version(view: CompositionVersionView, readable: set[uuid.UUID]) -> CompositionVersionView:
+    """A version as a reader who is not a member sees it: what its canonical bytes say, and nothing else.
+
+    The bytes are served (the content, the diff), so what they carry stays: values, digests, the toolchain,
+    the problem's ref (slug and revision number), the run and point of ``evidence``. What they do not carry
+    goes: member ids, the problem, revision and compilation ids and the problem's name, every evaluation but
+    the current one and its diagnostics and violations, which speak of the private problem, and lineage that
+    names a source ``readable`` does not hold (one that is neither this composition nor public now).
+    """
+    link = view.problem
+    if link is not None:
+        link = VersionLink(
+            problem=link.problem.model_copy(update={"id": None, "name": None}),
+            revision=link.revision.model_copy(update={"id": None}),
+            linked_compilation=link.linked_compilation.model_copy(update={"id": None}),
+        )
+    based_on = view.based_on
+    if based_on is not None and _uuid(based_on.get("composition_id")) not in readable:
+        based_on = None
+    forked_from = view.forked_from
+    if forked_from is not None and forked_from.composition_id not in readable:
+        forked_from = ForkedFrom(dropped_problem=forked_from.dropped_problem)
+    return view.model_copy(update={
+        "problem": link,
+        "based_on": based_on,
+        "forked_from": forked_from,
+        "evaluations": [_public_evaluation(item) for item in view.evaluations if item.current],
+        "created_by_id": None,
+    })
+
+
+async def _for_reader(
+    session: AsyncSession, reader: compositions.Reader, composition: Composition, views: list[CompositionVersionView],
+) -> list[CompositionVersionView]:
+    """``views`` as ``reader`` sees them; for a public reader, the sources public now are read in one query."""
+    if not reader.public:
+        return views
+    named = set().union(*(_sources(view) for view in views)) - {composition.id}
+    readable = await compositions.public_among(session, named) | {composition.id}
+    return [_public_version(view, readable) for view in views]
+
+
 def _content_tag(version: CompositionVersion) -> str:
     return f'"{version.content_digest}"'
 
@@ -336,11 +429,13 @@ def _invalid(diagnostics) -> Exception:
     "/{composition}/versions",
     response_model=CompositionVersionList,
     operation_id="listCompositionVersions",
+    dependencies=[Depends(charge_anonymous_read)],
     responses=_UNREADABLE,
 )
 async def list_composition_versions(
     org: str,
     composition: str,
+    response: Response,
     include: Literal["analytics"] | None = Query(
         default=None, description="`analytics`: each version with the summary of its document.",
     ),
@@ -349,17 +444,17 @@ async def list_composition_versions(
     ),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_reader),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> CompositionVersionList:
     """The composition's versions, each with its values, value status and evaluations."""
-    organization = await compositions.organization_for(session, org, user, OrganizationRole.VIEWER)
-    found = await compositions.required_composition(session, organization, composition)
+    _, found, reader = await compositions.readable_composition(session, org, composition, user)
+    _read_headers(response.headers, reader)
     rows, total = await versions.list_versions(session, found, order=order, limit=limit, offset=offset)
     shown = await versions.details(session, rows)
+    views = [_version_view(item, analytics=include == "analytics") for item in shown]
     return CompositionVersionList(
-        versions=[_version_view(item, analytics=include == "analytics") for item in shown],
-        total=total, limit=limit, offset=offset,
+        versions=await _for_reader(session, reader, found, views), total=total, limit=limit, offset=offset,
     )
 
 
@@ -460,6 +555,7 @@ async def check_composition_version(
     "/{composition}/versions/{version}",
     response_model=CompositionVersionView,
     operation_id="getCompositionVersion",
+    dependencies=[Depends(charge_anonymous_read)],
     responses={200: {"headers": _VERSION_ETAG}, **_UNREADABLE},
 )
 async def get_composition_version(
@@ -467,16 +563,17 @@ async def get_composition_version(
     composition: str,
     version: str,
     response: Response,
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_reader),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> CompositionVersionView:
     """One version, by id, label or ordinal."""
-    organization = await compositions.organization_for(session, org, user, OrganizationRole.VIEWER)
-    found = await compositions.required_composition(session, organization, composition)
+    _, found, reader = await compositions.readable_composition(session, org, composition, user)
     row = await versions.required_version(session, found, version)
     (detail,) = await versions.details(session, [row])
     response.headers["ETag"] = _content_tag(row)
-    return _version_view(detail)
+    _read_headers(response.headers, reader)
+    (view,) = await _for_reader(session, reader, found, [_version_view(detail)])
+    return view
 
 
 @router.get(
@@ -494,20 +591,23 @@ async def get_composition_version(
         304: {"description": "The caller's copy (`If-None-Match`) is the content."},
         **_UNREADABLE,
     },
+    dependencies=[Depends(charge_anonymous_read)],
 )
 async def get_composition_version_content(
     org: str,
     composition: str,
     version: str,
     request: Request,
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_reader),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> Response:
-    organization = await compositions.organization_for(session, org, user, OrganizationRole.VIEWER)
-    found = await compositions.required_composition(session, organization, composition)
+    # Who may read it is decided before the caller's copy is compared: a composition made private again is
+    # a 404, never a 304.
+    _, found, reader = await compositions.readable_composition(session, org, composition, user)
     row = await versions.required_version(session, found, version)
     tag = _content_tag(row)
     headers = {"ETag": tag, "Cache-Control": "private, immutable"}
+    _read_headers(headers, reader)
     if tag in {item.strip() for item in request.headers.get("if-none-match", "").split(",")}:
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
     return Response(content=row.content.encode("utf-8"), media_type="application/yaml; charset=utf-8", headers=headers)
@@ -540,17 +640,19 @@ def _name(version: CompositionVersion) -> dict[str, Any]:
         },
         **_BUSY,
     },
+    dependencies=[Depends(charge_anonymous_read)],
 )
 async def diff_composition_versions(
     org: str,
     composition: str,
+    response: Response,
     from_version: str | None = Query(default=None, alias="from", description="The earlier version: id, label or ordinal."),
     to_version: str | None = Query(default=None, alias="to", description="The later version: id, label or ordinal."),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_reader),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> dict[str, Any]:
-    organization = await compositions.organization_for(session, org, user, OrganizationRole.VIEWER)
-    found = await compositions.required_composition(session, organization, composition)
+    _, found, reader = await compositions.readable_composition(session, org, composition, user)
+    _read_headers(response.headers, reader)
     before, after = await versions.diff_pair(session, found, from_version, to_version)
     compared = await language.diff_stored(before.content, after.content)
     return {"from": _name(before), "to": _name(after), **compared}
@@ -622,8 +724,8 @@ async def fork_composition_version(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> Any:
-    source_organization = await compositions.organization_for(session, org, user, OrganizationRole.VIEWER)
-    source = await compositions.required_composition(session, source_organization, composition)
+    # A member of the source's organization, or anybody for a public source; the fork itself is private.
+    source_organization, source, _ = await compositions.readable_composition(session, org, composition, user)
     version = await versions.required_version(session, source, payload.version)
     target = await compositions.organization_for(session, payload.target_organization, user, OrganizationRole.MEMBER)
     if not _key_reaches(user, target, payload.slug or source.slug):

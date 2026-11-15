@@ -8,6 +8,11 @@ Who may read it follows SPHERE's private read rule: a composition the caller can
 a missing one does, 404 and never 403, so that a non-member learns nothing of the organization or of what it
 holds. A member whose role is too weak for a write gets 403, since that member can read it
 (``organization_for``).
+
+A ``public`` composition is read by anybody, signed in or not, through the same routes
+(``readable_composition``): a caller with no role in its organization is a public reader, who gets the
+views redacted to what the published documents say. Every other route stays for members. Changing a
+composition's visibility needs ADMIN, since publishing exposes every version's document.
 """
 
 from __future__ import annotations
@@ -39,6 +44,8 @@ from ...shared.application import audit
 
 #: The audit target type of a composition.
 TARGET = "Composition"
+#: The visibility anybody reads; the other one, ``private``, is for the organization's members.
+PUBLIC = "public"
 
 
 @dataclass(frozen=True)
@@ -76,6 +83,58 @@ async def organization_for(session: AsyncSession, org: str, user: User, minimum:
             f"This action requires {minimum.value} access to the organization.",
         )
     return organization
+
+
+@dataclass(frozen=True)
+class Reader:
+    """Who reads a composition: a member with ``role``, or a public reader (``public``, no role)."""
+
+    role: OrganizationRole | None
+    public: bool
+
+    @classmethod
+    def member(cls, role: OrganizationRole) -> "Reader":
+        return cls(role, False)
+
+    @classmethod
+    def anybody(cls) -> "Reader":
+        return cls(None, True)
+
+
+def _unreadable() -> HTTPException:
+    """The one 404 a caller who is not a member gets: the same body for a missing organization, a missing
+    composition and a private one, so it says nothing of what exists."""
+    return api_error(status.HTTP_404_NOT_FOUND, "not_found", "Composition not found.")
+
+
+async def readable_composition(
+    session: AsyncSession, org: str, ref: str, user: User | None,
+) -> tuple[Organization, Composition, Reader]:
+    """The composition ``ref`` of the organization ``org``, for a caller who reads it, and how they read it.
+
+    A caller with a role in the organization (or above it) is a member: a missing composition is 404
+    ``not_found`` as before. Anybody else, signed in or not, reads a ``public`` composition as a public
+    reader; a missing organization, a missing composition and a private one all give the same 404.
+    """
+    organization = await organization_by_ref(session, org)
+    if organization is None:
+        raise _unreadable()
+    role = await effective_role(session, organization.id, user) if user is not None else None
+    if role is not None:
+        return organization, await required_composition(session, organization, ref), Reader.member(role)
+    found = await composition_by_ref(session, organization.id, ref)
+    if found is None or found.visibility != PUBLIC:
+        raise _unreadable()
+    return organization, found, Reader.anybody()
+
+
+async def public_among(session: AsyncSession, ids: set[uuid.UUID]) -> set[uuid.UUID]:
+    """Which of the compositions ``ids`` are public now: one query, whatever their number."""
+    if not ids:
+        return set()
+    return set((await session.scalars(
+        select(Composition.id).where(Composition.id.in_(ids), Composition.visibility == PUBLIC)
+    )).all())
 
 
 async def composition_by_ref(session: AsyncSession, organization_id: uuid.UUID, ref: str) -> Composition | None:
@@ -211,6 +270,23 @@ async def create_composition(
     )
 
 
+async def require_visibility_role(
+    session: AsyncSession, organization: Organization, actor: User,
+) -> None:
+    """403 ``organization_forbidden`` unless ``actor`` is an ADMIN (or OWNER) of ``organization``.
+
+    Publishing a composition exposes every version's document, so it is the organization's decision, as
+    deleting one is.
+    """
+    role = await effective_role(session, organization.id, actor)
+    if role is None or ROLE_STRENGTH[role] < ROLE_STRENGTH[OrganizationRole.ADMIN]:
+        raise api_error(
+            status.HTTP_403_FORBIDDEN,
+            "organization_forbidden",
+            "Changing visibility requires ADMIN access to the organization.",
+        )
+
+
 async def update_composition(
     session: AsyncSession,
     composition: Composition,
@@ -219,9 +295,19 @@ async def update_composition(
     name: str | None = None,
     description: str | None = None,
     archived: bool | None = None,
+    visibility: str | None = None,
 ) -> Composition:
-    """Change the given fields of ``composition``; the caller has already checked its ``If-Match``."""
+    """Change the given fields of ``composition``.
+
+    The caller has already checked its ``If-Match`` and, for a change of ``visibility``, that the actor is
+    an ADMIN (``require_visibility_role``).
+    """
     changed = {}
+    previous = composition.visibility
+    if visibility is not None and visibility != previous:
+        composition.visibility = visibility
+    else:
+        visibility = None
     if name is not None:
         composition.name = name
         changed["name"] = name
@@ -235,6 +321,11 @@ async def update_composition(
     await session.refresh(composition, ["updated_at"])
     if changed:
         audit(session, actor, "composition.updated", TARGET, composition.id, composition.organization_id, **changed)
+    if visibility is not None:
+        audit(
+            session, actor, "composition.visibility_changed", TARGET, composition.id, composition.organization_id,
+            **{"from": previous, "to": visibility},
+        )
     return composition
 
 

@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '25bd7e5ee517'
+revision: str = '58fcac77b838'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -306,9 +306,11 @@ def upgrade() -> None:
     sa.Column('description', sa.String(length=2000), nullable=False),
     sa.Column('kind', sa.Enum('application', 'workflow', 'pipeline', 'system', name='compositionkind', native_enum=False, length=16), nullable=False),
     sa.Column('archived', sa.Boolean(), nullable=False),
+    sa.Column('visibility', sa.String(length=16), server_default='private', nullable=False),
     sa.Column('created_by_id', sa.Uuid(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint("visibility IN ('private', 'public')", name=op.f('ck_compositions_visibility')),
     sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_compositions_created_by_id_users'), ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_compositions_organization_id_organizations'), ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_compositions')),
@@ -316,6 +318,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_compositions_created_by_id'), 'compositions', ['created_by_id'], unique=False)
     op.create_index(op.f('ix_compositions_organization_id'), 'compositions', ['organization_id'], unique=False)
+    op.create_index('ix_compositions_visibility_updated', 'compositions', ['visibility', 'updated_at'], unique=False)
     op.create_table('organization_invitations',
     sa.Column('id', sa.Uuid(), nullable=False),
     sa.Column('organization_id', sa.Uuid(), nullable=False),
@@ -738,6 +741,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_organization_invitations_organization_id'), table_name='organization_invitations')
     op.drop_index(op.f('ix_organization_invitations_email'), table_name='organization_invitations')
     op.drop_table('organization_invitations')
+    op.drop_index('ix_compositions_visibility_updated', table_name='compositions')
     op.drop_index(op.f('ix_compositions_organization_id'), table_name='compositions')
     op.drop_index(op.f('ix_compositions_created_by_id'), table_name='compositions')
     op.drop_table('compositions')

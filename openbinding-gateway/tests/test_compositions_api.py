@@ -205,8 +205,6 @@ async def test_an_unreadable_composition_answers_as_a_missing_one(api_client, re
     outsider = [
         await api_client.get(base, headers=outsider_headers),
         await api_client.post(base, headers=outsider_headers, json={"slug": "x", "name": "X"}),
-        await api_client.get(f"{base}/private", headers=outsider_headers),
-        await api_client.get(f"{base}/{created.json()['id']}", headers=outsider_headers),
         await api_client.patch(f"{base}/private", headers={**outsider_headers, "If-Match": tag}, json={"name": "X"}),
         await api_client.patch(f"{base}/private", headers={**outsider_headers, "If-Match": "bad"}, json={"name": "X"}),
         await api_client.delete(f"{base}/private", headers=outsider_headers),
@@ -215,6 +213,17 @@ async def test_an_unreadable_composition_answers_as_a_missing_one(api_client, re
     for response in outsider:
         assert response.status_code == 404, response.text
         assert response.json()["detail"] == unknown.json()["detail"]
+        assert "ETag" not in response.headers
+    # The reads, open to a public composition, answer a private one as they answer a missing one, whose
+    # organization is missing too (test_compositions_public.py).
+    reads = [
+        await api_client.get(f"{base}/private", headers=outsider_headers),
+        await api_client.get(f"{base}/{created.json()['id']}", headers=outsider_headers),
+    ]
+    unknown_read = await api_client.get(f"{missing_org}/private", headers=outsider_headers)
+    for response in reads:
+        assert response.status_code == 404, response.text
+        assert response.content == unknown_read.content
         assert "ETag" not in response.headers
 
     # Another organization's composition, by slug or id, through an organization the caller can read.

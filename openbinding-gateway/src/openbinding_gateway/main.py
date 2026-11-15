@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from . import space_client
 from .jobs import reconciler as job_reconciler
 from .access.dependencies import session_dependency
-from .access.work_limits import WORK_ROUTES
+from .access.work_limits import ANONYMOUS_READ_ROUTES, WORK_ROUTES
 from .core import revision
 from .core.settings import Settings, get_settings
 from .core.logging import configure_logging
@@ -1205,6 +1205,25 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
                 JSON_MEDIA_TYPE: {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}
             }
         paths[path][method.lower()].setdefault("responses", {})["429"] = refused
+
+    # The reads of a public composition: open to visitors, who alone are charged (the `read` class), so the
+    # credential is optional there (`{}` among the security requirements).
+    for method, path in ANONYMOUS_READ_ROUTES:
+        refused = refusal(
+            "Too many `read` requests from this address by a caller with no credential: past the anonymous "
+            "budget. A signed-in caller is not charged. `Retry-After` says when the window ends."
+        )
+        refused["headers"] = {
+            "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {"type": "integer", "minimum": 1},
+            }
+        }
+        refused["content"] = {JSON_MEDIA_TYPE: {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}
+        operation = paths[path][method.lower()]
+        operation.setdefault("responses", {})["429"] = refused
+        if {} not in operation.setdefault("security", []):
+            operation["security"].append({})
 
     # One 422 for the whole API: FastAPI's default `HTTPValidationError` is
     # replaced by `Problem`, which is what the handlers in this module answer

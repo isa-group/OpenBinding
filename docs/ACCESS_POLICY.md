@@ -3,8 +3,8 @@
 The organization is the only container. Everything a person works on lives under
 `/v1/organizations/{org}/...`: its members, invitations and audit log, its problems
 (with their revisions and compilations), its runs and run presets, its studies and its compositions. There are no
-projects, and there is no public read: every route under an organization is for its
-members.
+projects, and every route under an organization is for its members, with one exception: anybody reads a
+composition its organization made public, through the same routes ([Public compositions](#public-compositions)).
 
 ## Who reaches an organization
 
@@ -17,7 +17,8 @@ the chain applies (`collaboration.effective_role`). Anybody else is refused:
   non-member too (below), and so do the compositions routes: a composition the caller cannot read
   answers exactly as a missing one, `404` and never `403`, on every route and before
   any `If-Match` handling, as SPHERE answers a private pricing ([ADR 0046](adr/0046-compositions-module.md));
-- a caller with no credential gets `401` on every route under `/v1/organizations`;
+- a caller with no credential gets `401` on every route under `/v1/organizations`, except the five reads of
+  a composition, where it is a visitor ([Public compositions](#public-compositions));
 - a platform administrator is a non-member like anybody else unless invited.
 
 API keys keep their own rules: the permission the route needs
@@ -36,7 +37,55 @@ malformed, and a malformed boundary denies everything.
 | `/runs/...` | VIEWER (redacted below MEMBER) | MEMBER | `jobs:read` / `engines:execute` |
 | `/presets`, `/presets/{preset}` | VIEWER (options redacted below MEMBER; a non-member gets `404`) | MEMBER creates, edits and deletes | `jobs:read` / `engines:execute` |
 | `/studies/...` (study runs and cells included) | VIEWER | MEMBER creates, edits and runs; ADMIN deletes | `studies:read` / `studies:write` |
-| `/compositions`, `/compositions/{composition}`, `/compositions/{composition}/versions/...`, `/compositions/{composition}/diff`, `/compositions/{composition}/fork`, `/compositions/{composition}/evaluate`, `/compositions/{composition}/neighborhood`, `/compositions/{composition}/derive` | VIEWER (a non-member gets `404`); VIEWER also checks a document (`POST …/versions/check`), compares versions, evaluates another binding of a version (`POST …/evaluate`) and explores its neighbourhood | MEMBER creates, edits, seals, re-evaluates (`POST …/versions/{version}/evaluations`) and derives versions (`POST …/derive`, from a run of the organization or a binding of one of its problems); ADMIN deletes. A fork needs read on the source and MEMBER on the target organization, which must be another one | `compositions:read` / `compositions:write` |
+| `/compositions`, `/compositions/{composition}`, `/compositions/{composition}/versions/...`, `/compositions/{composition}/diff`, `/compositions/{composition}/fork`, `/compositions/{composition}/evaluate`, `/compositions/{composition}/neighborhood`, `/compositions/{composition}/derive` | VIEWER (a non-member gets `404`; anybody reads a public composition, redacted, below); VIEWER also checks a document (`POST …/versions/check`), compares versions, evaluates another binding of a version (`POST …/evaluate`) and explores its neighbourhood | MEMBER creates, edits, seals, re-evaluates (`POST …/versions/{version}/evaluations`) and derives versions (`POST …/derive`, from a run of the organization or a binding of one of its problems); ADMIN deletes and changes `visibility`. A fork needs read on the source (member, or the source is public) and MEMBER on the target organization, which must be another one | `compositions:read` / `compositions:write` |
+
+## Public compositions
+
+A composition is `private` when it is created, and a fork is too. An ADMIN of its organization makes it
+`public` (`PATCH …/compositions/{composition}` with `visibility`; a MEMBER gets `403 organization_forbidden`),
+since publishing exposes every version's document; the change is audited as `composition.visibility_changed`
+with `{from, to}`. A public composition is read by anybody through the organization's URLs: the composition,
+its versions, a version, its content and the diff (`getComposition`, `listCompositionVersions`,
+`getCompositionVersion`, `getCompositionVersionContent`, `diffCompositionVersions`). This replaces, for
+compositions, the members-only rule of [ADR 0034](adr/0034-no-public-read-in-f0b.md).
+
+| Caller | Public composition | Private composition | Missing organization or composition |
+|---|---|---|---|
+| No credential (a visitor) | `200`, redacted | `404 not_found` | `404 not_found` |
+| Signed in, not a member | `200`, redacted | `404 not_found` | `404 not_found` |
+| Member (VIEWER or above) | `200`, whole | `200`, whole | `404 not_found` |
+
+- **One body.** For a caller who is not a member, a missing organization, a missing composition and a
+  private one answer the same bytes: `{"detail": {"code": "not_found", "error": "Composition not found."}}`,
+  so the answer says nothing of what exists.
+- **A credential that names nobody is `401`.** An expired or malformed session token, or a revoked key, gets
+  `401 unauthorized` with the challenge on these reads too, never the visitor's view: a member whose session
+  expired refreshes it instead of seeing their own private composition as missing.
+- **Redaction follows the documents.** What a version's canonical bytes carry is public with them, because
+  the bytes are served (the content, the diff): values, value status, `verified`, outcome, digests, the
+  toolchain, the problem's ref (slug and revision number) and the run and point the document's `evidence`
+  names (`evidence_run`). The run itself stays unreadable to non-members, as the problem does. What the bytes
+  do not carry is removed: `created_by_id`, the problem, revision and compilation ids and the problem's name
+  are `null`; `evaluations` holds only the current one, with no `diagnostics` and no `violations`.
+- **Lineage.** `based_on` and `forked_from` name the source only while that source is this composition or is
+  public now (read when the view is built). Otherwise `based_on` is `null` and `forked_from` keeps only
+  `droppedProblem`, so a fork of a private source, published later, names no source organization or
+  composition.
+- **Every other route stays for members**, public composition or not: `POST …/versions/check`, `evaluate`,
+  `neighborhood`, `derive`, re-evaluation, sealing and every write answer `404` to a non-member and `401` to a
+  visitor. A fork reads the source as these reads do: anybody signed in forks a public composition into an
+  organization where they are a MEMBER, and the fork is private.
+- **API keys.** The reads stay `compositions:read`. A key reads as its user: a key whose user is not a
+  member reads a public composition redacted. The key's boundary is unchanged: a key bounded to its own
+  organizations gets `403 api_key_boundary` on another organization's public composition, and on a fork
+  from it.
+- **Caching.** Every read answers `Vary: Authorization, X-API-Key`. A visitor's or a non-member's copy is
+  `Cache-Control: private, no-cache`, so a composition made private again is not served from a cache; a
+  member's content keeps `private, immutable`. The read rule runs before `If-None-Match`, so a composition
+  made private again is `404`, never `304`.
+- **Budget.** Only a visitor (no credential) is charged for these reads, one request of the `read` class
+  each, against its anonymous budget (`ANONYMOUS_READ_ROUTES` in `access/work_limits.py`). A signed-in caller
+  is never charged, so a member paging versions is not limited.
 
 ## Deleting an organization
 
@@ -97,7 +146,7 @@ cannot keep the compiler busy for everybody else, every client also has a budget
 | Class | Routes | Anonymous, per client address | Signed in, per account |
 |---|---|---|---|
 | `compile` | `POST /v1/bim/validate`, `POST /v1/organizations/{org}/problems`, `POST …/problems/{problem}/revisions`, `GET …/revisions/{revision}/compilation` | `WORK_RATE_LIMIT_COMPILE_REQUESTS` (default 10) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` (default 5) |
-| `read` | `POST /v1/compositions/validate`, `/parse`, `/serialise`, `/diff` | `WORK_RATE_LIMIT_READ_REQUESTS` (default 60) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` |
+| `read` | `POST /v1/compositions/validate`, `/parse`, `/serialise`, `/diff`; and, for a visitor only, the five reads of a public composition | `WORK_RATE_LIMIT_READ_REQUESTS` (default 60) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` (not charged on the reads of a composition) |
 | `evaluate` | `POST /v1/organizations/{org}/compositions/{composition}/versions`, `POST …/versions/check`, `POST …/fork`, `POST …/versions/{version}/evaluations`, `POST …/evaluate`, `GET …/neighborhood`, `POST …/derive` | `WORK_RATE_LIMIT_EVALUATE_REQUESTS` (default 30) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` |
 
 - **Per window.** A fixed window of `WORK_RATE_LIMIT_WINDOW_S` seconds (default 60)

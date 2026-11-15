@@ -275,12 +275,17 @@ SPHERE-generated problem recorded for its candidate).
 
 The compositions of an organization (`/v1/organizations/{org}/compositions`). A composition the caller
 cannot read answers as a missing one: `404 not_found` for a non-member and for another organization's
-composition, never `403`. A member whose role is too weak for a write gets `403 organization_forbidden`.
+composition, never `403`. A public composition is read by anybody through the five read routes; to a caller
+who is not a member, a missing organization, a missing composition and a private one give the same body. A
+credential that names nobody is `401 unauthorized` there too. A member whose role is too weak for a write gets
+`403 organization_forbidden`.
 
 | `code` | Status | Meaning |
 |---|---|---|
 | `not_found` | 404 | no such organization or composition, or the caller cannot read it; `deriveComposition`: no such run or problem revision in the organization (or the caller may not see the run) |
-| `organization_forbidden` | 403 | the caller reads the organization but its role is too weak: MEMBER creates and edits, ADMIN deletes |
+| `organization_forbidden` | 403 | the caller reads the organization but its role is too weak: MEMBER creates and edits, ADMIN deletes. `updateComposition` that changes `visibility` needs ADMIN: "Changing visibility requires ADMIN access to the organization." |
+| `unauthorized` | 401 | a read of a composition with a credential that names nobody (an expired or malformed token, a revoked key): refresh it, or send none to read as a visitor |
+| `rate_limit_exceeded` | 429 | a visitor (no credential) past the anonymous `read` budget on the reads of a public composition; `Retry-After` says when the window ends |
 | `feature_not_entitled` | 403 | `createComposition`, `forkComposition`: the caller's plan lacks the `repository` feature |
 | `slug_conflict` | 409 | the composition slug is in use in the organization (`forkComposition`: the `slug` given is in use in the target; without one, a taken slug answers 200 `{nameTaken: true, existingComposition}` and nothing is forked) |
 | `diff_version_missing` | 422 | `diffCompositionVersions` needs a default the composition cannot give: it has no version yet, or none before `to`. Name `from` |
