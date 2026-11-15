@@ -9,15 +9,12 @@ still reads the message.
 
 from __future__ import annotations
 
-from sqlalchemy import select
 
 from _b1_helpers import gate  # noqa: F401
-from openbinding_gateway.db.models import Job, JobState, StudyCell
+from openbinding_gateway.db.models import JobState
 from openbinding_gateway.security.redaction import GENERIC_ERROR, redact_error, redact_result
 from test_security_hardening import (
-    exported_jobs,
     member,
-    project_package_with_a_study_job,
     project_with_a_job,
 )
 
@@ -83,25 +80,3 @@ async def test_a_viewer_does_not_read_the_error_a_member_does(
     for response in (seen_by_member, seen_by_owner):
         assert response.status_code == 200, response.text
         assert response.json()[0]["result"]["error"] == PRIVATE_ERROR
-
-
-async def test_the_package_export_gives_a_viewer_the_same_generic_error(
-    api_client, registration, db_session, gate, monkeypatch  # noqa: F811
-):
-    slug, owner_h, url = await project_package_with_a_study_job(
-        api_client, registration, db_session, gate, monkeypatch
-    )
-    job = (await db_session.scalars(
-        select(Job).join(StudyCell, StudyCell.job_id == Job.id)
-    )).one()
-    await failed(db_session, job)
-    viewer_h = await member(api_client, registration, db_session, gate, owner_h, slug, "VIEWER")
-
-    full = await api_client.get(url, headers=owner_h)
-    redacted = await api_client.get(url, headers=viewer_h)
-
-    assert full.status_code == 200 and redacted.status_code == 200, (full.text, redacted.text)
-    assert PRIVATE_ERROR in full.text
-    [viewer_job] = exported_jobs(redacted.json())
-    assert viewer_job["result"]["error"] == GENERIC_ERROR
-    assert "10.0.0.5" not in redacted.text

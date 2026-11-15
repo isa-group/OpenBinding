@@ -2,23 +2,24 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import type { Job } from '../../api/platform';
-import { caseOf, org, project, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
+import { org, project, renderProjectScreen } from '../../features/workspace/testKit';
 import { saveBytes } from '../../features/workspace/download';
-import { INSTANCE, NEIGHBORHOOD, PROBLEM, REPORT, RESULT, S1, detailOf, jobOf } from '../../test/fixtures/jobs';
+import { NEIGHBORHOOD, PROBLEM, REPORT, RESULT, S1, detailOf, jobOf } from '../../test/fixtures/jobs';
 import { JobDetail } from './JobDetail';
 
-const jobsApi = vi.hoisted(() => ({ detail: vi.fn(), inProject: vi.fn(), mine: vi.fn(), instance: vi.fn(), cancel: vi.fn(), retry: vi.fn(), report: vi.fn(), ir: vi.fn() }));
-const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), revisions: vi.fn() }));
+const jobsApi = vi.hoisted(() => ({ detail: vi.fn(), inProject: vi.fn(), mine: vi.fn(), cancel: vi.fn(), retry: vi.fn(), report: vi.fn() }));
+const platform = vi.hoisted(() => ({ project: vi.fn() }));
+const problems = vi.hoisted(() => ({ ir: vi.fn(), revision: vi.fn() }));
 const client = vi.hoisted(() => ({ getBindingNeighborhood: vi.fn() }));
 
 vi.mock('../../api/jobs', () => ({ jobsApi }));
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../features/workspace/download', () => ({ saveBytes: vi.fn() }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
-const flujo = caseOf('flujo', 'Flujo de checkout');
 const ROOT = '/app/isa-demo/qos-benchmarks';
 const JOB_ID = '3f2b9c1e-7d41-4a8e-9b60-c5d1e2f3a4b5';
 const RUN_DIGEST = `sha256-${'ab12cd34ef56'.repeat(5)}`;
@@ -35,14 +36,12 @@ describe('One run', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
-    platform.cases.mockResolvedValue([flujo]);
-    platform.revisions.mockResolvedValue([revisionOf(flujo, 1, { source_snapshot_id: 'snapshot-1' }), revisionOf(flujo, 2, { source_snapshot_id: 'snapshot-2' })]);
     jobsApi.detail.mockResolvedValue(detailOf(JOB_ID, 'completed'));
     jobsApi.inProject.mockResolvedValue(meta('completed'));
     jobsApi.mine.mockResolvedValue([meta('completed'), jobOf('job-other-9', 'minizinc', 'completed', 'OPTIMAL', '2026-10-01T09:00:00Z', '2026-10-01T09:00:40Z')]);
-    jobsApi.instance.mockResolvedValue(INSTANCE);
     jobsApi.report.mockResolvedValue(REPORT);
-    jobsApi.ir.mockResolvedValue(PROBLEM);
+    problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: 'sha256-c', ir: PROBLEM, source_map: {} });
+    problems.revision.mockResolvedValue({ document: { apiVersion: 'bim/v1', kind: 'Instance' } });
     client.getBindingNeighborhood.mockResolvedValue(NEIGHBORHOOD);
   });
 
@@ -53,7 +52,7 @@ describe('One run', () => {
     const header = screen.getByRole('heading', { level: 1 }).closest('header') as HTMLElement;
     expect(within(header).getByText('Completed')).toBeInTheDocument();
     expect(within(header).getByText('Feasible: meets every must-hold rule')).toBeInTheDocument();
-    expect(await within(header).findByText(/launched Sep 30, 2026, 09:00 UTC by you · problem Flujo de checkout/)).toBeInTheDocument();
+    expect(await within(header).findByText(/launched Sep 30, 2026, 09:00 UTC by you · problem Checkout flow · version 2/)).toBeInTheDocument();
     expect(within(header).getByText(/random-search 1\.0\.0 · mode sampling/)).toBeInTheDocument();
     expect(within(header).queryByRole('link', { name: 'Analyze' })).not.toBeInTheDocument();
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
@@ -117,8 +116,8 @@ describe('One run', () => {
     renderJob();
 
     await screen.findByRole('region', { name: 'Chosen providers' });
-    expect(jobsApi.ir).toHaveBeenCalledTimes(1);
-    expect(jobsApi.ir).toHaveBeenCalledWith(JOB_ID);
+    expect(problems.ir).toHaveBeenCalledTimes(1);
+    expect(problems.ir).toHaveBeenCalledWith('isa-demo', 'checkout-flow', 2, 'compilation-2');
     expect(jobsApi.report).toHaveBeenCalledTimes(1);
     expect(jobsApi.report).toHaveBeenCalledWith(JOB_ID);
     expect(screen.queryByRole('region', { name: 'The engine’s own report' })).not.toBeInTheDocument();
@@ -128,7 +127,7 @@ describe('One run', () => {
 
   it('says the compiled problem is not available (404, then 409) and shows ids, with no notice for a failed report', async () => {
     const note = 'The compiled problem of this run is not available, so tasks and candidates are shown by id, without feature values, bounds or units.';
-    jobsApi.ir.mockRejectedValue(refusal(404, 'not_found'));
+    problems.ir.mockRejectedValue(refusal(404, 'not_found'));
     jobsApi.report.mockRejectedValue(refusal(410, 'gone'));
     const view = renderJob();
 
@@ -141,7 +140,7 @@ describe('One run', () => {
     expect(screen.queryByText('Payment')).not.toBeInTheDocument();
     view.unmount();
 
-    jobsApi.ir.mockRejectedValue(refusal(409, 'analysis_unavailable'));
+    problems.ir.mockRejectedValue(refusal(409, 'analysis_unavailable'));
     renderJob();
     const again = await screen.findByRole('region', { name: 'Run result' });
     expect(await within(again).findByText(note)).toBeInTheDocument();
@@ -166,16 +165,16 @@ describe('One run', () => {
       expect(await screen.findByText(words)).toBeInTheDocument();
     }
     expect(screen.queryByRole('region', { name: 'Run result' })).not.toBeInTheDocument();
-    expect(jobsApi.ir).not.toHaveBeenCalled();
+    expect(problems.ir).not.toHaveBeenCalled();
     expect(jobsApi.report).not.toHaveBeenCalled();
   });
 
-  it('says which snapshot and which problem version the run used', async () => {
+  it('says which problem version and which compilation the run used', async () => {
     renderJob();
 
     const where = (await screen.findByRole('heading', { name: 'Where this result comes from' })).closest('section') as HTMLElement;
-    expect(await within(where).findByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${ROOT}/problems/flujo/source?version=2`);
-    expect(await within(where).findByRole('link', { name: 'Flujo de checkout · version 2' })).toHaveAttribute('href', `${ROOT}/problems/flujo?version=2`);
+    expect(await within(where).findByRole('link', { name: 'Source and compiled form' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow/source?version=2');
+    expect(await within(where).findByRole('link', { name: 'Checkout flow · version 2' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow?version=2');
     expect(within(where).getByText('bim.builtin/random-search 1.0.0 · mode sampling', { exact: false })).toBeInTheDocument();
     expect(within(where).getByText('bim-reference-evaluator/v1')).toBeInTheDocument();
     expect(within(where).getByText('60 s per run')).toBeInTheDocument();
@@ -203,7 +202,10 @@ describe('One run', () => {
     await waitFor(() => expect(saveBytes).toHaveBeenCalledWith(expect.anything(), 'run-compiled-problem.json', 'application/json'));
     fireEvent.click(within(where).getByRole('button', { name: 'Download result' }));
     await waitFor(() => expect(saveBytes).toHaveBeenCalledWith(expect.anything(), 'run-result.json', 'application/json'));
-    expect(jobsApi.ir).toHaveBeenCalledWith(JOB_ID);
+    expect(problems.ir).toHaveBeenCalledWith('isa-demo', 'checkout-flow', 2, 'compilation-2');
+    fireEvent.click(within(where).getByRole('button', { name: 'Download instance' }));
+    await waitFor(() => expect(saveBytes).toHaveBeenCalledWith(expect.anything(), 'run-instance.json', 'application/json'));
+    expect(problems.revision).toHaveBeenCalledWith('isa-demo', 'checkout-flow', 2);
   });
 
   it('checks the single swaps on request, never on its own', async () => {
@@ -265,7 +267,7 @@ describe('One run', () => {
     expect(screen.getByText(/Everyone else, including platform administrators, gets this same answer\./)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'All runs' })).toHaveAttribute('href', `${ROOT}/runs`);
     expect(jobsApi.inProject).not.toHaveBeenCalled();
-    expect(jobsApi.instance).not.toHaveBeenCalled();
+    expect(problems.ir).not.toHaveBeenCalled();
   });
 
   it('explains a key without jobs:read and a gateway that does not answer', async () => {
@@ -393,8 +395,8 @@ describe('One run', () => {
     const heading = await within(run).findByRole('heading', { name: 'Why no combination works' });
     const why = heading.closest('section') as HTMLElement;
     expect(within(why).getByText(/Total latency is 742 ms/)).toBeInTheDocument();
-    expect(await within(why).findByRole('link', { name: 'See the rules' })).toHaveAttribute('href', `${ROOT}/problems/flujo?version=2`);
-    expect(within(why).getByRole('link', { name: 'Try faster providers' })).toHaveAttribute('href', `${ROOT}/workbench?case=flujo`);
+    expect(await within(why).findByRole('link', { name: 'See the rules' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow?version=2');
+    expect(within(why).getByRole('link', { name: 'Try faster providers' })).toHaveAttribute('href', '/app/isa-demo/workbench?problem=checkout-flow&revision=2');
 
     const badge = within(run).getByText('INFEASIBLE');
     const bounds = await within(run).findByRole('region', { name: 'QoS against bounds' });

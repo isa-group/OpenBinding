@@ -22,15 +22,16 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy import func, select
 
+from _problem_helpers import compiled_run_refs
 from test_concurrency_limit import a_job, set_limit
-from test_idempotency_jobs import _body, _login, _post, _snapshot
+from test_idempotency_jobs import _body, _login, _post, _revision
 from test_job_dispatch import _account
 from test_study_cell_launch import BASE, _study
 
 from openbinding_gateway import space_client
 from openbinding_gateway.access import policy
 from openbinding_gateway.core.settings import Settings, get_settings
-from openbinding_gateway.db.models import Job, JobState, InstanceSnapshot, StudyCell, StudyRun, User
+from openbinding_gateway.db.models import Job, JobState, ProblemCompilation, StudyCell, StudyRun, User
 from openbinding_gateway.domain.binding_space import (
     LIMIT_ID,
     OVER_TECHNICAL,
@@ -46,7 +47,7 @@ from openbinding_gateway.jobs import limits as job_limits
 from openbinding_gateway.models.problem import problem_body
 from openbinding_gateway.routes import jobs as job_routes
 from openbinding_gateway.routes import v1
-from openbinding_gateway.services.snapshots import Compilation, ir_analysis
+from openbinding_gateway.modules.problems.application import ir_analysis
 from openbinding_gateway.space_client import OpenCaps, OpenGate, PlanCaps
 from openbinding_gateway.space_client.open import OPEN_FEATURES
 
@@ -236,14 +237,10 @@ def test_a_binding_space_of_more_than_4300_digits_is_analysed_and_limited_withou
 
     assert analysis["bindingSpaceCardinality"] == "1" + "0" * 4320
     assert analysis["serviceTasks"] == 1440
-    compilation = Compilation(
-        archive=b"", ir={}, ir_digest="", instance_digest=None, package_digest="", compilation_digest="",
-        source_map={}, analysis=analysis,
-    )
-    assert compilation.binding_space.cardinality == "1" + "0" * 4320
-    assert compilation.binding_space_text == "1" + "0" * 4320
-    assert check(compilation.binding_space, technical_log10=4320) is None
-    assert check(compilation.binding_space, technical_log10=4319).code == OVER_TECHNICAL
+    space = BindingSpace.from_analysis(analysis)
+    assert space.cardinality == "1" + "0" * 4320
+    assert check(space, technical_log10=4320) is None
+    assert check(space, technical_log10=4319).code == OVER_TECHNICAL
 
 
 def test_a_task_without_candidates_makes_the_space_empty_not_infinite():
@@ -336,10 +333,10 @@ def size_limit(monkeypatch, log10: float) -> None:
 async def test_a_job_above_the_limit_is_refused_and_leaves_nothing_behind(
     api_client, db_session, registration, dispatched, monkeypatch
 ):
-    size_limit(monkeypatch, 0.1)
     headers = await _login(api_client, registration())
-    snapshot = await _snapshot(api_client, headers)
-    snapshots = await count(db_session, InstanceSnapshot)
+    snapshot = await _revision(api_client, headers)
+    snapshots = await count(db_session, ProblemCompilation)
+    size_limit(monkeypatch, 0.1)
 
     refused = await _post(api_client, headers, _body(snapshot), key="too-big")
 
@@ -353,9 +350,9 @@ async def test_a_job_above_the_limit_is_refused_and_leaves_nothing_behind(
     assert body["quota"]["used"] == pytest.approx(math.log10(2), abs=1e-5)
     assert body["binding_space"]["cardinality"] == "2" and body["binding_space"]["kind"] == "estimate"
     assert json.loads(json.dumps(body, allow_nan=False)) == body
-    # No effect: no job, no slot, no snapshot written by the submission, nothing handed to a worker.
+    # No effect: no job, no slot, no compilation written by the submission, nothing handed to a worker.
     assert await count(db_session, Job) == 0
-    assert await count(db_session, InstanceSnapshot) == snapshots
+    assert await count(db_session, ProblemCompilation) == snapshots
     assert await job_limits.count_in_flight(db_session, await db_session.scalar(select(User.id))) == 0
     assert dispatched == []
 
@@ -374,10 +371,10 @@ async def test_validation_reports_the_same_refusal_without_creating_anything(
 
     size_limit(monkeypatch, 0.1)
     headers = await _login(api_client, registration())
-    jobs, snapshots = await count(db_session, Job), await count(db_session, InstanceSnapshot)
+    jobs, snapshots = await count(db_session, Job), await count(db_session, ProblemCompilation)
 
     refused = await api_client.post(
-        "/v1/validate",
+        "/v1/bim/validate",
         content=load_package(REPO_ROOT / "examples/demo/01_simple_seq").to_zip(),
         headers={**headers, "Content-Type": "application/vnd.bim+zip"},
     )
@@ -385,7 +382,7 @@ async def test_validation_reports_the_same_refusal_without_creating_anything(
     assert refused.status_code == 422, refused.text
     assert refused.json()["code"] == OVER_TECHNICAL
     assert refused.json()["quota"]["state"] == "exhausted"
-    assert (await count(db_session, Job), await count(db_session, InstanceSnapshot)) == (jobs, snapshots)
+    assert (await count(db_session, Job), await count(db_session, ProblemCompilation)) == (jobs, snapshots)
 
 
 # -- Retrying and replaying cost nothing twice -----------------------------------
@@ -396,7 +393,7 @@ async def test_an_idempotent_replay_is_not_measured_again_and_takes_no_second_sl
 ):
     size_limit(monkeypatch, 5)
     headers = await _login(api_client, registration())
-    snapshot = await _snapshot(api_client, headers)
+    snapshot = await _revision(api_client, headers)
     first = await _post(api_client, headers, _body(snapshot), key="once")
     assert first.status_code == 202, first.text
 
@@ -420,7 +417,10 @@ async def test_retrying_a_job_holds_its_size_against_the_limit_and_a_refusal_wri
 ):
     size_limit(monkeypatch, 3)
     user_id, headers = await _account(api_client, registration)
-    failed = a_job(user_id, JobState.FAILED, instance_complexity={"bindingSpace": str(10**6)})
+    failed = a_job(
+        user_id, JobState.FAILED, instance_complexity={"bindingSpace": str(10**6)},
+        **await compiled_run_refs(db_session, user_id),
+    )
     db_session.add(failed)
     await db_session.flush()
 
@@ -444,9 +444,9 @@ async def test_retrying_a_job_holds_its_size_against_the_limit_and_a_refusal_wri
 async def test_a_retry_of_a_job_with_no_recorded_size_is_not_measured(
     api_client, db_session, registration, dispatched, monkeypatch
 ):
-    size_limit(monkeypatch, 0)
     user_id, headers = await _account(api_client, registration)
-    failed = a_job(user_id, JobState.FAILED)
+    failed = a_job(user_id, JobState.FAILED, **await compiled_run_refs(db_session, user_id))
+    size_limit(monkeypatch, 0)
     db_session.add(failed)
     await db_session.flush()
 
@@ -490,7 +490,7 @@ async def test_the_concurrency_limit_frees_a_slot_when_a_job_ends_and_counts_not
 ):
     set_limit(monkeypatch, 1)
     headers = await _login(api_client, registration())
-    snapshot = await _snapshot(api_client, headers)
+    snapshot = await _revision(api_client, headers)
 
     for round_number in range(3):
         created = await _post(api_client, headers, _body(snapshot), key=f"round-{round_number}")
@@ -510,7 +510,7 @@ async def test_the_concurrency_refusal_names_its_limit_for_the_frontend(
 ):
     set_limit(monkeypatch, 1)
     headers = await _login(api_client, registration())
-    snapshot = await _snapshot(api_client, headers)
+    snapshot = await _revision(api_client, headers)
     await _post(api_client, headers, _body(snapshot), key="holds-the-slot")
 
     refused = await _post(api_client, headers, _body(snapshot), key="refused")

@@ -12,6 +12,7 @@ import pytest
 
 from bim_core.canonical import digest
 from job_polling import wait_for_job
+from problem_upload import upload_problem
 
 
 GATEWAY_URL = "http://127.0.0.1:8000"
@@ -125,13 +126,16 @@ def _wait_for_job(
 
 
 @pytest.mark.integration
-def test_health_and_v1_profiles_are_available() -> None:
+def test_health_the_engine_protocol_and_the_templates_are_available() -> None:
     with httpx.Client(base_url=GATEWAY_URL, timeout=10.0) as client:
         health = client.get("/health")
-        profiles = client.get("/v1/profiles")
+        protocol = client.get("/v1/engines/protocol")
+        templates = client.get("/v1/bim/templates")
     assert health.status_code == 200
-    assert profiles.status_code == 200, profiles.text
-    assert any(profile["id"] == "qos-binding/v1" for profile in profiles.json()["profiles"])
+    assert protocol.status_code == 200, protocol.text
+    assert templates.status_code == 200, templates.text
+    assert any(profile["id"] == "qos-binding/v1" for profile in protocol.json()["profiles"])
+    assert "demo/01_simple_seq" in templates.json()["templates"]
 
 
 @pytest.mark.integration
@@ -142,26 +146,23 @@ def test_every_builtin_engine_executes_only_canonical_ir_and_returns_a_reevaluat
     with httpx.Client(base_url=GATEWAY_URL, timeout=20.0) as client:
         headers = _register_and_login(client)
 
-        example = client.get(f"/v1/examples/{case.example}")
-        assert example.status_code == 200, example.text
-        assert example.headers["content-type"].startswith("application/vnd.bim+zip")
-        snapshot = client.post(
-            "/v1/instances",
-            headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-            content=example.content,
-        )
-        assert snapshot.status_code == 201, snapshot.text
-        snapshot_body = snapshot.json()
-
+        template = client.get(f"/v1/bim/templates/{case.example}")
+        assert template.status_code == 200, template.text
+        assert template.headers["content-type"].startswith("application/vnd.bim+zip")
         analysis = client.post(
-            "/v1/validate",
-            headers=headers,
-            json={"snapshot": snapshot_body["id"]},
+            "/v1/bim/validate",
+            headers={**headers, "Content-Type": "application/vnd.bim+zip"},
+            content=template.content,
         )
         assert analysis.status_code == 200, analysis.text
+        validated = analysis.json()
+        upload = upload_problem(client, headers, template.content)
+        revision = upload["revision"]
+        assert revision["package_digest"] == validated["packageDigest"]
+        assert upload["compilation"]["ir_digest"] == validated["irDigest"]
         selections = [
             selection
-            for selection in analysis.json()["compatibleModes"]
+            for selection in validated["compatibleModes"]
             if selection["engine"]["name"] == case.name
             and selection["mode"] == case.mode
         ]
@@ -180,7 +181,7 @@ def test_every_builtin_engine_executes_only_canonical_ir_and_returns_a_reevaluat
             "/v1/jobs",
             headers={**headers, "Idempotency-Key": f"conformance-{case.name}-{uuid.uuid4()}"},
             json={
-                "snapshot": snapshot_body["id"],
+                "revision": revision["id"],
                 "engine": selection["engine"],
                 "registration": selection["registration"],
                 "mode": case.mode,
@@ -190,10 +191,13 @@ def test_every_builtin_engine_executes_only_canonical_ir_and_returns_a_reevaluat
         )
         assert accepted.status_code == 202, accepted.text
         accepted_body = accepted.json()
-        assert accepted_body["irDigest"] == snapshot_body["irDigest"]
+        assert accepted_body["irDigest"] == validated["irDigest"]
 
         job = _wait_for_job(client, accepted_body["id"], headers)
         assert job["status"] == "completed", json.dumps(job, sort_keys=True)
+        # The run names the revision it was launched from and the compilation the upload stored.
+        assert job["revision"]["id"] == revision["id"]
+        assert job["compilation"]["id"] == upload["compilation"]["id"]
         result = job["result"]
         assert result["termination"] in case.terminations
         assert result["termination"] != "UNKNOWN"
@@ -215,9 +219,12 @@ def test_every_builtin_engine_executes_only_canonical_ir_and_returns_a_reevaluat
             assert isinstance(solution["penalties"], list)
             assert isinstance(solution["violations"], list)
 
-        ir_response = client.get(f"/v1/jobs/{accepted_body['id']}/ir", headers=headers)
+        revision_path = upload["revision_path"]
+        ir_response = client.get(
+            f"{revision_path}/compilations/{upload['compilation']['id']}/ir", headers=headers,
+        )
         assert ir_response.status_code == 200, ir_response.text
-        ir = ir_response.json()
+        ir = ir_response.json()["ir"]
         assert ir["apiVersion"] == "bim/v1"
         assert ir["kind"] == "BindingProblem"
         assert set(ir) == {"apiVersion", "kind", "metadata", "spec"}
@@ -233,10 +240,12 @@ def test_every_builtin_engine_executes_only_canonical_ir_and_returns_a_reevaluat
         assert provenance["profile"]["id"] == "qos-binding/v1"
         assert provenance["ir"] == {"apiVersion": "bim/v1", "kind": "BindingProblem"}
         assert provenance["irDigest"] == accepted_body["irDigest"]
-        assert provenance["instanceDigest"] == snapshot_body["instanceDigest"]
-        assert provenance["packageDigest"] == snapshot_body["packageDigest"]
-        assert provenance["fileDigests"] == snapshot_body["fileDigests"]
-        assert provenance["resourceDigests"] == snapshot_body["resourceDigests"]
+        assert provenance["instanceDigest"] == validated["instanceDigest"]
+        assert provenance["packageDigest"] == validated["packageDigest"]
+        assert provenance["fileDigests"] == validated["fileDigests"]
+        assert provenance["resourceDigests"] == validated["resourceDigests"]
+        assert provenance["revisionId"] == revision["id"]
+        assert provenance["compilationId"] == upload["compilation"]["id"]
         assert provenance["terminationGuarantees"] == list(case.terminations)
         assert provenance["compiler"] == "bim-compiler/v1"
         assert provenance["evaluator"] == "bim-reference-evaluator/v1"
@@ -267,12 +276,9 @@ def test_every_builtin_engine_executes_only_canonical_ir_and_returns_a_reevaluat
         assert report["remote"]["algorithm"] == case.reported_algorithm
         assert report["provenance"] == provenance
 
-        instance_response = client.get(
-            f"/v1/jobs/{accepted_body['id']}/instance",
-            headers=headers,
-        )
-        assert instance_response.status_code == 200, instance_response.text
-        source_instance = instance_response.json()["instance"]
+        source_response = client.get(f"{revision_path}", headers=headers)
+        assert source_response.status_code == 200, source_response.text
+        source_instance = source_response.json()["document"]
         assert source_instance["kind"] == "Instance"
 
     # All deployments expose the same strict private protocol.  A source

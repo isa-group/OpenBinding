@@ -1,27 +1,5 @@
-import type { ArtifactRef, ArtifactVersion } from '../../api/library';
-
-/** Shared by the tests of the case screens: library references, revision documents and a compiled form to read. */
+/** Shared by the tests of the case screens: digests, a compiled form to read and the contents of a checkout package. */
 export const digestOf = (char: string) => `sha256-${char.repeat(64)}`;
-
-export const refOf = (name: string, version: string, char: string): ArtifactRef => ({
-  namespace: 'isa-demo', name, version, versionDigest: digestOf(char),
-});
-
-export type UseSpec = [role: string, alias: string, ref: ArtifactRef];
-
-/** The source document a revision stores: the Instance, with the exact library versions under `spec.resources`. */
-export function revisionDocument(uses: UseSpec[], profile = 'qos-binding/v1'): Record<string, unknown> {
-  const resources: Record<string, Record<string, ArtifactRef>> = {};
-  for (const [role, alias, ref] of uses) (resources[role] ??= {})[alias] = ref;
-  return { apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: 'checkout' }, spec: { profile, resources } };
-}
-
-export function versionOf(ref: ArtifactRef, artifactId: string, over: Partial<ArtifactVersion> = {}): ArtifactVersion {
-  return {
-    id: `version-${artifactId}-${ref.version}`, artifact_id: artifactId, ordinal: Number(ref.version) || 1, ref, contentDigest: digestOf('c'),
-    manifest: { mediaType: 'application/json', contracts: [], dependencies: [] }, based_on_id: null, public: false, withdrawn: false, ...over,
-  };
-}
 
 const taskRef = (id: string) => ({ resource: 'app', id });
 const node = (id: string) => ({ kind: 'task', task: taskRef(id) });
@@ -113,7 +91,7 @@ export function irDocument(pay = 8): Record<string, unknown> {
   };
 }
 
-/** The library contents behind the four parts of the checkout, as the sealed versions hold them. */
+/** The resources of the checkout package: its application, candidates, rules and goal. */
 export const sourceContents = {
   application: {
     apiVersion: 'qos-binding/v1', kind: 'Application', metadata: { name: 'checkout-app' },

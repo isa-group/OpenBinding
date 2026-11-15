@@ -1,15 +1,14 @@
-import { loadCases } from '../Project/projectData';
+import type { JobDetail } from '../../api/jobs';
 import type { Origin } from './JobResult';
 
-/** The case revision of the project that was sealed from this snapshot, if there is one: what a run "used" from the project's side. */
-export async function findOrigin(org: string, project: string, snapshotId: string): Promise<Origin | null> {
-  try {
-    for (const entry of await loadCases(org, project)) {
-      const revision = entry.revisions.find((candidate) => candidate.source_snapshot_id === snapshotId);
-      if (revision) return { caseSlug: entry.item.slug, caseName: entry.item.name, revision: revision.revision };
-    }
-  } catch {
-    /* the case list is a convenience here, never a reason to hide the run */
-  }
-  return null;
+/** What a run is of, from the references it names: its organization, problem, version and compilation. `null` when it names none. */
+export function originOf(detail: Pick<JobDetail, 'organization' | 'problem' | 'revision' | 'compilation'> | undefined): Origin | null {
+  if (!detail?.organization || !detail.problem || !detail.revision) return null;
+  return {
+    org: detail.organization.slug,
+    caseSlug: detail.problem.slug,
+    caseName: detail.problem.name,
+    revision: detail.revision.revision,
+    compilationId: detail.compilation?.id ?? null,
+  };
 }

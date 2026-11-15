@@ -31,9 +31,9 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
-    LargeBinary,
     String,
     UniqueConstraint,
     Uuid,
@@ -194,6 +194,14 @@ class Job(Base):
             sqlite_where=text("study_cell_id IS NOT NULL"),
             postgresql_where=text("study_cell_id IS NOT NULL"),
         ),
+        # The compilation a run executes belongs to the revision it names (D5): the database
+        # refuses a run that names one revision and carries another's IR.
+        ForeignKeyConstraint(
+            ["compilation_id", "revision_id"],
+            ["problem_compilations.id", "problem_compilations.revision_id"],
+            ondelete="RESTRICT",
+            name="fk_jobs_compilation_revision",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -220,14 +228,12 @@ class Job(Base):
     instance_complexity: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     result: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     termination: Mapped[Optional[str]] = mapped_column(String(16), nullable=True, index=True)
-    # v1 jobs pin the immutable source snapshot and every request identity so
-    # a restart or a second replica can answer the same polling request.
-    configuration_version_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("artifact_versions.id", ondelete="RESTRICT"), nullable=True, index=True
+    # A run pins the problem revision it runs and the compilation whose IR the engine gets (D5),
+    # and every request identity, so a restart or a second replica answers the same polling request.
+    revision_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("binding_case_revisions.id", ondelete="RESTRICT"), nullable=False, index=True
     )
-    instance_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("v1_instance_snapshots.id", ondelete="SET NULL"), nullable=True, index=True
-    )
+    compilation_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
     provenance: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     idempotency_key: Mapped[Optional[str]] = mapped_column(String(256), nullable=True, index=True)
     idempotency_fingerprint: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
@@ -253,8 +259,9 @@ class Job(Base):
     retry_of_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True
+    #: The organization of the problem the run is of: every revision has one, so every run does.
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     project_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
@@ -303,62 +310,6 @@ class RefreshToken(Base):
             # SQLite hands back naive datetimes; the value is UTC either way.
             expires_at = expires_at.replace(tzinfo=timezone.utc)
         return expires_at > utcnow()
-
-
-class InstanceSnapshot(Base):
-    """Immutable v1 source index retained independently from a solve job."""
-
-    __tablename__ = "v1_instance_snapshots"
-    __table_args__ = (UniqueConstraint("owner_id", "package_digest", "compilation_digest", name="uq_v1_snapshot_owner_package"),)
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    name: Mapped[str] = mapped_column(String(128), nullable=False)
-    instance_digest: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
-    package_digest: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
-    root_document: Mapped[dict] = mapped_column(JSON, nullable=False)
-    resource_digests: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    compilation_digest: Mapped[str] = mapped_column(String(80), nullable=False, default="")
-    source_archive: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
-
-
-class InstanceResource(Base):
-    __tablename__ = "v1_instance_resources"
-    __table_args__ = (
-        UniqueConstraint("snapshot_id", "resource_id", name="uq_v1_resource_snapshot_id"),
-        UniqueConstraint("snapshot_id", "path", name="uq_v1_resource_snapshot_path"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    snapshot_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("v1_instance_snapshots.id", ondelete="CASCADE"), nullable=False, index=True)
-    resource_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    role: Mapped[str] = mapped_column(String(128), nullable=False)
-    api_version: Mapped[str] = mapped_column(String(255), nullable=False)
-    kind: Mapped[str] = mapped_column(String(128), nullable=False)
-    dialect_id: Mapped[str] = mapped_column(String(132), nullable=False)
-    path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
-    digest: Mapped[str] = mapped_column(String(80), nullable=False)
-    registered_namespace: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    registered_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    registered_version: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    registered_digest: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
-    media_type: Mapped[str] = mapped_column(String(128), nullable=False)
-    document: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-
-
-class BindingIRSnapshot(Base):
-    __tablename__ = "v1_binding_ir"
-    __table_args__ = (UniqueConstraint("snapshot_id", name="uq_v1_ir_snapshot"),)
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    snapshot_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("v1_instance_snapshots.id", ondelete="CASCADE"), nullable=False, index=True)
-    ir_digest: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
-    document: Mapped[dict] = mapped_column(JSON, nullable=False)
-    source_map: Mapped[dict] = mapped_column(JSON, nullable=False)
-    compiler_version: Mapped[str] = mapped_column(String(64), nullable=False, default="bim-compiler/v1")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
 
 
 class EngineRevision(Base):
@@ -532,12 +483,13 @@ from .platform_models import (  # noqa: E402,F401
     StudyState,
     Visibility,
     PasswordResetToken,
+    ProblemCompilation,
 )
 
 from .artifact_models import (  # noqa: E402,F401
     ArtifactCaseReference,
     Artifact, ArtifactVersion, ArtifactDraft, ArtifactDependency,
-    ArtifactPublication, ProjectArtifact, CaseArtifact,
+    ArtifactPublication, ProjectArtifact,
 )
 
 # Last, once every table above is in the metadata: the triggers of db/triggers.py (D2).

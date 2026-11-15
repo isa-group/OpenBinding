@@ -58,7 +58,6 @@ export const EXAMPLE = {
   project: 'qos-benchmarks',
   case: 'checkout-flow',
   revision: '2',
-  snapshot: '00000000-0000-4000-8000-0000000000e1',
   artifact: 'providers-eu',
   draft: 'draft-providers-4',
   version: '3',
@@ -82,9 +81,9 @@ const PARAMS_OF: Record<string, Record<string, string>> = {
 /** The query string that makes a screen show something instead of its starting point. */
 const QUERY_OF: Record<string, string> = {
   'eng-registration-detail': `?namespace=alex.rivera&version=0.3.1&digest=sha256-${'e5f6'.repeat(16)}`,
-  'job-launch': '?case=checkout-flow&revision=2',
+  'job-launch': '?problem=checkout-flow&revision=2',
   'study-builder': '?case=checkout-flow&revision=2',
-  'wb-workbench': '?case=checkout-flow&revision=2',
+  'wb-workbench': '?problem=checkout-flow&revision=2',
 };
 
 export function readGalleryScreens(): GalleryScreen[] {

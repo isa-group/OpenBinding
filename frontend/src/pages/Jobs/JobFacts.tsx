@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import type { JobInstanceView } from '../../api/jobs';
+import type { JobCompilationRef } from '../../api/platform';
 import { Chip } from '../../components/ui/Chip';
 import { DataTable } from '../../components/ui/DataTable';
 import { useCopy } from '../../components/ui/useCopy';
@@ -73,7 +73,7 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 
 interface ProvenanceProps {
   provenance: Record<string, unknown>;
-  instance: JobInstanceView | null;
+  compilation: JobCompilationRef | null;
   origin: Origin | null;
   root: string;
   created?: string | null;
@@ -81,8 +81,8 @@ interface ProvenanceProps {
   actions: ReactNode;
 }
 
-/** Where this result comes from: the compiled problem, the engine, the checker, the snapshot and the case revision it used. */
-export function Provenance({ provenance, instance, origin, root, created, retryOf, actions }: ProvenanceProps) {
+/** Where this result comes from: the problem version and compilation it ran, the engine and the checker. */
+export function Provenance({ provenance, compilation, origin, root, created, retryOf, actions }: ProvenanceProps) {
   const pins = readPins(provenance);
   const { copy, status } = useCopy();
   const digest = (value: string | null, key: string, label: string) => value && (
@@ -96,20 +96,18 @@ export function Provenance({ provenance, instance, origin, root, created, retryO
     <section className="job-card" aria-labelledby="job-provenance">
       <h2 id="job-provenance">Where this result comes from</h2>
       <div className="job-facts-grid">
-        <Fact label="Snapshot used">
-          {instance
-            ? (origin
-              ? <Link to={problemPath(root, origin.caseSlug, 'source', { version: origin.revision })} viewTransition>Compiled snapshot</Link>
-              : 'Compiled snapshot')
-            : 'Not kept for this run'}
-        </Fact>
         <Fact label="Problem version">
           {origin
-            ? <Link to={problemPath(root, origin.caseSlug, undefined, { version: origin.revision })} viewTransition>{origin.caseName} · version {origin.revision}</Link>
-            : 'Not from a version of this project'}
+            ? <Link to={problemPath(origin.org, origin.caseSlug, undefined, { version: origin.revision })} viewTransition>{origin.caseName} · version {origin.revision}</Link>
+            : 'Not recorded'}
+        </Fact>
+        <Fact label="Compilation">
+          {compilation && origin
+            ? <><Link to={problemPath(origin.org, origin.caseSlug, 'source', { version: origin.revision })} viewTransition>Source and compiled form</Link> {digest(compilation.compilation_digest, 'compilation', 'compilation')}</>
+            : '—'}
         </Fact>
         <Fact label="Compiled problem">{digest(pins.compiledForm, 'ir', 'compiled problem') || '—'}</Fact>
-        <Fact label="Instance">{digest(instance?.instanceDigest ?? pins.instance, 'instance', 'instance') || '—'}</Fact>
+        <Fact label="Instance">{digest(pins.instance, 'instance', 'instance') || '—'}</Fact>
         <Fact label="Engine">
           {pinText(pins.engine) ?? '—'}{pins.mode ? ` · mode ${pins.mode}` : ''}
           {pins.engine?.digest && <> {digest(pins.engine.digest, 'engine', 'engine')}</>}

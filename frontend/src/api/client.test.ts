@@ -33,16 +33,6 @@ describe('BIM v1 Engine API client', () => {
     vi.stubGlobal('fetch', fetchMock);
   });
 
-  it('executes an exact library configuration without inline settings', async () => {
-    const configuration = { namespace: 'lab', name: 'search', version: '2', versionDigest: DIGEST };
-    fetchMock.mockResolvedValueOnce(jsonResponse({ id: 'job', status: 'queued', irDigest: DIGEST }, 202));
-    await client.createConfiguredBimJob('snapshot', configuration);
-    const [url, request] = fetchMock.mock.calls[0];
-    expect(url).toBe('https://gateway.example/v1/jobs');
-    expect(JSON.parse(String(request?.body))).toEqual({ snapshot: 'snapshot', configuration });
-    expect(new Headers(request?.headers).get('Idempotency-Key')).toBeTruthy();
-  });
-
   it('publishes the Engine resource itself, without a compatibility wrapper', async () => {
     const manifest: EngineManifest = {
       apiVersion: 'bim/v1',
@@ -220,8 +210,6 @@ describe('a 422 is an error unless the caller asks for its body', () => {
     ['unlinkOwnIdentity', (api: ApiClient) => api.unlinkOwnIdentity('identity')],
     ['revokeApiKey', (api: ApiClient) => api.revokeApiKey('key')],
     ['rotateApiKey', (api: ApiClient) => api.rotateApiKey('key')],
-    ['createBimJob', (api: ApiClient) => api.createBimJob('snapshot', REF, REF, 'mode')],
-    ['createConfiguredBimJob', (api: ApiClient) => api.createConfiguredBimJob('snapshot', { namespace: 'lab', name: 'search', version: '2', versionDigest: DIGEST })],
     ['createCasLinkIntent', (api: ApiClient) => api.createCasLinkIntent()],
     ['adminRevokeApiKey', (api: ApiClient) => api.adminRevokeApiKey('user', 'key')],
     ['activateEngineRegistration', (api: ApiClient) => api.activateEngineRegistration(REF)],
@@ -239,13 +227,6 @@ describe('a 422 is an error unless the caller asks for its body', () => {
     await expect(client.request('/v1/anything', {}, undefined, true, false)).resolves.toEqual({ detail: 'not a result' });
     fetchMock.mockResolvedValueOnce(jsonResponse({ detail: 'not a result' }, 422));
     await expect(client.request('/v1/anything')).rejects.toMatchObject({ status: 422 });
-  });
-
-  it('keeps a refused package as a result of validatePackage', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ title: 'invalid_package', status: 422, diagnostics: [{ message: 'bad file' }] }, 422));
-    await expect(client.validatePackage(new Uint8Array([1]))).resolves.toMatchObject({ valid: false, refusal: { code: 'invalid_package' } });
-    fetchMock.mockResolvedValueOnce(jsonResponse({ type: 't', title: 'invalid_instance', code: 'invalid_instance', status: 422, detail: 'Instance refused', diagnostics: [{ code: 'x', message: 'bad file' }] }, 422));
-    await expect(client.validatePackage(new Uint8Array([1]))).resolves.toMatchObject({ valid: false, refusal: { code: 'invalid_instance', message: 'Instance refused' } });
   });
 });
 

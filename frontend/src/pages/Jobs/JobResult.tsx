@@ -7,16 +7,19 @@ import { SourceView } from '../../components/rendering/SourceView';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
-import { problemPath } from '../../routes/paths/problems';
+import { problemPath, workbenchPath } from '../../routes/paths/problems';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import { normalizeStatus, numberText, violationsOf } from './jobsModel';
 import { useRunProblem } from './useRunProblem';
 import type { Neighborhood } from '../../analysis/neighborhood';
 
+/** What a run is of: the organization and problem it names, the version and the compilation it ran. */
 export interface Origin {
+  org: string;
   caseSlug: string;
   caseName: string;
   revision: number;
+  compilationId: string | null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -29,7 +32,7 @@ const providerText = (value: unknown): string => {
 };
 
 /** Why no combination works: the rules the best attempt still breaks, when the result names them. */
-function Infeasible({ solution, root, origin }: { solution: JobSolution | undefined; root: string; origin: Origin | null }) {
+function Infeasible({ solution, origin }: { solution: JobSolution | undefined; origin: Origin | null }) {
   const broken = violationsOf(solution);
   return (
     <section className="job-card is-warning" aria-labelledby="job-infeasible">
@@ -46,8 +49,8 @@ function Infeasible({ solution, root, origin }: { solution: JobSolution | undefi
       )}
       {origin && (
         <span className="job-links">
-          <Link to={`${root}/workbench?case=${encodeURIComponent(origin.caseSlug)}`} viewTransition>Try faster providers</Link>
-          <Link to={problemPath(root, origin.caseSlug, undefined, { version: origin.revision })} viewTransition>See the rules</Link>
+          <Link to={workbenchPath(origin.org, { problem: origin.caseSlug, revision: origin.revision })} viewTransition>Try faster providers</Link>
+          <Link to={problemPath(origin.org, origin.caseSlug, undefined, { version: origin.revision })} viewTransition>See the rules</Link>
         </span>
       )}
     </section>
@@ -144,17 +147,16 @@ function NeighborhoodPanel({ jobId }: { jobId: string }) {
 interface ResultSectionProps {
   detail: JobDetail;
   jobId: string;
-  root: string;
   origin: Origin | null;
 }
 
 /** The authoritative result: what the gateway re-evaluated, in the shape of the state the run ended in. */
-export function ResultSection({ detail, jobId, root, origin }: ResultSectionProps) {
+export function ResultSection({ detail, jobId, origin }: ResultSectionProps) {
   const state = normalizeStatus(detail.status);
   const result = detail.result ?? null;
   const solutions = Array.isArray(result?.solutions) ? result.solutions.filter(isRecord) as JobSolution[] : [];
   const completed = state !== 'queued' && state !== 'running' && state !== 'cancelled' && state !== 'failed';
-  const { problem, constraints } = useRunProblem(jobId, completed);
+  const { problem, constraints } = useRunProblem(origin, completed);
   const [report, setReport] = useState<JobReport | null>(null);
 
   useEffect(() => {
@@ -186,7 +188,7 @@ export function ResultSection({ detail, jobId, root, origin }: ResultSectionProp
       problem={problem}
       constraints={constraints}
       report={report}
-      notice={infeasible ? <Infeasible solution={solutions[0]} root={root} origin={origin} /> : undefined}
+      notice={infeasible ? <Infeasible solution={solutions[0]} origin={origin} /> : undefined}
     >
       {solutions.length > 0 && !infeasible && (
         <>

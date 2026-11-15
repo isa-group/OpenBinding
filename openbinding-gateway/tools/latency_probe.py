@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
-"""Lab latency probe: p95 of ``POST /v1/jobs`` (accept) and ``POST /v1/validate`` on corpus packages.
+"""Lab latency probe: p95 of the problem upload, ``POST /v1/jobs`` (accept) and ``POST /v1/bim/validate`` on corpus packages.
 
 It talks only HTTP (httpx) to the ``web`` service as a seeded synthetic user, one client, one request at a time. Only
-the request itself is timed (for the ZIP variant that includes the multipart encoding; the Idempotency-Key is built
-before the clock starts); the answers that are not the expected success are counted as errors and never enter the
-percentiles. ``POST /v1/jobs`` is timed in the accept variants selected with ``--variants`` (default both: a snapshot id
-in JSON, and a multipart ZIP upload). The gateway currently refuses every ZIP accept (``422 optimization_required``,
-the multipart form fields are ignored); a row whose every answer is that refusal is reported as ``blockedByGateway``
-and does not count for the verdict. Every accepted job is cancelled and drained to a terminal state before the next
-accept (the lab allows 3 concurrent jobs per account); that part is not timed. The probe never prints the password or
-a token.
+the request itself is timed (the Idempotency-Key is built before the clock starts); the answers that are not the
+expected success are counted as errors and never enter the percentiles. Each package is first uploaded as a problem of
+the ``--org`` organization (slug ``latency-<package>``; a problem left by an earlier run is reused), and then:
+
+* the upload is timed as ``POST /v1/organizations/{org}/problems/{problem}/revisions`` of the same package, which
+  compiles it and answers ``200`` (it already is that problem's revision, so nothing is stored);
+* ``POST /v1/jobs`` is timed as the accept of a run of that revision; every accepted job is cancelled and drained to a
+  terminal state before the next accept (the lab allows 3 concurrent jobs per account), which is not timed;
+* ``POST /v1/bim/validate`` is timed on the same package.
+
+The probe never prints the password or a token.
 
 Output: ONE JSON document on stdout (``--markdown`` prints the same table as Markdown), also when the run fails: the
 rows measured so far and ``error`` are in it.
-Exit code: 0 at least one row is not blocked and every row that is not blocked meets its target, 1 a target is missed
+Exit code: 0 every row meets its target, 1 a target is missed
 (a measurement, not a defect of the tool) or the run failed after the packages were loaded (a job that could not be
 drained, an unexpected answer), 2 configuration error or failure before any package was loaded, 3 blocked by SPACE
 (``503 pricing_unavailable``; not a miss).
@@ -23,8 +26,8 @@ Environment:
     SMOKE_BASE_URL       optional; default http://web:8080 (the proxy inside the lab network).
 
 Usage:
-    python tools/latency_probe.py [--base-url URL] [--user lab-member] [--samples 40] [--warmup 3]
-                                  [--examples top3|all|a,b] [--variants snapshot,zip] [--markdown]
+    python tools/latency_probe.py [--base-url URL] [--user lab-member] [--org lab-main] [--samples 40] [--warmup 3]
+                                  [--examples top3|all|a,b] [--markdown]
 """
 
 from __future__ import annotations
@@ -56,9 +59,8 @@ JOB_BODY = {
     "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"}, "options": {"iterations": 10, "seed": 1},
 }
 TOP = 3
-VARIANTS = ("snapshot", "zip")
-ZIP_REFUSAL = "422 optimization_required"
 DRAIN_ATTEMPTS, DRAIN_POLL_S = 120, 0.5
+UPLOAD, JOBS, VALIDATE = "POST /v1/organizations/{org}/problems/{problem}/revisions", "POST /v1/jobs", "POST /v1/bim/validate"
 
 
 class Blocked(Exception):
@@ -73,11 +75,12 @@ class ProbeError(Exception):
 class Config:
     base_url: str = DEFAULT_BASE_URL
     user: str = "lab-member"
+    org: str = "lab-main"
     password: str = ""
     samples: int = 40
     warmup: int = 3
     examples: str = "top3"
-    variants: tuple[str, ...] = VARIANTS
+    upload_target_ms: float = 2000.0
     jobs_target_ms: float = 500.0
     validate_target_ms: float = 2000.0
 
@@ -154,17 +157,17 @@ class Probe:
         choice = self.config.examples
         listed = choice in {"top3", "all"}
         if listed:
-            listing = self.call("GET", "/v1/examples")
-            names = listing.json().get("examples") if listing.status_code == 200 else None
+            listing = self.call("GET", "/v1/bim/templates")
+            names = listing.json().get("templates") if listing.status_code == 200 else None
             if not isinstance(names, list) or not names:
-                raise ProbeError(f"GET /v1/examples answered {listing.status_code}")
+                raise ProbeError(f"GET /v1/bim/templates answered {listing.status_code}")
         else:
             names = [name.strip() for name in choice.split(",") if name.strip()]
             if not names:
                 raise ProbeError("no example selected")
         found: dict[str, bytes] = {}
         for name in names:
-            response = self.call("GET", f"/v1/examples/{name}")
+            response = self.call("GET", f"/v1/bim/templates/{name}")
             if response.status_code != 200 or not response.content:
                 if not listed:
                     raise ProbeError(f"example {name}: {response.status_code}")
@@ -217,29 +220,33 @@ class Probe:
                     errors[label] = errors.get(label, 0) + 1
         return timings, errors
 
-    def snapshot_id(self, archive: bytes) -> str:
-        response = self.call("POST", "/v1/instances", headers={"Content-Type": BIM_ZIP}, content=archive)
-        snapshot = response.json().get("id") if response.status_code == 201 else None
-        if not isinstance(snapshot, str):
-            raise ProbeError(f"snapshot upload: {response.status_code}")
-        return snapshot
+    @staticmethod
+    def problem_slug(path: str) -> str:
+        return ("latency-" + re.sub(r"[^a-z0-9]+", "-", path.lower()).strip("-"))[:64].strip("-")
+
+    def problem_of(self, path: str, archive: bytes) -> tuple[str, str]:
+        """The problem ``latency-<package>`` of ``--org`` holding ``archive`` and the id of that revision (not timed)."""
+        slug = self.problem_slug(path)
+        problems = f"/v1/organizations/{self.config.org}/problems"
+        response = self.call("POST", problems, params={"slug": slug}, headers={"Content-Type": BIM_ZIP}, content=archive)
+        if response.status_code == 409:
+            response = self.call("POST", f"{problems}/{slug}/revisions", headers={"Content-Type": BIM_ZIP}, content=archive)
+        revision = response.json().get("revision", {}).get("id") if response.status_code in {200, 201} else None
+        if not isinstance(revision, str):
+            raise ProbeError(f"problem upload: {response.status_code}")
+        return slug, revision
 
     def row(
         self, route: str, variant: str, package: str, target: float, outcome: tuple[list[float], dict[str, int]]
     ) -> dict[str, Any]:
         timings, errors = outcome
         p95 = percentile(timings, 0.95)
-        blocked = not timings and set(errors) == {ZIP_REFUSAL}
-        row: dict[str, Any] = {
+        return {
             "route": route, "variant": variant, "package": package, "samples": len(timings),
             "errors": sum(errors.values()), "errorAnswers": errors,
             "p50Ms": round(percentile(timings, 0.50), 3), "p95Ms": round(p95, 3), "maxMs": round(max(timings, default=0.0), 3),
             "targetMs": target, "meetsTarget": bool(timings) and not errors and p95 <= target,
-            "blockedByGateway": blocked,
         }
-        if blocked:
-            row["blockedReason"] = ZIP_REFUSAL
-        return row
 
     def job_sender(self, **request: Any) -> Callable[[], Callable[[], httpx.Response]]:
         """``prepare`` of an accept: a fresh Idempotency-Key per request, built outside the timed window."""
@@ -251,8 +258,7 @@ class Probe:
         return prepare
 
     def run(self, rows: list[dict[str, Any]]) -> None:
-        """Measure every selected route and package, appending each row to ``rows`` as soon as it is done."""
-        jobs, check = "POST /v1/jobs", "POST /v1/validate"
+        """Measure every route and package, appending each row to ``rows`` as soon as it is done."""
 
         def accept(response: httpx.Response) -> None:
             job_id = response.json().get("id")
@@ -260,16 +266,20 @@ class Probe:
                 self.drain(job_id)
 
         for path, archive in self.packages_cache.items():
-            if "snapshot" in self.config.variants:
-                prepare = self.job_sender(json={"snapshot": self.snapshot_id(archive), **JOB_BODY})
-                rows.append(self.row(jobs, "snapshot", path, self.config.jobs_target_ms, self.measure(prepare, 202, accept)))
-            if "zip" in self.config.variants:
-                prepare = self.job_sender(files={"file": (f"{path.rsplit('/', 1)[-1]}.bim.zip", archive, BIM_ZIP)})
-                rows.append(self.row(jobs, "zip", path, self.config.jobs_target_ms, self.measure(prepare, 202, accept)))
-            def prepare_validate(archive: bytes = archive) -> Callable[[], httpx.Response]:
-                return lambda: self.call("POST", "/v1/validate", headers={"Content-Type": BIM_ZIP}, content=archive)
+            slug, revision = self.problem_of(path, archive)
+            revisions = f"/v1/organizations/{self.config.org}/problems/{slug}/revisions"
 
-            rows.append(self.row(check, "package", path, self.config.validate_target_ms, self.measure(prepare_validate, 200)))
+            def prepare_upload(archive: bytes = archive, url: str = revisions) -> Callable[[], httpx.Response]:
+                return lambda: self.call("POST", url, headers={"Content-Type": BIM_ZIP}, content=archive)
+
+            rows.append(self.row(UPLOAD, "package", path, self.config.upload_target_ms, self.measure(prepare_upload, 200)))
+            prepare = self.job_sender(json={"revision": revision, **JOB_BODY})
+            rows.append(self.row(JOBS, "revision", path, self.config.jobs_target_ms, self.measure(prepare, 202, accept)))
+
+            def prepare_validate(archive: bytes = archive) -> Callable[[], httpx.Response]:
+                return lambda: self.call("POST", "/v1/bim/validate", headers={"Content-Type": BIM_ZIP}, content=archive)
+
+            rows.append(self.row(VALIDATE, "package", path, self.config.validate_target_ms, self.measure(prepare_validate, 200)))
 
 
 def run_probe(
@@ -288,8 +298,8 @@ def run_probe(
         "tool": "latency_probe", "ok": False, "measuredAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "baseUrl": config.base_url, "gatewayVersion": None,
         "config": {
-            "user": config.user, "samples": config.samples, "warmup": config.warmup, "examples": config.examples,
-            "variants": list(config.variants),
+            "user": config.user, "org": config.org, "samples": config.samples, "warmup": config.warmup,
+            "examples": config.examples, "uploadTargetMs": config.upload_target_ms,
             "jobsTargetMs": config.jobs_target_ms, "validateTargetMs": config.validate_target_ms,
         },
         "packages": [], "skippedExamples": probe.skipped, "routes": [],
@@ -301,8 +311,7 @@ def run_probe(
         probe.packages_cache = probe.packages()
         report["packages"] = [{"path": path, "bytes": len(data)} for path, data in probe.packages_cache.items()]
         probe.run(report["routes"])
-        counted = [row for row in report["routes"] if not row["blockedByGateway"]]
-        report["ok"] = bool(counted) and all(row["meetsTarget"] for row in counted)
+        report["ok"] = bool(report["routes"]) and all(row["meetsTarget"] for row in report["routes"])
         code = EXIT_OK if report["ok"] else EXIT_MISS
     except Blocked as error:
         report["blocked"], code = probe.scrub(error), EXIT_BLOCKED
@@ -327,7 +336,7 @@ def markdown(report: Mapping[str, Any]) -> str:
     ]
     for row in report["routes"]:
         errors = f" ({', '.join(f'{label} x{count}' for label, count in row['errorAnswers'].items())})" if row["errors"] else ""
-        meets = f"blocked by gateway ({row['blockedReason']})" if row["blockedByGateway"] else "yes" if row["meetsTarget"] else "NO"
+        meets = "yes" if row["meetsTarget"] else "NO"
         lines.append(
             f"| {row['route']} | {row['variant']} | {row['package']} | {row['samples']} | {row['errors']}{errors} | {row['p50Ms']} "
             f"| {row['p95Ms']} | {row['maxMs']} | {row['targetMs']} | {meets} |"
@@ -339,15 +348,16 @@ def markdown(report: Mapping[str, Any]) -> str:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Lab latency probe of POST /v1/jobs and POST /v1/validate.")
+    parser = argparse.ArgumentParser(description="Lab latency probe of the problem upload, POST /v1/jobs and POST /v1/bim/validate.")
     parser.add_argument("--base-url", default=None, help=f"proxy origin (default $SMOKE_BASE_URL or {DEFAULT_BASE_URL})")
     parser.add_argument("--user", default="lab-member", help="seeded user to sign in as")
+    parser.add_argument("--org", default="lab-main", help="organization (the user a MEMBER of it) the packages are uploaded to")
     parser.add_argument("--samples", type=int, default=40, help="timed requests per route and package")
     parser.add_argument("--warmup", type=int, default=3, help="untimed requests before the samples")
     parser.add_argument("--examples", default="top3", help="top3 (the 3 largest packages), all, or comma-separated example paths")
-    parser.add_argument("--variants", default=",".join(VARIANTS), help="accept variants to time: snapshot and/or zip")
+    parser.add_argument("--upload-target-ms", type=float, default=2000.0, help="p95 target of the problem upload")
     parser.add_argument("--jobs-target-ms", type=float, default=500.0, help="p95 target of POST /v1/jobs")
-    parser.add_argument("--validate-target-ms", type=float, default=2000.0, help="p95 target of POST /v1/validate")
+    parser.add_argument("--validate-target-ms", type=float, default=2000.0, help="p95 target of POST /v1/bim/validate")
     parser.add_argument("--markdown", action="store_true", help="print a Markdown report instead of JSON")
     return parser
 
@@ -367,13 +377,10 @@ def main(
     if not password or args.samples < 1 or args.warmup < 0:
         print(json.dumps({"tool": "latency_probe", "ok": False, "error": "DEMO_SEED_PASSWORD and samples >= 1 are required"}))
         return EXIT_CONFIG
-    chosen = {name.strip() for name in args.variants.split(",")}
-    if not chosen or not chosen <= set(VARIANTS):
-        print(json.dumps({"tool": "latency_probe", "ok": False, "error": "--variants takes snapshot and/or zip"}))
-        return EXIT_CONFIG
     config = Config(
-        base_url=base_url, user=args.user, password=password, samples=args.samples, warmup=args.warmup,
-        examples=args.examples, variants=tuple(name for name in VARIANTS if name in chosen), jobs_target_ms=args.jobs_target_ms, validate_target_ms=args.validate_target_ms,
+        base_url=base_url, user=args.user, org=args.org, password=password, samples=args.samples, warmup=args.warmup,
+        examples=args.examples, upload_target_ms=args.upload_target_ms, jobs_target_ms=args.jobs_target_ms,
+        validate_target_ms=args.validate_target_ms,
     )
     with httpx.Client(base_url=base_url, transport=transport, follow_redirects=False) as client:
         report, code = run_probe(config, client, clock=clock, sleep=sleep)

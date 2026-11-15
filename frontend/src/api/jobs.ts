@@ -1,6 +1,5 @@
 import { apiClient, type BimResourceRef } from './client';
-import type { ArtifactRef } from './library';
-import type { Job } from './platform';
+import type { Job, JobCompilationRef, JobOrganizationRef, JobProblemRef, JobRevisionRef } from './platform';
 
 const enc = encodeURIComponent;
 
@@ -34,6 +33,11 @@ export interface JobDetail {
   provenance: Record<string, unknown>;
   result?: JobResultView | null;
   error?: string;
+  /** What the run is of: the organization, problem, revision and compilation it names. */
+  organization?: JobOrganizationRef;
+  problem?: JobProblemRef;
+  revision?: JobRevisionRef;
+  compilation?: JobCompilationRef;
 }
 
 /** `202` from `POST /v1/jobs`. `idempotent` is set when the same one-time key had already started this run. */
@@ -53,16 +57,6 @@ export interface JobReport {
   provenance: Record<string, unknown>;
 }
 
-/** `GET /v1/jobs/{id}/instance`: the snapshot the job ran, with its fingerprints. */
-export interface JobInstanceView {
-  id: string;
-  instanceDigest: string;
-  packageDigest: string;
-  fileDigests: Record<string, string>;
-  resourceDigests: Record<string, string>;
-  instance: Record<string, unknown>;
-}
-
 /**
  * The optimization an execution selects (`optimization` of `POST /v1/jobs`). The gateway answers 422 `optimization_required` without it;
  * weights are left out and the toolchain fills equal ones where the scalarization needs them.
@@ -72,10 +66,15 @@ export interface ExecutionOptimization {
   scalarization: string;
 }
 
-/** What `POST /v1/jobs` takes: sealed settings alone, or one exact engine mode with its options and optimization. */
-export type LaunchRequest =
-  | { snapshot: string; configuration: ArtifactRef }
-  | { snapshot: string; engine: BimResourceRef; registration?: BimResourceRef; mode: string; options: Record<string, unknown>; optimization?: ExecutionOptimization };
+/** What `POST /v1/jobs` takes: the problem revision to run and one exact engine mode with its options and optimization. */
+export interface LaunchRequest {
+  revision: string;
+  engine: BimResourceRef;
+  registration?: BimResourceRef;
+  mode: string;
+  options: Record<string, unknown>;
+  optimization?: ExecutionOptimization;
+}
 
 /**
  * The calls of the job screens. The mutations throw on a 422 (a refused submission) instead of handing its body back as if it were
@@ -104,6 +103,4 @@ export const jobsApi = {
   /** Only failed or cancelled jobs; a new attempt that starts a new run (402, 429, 403 and 503 as for a launch). */
   retry: (id: string) => apiClient.request<Job>(`/v1/jobs/${enc(id)}/retry`, { method: 'POST' }, undefined, true, true),
   report: (id: string) => apiClient.request<JobReport>(`/v1/jobs/${enc(id)}/report`, {}, undefined, true, true),
-  ir: (id: string) => apiClient.request<Record<string, unknown>>(`/v1/jobs/${enc(id)}/ir`, {}, undefined, true, true),
-  instance: (id: string) => apiClient.request<JobInstanceView>(`/v1/jobs/${enc(id)}/instance`, {}, undefined, true, true),
 };

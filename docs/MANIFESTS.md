@@ -41,7 +41,7 @@ boundary:
 The Profile is the WS-Agreement-like semantic frame: it states what kinds of
 terms may be composed and what they mean collectively, but delegates their
 concrete syntax to compatible Dialects. A Profile document contains no code,
-installer URL, or remote schema reference. `/v1/profiles` exposes Profiles
+installer URL, or remote schema reference. `/v1/engines/protocol` exposes Profiles
 already backed by deployed adapters; placing a Profile manifest in a package
 cannot make it executable.
 
@@ -275,7 +275,7 @@ published credential is immutable; rotate it in a new revision.
 A registered source is an immutable registry revision, not a manifest kind and
 not an installation mechanism. It stores a validated JSON or BPMN resource
 under a Profile role together with `namespace`, `name`, `version`, media type,
-and canonical digest. Only published revisions resolve. Instance snapshots
+and canonical digest. Only published revisions resolve. Problem revisions
 retain the resolved source content and identity; engines never fetch it.
 
 ## Options, compatibility, and provenance

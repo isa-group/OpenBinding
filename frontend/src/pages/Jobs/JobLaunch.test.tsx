@@ -8,26 +8,14 @@ import { usageOf } from '../../test/fixtures/resources';
 import { JobLaunch } from './JobLaunch';
 
 const jobsApi = vi.hoisted(() => ({ launch: vi.fn() }));
-const casesApi = vi.hoisted(() => ({ analyseSnapshot: vi.fn(), instanceIr: vi.fn() }));
-const workbenchApi = vi.hoisted(() => ({ snapshot: vi.fn() }));
 const client = vi.hoisted(() => ({ getOwnUsage: vi.fn(), getPricingCatalog: vi.fn(), getEngines: vi.fn() }));
-const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), revisions: vi.fn() }));
+const platform = vi.hoisted(() => ({ project: vi.fn() }));
+const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
 
 vi.mock('../../api/jobs', () => ({ jobsApi }));
-vi.mock('../../api/cases', () => ({ casesApi }));
-vi.mock('../../api/workbench', () => ({ workbenchApi }));
+vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
-vi.mock('../../components/Artifacts/ArtifactVersionPicker', () => ({
-  ArtifactVersionPicker: ({ onSelect }: { onSelect: (artifact: unknown, version: unknown) => void }) => (
-    <button
-      type="button"
-      onClick={() => onSelect({}, { id: 'version-1', ref: { namespace: 'isa-demo', name: 'rs-60s', version: '1', versionDigest: 'sha256-v' } })}
-    >
-      Pick sealed settings
-    </button>
-  ),
-}));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
@@ -50,10 +38,12 @@ const engines: EngineCatalogEntry[] = [
   { ...MINIZINC, id: 'engine-2', ref: MINIZINC, modes: [mode('cp', {})] },
 ];
 
+/** The compilation of a version by the installed toolchain: its analysis and the engine modes that can run it. */
 const analysis = (over: Record<string, unknown> = {}) => ({
-  valid: true, instanceDigest: digestOf('d'), packageDigest: digestOf('e'), irDigest: digestOf('c'),
+  id: 'compilation-2', revision_id: 'case-flujo-r2', compilation_digest: digestOf('9'), compiler_digest: digestOf('8'), ir_digest: digestOf('c'),
+  binding_space: '125892', created_at: '2026-08-20T10:05:00Z', current: true, toolchain: {}, resources: {},
   analysis: { tasks: 6, candidates: 24, constraints: 2, placement: false, bindingSpace: '125892' },
-  compatibleModes: [
+  compatible_modes: [
     { engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true },
     { engine: MINIZINC, registration: MINIZINC_REGISTRATION, mode: 'cp', compatible: true },
     { engine: EDGE, registration: EDGE_REGISTRATION, mode: 'placement', compatible: false, diagnostics: [{ message: 'It cannot read a RoutingOverlay.' }] },
@@ -61,7 +51,7 @@ const analysis = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-function renderLaunch(search = '?case=flujo&revision=2', slug = 'isa-demo') {
+function renderLaunch(search = '?problem=flujo&revision=2', slug = 'isa-demo') {
   return renderProjectScreen(<JobLaunch />, {
     path: '/app/:org/:project/runs/new', url: `/app/${slug}/qos-benchmarks/runs/new${search}`, organizations: [group, viewing],
   });
@@ -84,16 +74,16 @@ describe('Start a run', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
-    platform.cases.mockResolvedValue([flujo]);
-    platform.revisions.mockResolvedValue([revisionOf(flujo, 1, { source_snapshot_id: 'snap-1' }), revisionOf(flujo, 2, { source_snapshot_id: 'snap-2' })]);
+    problems.list.mockResolvedValue({ problems: [flujo], total: 1, limit: 200, offset: 0 });
+    problems.revisions.mockResolvedValue([revisionOf(flujo, 1), revisionOf(flujo, 2)]);
     client.getOwnUsage.mockResolvedValue(usageOf({
       plan: 'RESEARCH',
       capabilities: { maxRunMinutes: 1, maxConcurrentRuns: 3 },
     }));
     client.getPricingCatalog.mockResolvedValue({});
     client.getEngines.mockResolvedValue(engines);
-    casesApi.analyseSnapshot.mockResolvedValue(analysis());
-    casesApi.instanceIr.mockResolvedValue({ spec: { candidates: { providers: { candidates: { a: { features: { latency: 40 } } } } } } });
+    problems.compilation.mockResolvedValue(analysis());
+    problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), source_map: {}, ir: { spec: { candidates: { providers: { candidates: { a: { features: { latency: 40 } } } } } } } });
     jobsApi.launch.mockResolvedValue({ id: 'job-new-7', status: 'queued', irDigest: digestOf('c') });
   });
 
@@ -111,17 +101,17 @@ describe('Start a run', () => {
     expect(within(source).getAllByRole('radio')).toHaveLength(2);
     expect(within(source).getByRole('radio', { name: /Flujo de checkout · version 2/ })).toBeChecked();
     expect(within(source).getByRole('radio', { name: /Flujo de checkout · version 1/ })).not.toBeChecked();
-    expect(screen.getByRole('link', { name: 'Upload a new package in the Workbench' })).toHaveAttribute('href', `${ROOT}/workbench`);
+    expect(screen.getByRole('link', { name: 'Upload a problem' })).toHaveAttribute('href', '/app/isa-demo/problems');
     expect(screen.getByRole('link', { name: 'Cancel' })).toHaveAttribute('href', `${ROOT}/runs`);
     expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Runs' })).toHaveAttribute('aria-current', 'page');
   });
 
-  it('checks which engines can run the snapshot and lists the ones that cannot, with the reason', async () => {
+  it('checks which engines can run the version and lists the ones that cannot, with the reason', async () => {
     renderLaunch();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
     const group_ = await screen.findByRole('radiogroup', { name: 'Engine' });
-    expect(casesApi.analyseSnapshot).toHaveBeenCalledWith('snap-2');
+    expect(problems.compilation).toHaveBeenCalledWith('isa-demo', 'flujo', 2);
     expect(within(group_).getByRole('radio', { name: /^random-search/ })).toBeChecked();
     expect(within(group_).getByRole('radio', { name: /^random-search.*Can run this/ })).toBeEnabled();
     expect(within(group_).getByRole('radio', { name: /^edge-solver.*It cannot read a RoutingOverlay\..*Can’t run this/ })).toBeDisabled();
@@ -145,9 +135,9 @@ describe('Start a run', () => {
     });
 
     it('turns off the engines that take single values only, with the reason, and links to Engines', async () => {
-      casesApi.instanceIr.mockResolvedValue(ranged);
-      casesApi.analyseSnapshot.mockResolvedValue(analysis({
-        compatibleModes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }, refusedRanges({})],
+      problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), source_map: {}, ir: ranged });
+      problems.compilation.mockResolvedValue(analysis({
+        compatible_modes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }, refusedRanges({})],
       }));
       renderLaunch();
 
@@ -163,12 +153,12 @@ describe('Start a run', () => {
       expect(within(notice).queryByRole('link', { name: 'edit the candidates' })).toBeNull();
       expect(within(notice).queryByRole('link', { name: /library/i })).toBeNull();
       expect(screen.queryByRole('link', { name: 'Open the library' })).toBeNull();
-      expect(casesApi.instanceIr).toHaveBeenCalledWith('snap-2');
+      expect(problems.ir).toHaveBeenCalledWith('isa-demo', 'flujo', 2, 'compilation-2');
     });
 
     it('says so when no engine accepts ranges', async () => {
-      casesApi.instanceIr.mockResolvedValue(ranged);
-      casesApi.analyseSnapshot.mockResolvedValue(analysis({ compatibleModes: [refusedRanges({ engine: ENGINE, registration: REGISTRATION, mode: 'sampling' })] }));
+      problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), source_map: {}, ir: ranged });
+      problems.compilation.mockResolvedValue(analysis({ compatible_modes: [refusedRanges({ engine: ENGINE, registration: REGISTRATION, mode: 'sampling' })] }));
       renderLaunch();
 
       fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
@@ -177,23 +167,9 @@ describe('Start a run', () => {
       expect(screen.getByText(/No engine mode accepts ranges yet/)).toBeInTheDocument();
     });
 
-    it('turns off the catalog modes that do not declare interval values when the gateway could not analyse the package', async () => {
-      const intervals = { ...mode('cp', {}), capabilities: { featureValues: { selector: 'only', values: ['scalar', 'interval'] } } as unknown as EngineMode['capabilities'] };
-      client.getEngines.mockResolvedValue([engines[0], { ...engines[1], modes: [intervals] }]);
-      casesApi.instanceIr.mockResolvedValue(ranged);
-      casesApi.analyseSnapshot.mockRejectedValue(refused(503, 'unavailable'));
-      renderLaunch();
-
-      fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
-      const picker = await screen.findByRole('radiogroup', { name: 'Engine' });
-      expect(within(picker).getByRole('radio', { name: /^random-search/ })).toBeDisabled();
-      expect(within(picker).getByRole('radio', { name: /^minizinc.*Checked when you send/ })).toBeEnabled();
-      expect(within(picker).getByRole('radio', { name: /^minizinc/ })).toBeChecked();
-    });
-
     it('offers every engine as before when the package has none, or when its compiled form cannot be read', async () => {
-      casesApi.instanceIr.mockRejectedValue(new Error('offline'));
-      casesApi.analyseSnapshot.mockRejectedValue(refused(503, 'unavailable'));
+      problems.ir.mockRejectedValue(new Error('offline'));
+      problems.compilation.mockRejectedValue(refused(503, 'unavailable'));
       renderLaunch();
 
       fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
@@ -203,8 +179,8 @@ describe('Start a run', () => {
     });
 
     it('explains a launch the engine refused for ranges, with the pointers and the way forward', async () => {
-      casesApi.instanceIr.mockResolvedValue(ranged);
-      casesApi.analyseSnapshot.mockResolvedValue(analysis({ compatibleModes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }] }));
+      problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), source_map: {}, ir: ranged });
+      problems.compilation.mockResolvedValue(analysis({ compatible_modes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }] }));
       jobsApi.launch.mockRejectedValue(refused(422, 'engine_mode_incompatible', { diagnostics: [{ ...RANGE_DIAGNOSTIC }] }));
       renderLaunch();
       await toReview();
@@ -218,8 +194,8 @@ describe('Start a run', () => {
     });
 
     it('explains the same refusal when the gateway could not tell which value, pointing at the compiled problem instead', async () => {
-      casesApi.instanceIr.mockResolvedValue(ranged);
-      casesApi.analyseSnapshot.mockResolvedValue(analysis({ compatibleModes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }] }));
+      problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), source_map: {}, ir: ranged });
+      problems.compilation.mockResolvedValue(analysis({ compatible_modes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }] }));
       const withoutPointer = { ...RANGE_DIAGNOSTIC, resource: undefined, pointer: undefined };
       jobsApi.launch.mockRejectedValue(refused(422, 'engine_mode_incompatible', { diagnostics: [{ code: 'profile_incompatible', message: 'mode profile differs' }, withoutPointer] }));
       renderLaunch();
@@ -233,7 +209,7 @@ describe('Start a run', () => {
   });
 
   it('preselects the engine the person came from', async () => {
-    renderLaunch(`?case=flujo&revision=2&engine=${encodeURIComponent(`${MINIZINC.namespace}/${MINIZINC.name}@${MINIZINC.version}#${MINIZINC.digest}`)}`);
+    renderLaunch(`?problem=flujo&revision=2&engine=${encodeURIComponent(`${MINIZINC.namespace}/${MINIZINC.name}@${MINIZINC.version}#${MINIZINC.digest}`)}`);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
     const picker = await screen.findByRole('radiogroup', { name: 'Engine' });
@@ -279,7 +255,7 @@ describe('Start a run', () => {
     expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     expect(jobsApi.launch).toHaveBeenCalledTimes(1);
     expect(jobsApi.launch).toHaveBeenCalledWith(
-      { snapshot: 'snap-2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling', options: { time_budget_ms: 30000, iterations: 100000 } },
+      { revision: 'case-flujo-r2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling', options: { time_budget_ms: 30000, iterations: 100000 } },
       expect.any(String),
     );
     expect(screen.getByText(/Nothing was reduced\./)).toBeInTheDocument();
@@ -295,7 +271,7 @@ describe('Start a run', () => {
       }],
     }, engines[1]];
     client.getEngines.mockResolvedValue(withWeightedSum);
-    casesApi.instanceIr.mockResolvedValue({ spec: { optimization: { criteria: [{ id: 'latency' }] }, candidates: { providers: { candidates: { a: { features: { latency: 40 } } } } } } });
+    problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), source_map: {}, ir: { spec: { optimization: { criteria: [{ id: 'latency' }] }, candidates: { providers: { candidates: { a: { features: { latency: 40 } } } } } } } });
     renderLaunch();
     await toReview();
 
@@ -344,57 +320,27 @@ describe('Start a run', () => {
     expect(jobsApi.launch).toHaveBeenCalledWith(expect.objectContaining({ engine: ENGINE }), expect.any(String));
   });
 
-  it('sends sealed settings alone when the person uses saved settings', async () => {
+  it('offers no saved settings: the settings are set here', async () => {
     renderLaunch();
     fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
     await screen.findByRole('radiogroup', { name: 'Engine' });
     await next();
-    fireEvent.click(await screen.findByRole('radio', { name: 'Use saved settings' }));
-    expect(screen.queryByRole('region', { name: 'Settings against your plan' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Pick sealed settings' }));
-    expect(screen.getByText('rs-60s · v1')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Open the library' })).toBeNull();
-    await next();
-    expect(await screen.findByText('Saved: rs-60s v1')).toBeInTheDocument();
-    expect(screen.getByText('From the saved settings')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
-    await screen.findByRole('heading', { name: 'Run accepted · queued' });
-    expect(jobsApi.launch).toHaveBeenCalledWith({ snapshot: 'snap-2', configuration: { namespace: 'isa-demo', name: 'rs-60s', version: '1', versionDigest: 'sha256-v' } }, expect.any(String));
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Use saved settings' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Settings against your plan' })).toBeInTheDocument();
   });
 
-  it('starts from a snapshot and compiles a revision that has none yet', async () => {
-    platform.revisions.mockResolvedValue([revisionOf(flujo, 1), revisionOf(flujo, 2, { document: { kind: 'Instance' } })]);
-    workbenchApi.snapshot.mockResolvedValue({ id: 'snap-made', irDigest: digestOf('c') });
+  it('keeps a version that is gone out of the next step, with the neutral answer', async () => {
+    problems.compilation.mockRejectedValue(refused(404, 'not_found'));
     renderLaunch();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
-    await screen.findByRole('radiogroup', { name: 'Engine' });
-    expect(workbenchApi.snapshot).toHaveBeenCalledTimes(1);
-    expect(casesApi.analyseSnapshot).toHaveBeenCalledWith('snap-made');
-  });
-
-  it('opens on a snapshot from the address', async () => {
-    renderLaunch('?snapshot=snap-9');
-
-    const source = await screen.findByRole('radiogroup', { name: 'Source' });
-    expect(within(source).getByRole('radio', { name: /Compiled snapshot/ })).toBeChecked();
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    await screen.findByRole('radiogroup', { name: 'Engine' });
-    expect(casesApi.analyseSnapshot).toHaveBeenCalledWith('snap-9');
-  });
-
-  it('keeps a snapshot that is not yours out of the next step, with the neutral answer', async () => {
-    casesApi.analyseSnapshot.mockRejectedValue(refused(404, 'not_found'));
-    renderLaunch('?snapshot=snap-x');
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
-    expect(await screen.findByText('Snapshot not found (404)')).toBeInTheDocument();
+    expect(await screen.findByText('Problem version not found (404)')).toBeInTheDocument();
     expect(screen.queryByRole('radiogroup', { name: 'Engine' })).not.toBeInTheDocument();
   });
 
   it('says so when the problem is over the deployment’s size limit (422) and offers the catalog unchecked', async () => {
-    casesApi.analyseSnapshot.mockRejectedValue(refused(422, 'binding_space_over_technical_limit', {
+    problems.compilation.mockRejectedValue(refused(422, 'binding_space_over_technical_limit', {
       notice: { limit_id: 'MAX_BINDING_SPACE_LOG10', state: 'exhausted', source: 'technical', limit: 20, used: 23 },
     }));
     renderLaunch();
@@ -408,8 +354,8 @@ describe('Start a run', () => {
     expect(within(picker).getByRole('radio', { name: /^random-search.*Checked when you send/ })).toBeEnabled();
   });
 
-  it('says there is nothing to solve in a project without revisions', async () => {
-    platform.cases.mockResolvedValue([]);
+  it('says there is nothing to solve in an organization without problem versions', async () => {
+    problems.list.mockResolvedValue({ problems: [], total: 0, limit: 200, offset: 0 });
     renderLaunch('');
 
     expect(await screen.findByText(/Nothing to solve yet\./)).toBeInTheDocument();
@@ -509,7 +455,7 @@ describe('Start a run', () => {
   });
 
   it('lets a viewer look through the steps but not send', async () => {
-    renderLaunch('?case=flujo&revision=2', 'read-lab');
+    renderLaunch('?problem=flujo&revision=2', 'read-lab');
 
     const note = await screen.findByRole('note');
     expect(note).toHaveTextContent('You’re a VIEWER of Read Lab. You can look through the steps, but starting a run needs MEMBER.');
@@ -523,6 +469,6 @@ describe('Start a run', () => {
     renderLaunch();
 
     expect(await screen.findByRole('heading', { name: 'Project not found' })).toBeInTheDocument();
-    expect(platform.cases).not.toHaveBeenCalled();
+    expect(problems.list).not.toHaveBeenCalled();
   });
 });

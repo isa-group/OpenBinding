@@ -1,17 +1,18 @@
 import { Link, useSearchParams } from 'react-router-dom';
+import { problemsApi } from '../../api/problems';
 import { SourceView } from '../../components/rendering/SourceView';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
-import { problemPath } from '../../routes/paths/problems';
+import { problemPath, workbenchPath } from '../../routes/paths/problems';
 import {
-  DIFF_CATEGORIES, diffRevisions, diffSummary, resourceUses, sizeChange, type DiffCategory, type DiffRow, type RevisionView,
+  DIFF_CATEGORIES, diffRevisions, diffSummary, sizeChange, type DiffCategory, type DiffRow, type RevisionView,
 } from './casesModel';
 import { loadModel } from './modelLoader';
 import { Power } from './parts';
 import { useLoadedMap } from './useLoadedMap';
-import type { RouteCaseContent } from './useRouteCase';
+import type { RouteProblemContent } from './useRouteProblem';
 
 const numberOf = (value: string | null): number | null => {
   const parsed = value === null ? NaN : Number(value);
@@ -19,7 +20,7 @@ const numberOf = (value: string | null): number | null => {
 };
 
 /** The comparison of two problem versions, in the Versions tab: the pair is chosen by the query `from` and `to` (the previous version and the latest by default). */
-export function VersionCompare({ root, content, canCreate }: { root: string; content: RouteCaseContent; canCreate: boolean }) {
+export function VersionCompare({ org, content, canCreate }: { org: string; content: RouteProblemContent; canCreate: boolean }) {
   const { item, revisions } = content;
   const [params, setParams] = useSearchParams();
   const { copy, status } = useCopy();
@@ -31,16 +32,15 @@ export function VersionCompare({ root, content, canCreate }: { root: string; con
   const from = revisions.find((revision) => revision.revision === fromNumber);
   const to = revisions.find((revision) => revision.revision === toNumber);
 
-  const models = useLoadedMap(
-    [from, to].filter((revision) => revision !== undefined).map((revision) => String(revision.revision)),
-    (key) => loadModel(revisions.find((revision) => String(revision.revision) === key)?.source_snapshot_id ?? null),
-  );
+  const pair = [from, to].filter((revision) => revision !== undefined).map((revision) => String(revision.revision));
+  const models = useLoadedMap(pair, (key) => loadModel(org, item.slug, key));
+  const details = useLoadedMap(pair, (key) => problemsApi.revision(org, item.slug, key));
   const modelOf = (revision: typeof from): RevisionView | null => {
     if (!revision) return null;
     const answer = models[String(revision.revision)];
     if (!answer || answer.status === 'loading') return null;
     const state = answer.status === 'ready' ? answer.value : undefined;
-    return { revision: revision.revision, uses: resourceUses(revision.document), model: state?.state === 'ready' ? state.model : null };
+    return { revision: revision.revision, digest: revision.package_digest, model: state?.state === 'ready' ? state.model : null };
   };
   const left = modelOf(from);
   const right = modelOf(to);
@@ -93,7 +93,7 @@ export function VersionCompare({ root, content, canCreate }: { root: string; con
         <div className="case-guide">
           <h2>Comparing needs two versions</h2>
           <p>{item.name} has {revisions.length === 0 ? 'no sealed version' : 'one sealed version'} so far. Seal another one to see what changed.</p>
-          {canCreate && <div className="proj-actions"><Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="primary">New version</Action></div>}
+          {canCreate && <div className="proj-actions"><Action to={workbenchPath(org, { problem: item.slug })} variant="primary">New version</Action></div>}
         </div>
       )}
       {revisions.length >= 2 && missingSide && (
@@ -110,14 +110,14 @@ export function VersionCompare({ root, content, canCreate }: { root: string; con
         <>
           {modelsMissing && (
             <Notice tone="info">
-              Providers, tasks, rules and goal are compared from the compiled snapshot of each version, and {!left.model ? `version ${left.revision}` : `version ${right.revision}`} has none that can be read.
-              Only the library versions are compared.
+              Providers, tasks, rules and goal are compared from the compilation of each version, and {!left.model ? `version ${left.revision}` : `version ${right.revision}`} has none that can be read.
+              {left.digest === right.digest ? ' Both versions are the same package.' : ' The two packages differ.'}
             </Notice>
           )}
           <section aria-label="Summary" className="case-categories">
             {(['', ...DIFF_CATEGORIES] as const).map((name) => {
               const count = changedIn(name);
-              const unknown = name !== '' && name !== 'Resources' && !hasRowsIn(name);
+              const unknown = name !== '' && !hasRowsIn(name);
               return (
                 <button key={name || 'all'} type="button" aria-pressed={category === name} className="case-category" onClick={() => update({ only: name })}>
                   <span>{name === '' ? 'All changes' : name}</span>
@@ -174,14 +174,15 @@ export function VersionCompare({ root, content, canCreate }: { root: string; con
                 </tbody>
               </table>
             </div>
-            <span className="case-links"><Link to={problemPath(root, item.slug, undefined, { version: right.revision })} viewTransition>Open version {right.revision}</Link></span>
+            <span className="case-links"><Link to={problemPath(org, item.slug, undefined, { version: right.revision })} viewTransition>Open version {right.revision}</Link></span>
           </section>
 
           <section className="org-section" aria-labelledby="cc-documents">
-            <h2 id="cc-documents">Sealed documents</h2>
+            <h2 id="cc-documents">Root documents (instance.json)</h2>
             <div className="case-docs">
               {[left, right].map((side) => {
-                const document = revisions.find((revision) => revision.revision === side.revision)?.document ?? {};
+                const answer = details[String(side.revision)];
+                const document = answer?.status === 'ready' ? answer.value?.document ?? {} : {};
                 return <SourceView key={side.revision} source={document} label={`Version ${side.revision} document`} language="json" maxHeight="20rem" />;
               })}
             </div>

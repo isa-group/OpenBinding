@@ -32,7 +32,7 @@ from ._helpers import (
     PER_ATTEMPT_CANCELLATION,
     a_job,
     a_registration,
-    account_with_snapshot,
+    account_with_revision,
     answer,
     lose_the_worker,
     only_job,
@@ -68,9 +68,9 @@ async def test_the_late_result_of_a_superseded_attempt_cannot_overwrite_the_new_
         return answer()
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
+    headers, revision_id = await account_with_revision(api_client, registration)
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     precondition(seen["token_a"] != seen["token_b"] and seen["token_b"] is not None, "two distinct claims")
@@ -145,9 +145,9 @@ async def test_a_worker_whose_lease_was_lost_stops_waiting_for_the_engine(
         return answer()
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
+    headers, revision_id = await account_with_revision(api_client, registration)
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     precondition("interrupted" in observed, "the stub engine ran")
     assert observed["interrupted"] is True

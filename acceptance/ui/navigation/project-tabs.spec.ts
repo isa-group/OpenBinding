@@ -1,19 +1,16 @@
 import { expect, test } from '@playwright/test';
-import { PROBLEMS, RUNS_SEGMENT } from './helpers';
-import {
-  MEMBER_NAMES, PROJECT_TABS, VISITOR_TABS, exportZip, importZip, isCurrent, mockProject, navEntry, packageCalls,
-  projectTabs, sectionNav,
-} from './helpers-hub';
+import { RUNS_SEGMENT } from './helpers';
+import { MEMBER_NAMES, PROJECT_TABS, VISITOR_TABS, isCurrent, mockProject, navEntry, projectTabs, sectionNav } from './helpers-hub';
 
 test.use({ viewport: { width: 1440, height: 900 } });
 
 const PROJECT = '/app/acme/demo';
-// Problems and Runs use the interim segments of helpers.ts until the vocabulary slices rename them.
-const TAB_HREFS = [PROJECT, PROBLEMS, `${PROJECT}/${RUNS_SEGMENT}`, `${PROJECT}/studies`, `${PROJECT}/settings`];
+// The problems belong to the organization, so a project has no Problems tab.
+const TAB_HREFS = [PROJECT, `${PROJECT}/${RUNS_SEGMENT}`, `${PROJECT}/studies`, `${PROJECT}/settings`];
 
 // ---- frontend-nav-project-tabs ----------------------------------------------------------------------------------
 
-test('the project tabs of a member read Overview, Problems, Runs, Studies, Settings', async ({ page }) => {
+test('the project tabs of a member read Overview, Runs, Studies, Settings', async ({ page }) => {
   await mockProject(page);
   await page.goto(`${PROJECT}/studies`);
   await expect(projectTabs(page).getByRole('link')).toHaveText(PROJECT_TABS);
@@ -36,7 +33,7 @@ test('the tab of the current area carries aria-current page', async ({ page }) =
   await expect(tabs.getByRole('link', { name: 'Overview', exact: true })).not.toHaveAttribute('aria-current', 'page');
 });
 
-test('the project tabs of a public visitor read Overview, Problems, Studies', async ({ page }) => {
+test('the project tabs of a public visitor read Overview, Studies', async ({ page }) => {
   await mockProject(page, { visitor: true });
   await page.goto(`${PROJECT}/studies`);
   await expect(projectTabs(page, VISITOR_TABS).getByRole('link')).toHaveText(VISITOR_TABS);
@@ -61,38 +58,23 @@ test('the settings section Members lists the members of acme and links to manage
   await expect(page.getByRole('link', { name: 'Manage members', exact: true })).toHaveAttribute('href', '/app/acme/settings/members');
 });
 
-test('the former tabs Cases, Jobs, Publications, Published, Files and Package are gone', async ({ page }) => {
+test('the former tabs Problems, Cases, Jobs, Publications, Published, Files and Package are gone', async ({ page }) => {
   await mockProject(page);
   await page.goto(PROJECT);
   const tabs = projectTabs(page, ['Overview', 'Settings']);
   await expect(navEntry(tabs, 'Overview')).toBeVisible();
   await expect(tabs.getByRole('link')).toHaveText(PROJECT_TABS);
-  for (const former of ['Cases', 'Jobs', 'Publications', 'Published', 'Files', 'Package']) {
+  for (const former of ['Problems', 'Cases', 'Jobs', 'Publications', 'Published', 'Files', 'Package']) {
     await expect(navEntry(tabs, former), `tab ${former}`).toHaveCount(0);
   }
 });
 
 // ---- frontend-nav-files-retired ---------------------------------------------------------------------------------
 
-test('the General section of the settings holds Export package and Import package', async ({ page }) => {
+test('the settings of a project hold no package export or import: a problem is a package of the organization', async ({ page }) => {
   await mockProject(page);
   await page.goto(`${PROJECT}/settings`);
-  await expect(page.getByRole('heading', { name: 'Export package' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Import package' })).toBeVisible();
-});
-
-test('exporting as ZIP from the settings requests the package with format zip', async ({ page }) => {
-  const calls = await mockProject(page);
-  await page.goto(`${PROJECT}/settings`);
-  await expect(page.getByRole('heading', { name: 'Export package' })).toBeVisible();
-  await exportZip(page);
-  await expect.poll(() => packageCalls(calls).filter((call) => call.method === 'GET').map((call) => call.search)).toContain('?format=zip');
-});
-
-test('importing a ZIP from the settings posts the package', async ({ page }) => {
-  const calls = await mockProject(page);
-  await page.goto(`${PROJECT}/settings`);
-  await expect(page.getByRole('heading', { name: 'Import package' })).toBeVisible();
-  await importZip(page);
-  await expect.poll(() => packageCalls(calls).filter((call) => call.method === 'POST').length).toBeGreaterThan(0);
+  await expect(isCurrent(sectionNav(page, ['General', 'Members']), 'General')).toBeVisible();
+  for (const name of ['Export package', 'Import package']) await expect(page.getByRole('heading', { name })).toHaveCount(0);
+  await expect(page.locator('input[type="file"]')).toHaveCount(0);
 });

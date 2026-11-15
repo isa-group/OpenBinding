@@ -17,12 +17,11 @@ ROUTES = f"{PACKAGE}.routes"
 PROTECTED_LAYERS = ("services", "domain", "jobs", "composition")
 
 #: Modules outside ``routes/`` that import ``routes`` at the time of writing,
-#: relative to the package (``artifacts`` is ``openbinding_gateway/artifacts.py``).
+#: relative to the package (``study_jobs`` is ``openbinding_gateway/study_jobs.py``).
 #: This is frozen debt: shrink it by moving the imported code into a service,
 #: never grow it.  ``main`` is the composition root and is exempt.
 ALLOWED_LEGACY = frozenset(
     {
-        "artifacts",
         "study_jobs",
     }
 )
@@ -284,7 +283,7 @@ def test_gate_lifecycle_legacy_has_no_stale_entries() -> None:
 #: ceiling is the size of ``routes/v1.py`` rounded up to the hundred, and it can only go down.  Lower it when an
 #: extraction brings the file under the previous hundred; never raise it.
 V1_ROUTER = SOURCE / "routes" / "v1.py"
-MAX_LINES = 900
+MAX_LINES = 700
 RATCHET_STEP = 100
 
 
@@ -389,25 +388,28 @@ def test_engine_registry_is_independent_of_routes_and_fastapi_responses() -> Non
     assert module_level_mutables(source) == [], "services/engine_registry.py must not keep mutable module state"
 
 
-#: Services extracted from ``routes/v1.py`` after the registry: they raise a problem of their own and never build a
-#: response, never import ``routes`` and keep no mutable module state (what they read of the process, such as the
-#: resources registered without a database, the route passes in or the snapshot service owns).
-V1_SERVICES = {
-    "instances": "InstanceProblem",
-    "discovery": "DiscoveryProblem",
-}
+#: The problem services that replaced the instance and discovery services of ``routes/v1.py``: they raise a
+#: problem (or an ``HTTPException``) and never build a response, never import ``routes`` and keep no mutable module
+#: state.
+PROBLEM_SERVICES = (
+    "modules/problems/application/compile.py",
+    "modules/problems/application/package.py",
+    "modules/problems/application/problems.py",
+    "modules/problems/application/templates.py",
+    "modules/problems/application/validate.py",
+)
 
 
-def test_the_v1_services_are_independent_of_routes_and_fastapi_responses() -> None:
-    for module, problem in V1_SERVICES.items():
-        path = SOURCE / "services" / f"{module}.py"
+def test_the_problem_services_are_independent_of_routes_and_fastapi_responses() -> None:
+    for relative in PROBLEM_SERVICES:
+        path = SOURCE / relative
         source = path.read_text(encoding="utf-8")
 
-        assert routes_imports(source, "openbinding_gateway.services") == [], f"services/{module}.py imports routes"
+        assert routes_imports(source, _package_of(path)) == [], f"{relative} imports routes"
         assert {name for _, name in fastapi_imports(source)} <= {"fastapi.HTTPException"}, (
-            f"services/{module}.py may use fastapi only for HTTPException; raise a {problem}"
+            f"{relative} may use fastapi only for HTTPException"
         )
-        assert module_level_mutables(source) == [], f"services/{module}.py must not keep mutable module state"
+        assert module_level_mutables(source) == [], f"{relative} must not keep mutable module state"
 
 
 def _modules_importing_routes() -> set[str]:

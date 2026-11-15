@@ -447,7 +447,7 @@ export function describeAuditEvent(event: AuditEvent): AuditView {
       };
     }
     case 'maintenance.expired.purged': {
-      const facts = (['expiredArtifacts', 'expiredApiKeys', 'terminalJobs', 'abandonedJobs', 'artifactFilesRemoved'] as const)
+      const facts = (['expiredApiKeys', 'terminalJobs', 'abandonedJobs'] as const)
         .filter((field) => typeof detail[field] === 'number')
         .map((field): [string, string] => [humanize(field), String(detail[field])]);
       return { text: 'Expired data was purged.', before: null, after: null, facts };

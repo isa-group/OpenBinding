@@ -22,10 +22,10 @@ from openbinding_gateway import telemetry
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import ApiErrorEvent, utcnow
 from openbinding_gateway.models.errors import api_error
-from openbinding_gateway.routes import v1
+from openbinding_gateway.modules.problems.application import validate as validate_module
 
 #: An anonymous route that does real work: the compile class of access/work_limits.py.
-PROBE = "/v1/instances/validate"
+PROBE = "/v1/bim/validate"
 #: An empty package, which the toolchain refuses with a 422.
 EMPTY_PACKAGE = {"content": b"", "headers": {"content-type": "application/vnd.bim+zip"}}
 
@@ -197,7 +197,7 @@ async def test_anonymous_503_events_are_limited_per_client(api_client, db_sessio
             503, "bim_unavailable", "The BIM toolchain is busy; retry shortly.", headers={"Retry-After": "5"}
         )
 
-    monkeypatch.setattr(v1, "compile_resolved", busy)
+    monkeypatch.setattr(validate_module, "compile_package", busy)
 
     answers = []
     for _ in range(4):
@@ -294,11 +294,11 @@ async def test_a_signed_in_failure_of_a_package_validation_is_attributed(
     user, headers = await make_account(api_client, registration, db_session, gate)
 
     response = await api_client.post(
-        "/v1/instances/validate", content=b"not a zip", headers={**headers, "content-type": "application/zip"}
+        PROBE, content=b"not a zip", headers={**headers, "content-type": "application/zip"}
     )
 
     assert response.status_code >= 400
-    [event] = await _events(db_session, "/v1/instances/validate")
+    [event] = await _events(db_session, PROBE)
     assert event.user_id == uuid.UUID(user["id"])
 
 

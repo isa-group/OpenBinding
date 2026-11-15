@@ -49,7 +49,7 @@ async function loadSetup(from: BimResourceRef | null): Promise<Setup> {
   let vocabularies: Vocabulary[] = [BUILTIN_VOCABULARY];
   let protocolDigest: string | null = null;
   try {
-    const profiles = await apiClient.getProfiles();
+    const profiles = await apiClient.getProtocolProfiles();
     vocabularies = vocabulariesFrom(profiles);
     protocolDigest = profiles.find((profile) => profile.id === 'qos-binding/v1')?.protocolDigest ?? null;
   } catch {

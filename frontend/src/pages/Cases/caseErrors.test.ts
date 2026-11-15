@@ -1,14 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { HttpError } from '../../api/client';
-import { classifyAuthError, createRefusal, deleteRefusal, isMissing, snapshotFailureKind, updateRefusal } from './caseErrors';
+import { classifyAuthError, deleteRefusal, isMissing, sourceFailureKind, updateRefusal, uploadRefusal } from './caseErrors';
 
-const http = (status: number) => new HttpError(status, 'refused');
+const http = (status: number, code?: string) => Object.assign(new HttpError(status, 'refused'), code ? { code } : {});
 
-describe('the refusals of the case screens that remain', () => {
-  it('words a refused create', () => {
-    expect(createRefusal(http(409)).kind).toBe('address');
-    expect(createRefusal(http(403)).kind).toBe('forbidden');
-    expect(createRefusal(http(404)).kind).toBe('gone');
+describe('the refusals of the problem screens', () => {
+  it('words a refused upload', () => {
+    expect(uploadRefusal(http(409, 'slug_conflict')).kind).toBe('address');
+    expect(uploadRefusal(http(413)).kind).toBe('size');
+    expect(uploadRefusal(http(415)).kind).toBe('invalid');
+    expect(uploadRefusal(http(403)).kind).toBe('forbidden');
+    expect(uploadRefusal(http(404)).kind).toBe('gone');
+    const refused = Object.assign(http(422, 'invalid_instance'), { diagnostics: [{ code: 'missing_role', message: 'No application', resource: 'instance.json' }] });
+    expect(uploadRefusal(refused, 'version')).toMatchObject({ kind: 'invalid', diagnostics: [expect.objectContaining({ code: 'missing_role' })] });
+    expect(uploadRefusal(refused, 'version').text).toContain('no version was saved');
   });
 
   it('words a refused update', () => {
@@ -16,16 +21,17 @@ describe('the refusals of the case screens that remain', () => {
     expect(updateRefusal(http(404)).kind).toBe('gone');
   });
 
-  it('words a refused delete, a sealed case apart', () => {
+  it('words a refused delete, a problem that runs used apart', () => {
     expect(deleteRefusal(http(409)).kind).toBe('sealed');
     expect(deleteRefusal(http(403)).text).toMatch(/ADMIN/);
     expect(deleteRefusal(http(404)).kind).toBe('gone');
   });
 
-  it('tells a missing case and a snapshot that cannot be shown', () => {
+  it('tells a missing problem and a source that cannot be shown', () => {
     expect(isMissing(null)).toBe(false);
     expect(isMissing(classifyAuthError(http(404)))).toBe(true);
-    expect(snapshotFailureKind(classifyAuthError(http(403)))).toBe('key');
-    expect(snapshotFailureKind(classifyAuthError(http(404)))).toBe('missing');
+    expect(sourceFailureKind(classifyAuthError(http(403)))).toBe('key');
+    expect(sourceFailureKind(classifyAuthError(http(404)))).toBe('missing');
+    expect(sourceFailureKind(classifyAuthError(http(422, 'revision_not_recompilable')))).toBe('recompile');
   });
 });

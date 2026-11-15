@@ -128,10 +128,12 @@ class World:
             return httpx.Response(200, json={"access_token": TOKEN})
         if request.headers.get("authorization") != f"Bearer {TOKEN}":
             return httpx.Response(401, json={"code": "unauthorized"})
-        if path == "/api/v1/instances":
-            return httpx.Response(self.upload_status, json={"id": "snapshot-1"})
+        if path == "/api/v1/organizations/lab-main/problems" and method == "POST":
+            assert request.url.params["slug"] == "cancel-probe"
+            return httpx.Response(self.upload_status, json={"revision": {"id": "revision-1"}})
         if path == "/api/v1/jobs" and method == "POST":
             body = json.loads(request.content)
+            assert body["revision"] == "revision-1"
             assert body["engine"] == "minizinc-csp" and body["mode"] == "exact-weighted"
             assert body["options"] == {"time_budget_ms": 600_000}
             if self.launch_status == 503:
@@ -365,7 +367,7 @@ def test_without_access_to_the_attempts_the_probe_is_inconclusive_and_asks_the_e
     ("changes", "needle"),
     [
         ({"login_status": 401}, "login of lab-owner failed"),
-        ({"upload_status": 422}, "not accepted as a snapshot"),
+        ({"upload_status": 422}, "not accepted as a problem"),
         ({"launch_status": 422}, "job was not accepted (422 binding_space_too_large)"),
         ({"launch_status": 503}, "blocked by the remote"),
     ],

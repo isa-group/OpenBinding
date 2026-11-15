@@ -5,9 +5,12 @@ from __future__ import annotations
 import uuid
 
 import pytest_asyncio
+from sqlalchemy import func, select
 
 from openbinding_gateway import space_client
+from openbinding_gateway.db.models import BindingCase, BindingCaseRevision, Blob, ProblemCompilation
 from _pricing import fake_pricing_gate, largest_plan
+from _problem_helpers import upload_problem
 
 LARGER_PLAN = largest_plan()
 
@@ -140,7 +143,7 @@ async def test_organizations_carry_no_sponsor_and_no_subtree_quota(
 
 
 async def test_delete_project_and_organization_lifecycle(
-    api_client, registration, platform_gate
+    api_client, db_session, registration, platform_gate
 ) -> None:
     owner, owner_headers = await account(api_client, registration)
     viewer, viewer_headers = await account(api_client, registration)
@@ -168,6 +171,15 @@ async def test_delete_project_and_organization_lifecycle(
     )
     assert proj_res.status_code == 201
 
+    # A problem belongs to the organization, not to the project.
+    uploaded = await upload_problem(api_client, owner_headers, org["slug"])
+    problem_slug = uploaded["problem"]["slug"]
+    revision_id = uuid.UUID(uploaded["revision_id"])
+    blob_id = await db_session.scalar(
+        select(BindingCaseRevision.package_blob_id).where(BindingCaseRevision.id == revision_id)
+    )
+    assert blob_id is not None
+
     # Viewer cannot delete project
     del_forbidden = await api_client.delete(
         f"/v1/organizations/{org['slug']}/projects/proj-lifecycle",
@@ -189,6 +201,13 @@ async def test_delete_project_and_organization_lifecycle(
     )
     assert get_proj.status_code == 404
 
+    # Deleting the project leaves the organization's problem and its blob.
+    kept = await api_client.get(
+        f"/v1/organizations/{org['slug']}/problems/{problem_slug}", headers=owner_headers
+    )
+    assert kept.status_code == 200, kept.text
+    assert await db_session.get(Blob, blob_id) is not None
+
     # Viewer cannot delete organization
     del_org_forbidden = await api_client.delete(
         f"/v1/organizations/{org['slug']}",
@@ -209,3 +228,17 @@ async def test_delete_project_and_organization_lifecycle(
         headers=owner_headers,
     )
     assert get_org.status_code == 404
+
+    # Deleting the organization takes its problems, revisions, compilations and blobs with it.
+    org_id = uuid.UUID(org["id"])
+    db_session.expire_all()
+    assert await db_session.scalar(
+        select(func.count()).select_from(BindingCase).where(BindingCase.organization_id == org_id)
+    ) == 0
+    assert await db_session.get(BindingCaseRevision, revision_id) is None
+    assert await db_session.scalar(
+        select(func.count()).select_from(ProblemCompilation).where(ProblemCompilation.revision_id == revision_id)
+    ) == 0
+    assert await db_session.scalar(
+        select(func.count()).select_from(Blob).where(Blob.organization_id == org_id)
+    ) == 0

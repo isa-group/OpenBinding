@@ -18,7 +18,7 @@ from ..artifacts import (artifact_view, can_read, owned_artifact, reference, res
 from ..collaboration import organization_by_ref, require_role
 from ..core.like import LIKE_ESCAPE, like_contains
 from ..db.models import (Artifact, ArtifactDependency, ArtifactPublication, ArtifactVersion, ArtifactCaseReference,
-    BindingCase, BindingCaseRevision, Project, Visibility, CaseArtifact, OrganizationRole, User)
+    OrganizationRole, User)
 from ..models.artifacts import ArtifactRef, ArtifactView, ArtifactVersionView, PublishVersion
 from ..models.errors import api_error
 
@@ -114,19 +114,10 @@ async def publish_version(artifact_id: uuid.UUID, version_id: uuid.UUID, payload
     for target in targets:
         if await session.get(ArtifactPublication, target) is None:
             raise api_error(422, 'private_dependency', 'Publish all fixed dependencies before publishing this version.')
-    for case_id in await session.scalars(select(ArtifactCaseReference.case_revision_id)
-                                        .where(ArtifactCaseReference.version_id == version.id)):
-        visibility = await session.scalar(select(Project.visibility)
-            .join(BindingCase, BindingCase.project_id == Project.id)
-            .join(BindingCaseRevision, BindingCaseRevision.binding_case_id == BindingCase.id)
-            .where(BindingCaseRevision.id == case_id))
-        resources = (await session.scalars(select(CaseArtifact.version_id)
-            .where(CaseArtifact.revision_id == case_id))).all()
-        if visibility != Visibility.PUBLIC or not resources:
-            raise api_error(422, 'private_case_dependency', 'Referenced cases require a public project and a closed artifact composition.')
-        for resource_id in resources:
-            if await session.get(ArtifactPublication, resource_id) is None:
-                raise api_error(422, 'private_case_dependency', 'Publish every resource consumed by the referenced cases first.')
+    if await session.scalar(select(ArtifactCaseReference.case_revision_id)
+                            .where(ArtifactCaseReference.version_id == version.id).limit(1)) is not None:
+        # Problems are members-only (no public read): a version that names problem revisions stays private.
+        raise api_error(422, 'private_case_dependency', 'A version that names problem revisions cannot be published.')
     publication = await session.get(ArtifactPublication, version.id)
     if publication is None:
         publication = ArtifactPublication(version_id=version.id, citation=payload.citation, published_by_id=user.id)

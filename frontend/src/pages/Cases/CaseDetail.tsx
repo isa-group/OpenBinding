@@ -1,23 +1,27 @@
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Lock } from 'lucide-react';
-import { casesApi } from '../../api/cases';
-import type { CaseRevision, Organization, Project } from '../../api/platform';
+import { useState } from 'react';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { CheckCircle2, Lock } from 'lucide-react';
+import type { Organization } from '../../api/platform';
+import { problemsApi, type ProblemRevision } from '../../api/problems';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { NotFoundScreen } from '../../routes/NotFoundScreen';
-import { isProblemTabSegment, problemPath, problemsPath, type ProblemTabSegment } from '../../routes/paths/problems';
+import { isProblemTabSegment, problemPath, problemsPath, workbenchPath, type ProblemTabSegment } from '../../routes/paths/problems';
 import { useResource } from '../../utils/useResource';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { classifyAuthError, isMissing, marker } from './caseErrors';
 import { VersionOverview } from './CaseRevision';
 import { plural } from './casesModel';
 import { VersionCompare } from './CaseCompare';
+import { UploadVersionDialog } from './dialogs';
 import { CaseFrame, CaseMissing, ReadOnlyNote } from './parts';
 import { ProblemSettings } from './ProblemSettings';
-import { VersionSource } from './SnapshotDetail';
-import { useRouteCase, type RouteCaseContent } from './useRouteCase';
+import { VersionSource } from './RevisionSource';
+import { runLaunchOf, runRootOf } from './runTarget';
+import { useRouteProblem, type RouteProblemContent } from './useRouteProblem';
+import { useRouteOrganization } from '../Organization/useRouteOrganization';
 import { VersionHistory } from './VersionHistory';
 import { VersionRuns } from './VersionRuns';
 
@@ -31,25 +35,27 @@ const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: 'settings', label: 'Settings' },
 ];
 
-/** A visitor of a public project reads the problem; its runs and its settings are for the people of the organization. */
-const MEMBERS_ONLY: readonly TabId[] = ['runs', 'settings'];
-
-function ProblemBody({ organization, project, content, revision, tab, canCreate, canAdminister, role, reload }: {
-  organization: Organization; project: Project; content: RouteCaseContent; revision: CaseRevision | undefined; tab: ProblemTabSegment | undefined;
+function ProblemBody({ organization, content, revision, tab, canCreate, canAdminister, role, reload }: {
+  organization: Organization; content: RouteProblemContent; revision: ProblemRevision | undefined; tab: ProblemTabSegment | undefined;
   canCreate: boolean; canAdminister: boolean; role: Organization['effective_role']; reload: () => void;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { context } = useRouteOrganization();
   const [query] = useSearchParams();
   const { item, revisions } = content;
-  const root = `/app/${organization.slug}/${project.slug}`;
-  const publicRead = project.access === 'public_read';
+  const org = organization.slug;
   const active: TabId = tab ?? 'overview';
   const named = query.get('version') ?? '';
-  const tabs = TABS.filter((entry) => !publicRead || !MEMBERS_ONLY.includes(entry.id));
-  const open = (id: TabId, show: { version?: string } = { version: named }) => void navigate(problemPath(root, item.slug, id === 'overview' ? undefined : id, show), { viewTransition: true });
+  const [uploading, setUploading] = useState(false);
+  const [toast, setToast] = useState<string>(() => (location.state as { toast?: string } | null)?.toast ?? '');
+  const open = (id: TabId, show: { version?: string } = { version: named }) => void navigate(problemPath(org, item.slug, id === 'overview' ? undefined : id, show), { viewTransition: true });
+  const runRoot = runRootOf(context, org);
+  const runHref = revision ? runLaunchOf(context, org, item.slug, revision.revision) : null;
+  const studyHref = revision && runRoot ? `${runRoot}/studies/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}` : null;
 
   return (
-    <CaseFrame organization={organization} project={project} trail={[{ label: 'Problems', to: problemsPath(root) }, { label: item.name }]}>
+    <CaseFrame organization={organization} trail={[{ label: 'Problems', to: problemsPath(org) }, { label: item.name }]}>
       <header className="proj-title-row">
         <div className="proj-title">
           <div className="proj-title-line">
@@ -68,75 +74,93 @@ function ProblemBody({ organization, project, content, revision, tab, canCreate,
           )}
         </div>
         <div className="proj-actions">
-          {canCreate && <Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="primary">New version</Action>}
-          {revision && !publicRead && <Action to={`${root}/runs/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}`} variant="secondary">Run this version</Action>}
-          {revision && <Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}&revision=${revision.id}`} variant="secondary">Open in Workbench</Action>}
-          {revision && !publicRead && <Action to={`${root}/studies/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}`} variant="secondary">Add to study</Action>}
+          {canCreate && <Action variant="primary" onClick={() => setUploading(true)}>Upload new version</Action>}
+          {canCreate && <Action to={workbenchPath(org, { problem: item.slug, revision: revision?.revision })} variant="secondary">Edit in the Workbench</Action>}
+          {revision && canCreate && runHref && <Action to={runHref} variant="secondary">Run this version</Action>}
+          {revision && canCreate && studyHref && <Action to={studyHref} variant="secondary">Add to study</Action>}
         </div>
       </header>
 
+      {toast && (
+        <div className="org-toast" role="status">
+          <CheckCircle2 aria-hidden="true" />
+          <span>{toast}</span>
+        </div>
+      )}
       {!canCreate && <ReadOnlyNote role={role}>You can read and compare versions. New versions need MEMBER; deleting needs ADMIN.</ReadOnlyNote>}
+      {canCreate && revision && !runHref && <p className="org-muted">Runs open in a project of the organization: create one to run this problem.</p>}
 
-      <TabBar items={tabs} value={active} onChange={(id) => open(id as TabId)} ariaLabel="Problem sections" prefix="pp-tab" />
+      <TabBar items={TABS} value={active} onChange={(id) => open(id as TabId)} ariaLabel="Problem sections" prefix="pp-tab" />
       <TabPanel prefix="pp-tab" active={active}>
-        {active === 'runs' && <VersionRuns organization={organization} project={project} content={content} canCreate={canCreate} />}
+        {active === 'runs' && <VersionRuns organization={organization} content={content} runHref={runHref} canCreate={canCreate} />}
         {active === 'settings' && (
           <ProblemSettings
             key={item.id}
             organization={organization}
-            project={project}
             item={item}
-            sealed={revisions.length}
             canEdit={canCreate}
             canAdminister={canAdminister}
             onSaved={reload}
-            onDeleted={(name) => navigate(problemsPath(root), { state: { toast: `Problem “${name}” deleted.` } })}
+            onDeleted={(name) => navigate(problemsPath(org), { state: { toast: `Problem “${name}” deleted.` } })}
           />
         )}
         {(active === 'overview' || active === 'versions' || active === 'source') && !revision && (
           <section className="case-guide" aria-labelledby="cd-empty">
             <h2 id="cd-empty">No versions yet</h2>
-            <p>A problem version pins exact library versions of an application, candidate catalog, rules and goal. Compose the first one to be able to run this problem.</p>
-            {canCreate && <div className="proj-actions"><Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}`} variant="primary">Compose the first version</Action></div>}
+            <p>A version is a sealed BIM package. Upload one, or write it in the Workbench, to be able to run this problem.</p>
+            {canCreate && <div className="proj-actions"><Action variant="primary" onClick={() => setUploading(true)}>Upload a version</Action></div>}
           </section>
         )}
-        {revision && active === 'overview' && <VersionOverview key={revision.id} organization={organization} project={project} content={content} revision={revision} />}
+        {revision && active === 'overview' && <VersionOverview key={revision.id} organization={organization} content={content} revision={revision} />}
         {revision && active === 'versions' && (
           <>
-            <VersionHistory root={root} content={content} publicRead={publicRead} />
-            <VersionCompare root={root} content={content} canCreate={canCreate} />
+            <VersionHistory org={org} content={content} runOf={(number) => runLaunchOf(context, org, item.slug, number)} canCreate={canCreate} />
+            <VersionCompare org={org} content={content} canCreate={canCreate} />
           </>
         )}
-        {revision && active === 'source' && <VersionSource key={revision.id} organization={organization} project={project} revision={revision} />}
+        {revision && active === 'source' && <VersionSource key={revision.id} organization={organization} item={item} revision={revision} />}
       </TabPanel>
+
+      {uploading && (
+        <UploadVersionDialog
+          organization={organization}
+          item={item}
+          onClose={() => setUploading(false)}
+          onSaved={(saved) => {
+            const text = saved.created ? `Saved as version ${saved.revision.revision}.` : `Unchanged: this is version ${saved.revision.revision}.`;
+            setUploading(false);
+            setToast(text);
+            reload();
+            // The page may redraw while the new version is read: the toast travels with the address.
+            navigate(problemPath(org, item.slug, undefined, { version: saved.revision.revision }), { replace: true, state: { toast: text } });
+          }}
+        />
+      )}
     </CaseFrame>
   );
 }
 
 function ProblemPage({ tab }: { tab: ProblemTabSegment | undefined }) {
-  const route = useRouteCase();
+  const route = useRouteProblem();
   const [query] = useSearchParams();
   const named = query.get('version') ?? '';
-  const { orgSlug, projectSlug, caseSlug, organization, project, access, waiting, failure, reload, content, loaded, caseFailure } = route;
+  const { slug: orgSlug, caseSlug, organization, access, waiting, content, loaded, caseFailure } = route;
   // The version shown: the one the address names (a number; a fingerprint or an id is asked of the gateway), else the latest.
   const found = named ? loaded?.revisions.find((candidate) => String(candidate.revision) === named) : loaded?.revisions[0];
   const ask = Boolean(named) && !found && loaded !== undefined;
-  const remote = useResource<CaseRevision | null>(
-    `revision:${orgSlug}/${projectSlug}/${caseSlug}/${named}:${ask ? 'ask' : 'skip'}`,
-    async () => (organization && project && ask ? casesApi.revision(organization.slug, project.slug, caseSlug, named) : null),
+  const remote = useResource<ProblemRevision | null>(
+    `revision:${orgSlug}/${caseSlug}/${named}:${ask ? 'ask' : 'skip'}`,
+    async () => (organization && ask ? problemsApi.revision(organization.slug, caseSlug, named) : null),
   );
 
-  if (waiting) return <OrgSkeleton label="Loading project…" />;
-  if (!organization || !project) {
-    return <OrgGate failure={organization ? failure : null} organizationName={organization?.name} onRetry={reload} />;
-  }
-  if (project.access === 'public_read' && tab !== undefined && MEMBERS_ONLY.includes(tab)) return <NotFoundScreen />;
-  const root = `/app/${organization.slug}/${project.slug}`;
-  const trail = [{ label: 'Problems', to: problemsPath(root) }, { label: caseSlug }];
+  if (waiting) return <OrgSkeleton label="Loading organization…" />;
+  if (!organization) return <OrgGate failure={null} subject="organization" />;
+  const org = organization.slug;
+  const trail = [{ label: 'Problems', to: problemsPath(org) }, { label: caseSlug }];
 
   if ((content.status === 'loading' && !loaded) || (ask && remote.status === 'loading')) {
     return (
-      <CaseFrame organization={organization} project={project} trail={trail}>
+      <CaseFrame organization={organization} trail={trail}>
         <div role="status" aria-busy="true"><span className="sr-only">Loading the problem…</span><Skeleton variant="panel" /><Skeleton variant="card" /></div>
       </CaseFrame>
     );
@@ -144,12 +168,12 @@ function ProblemPage({ tab }: { tab: ProblemTabSegment | undefined }) {
   if (caseFailure || !loaded) {
     const missing = isMissing(caseFailure);
     return (
-      <CaseFrame organization={organization} project={project} trail={trail}>
+      <CaseFrame organization={organization} trail={trail}>
         <CaseMissing
-          title={missing ? `No problem with this address in ${project.name} (404)` : `The problem couldn’t be loaded${caseFailure ? marker(caseFailure) : ''}`}
+          title={missing ? `No problem with this address in ${organization.name} (404)` : `The problem couldn’t be loaded${caseFailure ? marker(caseFailure) : ''}`}
           actions={(
             <>
-              <Action to={problemsPath(root)} variant="primary">All problems</Action>
+              <Action to={problemsPath(org)} variant="primary">All problems</Action>
               <Action variant="secondary" onClick={content.reload}>Retry</Action>
             </>
           )}
@@ -164,10 +188,10 @@ function ProblemPage({ tab }: { tab: ProblemTabSegment | undefined }) {
     const remoteFailure = remote.status === 'error' ? classifyAuthError(remote.error) : null;
     const missing = isMissing(remoteFailure) || !remoteFailure;
     return (
-      <CaseFrame organization={organization} project={project} trail={trail}>
+      <CaseFrame organization={organization} trail={trail}>
         <CaseMissing
           title={missing ? 'This version doesn’t exist (404)' : `The version couldn’t be loaded${marker(remoteFailure ?? { kind: 'unknown' })}`}
-          actions={<Action to={problemPath(root, caseSlug, 'versions')} variant="primary">See all versions</Action>}
+          actions={<Action to={problemPath(org, caseSlug, 'versions')} variant="primary">See all versions</Action>}
         >
           {missing ? 'It may belong to another problem, or the problem may have been renamed. We answer the same way when you can’t see it.' : 'The gateway didn’t answer. Try again in a moment.'}
         </CaseMissing>
@@ -177,7 +201,6 @@ function ProblemPage({ tab }: { tab: ProblemTabSegment | undefined }) {
   return (
     <ProblemBody
       organization={organization}
-      project={project}
       content={loaded}
       revision={revision}
       tab={tab}
@@ -190,7 +213,7 @@ function ProblemPage({ tab }: { tab: ProblemTabSegment | undefined }) {
 }
 
 /**
- * A problem (`case-detail`, `/app/:org/:project/problems/:case/:tab?`): Overview, Runs, Versions, Source and Settings of the problem version named by
+ * A problem (`case-detail`, `/app/:org/problems/:case/:tab?`): Overview, Runs, Versions, Source and Settings of the problem version named by
  * `?version=` (the latest when none). Any other tab is a page that does not exist.
  */
 export function CaseDetail() {

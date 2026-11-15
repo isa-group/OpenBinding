@@ -48,8 +48,7 @@ PROBE_FEATURE = "probe"
 #: imported because this layer may not reach into the toolchain -- the gateway has exactly
 #: one door to BIM, ``integrations/bim.py``, and a test enforces that nothing else imports
 #: the language. Injecting it is also what keeps this package liftable into a distribution
-#: of its own, and what lets the reduction happen wherever the compiler actually runs,
-#: which under ``BIM_MODE=http`` is not this process.
+#: of its own, and what lets the reduction happen wherever the compiler actually runs.
 Compile = Callable[[Mapping[str, bytes]], Mapping[str, Any]]
 
 

@@ -16,6 +16,7 @@ import asyncio
 import inspect
 import logging
 import uuid
+from _problem_helpers import placeholder_refs
 from datetime import timedelta
 from types import SimpleNamespace
 
@@ -81,7 +82,7 @@ async def a_job(session, owner, *, state=JobState.RUNNING, age_s=None, budget_s=
         state=state,
         requested_budget_s=budget_s,
         created_at=utcnow() - timedelta(seconds=age_s),
-        **extra,
+        **{**placeholder_refs(), **extra},
     )
     session.add(job)
     await session.commit()

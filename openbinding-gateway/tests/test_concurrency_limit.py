@@ -12,6 +12,8 @@ both take the last slot needs PostgreSQL and lives in
 
 from __future__ import annotations
 
+from _problem_helpers import compiled_run_refs, placeholder_refs
+
 import uuid
 
 import pytest
@@ -19,7 +21,7 @@ from pydantic import ValidationError
 from sqlalchemy import func, select
 
 from _pricing import largest_plan, pricing_catalog
-from test_idempotency_jobs import _body, _login, _post, _snapshot
+from test_idempotency_jobs import _body, _login, _post, _revision
 from test_job_dispatch import _account
 from test_study_cell_launch import BASE, _cells, _study
 
@@ -37,9 +39,11 @@ def set_limit(monkeypatch, value: int) -> None:
 
 
 def a_job(owner_id, state=JobState.QUEUED, **extra) -> Job:
+    """A job row; without references of its own it names a revision nothing reads (``placeholder_refs``)."""
     return Job(
         owner_id=owner_id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
-        service_url="http://engine", state=state, original_request={}, options={}, provenance={}, **extra,
+        service_url="http://engine", state=state, original_request={}, options={}, provenance={},
+        **{**placeholder_refs(), **extra},
     )
 
 
@@ -145,10 +149,10 @@ async def test_creating_a_job_at_the_limit_is_a_429_and_finishing_one_frees_the_
 ):
     set_limit(monkeypatch, 1)
     headers = await _login(api_client, registration())
-    snapshot = await _snapshot(api_client, headers)
+    revision = await _revision(api_client, headers)
 
-    first = await _post(api_client, headers, _body(snapshot), key="first")
-    refused = await _post(api_client, headers, _body(snapshot), key="second")
+    first = await _post(api_client, headers, _body(revision), key="first")
+    refused = await _post(api_client, headers, _body(revision), key="second")
 
     assert first.status_code == 202, first.text
     assert refused.status_code == 429, refused.text
@@ -164,19 +168,19 @@ async def test_creating_a_job_at_the_limit_is_a_429_and_finishing_one_frees_the_
     job.state = JobState.COMPLETED
     await db_session.commit()
 
-    allowed = await _post(api_client, headers, _body(snapshot), key="second")
+    allowed = await _post(api_client, headers, _body(revision), key="second")
     assert allowed.status_code == 202, allowed.text
 
 
 async def test_a_running_job_holds_its_slot_too(api_client, db_session, registration, no_dispatch, monkeypatch):
     set_limit(monkeypatch, 1)
     headers = await _login(api_client, registration())
-    snapshot = await _snapshot(api_client, headers)
-    first = await _post(api_client, headers, _body(snapshot), key="first")
+    revision = await _revision(api_client, headers)
+    first = await _post(api_client, headers, _body(revision), key="first")
     (await db_session.get(Job, uuid.UUID(first.json()["id"]))).state = JobState.RUNNING
     await db_session.commit()
 
-    refused = await _post(api_client, headers, _body(snapshot), key="second")
+    refused = await _post(api_client, headers, _body(revision), key="second")
 
     assert refused.status_code == 429, refused.text
 
@@ -186,10 +190,10 @@ async def test_an_idempotent_replay_at_the_limit_returns_the_job_not_a_429(
 ):
     set_limit(monkeypatch, 1)
     headers = await _login(api_client, registration())
-    snapshot = await _snapshot(api_client, headers)
-    first = await _post(api_client, headers, _body(snapshot), key="the-key")
+    revision = await _revision(api_client, headers)
+    first = await _post(api_client, headers, _body(revision), key="the-key")
 
-    replay = await _post(api_client, headers, _body(snapshot), key="the-key")
+    replay = await _post(api_client, headers, _body(revision), key="the-key")
 
     assert first.status_code == replay.status_code == 202, replay.text
     assert replay.json()["id"] == first.json()["id"] and replay.json()["idempotent"] is True
@@ -199,10 +203,10 @@ async def test_an_idempotent_replay_at_the_limit_returns_the_job_not_a_429(
 async def test_the_limit_is_per_account(api_client, db_session, registration, no_dispatch, monkeypatch):
     set_limit(monkeypatch, 1)
     alice, bob = await _login(api_client, registration()), await _login(api_client, registration())
-    alice_snapshot, bob_snapshot = await _snapshot(api_client, alice), await _snapshot(api_client, bob)
+    alice_revision, bob_revision = await _revision(api_client, alice), await _revision(api_client, bob)
 
-    first = await _post(api_client, alice, _body(alice_snapshot), key="a")
-    other = await _post(api_client, bob, _body(bob_snapshot), key="b")
+    first = await _post(api_client, alice, _body(alice_revision), key="a")
+    other = await _post(api_client, bob, _body(bob_revision), key="b")
 
     assert first.status_code == other.status_code == 202
 
@@ -218,10 +222,10 @@ async def test_a_bigger_plan_does_not_raise_the_technical_cap(
     headers = await _login(api_client, details)
     user_id = await db_session.scalar(select(User.id).where(User.username == details["username"]))
     space_client.get_gate().plans[user_id] = largest_plan("maxConcurrentRuns")
-    snapshot = await _snapshot(api_client, headers)
+    revision = await _revision(api_client, headers)
 
-    await _post(api_client, headers, _body(snapshot), key="first")
-    refused = await _post(api_client, headers, _body(snapshot), key="second")
+    await _post(api_client, headers, _body(revision), key="first")
+    refused = await _post(api_client, headers, _body(revision), key="second")
 
     assert refused.status_code == 429
     assert refused.json()["concurrency"]["limit"] == 1
@@ -235,8 +239,9 @@ async def test_a_retry_at_the_limit_is_a_429_and_a_replay_of_a_retry_is_not(
     api_client, db_session, registration, no_dispatch, monkeypatch
 ):
     user_id, headers = await _account(api_client, registration)
-    failed = a_job(user_id, JobState.FAILED)
-    busy = a_job(user_id, JobState.QUEUED)
+    refs = await compiled_run_refs(db_session, user_id)
+    failed = a_job(user_id, JobState.FAILED, **refs)
+    busy = a_job(user_id, JobState.QUEUED, **refs)
     db_session.add_all([failed, busy])
     await db_session.flush()
     set_limit(monkeypatch, 1)
@@ -258,8 +263,9 @@ async def test_a_retry_at_the_limit_is_a_429_and_a_replay_of_a_retry_is_not(
 
 async def test_cancelling_a_queued_job_frees_its_slot(api_client, db_session, registration, no_dispatch, monkeypatch):
     user_id, headers = await _account(api_client, registration)
-    queued = a_job(user_id, JobState.QUEUED)
-    failed = a_job(user_id, JobState.FAILED)
+    refs = await compiled_run_refs(db_session, user_id)
+    queued = a_job(user_id, JobState.QUEUED, **refs)
+    failed = a_job(user_id, JobState.FAILED, **refs)
     db_session.add_all([queued, failed])
     await db_session.flush()
     set_limit(monkeypatch, 1)

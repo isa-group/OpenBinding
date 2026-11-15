@@ -14,9 +14,8 @@ export type ApiKeyPermission =
   | 'account:write'
   | 'keys:read'
   | 'keys:write'
-  | 'instances:read'
-  | 'instances:write'
-  | 'instances:validate'
+  | 'problems:read'
+  | 'problems:write'
   | 'jobs:read'
   | 'engines:read'
   | 'engines:execute'
@@ -251,7 +250,6 @@ export interface AdminQueueStatus {
 }
 
 export interface MaintenancePreview {
-  expiredArtifacts: number;
   expiredApiKeys: number;
   terminalJobs: number;
   abandonedJobs: number;

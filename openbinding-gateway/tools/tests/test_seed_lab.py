@@ -17,7 +17,7 @@ import _remote_common as common
 import seed_lab
 from fakes import ENV, FakeRemotes
 
-from openbinding_gateway.db.models import ApiKey, InstanceSnapshot, User, UserRole
+from openbinding_gateway.db.models import ApiKey, ProblemCompilation, User, UserRole
 from openbinding_gateway.db.platform_models import (
     BindingCase,
     BindingCaseRevision,
@@ -46,9 +46,8 @@ async def test_first_run_creates_the_lab_with_the_real_roles(db_session):
     result = await seed_lab.seed(db_session, PASSWORD, EXAMPLES)
     assert result["counts"] == {
         "users": 6, "apiKeys": 6, "organizations": 2, "memberships": 5, "projects": 1, "cases": 1, "caseRevisions": 1,
-        "artifacts": result["counts"]["artifacts"], "snapshots": result["counts"]["snapshots"],
+        "artifacts": 0, "compilations": 1,
     }
-    assert result["counts"]["artifacts"] >= 1 and result["counts"]["snapshots"] >= 1
 
     users = {user.username: user for user in (await db_session.scalars(select(User))).all()}
     assert users["lab-admin"].role is UserRole.ADMIN
@@ -69,8 +68,9 @@ async def test_first_run_creates_the_lab_with_the_real_roles(db_session):
     assert (organization.slug, project.slug) == seed_lab.PROJECT_REF
     case = (await db_session.scalars(select(BindingCase))).one()
     revision = (await db_session.scalars(select(BindingCaseRevision))).one()
-    assert (case.slug, revision.source_snapshot_id is not None) == ("simple-seq", True)
-    assert await db_session.get(InstanceSnapshot, revision.source_snapshot_id) is not None
+    assert (case.slug, case.organization_id) == ("simple-seq", organization.id)
+    compilation = (await db_session.scalars(select(ProblemCompilation))).one()
+    assert compilation.revision_id == revision.id
 
 
 async def test_seed_uses_the_open_gate_and_restores_the_installed_one(db_session):

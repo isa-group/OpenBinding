@@ -451,20 +451,21 @@ rm -r <tls dir>
 
 8. After the first deployment of the release, when the real gateway runs, check what the stand-in could not show. Use
    the public origin for `<origin>` and the Compose network of the stack (see `docker network ls`) for `<network>`.
-   - Request `/api/v1/examples/library/manifest.json` and `/api/v1/examples/library%2FREADME.md` through the origin,
-     and the same two paths directly to the gateway from a container on the Compose network. The `nginx` image of this
-     repository is not relied on as a client; a Python image makes the request and does not normalise the path.
-     Compare the status and the body of each pair; they must be equal:
+   - Request `/api/v1/bim/templates/demo/01_simple_seq` and `/api/v1/bim/templates/demo%2F01_simple_seq` through the
+     origin, and the same two paths directly to the gateway from a container on the Compose network. The `nginx` image
+     of this repository is not relied on as a client; a Python image makes the request and does not normalise the path.
+     The answers are `.bim.zip` packages, so compare the status and the SHA-256 of the body of each pair; they must be
+     equal:
 
      ```bash
-     curl -sS -w '\n%{http_code}\n' "<origin>/api/v1/examples/library/manifest.json"
-     curl -sS -w '\n%{http_code}\n' "<origin>/api/v1/examples/library%2FREADME.md"
+     curl -sS -o >(sha256sum) -w '%{http_code}\n' "<origin>/api/v1/bim/templates/demo/01_simple_seq"
+     curl -sS -o >(sha256sum) -w '%{http_code}\n' "<origin>/api/v1/bim/templates/demo%2F01_simple_seq"
      docker run --rm --network <network> <python image> python -c \
-       "import http.client,sys; c=http.client.HTTPConnection('gateway',8000); c.request('GET',sys.argv[1]); r=c.getresponse(); print(r.read().decode()); print(r.status)" \
-       /v1/examples/library/manifest.json
+       "import hashlib,http.client,sys; c=http.client.HTTPConnection('gateway',8000); c.request('GET',sys.argv[1]); r=c.getresponse(); print(hashlib.sha256(r.read()).hexdigest()); print(r.status)" \
+       /v1/bim/templates/demo/01_simple_seq
      docker run --rm --network <network> <python image> python -c \
-       "import http.client,sys; c=http.client.HTTPConnection('gateway',8000); c.request('GET',sys.argv[1]); r=c.getresponse(); print(r.read().decode()); print(r.status)" \
-       /v1/examples/library%2FREADME.md
+       "import hashlib,http.client,sys; c=http.client.HTTPConnection('gateway',8000); c.request('GET',sys.argv[1]); r=c.getresponse(); print(hashlib.sha256(r.read()).hexdigest()); print(r.status)" \
+       /v1/bim/templates/demo%2F01_simple_seq
      ```
 
    - Through the origin, with `curl --path-as-is`, request `/api//v1/jobs` and `/api/v1/x/../jobs`, which reach the

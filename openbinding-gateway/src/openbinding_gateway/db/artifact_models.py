@@ -107,15 +107,6 @@ class ArtifactPublication(Base):
     published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
-class CaseArtifact(Base):
-    __tablename__ = "case_artifacts"
-    revision_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("binding_case_revisions.id", ondelete="RESTRICT"), primary_key=True)
-    alias: Mapped[str] = mapped_column(String(128), primary_key=True)
-    role: Mapped[str] = mapped_column(String(128))
-    version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("artifact_versions.id", ondelete="RESTRICT"), index=True)
-    bindings: Mapped[dict] = mapped_column(JSON, default=dict)
-
-
 class ArtifactCaseReference(Base):
     __tablename__ = "artifact_case_references"
     version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("artifact_versions.id", ondelete="RESTRICT"), primary_key=True)

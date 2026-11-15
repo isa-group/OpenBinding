@@ -9,6 +9,7 @@ batches under ``FOR UPDATE SKIP LOCKED`` needs PostgreSQL and lives in
 from __future__ import annotations
 
 import uuid
+from _problem_helpers import placeholder_refs
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -62,7 +63,7 @@ async def a_job(session, owner, *, age_s: float = 60.0, state=JobState.QUEUED, *
         state=state,
         requested_budget_s=60.0,
         created_at=utcnow() - timedelta(seconds=age_s),
-        **extra,
+        **{**placeholder_refs(), **extra},
     )
     session.add(job)
     await session.commit()

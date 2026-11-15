@@ -109,7 +109,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   });
 
   // --- the profiles the engine form reads
-  await page.route(`${API}/v1/profiles`, (route) => (state.refuse.profiles ? state.refuse.profiles(route) : json({ profiles: [QOS_PROFILE] })(route)));
+  await page.route(`${API}/v1/engines/protocol`, (route) => (state.refuse.profiles ? state.refuse.profiles(route) : json({ profiles: [QOS_PROFILE] })(route)));
 
   // --- registrations
   await page.route(new RegExp(`^${API}/v1/engine-registrations(/.*)?(\\?.*)?$`), async (route) => {

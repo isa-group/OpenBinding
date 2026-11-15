@@ -16,6 +16,7 @@ sweeps in two transactions skip each other's rows needs PostgreSQL and lives in
 from __future__ import annotations
 
 import uuid
+from _problem_helpers import placeholder_refs
 from datetime import timedelta
 
 import pytest
@@ -54,7 +55,7 @@ async def a_job(session, owner, *, state=JobState.RUNNING, age_s=OVERDUE_S, **ex
         state=state,
         requested_budget_s=60.0,
         created_at=utcnow() - timedelta(seconds=age_s),
-        **extra,
+        **{**placeholder_refs(), **extra},
     )
     session.add(job)
     await session.commit()

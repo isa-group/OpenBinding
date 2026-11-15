@@ -132,8 +132,8 @@ that limits a compromised process. Consequences for the lab:
 Compared with `docker-compose.yml`: a single `worker` consumes the `default`
 queue only (as in the stack); the
 `engine-multi-heuristic` example, adminer, qacobench and the dev profile are
-left out; there is no TLS and no examples alias (the frontend reads examples
-through `/v1/examples`).
+left out; there is no TLS and no examples alias (the frontend reads the package
+templates through `/v1/bim/templates`).
 
 ## Variables
 
@@ -152,7 +152,7 @@ Contents access to `javiercavlop/bim-toolchain`.
 | `DEMO_SPACE_DEFAULT_PLAN` | gateway, worker, seed (as `SPACE_DEFAULT_PLAN`) | `FREE` (must exist in the pricing) |
 | `DEMO_SPACE_DEV_SERVICE` | gateway, worker and seed (as `SPACE_SERVICE_NAME`); seed also as `SPACE_DEV_SERVICE_NAME` | the name of a SPACE *development* service that exists in SPACE (for example `openbinding-dev`); the gateway and worker read and write contracts only on it, and `seed_lab.py --space-contracts` refuses `openbinding` (and any production name) and requires it to equal `SPACE_SERVICE_NAME` |
 | `DEMO_SPACE_DEV_PLAN` | seed **only** (as `SPACE_DEV_PLAN`) | a plan of that service's pricing version, for the contracts of the synthetic users |
-| `DEMO_SEED_TOOL` | seed | `seed_lab.py`, or `smoke_lab.py` for the API smoke (a file of `openbinding-gateway/tools/`; `seed_dev.py` also exists; `cancel_probe.py` and `diagnose_snapshots.py` were run the same way, see [qa/ENGINE_CANCELLATION_E2E.md](qa/ENGINE_CANCELLATION_E2E.md) and [qa/SNAPSHOT_INVALID_INSTANCE.md](qa/SNAPSHOT_INVALID_INSTANCE.md)) |
+| `DEMO_SEED_TOOL` | seed | `seed_lab.py`, or `smoke_lab.py` for the API smoke (a file of `openbinding-gateway/tools/`; `seed_dev.py` also exists; `cancel_probe.py` was run the same way, see [qa/ENGINE_CANCELLATION_E2E.md](qa/ENGINE_CANCELLATION_E2E.md)) |
 | `DEMO_SEED_ARGS` | seed | `--verbose` for a seed, `--with-space` for the smoke (see "Seeding" and "API smoke") |
 | `DEMO_SEED_PASSWORD` | seed (`seed_lab.py`, `smoke_lab.py`) and e2e (the live specs sign the synthetic users in with it) | any synthetic value of 10+ characters; the supervisor injects it; `compose.lab.json` passes it only to `seed` and `e2e`, as `${DEMO_SEED_PASSWORD}` with no value and no default |
 | `DEMO_E2E` | e2e | `1` runs the live specs when the service starts; anything else (`0`, unset) only creates `/results/done` and sleeps. See "Browser specs and visual QA inside the lab" |
@@ -424,9 +424,9 @@ check `remote_probe.py` before reading it as a seeding gap.
 | --- | --- |
 | `proxy_and_spa` | `/healthz`, SPA index, SPA fallback on an unknown route, `/api/health/ready` |
 | `login` | `lab-admin`, `lab-owner`, `lab-member`, `lab-viewer` and `lab-outsider` sign in with Bearer tokens |
-| `owner_job` | `lab-owner` profile and projects; a minimal `random-search` job (`mode: seeded`, `optimization: {type: SINGLE, scalarization: weighted-sum}`, which the gateway requires in the request and the package does not carry) on the seeded package; result shape and the gateway's reevaluation provenance |
+| `owner_job` | `lab-owner` profile and projects; a minimal `random-search` job (`mode: seeded`, `optimization: {type: SINGLE, scalarization: weighted-sum}`, which the gateway requires in the request and the package does not carry) on a revision of the seeded problem; result shape and the gateway's reevaluation provenance |
 | `idempotency` | same key and body, same job; same key and other body, 409; another account, another job |
-| `authorization` | 401 without token; viewer can launch a personal job on their own snapshot but cannot start a study run in the project, and reads the project job with redacted options; outsider reads neither; non-admins get 403 on `/api/v1/admin/*` |
+| `authorization` | 401 without token; viewer cannot launch a job on a problem of the organization (403 `insufficient_role`) nor start a study run in the project, and reads the project job with redacted options; outsider reads neither; non-admins get 403 on `/api/v1/admin/*` |
 | `concurrency_limit` | 5 simultaneous launches against `MAX_CONCURRENT_JOBS_PER_USER=3`: a 429 with `Retry-After`, slot freed afterwards |
 | `cors` | preflight allowed from `http://localhost:18100`, refused from `http://evil.example` |
 | `body_limit` | JSON over 16 MiB gets a 413 problem+json |

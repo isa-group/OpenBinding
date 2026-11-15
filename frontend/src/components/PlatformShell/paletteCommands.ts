@@ -43,13 +43,18 @@ export function buildCommands({ organizations = [], projects = [], organization,
     const owner = organizations.find((entry) => entry.id === item.organization_id);
     if (owner) commands.push(command('Project', item.name, `Project in ${owner.name}`, `/app/${owner.slug}/${item.slug}`));
   }
+  if (organization) {
+    const problems = problemsEntry(organization);
+    if (problems.to) {
+      commands.push(command('Organization', 'Problems', `Binding problems and their versions · ${organization.name}`, problems.to));
+      commands.push(command('Create', 'New problem', `Upload a BIM package in ${organization.name}`, `${problems.to}?create=problem`, '+'));
+    }
+  }
   if (root && project) {
-    const problems = problemsEntry(organization, project);
     const studies = labEntries(organization, project).find((entry) => entry.id === 'studies');
     const sections: Array<[string, string, string | undefined]> = [
-      ['Problems', 'Binding problems and their versions', problems.to],
       ['Studies', 'Problems × engines × parameters × seeds', studies?.to],
-      ['Project settings', 'Name, visibility, members and package', `${root}/settings`],
+      ['Project settings', 'Name, visibility and members', `${root}/settings`],
     ];
     for (const [label, desc, href] of sections) {
       if (href) commands.push(command('Project', label, `${desc} · ${project.name}`, href));
@@ -57,10 +62,11 @@ export function buildCommands({ organizations = [], projects = [], organization,
     const where = `in ${project.name}`;
     const created = createItems(organization, project);
     const describe: Record<string, string> = {
-      Problem: 'Add a binding problem', Study: 'Compare engines on problems', Run: 'Launch an engine run',
+      Study: 'Compare engines on problems', Run: 'Launch an engine run',
     };
     for (const item of created) {
-      if (item.to) commands.push(command('Create', `New ${item.label.toLowerCase()}`, `${describe[item.label]} ${where}`, item.to, '+'));
+      // The problem belongs to the organization: its command is above.
+      if (item.to && item.label !== 'Problem') commands.push(command('Create', `New ${item.label.toLowerCase()}`, `${describe[item.label]} ${where}`, item.to, '+'));
     }
   }
 

@@ -2,8 +2,9 @@
 
 This benchmark contains modular BIM v1 Instance packages derived from the
 literature scenarios. Each package is a readable directory rooted at
-`instance.json`; the runner exports it as a deterministic `.bim.zip`, creates a
-snapshot, and submits jobs through the OpenBinding `/v1` API.
+`instance.json`; the runner exports it as a deterministic `.bim.zip`, uploads it
+as a problem of your organization, and submits jobs for its revision through the
+OpenBinding `/v1` API.
 
 `run_experiments.py` selects the current immutable Engine modes and checks each
 mode's advertised compatibility before interpreting an outcome:
@@ -24,8 +25,13 @@ therefore an output directory, not a checked-in baseline.
 Run the benchmark against a current local stack:
 
 ```bash
+export OPENBINDING_ORG=my-lab OPENBINDING_TOKEN=...   # a MEMBER of the organization
 .venv/bin/python experimentation/icws/run_experiments.py
 ```
+
+`OPENBINDING_TOKEN` is a session token or an API key with `problems:write`,
+`engines:execute` and `jobs:read`. Reproducing a report recorded before problems moved to organizations
+(the snapshot API) checks out commit `9084896d`, the last one that serves it.
 
 Use `--engines` to restrict the advertised engines and `--max-cases` for a
 smoke run. A validation rejection is an expected result when a mode truthfully

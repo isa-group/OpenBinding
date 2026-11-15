@@ -15,15 +15,14 @@ import uuid
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
-from sqlalchemy import text, update
+from sqlalchemy import delete, text, update
 from sqlalchemy.exc import DBAPIError
 
 from openbinding_gateway.db.base import Base
+from _problem_helpers import seed_problem_run
 from openbinding_gateway.db.models import (
-    BindingCase,
     BindingCaseRevision,
-    Organization,
-    Project,
+    ProblemCompilation,
     User,
 )
 from openbinding_gateway.db.triggers import TRIGGERS, function_names
@@ -81,20 +80,8 @@ async def test_an_update_of_a_case_revision_is_refused(pg) -> None:
         user = User(username=f"u{suffix}", email=f"u{suffix}@example.com", password_hash="x", plan_cache="free")
         session.add(user)
         await session.flush()
-        organization = Organization(slug=f"o{suffix}", name="Org", created_by_id=user.id)
-        session.add(organization)
-        await session.flush()
-        project = Project(organization_id=organization.id, slug="p", name="P", created_by_id=user.id)
-        session.add(project)
-        await session.flush()
-        case = BindingCase(project_id=project.id, slug="c", name="C", created_by_id=user.id)
-        session.add(case)
-        await session.flush()
-        revision = BindingCaseRevision(binding_case_id=case.id, revision=1, digest="sha256-" + "0" * 64,
-                                       document={}, created_by_id=user.id)
-        session.add(revision)
+        revision_id = (await seed_problem_run(session, owner_id=user.id))["revision_id"]
         await session.commit()
-        revision_id = revision.id
 
     async with pg.session() as session:
         with pytest.raises(DBAPIError, match="binding_case_revisions rows are sealed and immutable"):
@@ -105,3 +92,23 @@ async def test_an_update_of_a_case_revision_is_refused(pg) -> None:
         assert await session.scalar(
             text("SELECT revision FROM binding_case_revisions WHERE id = :id"), {"id": revision_id}
         ) == 1
+
+
+async def test_an_update_of_a_compilation_is_refused_and_an_unused_one_may_go(pg) -> None:
+    suffix = uuid.uuid4().hex[:8]
+    async with pg.session() as session:
+        user = User(username=f"u{suffix}", email=f"u{suffix}@example.com", password_hash="x", plan_cache="free")
+        session.add(user)
+        await session.flush()
+        compilation_id = (await seed_problem_run(session, owner_id=user.id))["compilation_id"]
+        await session.commit()
+
+    async with pg.session() as session:
+        with pytest.raises(DBAPIError, match="problem_compilations rows are sealed and immutable"):
+            await session.execute(
+                update(ProblemCompilation).where(ProblemCompilation.id == compilation_id).values(analysis={"x": 1})
+            )
+        await session.rollback()
+        await session.execute(delete(ProblemCompilation).where(ProblemCompilation.id == compilation_id))
+        await session.commit()
+        assert await session.get(ProblemCompilation, compilation_id) is None

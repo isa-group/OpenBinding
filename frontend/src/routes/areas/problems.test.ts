@@ -1,13 +1,13 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { routeDefinitions, routesByArea } from '../registry';
-import { isProblemTabSegment, PROBLEMS_SEGMENT, problemPath, problemsPath } from '../paths/problems';
+import { isProblemTabSegment, launchPath, PROBLEMS_SEGMENT, problemPath, problemsPath, workbenchPath } from '../paths/problems';
 
 // One pair per line: screenBudget.test.ts counts them.
 const PROTOTYPE: Array<[string, string]> = [
-  ['case-list', '/app/:org/:project/problems'],
-  ['case-detail', '/app/:org/:project/problems/:case/:tab?'],
-  ['wb-workbench', '/app/:org/:project/workbench'],
+  ['case-list', '/app/:org/problems'],
+  ['case-detail', '/app/:org/problems/:case/:tab?'],
+  ['wb-workbench', '/app/:org/workbench'],
 ];
 
 const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
@@ -22,7 +22,7 @@ describe('area problems', () => {
   it('routes no path with a cases segment, and routes the problem addresses', () => {
     const paths = routeDefinitions.map((definition) => definition.path);
     expect(paths.filter((path) => path.split('/').includes('cases'))).toEqual([]);
-    expect(paths).toEqual(expect.arrayContaining(['/app/:org/:project/problems', '/app/:org/:project/problems/:case/:tab?']));
+    expect(paths).toEqual(expect.arrayContaining(['/app/:org/problems', '/app/:org/problems/:case/:tab?']));
   });
 
   it('declares none of the former problem screens', () => {
@@ -36,7 +36,7 @@ describe('area problems', () => {
     expect(ids).not.toContain('case-composer');
     expect(paths.filter((path) => /\/compose(\/|$)/.test(path))).toEqual([]);
     for (const id of ['case-list', 'case-detail', 'wb-workbench']) expect(ids, id).toContain(id);
-    expect(matchRoutes(config, '/app/acme/atlas/problems/flujo/compose')?.at(-1)?.route.id).toBe('case-detail');
+    expect(matchRoutes(config, '/app/acme/problems/flujo/compose')?.at(-1)?.route.id).toBe('case-detail');
   });
 
   it('keeps the case list and the workbench', () => {
@@ -44,21 +44,23 @@ describe('area problems', () => {
     for (const id of ['case-list', 'wb-workbench']) expect(ids, id).toContain(id);
   });
 
-  it('has the workbench at the address of the prototype', () => {
-    expect(routeDefinitions.find((definition) => definition.id === 'wb-workbench')?.path).toBe('/app/:org/:project/workbench');
+  it('has the workbench at the organization', () => {
+    expect(routeDefinitions.find((definition) => definition.id === 'wb-workbench')?.path).toBe('/app/:org/workbench');
   });
 
   describe('address resolution', () => {
     it.each([
-      ['/app/acme/atlas/workbench', 'wb-workbench'],
-      ['/app/acme/atlas/problems', 'case-list'],
-      ['/app/acme/atlas/problems/c1', 'case-detail'],
-      ['/app/acme/atlas/problems/compare', 'case-detail'],
-      ['/app/acme/atlas/problems/c1/runs', 'case-detail'],
-      ['/app/acme/atlas/problems/c1/versions', 'case-detail'],
-      ['/app/acme/atlas/problems/c1/source', 'case-detail'],
-      ['/app/acme/atlas/problems/c1/settings', 'case-detail'],
-      ['/app/acme/atlas/problems/c1/revisions/2', null],
+      ['/app/acme/workbench', 'wb-workbench'],
+      ['/app/acme/problems', 'case-list'],
+      ['/app/acme/problems/c1', 'case-detail'],
+      ['/app/acme/problems/compare', 'case-detail'],
+      ['/app/acme/problems/c1/runs', 'case-detail'],
+      ['/app/acme/problems/c1/versions', 'case-detail'],
+      ['/app/acme/problems/c1/source', 'case-detail'],
+      ['/app/acme/problems/c1/settings', 'case-detail'],
+      ['/app/acme/problems/c1/revisions/2', null],
+      ['/app/acme/atlas/problems', null],
+      ['/app/acme/atlas/workbench', null],
       ['/app/acme/atlas/cases', null],
       ['/app/acme/atlas/cases/c1', null],
       ['/app/acme/atlas/cases/c1/runs', null],
@@ -70,7 +72,6 @@ describe('area problems', () => {
 });
 
 describe('the address builders of the problems area', () => {
-  const root = '/app/acme/atlas';
 
   it('names the tab segments of the problem page', () => {
     for (const segment of ['runs', 'versions', 'source', 'settings']) expect(isProblemTabSegment(segment), segment).toBe(true);
@@ -78,12 +79,22 @@ describe('the address builders of the problems area', () => {
   });
 
   it('builds the list, the problem, its tab and the version or pair it shows', () => {
-    expect(problemsPath(root)).toBe('/app/acme/atlas/problems');
-    expect(problemPath(root, 'routing')).toBe('/app/acme/atlas/problems/routing');
-    expect(problemPath(root, 'routing', 'source', { version: 2 })).toBe('/app/acme/atlas/problems/routing/source?version=2');
-    expect(problemPath(root, 'routing', 'versions', { from: 1, to: 3 })).toBe('/app/acme/atlas/problems/routing/versions?from=1&to=3');
-    expect(problemPath(root, 'routing', undefined, { version: '' })).toBe('/app/acme/atlas/problems/routing');
-    expect(problemPath(root, 'a b/c', undefined, { version: 'sha256-x' })).toBe('/app/acme/atlas/problems/a%20b%2Fc?version=sha256-x');
+    expect(problemsPath('acme')).toBe('/app/acme/problems');
+    expect(problemPath('acme', 'routing')).toBe('/app/acme/problems/routing');
+    expect(problemPath('acme', 'routing', 'source', { version: 2 })).toBe('/app/acme/problems/routing/source?version=2');
+    expect(problemPath('acme', 'routing', 'versions', { from: 1, to: 3 })).toBe('/app/acme/problems/routing/versions?from=1&to=3');
+    expect(problemPath('acme', 'routing', undefined, { version: '' })).toBe('/app/acme/problems/routing');
+    expect(problemPath('acme', 'a b/c', undefined, { version: 'sha256-x' })).toBe('/app/acme/problems/a%20b%2Fc?version=sha256-x');
+  });
+
+  it('builds the Workbench of the organization and what it opens', () => {
+    expect(workbenchPath('acme')).toBe('/app/acme/workbench');
+    expect(workbenchPath('acme', { problem: 'routing', revision: 2 })).toBe('/app/acme/workbench?problem=routing&revision=2');
+    expect(workbenchPath('acme', { template: 'demo/01_simple_seq' })).toBe('/app/acme/workbench?template=demo%2F01_simple_seq');
+  });
+
+  it('builds the launcher of a run of a problem version', () => {
+    expect(launchPath('/app/acme/atlas', 'routing', 2)).toBe('/app/acme/atlas/runs/new?problem=routing&revision=2');
   });
 
   it('names the segment once', () => {

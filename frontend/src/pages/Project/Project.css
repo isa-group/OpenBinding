@@ -342,9 +342,6 @@
 .proj-excludes li > span:last-child { color: var(--tp-slate); font-size: 0.8125rem; }
 .proj-excludes b { display: block; color: var(--tp-ink); font-weight: 500; }
 
-.proj-transfer { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: var(--tp-spacing-md); align-items: start; }
-.proj-transfer .proj-card { padding: var(--tp-spacing-lg); }
-.proj-transfer .ui-action { align-self: flex-start; }
 
 .proj-formats { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
 

@@ -169,26 +169,27 @@ OWNER and, with it, outvote the real owners. This covers
 
 VIEWER is a read role. It reads the authorized results of an organization and
 never starts, repeats, cancels or deletes work. Every action below is checked
-against the role in the organization that owns the snapshot, project or job,
+against the role in the organization that owns the problem, project or job,
 before anything is compiled, reserved or written.
 
 | Action | Route | Minimum role |
 |---|---|---|
 | Read jobs, studies, runs, cells, artifacts and results of a project | `GET` routes of `/v1/organizations/{org}/projects/{project}/…` | VIEWER (jobs redacted, see below) |
-| Launch a job on a snapshot shared with the organization | `POST /v1/jobs` with `{"snapshot": …}` | MEMBER |
-| Create a study or case | `POST …/studies`, `…/cases` | MEMBER |
+| Read the organization's problems, revisions and compilations | `GET /v1/organizations/{org}/problems/…` | VIEWER |
+| Upload a problem or a revision, edit a problem | `POST …/problems`, `POST …/problems/{problem}/revisions`, `PATCH …/problems/{problem}` | MEMBER |
+| Launch a job on a revision of the organization's problem | `POST /v1/jobs` with `{"revision": …}` | MEMBER |
+| Create a study | `POST …/studies` | MEMBER |
 | Run a study, retry a cell, cancel a run | `POST …/studies/{study}/runs`, `…/cells/{cell}/retry`, `…/runs/{run}/cancel` | MEMBER |
 | Retry or cancel a job of an organization | `POST /v1/jobs/{id}/retry`, `POST /v1/jobs/{id}/cancel` | MEMBER (the job must also be the caller's) |
-| Delete a study | `DELETE …/studies/{study}` | ADMIN |
+| Delete a study or a problem | `DELETE …/studies/{study}`, `DELETE …/problems/{problem}` | ADMIN |
 
 A refused role is `403` with the stable code `insufficient_role` for `/v1/jobs`
 (and `organization_forbidden` on the project routes, as
-before). A user who has no role at all in the organization that owns a snapshot
-still gets `404 not_found`, the same as for a snapshot that does not exist.
+before). A user who has no role at all in the organization that owns a revision
+still gets `404 not_found`, the same as for a revision that does not exist.
 
-Work that belongs to no organization is personal and needs no role: a user's own
-snapshot, a `.bim.zip` upload (raw or multipart) and a job with no
-`organization_id`. A VIEWER keeps that.
+Every run belongs to the organization of its problem: there is no personal work.
+Checking a package without storing it (`POST /v1/bim/validate`) needs no account.
 
 An API key inherits the role of its user and adds its permissions on top; neither
 widens the other. A key without `engines:execute` cannot launch, retry or cancel
@@ -444,7 +445,7 @@ counter.
 | An unentitled capability | `runs`, `federatedEngines`, `studies`, `apiAccess` | **Refused** with `403` (`feature_not_entitled`), because retrying without a plan change will never succeed | `domain/entitlements.py` |
 | A fact about the work | the binding-space size against the setting `MAX_BINDING_SPACE_LOG10` (default 20) | **Refused** with `422` (`binding_space_over_technical_limit`): there is no smaller version of the instance to run, and no plan raises it | `domain/binding_space.py` |
 | A package that is too large | the setting `MAX_PACKAGE_BYTES` | **Refused** with `413 payload_too_large` | `access/policy.py` |
-| A count allowance in the plan | `maxApiKeys`, `maxFederatedEngines`, `maxRepositoryStorage` (and `maxProblems` from the problems API on) | **Refused**: `402 quota_exceeded` | `modules/plans/domain/quotas.py`; keys and engines are counted in their routes |
+| A count allowance in the plan | `maxApiKeys`, `maxFederatedEngines`, `maxProblems`, `maxRepositoryStorage` | **Refused**: `402 quota_exceeded` | `modules/plans/domain/quotas.py`; keys and engines are counted in their routes, problems and the bytes of their revisions in `modules/problems` |
 | Cells of a study run | the lower of the plan's `maxStudyCells` and the setting `MAX_CELLS_PER_STUDY_RUN` | **Refused** whole with `422 study_run_too_large`, `quota.source` saying which limit applied | `routes/studies.py` |
 | Concurrency | queued plus running jobs of one account, the lower of the plan's `maxConcurrentRuns` and `MAX_CONCURRENT_JOBS_PER_USER` | **Throttled** with `429 concurrency_limit_exceeded`, `Retry-After: 15` and a `concurrency: {limit_id, limit, used, source}` object | `jobs/limits.py` |
 
@@ -619,7 +620,7 @@ does for a declared size.
 | `CORS_ALLOW_ORIGINS` | Browser origins allowed to call the API, comma separated: a **closed list**. Default: only the local development origins `http://localhost:5173`, `http://127.0.0.1:5173` (Vite) and `http://localhost:4177`, `http://127.0.0.1:4177` (Playwright). There is no wildcard default, because session tokens live in the browser's `localStorage`. With `APP_ENV=prod`, an empty list or a `*` entry makes the gateway **refuse to start** (`CORS_ALLOW_ORIGINS … APP_ENV=prod`), so a production deployment must name its frontend origin(s) exactly. A `*` outside production still works and switches credentialed requests off. |
 | `CORS_ALLOW_CREDENTIALS` | Whether credentialed cross-origin requests are allowed (default `true`; ignored when the list contains `*`). |
 | `APP_ENV` | `dev` (default), `test` or `prod`; `prod` enables the startup checks above. |
-| `BIM_SERVICE_ALLOW_INSECURE_HTTP`, `FEDERATION_REQUIRE_HTTPS` | Plain-http switches for a trusted development or lab network (the bim-service bearer token over `http`; federated engines over `http`). With `APP_ENV=prod`, `BIM_SERVICE_ALLOW_INSECURE_HTTP=true` or `FEDERATION_REQUIRE_HTTPS=false` makes the gateway **refuse to start**, like `SPACE_ENABLED=false`. `dev`, `test` and the lab are unaffected. |
+| `FEDERATION_REQUIRE_HTTPS` | Plain-http switch for a trusted development or lab network (federated engines over `http`). With `APP_ENV=prod`, `FEDERATION_REQUIRE_HTTPS=false` makes the gateway **refuse to start**, like `SPACE_ENABLED=false`. `dev`, `test` and the lab are unaffected. |
 | `FRONTEND_URL` | Where the CAS callback returns the browser (`/auth/cas/callback?code=…` or `?error=…`). It must be `scheme://host[:port]`, with no path, query, fragment or userinfo. |
 
 Origin values (`FRONTEND_URL` and every `CORS_ALLOW_ORIGINS` entry) must be

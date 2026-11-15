@@ -20,7 +20,7 @@ import './AccountKeyNew.css';
 
 const STEPS = ['Name', 'Permissions', 'Engines', 'Limits', 'Review'] as const;
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
-const KIND_SUGGESTIONS = ['jobs', 'studies', 'cases', 'artifacts'];
+const KIND_SUGGESTIONS = ['jobs', 'studies', 'problems', 'artifacts'];
 
 type BoundaryKey = 'methods' | 'organizations' | 'projects' | 'resource_kinds' | 'slugs';
 type BoundaryState = Record<BoundaryKey, string[]>;
@@ -311,7 +311,7 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
         {step === 3 && (
           <>
             <h2>Engine access</h2>
-            <p>Permissions that run or read engine work (<code>engines:*</code>, <code>jobs:read</code>, <code>instances:validate</code>, <code>studies:*</code>) need all engines or at least one exact engine.</p>
+            <p>Permissions that run or read engine work (<code>engines:*</code>, <code>jobs:read</code>, <code>studies:*</code>) need all engines or at least one exact engine.</p>
             <div role="radiogroup" aria-label="Engine access" className="keynew-radios">
               <label className={allEngines ? 'is-on' : undefined}>
                 <input type="radio" name="engine-access" checked={allEngines} onChange={() => { setAllEngines(true); setError(null); }} />

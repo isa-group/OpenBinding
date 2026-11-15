@@ -2,33 +2,27 @@ import { Link } from 'react-router-dom';
 import { Chip } from '../../components/ui/Chip';
 import { useCopy } from '../../components/ui/useCopy';
 import { problemPath } from '../../routes/paths/problems';
-import { formatDate } from '../../utils/format';
+import { formatBytes, formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { changesBetween, describeChange, exactReference, refLabel, resourceUses, roleLabel } from './casesModel';
-import { loadModel, type ModelState } from './modelLoader';
+import { exactReference } from './casesModel';
+import { loadModel, modelKey, type ModelState } from './modelLoader';
 import { Power } from './parts';
-import type { RouteCaseContent } from './useRouteCase';
+import type { RouteProblemContent } from './useRouteProblem';
 // The timeline styles keep the name of the page that used to hold them.
 import '../Platform/CaseDetailPage.css';
 
-type Version = RouteCaseContent['revisions'][number];
+type Version = RouteProblemContent['revisions'][number];
 
-function VersionCard({ root, caseSlug, revision, previous, latest, model, publicRead }: {
-  root: string; caseSlug: string; revision: Version; previous: Version | undefined; latest: boolean; model: ModelState | undefined;
-  /** A visitor of a public project reads the version; running it, studying it and collecting it are for members. */
-  publicRead: boolean;
+function VersionCard({ org, caseSlug, revision, previous, latest, model, runHref }: {
+  org: string; caseSlug: string; revision: Version; previous: Version | undefined; latest: boolean; model: ModelState | undefined;
+  /** Where a run of the version is launched; `null` hides the link (a viewer, or no project to run in). */
+  runHref: string | null;
 }) {
   const { copy, status } = useCopy();
-  const uses = resourceUses(revision.document);
-  const before = previous ? resourceUses(previous.document) : [];
-  const changes = previous ? changesBetween(before, uses) : [];
-  const changed = new Set(changes.filter((change) => change.to !== null).map((change) => change.label));
   const summary = !previous
     ? 'First version.'
-    : uses.length === 0 && before.length === 0
-      ? 'Its inputs aren’t recorded as library versions.'
-      : changes.length === 0 ? `Same library versions as v${previous.revision}.` : changes.map(describeChange).join(' · ');
-  const href = problemPath(root, caseSlug, undefined, { version: revision.revision });
+    : previous.package_digest === revision.package_digest ? `Same package as v${previous.revision}.` : `A different package from v${previous.revision}.`;
+  const href = problemPath(org, caseSlug, undefined, { version: revision.revision });
   const key = `r${revision.revision}`;
   const log10 = model?.state === 'ready' ? model.model?.log10 ?? null : null;
 
@@ -44,16 +38,7 @@ function VersionCard({ root, caseSlug, revision, previous, latest, model, public
             {status(key) === 'copied' ? 'Copied' : status(key) === 'failed' ? 'Copy failed' : 'Copy reference'}
           </button>
         </div>
-        <p className="case-rev-change">{summary}</p>
-        {uses.length > 0 && (
-          <ul className="case-uses" aria-label={`Library versions in version ${revision.revision}`}>
-            {uses.map((use) => (
-              <li key={`${use.role}/${use.alias}`} className={changed.has(`${roleLabel(use.role)} · ${use.alias}`) ? 'is-changed' : undefined}>
-                <span>{roleLabel(use.role)}</span> <b>{refLabel(use.ref)}</b>
-              </li>
-            ))}
-          </ul>
-        )}
+        <p className="case-rev-change">{summary} {formatBytes(revision.package_size)?.split(' (')[0] ?? ''}</p>
         {log10 !== null && (
           <div className="case-rev-size">
             Combinations
@@ -63,21 +48,25 @@ function VersionCard({ root, caseSlug, revision, previous, latest, model, public
         )}
         <div className="case-rev-links">
           <Link to={href} viewTransition>Open</Link>
-          {previous && <Link to={problemPath(root, caseSlug, 'versions', { from: previous.revision, to: revision.revision })} viewTransition>Compare with v{previous.revision}</Link>}
-          {!publicRead && <Link to={`${root}/runs/new?case=${encodeURIComponent(caseSlug)}&revision=${revision.revision}`} viewTransition>Run</Link>}
-          {!publicRead && <Link to={`${root}/studies/new?case=${encodeURIComponent(caseSlug)}&revision=${revision.revision}`} viewTransition>Add to study</Link>}
-          {revision.source_snapshot_id && <Link to={problemPath(root, caseSlug, 'source', { version: revision.revision })} viewTransition>Compiled snapshot</Link>}
+          {previous && <Link to={problemPath(org, caseSlug, 'versions', { from: previous.revision, to: revision.revision })} viewTransition>Compare with v{previous.revision}</Link>}
+          {runHref && <Link to={runHref} viewTransition>Run</Link>}
+          <Link to={problemPath(org, caseSlug, 'source', { version: revision.revision })} viewTransition>Source</Link>
         </div>
       </div>
     </li>
   );
 }
 
-/** The history of a problem: its versions as a timeline, newest first, with what changed between them. */
-export function VersionHistory({ root, content, publicRead }: { root: string; content: RouteCaseContent; publicRead: boolean }) {
+/** The history of a problem: its versions as a timeline, newest first. */
+export function VersionHistory({ org, content, runOf, canCreate }: {
+  org: string; content: RouteProblemContent; runOf: (revision: number) => string | null; canCreate: boolean;
+}) {
   const { item, revisions } = content;
   const latest = revisions[0];
-  const glanceState = useResource<ModelState>(`glance:${latest?.source_snapshot_id ?? 'none'}`, () => loadModel(latest?.source_snapshot_id ?? null));
+  const glanceState = useResource<ModelState | null>(
+    latest ? modelKey(org, item.slug, latest) : 'model:none',
+    async () => (latest ? loadModel(org, item.slug, latest.revision) : null),
+  );
   return (
     <section className="org-section" aria-labelledby="cd-revisions">
       <h2 id="cd-revisions">Versions</h2>
@@ -85,17 +74,16 @@ export function VersionHistory({ root, content, publicRead }: { root: string; co
         {revisions.map((revision, index) => (
           <VersionCard
             key={revision.id}
-            root={root}
+            org={org}
             caseSlug={item.slug}
             revision={revision}
             previous={revisions[index + 1]}
             latest={index === 0}
-            model={index === 0 ? glanceState.data : undefined}
-            publicRead={publicRead}
+            model={index === 0 ? glanceState.data ?? undefined : undefined}
+            runHref={canCreate ? runOf(revision.revision) : null}
           />
         ))}
       </ol>
-      <span className="org-muted">Changed library versions are highlighted.</span>
     </section>
   );
 }

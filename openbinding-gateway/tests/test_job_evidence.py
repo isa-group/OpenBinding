@@ -11,6 +11,7 @@ row locks are exercised in ``tests/concurrency/test_job_evidence_pg.py``.
 from __future__ import annotations
 
 import uuid
+from _problem_helpers import placeholder_refs
 from datetime import timedelta
 from types import SimpleNamespace
 
@@ -23,7 +24,7 @@ from sqlalchemy import func, select, update
 from _b1_helpers import gate, make_key  # noqa: F401
 from _paths import GATEWAY_ROOT
 from _pricing import pricing_catalog
-from analysis_b3_b4_b6._helpers import account_with_snapshot, answer, only_job, precondition, submit
+from analysis_b3_b4_b6._helpers import account_with_revision, answer, only_job, precondition, submit
 from openbinding_gateway.core.public_errors import JOB_FAILURES
 from openbinding_gateway.core.settings import Settings, get_settings
 from openbinding_gateway.db.models import AuditEvent, Job, JobEngineEvidence, JobState, User, UserRole, utcnow
@@ -35,7 +36,6 @@ from openbinding_gateway.routes import jobs as jobs_routes
 from openbinding_gateway.services import execution
 from test_viewer_read_only import (  # noqa: F401
     EXECUTE_SCOPES,
-    PROBLEM,
     READ_SCOPES,
     lab,
     no_dispatch,
@@ -98,8 +98,8 @@ def bim_back(monkeypatch) -> list[int]:
 @pytest.fixture
 async def failed(api_client, db_session, registration, engine, bim_down):
     """A personal job whose solve worked and whose evaluation failed because BIM was down."""
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
-    await submit(api_client, headers, snapshot_id)
+    headers, revision_id = await account_with_revision(api_client, registration)
+    await submit(api_client, headers, revision_id)
     job = await only_job(db_session)
     precondition(job.state is JobState.FAILED, f"the job ended {job.state.value}, not failed")
     return SimpleNamespace(headers=headers, job=job, url=f"/v1/jobs/{job.id}/reevaluate")
@@ -153,9 +153,9 @@ async def test_the_answer_is_written_and_committed_before_bim_is_asked(
         raise BimServiceError("service_unavailable", "down")
 
     monkeypatch.setattr(bim.AsyncBim, "reevaluate", watching)
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
+    headers, revision_id = await account_with_revision(api_client, registration)
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     assert seen == {"in_transaction": False, "rows": 1}
 
@@ -229,9 +229,9 @@ async def test_a_lost_lease_after_the_evidence_commit_deletes_its_own_row(
         return await REAL_REEVALUATE(self, *args, **kwargs)
 
     monkeypatch.setattr(bim.AsyncBim, "reevaluate", stolen)
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
+    headers, revision_id = await account_with_revision(api_client, registration)
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     assert job.state is JobState.RUNNING and job.lease_token == "someone-else"
@@ -251,9 +251,9 @@ async def test_a_cancellation_that_came_in_during_the_evaluation_cancels_the_job
         return await REAL_REEVALUATE(self, *args, **kwargs)
 
     monkeypatch.setattr(bim.AsyncBim, "reevaluate", cancelled_meanwhile)
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
+    headers, revision_id = await account_with_revision(api_client, registration)
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     assert job.state is JobState.CANCELLED
@@ -371,7 +371,7 @@ async def _retried(session, job, _row):
     session.add(
         Job(
             owner_id=job.owner_id, engine_id=job.engine_id, engine_job_id="again", service_url=job.service_url,
-            state=JobState.QUEUED, retry_of_id=job.id,
+            state=JobState.QUEUED, retry_of_id=job.id, **placeholder_refs(),
         )
     )
 
@@ -467,7 +467,6 @@ async def failed_org_job(db_session, lab, person) -> Job:  # noqa: F811
     job = organization_job(lab, person, JobState.FAILED)
     job.attempt = 1
     job.original_request = {
-        "bindingProblem": PROBLEM,
         "mode": {"id": "seeded", "terminationGuarantees": ["FEASIBLE"]},
     }
     db_session.add(job)
@@ -561,7 +560,7 @@ def test_the_retention_is_validated():
 
 async def test_the_expiry_follows_the_configured_retention(db_session, owner, monkeypatch):
     monkeypatch.setattr(get_settings(), "evidence_retention_days", 3)
-    job = Job(owner_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine")
+    job = Job(owner_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine", **placeholder_refs())
     db_session.add(job)
     await db_session.commit()
 
@@ -572,7 +571,7 @@ async def test_the_expiry_follows_the_configured_retention(db_session, owner, mo
 
 
 async def test_an_answer_over_the_bound_is_not_kept(db_session, owner):
-    job = Job(owner_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine")
+    job = Job(owner_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine", **placeholder_refs())
     db_session.add(job)
     await db_session.commit()
 
@@ -583,7 +582,7 @@ async def test_an_answer_over_the_bound_is_not_kept(db_session, owner):
 
 
 async def test_the_sweep_deletes_only_expired_evidence_in_bounded_batches(db_session, owner):
-    job = Job(owner_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine")
+    job = Job(owner_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine", **placeholder_refs())
     db_session.add(job)
     await db_session.commit()
     now = utcnow()

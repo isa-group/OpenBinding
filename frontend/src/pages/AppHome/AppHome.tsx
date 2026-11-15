@@ -250,11 +250,11 @@ export function AppHome() {
   const organization = context.organization ?? list[0];
   const project = context.project;
   const shortcuts: Shortcut[] = [];
-  if (organization) shortcuts.push({ label: 'New project', to: createAddress(`/app/${organization.slug}`, 'project'), icon: Plus });
-  if (organization && project) {
-    shortcuts.push({ label: 'New problem', to: problemsPath(`/app/${organization.slug}/${project.slug}`), icon: FilePlus2 });
-    shortcuts.push({ label: 'Run', to: `/app/${organization.slug}/${project.slug}/runs/new`, icon: Play });
+  if (organization) {
+    shortcuts.push({ label: 'New project', to: createAddress(`/app/${organization.slug}`, 'project'), icon: Plus });
+    shortcuts.push({ label: 'New problem', to: `${problemsPath(organization.slug)}?create=problem`, icon: FilePlus2 });
   }
+  if (organization && project) shortcuts.push({ label: 'Run', to: `/app/${organization.slug}/${project.slug}/runs/new`, icon: Play });
 
   const subtitle = isAdmin
     ? 'You’re a platform administrator. Admin tools are in the header.'

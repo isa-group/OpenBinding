@@ -3,49 +3,42 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { caseOf, org, project, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseDetail } from './CaseDetail';
-import { digestOf, irDocument, refOf, revisionDocument, versionOf } from './fixtures';
+import { digestOf, irDocument } from './fixtures';
 
-const platform = vi.hoisted(() => ({ project: vi.fn(), case: vi.fn(), revisions: vi.fn(), snapshot: vi.fn() }));
-const cases = vi.hoisted(() => ({ revision: vi.fn(), resolveVersion: vi.fn() }));
+const problems = vi.hoisted(() => ({ get: vi.fn(), revisions: vi.fn(), revision: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
 
-vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
-vi.mock('../../api/cases', () => ({ casesApi: cases }));
+vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 
-const group = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'VIEWER' });
+const group = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
+const viewing = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'VIEWER' });
 const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const checkout = caseOf('flujo-checkout', 'Flujo de checkout');
-const catalog3 = refOf('providers-eu', '3', '3');
-const uses: Array<[string, string, ReturnType<typeof refOf>]> = [
-  ['application', 'checkout', refOf('checkout-app', '3', '1')],
-  ['candidateCatalog', 'providers', catalog3],
-  ['constraintSet', 'sla', refOf('sla-hard', '1', '4')],
-  ['optimization', 'goal', refOf('weighted-cost-latency', '1', '5')],
-];
-const r1 = revisionOf(checkout, 1, { document: revisionDocument(uses) });
-const r2 = revisionOf(checkout, 2, { document: revisionDocument(uses), source_snapshot_id: 'snap-2' });
-const root = '/app/isa-demo/qos-benchmarks';
+const r1 = revisionOf(checkout, 1);
+const r2 = revisionOf(checkout, 2, { package_size: 48_213 });
+const root = '/app/isa-demo';
 
 const refusal = (status: number, code = 'refused') => Object.assign(new HttpError(status, 'refused'), { code });
-const snapshotOf = (document: Record<string, unknown> | null = irDocument()) => ({
-  id: 'snap-2', ownerId: null, instanceDigest: digestOf('a'), packageDigest: digestOf('b'), archiveSize: 48_213, createdAt: '2026-08-20T10:05:00Z',
-  ir: document ? { id: 'ir', digest: digestOf('c'), document, sourceMap: null, compilerVersion: '1', createdAt: null } : null,
+const compilationOf = (revision: string) => ({
+  id: `compilation-${revision}`, revision_id: `rev-${revision}`, compilation_digest: digestOf('9'), compiler_digest: digestOf('8'), ir_digest: digestOf('c'),
+  binding_space: '4096', created_at: '2026-08-20T10:05:00Z', current: true, toolchain: {},
+  analysis: { tasks: 4, candidates: 20, constraints: 2, placement: false, bindingSpace: '4096' }, resources: {}, compatible_modes: [],
 });
+const irOf = (document: Record<string, unknown> = irDocument()) => ({ id: 'compilation-2', ir_digest: digestOf('c'), ir: document, source_map: {} });
 
 /** The Overview tab of the problem page, showing the version named by the query. */
-function renderRevision(revision = '2') {
+function renderRevision(revision = '2', organization = group) {
   return renderProjectScreen(<CaseDetail />, {
-    path: '/app/:org/:project/problems/:case/:tab?', url: `${root}/problems/flujo-checkout?version=${revision}`, organizations: [group],
+    path: '/app/:org/problems/:case/:tab?', url: `${root}/problems/flujo-checkout?version=${revision}`, organizations: [organization], projects: [qos],
   });
 }
 
 describe('Overview tab of the problem page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    platform.project.mockResolvedValue(qos);
-    platform.case.mockResolvedValue(checkout);
-    platform.revisions.mockResolvedValue([r1, r2]);
-    platform.snapshot.mockResolvedValue(snapshotOf());
-    cases.resolveVersion.mockImplementation(async (ref: ReturnType<typeof refOf>) => versionOf(ref, `artifact-${ref.name}`, { public: ref.name === 'providers-eu' }));
+    problems.get.mockResolvedValue(checkout);
+    problems.revisions.mockResolvedValue([r1, r2]);
+    problems.compilation.mockImplementation(async (_org: string, _problem: string, revision: number | string) => compilationOf(String(revision)));
+    problems.ir.mockResolvedValue(irOf());
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockResolvedValue(undefined) }, configurable: true });
   });
 
@@ -58,10 +51,10 @@ describe('Overview tab of the problem page', () => {
     const identity = screen.getByRole('region', { name: 'Identity' });
     expect(within(identity).getByRole('button', { name: 'Copy version 2 fingerprint' })).toHaveTextContent('Copy digest');
     expect(identity.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
-    expect(within(identity).getByText('qos-binding/v1', { exact: false })).toBeInTheDocument();
-    const snapshot = await within(identity).findByRole('link', { name: 'Open snapshot' });
-    expect(snapshot).toHaveAttribute('href', `${root}/problems/flujo-checkout/source?version=2`);
-    await waitFor(() => expect(identity).toHaveTextContent('47.1 KiB'));
+    expect(await within(identity).findByText('qos-binding/v1', { exact: false })).toBeInTheDocument();
+    expect(within(identity).getByRole('link', { name: 'Open source' })).toHaveAttribute('href', `${root}/problems/flujo-checkout/source?version=2`);
+    expect(identity).toHaveTextContent('47.1 KiB');
+    expect(problems.ir).toHaveBeenCalledWith('isa-demo', 'flujo-checkout', 2, 'compilation-2');
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'Problems' })).toHaveAttribute('href', `${root}/problems`);
   });
@@ -142,7 +135,7 @@ describe('Overview tab of the problem page', () => {
   it('summarizes a declared placement', async () => {
     const document = irDocument() as { spec: Record<string, unknown> };
     document.spec.placement = [{ resource: 'p', pools: { edge: { kind: 'node', capacity: { cpu: 8 }, properties: {} } }, demands: [{}], network: [], events: {}, transitions: [] }];
-    platform.snapshot.mockResolvedValue(snapshotOf(document));
+    problems.ir.mockResolvedValue(irOf(document));
     renderRevision();
 
     const placement = await screen.findByRole('region', { name: 'Placement' });
@@ -151,36 +144,18 @@ describe('Overview tab of the problem page', () => {
     expect(placement).toHaveTextContent('1 demand · 0 network links');
   });
 
-  it('names each resource by its exact version and says whether it is published, without a link to the library', async () => {
+  it('has no section of library resources: a version is a self-contained package', async () => {
     renderRevision();
 
-    const section = await screen.findByRole('region', { name: 'Resources it’s built from' });
-    await waitFor(() => expect(section).toHaveTextContent('Published'));
-    expect(section).toHaveTextContent('providers-eu v3');
-    expect(section).toHaveTextContent('Not published');
-    expect(section.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
-    expect(section.textContent).not.toMatch(/open in library/i);
-    expect(within(section).queryAllByRole('link')).toEqual([]);
-    expect(cases.resolveVersion).toHaveBeenCalledWith(catalog3);
-  });
-
-  it('says a withdrawn resource is withdrawn, still without a link to the library', async () => {
-    cases.resolveVersion.mockImplementation(async (ref: ReturnType<typeof refOf>) => versionOf(ref, `artifact-${ref.name}`, { withdrawn: ref.name === 'providers-eu' }));
-    renderRevision();
-
-    const section = await screen.findByRole('region', { name: 'Resources it’s built from' });
-    await waitFor(() => expect(section).toHaveTextContent('Withdrawn'));
-    const card = within(section).getAllByRole('listitem').find((item) => item.textContent?.includes('providers-eu v3'));
-    expect(card?.textContent).toContain('Withdrawn');
-    expect(within(section).queryAllByRole('link')).toEqual([]);
-    expect(section.textContent).not.toMatch(/open in library/i);
+    await screen.findByRole('region', { name: 'How the service works' });
+    expect(screen.queryByRole('region', { name: 'Resources it’s built from' })).not.toBeInTheDocument();
   });
 
   it('copies the exact reference', async () => {
     renderRevision();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Copy exact reference' }));
-    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`flujo-checkout@2 ${r2.digest}`));
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`flujo-checkout@2 ${r2.package_digest}`));
     expect(await screen.findByRole('button', { name: 'Reference copied' })).toBeInTheDocument();
   });
 
@@ -188,66 +163,60 @@ describe('Overview tab of the problem page', () => {
     renderRevision();
 
     await screen.findByRole('heading', { level: 1, name: 'Flujo de checkout' });
-    expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${root}/runs/new?case=flujo-checkout&revision=2`);
-    expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute('href', `${root}/studies/new?case=flujo-checkout&revision=2`);
+    expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${root}/qos-benchmarks/runs/new?problem=flujo-checkout&revision=2`);
+    expect(screen.getByRole('link', { name: 'Add to study' })).toHaveAttribute('href', `${root}/qos-benchmarks/studies/new?case=flujo-checkout&revision=2`);
     const select = screen.getByLabelText('Version');
     expect(within(select).getAllByRole('option').map((option) => option.textContent)).toEqual(['Version 2 · latest', 'Version 1']);
     fireEvent.change(select, { target: { value: '1' } });
     await waitFor(() => expect(screen.getByLabelText('Version')).toHaveValue('1'));
-    expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${root}/runs/new?case=flujo-checkout&revision=1`);
+    expect(screen.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${root}/qos-benchmarks/runs/new?problem=flujo-checkout&revision=1`);
   });
 
-  it('says there is no compiled model when the version has no snapshot, and keeps the resources', async () => {
-    renderRevision('1');
-
-    expect(await screen.findByLabelText('Version')).toHaveValue('1');
-    expect(await screen.findByText(/has no compiled snapshot, so there is no workflow to draw/)).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Providers, rules and goal' })).not.toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Resources it’s built from' })).toBeInTheDocument();
-    expect(screen.getByText('None: this version was sealed without one')).toBeInTheDocument();
-  });
-
-  it('warns that the model may be incomplete when the compiled form or a resource cannot be loaded', async () => {
-    platform.snapshot.mockRejectedValue(refusal(503, 'unavailable'));
-    cases.resolveVersion.mockRejectedValue(refusal(404, 'not_found'));
+  it('says the installed toolchain refuses a stored package, and keeps the identity', async () => {
+    problems.compilation.mockRejectedValue(refusal(422, 'revision_not_recompilable'));
     renderRevision();
 
-    const warning = await screen.findByText(/Some resources of this version couldn’t be loaded right now, so the model below may be incomplete/);
-    expect(warning).toHaveTextContent('The fingerprint and identity are still exact.');
+    expect(await screen.findByText(/The compiled form couldn’t be read \(422 · revision_not_recompilable\)/)).toHaveTextContent('The installed toolchain refuses this package; it stays as evidence.');
+    expect(screen.queryByRole('region', { name: 'Providers, rules and goal' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Identity' })).toBeInTheDocument();
+  });
+
+  it('says the compiled form could not be read when the gateway does not answer, and offers a retry', async () => {
+    problems.compilation.mockRejectedValueOnce(refusal(503, 'unavailable'));
+    renderRevision();
+
     expect(await screen.findByText(/The compiled form couldn’t be read \(503 · unavailable\)/)).toBeInTheDocument();
-    const section = screen.getByRole('region', { name: 'Resources it’s built from' });
-    expect((await within(section).findAllByText(/Can’t be reached \(404 · not_found\)/)).length).toBe(4);
     expect(screen.getByRole('heading', { level: 1, name: 'Flujo de checkout' })).toBeInTheDocument();
   });
 
   it('answers a missing version in neutral words', async () => {
-    cases.revision.mockRejectedValue(refusal(404, 'not_found'));
+    problems.revision.mockRejectedValue(refusal(404, 'not_found'));
     renderRevision('9');
 
     expect(await screen.findByRole('heading', { name: 'This version doesn’t exist (404)' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'See all versions' })).toHaveAttribute('href', `${root}/problems/flujo-checkout/versions`);
-    expect(cases.revision).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'flujo-checkout', '9');
+    expect(problems.revision).toHaveBeenCalledWith('isa-demo', 'flujo-checkout', '9');
   });
 
-  it('finds a version named by its fingerprint when it is not a number', async () => {
-    cases.revision.mockResolvedValue(r1);
-    renderRevision(r1.digest);
+  it('finds a version named by its package digest when it is not a number', async () => {
+    problems.revision.mockResolvedValue(r1);
+    renderRevision(r1.package_digest);
 
     expect(await screen.findByLabelText('Version')).toHaveValue('1');
-    expect(cases.revision).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'flujo-checkout', r1.digest);
+    expect(problems.revision).toHaveBeenCalledWith('isa-demo', 'flujo-checkout', r1.package_digest);
   });
 
-  it('is the same page for every member: a VIEWER sees the whole model', async () => {
-    renderRevision();
+  it('is the same model for every member: a VIEWER sees it whole, without a run', async () => {
+    renderRevision('2', viewing);
 
     expect(await screen.findByRole('region', { name: 'Rules' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Run this version' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Run this version' })).not.toBeInTheDocument();
   });
 
   it('answers a missing problem with the missing problem, whatever version the address names', async () => {
-    platform.case.mockRejectedValue(refusal(404, 'not_found'));
+    problems.get.mockRejectedValue(refusal(404, 'not_found'));
     renderRevision();
 
-    expect(await screen.findByRole('heading', { name: 'No problem with this address in QoS Benchmarks (404)' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'No problem with this address in ISA Demo Group (404)' })).toBeInTheDocument();
   });
 });

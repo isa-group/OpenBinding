@@ -1,8 +1,6 @@
-import { useId, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import type { SnapshotAnalysis } from '../../api/cases';
-import type { ArtifactVersion } from '../../api/library';
-import { ArtifactVersionPicker } from '../../components/Artifacts/ArtifactVersionPicker';
+import type { ProblemCompilation } from '../../api/problems';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
@@ -11,12 +9,12 @@ import { Choice } from '../Organization/parts';
 import type { Refusal } from './jobErrors';
 import type { ForecastBar } from './jobsModel';
 import { allowsZero } from './launchModel';
-import type { ModeChoice, OptionPlan, SettingsSource, SourceChoice } from './launchModel';
+import type { ModeChoice, OptionPlan, SourceChoice } from './launchModel';
 
 export interface Prepared {
   choiceId: string;
-  snapshotId: string;
-  analysis: { state: 'ok'; result: SnapshotAnalysis } | { state: 'failed'; refusal: Refusal };
+  /** The compilation of the chosen version by the installed toolchain: its analysis and the engine modes that can run it. */
+  analysis: { state: 'ok'; result: ProblemCompilation } | { state: 'failed'; refusal: Refusal };
   /** Some candidate of the compiled form holds a range, so only a mode that declares interval values can run it. */
   ranges?: boolean;
   /** How many criteria the compiled problem optimizes; `null` when the compiled form could not be read. */
@@ -25,14 +23,14 @@ export interface Prepared {
 
 // --- 1 · what to solve
 
-export function SourceStep({ choices, value, onChange, workbenchHref }: {
-  choices: readonly SourceChoice[]; value: string; onChange: (id: string) => void; workbenchHref: string;
+export function SourceStep({ choices, value, onChange, problemsHref }: {
+  choices: readonly SourceChoice[]; value: string; onChange: (id: string) => void; problemsHref: string;
 }) {
   return (
     <>
       <h2>What to solve</h2>
       {choices.length === 0 && (
-        <div className="job-empty">Nothing to solve yet. This project has no problem version, and no snapshot was chosen.</div>
+        <div className="job-empty">Nothing to solve yet. The organization has no problem version.</div>
       )}
       {choices.length > 0 && (
         <div role="radiogroup" aria-label="Source" className="job-choices">
@@ -41,7 +39,7 @@ export function SourceStep({ choices, value, onChange, workbenchHref }: {
           ))}
         </div>
       )}
-      <Action to={workbenchHref} variant="link">Upload a new package in the Workbench</Action>
+      <Action to={problemsHref} variant="link">Upload a problem</Action>
     </>
   );
 }
@@ -131,39 +129,15 @@ function OptionsTable({ plans, values, onChange }: { plans: readonly OptionPlan[
   );
 }
 
-export function SettingsStep({ org, source, onSource, plans, values, onValue, configuration, onConfiguration, modeLabel }: {
-  org: string; source: SettingsSource; onSource: (next: SettingsSource) => void;
-  plans: readonly OptionPlan[]; values: Record<string, string>; onValue: (name: string, value: string) => void;
-  configuration: ArtifactVersion | null; onConfiguration: (version: ArtifactVersion) => void; modeLabel: string;
+export function SettingsStep({ plans, values, onValue, modeLabel }: {
+  plans: readonly OptionPlan[]; values: Record<string, string>; onValue: (name: string, value: string) => void; modeLabel: string;
 }) {
-  const name = useId();
   return (
     <>
       <h2>Settings</h2>
-      <fieldset className="proj-seg" aria-label="Settings source">
-        <label className={source === 'inline' ? 'is-checked' : ''}>
-          <input type="radio" name={`${name}-source`} checked={source === 'inline'} onChange={() => onSource('inline')} />Set them here
-        </label>
-        <label className={source === 'saved' ? 'is-checked' : ''}>
-          <input type="radio" name={`${name}-source`} checked={source === 'saved'} onChange={() => onSource('saved')} />Use saved settings
-        </label>
-      </fieldset>
-      {source === 'inline' && (
-        <>
-          <p className="org-muted">Settings for {modeLabel}.</p>
-          {plans.length > 0 && <OptionsTable plans={plans} values={values} onChange={onValue} />}
-          {plans.length === 0 && <p className="org-muted">This mode declares no numeric settings; it runs with the engine’s own defaults.</p>}
-        </>
-      )}
-      {source === 'saved' && (
-        <div className="job-saved">
-          <ArtifactVersionPicker org={org} kind="ExecutionConfiguration" versionId={configuration?.id} onSelect={(_, version) => onConfiguration(version)} />
-          <div className="job-note-card">
-            <strong>{configuration ? `${configuration.ref.name} · v${configuration.ref.version}` : 'No saved settings chosen'}</strong>
-            <span>Saved run settings. Using them replaces the fields of “Set them here”, and the engine, mode and options come from them; you can’t mix both.</span>
-          </div>
-        </div>
-      )}
+      <p className="org-muted">Settings for {modeLabel}.</p>
+      {plans.length > 0 && <OptionsTable plans={plans} values={values} onChange={onValue} />}
+      {plans.length === 0 && <p className="org-muted">This mode declares no numeric settings; it runs with the engine’s own defaults.</p>}
     </>
   );
 }

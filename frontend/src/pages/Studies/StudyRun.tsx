@@ -27,7 +27,7 @@ export function RunProgress({ scope, runId }: { scope: StudyScopeValue; runId: s
   const org = organization.slug;
   const slug = project.slug;
   const studyPath = `${root}/studies/${encodeURIComponent(study.slug)}`;
-  const { index } = useRevisionIndex(org, slug);
+  const { index } = useRevisionIndex(org);
   const resource = useResource(`run:${study.id}/${runId}`, () => loadRun(org, slug, study.slug, runId));
   const [auto, setAuto] = useState(true);
   const [measureChoice, setMeasureChoice] = useState<string | null>(null);

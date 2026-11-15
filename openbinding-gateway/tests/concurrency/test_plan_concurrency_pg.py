@@ -13,6 +13,7 @@ import uuid
 
 import pytest
 
+from _problem_helpers import seeded_run_refs
 from _pricing import pricing_catalog
 from openbinding_gateway.db.models import Job, JobState, User, UserRole
 from openbinding_gateway.jobs import limits
@@ -30,6 +31,8 @@ async def an_account(session) -> User:
         plan_cache=pricing_catalog().default_plan,
     )
     session.add(owner)
+    await session.flush()
+    owner.refs = await seeded_run_refs(session, owner.id)
     await session.commit()
     return owner
 
@@ -40,7 +43,7 @@ async def create(session, owner: User, caps: PlanCaps):
     if refusal is None:
         session.add(Job(
             owner_id=owner.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
-            service_url="http://engine", state=JobState.QUEUED,
+            service_url="http://engine", state=JobState.QUEUED, **owner.refs,
         ))
     await session.commit()
     return refusal

@@ -135,7 +135,7 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
     if (path === 'maintenance/preview') {
       state.sent.previewDays.push(params.get('terminal_job_retention_days') ?? '');
       return answer('preview', () => ({
-        expiredArtifacts: state.purgeable ? 2 : 0, expiredApiKeys: state.purgeable ? 1 : 0, terminalJobs: state.purgeable, abandonedJobs: state.abandoned,
+        expiredApiKeys: state.purgeable ? 1 : 0, terminalJobs: state.purgeable, abandonedJobs: state.abandoned,
         terminalJobCutoff: '2025-10-09T00:00:00Z',
       }))(route);
     }
@@ -143,7 +143,7 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
       if (state.refuse.purge) return state.refuse.purge(route);
       state.sent.purge.push(bodyOf(route));
       state.purgeable = 0;
-      return json({ artifacts: 2, apiKeys: 1, jobs: 14 })(route);
+      return json({ apiKeys: 1, jobs: 14 })(route);
     }
     if (path === 'maintenance/reconcile-jobs' && method === 'POST') {
       if (state.refuse.jobs) return state.refuse.jobs(route);
@@ -286,7 +286,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Maintenance', exact: true })).toBeVisible();
       const impact = main.getByRole('list', { name: 'Maintenance preview' });
-      await expect(impact.getByRole('listitem')).toHaveCount(4);
+      await expect(impact.getByRole('listitem')).toHaveCount(3);
       await expect(impact.getByRole('listitem').filter({ hasText: 'Finished runs to purge' }).getByText('14', { exact: true })).toBeVisible();
       await expect(main.getByText('Finished before Oct 9, 2025, more than 365 days ago.')).toBeVisible();
       expect(state.sent.previewDays[0]).toBe('365');

@@ -3,6 +3,7 @@ import uuid
 
 import pytest
 import pytest_asyncio
+from _problem_helpers import compiled_run_refs, placeholder_refs
 from dramatiq.brokers.redis import RedisBroker
 from dramatiq.middleware import AsyncIO
 from sqlalchemy import func, select
@@ -110,14 +111,14 @@ async def test_reconciler_redelivers_only_persisted_queued_jobs(db_session, monk
         engine_id="random-search",
         engine_job_id="queued",
         service_url="http://engine",
-        state=JobState.QUEUED,
+        state=JobState.QUEUED, **placeholder_refs(),
     )
     completed = Job(
         owner_id=user.id,
         engine_id="random-search",
         engine_job_id="completed",
         service_url="http://engine",
-        state=JobState.COMPLETED,
+        state=JobState.COMPLETED, **placeholder_refs(),
     )
     db_session.add_all([queued, completed])
     await db_session.flush()
@@ -151,7 +152,7 @@ async def test_job_retry_is_idempotent_and_creates_only_one_replacement(
         state=JobState.FAILED,
         original_request={},
         options={},
-        provenance={},
+        provenance={}, **await compiled_run_refs(db_session, user_id),
     )
     db_session.add(original)
     await db_session.flush()
@@ -180,7 +181,7 @@ async def test_job_cancel_is_terminal_and_its_sse_stream_closes(
         engine_id="random-search",
         engine_job_id="queued-to-cancel",
         service_url="http://engine",
-        state=JobState.QUEUED,
+        state=JobState.QUEUED, **await compiled_run_refs(db_session, user_id),
     )
     db_session.add(job)
     await db_session.flush()

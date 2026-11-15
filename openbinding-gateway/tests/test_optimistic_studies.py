@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from _problem_helpers import upload_problem
 import uuid
 from datetime import timedelta
 
@@ -13,7 +14,6 @@ from _repo import REPO_ROOT
 from _pricing import fake_pricing_gate
 from test_collaboration_platform import account
 
-from bim_core.package import load_package
 from openbinding_gateway import space_client
 from openbinding_gateway.db.models import AuditEvent, Study, utcnow
 from openbinding_gateway.routes import v1 as routes
@@ -42,23 +42,14 @@ async def lab(api_client, registration):
         f"{base}/projects", headers=headers, json={"slug": "routing", "name": "Routing", "visibility": "private"}
     )
     assert project.status_code == 201, project.text
-    await api_client.post(f"{base}/projects/routing/cases", headers=headers, json={"slug": "checkout", "name": "Checkout"})
-    package = load_package(EXAMPLE)
-    snapshot = await api_client.post(
-        "/v1/instances", headers={**headers, "Content-Type": "application/vnd.bim+zip"}, content=package.to_zip()
-    )
-    revision = await api_client.post(
-        f"{base}/projects/routing/cases/checkout/revisions", headers=headers,
-        json={"document": package.instance(), "source_snapshot_id": snapshot.json()["id"]},
-    )
-    assert revision.status_code == 201, revision.text
+    revision_id = (await upload_problem(api_client, headers, slug, slug="checkout"))["revision_id"]
     reference = engine_ref(routes._manifest("random-search"), "bim.builtin")
     study = await api_client.post(
         f"{base}/projects/routing/studies", headers=headers,
         json={
             "slug": "compare", "name": "Compare",
             "definition": {
-                "case_revision_ids": [revision.json()["id"]],
+                "case_revision_ids": [revision_id],
                 "engines": [{**reference, "mode": "seeded", "optimization": dict(OPTIMIZATION)}],
                 "parameter_sets": [{}], "seeds": [1],
             },

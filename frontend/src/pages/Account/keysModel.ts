@@ -26,11 +26,10 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
-    name: 'Instances',
+    name: 'Problems',
     permissions: [
-      { id: 'instances:read', description: 'Read snapshots' },
-      { id: 'instances:write', description: 'Create snapshots' },
-      { id: 'instances:validate', description: 'Validate packages' },
+      { id: 'problems:read', description: 'Read problems, their versions and compilations; validate packages' },
+      { id: 'problems:write', description: 'Upload problems and versions, edit and delete problems' },
     ],
   },
   {
@@ -49,8 +48,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     permissions: [
       { id: 'organizations:read', description: 'Read organizations' },
       { id: 'organizations:write', description: 'Change organizations and members' },
-      { id: 'projects:read', description: 'Read projects, problems, runs' },
-      { id: 'projects:write', description: 'Change projects and problems' },
+      { id: 'projects:read', description: 'Read projects and their runs' },
+      { id: 'projects:write', description: 'Change projects' },
       { id: 'studies:read', description: 'Read studies and runs' },
       { id: 'studies:write', description: 'Change and run studies' },
       { id: 'artifacts:read', description: 'Read library artifacts' },
@@ -71,7 +70,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
 // Exhaustive by construction: a Record over the closed permission set.
 const CATALOGUED: Record<ApiKeyPermission, true> = {
   'account:read': true, 'account:write': true, 'keys:read': true, 'keys:write': true,
-  'instances:read': true, 'instances:write': true, 'instances:validate': true,
+  'problems:read': true, 'problems:write': true,
   'jobs:read': true, 'engines:read': true, 'engines:execute': true, 'engines:register': true, 'engines:publish': true, 'engines:moderate': true,
   'organizations:read': true, 'organizations:write': true, 'projects:read': true, 'projects:write': true,
   'studies:read': true, 'studies:write': true, 'artifacts:read': true, 'artifacts:write': true,
@@ -88,12 +87,12 @@ export const ADMIN_ONLY: ReadonlySet<ApiKeyPermission> = new Set<ApiKeyPermissio
 /** These need all Engines or at least one exact revision (the API's `ENGINE_LIMITED_PERMISSIONS`). */
 export const ENGINE_LIMITED: ReadonlySet<ApiKeyPermission> = new Set<ApiKeyPermission>([
   'engines:read', 'engines:execute', 'engines:register', 'engines:publish', 'engines:moderate',
-  'instances:validate', 'jobs:read', 'studies:read', 'studies:write',
+  'jobs:read', 'studies:read', 'studies:write',
 ]);
 
 export const PRESETS: Record<'read' | 'run', ApiKeyPermission[]> = {
-  read: ['jobs:read', 'studies:read', 'projects:read'],
-  run: ['engines:read', 'engines:execute', 'jobs:read', 'instances:validate'],
+  read: ['jobs:read', 'studies:read', 'projects:read', 'problems:read'],
+  run: ['engines:read', 'engines:execute', 'jobs:read', 'problems:read'],
 };
 
 export const EXPIRY_PRESETS = [

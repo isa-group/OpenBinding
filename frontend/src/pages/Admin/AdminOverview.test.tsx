@@ -24,7 +24,7 @@ vi.mock('../../api/client', async () => ({
 configure({ asyncUtilTimeout: 5000 });
 
 const OVERVIEW: OverviewAnswer = {
-  counts: { users: 7, apiKeys: 9, identities: 3, organizations: 3, projects: 5, cases: 4, studies: 2, studyRuns: 3, artifacts: 12 },
+  counts: { users: 7, apiKeys: 9, identities: 3, organizations: 3, projects: 5, problems: 4, problemRevisions: 6, studies: 2, studyRuns: 3, artifacts: 12 },
   jobs: { queued: 1, running: 1, completed: 2, failed: 1, cancelled: 1 },
   contracts: { FREE: 3, RESEARCH: 2, LAB: 2 },
   recentAudit: [
@@ -43,7 +43,7 @@ describe('admin-overview · how the platform is doing', () => {
     api.adminErrorOverview.mockResolvedValue(ERROR_OVERVIEW);
     api.getCurrentPricing.mockResolvedValue({ version: '0.1.0', digest: 'sha256-x', url: 'https://sphere.example.test/0.1.0' });
     api.adminListEngineRegistrations.mockResolvedValue([]);
-    api.adminMaintenancePreview.mockResolvedValue({ expiredArtifacts: 0, expiredApiKeys: 0, terminalJobs: 0, abandonedJobs: 0, terminalJobCutoff: '2026-01-01T00:00:00Z' });
+    api.adminMaintenancePreview.mockResolvedValue({ expiredApiKeys: 0, terminalJobs: 0, abandonedJobs: 0, terminalJobCutoff: '2026-01-01T00:00:00Z' });
   });
 
   afterEach(() => {

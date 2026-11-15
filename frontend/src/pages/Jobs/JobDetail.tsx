@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { jobsApi, type JobInstanceView } from '../../api/jobs';
+import { jobsApi } from '../../api/jobs';
+import { problemsApi } from '../../api/problems';
 import type { Job, Organization, Project } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
@@ -14,9 +15,9 @@ import { canOpenSection } from '../Project/accessLevel';
 import { MembersOnlyGate, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { useRouteProject } from '../Project/useRouteProject';
 import { Provenance, Settings, Timeline } from './JobFacts';
-import { ResultSection, type Origin } from './JobResult';
+import { ResultSection } from './JobResult';
 import { rangeFailureOf, refusalOf, type Refusal } from './jobErrors';
-import { findOrigin } from './jobsData';
+import { originOf } from './jobsData';
 import { canRetryState, isActive, normalizeStatus, readPins } from './jobsModel';
 import { runLabel } from '../../shared/lib/identity';
 import { JobFrame, JobMissing, OutcomeChip, RefusalNotice, StatusChip } from './parts';
@@ -44,9 +45,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
   // Everything below is read only once the gateway has shown the run to this account: a run that is not yours reads as missing.
   const inProject = useResource<Job | null>(`job-in-project:${org}/${slug}/${jobId}:${proven}`, async () => (proven ? jobsApi.inProject(org, slug, jobId).catch(() => null) : null));
   const own = useResource<Job[]>(`job-own:${proven}`, async () => (proven ? jobsApi.mine().catch(() => []) : []));
-  const instance = useResource<JobInstanceView | null>(`job-instance:${jobId}:${proven}`, async () => (proven ? jobsApi.instance(jobId).catch(() => null) : null));
-  const snapshotId = instance.data?.id ?? null;
-  const origin = useResource<Origin | null>(`job-origin:${org}/${slug}:${snapshotId ?? 'none'}`, async () => (snapshotId ? findOrigin(org, slug, snapshotId) : null));
+  const origin = originOf(detail);
 
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [busy, setBusy] = useState<'cancel' | 'retry' | null>(null);
@@ -99,7 +98,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
   const finished = meta?.finished_at ?? null;
   const cancelRequested = asked || Boolean(meta?.cancellation_requested);
   const siblings = (own.data ?? []).filter((row) => row.id !== jobId).slice(0, 25);
-  const caseLine = origin.data ? `problem ${origin.data.caseName}` : instance.data ? 'uploaded package' : null;
+  const caseLine = origin ? `problem ${origin.caseName} · version ${origin.revision}` : null;
 
   const cancel = async () => {
     setBusy('cancel');
@@ -134,7 +133,10 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
   const download = async (kind: DownloadKind, file: string) => {
     setDownloads((current) => ({ ...current, [kind]: 'busy' }));
     try {
-      const body = kind === 'ir' ? await jobsApi.ir(jobId) : kind === 'instance' ? await jobsApi.instance(jobId) : (detail.result ?? {});
+      if (kind !== 'result' && !origin?.compilationId) throw new Error('The run names no problem version.');
+      const body = kind === 'ir' && origin?.compilationId
+        ? (await problemsApi.ir(origin.org, origin.caseSlug, origin.revision, origin.compilationId)).ir
+        : kind === 'instance' && origin ? (await problemsApi.revision(origin.org, origin.caseSlug, origin.revision)).document : (detail.result ?? {});
       saveBytes(new TextEncoder().encode(JSON.stringify(body, null, 2)).buffer as ArrayBuffer, `run-${file}.json`, 'application/json');
       setDownloads((current) => ({ ...current, [kind]: 'done' }));
     } catch (caught) {
@@ -192,11 +194,11 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
 
       <Timeline status={state} created={created} finished={finished} feed={live.feed} />
       <Settings provenance={detail.provenance} />
-      <ResultSection detail={detail} jobId={jobId} root={root} origin={origin.data ?? null} />
+      <ResultSection detail={detail} jobId={jobId} origin={origin} />
       <Provenance
         provenance={detail.provenance}
-        instance={instance.data ?? null}
-        origin={origin.data ?? null}
+        compilation={detail.compilation ?? null}
+        origin={origin}
         root={root}
         created={created}
         retryOf={meta?.retry_of_id ?? null}

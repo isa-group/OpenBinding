@@ -4,7 +4,7 @@ import { HttpError } from '../../api/client';
 import { DEFAULT_FILES, instanceResources, parseJson, type CompatibleMode } from './bimDocuments';
 import {
   engineRows, goalTerms, loadRefusalText, packageFileList, refusalMarker, refusalOf, refusalText, refusesRanges, saveRefusalText,
-  snapshotHref, whyNot, workbenchDraftScope,
+  whyNot, workbenchDraftScope,
 } from './workbenchModel';
 
 const failure = (status: number, code?: string, diagnostics?: unknown[]) => Object.assign(new HttpError(status, 'No'), { code, diagnostics });
@@ -38,7 +38,7 @@ describe('how a refusal is sorted', () => {
     const refusal = refusalOf(new QuotaError('quota_exceeded', 'used up', { limit_id: 'maxRepositoryStorage', limit: 500 }));
     expect(refusal).toMatchObject({ kind: 'quota', status: 402, code: 'quota_exceeded', limitId: 'maxRepositoryStorage', limit: 500 });
     expect(refusalText(refusal, 'nothing was checked')).toBe('Your plan’s storage is used up (402 · quota_exceeded), so nothing was checked. Free some, or see your plan.');
-    expect(saveRefusalText(refusal)).toBe('Your plan’s storage is used up (402 · quota_exceeded). Nothing was saved.');
+    expect(saveRefusalText(refusal)).toBe('Your plan has no room for this (402 · quota_exceeded): it counts your problems and the storage your packages take. Nothing was saved.');
   });
 
   it.each([
@@ -82,11 +82,14 @@ describe('the words for a refusal', () => {
 
   it('words the refusals of saving a problem version, each ending in nothing being saved', () => {
     expect(saveRefusalText(refusalOf(failure(403, 'forbidden')))).toBe(
-      'You need MEMBER in the organization to save a version, and an API key needs projects:write (403 · forbidden). Nothing was saved.',
+      'You need MEMBER in the organization to save, and an API key needs problems:write (403 · forbidden). Nothing was saved.',
+    );
+    expect(saveRefusalText(refusalOf(failure(409, 'slug_conflict')))).toBe(
+      'That address is already used by another problem in this organization (409 · slug_conflict). Pick another one. Nothing was saved.',
     );
     expect(saveRefusalText(refusalOf(failure(404)))).toBe('That problem no longer exists, or you’re not in its organization (404). Nothing was saved.');
-    expect(saveRefusalText(refusalOf(failure(422)))).toContain('The gateway refused to seal a version from this package (422).');
-    expect(saveRefusalText(refusalOf(new QuotaError('quota_exceeded', 'x')))).toBe('Your plan’s allowance is used up (402 · quota_exceeded). Nothing was saved.');
+    expect(saveRefusalText(refusalOf(failure(422)))).toContain('The gateway refused to seal this package (422).');
+    expect(saveRefusalText(refusalOf(new QuotaError('quota_exceeded', 'x')))).toBe('Your plan has no room for this (402 · quota_exceeded): it counts your problems and the allowance your packages take. Nothing was saved.');
     expect(saveRefusalText(refusalOf(failure(401)))).toContain('Nothing was saved.');
   });
 
@@ -145,30 +148,10 @@ describe('the engines of an analysis', () => {
   });
 });
 
-describe('Open snapshot', () => {
-  const root = '/app/acme/demo';
-  const versions = [
-    { revision: 2, source_snapshot_id: 'snap-b' },
-    { revision: 1, source_snapshot_id: 'snap-a' },
-    { revision: 0, source_snapshot_id: null },
-  ];
-
-  it('leads to the Source tab of the problem at the sealed version made from the snapshot', () => {
-    expect(snapshotHref(root, 'routing', versions, 'snap-a')).toBe(`${root}/problems/routing/source?version=1`);
-    expect(snapshotHref(root, 'routing', versions, 'snap-b')).toBe(`${root}/problems/routing/source?version=2`);
-  });
-
-  it('leads to the problem list when no version came from the snapshot, or no problem is chosen', () => {
-    expect(snapshotHref(root, 'routing', versions, 'snap-z')).toBe(`${root}/problems`);
-    expect(snapshotHref(root, 'routing', [], 'snap-a')).toBe(`${root}/problems`);
-    expect(snapshotHref(root, '', versions, 'snap-a')).toBe(`${root}/problems`);
-  });
-});
-
 describe('where the unsaved edits of a workspace are kept', () => {
   it('keeps them per person, per address and per problem version', () => {
-    expect(workbenchDraftScope('user-1', '/app/a/b/workbench', null, null)).toBe('user-1:/app/a/b/workbench::');
-    expect(workbenchDraftScope('user-1', '/app/a/b/workbench', 'checkout', 'rev-2')).toBe('user-1:/app/a/b/workbench:checkout:rev-2');
+    expect(workbenchDraftScope('user-1', '/app/a/workbench', null, null)).toBe('user-1:/app/a/workbench::');
+    expect(workbenchDraftScope('user-1', '/app/a/workbench', 'checkout', '2')).toBe('user-1:/app/a/workbench:checkout:2');
     expect(workbenchDraftScope(undefined, '/x', null, null)).toBe('anonymous:/x::');
   });
 });

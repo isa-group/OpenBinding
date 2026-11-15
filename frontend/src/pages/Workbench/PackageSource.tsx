@@ -1,7 +1,7 @@
 import { useState, type DragEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Download, FileArchive, History, RotateCcw } from 'lucide-react';
-import type { BindingCase, CaseRevision } from '../../api/platform';
+import type { Problem, ProblemRevision } from '../../api/problems';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
@@ -13,19 +13,19 @@ type SourceTab = 'case' | 'upload' | 'example';
 const TABS = [
   { id: 'case', label: 'Problem version' },
   { id: 'upload', label: 'Upload file' },
-  { id: 'example', label: 'Example' },
+  { id: 'example', label: 'Template' },
 ] as const;
 
 interface CaseChoices {
-  cases: BindingCase[];
+  cases: Problem[];
   state: 'loading' | 'ready' | 'failed';
-  revisions: CaseRevision[];
+  revisions: ProblemRevision[];
   revisionsState: 'idle' | 'loading' | 'ready' | 'failed';
   picked: string;
   onPickCase: (slug: string) => void;
   /** The problem version the workspace was opened from (id or number), if any. */
   openedRevision: string | null;
-  onPickRevision: (revision: CaseRevision) => void;
+  onPickRevision: (revision: ProblemRevision) => void;
 }
 
 interface PackageSourceProps {
@@ -35,7 +35,7 @@ interface PackageSourceProps {
   casesHref: string;
 }
 
-/** Where the package comes from: a version of a problem, a file from the computer, or one of the examples. */
+/** Where the package comes from: a version of a problem, a file from the computer, or one of the templates. */
 export function PackageSource({ wb, choices, requestedExample, casesHref }: PackageSourceProps) {
   const [tab, setTab] = useState<SourceTab>(requestedExample ? 'example' : 'case');
   const [dragging, setDragging] = useState(false);
@@ -60,9 +60,9 @@ export function PackageSource({ wb, choices, requestedExample, casesHref }: Pack
       <TabPanel prefix="wb-source" active={tab}>
         {tab === 'case' && (
           <div className="wb-source-body">
-            {choices.state === 'failed' && <Notice tone="warning">The project’s problems couldn’t be listed. You can still upload a file or open an example.</Notice>}
+            {choices.state === 'failed' && <Notice tone="warning">The organization’s problems couldn’t be listed. You can still upload a file or open a template.</Notice>}
             {choices.state === 'ready' && choices.cases.length === 0 && (
-              <p className="wb-muted">This project has no problems yet. Start one in <Link to={casesHref} viewTransition>Problems</Link>, or upload a file.</p>
+              <p className="wb-muted">The organization has no problems yet. Save this package as its first, upload one in <Link to={casesHref} viewTransition>Problems</Link>, or start from a template.</p>
             )}
             <div className="wb-source-row">
               <label className="wb-field">
@@ -125,13 +125,13 @@ export function PackageSource({ wb, choices, requestedExample, casesHref }: Pack
         {tab === 'example' && (
           <div className="wb-source-body">
             <label className="wb-field">
-              <span>Load backend example</span>
+              <span>Start from a template</span>
               <select
                 value=""
-                aria-label="Load backend example"
+                aria-label="Start from a template"
                 onChange={(event) => { void wb.loadExample(event.target.value); }}
               >
-                <option value="">Load example…</option>
+                <option value="">Choose a template…</option>
                 {wb.examples.map((path) => <option key={path} value={path}>{path}</option>)}
               </select>
             </label>

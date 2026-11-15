@@ -1,4 +1,4 @@
-"""``tools/latency_probe.py``: the lab latency probe of ``POST /v1/jobs`` and ``POST /v1/validate``.
+"""``tools/latency_probe.py``: the lab latency probe of the problem upload, ``POST /v1/jobs`` and ``POST /v1/bim/validate``.
 
 The gateway is a fake behind ``httpx.MockTransport`` and the clock is injected, so the durations are chosen by the test
 and nothing here depends on the wall clock.
@@ -53,18 +53,19 @@ class Gateway:
     """A fake gateway; ``calls`` is the ordered list of (method, path) it was asked."""
 
     def __init__(self, *, jobs_status: int = 202, validate_statuses: Sequence[int] = (), pricing: bool = False,
-                 zip_refused: bool = False, failing_examples: Mapping[str, int] | None = None,
-                 snapshot_statuses: Sequence[int] = (), unreadable: str = "") -> None:
-        self.zip_refused = zip_refused
+                 failing_examples: Mapping[str, int] | None = None,
+                 problem_statuses: Sequence[int] = (), unreadable: str = "", existing: bool = False) -> None:
         self.failing_examples = dict(failing_examples or {})
-        self.snapshot_statuses = iter(snapshot_statuses)
+        self.problem_statuses = iter(problem_statuses)
         self.unreadable = unreadable
         self.calls: list[tuple[str, str]] = []
         self.jobs_status = jobs_status
         self.validate_statuses = iter(validate_statuses)
         self.pricing = pricing
         self.job_headers: list[str] = []
+        self.job_bodies: list[dict] = []
         self.cancelled: set[str] = set()
+        self.problems: set[str] = {"latency-a"} if existing else set()
         self.count = 0
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
@@ -77,33 +78,38 @@ class Gateway:
         assert request.headers.get("authorization") == f"Bearer {TOKEN}" or path == "/openapi.json"
         if path == "/openapi.json":
             return httpx.Response(200, json={"info": {"version": "1.2.3"}})
-        if path == "/v1/examples":
+        if path == "/v1/bim/templates":
             if self.unreadable == "examples":
                 return httpx.Response(200, content=b"<html>not json</html>")
-            return httpx.Response(200, json={"examples": list(SIZES)})
-        if path.startswith("/v1/examples/"):
+            return httpx.Response(200, json={"templates": list(SIZES)})
+        if path.startswith("/v1/bim/templates/"):
             name = path.rsplit("/", 1)[-1]
             if name in self.failing_examples:
                 return httpx.Response(self.failing_examples[name], json={"code": "unavailable"})
             if name not in SIZES:
                 return httpx.Response(404, json={"code": "not_found"})
             return httpx.Response(200, content=b"z" * SIZES[name])
-        if path == "/v1/instances":
-            status = next(self.snapshot_statuses, 201)
-            if status != 201:
-                return httpx.Response(status, json={"code": "forbidden"})
-            return httpx.Response(201, json={"id": "snap-1"})
-        if path == "/v1/validate":
+        if path == "/v1/organizations/lab-main/problems" and method == "POST":
+            status = next(self.problem_statuses, None)
+            if status is not None and status != 201:
+                return httpx.Response(status, json={"detail": {"code": "forbidden"}})
+            slug = request.url.params["slug"]
+            if slug in self.problems:
+                return httpx.Response(409, json={"detail": {"code": "slug_conflict"}})
+            self.problems.add(slug)
+            return httpx.Response(201, json={"revision": {"id": f"rev-{slug}"}, "created": True})
+        if path.startswith("/v1/organizations/lab-main/problems/") and path.endswith("/revisions") and method == "POST":
+            slug = path.split("/")[-2]
+            return httpx.Response(200, json={"revision": {"id": f"rev-{slug}"}, "created": False})
+        if path == "/v1/bim/validate":
             status = next(self.validate_statuses, 200)
             return httpx.Response(status, json={"valid": True})
         if path == "/v1/jobs":
-            if self.zip_refused and request.headers["content-type"].startswith("multipart/form-data"):
-                # The gateway reads a multipart upload with an empty settings payload (no optimization).
-                return httpx.Response(422, json={"code": "optimization_required"})
             if self.pricing:
                 return httpx.Response(503, json={"code": "pricing_unavailable", "detail": "SPACE"})
             self.count += 1
             self.job_headers.append(request.headers["idempotency-key"])
+            self.job_bodies.append(json.loads(request.content))
             if self.unreadable == "jobs":
                 return httpx.Response(self.jobs_status, content=b"<html>not json</html>")
             return httpx.Response(self.jobs_status, json={"id": f"job-{self.count}"})
@@ -114,6 +120,10 @@ class Gateway:
             job = path.rsplit("/", 1)[-1]
             return httpx.Response(200, json={"status": "cancelled" if job in self.cancelled else "running"})
         return httpx.Response(404)
+
+
+UPLOAD = "POST /v1/organizations/{org}/problems/{problem}/revisions"
+ROUTES = [(UPLOAD, "package"), ("POST /v1/jobs", "revision"), ("POST /v1/bim/validate", "package")]
 
 
 def run(probe, gateway, durations=(0.1,), argv=("--samples", "4", "--warmup", "1", "--examples", "a"), env=ENV):
@@ -141,18 +151,16 @@ def test_report_keys_and_percentiles(probe, capsys):
     assert report["tool"] == "latency_probe" and report["ok"] is True
     assert report["gatewayVersion"] == "1.2.3"
     assert report["packages"] == [{"path": "a", "bytes": 100}]
-    assert [(r["route"], r["variant"]) for r in report["routes"]] == [
-        ("POST /v1/jobs", "snapshot"), ("POST /v1/jobs", "zip"), ("POST /v1/validate", "package"),
-    ]
+    assert [(r["route"], r["variant"]) for r in report["routes"]] == ROUTES
     row = report["routes"][2]
     assert set(row) == {"route", "variant", "package", "samples", "errors", "errorAnswers", "p50Ms", "p95Ms", "maxMs", "targetMs",
-                        "meetsTarget", "blockedByGateway"}
-    assert row["blockedByGateway"] is False
-    assert report["config"]["variants"] == ["snapshot", "zip"] and report["skippedExamples"] == []
+                        "meetsTarget"}
+    assert report["config"]["org"] == "lab-main" and report["skippedExamples"] == []
     assert row["samples"] == 4 and row["errors"] == 0
     assert row["targetMs"] == 2000.0
-    assert report["routes"][0]["targetMs"] == 500.0
-    assert report["routes"][0]["p50Ms"] > 0 and report["routes"][0]["p95Ms"] >= report["routes"][0]["p50Ms"]
+    assert report["routes"][0]["targetMs"] == 2000.0
+    assert report["routes"][1]["targetMs"] == 500.0
+    assert report["routes"][1]["p50Ms"] > 0 and report["routes"][1]["p95Ms"] >= report["routes"][1]["p50Ms"]
     assert "samples\": [" not in out
 
 
@@ -169,14 +177,14 @@ def test_verdict_at_and_over_the_jobs_target(probe, capsys, duration_s, meets, c
     gateway = Gateway(validate_statuses=())
     assert run(probe, gateway, durations=(duration_s,)) == code
     rows = report_of(capsys)["routes"]
-    assert [row["meetsTarget"] for row in rows[:2]] == [meets, meets]
-    assert rows[2]["meetsTarget"] is True  # 2 s target
+    assert rows[1]["meetsTarget"] is meets
+    assert rows[0]["meetsTarget"] is rows[2]["meetsTarget"] is True  # 2 s targets
 
 
 def test_validate_target_boundary(probe, capsys):
     assert run(probe, Gateway(), durations=(2.0,)) == 1  # jobs miss, validate is exactly on target
     rows = report_of(capsys)["routes"]
-    assert rows[2]["meetsTarget"] is True and rows[0]["meetsTarget"] is False
+    assert rows[2]["meetsTarget"] is True and rows[0]["meetsTarget"] is True and rows[1]["meetsTarget"] is False
     assert run(probe, Gateway(), durations=(0.1,), argv=("--samples", "2", "--warmup", "0", "--examples", "a",
                                                            "--validate-target-ms", "99")) == 1
     assert report_of(capsys)["routes"][2]["meetsTarget"] is False
@@ -190,62 +198,26 @@ def test_unexpected_answers_are_counted_and_not_timed(probe, capsys):
     assert row["errors"] == 2 and row["samples"] == 2
 
 
-def test_a_refused_zip_accept_is_blocked_by_the_gateway_not_a_miss(probe, capsys):
-    assert run(probe, Gateway(zip_refused=True), argv=("--samples", "4", "--warmup", "1", "--examples", "a", "--markdown")) == 0
-    out = capsys.readouterr().out
-    assert "422 optimization_required x4" in out
-    assert "blocked by gateway (422 optimization_required)" in out
-    assert run(probe, Gateway(zip_refused=True)) == 0
-    report = report_of(capsys)
-    rows = report["routes"]
-    assert report["ok"] is True
-    assert rows[0]["errors"] == 0 and rows[0]["errorAnswers"] == {}
-    assert rows[0]["blockedByGateway"] is False and "blockedReason" not in rows[0]
-    assert rows[1]["samples"] == 0 and rows[1]["errorAnswers"] == {"422 optimization_required": 4}
-    assert rows[1]["meetsTarget"] is False
-    assert rows[1]["blockedByGateway"] is True and rows[1]["blockedReason"] == "422 optimization_required"
-    assert rows[2]["blockedByGateway"] is False
-
-
-def test_a_blocked_zip_does_not_hide_a_snapshot_miss(probe, capsys):
-    assert run(probe, Gateway(zip_refused=True), durations=(0.6,)) == 1
-    report = report_of(capsys)
-    assert report["ok"] is False
-    assert [row["blockedByGateway"] for row in report["routes"]] == [False, True, False]
-    assert [row["meetsTarget"] for row in report["routes"]] == [False, False, True]
-
-
-def test_a_failing_jobs_answer_is_not_blocked(probe, capsys):
+def test_a_failing_jobs_answer_is_a_miss(probe, capsys):
     assert run(probe, Gateway(jobs_status=500)) == 1
     rows = report_of(capsys)["routes"]
-    assert [row["blockedByGateway"] for row in rows] == [False, False, False]
-    assert all("blockedReason" not in row for row in rows)
-    assert rows[0]["errorAnswers"] == {"500": 4}
+    assert rows[1]["errorAnswers"] == {"500": 4}
 
 
-def test_variants_select_the_accept_routes(probe, capsys):
+def test_the_job_runs_the_uploaded_revision(probe, capsys):
     gateway = Gateway()
-    assert run(probe, gateway, argv=("--samples", "2", "--warmup", "0", "--examples", "a", "--variants", "snapshot")) == 0
-    report = report_of(capsys)
-    assert report["config"]["variants"] == ["snapshot"]
-    assert [(r["variant"], r["samples"]) for r in report["routes"]] == [("snapshot", 2), ("package", 2)]
-    gateway = Gateway()
-    assert run(probe, gateway, argv=("--samples", "2", "--warmup", "0", "--examples", "a", "--variants", "zip")) == 0
-    report = report_of(capsys)
-    assert report["config"]["variants"] == ["zip"]
-    assert [(r["variant"], r["samples"]) for r in report["routes"]] == [("zip", 2), ("package", 2)]
-    assert ("POST", "/v1/instances") not in gateway.calls
-    assert run(probe, Gateway(), argv=("--samples", "1", "--warmup", "0", "--examples", "a", "--variants", " zip , snapshot ")) == 0
-    assert report_of(capsys)["config"]["variants"] == ["snapshot", "zip"]
+    assert run(probe, gateway) == 0
+    capsys.readouterr()
+    assert {body["revision"] for body in gateway.job_bodies} == {"rev-latency-a"}
+    assert ("POST", "/v1/organizations/lab-main/problems") in gateway.calls
 
 
-@pytest.mark.parametrize("variants", ["", ",", "other", "snapshot,other", "snapshot,,zip"])
-def test_invalid_variants_exit_2(probe, capsys, variants):
-    gateway = Gateway()
-    assert run(probe, gateway, argv=("--variants", variants)) == 2
-    report = report_of(capsys)
-    assert report["ok"] is False and report["error"] == "--variants takes snapshot and/or zip"
-    assert gateway.calls == []
+def test_a_problem_left_by_an_earlier_run_is_reused(probe, capsys):
+    gateway = Gateway(existing=True)
+    assert run(probe, gateway) == 0
+    capsys.readouterr()
+    assert {body["revision"] for body in gateway.job_bodies} == {"rev-latency-a"}
+    assert gateway.problems == {"latency-a"}
 
 
 def test_a_row_with_an_error_does_not_meet_its_target(probe, capsys):
@@ -261,7 +233,7 @@ def test_the_clock_is_read_only_around_the_requests(probe, capsys):
                       clock=clock, sleep=lambda _s: None)
     capsys.readouterr()
     assert code == 0
-    assert clock.reads == 2 * (1 + 4) * 3  # both accept variants and validate; the drain does not read it
+    assert clock.reads == 2 * (1 + 4) * 3  # upload, accept and validate; the drain does not read it
 
 
 def test_the_idempotency_key_is_built_before_the_clock_starts(probe):
@@ -306,13 +278,13 @@ def test_a_named_example_that_fails_is_a_hard_error(probe, capsys):
 
 
 def test_a_failure_keeps_the_rows_already_measured(probe, capsys):
-    gateway = Gateway(snapshot_statuses=(201, 403))
+    gateway = Gateway(problem_statuses=(201, 403))
     code = run(probe, gateway, argv=("--samples", "2", "--warmup", "0", "--examples", "a,b"))
     captured = capsys.readouterr()
     report = json.loads(captured.out)
     assert code == 1
-    assert "snapshot upload: 403" in report["error"] and report["ok"] is False
-    assert [(r["variant"], r["package"]) for r in report["routes"]] == [("snapshot", "b"), ("zip", "b"), ("package", "b")]  # b is the larger package
+    assert "problem upload: 403" in report["error"] and report["ok"] is False
+    assert [(r["variant"], r["package"]) for r in report["routes"]] == [("package", "b"), ("revision", "b"), ("package", "b")]  # b is the larger package
     assert "Traceback" not in captured.out + captured.err
 
 
@@ -331,7 +303,7 @@ def test_failed_jobs_are_errors_and_never_drained(probe, capsys):
     gateway = Gateway(jobs_status=500)
     assert run(probe, gateway) == 1
     rows = report_of(capsys)["routes"]
-    assert rows[0]["errors"] == 4 and rows[0]["samples"] == 0 and rows[0]["meetsTarget"] is False
+    assert rows[1]["errors"] == 4 and rows[1]["samples"] == 0 and rows[1]["meetsTarget"] is False
     assert not any(path.endswith("/cancel") for _, path in gateway.calls)
 
 
@@ -346,13 +318,13 @@ def test_each_job_is_cancelled_and_drained_before_the_next_accept(probe, capsys)
     run(probe, gateway)
     capsys.readouterr()
     job_posts = [i for i, call in enumerate(gateway.calls) if call == ("POST", "/v1/jobs")]
-    assert len(job_posts) == 10  # (1 warmup + 4 samples) x 2 variants
+    assert len(job_posts) == 5  # 1 warmup + 4 samples
     for number, (first, following) in enumerate(zip(job_posts, job_posts[1:] + [len(gateway.calls)], strict=True), start=1):
         between = gateway.calls[first + 1:following]
         assert ("POST", f"/v1/jobs/job-{number}/cancel") in between
         assert ("GET", f"/v1/jobs/job-{number}") in between
         assert between.index(("POST", f"/v1/jobs/job-{number}/cancel")) < between.index(("GET", f"/v1/jobs/job-{number}"))
-    assert len(set(gateway.job_headers)) == 10
+    assert len(set(gateway.job_headers)) == 5
 
 
 def test_a_job_that_never_ends_does_not_hang(probe, capsys):

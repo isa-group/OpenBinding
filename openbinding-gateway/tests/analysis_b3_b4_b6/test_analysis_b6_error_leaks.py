@@ -23,7 +23,7 @@ from openbinding_gateway.space_client import PricingUnavailable
 from openbinding_gateway.v1 import remote
 from openbinding_gateway.v1.remote import RemoteEngineError, RemoteRegistration
 
-from ._helpers import account_headers, account_with_snapshot, only_job, precondition, submit
+from ._helpers import account_headers, account_with_revision, only_job, precondition, submit
 
 #: ``.invalid`` never resolves (RFC 2606), so the real transport fails offline and says why.
 PRIVATE_HOST = "private-engine.invalid"
@@ -63,8 +63,8 @@ async def test_the_transport_does_not_name_the_engine_host_in_the_jobs_error(
         return await real_solve(unreachable, {}, {}, {}, timeout_s=2.0)
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
-    await submit(api_client, headers, snapshot_id)
+    headers, revision_id = await account_with_revision(api_client, registration)
+    await submit(api_client, headers, revision_id)
 
     body = await _public_view_of_the_only_job(api_client, db_session, headers)
 
@@ -80,8 +80,8 @@ async def test_an_unexpected_exception_text_does_not_reach_the_jobs_error(
         raise RuntimeError("connection to server at db-internal.corp (10.1.2.3), port 5432 failed")
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
-    await submit(api_client, headers, snapshot_id)
+    headers, revision_id = await account_with_revision(api_client, registration)
+    await submit(api_client, headers, revision_id)
 
     body = await _public_view_of_the_only_job(api_client, db_session, headers)
 
@@ -96,8 +96,8 @@ async def test_the_error_text_an_engine_writes_is_bounded(api_client, db_session
         raise RemoteEngineError("x" * 100_000)
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
-    await submit(api_client, headers, snapshot_id)
+    headers, revision_id = await account_with_revision(api_client, registration)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     precondition(job.state is JobState.FAILED, "the job failed")

@@ -6,9 +6,11 @@ import { OrgOverview } from './OrgOverview';
 
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn() }));
 const platform = vi.hoisted(() => ({ projects: vi.fn(), members: vi.fn(), createProject: vi.fn() }));
+const problems = vi.hoisted(() => ({ list: vi.fn() }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const lab = org('qos-lab', { name: 'QoS Lab (sub-organización)', parent_id: group.id });
@@ -26,6 +28,7 @@ describe('Organization overview', () => {
     platform.projects.mockResolvedValue([benchmarks, checkout]);
     platform.members.mockResolvedValue([member('lucia.vega', 'OWNER', { user_id: lucia.id })]);
     api.getOwnUsage.mockResolvedValue(researchUsage());
+    problems.list.mockResolvedValue({ problems: [], total: 0, limit: 5, offset: 0 });
   });
 
   it('introduces the organization: address, role and where it comes from, and creation date', async () => {
@@ -188,5 +191,23 @@ describe('Organization overview', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading…');
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Organization not available' })).not.toBeInTheDocument());
+  });
+
+  it('lists the organization’s newest problems and leads to all of them', async () => {
+    problems.list.mockResolvedValue({
+      problems: [{
+        id: 'p1', organization_id: group.id, slug: 'checkout-flow', name: 'Checkout flow', description: '', created_by_id: lucia.id,
+        created_at: '2026-04-02T00:00:00Z', updated_at: '2026-04-02T00:00:00Z',
+        latest_revision: { id: 'r2', revision: 2, package_digest: `sha256-${'2'.repeat(64)}`, created_at: '2026-08-20T10:05:00Z' },
+      }],
+      total: 7, limit: 5, offset: 0,
+    });
+    renderOverview();
+
+    const panel = (await screen.findByRole('heading', { name: /^Problems/ })).closest('section')!;
+    expect(problems.list).toHaveBeenCalledWith('isa-demo', { limit: 5 });
+    expect(await within(panel).findByRole('link', { name: /Checkout flow/ })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow');
+    expect(within(panel).getByText('7')).toBeInTheDocument();
+    expect(within(panel).getByRole('link', { name: 'All problems' })).toHaveAttribute('href', '/app/isa-demo/problems');
   });
 });

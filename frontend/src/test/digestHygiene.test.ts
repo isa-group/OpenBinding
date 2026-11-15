@@ -39,7 +39,7 @@ const ALLOWED = /\/src\/(components\/rendering\/(SourceView|LogPanel)|utils\/(di
 const EXEMPT_FILES: readonly string[] = [
   // api layer: request and response types carry ids and digests as data
   '/src/api/auth.ts',
-  '/src/api/cases.ts',
+  '/src/api/bim.ts',
   '/src/api/client.ts',
   '/src/api/health.ts',
   '/src/api/' + 'jobs.ts',
@@ -47,7 +47,7 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/api/limitNotice.ts',
   '/src/api/platform.ts',
   '/src/api/problem.ts',
-  '/src/api/workbench.ts',
+  '/src/api/problems.ts',
   // log and source views: raw engine output and source text are shown verbatim
   '/src/components/rendering/LogPanel.css',
   '/src/components/rendering/LogPanel.tsx',
@@ -58,7 +58,6 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/pages/Cases/fixtures.ts',
   '/src/pages/Organization/auditFixture.ts',
   '/src/pages/Pricing/pricingFixture.ts',
-  '/src/pages/Project/packageFixture.ts',
   '/src/test/fixtures/admin.ts',
   '/src/test/fixtures/agreementCatalog.ts',
   '/src/test/fixtures/engines.ts',

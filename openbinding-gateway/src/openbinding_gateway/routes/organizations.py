@@ -1,4 +1,4 @@
-"""Organization trees, members, projects and immutable binding cases."""
+"""Organization trees, members and projects. Problems are ``modules.problems``."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import uuid
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Query, Response, status
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..collaboration import (
@@ -29,12 +29,12 @@ from ..db.models import (
     AuditEvent,
     BindingCase,
     BindingCaseRevision,
-    InstanceSnapshot,
     Job,
     Organization,
     OrganizationInvitation,
     OrganizationMembership,
     OrganizationRole,
+    ProblemCompilation,
     Project,
     ProjectResource,
     ProjectResourceRevision,
@@ -49,11 +49,6 @@ from ..core import revision
 from ..models.errors import ErrorResponse, api_error
 from ..security.redaction import must_redact_jobs
 from ..models.platform import (
-    BindingCaseCreate,
-    BindingCaseUpdate,
-    BindingCaseView,
-    CaseRevisionCreate,
-    CaseRevisionView,
     InvitationAccept,
     InvitationCreate,
     InvitationCreated,
@@ -257,22 +252,7 @@ async def _cascade_delete_project(session: AsyncSession, project: Project) -> No
         Study.project_id == project.id).limit(1))
     if historical_run:
         raise api_error(409, "historical_references", "A project with study runs cannot be deleted; archive its studies to retain their evidence.")
-    historical_case = await session.scalar(select(BindingCaseRevision.id).join(BindingCase).where(
-        BindingCase.project_id == project.id).limit(1))
-    if historical_case:
-        raise api_error(409, "historical_references", "A project with sealed case revisions cannot be deleted.")
-
-    cases = (
-        await session.execute(
-            select(BindingCase).where(BindingCase.project_id == project.id)
-        )
-    ).scalars().all()
-    for c in cases:
-        await session.execute(
-            delete(BindingCaseRevision).where(BindingCaseRevision.binding_case_id == c.id)
-        )
-        await session.delete(c)
-
+    # Problems and blobs belong to the organization: deleting a project leaves them.
     resources = (
         await session.execute(
             select(ProjectResource).where(ProjectResource.project_id == project.id)
@@ -306,7 +286,6 @@ async def _cascade_delete_project(session: AsyncSession, project: Project) -> No
             await session.delete(run)
         await session.delete(s)
 
-    await session.execute(delete(Blob).where(Blob.project_id == project.id))
     await session.execute(
         update(Job).where(Job.project_id == project.id).values(project_id=None)
     )
@@ -329,6 +308,11 @@ async def delete_organization(
     if await session.scalar(select(ArtifactVersion.id).join(Artifact, Artifact.id == ArtifactVersion.artifact_id)
                             .where(Artifact.organization_id.in_(unique_descendants)).limit(1)):
         raise api_error(409, 'historical_references', 'Organizations with sealed library history cannot be deleted.')
+    if await session.scalar(select(Job.id).where(Job.organization_id.in_(unique_descendants)).limit(1)) or await session.scalar(
+        select(StudyRun.id).join(Study, Study.id == StudyRun.study_id).join(Project, Project.id == Study.project_id)
+        .where(Project.organization_id.in_(unique_descendants)).limit(1)
+    ):
+        raise api_error(409, 'historical_references', 'Organizations with runs or study runs cannot be deleted; their history is kept.')
     for oid in unique_descendants:
         projects = await organization_repository.list_projects(session, oid, ordered=False)
         for p in projects:
@@ -343,11 +327,13 @@ async def delete_organization(
             delete(AuditEvent).where(AuditEvent.organization_id == oid)
         )
         await session.execute(delete(Artifact).where(Artifact.organization_id == oid))
+        cases = select(BindingCase.id).where(BindingCase.organization_id == oid)
+        revisions = select(BindingCaseRevision.id).where(BindingCaseRevision.binding_case_id.in_(cases))
+        await session.execute(delete(ProblemCompilation).where(ProblemCompilation.revision_id.in_(revisions)))
+        await session.execute(delete(BindingCaseRevision).where(BindingCaseRevision.binding_case_id.in_(cases)))
+        await session.execute(delete(BindingCase).where(BindingCase.organization_id == oid))
         await session.execute(
             delete(Blob).where(Blob.organization_id == oid)
-        )
-        await session.execute(
-            update(Job).where(Job.organization_id == oid).values(organization_id=None)
         )
 
     descendant_ids_only = [oid for oid in reversed(unique_descendants) if oid != organization.id]
@@ -774,242 +760,6 @@ async def delete_project(
     await session.flush()
 
 
-@router.get("/{org}/projects/{project}/cases", response_model=list[BindingCaseView], operation_id="listBindingCases")
-async def list_cases(
-    org: str, project: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> list[BindingCaseView]:
-    organization = await _required_org(session, org)
-    found = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
-    rows = (await session.execute(select(BindingCase).where(BindingCase.project_id == found.id).order_by(BindingCase.name))).scalars().all()
-    return [BindingCaseView.model_validate(row, from_attributes=True) for row in rows]
-
-
-@router.post("/{org}/projects/{project}/cases", response_model=BindingCaseView, status_code=201, operation_id="createBindingCase")
-async def create_case(
-    org: str, project: str, payload: BindingCaseCreate,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> BindingCaseView:
-    organization = await _required_org(session, org)
-    found = await require_project(session, organization, project, user, OrganizationRole.MEMBER)
-    duplicate = await session.scalar(select(func.count(BindingCase.id)).where(BindingCase.project_id == found.id, BindingCase.slug == payload.slug))
-    if duplicate:
-        raise api_error(status.HTTP_409_CONFLICT, "slug_conflict", "That case slug is in use.")
-    case = BindingCase(project_id=found.id, created_by_id=user.id, **payload.model_dump())
-    session.add(case)
-    await session.flush()
-    _audit(session, user, "binding_case.created", case, organization.id)
-    return BindingCaseView.model_validate(case, from_attributes=True)
-
-
-async def _case(session: AsyncSession, project_id: uuid.UUID, reference: str) -> BindingCase:
-    try:
-        parsed = uuid.UUID(reference)
-    except ValueError:
-        parsed = None
-    found = (await session.execute(select(BindingCase).where(
-        BindingCase.project_id == project_id,
-        BindingCase.id == parsed if parsed else BindingCase.slug == reference,
-    ))).scalars().first()
-    if found is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Binding case not found.")
-    return found
-
-
-@router.get(
-    "/{org}/projects/{project}/cases/{case}",
-    response_model=BindingCaseView,
-    operation_id="getBindingCase",
-    responses=revision.ETAG_RESPONSE,
-)
-async def get_case(
-    org: str, project: str, case: str, response: Response,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> BindingCaseView:
-    organization = await _required_org(session, org)
-    found_project = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
-    found_case = await _case(session, found_project.id, case)
-    revision.set_etag(response, found_case)
-    return BindingCaseView.model_validate(found_case, from_attributes=True)
-
-
-@router.get("/{org}/projects/{project}/cases/{case}/revisions", response_model=list[CaseRevisionView], operation_id="listBindingCaseRevisions")
-async def list_case_revisions(
-    org: str, project: str, case: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> list[CaseRevisionView]:
-    organization = await _required_org(session, org)
-    found_project = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
-    found_case = await _case(session, found_project.id, case)
-    rows = (await session.execute(select(BindingCaseRevision).where(BindingCaseRevision.binding_case_id == found_case.id).order_by(BindingCaseRevision.revision))).scalars().all()
-    return [CaseRevisionView.model_validate(row, from_attributes=True) for row in rows]
-
-
-@router.get(
-    "/{org}/projects/{project}/cases/{case}/revisions/{revision}",
-    response_model=CaseRevisionView,
-    operation_id="getBindingCaseRevision",
-)
-async def get_case_revision(
-    org: str,
-    project: str,
-    case: str,
-    revision: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> CaseRevisionView:
-    organization = await _required_org(session, org)
-    found_project = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
-    found_case = await _case(session, found_project.id, case)
-
-    rev_row = None
-    if revision.isdigit():
-        rev_row = (await session.execute(
-            select(BindingCaseRevision).where(
-                BindingCaseRevision.binding_case_id == found_case.id,
-                BindingCaseRevision.revision == int(revision),
-            )
-        )).scalars().first()
-    if rev_row is None:
-        try:
-            parsed_uuid = uuid.UUID(revision)
-            rev_row = (await session.execute(
-                select(BindingCaseRevision).where(
-                    BindingCaseRevision.binding_case_id == found_case.id,
-                    BindingCaseRevision.id == parsed_uuid,
-                )
-            )).scalars().first()
-        except ValueError:
-            pass
-    if rev_row is None and revision.startswith("sha256-"):
-        rev_row = (await session.execute(
-            select(BindingCaseRevision).where(
-                BindingCaseRevision.binding_case_id == found_case.id,
-                BindingCaseRevision.digest == revision,
-            )
-        )).scalars().first()
-
-    if rev_row is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Binding case revision not found.")
-    return CaseRevisionView.model_validate(rev_row, from_attributes=True)
-
-
-@router.post("/{org}/projects/{project}/cases/{case}/revisions", response_model=CaseRevisionView, status_code=201, operation_id="createBindingCaseRevision")
-async def create_case_revision(
-    org: str, project: str, case: str, payload: CaseRevisionCreate,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> CaseRevisionView:
-    organization = await _required_org(session, org)
-    found_project = await require_project(session, organization, project, user, OrganizationRole.MEMBER)
-    found_case = await _case(session, found_project.id, case)
-    from ..artifacts import materialize_case, case_composition_digest
-    from ..db.models import CaseArtifact
-    from ..models.artifacts import ArtifactUse
-    from pydantic import ValidationError
-    resources = payload.resources
-    spec = payload.document.get('spec', {})
-    if not resources and isinstance(spec, dict) and isinstance(spec.get('resources'), dict):
-        entries = [(role, alias, target) for role, group in spec['resources'].items()
-                   if isinstance(group, dict) for alias, target in group.items()]
-        if entries and all(isinstance(target, dict) and 'versionDigest' in target for _, _, target in entries):
-            try:
-                resources = [ArtifactUse(role=role, alias=alias, artifact=target,
-                    bindings=spec.get('bindings', {}).get(alias, {})) for role, alias, target in entries]
-            except (ValidationError, AttributeError) as exc:
-                raise api_error(422, 'invalid_composition', 'Invalid exact artifact references or alias bindings.') from exc
-    uses = []
-    source_document = payload.document
-    snapshot_id = payload.source_snapshot_id
-    if resources:
-        if snapshot_id is not None:
-            raise api_error(422, "ambiguous_source", "Select artifact resources or a source snapshot, not both.")
-        source_document, snapshot_id, uses = await materialize_case(session, user, organization, payload.document, resources)
-    snapshot = None
-    if snapshot_id is not None:
-        snapshot = await session.get(InstanceSnapshot, snapshot_id)
-        if snapshot is None or snapshot.owner_id != user.id:
-            raise api_error(404, "not_found", "Source snapshot not found.")
-        if not uses and payload.document != snapshot.root_document:
-            raise api_error(422, "snapshot_document_mismatch", "The case document must match its source snapshot.")
-    document_digest = case_composition_digest(source_document, snapshot,
-        [use.model_dump(mode="json") for use, _ in uses])
-    await session.execute(
-        select(BindingCase.id)
-        .where(BindingCase.id == found_case.id)
-        .with_for_update()
-    )
-    existing = (await session.execute(select(BindingCaseRevision).where(
-        BindingCaseRevision.binding_case_id == found_case.id,
-        BindingCaseRevision.digest == document_digest,
-    ))).scalars().first()
-    if existing is not None:
-        return CaseRevisionView.model_validate(existing, from_attributes=True)
-    latest = await session.scalar(select(func.max(BindingCaseRevision.revision)).where(BindingCaseRevision.binding_case_id == found_case.id))
-    revision = BindingCaseRevision(
-        binding_case_id=found_case.id, revision=int(latest or 0) + 1,
-        digest=document_digest, document=source_document,
-        source_snapshot_id=snapshot_id, created_by_id=user.id,
-    )
-    session.add(revision)
-    await session.flush()
-    for use, version in uses:
-        session.add(CaseArtifact(revision_id=revision.id, alias=use.alias, role=use.role,
-            version_id=version.id, bindings=use.bindings))
-    await session.flush()
-    _audit(session, user, "binding_case.revision.created", revision, organization.id, digest=document_digest)
-    return CaseRevisionView.model_validate(revision, from_attributes=True)
-
-
-@router.patch(
-    "/{org}/projects/{project}/cases/{case}",
-    response_model=BindingCaseView,
-    operation_id="updateBindingCase",
-    responses=revision.EDIT_RESPONSES,
-)
-async def update_case(
-    org: str, project: str, case: str, payload: BindingCaseUpdate, response: Response,
-    if_match: str | None = revision.IF_MATCH_HEADER,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> BindingCaseView:
-    organization = await _required_org(session, org)
-    found_project = await require_project(session, organization, project, user, OrganizationRole.MEMBER)
-    found_case = await _case(session, found_project.id, case)
-    await revision.guard(session, found_case, if_match)
-    if payload.name is not None:
-        found_case.name = payload.name
-    if payload.description is not None:
-        found_case.description = payload.description
-    await session.flush()
-    _audit(session, user, "binding_case.updated", found_case, organization.id)
-    revision.set_etag(response, found_case)
-    return BindingCaseView.model_validate(found_case, from_attributes=True)
-
-
-@router.delete("/{org}/projects/{project}/cases/{case}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteBindingCase")
-async def delete_case(
-    org: str, project: str, case: str,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> None:
-    organization = await _required_org(session, org)
-    found_project = await require_project(session, organization, project, user, OrganizationRole.ADMIN)
-    found_case = await _case(session, found_project.id, case)
-    revisions = (await session.execute(
-        select(BindingCaseRevision.id).where(BindingCaseRevision.binding_case_id == found_case.id)
-    )).scalars().all()
-    if revisions:
-        raise api_error(409, "historical_references", "A case with sealed revisions cannot be deleted.")
-    _audit(session, user, "binding_case.deleted", found_case, organization.id)
-    await session.delete(found_case)
-    await session.flush()
-
-
 @router.get(
     "/{org}/projects/{project}/resources",
     response_model=list[ProjectResourceView],
@@ -1140,4 +890,5 @@ async def list_project_jobs(
     rows = await job_repository.list_for_project(
         session, found_project.id, job_id=job_id, include_results=include_results
     )
-    return [job_view(job, user, include_results=include_results, redact=redact) for job in rows]
+    refs = await job_repository.refs_for(session, rows)
+    return [job_view(job, user, include_results=include_results, redact=redact, refs=refs.get(job.id)) for job in rows]

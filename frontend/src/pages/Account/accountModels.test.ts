@@ -9,7 +9,7 @@ import { exactValueText, usageRows } from './usageModel';
 describe('API-key permissions', () => {
   it('offers every permission of the closed set exactly once', () => {
     const listed = PERMISSION_GROUPS.flatMap((group) => group.permissions.map((permission) => permission.id));
-    expect(ALL_PERMISSIONS).toHaveLength(25);
+    expect(ALL_PERMISSIONS).toHaveLength(24);
     expect(new Set(listed).size).toBe(listed.length);
     expect([...listed].sort()).toEqual([...ALL_PERMISSIONS].sort());
   });
@@ -25,7 +25,7 @@ describe('API-key permissions', () => {
     expect(needsEngines(['account:read', 'keys:read'] as ApiKeyPermission[])).toBe(false);
     expect(needsEngines(['jobs:read'])).toBe(true);
     expect(needsEngines(['studies:write'])).toBe(true);
-    expect(needsEngines(['instances:validate'])).toBe(true);
+    expect(needsEngines(['problems:read'])).toBe(false);
     expect([...ENGINE_LIMITED]).toContain('engines:execute');
     expect(needsEngines(PRESETS.run)).toBe(true);
   });

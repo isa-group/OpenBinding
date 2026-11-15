@@ -41,11 +41,12 @@ test('the Versions tab compares the pair in its address, 1 with 3', async ({ pag
   await expect(page.getByText(versionMarker(2))).toHaveCount(0);
 });
 
-test('a public visitor sees only the tabs Overview, Versions and Source', async ({ page }) => {
-  await mockProblems(page, { visitor: true });
+test('a VIEWER of the organization sees the same tabs and reads the latest version', async ({ page }) => {
+  await mockProblems(page, { viewer: true });
   await page.goto(PROBLEM);
-  const group = tabGroup(page, ['Overview', 'Versions', 'Source']);
-  await expect.poll(() => tabLabels(group)).toEqual(['Overview', 'Versions', 'Source']);
+  const group = tabGroup(page, TABS);
+  await expect.poll(() => tabLabels(group)).toEqual(TABS);
+  await expect.poll(() => shownBy(selectorOf(page, /version/i))).toMatch(/\b3\b/);
 });
 
 test('an unknown problem tab shows Page not found', async ({ page }) => {

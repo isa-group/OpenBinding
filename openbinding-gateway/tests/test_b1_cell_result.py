@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from _problem_helpers import run_refs, seed_problem_run, upload_problem
 import copy
 import uuid
 from types import SimpleNamespace
@@ -40,12 +41,6 @@ async def build_world(api_client, db_session, registration, gate, monkeypatch, *
     monkeypatch.setattr(execution, "solve_remote", solve)
     owner, headers = await make_account(api_client, registration, db_session, gate)
     package = load_package(EXAMPLE)
-    snapshot = await api_client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package.to_zip(),
-    )
-    assert snapshot.status_code == 201, snapshot.text
     exact_engine = {
         **engine_ref(routes._manifest("random-search"), "bim.builtin"),
         "mode": "seeded",
@@ -54,21 +49,15 @@ async def build_world(api_client, db_session, registration, gate, monkeypatch, *
     for path, body in (
         ("/v1/organizations", {"slug": "lab", "name": "Binding Lab"}),
         ("/v1/organizations/lab/projects", {"slug": "routing", "name": "Routing", "visibility": "private"}),
-        (f"{BASE}/cases", {"slug": "checkout", "name": "Checkout"}),
     ):
         created = await api_client.post(path, headers=headers, json=body)
         assert created.status_code == 201, created.text
-    revision = await api_client.post(
-        f"{BASE}/cases/checkout/revisions",
-        headers=headers,
-        json={"document": package.instance(), "source_snapshot_id": snapshot.json()["id"]},
-    )
-    assert revision.status_code == 201, revision.text
+    revision = (await upload_problem(api_client, headers, "lab", slug="checkout"))["revision"]
     study = await api_client.post(
         f"{BASE}/studies",
         headers=headers,
         json={"slug": "compare", "name": "Compare", "definition": {
-            "case_revision_ids": [revision.json()["id"]],
+            "case_revision_ids": [revision["id"]],
             "engines": [exact_engine],
             "parameter_sets": parameter_sets,
             "seeds": seeds,
@@ -83,7 +72,7 @@ async def build_world(api_client, db_session, registration, gate, monkeypatch, *
     assert len(cells) == 2 and all(cell.job_id for cell in cells), [c.metrics for c in cells]
     jobs = [await db_session.get(Job, cell.job_id) for cell in cells]
     return SimpleNamespace(
-        owner=owner, headers=headers, run=run.json(), cells=cells, jobs=jobs, revision=revision.json(),
+        owner=owner, headers=headers, run=run.json(), cells=cells, jobs=jobs, revision=revision,
         engine=exact_engine, package=package,
         url=lambda cell: f"{BASE}/studies/compare/runs/{run.json()['id']}/cells/{cell.id}/result",
     )
@@ -107,7 +96,8 @@ async def clone_job(db_session, source: Job, *, owner_id=None, patch=None, **fie
         engine_job_id=str(uuid.uuid4()), service_url=source.service_url,
         state=source.state, original_request=source.original_request, options=options,
         provenance=provenance, result=source.result, termination=source.termination,
-        instance_snapshot_id=source.instance_snapshot_id, finished_at=source.finished_at,
+        revision_id=source.revision_id, compilation_id=source.compilation_id,
+        organization_id=source.organization_id, finished_at=source.finished_at,
         created_at=source.created_at,
     )
     values.update(fields)
@@ -118,6 +108,13 @@ async def clone_job(db_session, source: Job, *, owner_id=None, patch=None, **fie
 
 
 DELETE = object()
+#: A patch key of ``clone_job`` callers: the clone runs another revision (of the same organization).
+OTHER_REVISION = "revision"
+
+
+async def another_revision(db_session, job: Job) -> dict:
+    seeded = await seed_problem_run(db_session, owner_id=job.owner_id, organization_id=job.organization_id)
+    return run_refs(seeded)
 
 
 async def attach(api_client, world, cell, job, headers=None):
@@ -177,9 +174,9 @@ async def test_a_failed_job_of_the_cell_is_attached_as_a_failed_cell(api_client,
         ({"engine.version": "9.9.9"}, ["engine"]),
         ({"engine.name": "another-engine"}, ["engine"]),
         ({"mode": "another-mode"}, ["mode"]),
-        ({"packageDigest": "sha256-" + "c" * 64}, ["case_revision"]),
+        ({OTHER_REVISION: True}, ["case_revision"]),
         (
-            {"options.seed": 2, "packageDigest": "sha256-" + "c" * 64, "engine.namespace": "other.ns"},
+            {"options.seed": 2, OTHER_REVISION: True, "engine.namespace": "other.ns"},
             ["case_revision", "engine", "seed"],
         ),
     ],
@@ -189,7 +186,11 @@ async def test_a_job_of_another_case_engine_mode_or_seed_is_refused(
 ):
     cell = world.cells[0]
     before = cell.job_id
-    impostor = await clone_job(db_session, world.jobs[0], patch=patch)
+    patch = dict(patch)
+    fields_of_job = {}
+    if patch.pop(OTHER_REVISION, False):
+        fields_of_job = await another_revision(db_session, world.jobs[0])
+    impostor = await clone_job(db_session, world.jobs[0], patch=patch, **fields_of_job)
 
     response = await attach(api_client, world, cell, impostor)
 
@@ -225,11 +226,10 @@ async def test_a_job_without_a_recorded_seed_cannot_stand_for_a_seeded_cell(api_
     assert response.json()["detail"]["details"]["seed"] == {"cell": 1, "job": None}
 
 
-async def test_a_job_whose_package_is_unknown_is_a_case_mismatch(api_client, db_session, world):
-    unknown = await clone_job(
-        db_session, world.jobs[0], patch={"packageDigest": DELETE}, instance_snapshot_id=None
-    )
-    response = await attach(api_client, world, world.cells[0], unknown)
+async def test_a_job_of_another_revision_with_the_same_package_is_a_case_mismatch(api_client, db_session, world):
+    # The recorded package digest is the cell's; what decides is the revision the job ran.
+    other = await clone_job(db_session, world.jobs[0], **await another_revision(db_session, world.jobs[0]))
+    response = await attach(api_client, world, world.cells[0], other)
     assert response.status_code == 409
     assert response.json()["detail"]["fields"] == ["case_revision"]
 

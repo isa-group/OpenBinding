@@ -21,7 +21,7 @@ from openbinding_gateway.integrations import bim
 from openbinding_gateway.services import execution
 
 from ._helpers import (
-    account_with_snapshot,
+    account_with_revision,
     answer,
     only_job,
     persisted_anywhere,
@@ -53,8 +53,8 @@ def engine_answers(monkeypatch):
 
 
 async def _failed_job(api_client, db_session, registration):
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
-    await submit(api_client, headers, snapshot_id)
+    headers, revision_id = await account_with_revision(api_client, registration)
+    await submit(api_client, headers, revision_id)
     job = await only_job(db_session)
     precondition(job.state is JobState.FAILED, f"the job ended {job.state.value}, not failed")
     return headers, job

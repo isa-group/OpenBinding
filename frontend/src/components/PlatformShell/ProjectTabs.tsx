@@ -2,13 +2,12 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye } from 'lucide-react';
 import type { ProjectAccessKind } from '../../api/platform';
-import { PROBLEMS_SEGMENT } from '../../routes/paths/problems';
 import { RUNS_SEGMENT } from '../../routes/paths/runs';
 import { canOpenSection, levelOf } from '../../utils/accessLevel';
 import './SectionNav.css';
 
-// The keys `cases` and `jobs` are the section names the problem and run screens pass today, not addresses.
-export type ProjectSection = 'overview' | 'cases' | 'jobs' | 'studies' | 'settings';
+// The key `jobs` is the section name the run screens pass today, not an address. Problems belong to the organization.
+export type ProjectSection = 'overview' | 'jobs' | 'studies' | 'settings';
 
 interface ProjectTabsProps {
   active?: ProjectSection;
@@ -29,7 +28,6 @@ interface Tab {
 
 const TABS: readonly Tab[] = [
   { key: 'overview', label: 'Overview', suffix: '' },
-  { key: 'cases', label: 'Problems', suffix: `/${PROBLEMS_SEGMENT}` },
   { key: 'jobs', label: 'Runs', suffix: `/${RUNS_SEGMENT}` },
   { key: 'studies', label: 'Studies', suffix: '/studies' },
   { key: 'settings', label: 'Settings', suffix: '/settings', trailing: true },

@@ -5,7 +5,7 @@ import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFix
 import { jobOf } from '../src/test/fixtures/jobs';
 import { digestOf as resourceDigest, usageOf } from '../src/test/fixtures/resources';
 import {
-  CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, RUN_ID, VERSION_ID, analyticsFixture, cellFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
+  CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, RUN_ID, VERSION_ID, analyticsFixture, cellFixture, cellsFixture, runFixture, studyFixture,
 } from '../src/test/fixtures/studies';
 
 // S7a · studies: study-list, study-builder and study-detail with its tabs Setup, Progress (the run) and Results (analytics, cells and the CSV export).
@@ -192,6 +192,13 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       ])(route);
     }
     if (section === 'members') return json([])(route);
+    if (section === 'problems') {
+      // The study builder and the matrices name the problem versions of the organization.
+      const [, , , , problemSlug, problemSub] = parts;
+      if (!problemSlug) return json({ problems: [CHECKOUT], total: 1, limit: 200, offset: 0 })(route);
+      if (problemSub === 'revisions') return json([REVISION_1, REVISION_2])(route);
+      return json(CHECKOUT)(route);
+    }
     if (section !== 'projects') return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
 
     const list = projectsOf[orgSlug] ?? [];
@@ -200,11 +207,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     if (!current) return detail(404, 'not_found', 'Project not found.')(route);
     if (!sub) return json(current)(route);
 
-    if (sub === 'cases') {
-      if (!subId) return json([CHECKOUT])(route);
-      if (action === 'revisions') return json([REVISION_1, REVISION_2, revisionFixture(3, { source_snapshot_id: null })])(route);
-      return json(CHECKOUT)(route);
-    }
     if (sub === 'jobs') return json([...mineJobs, ...otherJobs])(route);
     if (sub === 'reports') {
       if (method === 'POST') {
@@ -411,7 +413,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(dialog).toBeVisible();
       await capture(page, testInfo, `list-${name}-delete-dialog`);
       await dialog.getByRole('button', { name: 'Delete study' }).click();
-      await expect(main.getByText('This study has runs, so it was archived instead of deleted. Results cited by reports stay intact.')).toBeVisible();
+      await expect(main.getByText('This study has runs, so it was archived instead of deleted. Its runs and results stay intact.')).toBeVisible();
       expect(state.sent.deleted).toEqual(['engines-vs-seeds']);
       await capture(page, testInfo, `list-${name}-delete-archives`);
       expect(critical).toEqual([]);
@@ -463,8 +465,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'New study' })).toBeVisible();
       await expect(main.getByText('Pick the problems, engines, settings and seeds. Every combination becomes one cell.')).toBeVisible();
-      await expect(main.getByRole('checkbox', { name: /Checkout flow · version 3/ })).toBeDisabled();
-      await expect(main.getByText(/No compiled snapshot yet, so engines have nothing to run/)).toBeVisible();
+      await expect(main.getByRole('checkbox', { name: /Checkout flow · version 2/ })).toBeEnabled();
       await expect(create).toBeDisabled();
       await expect(main.getByRole('list', { name: 'Still needed' })).toContainText('Choose at least one engine mode.');
       await capture(page, testInfo, `builder-${name}-empty`);
@@ -812,9 +813,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 2, name: 'Cell 2' })).toBeVisible();
       const inputs = main.getByRole('region', { name: 'Frozen inputs' });
-      await expect(inputs.getByRole('link', { name: 'Checkout flow · version 1' })).toHaveAttribute('href', `${ROOT}/problems/checkout-flow?version=1`);
+      await expect(inputs.getByRole('link', { name: 'Checkout flow · version 1' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow?version=1');
       await expect(inputs.getByText('random-search 1.0.0')).toBeVisible();
-      await expect(inputs.getByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${ROOT}/problems/checkout-flow/source?version=1`);
+      await expect(inputs.getByRole('link', { name: 'Package and compiled form' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow/source?version=1');
       await expect(inputs.getByRole('button', { name: 'Copy cell digest' })).toHaveText('Copy digest');
       await expect(inputs).not.toContainText(/sha256-|[0-9a-f]{12}/);
       const result = main.getByRole('region', { name: 'Result' });

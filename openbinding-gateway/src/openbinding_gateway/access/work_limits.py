@@ -39,10 +39,14 @@ from .public_read import route_template
 
 WorkClass = Literal["compile"]
 
-#: Every route counted here, by its template. A test walks the real route table and fails when a
-#: route under these prefixes is not listed, and the OpenAPI document declares the 429 from this table.
-WORK_ROUTES: dict[str, WorkClass] = {
-    "/v1/instances/validate": "compile",
+#: Every route counted here, by its method and template. A test walks the real route table and fails when a
+#: compiling route is not listed, and the OpenAPI document declares the 429 from this table.
+WORK_ROUTES: dict[tuple[str, str], WorkClass] = {
+    ("POST", "/v1/bim/validate"): "compile",
+    ("POST", "/v1/organizations/{org}/problems"): "compile",
+    ("POST", "/v1/organizations/{org}/problems/{problem}/revisions"): "compile",
+    # It compiles the revision on a miss (a toolchain release), as validation does.
+    ("GET", "/v1/organizations/{org}/problems/{problem}/revisions/{revision}/compilation"): "compile",
 }
 
 
@@ -125,7 +129,7 @@ async def limit_work(
     settings: Settings = Depends(get_settings),
 ) -> None:
     """Route dependency: one request of the class ``WORK_ROUTES`` gives this route."""
-    await enforce_work_rate_limit(request, WORK_ROUTES[route_template(request)], caller, settings=settings)
+    await enforce_work_rate_limit(request, WORK_ROUTES[(request.method, route_template(request))], caller, settings=settings)
 
 
 async def limit_work_of_counted_caller(
@@ -134,7 +138,7 @@ async def limit_work_of_counted_caller(
     settings: Settings = Depends(get_settings),
 ) -> None:
     """``limit_work``, for a route that must not start authorizing the credentials it is sent."""
-    await enforce_work_rate_limit(request, WORK_ROUTES[route_template(request)], caller, settings=settings)
+    await enforce_work_rate_limit(request, WORK_ROUTES[(request.method, route_template(request))], caller, settings=settings)
 
 
 __all__ = [

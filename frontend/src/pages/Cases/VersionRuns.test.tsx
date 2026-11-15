@@ -5,28 +5,28 @@ import type { Job } from '../../api/platform';
 import { caseOf, org, project, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseDetail } from './CaseDetail';
 
-const platform = vi.hoisted(() => ({ project: vi.fn(), case: vi.fn(), revisions: vi.fn(), projectJobs: vi.fn() }));
-const jobs = vi.hoisted(() => ({ instance: vi.fn() }));
+const problems = vi.hoisted(() => ({ get: vi.fn(), revisions: vi.fn() }));
+const jobs = vi.hoisted(() => ({ mine: vi.fn() }));
 
-vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../api/jobs', async () => ({ ...await vi.importActual<typeof import('../../api/jobs')>('../../api/jobs'), jobsApi: jobs }));
 
 const member = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
 const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const checkout = caseOf('flujo-checkout', 'Flujo de checkout');
-const r1 = revisionOf(checkout, 1, { source_snapshot_id: 'snap-1' });
-const r2 = revisionOf(checkout, 2, { source_snapshot_id: 'snap-2' });
-const root = '/app/isa-demo/qos-benchmarks';
+const r1 = revisionOf(checkout, 1);
+const r2 = revisionOf(checkout, 2);
+const root = '/app/isa-demo';
+const runs = '/app/isa-demo/qos-benchmarks';
 
-const jobOf = (id: string, created: string, over: Partial<Job> = {}): Job => ({
+const jobOf = (id: string, created: string, revision: { id: string; revision: number }): Job => ({
   id, engine_id: 'multi-heuristic', status: 'completed', cancellation_requested: false, retry_of_id: null, organization_id: 'org-isa-demo',
-  project_id: 'project-qos-benchmarks', created_at: created, finished_at: created, termination: 'OPTIMAL', ...over,
+  project_id: null, created_at: created, finished_at: created, termination: 'OPTIMAL', revision,
 });
-const snapshotOfJob: Record<string, string> = { 'job-old': 'snap-1', 'job-new': 'snap-2', 'job-other': 'snap-elsewhere' };
 
 function renderRuns() {
   return renderProjectScreen(<CaseDetail />, {
-    path: '/app/:org/:project/problems/:case/:tab?', url: `${root}/problems/flujo-checkout/runs`, organizations: [member],
+    path: '/app/:org/problems/:case/:tab?', url: `${root}/problems/flujo-checkout/runs`, organizations: [member], projects: [qos],
   });
 }
 
@@ -36,51 +36,39 @@ const runsTable = async () => within(await screen.findByRole('region', { name: '
 describe('Runs tab of the problem page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    platform.project.mockResolvedValue(qos);
-    platform.case.mockResolvedValue(checkout);
-    platform.revisions.mockResolvedValue([r1, r2]);
-    platform.projectJobs.mockResolvedValue([
-      jobOf('job-old', '2026-09-01T00:00:00Z'), jobOf('job-other', '2026-09-02T00:00:00Z'), jobOf('job-new', '2026-09-03T00:00:00Z'),
+    problems.get.mockResolvedValue(checkout);
+    problems.revisions.mockResolvedValue([r1, r2]);
+    jobs.mine.mockResolvedValue([
+      jobOf('job-old', '2026-09-01T00:00:00Z', { id: r1.id, revision: 1 }),
+      jobOf('job-other', '2026-09-02T00:00:00Z', { id: 'rev-elsewhere', revision: 4 }),
+      jobOf('job-new', '2026-09-03T00:00:00Z', { id: r2.id, revision: 2 }),
     ]);
-    jobs.instance.mockImplementation(async (id: string) => ({ id: snapshotOfJob[id] }));
   });
 
-  it('lists the runs that started from a revision of the problem, newest first, each linking to its page', async () => {
+  it('lists your runs of a version of the problem by the revision they name, newest first, each linking to its page', async () => {
     renderRuns();
 
     const table = await runsTable();
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(2);
-    expect(within(rows[0]).getByRole('link', { name: 'Run 2' })).toHaveAttribute('href', `${root}/runs/job-new`);
+    expect(within(rows[0]).getByRole('link', { name: 'Run 2' })).toHaveAttribute('href', `${runs}/runs/job-new`);
     expect(within(rows[0]).getByRole('link', { name: 'Version 2' })).toHaveAttribute('href', `${root}/problems/flujo-checkout?version=2`);
-    expect(within(rows[1]).getByRole('link', { name: 'Run 1' })).toHaveAttribute('href', `${root}/runs/job-old`);
+    expect(within(rows[1]).getByRole('link', { name: 'Run 1' })).toHaveAttribute('href', `${runs}/runs/job-old`);
     expect(within(rows[1]).getByRole('link', { name: 'Version 1' })).toHaveAttribute('href', `${root}/problems/flujo-checkout?version=1`);
     expect(table.textContent).not.toMatch(/job-|sha256-|[0-9a-f]{12}/);
-    expect(platform.projectJobs).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks');
+    expect(jobs.mine).toHaveBeenCalledTimes(1);
   });
 
-  it('skips the runs whose snapshot the account cannot read', async () => {
-    jobs.instance.mockImplementation(async (id: string) => {
-      if (id === 'job-new') throw new HttpError(404, 'not found');
-      return { id: snapshotOfJob[id] };
-    });
-    renderRuns();
-
-    const table = await runsTable();
-    expect(within(table).getAllByRole('row').slice(1)).toHaveLength(1);
-    expect(within(table).getByRole('link', { name: 'Run 1' })).toBeInTheDocument();
-  });
-
-  it('says so when no run started from the problem, and offers to start one to a MEMBER', async () => {
-    platform.projectJobs.mockResolvedValue([]);
+  it('says so when no run is of the problem, and offers to start one to a MEMBER', async () => {
+    jobs.mine.mockResolvedValue([]);
     renderRuns();
 
     expect(await screen.findByText('No runs of this problem yet')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Start a run' })).toHaveAttribute('href', `${root}/runs/new?case=flujo-checkout`);
+    expect(screen.getByRole('link', { name: 'Start a run' })).toHaveAttribute('href', `${runs}/runs/new?problem=flujo-checkout&revision=2`);
   });
 
   it('says the runs cannot be loaded, and retries', async () => {
-    platform.projectJobs.mockRejectedValueOnce(new HttpError(503, 'unavailable'));
+    jobs.mine.mockRejectedValueOnce(new HttpError(503, 'unavailable'));
     renderRuns();
 
     const alert = await screen.findByRole('alert');

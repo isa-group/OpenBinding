@@ -314,6 +314,9 @@
             "pattern": "^sha256-[0-9a-f]{64}$",
             "type": "string"
           },
+          "ir": {
+            "$ref": "#/components/schemas/BindingProblem"
+          },
           "irDigest": {
             "pattern": "^sha256-[0-9a-f]{64}$",
             "type": "string"
@@ -327,6 +330,9 @@
               "pattern": "^sha256-[0-9a-f]{64}$",
               "type": "string"
             },
+            "type": "object"
+          },
+          "sourceMap": {
             "type": "object"
           },
           "valid": {
@@ -597,9 +603,8 @@
           "account:write",
           "keys:read",
           "keys:write",
-          "instances:read",
-          "instances:write",
-          "instances:validate",
+          "problems:read",
+          "problems:write",
           "jobs:read",
           "engines:read",
           "engines:execute",
@@ -819,38 +824,6 @@
         "title": "ArtifactRef",
         "type": "object"
       },
-      "ArtifactUse": {
-        "additionalProperties": false,
-        "properties": {
-          "alias": {
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
-            "title": "Alias",
-            "type": "string"
-          },
-          "artifact": {
-            "$ref": "#/components/schemas/ArtifactRef"
-          },
-          "bindings": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Bindings",
-            "type": "object"
-          },
-          "role": {
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
-            "title": "Role",
-            "type": "string"
-          }
-        },
-        "required": [
-          "role",
-          "alias",
-          "artifact"
-        ],
-        "title": "ArtifactUse",
-        "type": "object"
-      },
       "ArtifactVersionView": {
         "properties": {
           "artifact_id": {
@@ -981,118 +954,6 @@
           "created_at"
         ],
         "title": "ArtifactView",
-        "type": "object"
-      },
-      "BindingCaseCreate": {
-        "additionalProperties": false,
-        "properties": {
-          "description": {
-            "default": "",
-            "maxLength": 2000,
-            "title": "Description",
-            "type": "string"
-          },
-          "name": {
-            "maxLength": 160,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
-          },
-          "slug": {
-            "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$",
-            "title": "Slug",
-            "type": "string"
-          }
-        },
-        "required": [
-          "slug",
-          "name"
-        ],
-        "title": "BindingCaseCreate",
-        "type": "object"
-      },
-      "BindingCaseUpdate": {
-        "additionalProperties": false,
-        "properties": {
-          "description": {
-            "anyOf": [
-              {
-                "maxLength": 2000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "maxLength": 160,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          }
-        },
-        "title": "BindingCaseUpdate",
-        "type": "object"
-      },
-      "BindingCaseView": {
-        "additionalProperties": false,
-        "properties": {
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "created_by_id": {
-            "format": "uuid",
-            "title": "Created By Id",
-            "type": "string"
-          },
-          "description": {
-            "default": "",
-            "maxLength": 2000,
-            "title": "Description",
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "name": {
-            "maxLength": 160,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
-          },
-          "project_id": {
-            "format": "uuid",
-            "title": "Project Id",
-            "type": "string"
-          },
-          "slug": {
-            "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$",
-            "title": "Slug",
-            "type": "string"
-          }
-        },
-        "required": [
-          "slug",
-          "name",
-          "id",
-          "project_id",
-          "created_by_id",
-          "created_at"
-        ],
-        "title": "BindingCaseView",
         "type": "object"
       },
       "BindingProblem": {
@@ -2748,58 +2609,6 @@
         ],
         "type": "object"
       },
-      "BlobView": {
-        "properties": {
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "digest": {
-            "title": "Digest",
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "media_type": {
-            "title": "Media Type",
-            "type": "string"
-          },
-          "organization_id": {
-            "format": "uuid",
-            "title": "Organization Id",
-            "type": "string"
-          },
-          "project_id": {
-            "format": "uuid",
-            "title": "Project Id",
-            "type": "string"
-          },
-          "public": {
-            "title": "Public",
-            "type": "boolean"
-          },
-          "size_bytes": {
-            "title": "Size Bytes",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "organization_id",
-          "project_id",
-          "digest",
-          "media_type",
-          "size_bytes",
-          "public",
-          "created_at"
-        ],
-        "title": "BlobView",
-        "type": "object"
-      },
       "CasExchange": {
         "properties": {
           "code": {
@@ -2868,40 +2677,6 @@
         "title": "CasSession",
         "type": "object"
       },
-      "CaseRevisionCreate": {
-        "additionalProperties": false,
-        "properties": {
-          "document": {
-            "additionalProperties": true,
-            "title": "Document",
-            "type": "object"
-          },
-          "resources": {
-            "items": {
-              "$ref": "#/components/schemas/ArtifactUse"
-            },
-            "title": "Resources",
-            "type": "array"
-          },
-          "source_snapshot_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Snapshot Id"
-          }
-        },
-        "required": [
-          "document"
-        ],
-        "title": "CaseRevisionCreate",
-        "type": "object"
-      },
       "CaseRevisionRef": {
         "additionalProperties": false,
         "properties": {
@@ -2921,61 +2696,6 @@
           "compositionDigest"
         ],
         "title": "CaseRevisionRef",
-        "type": "object"
-      },
-      "CaseRevisionView": {
-        "properties": {
-          "binding_case_id": {
-            "format": "uuid",
-            "title": "Binding Case Id",
-            "type": "string"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "digest": {
-            "title": "Digest",
-            "type": "string"
-          },
-          "document": {
-            "additionalProperties": true,
-            "title": "Document",
-            "type": "object"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "revision": {
-            "title": "Revision",
-            "type": "integer"
-          },
-          "source_snapshot_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Snapshot Id"
-          }
-        },
-        "required": [
-          "id",
-          "binding_case_id",
-          "revision",
-          "digest",
-          "document",
-          "source_snapshot_id",
-          "created_at"
-        ],
-        "title": "CaseRevisionView",
         "type": "object"
       },
       "ChangePlanRequest": {
@@ -3042,6 +2762,160 @@
           "reason"
         ],
         "title": "ChangeSubscriptionRequest",
+        "type": "object"
+      },
+      "CompilationIr": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ir": {
+            "additionalProperties": true,
+            "title": "Ir",
+            "type": "object"
+          },
+          "ir_digest": {
+            "title": "Ir Digest",
+            "type": "string"
+          },
+          "source_map": {
+            "additionalProperties": true,
+            "title": "Source Map",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "ir_digest",
+          "ir"
+        ],
+        "title": "CompilationIr",
+        "type": "object"
+      },
+      "CompilationSummary": {
+        "description": "A compilation as a list shows it: its identities and the size of the binding space.",
+        "properties": {
+          "binding_space": {
+            "title": "Binding Space",
+            "type": "string"
+          },
+          "compilation_digest": {
+            "title": "Compilation Digest",
+            "type": "string"
+          },
+          "compiler_digest": {
+            "title": "Compiler Digest",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "current": {
+            "description": "Whether the installed toolchain made this compilation.",
+            "title": "Current",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ir_digest": {
+            "title": "Ir Digest",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "compilation_digest",
+          "compiler_digest",
+          "ir_digest",
+          "binding_space",
+          "created_at",
+          "current"
+        ],
+        "title": "CompilationSummary",
+        "type": "object"
+      },
+      "CompilationView": {
+        "description": "The compilation of a revision by the installed toolchain, with what a run needs to know of it.",
+        "properties": {
+          "analysis": {
+            "$ref": "#/components/schemas/ProblemAnalysis"
+          },
+          "binding_space": {
+            "title": "Binding Space",
+            "type": "string"
+          },
+          "compatible_modes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Compatible Modes",
+            "type": "array"
+          },
+          "compilation_digest": {
+            "title": "Compilation Digest",
+            "type": "string"
+          },
+          "compiler_digest": {
+            "title": "Compiler Digest",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "current": {
+            "description": "Whether the installed toolchain made this compilation.",
+            "title": "Current",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ir_digest": {
+            "title": "Ir Digest",
+            "type": "string"
+          },
+          "resources": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ResourceContract"
+            },
+            "title": "Resources",
+            "type": "object"
+          },
+          "revision_id": {
+            "format": "uuid",
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "toolchain": {
+            "additionalProperties": true,
+            "title": "Toolchain",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "compilation_digest",
+          "compiler_digest",
+          "ir_digest",
+          "binding_space",
+          "created_at",
+          "current",
+          "revision_id",
+          "analysis"
+        ],
+        "title": "CompilationView",
         "type": "object"
       },
       "ContractRef": {
@@ -3436,50 +3310,6 @@
         "required": [
           "code",
           "message"
-        ],
-        "type": "object"
-      },
-      "DialectCatalogEntry": {
-        "additionalProperties": false,
-        "properties": {
-          "apiVersion": {
-            "const": "bim/v1"
-          },
-          "digest": {
-            "pattern": "^sha256-[0-9a-f]{64}$",
-            "type": "string"
-          },
-          "kind": {
-            "const": "Dialect"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "spec": {
-            "type": "object"
-          }
-        },
-        "required": [
-          "apiVersion",
-          "kind",
-          "metadata",
-          "spec",
-          "digest"
-        ],
-        "type": "object"
-      },
-      "DialectList": {
-        "additionalProperties": false,
-        "properties": {
-          "dialects": {
-            "items": {
-              "$ref": "#/components/schemas/DialectCatalogEntry"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "dialects"
         ],
         "type": "object"
       },
@@ -4613,21 +4443,6 @@
         "title": "EvidenceRef",
         "type": "object"
       },
-      "ExampleList": {
-        "additionalProperties": false,
-        "properties": {
-          "examples": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "examples"
-        ],
-        "type": "object"
-      },
       "GatewayBindingResult": {
         "additionalProperties": false,
         "properties": {
@@ -5032,6 +4847,30 @@
         ],
         "type": "object"
       },
+      "JobCompilationRef": {
+        "properties": {
+          "compilation_digest": {
+            "title": "Compilation Digest",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ir_digest": {
+            "title": "Ir Digest",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "compilation_digest",
+          "ir_digest"
+        ],
+        "title": "JobCompilationRef",
+        "type": "object"
+      },
       "JobHistory": {
         "description": "A page of an account's own solves.",
         "properties": {
@@ -5055,47 +4894,47 @@
         "title": "JobHistory",
         "type": "object"
       },
-      "JobInstanceView": {
-        "additionalProperties": false,
+      "JobOrganizationRef": {
         "properties": {
-          "fileDigests": {
-            "additionalProperties": {
-              "pattern": "^sha256-[0-9a-f]{64}$",
-              "type": "string"
-            },
-            "type": "object"
-          },
           "id": {
             "format": "uuid",
+            "title": "Id",
             "type": "string"
           },
-          "instance": {
-            "$ref": "#/components/schemas/InstanceManifest"
-          },
-          "instanceDigest": {
-            "pattern": "^sha256-[0-9a-f]{64}$",
+          "slug": {
+            "title": "Slug",
             "type": "string"
-          },
-          "packageDigest": {
-            "pattern": "^sha256-[0-9a-f]{64}$",
-            "type": "string"
-          },
-          "resourceDigests": {
-            "additionalProperties": {
-              "pattern": "^sha256-[0-9a-f]{64}$",
-              "type": "string"
-            },
-            "type": "object"
           }
         },
         "required": [
           "id",
-          "instanceDigest",
-          "packageDigest",
-          "fileDigests",
-          "resourceDigests",
-          "instance"
+          "slug"
         ],
+        "title": "JobOrganizationRef",
+        "type": "object"
+      },
+      "JobProblemRef": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name"
+        ],
+        "title": "JobProblemRef",
         "type": "object"
       },
       "JobReport": {
@@ -5154,37 +4993,7 @@
       },
       "JobRequest": {
         "additionalProperties": false,
-        "not": {
-          "anyOf": [
-            {
-              "required": [
-                "engine"
-              ]
-            },
-            {
-              "required": [
-                "registration"
-              ]
-            },
-            {
-              "required": [
-                "mode"
-              ]
-            },
-            {
-              "required": [
-                "options"
-              ]
-            }
-          ],
-          "required": [
-            "configuration"
-          ]
-        },
         "properties": {
-          "configuration": {
-            "$ref": "#/components/schemas/ArtifactRef"
-          },
           "engine": {
             "oneOf": [
               {
@@ -5198,20 +5007,43 @@
           "mode": {
             "type": "string"
           },
+          "optimization": {
+            "type": "object"
+          },
           "options": {
             "type": "object"
           },
           "registration": {
             "$ref": "#/components/schemas/ImmutableResourceRef"
           },
-          "snapshot": {
+          "revision": {
+            "description": "The problem revision the job runs, as `getProblemRevision` names it.",
             "format": "uuid",
             "type": "string"
           }
         },
         "required": [
-          "snapshot"
+          "revision"
         ],
+        "type": "object"
+      },
+      "JobRevisionRef": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ],
+        "title": "JobRevisionRef",
         "type": "object"
       },
       "JobState": {
@@ -5302,15 +5134,91 @@
       "JobView": {
         "additionalProperties": false,
         "properties": {
+          "compilation": {
+            "additionalProperties": false,
+            "properties": {
+              "compilation_digest": {
+                "type": "string"
+              },
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "ir_digest": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "compilation_digest",
+              "ir_digest"
+            ],
+            "type": "object"
+          },
           "id": {
             "format": "uuid",
             "type": "string"
+          },
+          "organization": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "slug"
+            ],
+            "type": "object"
+          },
+          "problem": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "slug",
+              "name"
+            ],
+            "type": "object"
           },
           "provenance": {
             "type": "object"
           },
           "result": {
             "$ref": "#/components/schemas/GatewayBindingResult"
+          },
+          "revision": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "revision": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "revision"
+            ],
+            "type": "object"
           },
           "status": {
             "enum": [
@@ -5327,6 +5235,46 @@
           "status",
           "provenance"
         ],
+        "type": "object"
+      },
+      "LatestRevision": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "current_compilation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompilationSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "package_digest": {
+            "title": "Package Digest",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "package_digest",
+          "created_at"
+        ],
+        "title": "LatestRevision",
         "type": "object"
       },
       "LoginRequest": {
@@ -5898,6 +5846,45 @@
         "title": "OrganizationView",
         "type": "object"
       },
+      "PackageFile": {
+        "properties": {
+          "digest": {
+            "title": "Digest",
+            "type": "string"
+          },
+          "media_type": {
+            "title": "Media Type",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "role",
+          "digest",
+          "media_type"
+        ],
+        "title": "PackageFile",
+        "type": "object"
+      },
       "PasswordResetComplete": {
         "properties": {
           "new_password": {
@@ -6036,6 +6023,192 @@
           "code",
           "detail"
         ],
+        "type": "object"
+      },
+      "ProblemAnalysis": {
+        "properties": {
+          "bindingSpace": {
+            "title": "Bindingspace",
+            "type": "string"
+          },
+          "candidates": {
+            "title": "Candidates",
+            "type": "integer"
+          },
+          "constraints": {
+            "title": "Constraints",
+            "type": "integer"
+          },
+          "placement": {
+            "title": "Placement",
+            "type": "boolean"
+          },
+          "tasks": {
+            "title": "Tasks",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tasks",
+          "candidates",
+          "constraints",
+          "placement",
+          "bindingSpace"
+        ],
+        "title": "ProblemAnalysis",
+        "type": "object"
+      },
+      "ProblemList": {
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/ProblemView"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "problems",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "ProblemList",
+        "type": "object"
+      },
+      "ProblemUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "ProblemUpdate",
+        "type": "object"
+      },
+      "ProblemUpload": {
+        "description": "What an upload made: the problem, the revision (new or the one the package already is) and its compilation.",
+        "properties": {
+          "compilation": {
+            "$ref": "#/components/schemas/CompilationSummary"
+          },
+          "created": {
+            "description": "False when the package was already a revision of the problem (200).",
+            "title": "Created",
+            "type": "boolean"
+          },
+          "problem": {
+            "$ref": "#/components/schemas/ProblemView"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/RevisionView"
+          }
+        },
+        "required": [
+          "problem",
+          "revision",
+          "compilation",
+          "created"
+        ],
+        "title": "ProblemUpload",
+        "type": "object"
+      },
+      "ProblemView": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "format": "uuid",
+            "title": "Created By Id",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "latest_revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LatestRevision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "slug",
+          "name",
+          "description",
+          "created_by_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProblemView",
         "type": "object"
       },
       "ProfileCatalogEntry": {
@@ -6874,6 +7047,233 @@
         "title": "RegisterRequest",
         "type": "object"
       },
+      "ResourceContract": {
+        "properties": {
+          "apiVersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Apiversion"
+          },
+          "dialect": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dialect"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          }
+        },
+        "title": "ResourceContract",
+        "type": "object"
+      },
+      "RevisionDetail": {
+        "properties": {
+          "compilations": {
+            "items": {
+              "$ref": "#/components/schemas/CompilationSummary"
+            },
+            "title": "Compilations",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "format": "uuid",
+            "title": "Created By Id",
+            "type": "string"
+          },
+          "document": {
+            "additionalProperties": true,
+            "title": "Document",
+            "type": "object"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/PackageFile"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "instance_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instance Digest"
+          },
+          "package_digest": {
+            "title": "Package Digest",
+            "type": "string"
+          },
+          "package_size": {
+            "title": "Package Size",
+            "type": "integer"
+          },
+          "problem_id": {
+            "format": "uuid",
+            "title": "Problem Id",
+            "type": "string"
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provenance"
+          },
+          "resource_digests": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Resource Digests",
+            "type": "object"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "problem_id",
+          "revision",
+          "package_digest",
+          "package_size",
+          "created_by_id",
+          "created_at",
+          "document",
+          "files"
+        ],
+        "title": "RevisionDetail",
+        "type": "object"
+      },
+      "RevisionView": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "format": "uuid",
+            "title": "Created By Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "instance_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instance Digest"
+          },
+          "package_digest": {
+            "title": "Package Digest",
+            "type": "string"
+          },
+          "package_size": {
+            "title": "Package Size",
+            "type": "integer"
+          },
+          "problem_id": {
+            "format": "uuid",
+            "title": "Problem Id",
+            "type": "string"
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provenance"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "problem_id",
+          "revision",
+          "package_digest",
+          "package_size",
+          "created_by_id",
+          "created_at"
+        ],
+        "title": "RevisionView",
+        "type": "object"
+      },
       "RoleName": {
         "enum": [
           "user",
@@ -6881,124 +7281,6 @@
         ],
         "title": "RoleName",
         "type": "string"
-      },
-      "SnapshotCreated": {
-        "additionalProperties": false,
-        "properties": {
-          "fileDigests": {
-            "additionalProperties": {
-              "pattern": "^sha256-[0-9a-f]{64}$",
-              "type": "string"
-            },
-            "type": "object"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "instanceDigest": {
-            "pattern": "^sha256-[0-9a-f]{64}$",
-            "type": "string"
-          },
-          "irDigest": {
-            "pattern": "^sha256-[0-9a-f]{64}$",
-            "type": "string"
-          },
-          "kind": {
-            "const": "InstanceSnapshot"
-          },
-          "packageDigest": {
-            "pattern": "^sha256-[0-9a-f]{64}$",
-            "type": "string"
-          },
-          "resourceDigests": {
-            "additionalProperties": {
-              "pattern": "^sha256-[0-9a-f]{64}$",
-              "type": "string"
-            },
-            "type": "object"
-          }
-        },
-        "required": [
-          "id",
-          "kind",
-          "instanceDigest",
-          "packageDigest",
-          "irDigest",
-          "fileDigests",
-          "resourceDigests"
-        ],
-        "type": "object"
-      },
-      "SnapshotReference": {
-        "additionalProperties": false,
-        "properties": {
-          "snapshot": {
-            "format": "uuid",
-            "type": "string"
-          }
-        },
-        "required": [
-          "snapshot"
-        ],
-        "type": "object"
-      },
-      "SnapshotView": {
-        "additionalProperties": false,
-        "properties": {
-          "createdAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "fileDigests": {
-            "additionalProperties": {
-              "pattern": "^sha256-[0-9a-f]{64}$",
-              "type": "string"
-            },
-            "type": "object"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "instance": {
-            "$ref": "#/components/schemas/InstanceManifest"
-          },
-          "instanceDigest": {
-            "pattern": "^sha256-[0-9a-f]{64}$",
-            "type": "string"
-          },
-          "irDigest": {
-            "pattern": "^sha256-[0-9a-f]{64}$",
-            "type": "string"
-          },
-          "kind": {
-            "const": "InstanceSnapshot"
-          },
-          "packageDigest": {
-            "pattern": "^sha256-[0-9a-f]{64}$",
-            "type": "string"
-          },
-          "resourceDigests": {
-            "additionalProperties": {
-              "pattern": "^sha256-[0-9a-f]{64}$",
-              "type": "string"
-            },
-            "type": "object"
-          }
-        },
-        "required": [
-          "id",
-          "kind",
-          "instanceDigest",
-          "packageDigest",
-          "irDigest",
-          "fileDigests",
-          "resourceDigests",
-          "instance",
-          "createdAt"
-        ],
-        "type": "object"
       },
       "StudyArtifactContent": {
         "additionalProperties": false,
@@ -7448,6 +7730,21 @@
           "created_at"
         ],
         "title": "StudyView",
+        "type": "object"
+      },
+      "TemplateList": {
+        "additionalProperties": false,
+        "properties": {
+          "templates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "templates"
+        ],
         "type": "object"
       },
       "TokenPair": {
@@ -10196,24 +10493,212 @@
         ]
       }
     },
-    "/v1/dialects": {
+    "/v1/bim/templates": {
       "get": {
-        "operationId": "list_dialects_v1_dialects_get",
+        "operationId": "listBimTemplates",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DialectList"
+                  "$ref": "#/components/schemas/TemplateList"
                 }
               }
             },
-            "description": "Installed BIM Dialects."
+            "description": "The templates a problem can start from."
           }
         },
-        "summary": "List Dialects",
+        "summary": "List the templates a problem can start from",
         "tags": [
-          "BIM v1"
+          "BIM"
+        ]
+      }
+    },
+    "/v1/bim/templates/{template}": {
+      "get": {
+        "operationId": "getBimTemplate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template",
+            "required": true,
+            "schema": {
+              "title": "Template",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.bim+zip": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Portable BIM template package.",
+            "headers": {
+              "Content-Disposition": {
+                "description": "Suggested .bim.zip filename.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Digest": {
+                "description": "SHA-256 digest of the returned archive.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The template does not exist."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The installed template package is invalid."
+          }
+        },
+        "summary": "Download one template as a .bim.zip",
+        "tags": [
+          "BIM"
+        ]
+      }
+    },
+    "/v1/bim/validate": {
+      "post": {
+        "operationId": "validateBimPackage",
+        "parameters": [
+          {
+            "description": "`ir` also returns the IR and its source map.",
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "ir",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`ir` also returns the IR and its source map.",
+              "title": "Include"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "application/vnd.bim+zip": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "application/x-bim+zip": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "application/zip": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "description": "Portable BIM source package to validate; nothing is stored.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResult"
+                }
+              }
+            },
+            "description": "Compiled identities, analysis and the engine modes visible to the caller."
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The BIM source package exceeds the request size limit."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request media type is not a supported BIM package type."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The BIM source package is invalid, or its binding space exceeds the limit."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Validate a BIM package and find the engine modes that fit it",
+        "tags": [
+          "BIM"
         ]
       }
     },
@@ -11753,6 +12238,28 @@
         ]
       }
     },
+    "/v1/engines/protocol": {
+      "get": {
+        "description": "The ``qos-binding/v1`` Profile entry with its ``protocolDigest`` and capability vocabulary.\n\nAnonymous: a federated engine reads it to register. Declared before ``/engines/{name}``, which would\notherwise take ``protocol`` for an engine name.",
+        "operationId": "getEngineProtocol",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileList"
+                }
+              }
+            },
+            "description": "The installed Profiles and the engine protocol each one targets."
+          }
+        },
+        "summary": "The engine protocol of the installed Profiles",
+        "tags": [
+          "BIM v1"
+        ]
+      }
+    },
     "/v1/engines/revisions": {
       "get": {
         "operationId": "list_engine_revisions_v1_engines_revisions_get",
@@ -12043,610 +12550,6 @@
         ]
       }
     },
-    "/v1/examples": {
-      "get": {
-        "operationId": "list_examples_v1_examples_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExampleList"
-                }
-              }
-            },
-            "description": "Available BIM example package identifiers."
-          }
-        },
-        "summary": "List Examples",
-        "tags": [
-          "BIM v1"
-        ]
-      }
-    },
-    "/v1/examples/{example_path}": {
-      "get": {
-        "operationId": "get_example_package_v1_examples__example_path__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "example_path",
-            "required": true,
-            "schema": {
-              "title": "Example Path",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/vnd.bim+zip": {
-                "schema": {
-                  "format": "binary",
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Portable BIM example package.",
-            "headers": {
-              "Content-Disposition": {
-                "description": "Suggested .bim.zip filename.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "Digest": {
-                "description": "SHA-256 digest of the returned archive.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The example package does not exist."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The installed example package is invalid."
-          }
-        },
-        "summary": "Get Example Package",
-        "tags": [
-          "BIM v1"
-        ]
-      }
-    },
-    "/v1/instances": {
-      "post": {
-        "operationId": "create_snapshot_v1_instances_post",
-        "requestBody": {
-          "content": {
-            "application/octet-stream": {
-              "schema": {
-                "format": "binary",
-                "type": "string"
-              }
-            },
-            "application/vnd.bim+zip": {
-              "schema": {
-                "format": "binary",
-                "type": "string"
-              }
-            },
-            "application/x-bim+zip": {
-              "schema": {
-                "format": "binary",
-                "type": "string"
-              }
-            },
-            "application/zip": {
-              "schema": {
-                "format": "binary",
-                "type": "string"
-              }
-            }
-          },
-          "description": "Portable BIM source package to persist privately.",
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SnapshotCreated"
-                }
-              }
-            },
-            "description": "Private immutable Instance snapshot created."
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "413": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The BIM source package exceeds the request size limit."
-          },
-          "415": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request media type is not a supported BIM package type."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The BIM source package or snapshot reference is invalid."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Create Snapshot",
-        "tags": [
-          "BIM v1"
-        ],
-        "x-required-api-key-permissions": [
-          "instances:write"
-        ]
-      }
-    },
-    "/v1/instances/validate": {
-      "post": {
-        "operationId": "validate_legacy_instance_v1_instances_validate_post",
-        "requestBody": {
-          "content": {
-            "application/octet-stream": {
-              "schema": {
-                "format": "binary",
-                "type": "string"
-              }
-            },
-            "application/vnd.bim+zip": {
-              "schema": {
-                "format": "binary",
-                "type": "string"
-              }
-            },
-            "application/x-bim+zip": {
-              "schema": {
-                "format": "binary",
-                "type": "string"
-              }
-            },
-            "application/zip": {
-              "schema": {
-                "format": "binary",
-                "type": "string"
-              }
-            }
-          },
-          "description": "Portable BIM source package to validate without executing an Engine.",
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationResult"
-                }
-              }
-            },
-            "description": "Canonical validation and digest result."
-          },
-          "413": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The BIM source package exceeds the request size limit."
-          },
-          "415": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request media type is not a supported BIM package type."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The BIM source package or snapshot reference is invalid."
-          },
-          "429": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
-            "headers": {
-              "Retry-After": {
-                "description": "Seconds until the budget is available again.",
-                "schema": {
-                  "minimum": 1,
-                  "type": "integer"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Validate Legacy Instance",
-        "tags": [
-          "BIM v1"
-        ]
-      }
-    },
-    "/v1/instances/{snapshot_id}": {
-      "get": {
-        "operationId": "get_snapshot_v1_instances__snapshot_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "snapshot_id",
-            "required": true,
-            "schema": {
-              "title": "Snapshot Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SnapshotView"
-                }
-              }
-            },
-            "description": "Exact private Instance snapshot."
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "404": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The exact private snapshot does not exist for the caller."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the BIM v1 contract."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Get Snapshot",
-        "tags": [
-          "BIM v1"
-        ],
-        "x-required-api-key-permissions": [
-          "instances:read"
-        ]
-      }
-    },
-    "/v1/instances/{snapshot_id}/ir": {
-      "get": {
-        "operationId": "get_snapshot_ir_v1_instances__snapshot_id__ir_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "snapshot_id",
-            "required": true,
-            "schema": {
-              "title": "Snapshot Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BindingProblem"
-                }
-              }
-            },
-            "description": "Canonical immutable BindingProblem IR."
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "404": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The exact private snapshot does not exist for the caller."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the BIM v1 contract."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Get Snapshot Ir",
-        "tags": [
-          "BIM v1"
-        ],
-        "x-required-api-key-permissions": [
-          "instances:read"
-        ]
-      }
-    },
-    "/v1/instances/{snapshot_id}/source": {
-      "get": {
-        "operationId": "get_snapshot_source_v1_instances__snapshot_id__source_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "snapshot_id",
-            "required": true,
-            "schema": {
-              "title": "Snapshot Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/vnd.bim+zip": {
-                "schema": {
-                  "format": "binary",
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Original portable source package for the private snapshot.",
-            "headers": {
-              "Content-Disposition": {
-                "description": "Suggested .bim.zip filename.",
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "Digest": {
-                "description": "SHA-256 digest of the returned archive.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "404": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The exact private snapshot does not exist for the caller."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the BIM v1 contract."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Get Snapshot Source",
-        "tags": [
-          "BIM v1"
-        ],
-        "x-required-api-key-permissions": [
-          "instances:read"
-        ]
-      }
-    },
     "/v1/invitations/accept": {
       "post": {
         "operationId": "acceptOrganizationInvitation",
@@ -12854,48 +12757,9 @@
               "schema": {
                 "$ref": "#/components/schemas/JobRequest"
               }
-            },
-            "application/octet-stream": {
-              "schema": {
-                "format": "binary",
-                "type": "string"
-              }
-            },
-            "application/vnd.bim+zip": {
-              "schema": {
-                "format": "binary",
-                "type": "string"
-              }
-            },
-            "application/x-bim+zip": {
-              "schema": {
-                "format": "binary",
-                "type": "string"
-              }
-            },
-            "application/zip": {
-              "schema": {
-                "format": "binary",
-                "type": "string"
-              }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "additionalProperties": false,
-                "properties": {
-                  "package": {
-                    "format": "binary",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "package"
-                ],
-                "type": "object"
-              }
             }
           },
-          "description": "A BIM package using the default built-in Engine, or a JSON snapshot request that selects an exact Engine and deployment.",
+          "description": "The problem revision to run, and the exact Engine, deployment and settings.",
           "required": true
         },
         "responses": {
@@ -12919,16 +12783,6 @@
             },
             "description": "Missing or invalid account credential."
           },
-          "402": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The instance exceeds the complexity ceiling of the caller's plan."
-          },
           "403": {
             "content": {
               "application/problem+json": {
@@ -12947,7 +12801,7 @@
                 }
               }
             },
-            "description": "A selected snapshot, Engine or deployment is not visible."
+            "description": "The problem revision, Engine or deployment is not visible."
           },
           "409": {
             "content": {
@@ -12967,7 +12821,7 @@
                 }
               }
             },
-            "description": "The request exceeds the caller or transport size limit."
+            "description": "The request exceeds the transport size limit."
           },
           "415": {
             "content": {
@@ -12977,7 +12831,7 @@
                 }
               }
             },
-            "description": "The request media type is not supported."
+            "description": "The request is not JSON."
           },
           "422": {
             "content": {
@@ -12987,7 +12841,7 @@
                 }
               }
             },
-            "description": "The package, selection, mode or options are invalid."
+            "description": "The revision, selection, mode or options are invalid, or the binding space exceeds the limit."
           },
           "429": {
             "content": {
@@ -13410,194 +13264,6 @@
         "summary": "Stream Job Events",
         "tags": [
           "Jobs"
-        ],
-        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
-        "x-required-api-key-permissions": [
-          "jobs:read"
-        ]
-      }
-    },
-    "/v1/jobs/{job_id}/instance": {
-      "get": {
-        "operationId": "get_v1_job_instance_v1_jobs__job_id__instance_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "job_id",
-            "required": true,
-            "schema": {
-              "title": "Job Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/JobInstanceView"
-                }
-              }
-            },
-            "description": "Private source Instance snapshot used by the owned job."
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "404": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The exact owned job or related artifact does not exist."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the BIM v1 contract."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Get V1 Job Instance",
-        "tags": [
-          "BIM v1"
-        ],
-        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
-        "x-required-api-key-permissions": [
-          "jobs:read"
-        ]
-      }
-    },
-    "/v1/jobs/{job_id}/ir": {
-      "get": {
-        "operationId": "get_v1_job_ir_v1_jobs__job_id__ir_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "job_id",
-            "required": true,
-            "schema": {
-              "title": "Job Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BindingProblem"
-                }
-              }
-            },
-            "description": "Canonical BindingProblem dispatched for the owned job."
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "404": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The exact owned job or related artifact does not exist."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the BIM v1 contract."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Get V1 Job Ir",
-        "tags": [
-          "BIM v1"
         ],
         "x-api-key-engine-access": "exact-revision-allow-list-or-all",
         "x-required-api-key-permissions": [
@@ -15512,6 +15178,1458 @@
         ]
       }
     },
+    "/v1/organizations/{org}/problems": {
+      "get": {
+        "description": "The organization's problems, each with its latest revision and that revision's current compilation.",
+        "operationId": "listProblems",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 160,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Problems",
+        "tags": [
+          "Problems"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:read"
+        ]
+      },
+      "post": {
+        "description": "Create a problem whose revision 1 is the uploaded package.",
+        "operationId": "createProblem",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Defaults from the Instance's metadata.name.",
+            "in": "query",
+            "name": "slug",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Defaults from the Instance's metadata.name.",
+              "title": "Slug"
+            }
+          },
+          {
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 160,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Name"
+            }
+          },
+          {
+            "in": "query",
+            "name": "description",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2000,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Description"
+            }
+          },
+          {
+            "description": "What produced the package (recorded as provenance).",
+            "in": "query",
+            "name": "producer",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "What produced the package (recorded as provenance).",
+              "title": "Producer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/vnd.bim+zip": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "application/zip": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "description": "A closed BIM package (`.bim.zip`) as the raw request body.",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemUpload"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The account's plan has no room (`quota_exceeded`: maxProblems or maxRepositoryStorage)."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The slug is in use in this organization (`slug_conflict`)."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The package exceeds the upload limit."
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The body is not a `.bim.zip`."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The toolchain refused the package (`invalid_instance`, with located diagnostics)."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Create Problem",
+        "tags": [
+          "Problems"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/problems/{problem}": {
+      "delete": {
+        "description": "Delete a problem nothing has run on (409 `problem_has_runs` otherwise). Its stored files stay.",
+        "operationId": "deleteProblem",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "problem",
+            "required": true,
+            "schema": {
+              "title": "Problem",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with something that already exists."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Delete Problem",
+        "tags": [
+          "Problems"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:write"
+        ]
+      },
+      "get": {
+        "operationId": "getProblem",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "problem",
+            "required": true,
+            "schema": {
+              "title": "Problem",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Problem",
+        "tags": [
+          "Problems"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:read"
+        ]
+      },
+      "patch": {
+        "operationId": "updateProblem",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "problem",
+            "required": true,
+            "schema": {
+              "title": "Problem",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProblemUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Update Problem",
+        "tags": [
+          "Problems"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/problems/{problem}/revisions": {
+      "get": {
+        "operationId": "listProblemRevisions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "problem",
+            "required": true,
+            "schema": {
+              "title": "Problem",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RevisionView"
+                  },
+                  "title": "Response Listproblemrevisions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Problem Revisions",
+        "tags": [
+          "Problems"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:read"
+        ]
+      },
+      "post": {
+        "description": "Add the uploaded package as the next revision (201), or answer the revision it already is (200).",
+        "operationId": "createProblemRevision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "problem",
+            "required": true,
+            "schema": {
+              "title": "Problem",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "producer",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Producer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/vnd.bim+zip": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "application/zip": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "description": "A closed BIM package (`.bim.zip`) as the raw request body.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemUpload"
+                }
+              }
+            },
+            "description": "The package is already a revision of this problem; nothing was stored."
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemUpload"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The account's plan has no room (`quota_exceeded`: maxProblems or maxRepositoryStorage)."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The package exceeds the upload limit."
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The body is not a `.bim.zip`."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The toolchain refused the package (`invalid_instance`, with located diagnostics)."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Create Problem Revision",
+        "tags": [
+          "Problems"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/problems/{problem}/revisions/{revision}": {
+      "get": {
+        "description": "One revision: its digests, root document, file manifest and compilations (the current one marked).",
+        "operationId": "getProblemRevision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "problem",
+            "required": true,
+            "schema": {
+              "title": "Problem",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "title": "Revision",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevisionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Problem Revision",
+        "tags": [
+          "Problems"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/problems/{problem}/revisions/{revision}/compilation": {
+      "get": {
+        "description": "The compilation by the installed toolchain (compiled now on a miss): analysis, resources, compatible modes.",
+        "operationId": "getProblemCompilation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "problem",
+            "required": true,
+            "schema": {
+              "title": "Problem",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "title": "Revision",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompilationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `compile` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Problem Compilation",
+        "tags": [
+          "Problems"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/problems/{problem}/revisions/{revision}/compilations/{compilation}/ir": {
+      "get": {
+        "description": "The IR of one compilation, with its source map.",
+        "operationId": "getProblemCompilationIr",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "problem",
+            "required": true,
+            "schema": {
+              "title": "Problem",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "title": "Revision",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "compilation",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Compilation",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompilationIr"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Problem Compilation Ir",
+        "tags": [
+          "Problems"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/problems/{problem}/revisions/{revision}/source": {
+      "get": {
+        "operationId": "getProblemRevisionSource",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "problem",
+            "required": true,
+            "schema": {
+              "title": "Problem",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "title": "Revision",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.bim+zip": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The revision's package, as uploaded. `ETag` is its package digest; `Digest` the digest of these bytes."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Problem Revision Source",
+        "tags": [
+          "Problems"
+        ],
+        "x-required-api-key-permissions": [
+          "problems:read"
+        ]
+      }
+    },
     "/v1/organizations/{org}/projects": {
       "get": {
         "operationId": "listProjects",
@@ -16029,1296 +17147,6 @@
         ]
       }
     },
-    "/v1/organizations/{org}/projects/{project}/blobs": {
-      "get": {
-        "operationId": "listBlobs",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/BlobView"
-                  },
-                  "title": "Response Listblobs",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "List Artifacts",
-        "tags": [
-          "Artifacts"
-        ],
-        "x-public-read": true,
-        "x-required-api-key-permissions": [
-          "artifacts:read"
-        ]
-      },
-      "post": {
-        "operationId": "uploadBlob",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "public",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Public",
-              "type": "boolean"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BlobView"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Upload Artifact",
-        "tags": [
-          "Artifacts"
-        ],
-        "x-required-api-key-permissions": [
-          "artifacts:write"
-        ]
-      }
-    },
-    "/v1/organizations/{org}/projects/{project}/blobs/{digest_value}": {
-      "delete": {
-        "operationId": "deleteBlob",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "digest_value",
-            "required": true,
-            "schema": {
-              "title": "Digest Value",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "A sealed or revisioned element of the project depends on this file (code `blob_in_use`). `references` lists the kinds of element and how many of each (`library_version`, `case_revision`, `snapshot`, `project_resource_revision`); names are not disclosed."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Delete Artifact",
-        "tags": [
-          "Artifacts"
-        ],
-        "x-required-api-key-permissions": [
-          "artifacts:write"
-        ]
-      },
-      "get": {
-        "operationId": "downloadBlob",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "digest_value",
-            "required": true,
-            "schema": {
-              "title": "Digest Value",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/octet-stream": {
-                "schema": {
-                  "format": "binary",
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Download Artifact",
-        "tags": [
-          "Artifacts"
-        ],
-        "x-public-read": true,
-        "x-required-api-key-permissions": [
-          "artifacts:read"
-        ]
-      }
-    },
-    "/v1/organizations/{org}/projects/{project}/cases": {
-      "get": {
-        "operationId": "listBindingCases",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/BindingCaseView"
-                  },
-                  "title": "Response Listbindingcases",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "List Cases",
-        "tags": [
-          "Organizations"
-        ],
-        "x-public-read": true,
-        "x-required-api-key-permissions": [
-          "projects:read"
-        ]
-      },
-      "post": {
-        "operationId": "createBindingCase",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BindingCaseCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BindingCaseView"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Create Case",
-        "tags": [
-          "Organizations"
-        ],
-        "x-required-api-key-permissions": [
-          "projects:write"
-        ]
-      }
-    },
-    "/v1/organizations/{org}/projects/{project}/cases/{case}": {
-      "delete": {
-        "operationId": "deleteBindingCase",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "case",
-            "required": true,
-            "schema": {
-              "title": "Case",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Delete Case",
-        "tags": [
-          "Organizations"
-        ],
-        "x-required-api-key-permissions": [
-          "projects:write"
-        ]
-      },
-      "get": {
-        "operationId": "getBindingCase",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "case",
-            "required": true,
-            "schema": {
-              "title": "Case",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BindingCaseView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "ETag": {
-                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Get Case",
-        "tags": [
-          "Organizations"
-        ],
-        "x-public-read": true,
-        "x-required-api-key-permissions": [
-          "projects:read"
-        ]
-      },
-      "patch": {
-        "operationId": "updateBindingCase",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "case",
-            "required": true,
-            "schema": {
-              "title": "Case",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
-            "in": "header",
-            "name": "If-Match",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
-              "title": "If-Match"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BindingCaseUpdate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BindingCaseView"
-                }
-              }
-            },
-            "description": "Successful Response",
-            "headers": {
-              "ETag": {
-                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "412": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
-            "headers": {
-              "ETag": {
-                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Update Case",
-        "tags": [
-          "Organizations"
-        ],
-        "x-required-api-key-permissions": [
-          "projects:write"
-        ]
-      }
-    },
-    "/v1/organizations/{org}/projects/{project}/cases/{case}/revisions": {
-      "get": {
-        "operationId": "listBindingCaseRevisions",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "case",
-            "required": true,
-            "schema": {
-              "title": "Case",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/CaseRevisionView"
-                  },
-                  "title": "Response Listbindingcaserevisions",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "List Case Revisions",
-        "tags": [
-          "Organizations"
-        ],
-        "x-public-read": true,
-        "x-required-api-key-permissions": [
-          "projects:read"
-        ]
-      },
-      "post": {
-        "operationId": "createBindingCaseRevision",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "case",
-            "required": true,
-            "schema": {
-              "title": "Case",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CaseRevisionCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CaseRevisionView"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Create Case Revision",
-        "tags": [
-          "Organizations"
-        ],
-        "x-required-api-key-permissions": [
-          "projects:write"
-        ]
-      }
-    },
-    "/v1/organizations/{org}/projects/{project}/cases/{case}/revisions/{revision}": {
-      "get": {
-        "operationId": "getBindingCaseRevision",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "case",
-            "required": true,
-            "schema": {
-              "title": "Case",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "revision",
-            "required": true,
-            "schema": {
-              "title": "Revision",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CaseRevisionView"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Get Case Revision",
-        "tags": [
-          "Organizations"
-        ],
-        "x-public-read": true,
-        "x-required-api-key-permissions": [
-          "projects:read"
-        ]
-      }
-    },
     "/v1/organizations/{org}/projects/{project}/jobs": {
       "get": {
         "operationId": "listProjectJobs",
@@ -17439,217 +17267,6 @@
         ],
         "x-required-api-key-permissions": [
           "projects:read"
-        ]
-      }
-    },
-    "/v1/organizations/{org}/projects/{project}/package": {
-      "get": {
-        "operationId": "exportProjectPackage",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "format",
-            "required": false,
-            "schema": {
-              "default": "zip",
-              "enum": [
-                "zip",
-                "json",
-                "yaml"
-              ],
-              "title": "Format",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              },
-              "application/yaml": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "application/zip": {
-                "schema": {
-                  "format": "binary",
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Export Project Package",
-        "tags": [
-          "Artifacts"
-        ],
-        "x-required-api-key-permissions": [
-          "projects:read"
-        ]
-      },
-      "post": {
-        "description": "Import a ZIP, JSON or YAML package after checking every immutable digest.",
-        "operationId": "importProjectPackage",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "org",
-            "required": true,
-            "schema": {
-              "title": "Org",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "project",
-            "required": true,
-            "schema": {
-              "title": "Project",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Importprojectpackage",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Import Project Package",
-        "tags": [
-          "Artifacts"
-        ],
-        "x-required-api-key-permissions": [
-          "projects:write"
         ]
       }
     },
@@ -19332,198 +18949,6 @@
         ]
       }
     },
-    "/v1/profiles": {
-      "get": {
-        "operationId": "list_profiles_v1_profiles_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProfileList"
-                }
-              }
-            },
-            "description": "Installed BIM Profiles."
-          }
-        },
-        "summary": "List Profiles",
-        "tags": [
-          "BIM v1"
-        ]
-      }
-    },
-    "/v1/snapshots/{snapshot_id}": {
-      "get": {
-        "operationId": "get_snapshot_detail_v1_snapshots__snapshot_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "snapshot_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Snapshot Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Snapshot Detail V1 Snapshots  Snapshot Id  Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Get Snapshot Detail",
-        "tags": [
-          "BIM v1"
-        ],
-        "x-required-api-key-permissions": [
-          "instances:read"
-        ]
-      }
-    },
-    "/v1/snapshots/{snapshot_id}/archive": {
-      "get": {
-        "operationId": "downloadSnapshotArchive",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "snapshot_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Snapshot Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/zip": {
-                "schema": {
-                  "format": "binary",
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Download Snapshot Archive",
-        "tags": [
-          "BIM v1"
-        ],
-        "x-required-api-key-permissions": [
-          "instances:read"
-        ]
-      }
-    },
     "/v1/users/me": {
       "delete": {
         "description": "Delete the account.\n\nThe user row stays, so that the runs, revisions and engines it created keep\nnaming somebody, but nothing in it identifies a person any more: the\nusername and email are replaced, the password is unusable, the preferences\nare emptied and ``deleted_at`` is set. Every credential, membership,\nidentity, notification and invitation of the account is deleted, its\nfederated engines are deactivated and an administrator becomes an ordinary\n(inactive) user. The SPACE contract is removed last, before the commit; if\nthat fails, nothing is changed (503).",
@@ -20544,144 +19969,6 @@
           "account:read"
         ]
       }
-    },
-    "/v1/validate": {
-      "post": {
-        "operationId": "validateInstance",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SnapshotReference"
-              }
-            },
-            "application/octet-stream": {
-              "schema": {
-                "format": "binary",
-                "type": "string"
-              }
-            },
-            "application/vnd.bim+zip": {
-              "schema": {
-                "format": "binary",
-                "type": "string"
-              }
-            },
-            "application/x-bim+zip": {
-              "schema": {
-                "format": "binary",
-                "type": "string"
-              }
-            },
-            "application/zip": {
-              "schema": {
-                "format": "binary",
-                "type": "string"
-              }
-            }
-          },
-          "description": "Portable BIM source package, or an exact snapshot owned by the caller.",
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AnalysisResult"
-                }
-              }
-            },
-            "description": "Compiled complexity and exact compatible Engine deployments."
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Missing or invalid account credential."
-          },
-          "403": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
-          },
-          "404": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The exact private snapshot does not exist for the caller."
-          },
-          "413": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The BIM source package exceeds the request size limit."
-          },
-          "415": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request media type is not a supported BIM package type."
-          },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The BIM source package or snapshot reference is invalid."
-          },
-          "503": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "Account authentication is not configured on this deployment."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Validate a BIM package and find compatible engines",
-        "tags": [
-          "BIM v1"
-        ],
-        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
-        "x-required-api-key-permissions": [
-          "instances:validate"
-        ]
-      }
     }
   },
   "tags": [
@@ -20692,6 +19979,10 @@
     {
       "description": "Modular deterministic QoS binding.",
       "name": "BIM v1"
+    },
+    {
+      "description": "Stateless BIM language services: validate a package, read the templates.",
+      "name": "BIM"
     },
     {
       "description": "Accounts and sessions.",
@@ -20710,16 +20001,16 @@
       "name": "Organizations"
     },
     {
-      "description": "Collaborative projects and immutable binding cases.",
+      "description": "Collaborative projects.",
       "name": "Projects"
+    },
+    {
+      "description": "BIM problems of an organization, their revisions and compilations.",
+      "name": "Problems"
     },
     {
       "description": "Reproducible comparative studies.",
       "name": "Studies"
-    },
-    {
-      "description": "Content-addressed artifacts and portable packages.",
-      "name": "Artifacts"
     },
     {
       "description": "Durable job lifecycle, retries and events.",
@@ -20739,9 +20030,8 @@
     "account:write",
     "keys:read",
     "keys:write",
-    "instances:read",
-    "instances:write",
-    "instances:validate",
+    "problems:read",
+    "problems:write",
     "jobs:read",
     "engines:read",
     "engines:execute",

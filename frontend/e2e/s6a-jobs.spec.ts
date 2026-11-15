@@ -1,7 +1,8 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import type { BindingCase, CaseRevision, Job } from '../src/api/platform';
-import { ENGINE, INSTANCE, NEIGHBORHOOD, PROBLEM, REGISTRATION, REPORT, detailOf, jobOf, provenanceOf } from '../src/test/fixtures/jobs';
+import type { Job } from '../src/api/platform';
+import type { Problem, ProblemRevision } from '../src/api/problems';
+import { ENGINE, NEIGHBORHOOD, PROBLEM, REGISTRATION, REPORT, detailOf, jobOf, provenanceOf } from '../src/test/fixtures/jobs';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
 
@@ -48,15 +49,16 @@ const projectsOf: Record<string, ReturnType<typeof project>[]> = {
   'read-lab': [project(4, 'org-4', 'bench', 'Bench')],
 };
 
-// --- the case a run can start from
+// --- the problem a run can start from (the one the runs of the fixtures name)
 
-const flujo: BindingCase = {
-  id: 'case-flujo-checkout', project_id: 'project-1', slug: 'flujo-checkout', name: 'Flujo de checkout', description: '', created_by_id: 'user-1', created_at: '2026-04-02T00:00:00Z',
+const checkout: Problem = {
+  id: 'case-checkout-flow', organization_id: 'org-isa-demo', slug: 'checkout-flow', name: 'Checkout flow', description: '', created_by_id: 'user-1',
+  created_at: '2026-04-02T00:00:00Z', updated_at: '2026-04-02T00:00:00Z',
 };
 
-const caseRevision = (n: number): CaseRevision => ({
-  id: `case-flujo-checkout-r${n}`, binding_case_id: flujo.id, revision: n, digest: digestOf(String(n)), document: {},
-  source_snapshot_id: `snapshot-${n}`, created_at: `2026-08-0${n}T10:00:00Z`,
+const problemRevision = (n: number): ProblemRevision => ({
+  id: `rev-checkout-${n}`, problem_id: checkout.id, revision: n, package_digest: digestOf(String(n)), package_size: 2048, created_by_id: 'user-1',
+  created_at: `2026-08-0${n}T10:00:00Z`,
 });
 
 // --- the runs
@@ -109,9 +111,11 @@ const engines = [
   { ...MINIZINC, id: 'engine-2', ref: MINIZINC, modes: [mode('cp', { time_budget_ms: { type: 'integer', default: 60000 } })] },
 ];
 
+/** The compilation of a version by the installed toolchain: its analysis and the engine modes that can run it. */
 const analysisBody = () => ({
-  valid: true, instanceDigest: digestOf('d'), packageDigest: digestOf('e'), irDigest: digestOf('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],
-  compatibleModes: [
+  id: 'compilation-2', revision_id: 'rev-checkout-2', compilation_digest: digestOf('9'), compiler_digest: digestOf('8'), ir_digest: digestOf('c'), binding_space: '125892',
+  created_at: '2026-08-02T10:00:00Z', current: true, toolchain: {}, resources: {},
+  compatible_modes: [
     { engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true },
     { engine: MINIZINC, registration: MINIZINC_REGISTRATION, mode: 'cp', compatible: true },
     { engine: EDGE, registration: EDGE_REGISTRATION, mode: 'placement', compatible: false, diagnostics: [{ message: 'It cannot read a RoutingOverlay.' }] },
@@ -125,7 +129,7 @@ const summaryOf = (row: Job) => ({
   solutions: row.status === 'completed' ? (row.termination === 'INFEASIBLE' ? 0 : 1) : null, created_at: row.created_at, finished_at: row.finished_at,
 });
 
-type Overridable = 'launch' | 'cancel' | 'retry' | 'validate' | 'projectJobs' | 'history' | 'detail' | 'neighborhood';
+type Overridable = 'launch' | 'cancel' | 'retry' | 'compilation' | 'projectJobs' | 'history' | 'detail' | 'neighborhood';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
@@ -178,8 +182,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     return json({ jobs: state.history.slice(0, limit).map(summaryOf), total: state.history.length })(route);
   });
 
-  await page.route(`${API}/v1/validate`, (route) => (state.refuse.validate ?? json(analysisBody()))(route));
-  await page.route(`${API}/v1/instances`, json({ id: 'snapshot-made', irDigest: digestOf('c') }, 201));
 
   await page.route(new RegExp(`^${API}/v1/jobs(/.*)?(\\?.*)?$`), async (route) => {
     const url = new URL(route.request().url());
@@ -201,8 +203,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       state.sent.retry = id;
       return (state.refuse.retry ?? json(jobOf('job-new-9', 'evolutionary', 'queued', null, '2026-10-09T09:00:00Z', null, { ...mine, retry_of_id: id }), 202))(route);
     }
-    if (action === 'instance') return json(INSTANCE)(route);
-    if (action === 'ir') return json(PROBLEM)(route);
     if (action === 'report') return json({ ...REPORT, id })(route);
     if (action === 'analysis' && sub === 'neighborhood') return (state.refuse.neighborhood ?? json({ ...NEIGHBORHOOD, jobId: id }))(route);
     if (state.refuse.detail) return state.refuse.detail(route);
@@ -213,11 +213,22 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
     const url = new URL(route.request().url());
     const parts = url.pathname.split('/').filter(Boolean);
-    const [, , orgSlug, section, projectSlug, sub, subId, action] = parts;
+    const [, , orgSlug, section, projectSlug, sub] = parts;
     const found = organizations.find((item) => item.slug === orgSlug);
 
     if (!orgSlug) return json(organizations)(route);
     if (section === 'members' || section === 'library') return json([])(route);
+    if (section === 'problems') {
+      // The problems of the organization: the list, the versions of one, its compilation and the IR of that.
+      const [, , , , problemSlug, , revisionRef, tail] = parts;
+      const own = orgSlug === 'isa-demo' ? [checkout] : [];
+      if (!problemSlug) return json({ problems: own, total: own.length, limit: 200, offset: 0 })(route);
+      if (problemSlug !== checkout.slug || orgSlug !== 'isa-demo') return detail(404, 'not_found', 'Problem not found.')(route);
+      if (!revisionRef) return json([problemRevision(1), problemRevision(2)])(route);
+      if (tail === 'compilation') return (state.refuse.compilation ?? json(analysisBody()))(route);
+      if (tail === 'compilations') return json({ id: 'compilation-2', ir_digest: digestOf('c'), ir: PROBLEM, source_map: {} })(route);
+      return json({ ...problemRevision(Number(revisionRef)), document: {}, files: [], resource_digests: {}, compilations: [] })(route);
+    }
     if (section !== 'projects') return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
 
     const list = projectsOf[orgSlug] ?? [];
@@ -226,11 +237,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     if (!current) return detail(404, 'not_found', 'Project not found.')(route);
     if (!sub) return json(current)(route);
 
-    if (sub === 'cases') {
-      if (!subId) return json(projectSlug === 'qos-benchmarks' ? [flujo] : [])(route);
-      if (action === 'revisions') return json(subId === flujo.slug ? [caseRevision(1), caseRevision(2)] : [])(route);
-      return json(subId === flujo.slug ? flujo : { detail: 'not found' }, subId === flujo.slug ? 200 : 404)(route);
-    }
     if (sub === 'jobs') {
       if (state.refuse.projectJobs) return state.refuse.projectJobs(route);
       if (projectSlug !== 'qos-benchmarks') return json([])(route);
@@ -379,7 +385,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'random-search run' })).toBeVisible();
       await expect(main.getByText('Feasible: meets every must-hold rule')).toBeVisible();
-      await expect(main.getByText(/launched Sep 30, 2026, 09:00 UTC by you · problem Flujo de checkout/)).toBeVisible();
+      await expect(main.getByText(/launched Sep 30, 2026, 09:00 UTC by you · problem Checkout flow · version 2/)).toBeVisible();
       await expect(main.getByRole('link', { name: 'Analyze' })).toHaveCount(0);
       await expect(main.getByRole('region', { name: 'Timeline' }).getByText('Finished · not live')).toBeVisible();
       const settings = main.getByRole('region', { name: 'Settings asked and used' });
@@ -400,9 +406,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // What it ran on.
       const where = main.getByRole('region', { name: 'Where this result comes from' });
-      await expect(where.getByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/source?version=2`);
+      await expect(where.getByRole('link', { name: 'Source and compiled form' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow/source?version=2');
       await expect(where).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      await expect(where.getByRole('link', { name: 'Flujo de checkout · version 2' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=2`);
+      await expect(where.getByRole('link', { name: 'Checkout flow · version 2' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow?version=2');
       await expect(where.getByRole('link', { name: 'Add to a report' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-provenance`, { area: where });
       const downloaded = page.waitForEvent('download');
@@ -480,7 +486,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto(`${ROOT}/runs/job-infeasible-6`);
       const why = main.getByRole('region', { name: 'Why no combination works' });
       await expect(why).toContainText('Total latency is 742 ms');
-      await expect(why.getByRole('link', { name: 'See the rules' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=2`);
+      await expect(why.getByRole('link', { name: 'See the rules' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow?version=2');
       await expect(main.getByRole('heading', { name: 'What if one task used another provider?' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-infeasible`, { height: 1700 });
       expect(critical).toEqual([]);
@@ -514,14 +520,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test('job-launch /app/:org/:project/runs/new · from a revision: four steps, what the plan reduces, accepted', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/runs/new?case=flujo-checkout&revision=2`);
+      await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
       const main = page.locator('#platform-main');
       const next = main.getByRole('button', { name: 'Continue' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
       await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Runs', exact: true })).toHaveAttribute('aria-current', 'page');
       const source = main.getByRole('radiogroup', { name: 'Source' });
-      await expect(source.getByRole('radio', { name: /Flujo de checkout · version 2/ })).toBeChecked();
+      await expect(source.getByRole('radio', { name: /Checkout flow · version 2/ })).toBeChecked();
       await expect(source.getByRole('radio')).toHaveCount(2);
       await capture(page, testInfo, `launch-${name}-step1`);
 
@@ -550,7 +556,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Send run' }).click();
       await expect(main.getByRole('heading', { name: 'Run accepted · queued' })).toBeVisible();
       await expect(main.getByText(/Time budget was reduced to 60 s, what your plan allows; the run carries that note\./)).toBeVisible();
-      expect(state.sent.launch).toMatchObject({ snapshot: 'snapshot-2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling', options: { time_budget_ms: 600000, iterations: 100000 } });
+      expect(state.sent.launch).toMatchObject({ revision: 'rev-checkout-2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling', options: { time_budget_ms: 600000, iterations: 100000 } });
       expect(state.sent.key).toMatch(/^[0-9a-f-]{36}$/);
       await capture(page, testInfo, `launch-${name}-accepted`);
 
@@ -563,14 +569,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-launch /app/:org/:project/runs/new · an exact engine from a snapshot and every way the gateway refuses', async ({ page }, testInfo) => {
+    test('job-launch /app/:org/:project/runs/new · an exact engine from the latest version and every way the gateway refuses', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/runs/new?snapshot=snapshot-2`);
+      await page.goto(`${ROOT}/runs/new`);
       const main = page.locator('#platform-main');
       const next = main.getByRole('button', { name: 'Continue' });
 
-      const source = main.getByRole('radio', { name: /Compiled snapshot/ });
+      const source = main.getByRole('radio', { name: /Checkout flow · version 2/ });
       await expect(source).toBeChecked();
       await expect(source).not.toHaveAccessibleName(/sha256-|[0-9a-f]{12}/);
       await next.click();
@@ -589,7 +595,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(refusal.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
       await expect(send).toBeEnabled();
       await capture(page, testInfo, `launch-${name}-402`);
-      expect(state.sent.launch).toMatchObject({ snapshot: 'snapshot-2', engine: ENGINE, mode: 'sampling' });
+      expect(state.sent.launch).toMatchObject({ revision: 'rev-checkout-2', engine: ENGINE, mode: 'sampling' });
 
       // 422: over the deployment's size limit, whatever the plan.
       state.refuse.launch = detail(422, 'binding_space_over_technical_limit', 'instance binding space exceeds the deployment limit', {
@@ -639,7 +645,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-launch /app/:org/:project/runs/new · a viewer, a snapshot that is not there and a problem too big for the plan', async ({ page }, testInfo) => {
+    test('job-launch /app/:org/:project/runs/new · a viewer, a version that is gone and a problem too big for the deployment', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
@@ -649,17 +655,17 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText(/Nothing to solve yet\./)).toBeVisible();
       await capture(page, testInfo, `launch-${name}-viewer`);
 
-      state.refuse.validate = detail(404, 'not_found', 'Snapshot not found.');
-      await page.goto(`${ROOT}/runs/new?snapshot=snapshot-ghost`);
+      state.refuse.compilation = detail(404, 'not_found', 'Problem revision not found.');
+      await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
       await main.getByRole('button', { name: 'Continue' }).click();
-      await expect(main.getByText('Snapshot not found (404)')).toBeVisible();
+      await expect(main.getByText('Problem version not found (404)')).toBeVisible();
       await expect(main.getByRole('radiogroup', { name: 'Engine' })).toHaveCount(0);
-      await capture(page, testInfo, `launch-${name}-snapshot-404`);
+      await capture(page, testInfo, `launch-${name}-revision-404`);
 
-      state.refuse.validate = detail(422, 'binding_space_over_technical_limit', 'instance binding space exceeds the deployment limit', {
+      state.refuse.compilation = detail(422, 'binding_space_over_technical_limit', 'instance binding space exceeds the deployment limit', {
         quota: { limit_id: 'MAX_BINDING_SPACE_LOG10', state: 'exhausted', source: 'technical', limit: 20, used: 23 },
       });
-      await page.goto(`${ROOT}/runs/new?case=flujo-checkout&revision=2`);
+      await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
       await main.getByRole('button', { name: 'Continue' }).click();
       await expect(main.getByRole('alert')).toContainText('Over this deployment’s size limit (422 · binding_space_over_technical_limit)');
       await expect(main.getByRole('radiogroup', { name: 'Engine' }).getByRole('radio', { name: /^random-search.*Checked when you send/ })).toBeEnabled();

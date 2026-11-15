@@ -198,26 +198,28 @@ account in an empty database. The `dev` profile publishes the gateway on
 `127.0.0.1:8000` only, so it is not reachable from other machines.
 
 
-The gateway exposes `/v1/profiles`, `/v1/dialects`,
-`/v1/engines`, `/v1/instances`, `/v1/jobs`, and
-`/v1/engine-registrations`. BIM source uploads are complete `.bim.zip`
-packages; JSON requests may refer to immutable snapshots. Jobs always return
+The gateway exposes the stateless BIM services (`/v1/bim/validate`,
+`/v1/bim/templates`), the problems of each organization
+(`/v1/organizations/{org}/problems`, with their sealed revisions and
+compilations), `/v1/engines` (and `/v1/engines/protocol` for federated engines),
+`/v1/engine-registrations` and `/v1/jobs`. BIM source uploads are complete
+`.bim.zip` packages; a job names a problem revision. Jobs always return
 `202`. Results use `OPTIMAL`, `FEASIBLE`, `INFEASIBLE`, or `UNKNOWN`, and
 errors use `application/problem+json` with source-located diagnostics.
 
 The React workbench is a single transactional `InstanceWorkspace` over the
 same package and compiler contracts used by API clients. Its surrounding
 platform shell adds the organization/project context, onboarding for new
-accounts, cases, resources, studies, the public engine catalogue,
+accounts, the organization's problems, resources, studies, the public engine catalogue,
 authenticated Engine management (`/app/engines`) with owner telemetry. Pricing
 is managed in the remote SPHERE and SPACE UIs, not in OpenBinding.
 
 ### Scientific Provenance, Deep Inspection & Replication
 
 OpenBinding guarantees strict cryptographic immutability and provenance:
-- **In-browser ZIP Uncompression & Inspection**: Explore `.bim.zip` snapshots and artifact archives directly in the browser with directory trees and syntax-highlighted code inspection via CodeMirror.
+- **In-browser ZIP Uncompression & Inspection**: Explore `.bim.zip` problem revisions and artifact archives directly in the browser with directory trees and syntax-highlighted code inspection via CodeMirror.
 - **Versioned study definitions**: Projects can share an exact library Study version and adopt updates independently. Runs retain their original version and matrix; archive/restore preserves execution history. See the [artifact lifecycle and migration status](docs/VERSIONED_ARTIFACTS.md).
-- **Dedicated Deep-Linked Views**: Full-page inspection and editing for Cases (`/cases/:caseSlug`), Snapshots (`/snapshots/:snapshotId`) and Jobs (`/jobs/:jobId`).
+- **Dedicated Deep-Linked Views**: Full-page inspection and editing for Problems (`/app/:org/problems/:problem`), their revisions and Jobs (`/jobs/:jobId`).
 
 ## Repository layout
 

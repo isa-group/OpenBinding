@@ -1,15 +1,6 @@
 import { platformApi } from '../../api/platform';
-import type { CaseContent, StudyContent } from '../../features/workspace/model';
+import type { StudyContent } from '../../features/workspace/model';
 import { latestRun } from './projectModel';
-
-/** The cases of a project with their sealed revisions. A case whose revisions can't be read still shows, with none. */
-export async function loadCases(org: string, project: string): Promise<CaseContent[]> {
-  const cases = await platformApi.cases(org, project);
-  return Promise.all(cases.map(async (item) => ({
-    item,
-    revisions: await platformApi.revisions(org, project, item.slug).catch(() => []),
-  })));
-}
 
 /**
  * The studies of a project with their runs (archived ones too: their runs are sealed history). The cells of the latest run

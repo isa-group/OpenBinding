@@ -3,16 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { org, project, renderProjectScreen } from '../../features/workspace/testKit';
-import { CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, digestOf, revisionFixture, studyFixture } from '../../test/fixtures/studies';
+import { CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, digestOf, studyFixture } from '../../test/fixtures/studies';
 import { StudyBuilder } from './StudyBuilder';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), cases: vi.fn(), revisions: vi.fn(), createStudy: vi.fn(),
+  project: vi.fn(), createStudy: vi.fn(),
 }));
 const client = vi.hoisted(() => ({ getEngines: vi.fn(), getOwnUsage: vi.fn(), getPricingCatalog: vi.fn() }));
 const library = vi.hoisted(() => ({ libraryApi: { list: vi.fn(), versions: vi.fn(), content: vi.fn() } }));
 
+const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
 vi.mock('../../api/library', () => library);
 
@@ -57,8 +59,8 @@ describe('A new study', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
-    platform.cases.mockResolvedValue([CHECKOUT]);
-    platform.revisions.mockResolvedValue([REVISION_1, REVISION_2, revisionFixture(3, { source_snapshot_id: null })]);
+    problems.list.mockResolvedValue({ problems: [CHECKOUT], total: 1, limit: 200, offset: 0 });
+    problems.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
     client.getEngines.mockResolvedValue([engineEntry(RANDOM_SEARCH), engineEntry(EVOLUTIONARY)]);
     client.getOwnUsage.mockResolvedValue(usage);
     client.getPricingCatalog.mockResolvedValue({});
@@ -67,14 +69,14 @@ describe('A new study', () => {
     library.libraryApi.content.mockResolvedValue('{}');
   });
 
-  it('offers the executable revisions, the engine modes, the settings and the seeds', async () => {
+  it('offers the versions of the organization’s problems, the engine modes, the settings and the seeds', async () => {
     renderBuilder();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'New study' })).toBeInTheDocument();
     expect(screen.getByText('Pick the problems, engines, settings and seeds. Every combination becomes one cell.')).toBeInTheDocument();
     expect(await checkbox(/Checkout flow · version 2/)).toBeEnabled();
-    expect(await checkbox(/Checkout flow · version 3/)).toBeDisabled();
-    expect(screen.getByText(/No compiled snapshot yet, so engines have nothing to run/)).toBeInTheDocument();
+    expect(await checkbox(/Checkout flow · version 1/)).toBeEnabled();
+    expect(problems.list).toHaveBeenCalledWith('isa-demo', { limit: 200 });
     expect(await checkbox(/random-search 1\.0\.0/)).not.toBeChecked();
     expect(screen.getByLabelText(SEEDS)).toHaveValue('1, 2');
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });

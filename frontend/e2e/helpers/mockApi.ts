@@ -2,29 +2,26 @@ import JSZip from 'jszip';
 import type { Page, Route } from '@playwright/test';
 import type { AdminUserView } from '../../src/api/auth';
 import type { Job } from '../../src/api/platform';
-import { digestOf as caseDigest, irDocument, refOf, revisionDocument, sourceContents } from '../../src/pages/Cases/fixtures';
+import { digestOf as caseDigest, irDocument, sourceContents } from '../../src/pages/Cases/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../../src/pages/Pricing/pricingFixture';
 import {
   AUDIT, ERROR_EVENTS, ERROR_OVERVIEW, MODERATION, OVERVIEW, USERS, queuesAt, subscriptionOf, usageOf as adminUsageOf, userPage,
 } from '../../src/test/fixtures/admin';
 import {
-  EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, PLACEMENT_DIALECT, QOS_PROFILE,
+  EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, QOS_PROFILE,
   REPORT_FAILED, REPORT_PENDING, REPORT_VERIFIED, SHARED_SOLVER, SOLVER_IN_REVIEW, reportOf as registrationReport,
 } from '../../src/test/fixtures/engines';
-import { INSTANCE, NEIGHBORHOOD, REGISTRATION, REPORT as JOB_REPORT, SOLUTION, detailOf as jobDetailOf, jobOf } from '../../src/test/fixtures/jobs';
-import {
-  blobOf, resourceOf, resourceRevisionOf,
-} from '../../src/test/fixtures/resources';
+import { NEIGHBORHOOD, REGISTRATION, REPORT as JOB_REPORT, RUN_REFS, SOLUTION, detailOf as jobDetailOf, jobOf } from '../../src/test/fixtures/jobs';
+import { resourceOf, resourceRevisionOf } from '../../src/test/fixtures/resources';
 import {
   RANDOM_SEARCH, REVISION_2, VERSION_ID, analyticsFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
 } from '../../src/test/fixtures/studies';
-import { EXAMPLE } from './galleryRoutes';
 import {
   bpmnContent, catalogContent, catalogRangesContent, goalContent, itemOf, rulesContent, versionOf,
 } from './libraryFixtures';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
-// with a project that has cases, runs, studies and a library behind it, and everything the public screens read.
+// with problems and a project that has runs, studies and a library behind it, and everything the public screens read.
 // Every date is fixed, so two runs of the gallery draw the same pictures. A request nobody answers is a 404 and is recorded.
 
 export const API = 'http://localhost:8000';
@@ -147,7 +144,7 @@ const API_KEYS = [
   },
   {
     id: 'k2', name: 'run-fixed-engine', prefix: 'obk_demo0002', created_at: '2026-09-10T00:00:00Z', last_used_at: null, expires_at: null,
-    permissions: ['engines:execute', 'engines:read', 'instances:validate', 'jobs:read'],
+    permissions: ['engines:execute', 'engines:read', 'problems:read', 'jobs:read'],
     engine_access: { all: false, engines: [{ namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: ENGINE_DIGEST }] }, boundary: {},
   },
 ];
@@ -169,7 +166,6 @@ const PROFILE = localize({
     },
   },
 });
-const DIALECTS = localize([PLACEMENT_DIALECT]);
 
 // -- Engines
 
@@ -224,46 +220,51 @@ const CONTENT: Record<string, unknown> = {
   [catalog.id]: catalogRangesContent(), [rules.id]: rulesContent(), [goal.id]: goalContent(), [app.id]: sourceContents.application, [external.id]: catalogContent(), [workflow.id]: bpmnContent,
 };
 
-// -- Cases, revisions and snapshots
+// -- Problems, their versions and compilations
 
-const REF_APP = refOf('checkout-app', '3', '4');
-const REF_CATALOG_2 = refOf('providers-eu', '2', '3');
-const REF_CATALOG_3 = refOf('providers-eu', '3', '4');
-const REF_RULES = refOf('sla-hard', '1', '2');
-const REF_GOAL = refOf('weighted-cost-latency', '1', '2');
-const documentWith = (catalogRef: typeof REF_CATALOG_2) => revisionDocument([
-  ['application', 'checkout', REF_APP], ['candidateCatalog', 'providers', catalogRef], ['constraintSet', 'sla', REF_RULES], ['optimization', 'goal', REF_GOAL],
-]);
-const S1 = '00000000-0000-4000-8000-0000000000e0';
-const S2 = EXAMPLE.snapshot;
-const S3 = '00000000-0000-4000-8000-0000000000e2';
-const SNAPSHOT_PAY: Record<string, number> = { [S1]: 5, [S2]: 8, [S3]: 8 };
-
-const CASE = localize({
-  id: 'case-checkout-flow', project_id: 'project-qos-benchmarks', slug: 'checkout-flow', name: 'Checkout flow', description: 'Payments with authentication, stock and shipping in parallel.',
-  created_by_id: ME_ID, created_at: '2026-04-02T00:00:00Z',
+const PROBLEM = {
+  id: 'case-checkout-flow', organization_id: 'org-isa-demo', slug: 'checkout-flow', name: 'Checkout flow', description: 'Payments with authentication, stock and shipping in parallel.',
+  created_by_id: ME_ID, created_at: '2026-04-02T00:00:00Z', updated_at: '2026-08-20T10:05:00Z',
+};
+const DRAFT_PROBLEM = {
+  ...PROBLEM, id: 'case-placement-draft', slug: 'placement-draft', name: 'Placement draft', description: 'Where the services may run: no version yet.',
+  created_at: '2026-09-28T00:00:00Z', updated_at: '2026-09-28T00:00:00Z',
+};
+const PROBLEM_REVISIONS = [revisionFixture(2, { package_size: 48_213 }), revisionFixture(1, { package_size: 46_100 })];
+const latestOf = (problem: typeof PROBLEM) => (problem.id === PROBLEM.id
+  ? { id: PROBLEM_REVISIONS[0].id, revision: 2, package_digest: PROBLEM_REVISIONS[0].package_digest, created_at: PROBLEM_REVISIONS[0].created_at }
+  : null);
+/** How many candidates the payment task has in each version: what their compiled forms differ in. */
+const PAY_OF: Record<string, number> = { 1: 5, 2: 8 };
+const revisionDetail = (revision: typeof PROBLEM_REVISIONS[number]) => ({
+  ...revision, document: { apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: 'checkout' } }, compilations: [],
+  files: [
+    { path: 'instance.json', role: 'root', digest: caseDigest('1'), media_type: 'application/json' },
+    { path: 'application.json', role: 'application', resource_id: 'application', digest: caseDigest('2'), media_type: 'application/json' },
+  ],
+  resource_digests: { application: caseDigest('2') },
 });
-const DRAFT_CASE = { ...CASE, id: 'case-placement-draft', slug: 'placement-draft', name: 'Placement draft', description: 'Where the services may run: not sealed yet.', created_at: '2026-09-28T00:00:00Z' };
-const revision = (n: number, catalogRef: typeof REF_CATALOG_2, snapshot: string) => localize(revisionFixture(n, {
-  binding_case_id: CASE.id, document: documentWith(catalogRef), source_snapshot_id: snapshot,
-}));
-const CASE_REVISIONS = [revision(2, REF_CATALOG_3, S2), revision(1, REF_CATALOG_2, S1)];
-
-const snapshotView = (id: string) => ({
-  id, ownerId: ME_ID, instanceDigest: caseDigest('a'), packageDigest: caseDigest('b'), archiveSize: 48_213, createdAt: '2026-08-20T10:05:00Z',
-  ir: { id: `ir-${id}`, digest: caseDigest('c'), document: localize(irDocument(SNAPSHOT_PAY[id] ?? 8)), sourceMap: null, compilerVersion: '1.0.0', createdAt: '2026-08-20T10:05:00Z' },
+const COMPATIBLE_MODES = () => [
+  { engine: PUBLIC_ENGINES[0].ref, registration: REGISTRATION, mode: 'sampling', compatible: true },
+  { engine: PUBLIC_ENGINES[2].ref, registration: { ...REGISTRATION, name: 'minizinc-deployment' }, mode: 'cp', compatible: true },
+  { engine: EDGE_ENGINE.ref, registration: { ...REGISTRATION, name: 'edge-solver-eu' }, mode: 'placement', compatible: false, diagnostics: [{ message: 'It cannot read a RoutingOverlay.' }] },
+];
+const ANALYSIS = { tasks: 6, candidates: 24, constraints: 2, placement: false, bindingSpace: '125892' };
+const compilationOf = (revision: string) => ({
+  id: `compilation-${revision}`, revision_id: `rev-checkout-${revision}`, compilation_digest: caseDigest('9'), compiler_digest: caseDigest('8'), ir_digest: caseDigest('c'),
+  binding_space: ANALYSIS.bindingSpace, created_at: '2026-08-20T10:05:00Z', current: true, toolchain: {}, analysis: ANALYSIS,
+  resources: { application: { role: 'application', path: 'application.json', apiVersion: 'qos-binding/v1', kind: 'Application' } },
+  compatible_modes: COMPATIBLE_MODES(),
 });
-const snapshotPins = (id: string) => ({
-  id, kind: 'InstanceSnapshot', instanceDigest: caseDigest('a'), packageDigest: caseDigest('b'), irDigest: caseDigest('c'),
-  fileDigests: { 'instance.json': caseDigest('1'), 'application.json': caseDigest('2'), 'candidates.json': caseDigest('3'), 'constraints.json': caseDigest('4') },
-  resourceDigests: { application: caseDigest('2'), candidateCatalog: caseDigest('3'), constraintSet: caseDigest('4') },
-  instance: { apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: 'checkout' } }, createdAt: '2026-08-20T10:05:00Z',
+const uploadOf = (problem: typeof PROBLEM, revision: number, created: boolean) => ({
+  problem: { ...problem, latest_revision: latestOf(problem) }, revision: revisionFixture(revision), created,
+  compilation: { ...compilationOf(String(revision)), compatible_modes: undefined },
 });
 
 // -- Jobs
 
 const JOB_ID = (n: number) => `00000000-0000-4000-8000-0000000000a${n}`;
-const mine = { project_id: 'project-qos-benchmarks', organization_id: 'org-isa-demo' };
+const mine = { project_id: 'project-qos-benchmarks', organization_id: 'org-isa-demo', ...RUN_REFS };
 const JOBS = {
   feasible: jobOf(JOB_ID(1), 'random-search', 'completed', 'FEASIBLE', '2026-09-30T09:00:00Z', '2026-09-30T09:01:05Z', mine),
   running: jobOf(JOB_ID(2), 'minizinc', 'running', null, '2026-10-09T08:00:00Z', null, mine),
@@ -312,23 +313,23 @@ const ANALYTICS = localize(analyticsFixture({
     cardinality: '125892', log10: 5.1, tasks: 6, breakdown: { authenticate: 4, inventory: 5, shipping: 3, 'pay-card': 8, 'pay-transfer': 4, notify: 1 },
     case_slug: 'checkout-flow', case_name: 'Checkout flow', revision: 2,
     cases: [
-      { id: CASE.id, slug: 'checkout-flow', name: 'Checkout flow', revision: 1, cardinality: '15849', log10: 4.2, tasks: 6, breakdown: { authenticate: 4 } },
-      { id: CASE.id, slug: 'checkout-flow', name: 'Checkout flow', revision: 2, cardinality: '125892', log10: 5.1, tasks: 6, breakdown: { authenticate: 4 } },
+      { id: PROBLEM.id, slug: 'checkout-flow', name: 'Checkout flow', revision: 1, cardinality: '15849', log10: 4.2, tasks: 6, breakdown: { authenticate: 4 } },
+      { id: PROBLEM.id, slug: 'checkout-flow', name: 'Checkout flow', revision: 2, cardinality: '125892', log10: 5.1, tasks: 6, breakdown: { authenticate: 4 } },
     ],
   },
 }));
 
 // -- Public screens
 
-/** The example packages the gateway serves (GET /v1/examples). */
-const EXAMPLE_PATHS = ['demo/01_simple_seq', 'demo/02_parallel', 'demo/03_xor_choice', 'demo/05_multi_obj', 'demo/15_bpmn_complete', 'placement/01_small_placement'];
+/** The template packages the gateway serves (GET /v1/bim/templates). */
+const TEMPLATE_PATHS = ['demo/01_simple_seq', 'demo/02_parallel', 'demo/03_xor_choice', 'demo/05_multi_obj', 'demo/15_bpmn_complete', 'placement/01_small_placement'];
 
 // -- Administration
 
 /** The platform in numbers, counted from the same accounts, organizations and projects the other screens list. */
 const ADMIN_OVERVIEW = {
   ...OVERVIEW,
-  counts: { users: ACCOUNTS.length, apiKeys: 9, identities: 3, organizations: ORGANIZATIONS.length, projects: 4, cases: 2, studies: 2, studyRuns: 1, artifacts: 12 },
+  counts: { users: ACCOUNTS.length, apiKeys: 9, identities: 3, organizations: ORGANIZATIONS.length, projects: 4, problems: 2, problemRevisions: 2, studies: 2, studyRuns: 1, artifacts: 12 },
   contracts: { FREE: 3, RESEARCH: 2, LAB: 1 },
 };
 const PENDING_REGISTRATION = { ...SOLVER_IN_REVIEW, namespace: 'sam.okafor' };
@@ -367,18 +368,6 @@ function projectRoutes(request: Request, orgSlug: string, projectSlug: string): 
   const filled = projectSlug === 'qos-benchmarks';
 
   switch (sub) {
-    case 'cases': {
-      if (!filled) return ok([]);
-      if (!subId) return ok([CASE, DRAFT_CASE]);
-      if (subId === DRAFT_CASE.slug) return action === 'revisions' ? ok([]) : ok(DRAFT_CASE);
-      if (subId !== CASE.slug) return notFound('Binding case not found.');
-      if (!action) return ok(CASE);
-      if (actionId) {
-        const found = CASE_REVISIONS.find((item) => String(item.revision) === actionId || item.id === actionId || item.digest === actionId);
-        return found ? ok(found) : notFound('Binding case revision not found.');
-      }
-      return ok(CASE_REVISIONS);
-    }
     case 'jobs':
       if (!filled) return ok([]);
       return ok(query.get('job_id') ? PROJECT_JOBS.filter((row) => row.id === query.get('job_id')) : PROJECT_JOBS);
@@ -399,8 +388,6 @@ function projectRoutes(request: Request, orgSlug: string, projectSlug: string): 
       }
       return ok(STUDIES.find((item) => item.slug === subId));
     }
-    case 'blobs':
-      return ok(filled ? localize([blobOf('a'), blobOf('b', { media_type: 'text/csv', size_bytes: 18_432, public: true, created_at: '2026-09-30T09:00:00Z' })]) : []);
     case 'resources': {
       if (!filled) return ok([]);
       const resources = localize([
@@ -417,11 +404,38 @@ function projectRoutes(request: Request, orgSlug: string, projectSlug: string): 
         resourceRevisionOf(found, 1, { title: 'Latency probes', samples: 3 }),
       ]));
     }
-    case 'package':
-      return { status: 200, bytes: request.archive, type: 'application/zip' };
     default:
       return notFound('Not mocked.');
   }
+}
+
+/** `/v1/organizations/{org}/problems/…`: the problems of `isa-demo`, their versions, sources and compilations. */
+function problemRoutes(request: Request, orgSlug: string): Reply {
+  const { method, parts } = request;
+  const [, , , , problemSlug, sub, revisionRef, tail, compilationId, last] = parts;
+  const problems = orgSlug === 'isa-demo' ? [PROBLEM, DRAFT_PROBLEM] : [];
+  if (!problemSlug) {
+    if (method === 'POST') return ok(uploadOf({ ...DRAFT_PROBLEM, id: 'case-uploaded', slug: 'uploaded', name: 'Uploaded problem' }, 1, true), 201);
+    return ok({ problems: problems.map((item) => ({ ...item, latest_revision: latestOf(item) })), total: problems.length, limit: 200, offset: 0 });
+  }
+  const problem = problems.find((item) => item.slug === problemSlug || item.id === problemSlug);
+  if (!problem) return notFound('Problem not found.');
+  if (!sub) return ok({ ...problem, latest_revision: latestOf(problem) });
+  if (sub !== 'revisions') return notFound('Not mocked.');
+  const revisions = problem.id === PROBLEM.id ? PROBLEM_REVISIONS : [];
+  if (!revisionRef) {
+    if (method === 'POST') return ok(uploadOf(problem, revisions.length + 1, true), 201);
+    return ok(revisions);
+  }
+  const revision = revisions.find((item) => String(item.revision) === revisionRef || item.id === revisionRef || item.package_digest === revisionRef);
+  if (!revision) return notFound('Problem revision not found.');
+  if (!tail) return ok(revisionDetail(revision));
+  if (tail === 'source') return { status: 200, bytes: request.archive, type: 'application/vnd.bim+zip' };
+  if (tail === 'compilation') return ok(compilationOf(String(revision.revision)));
+  if (tail === 'compilations' && compilationId && last === 'ir') {
+    return ok({ id: compilationId, ir_digest: caseDigest('c'), ir: irDocument(PAY_OF[revision.revision] ?? 8), source_map: {} });
+  }
+  return notFound('Not mocked.');
 }
 
 function organizationRoutes(request: Request): Reply {
@@ -441,6 +455,7 @@ function organizationRoutes(request: Request): Reply {
     case 'projects':
       if (!projectSlug) return ok(PROJECTS[found.slug] ?? []);
       return projectRoutes(request, found.slug, projectSlug);
+    case 'problems': return problemRoutes(request, found.slug);
     default: return notFound('Not mocked.');
   }
 }
@@ -523,7 +538,7 @@ function adminRoutes(request: Request): Reply {
     case 'queues': return ok(queuesAt(Date.parse(NOW)));
     case 'moderation': return ok(MODERATION);
     case 'errors/overview': return ok(localize(ERROR_OVERVIEW));
-    case 'maintenance/preview': return ok({ expiredArtifacts: 2, expiredApiKeys: 1, terminalJobs: 14, abandonedJobs: 1, terminalJobCutoff: '2025-10-09T00:00:00Z' });
+    case 'maintenance/preview': return ok({ expiredApiKeys: 1, terminalJobs: 14, abandonedJobs: 1, terminalJobCutoff: '2025-10-09T00:00:00Z' });
     case 'errors': return ok({ items: ERRORS, total: ERRORS.length, limit: 50, offset: 0 });
     case 'audit': return ok({ ...AUDIT, total: AUDIT.events.length });
     case 'users': {
@@ -545,7 +560,7 @@ function adminRoutes(request: Request): Reply {
 }
 
 /** The first path segments the gateway only answers to a session. */
-const SESSION_ONLY = new Set(['users', 'admin', 'notifications', 'organizations', 'jobs', 'engines', 'engine-registrations', 'artifacts', 'snapshots', 'instances']);
+const SESSION_ONLY = new Set(['users', 'admin', 'notifications', 'organizations', 'jobs', 'engines', 'engine-registrations', 'artifacts']);
 
 function route(request: Request): Reply | null {
   const { method, parts } = request;
@@ -574,32 +589,20 @@ function route(request: Request): Reply | null {
     case 'engines':
       if (!second) return ok({ engines: OWN_ENGINES });
       if (second === 'revisions') return ok({ revisions: [] });
+      if (second === 'protocol') return ok({ profiles: [PROFILE] });
       return null;
-    case 'profiles': return ok({ profiles: [PROFILE] });
-    case 'dialects': return ok({ dialects: DIALECTS });
-    case 'examples': return second ? { status: 200, type: 'application/zip', bytes: request.archive } : ok({ examples: EXAMPLE_PATHS });
-    case 'validate':
-      return ok({
-        valid: true, instanceDigest: caseDigest('a'), packageDigest: caseDigest('b'), irDigest: caseDigest('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],
-        compatibleModes: [
-          { engine: PUBLIC_ENGINES[0].ref, registration: REGISTRATION, mode: 'sampling', compatible: true },
-          { engine: PUBLIC_ENGINES[2].ref, registration: { ...REGISTRATION, name: 'minizinc-deployment' }, mode: 'cp', compatible: true },
-          { engine: EDGE_ENGINE.ref, registration: { ...REGISTRATION, name: 'edge-solver-eu' }, mode: 'placement', compatible: false, diagnostics: [{ message: 'It cannot read a RoutingOverlay.' }] },
-        ],
-        analysis: { tasks: 6, candidates: 24, constraints: 2, placement: false, bindingSpace: '125892' },
-      });
-    case 'snapshots':
-      if (third === 'archive') return { status: 200, type: 'application/zip', bytes: request.archive };
-      return SNAPSHOT_PAY[second] ? ok(snapshotView(second)) : notFound('Snapshot not found');
-    case 'instances':
-      if (!second) return ok({ id: S3, irDigest: caseDigest('c') }, 201);
-      if (third === 'ir') return ok(localize(irDocument(SNAPSHOT_PAY[second] ?? 8)));
-      if (third === 'source') return { status: 200, type: 'application/zip', bytes: request.archive };
-      return SNAPSHOT_PAY[second] ? ok(snapshotPins(second)) : notFound('Snapshot not found');
+    case 'bim':
+      if (second === 'templates') return third ? { status: 200, type: 'application/vnd.bim+zip', bytes: request.archive } : ok({ templates: TEMPLATE_PATHS });
+      if (second === 'validate') {
+        return ok({
+          valid: true, instanceDigest: caseDigest('a'), packageDigest: caseDigest('b'), irDigest: caseDigest('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],
+          compatibleModes: COMPATIBLE_MODES(), analysis: ANALYSIS,
+          ...(request.query.get('include') === 'ir' ? { ir: localize(irDocument(8)), sourceMap: {} } : {}),
+        });
+      }
+      return null;
     case 'jobs': {
       if (!second) return method === 'POST' ? ok({ id: JOB_ID(9), status: 'queued', irDigest: caseDigest('c') }, 202) : ok(OWN_JOBS);
-      if (third === 'instance') return ok(INSTANCE);
-      if (third === 'ir') return ok(localize(irDocument(8)));
       if (third === 'report') return ok(localize({ ...JOB_REPORT, id: second }));
       if (third === 'analysis') return ok(localize({ ...NEIGHBORHOOD, jobId: second }));
       const detail = jobDetail(second);

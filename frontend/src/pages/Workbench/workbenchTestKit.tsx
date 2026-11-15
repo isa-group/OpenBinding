@@ -6,7 +6,7 @@ import { org, renderProjectScreen } from '../../features/workspace/testKit';
 import { Workbench } from './Workbench';
 
 /** Shared by the tests of the workbench: the answers of the gateway, a package to bring in, and the screen rendered at its address. */
-export const ROOT = '/app/isa-demo/qos-benchmarks';
+export const ROOT = '/app/isa-demo';
 
 export const ENGINE_REF = { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-a' };
 export const REGISTRATION_REF = { namespace: 'bim.builtin', name: 'random-search-deployment', version: '1.0.0+builtin.a', digest: 'sha256-registration-a' };
@@ -14,7 +14,7 @@ export const SECOND_REGISTRATION = { namespace: 'acme', name: 'random-search-eu'
 
 const digest = (char: string) => `sha256-${char.repeat(64)}`;
 
-/** What `POST /v1/validate` answers for a package it accepts. */
+/** What `POST /v1/bim/validate` answers for a package it accepts. */
 export function analysis(over: Record<string, unknown> = {}) {
   return {
     valid: true,
@@ -89,13 +89,15 @@ export function packageFile(name: string): File {
 interface RenderOptions {
   role?: Organization['effective_role'];
   query?: string;
+  /** The whole address, in place of the organization's Workbench with `query`. */
+  url?: string;
   user?: UserProfile;
 }
 
 export function renderWorkbench(options: RenderOptions = {}) {
   const organization = org('isa-demo', { name: 'ISA Demo Group', effective_role: options.role ?? 'MEMBER' });
   return renderProjectScreen(<Workbench />, {
-    path: '/app/:org/:project/workbench', url: `${ROOT}/workbench${options.query ?? ''}`, organizations: [organization], user: options.user,
+    path: '/app/:org/workbench', url: options.url ?? `${ROOT}/workbench${options.query ?? ''}`, organizations: [organization], user: options.user,
   });
 }
 

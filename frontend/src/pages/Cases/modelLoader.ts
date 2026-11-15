@@ -1,20 +1,22 @@
-import { platformApi } from '../../api/platform';
-import type { Snapshot } from '../../api/platform';
+import { problemsApi, type CompilationIr, type ProblemCompilation } from '../../api/problems';
 import { readBindingProblem, type BindingModel } from './bindingModel';
 import { classifyAuthError, type AuthFailure } from './caseErrors';
 
-/** What reading the compiled snapshot of a revision gave: nothing to read, a model, or a failure that belongs to that part only. */
+/** What reading the compilation of a revision gave: a model, or a failure that belongs to that part only. */
 export type ModelState =
-  | { state: 'none' }
-  | { state: 'ready'; snapshot: Snapshot; model: BindingModel | null }
+  | { state: 'ready'; compilation: ProblemCompilation; ir: CompilationIr; model: BindingModel | null }
   | { state: 'failed'; failure: AuthFailure };
 
-export async function loadModel(snapshotId: string | null): Promise<ModelState> {
-  if (!snapshotId) return { state: 'none' };
+/** The compilation of a revision by the installed toolchain and its IR, read as a binding model. */
+export async function loadModel(org: string, problem: string, revision: number | string): Promise<ModelState> {
   try {
-    const snapshot = await platformApi.snapshot(snapshotId);
-    return { state: 'ready', snapshot, model: snapshot.ir ? readBindingProblem(snapshot.ir.document) : null };
+    const compilation = await problemsApi.compilation(org, problem, revision);
+    const ir = await problemsApi.ir(org, problem, revision, compilation.id);
+    return { state: 'ready', compilation, ir, model: readBindingProblem(ir.ir) };
   } catch (caught) {
     return { state: 'failed', failure: classifyAuthError(caught) };
   }
 }
+
+/** The key a screen caches the model of a revision under. */
+export const modelKey = (org: string, problem: string, revision: { id: string }): string => `model:${org}/${problem}/${revision.id}`;

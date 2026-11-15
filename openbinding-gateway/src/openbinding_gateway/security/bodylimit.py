@@ -6,8 +6,8 @@ made the gateway buffer the whole thing - up to nginx's 512 MiB - before any
 limit applied. This middleware sits in front of every handler, is plain ASGI
 (no ``BaseHTTPMiddleware``, which would buffer), and enforces two ceilings:
 
-* ``MAX_REQUEST_BODY_BYTES`` for the upload routes (artifact blobs, portable
-  packages, BIM source packages, resources, file inspection). Those keep
+* ``MAX_REQUEST_BODY_BYTES`` for the upload routes (problem packages and the
+  packages ``/v1/bim/validate`` checks). Those keep
   their own, tighter, per-plan and per-format checks behind it; the ceiling is
   the one nginx already applied, so nothing a legitimate upload could send
   before is refused now.
@@ -39,11 +39,8 @@ from ..models.problem import PROBLEM_MEDIA_TYPE, problem_body
 #: ``(method, path regex)`` of the routes whose body is a file or package, not a
 #: small document. Matched against the path without the ``root_path`` prefix.
 UPLOAD_ROUTES: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("POST", re.compile(r"^/v1/organizations/[^/]+/projects/[^/]+/blobs/?$")),
-    ("POST", re.compile(r"^/v1/organizations/[^/]+/projects/[^/]+/package/?$")),
-    ("POST", re.compile(r"^/v1/instances/?$")),
-    ("POST", re.compile(r"^/v1/instances/validate/?$")),
-    ("POST", re.compile(r"^/v1/validate/?$")),
+    ("POST", re.compile(r"^/v1/organizations/[^/]+/problems(/[^/]+/revisions)?/?$")),
+    ("POST", re.compile(r"^/v1/bim/validate/?$")),
     ("POST", re.compile(r"^/v1/jobs/?$")),
 )
 

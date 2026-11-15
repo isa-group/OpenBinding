@@ -3,7 +3,8 @@ import { render } from '@testing-library/react';
 import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom';
 import { vi } from 'vitest';
 import type { UsageView, UserProfile } from '../../api/auth';
-import type { BindingCase, CaseRevision, Organization, Project, Study, StudyRun } from '../../api/platform';
+import type { Organization, Project, Study, StudyRun } from '../../api/platform';
+import type { Problem, ProblemRevision } from '../../api/problems';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { AuthContext } from '../../contexts/auth';
 import { iker, lucia, org, project } from '../../pages/Organization/testKit';
@@ -60,14 +61,17 @@ export function usageWithProjects(): UsageView {
   };
 }
 
-export function caseOf(slug: string, name = slug, over: Partial<BindingCase> = {}): BindingCase {
-  return { id: `case-${slug}`, project_id: 'project-qos', slug, name, description: '', created_by_id: lucia.id, created_at: '2026-04-02T00:00:00Z', ...over };
+export function caseOf(slug: string, name = slug, over: Partial<Problem> = {}): Problem {
+  return {
+    id: `case-${slug}`, organization_id: 'org-isa', slug, name, description: '', created_by_id: lucia.id,
+    created_at: '2026-04-02T00:00:00Z', updated_at: '2026-04-02T00:00:00Z', ...over,
+  };
 }
 
-export function revisionOf(caseItem: BindingCase, revision: number, over: Partial<CaseRevision> = {}): CaseRevision {
+export function revisionOf(caseItem: Problem, revision: number, over: Partial<ProblemRevision> = {}): ProblemRevision {
   return {
-    id: `${caseItem.id}-r${revision}`, binding_case_id: caseItem.id, revision, digest: `sha256-${String(revision).repeat(64)}`.slice(0, 71), document: {},
-    source_snapshot_id: null, created_at: `2026-04-0${revision}T00:00:00Z`, ...over,
+    id: `${caseItem.id}-r${revision}`, problem_id: caseItem.id, revision, package_digest: `sha256-${String(revision).repeat(64)}`.slice(0, 71),
+    package_size: 2048, created_by_id: lucia.id, created_at: `2026-04-0${revision}T00:00:00Z`, ...over,
   };
 }
 

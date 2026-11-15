@@ -17,8 +17,8 @@ if _tools_dir not in sys.path:
 
 from openbinding_gateway.db.models import Artifact, ArtifactVersion, ApiKey, EngineRegistrationRevision, EngineRevision, Job, User, UserRole
 from openbinding_gateway.db.platform_models import (
-    Blob,
     AuditEvent,
+    BindingCase,
     Notification,
     Organization,
     OrganizationMembership,
@@ -28,24 +28,15 @@ from openbinding_gateway.db.platform_models import (
 from openbinding_gateway.security.passwords import verify_password
 from seed_dev import (
     DEV_PASSWORD,
-    _deterministic_zip,
     clean_existing_data,
-    ensure_artifacts,
     ensure_cases,
     ensure_engine_revisions,
     ensure_notifications_and_audit,
     ensure_organizations,
-    ensure_project_resources,
     ensure_projects,
     ensure_standalone_jobs,
     ensure_users,
-    load_and_persist_snapshots,
 )
-
-
-def test_seed_zip_is_byte_for_byte_deterministic():
-    entries = [("README.md", "seed"), ("data.json", b"{}")]
-    assert _deterministic_zip(entries) == _deterministic_zip(entries)
 
 
 @pytest.mark.asyncio
@@ -98,16 +89,16 @@ async def test_seed_dev_lifecycle(db_session):
     assert projects["score-ai/qos-placement"].visibility == Visibility.PUBLIC
     assert projects["score-ai/smart-orchestration"].visibility == Visibility.PRIVATE
 
-    # 4. Snapshots & Cases
+    # 4. Problems of the organization, uploaded from the demo packages
     examples_dir = REPO_ROOT / "examples"
-    snapshots = await load_and_persist_snapshots(db_session, users["alice"], examples_dir)
-
     qos_proj = projects["score-ai/qos-placement"]
-    case_map = await ensure_cases(db_session, qos_proj, users["alice"], snapshots)
-    if "simple-seq" in case_map:
-        case, rev = case_map["simple-seq"]
-        assert case.slug == "simple-seq"
-        assert rev.source_snapshot_id is not None
+    case_map = await ensure_cases(db_session, orgs["score-ai"], users["alice"], examples_dir)
+    case, rev = case_map["simple-seq"]
+    assert case.slug == "simple-seq" and case.organization_id == orgs["score-ai"].id
+    assert rev.revision == 1 and rev.package_digest.startswith("sha256-")
+    again = await ensure_cases(db_session, orgs["score-ai"], users["alice"], examples_dir)
+    assert again["simple-seq"][1].id == rev.id
+    assert len((await db_session.scalars(select(BindingCase))).all()) == len(case_map)
 
     # Engine Revisions & Registrations
     engs = await ensure_engine_revisions(db_session, users["admin"])
@@ -117,47 +108,10 @@ async def test_seed_dev_lifecycle(db_session):
     db_regs = (await db_session.execute(select(EngineRegistrationRevision))).scalars().all()
     assert len(db_regs) >= 2
 
-    # Without a real input snapshot, the seeder must not manufacture solver jobs.
+    # Without a problem revision, the seeder must not manufacture solver jobs.
     jobs = await ensure_standalone_jobs(db_session, orgs["score-ai"], qos_proj, users["alice"], all_states=True)
     assert jobs == []
     assert not (await db_session.scalars(select(Job))).all()
-
-    # 5. Reusable Project Resources & Revisions
-    res_map = await ensure_project_resources(db_session, projects, users)
-    assert len(res_map) >= 3
-    assert "01_simple_seq-catalog" in res_map
-    cat_res, cat_revs = res_map["01_simple_seq-catalog"]
-    assert cat_res.kind == "CandidateCatalog"
-    assert len(cat_revs) == 2
-    before_versions = len((await db_session.scalars(select(ArtifactVersion))).all())
-    await ensure_project_resources(db_session, projects, users)
-    assert len((await db_session.scalars(select(ArtifactVersion))).all()) == before_versions
-    from openbinding_gateway.db.models import ProjectArtifact, BindingCase, BindingCaseRevision, CaseArtifact
-    from openbinding_gateway.artifacts import can_read
-    config = await db_session.scalar(select(Artifact).where(Artifact.name == 'shared-seeded-search'))
-    assert config.kind == 'ExecutionConfiguration'
-    assert len((await db_session.scalars(select(ProjectArtifact).where(ProjectArtifact.artifact_id == config.id))).all()) == 2
-    assert not await can_read(db_session, config, users['elena'])
-    public_case = await db_session.scalar(select(BindingCase).where(BindingCase.slug == 'public-library-experiment'))
-    assert public_case.project_id == projects['acme-cloud/stock-trading-pipeline'].id
-    consumed = (await db_session.scalars(select(CaseArtifact.version_id)
-        .join(BindingCaseRevision, BindingCaseRevision.id == CaseArtifact.revision_id)
-        .where(BindingCaseRevision.binding_case_id == public_case.id))).all()
-    assert cat_revs[0].id in consumed
-    assert cat_revs[1].id not in consumed
-    db_resources = (await db_session.execute(select(Artifact))).scalars().all()
-    assert len(db_resources) >= 3
-    db_revs = (await db_session.execute(select(ArtifactVersion))).scalars().all()
-    assert len(db_revs) >= 4
-
-    # 6. Artifacts
-    artifacts = await ensure_artifacts(db_session, orgs, projects, users)
-    assert len(artifacts) >= 3
-    for art in artifacts:
-        assert art.digest.startswith("sha256-")
-        assert art.size_bytes > 0
-    db_artifacts = (await db_session.execute(select(Blob))).scalars().all()
-    assert len(db_artifacts) >= 3
 
     # 7. Notifications & Audit
     await ensure_notifications_and_audit(db_session, orgs, projects, users)
@@ -187,8 +141,8 @@ async def test_seed_dev_lifecycle(db_session):
     remaining_regs = (await db_session.execute(select(EngineRegistrationRevision))).scalars().all()
     assert len(remaining_regs) == 0
 
-    remaining_artifacts = (await db_session.execute(select(Blob))).scalars().all()
-    assert len(remaining_artifacts) == 0
+    remaining_problems = (await db_session.execute(select(BindingCase))).scalars().all()
+    assert len(remaining_problems) == 0
 
     remaining_resources = (await db_session.execute(select(Artifact))).scalars().all()
     assert len(remaining_resources) == 0

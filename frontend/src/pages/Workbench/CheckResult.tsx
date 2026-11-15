@@ -143,7 +143,7 @@ function AnalysisView({ wb }: { wb: Workbench }) {
           <FlowDrawing flow={model?.flow ?? null} caption={model?.log10 != null ? <span>Possible combinations ≈ <Power log10={model.log10} /></span> : undefined} />
         ) : (
           <div className="wb-flow-ask">
-            <p className="wb-muted">The drawing comes from the compiled package. Drawing it saves a private snapshot of the package, the same one the actions below use.</p>
+            <p className="wb-muted">The drawing comes from the compiled package. Drawing it has the gateway compile the package once more; nothing is stored.</p>
             <Action variant="secondary" busy={wb.irLoading} onClick={() => void wb.compile()}>Draw the workflow</Action>
           </div>
         )}
@@ -205,7 +205,7 @@ function FilesView({ wb }: { wb: Workbench }) {
           </li>
         ))}
       </ul>
-      <p className="wb-muted">This package lives in your browser until you snapshot it or save it as a problem version.</p>
+      <p className="wb-muted">This package lives in your browser until you save it as a problem or a problem version.</p>
     </>
   );
 }

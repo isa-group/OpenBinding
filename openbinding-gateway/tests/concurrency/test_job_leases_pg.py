@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from _problem_helpers import seeded_run_refs
 from datetime import timedelta
 
 import pytest
@@ -37,6 +38,7 @@ async def an_abandoned_job(session) -> Job:
         state=JobState.RUNNING,
         requested_budget_s=60.0,
         created_at=utcnow() - timedelta(seconds=60 + reconciler.ABANDONED_GRACE_S + 1),
+        **await seeded_run_refs(session, owner.id),
     )
     session.add(job)
     await session.commit()
@@ -51,6 +53,7 @@ async def test_two_concurrent_claims_of_one_job_have_one_winner(two_sessions):
         engine_job_id="engine-1",
         service_url="http://engine",
         state=JobState.QUEUED,
+        **await seeded_run_refs(first),
     )
     first.add(job)
     await first.commit()
@@ -111,6 +114,7 @@ async def a_claimed_job(session) -> tuple[Job, str]:
         service_url="http://engine",
         state=JobState.QUEUED,
         requested_budget_s=600.0,
+        **await seeded_run_refs(session),
     )
     session.add(job)
     await session.commit()
@@ -226,6 +230,8 @@ async def test_two_concurrent_creations_cannot_pass_the_last_slot(two_sessions):
         plan_cache=pricing_catalog().default_plan,
     )
     first.add(owner)
+    await first.flush()
+    refs = await seeded_run_refs(first, owner.id)
     await first.commit()
 
     async def create(session):
@@ -234,7 +240,7 @@ async def test_two_concurrent_creations_cannot_pass_the_last_slot(two_sessions):
         if refusal is None:
             session.add(Job(
                 owner_id=owner.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
-                service_url="http://engine", state=JobState.QUEUED,
+                service_url="http://engine", state=JobState.QUEUED, **refs,
             ))
         await session.commit()
         return refusal

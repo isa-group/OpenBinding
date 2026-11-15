@@ -18,6 +18,7 @@ export interface MenuEntry {
 const STUDIES_SEGMENT = 'studies';
 
 export const NEEDS_PROJECT = 'Needs a project';
+export const NEEDS_ORGANIZATION = 'Needs an organization';
 
 const under = (pathname: string, root: string) => pathname === root || pathname.startsWith(`${root}/`);
 const sameSegment = (segment: string | undefined, ...names: string[]) => segment !== undefined && names.includes(segment);
@@ -49,8 +50,14 @@ function inProject(label: string, root: string | undefined, suffix: string): Men
   return root ? { label, to: `${root}${suffix}` } : { label, hint: NEEDS_PROJECT };
 }
 
-export function problemsEntry(organization?: Organization, project?: Project): MenuEntry {
-  return inProject('Problems', projectRoot(organization, project), `/${PROBLEMS_SEGMENT}`);
+/** An entry of the organization (the one the address names, else the first), disabled with `Needs an organization` when there is none. */
+function inOrganization(label: string, organization: Organization | undefined, suffix: string): MenuEntry {
+  return organization ? { label, to: `/app/${organization.slug}${suffix}` } : { label, hint: NEEDS_ORGANIZATION };
+}
+
+/** The problems belong to the organization, not to a project. */
+export function problemsEntry(organization?: Organization): MenuEntry {
+  return inOrganization('Problems', organization, `/${PROBLEMS_SEGMENT}`);
 }
 
 /** The entries of the Lab menu, in order: both inside the current project. */
@@ -62,11 +69,11 @@ export function labEntries(organization?: Organization, project?: Project): Arra
   ];
 }
 
-/** Entries of the "New" menu: always these three, in the current project. */
+/** Entries of the "New" menu: always these three; a problem in the organization, a study and a run in the current project. */
 export function createItems(organization?: Organization, project?: Project): MenuEntry[] {
   const root = projectRoot(organization, project);
   return [
-    inProject('Problem', root, `/${PROBLEMS_SEGMENT}?create=problem`),
+    inOrganization('Problem', organization, `/${PROBLEMS_SEGMENT}?create=problem`),
     inProject('Study', root, `/${STUDIES_SEGMENT}/new`),
     inProject('Run', root, `/${RUNS_SEGMENT}/new`),
   ];
@@ -78,11 +85,19 @@ const APP_PLACES = new Set(['admin', 'engines', 'account']);
 const UNMARKED_PLACES = new Set(['account']);
 /** `/app/:org/…` screens that belong to the organization, not to one of its projects. */
 const ORGANIZATION_SCREENS = new Set(['settings', 'new-project']);
+/** `/app/:org/…` sections of the organization that have an entry of their own in the header. */
+const ORGANIZATION_SECTIONS = new Set([PROBLEMS_SEGMENT, 'workbench']);
 
 /** The segment below a project (`/app/:org/:project/<segment>`), when the address is inside one. */
 function projectSegment(pathname: string): string | undefined {
   const parts = pathname.split('/').filter(Boolean);
-  return parts[0] === 'app' && !APP_PLACES.has(parts[1]) ? parts[3] : undefined;
+  return parts[0] === 'app' && !APP_PLACES.has(parts[1]) && !ORGANIZATION_SECTIONS.has(parts[2]) ? parts[3] : undefined;
+}
+
+/** The section of the organization the address is in (`/app/:org/problems/…`, `/app/:org/workbench`). */
+function organizationSection(pathname: string): string | undefined {
+  const parts = pathname.split('/').filter(Boolean);
+  return parts[0] === 'app' && !APP_PLACES.has(parts[1]) && ORGANIZATION_SECTIONS.has(parts[2]) ? parts[2] : undefined;
 }
 
 /** Which entry of the Lab menu the address belongs to. */
@@ -99,7 +114,7 @@ export function labEntryOf(pathname: string): LabEntryId | null {
 function isWorkspaceHome(pathname: string): boolean {
   const parts = pathname.split('/').filter(Boolean);
   if (parts[0] !== 'app') return false;
-  return parts.length <= 3 || ORGANIZATION_SCREENS.has(parts[2]);
+  return (parts.length <= 3 && !ORGANIZATION_SECTIONS.has(parts[2])) || ORGANIZATION_SCREENS.has(parts[2]);
 }
 
 /** Which entry of the header the current address belongs to. */
@@ -109,6 +124,6 @@ export function currentSection(pathname: string): MainSection {
   if (under(pathname, '/app/engines') || under(pathname, mainLinks.engines.to)) return 'engines';
   const [root, place] = pathname.split('/').filter(Boolean);
   if (root !== 'app' || UNMARKED_PLACES.has(place)) return null;
-  if (sameSegment(projectSegment(pathname), PROBLEMS_SEGMENT)) return 'problems';
+  if (organizationSection(pathname)) return 'problems';
   return isWorkspaceHome(pathname) ? 'home' : null;
 }

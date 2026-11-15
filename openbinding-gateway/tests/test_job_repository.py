@@ -1,5 +1,6 @@
 import ast
 import uuid
+from _problem_helpers import placeholder_refs
 from datetime import timedelta
 from pathlib import Path
 
@@ -33,7 +34,7 @@ def _job(owner: User, age_s: int = 0, **kwargs) -> Job:
         engine_job_id=uuid.uuid4().hex,
         service_url="http://engine",
         created_at=utcnow() - timedelta(seconds=age_s),
-        **kwargs,
+        **{**placeholder_refs(), **kwargs},
     )
 
 

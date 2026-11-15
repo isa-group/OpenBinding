@@ -9,6 +9,7 @@ have NOT been run against PostgreSQL yet; see docs/IDEMPOTENCY.md.
 from __future__ import annotations
 
 import asyncio
+from _problem_helpers import seeded_run_refs
 from datetime import timedelta
 from types import SimpleNamespace
 
@@ -22,6 +23,7 @@ from openbinding_gateway.jobs import clock, publisher, reconciler
 
 
 async def queued_jobs(session, count: int, *, age_s: float = 120.0) -> list[Job]:
+    refs = await seeded_run_refs(session)
     jobs = [
         Job(
             engine_id="random-search",
@@ -30,6 +32,7 @@ async def queued_jobs(session, count: int, *, age_s: float = 120.0) -> list[Job]
             state=JobState.QUEUED,
             requested_budget_s=60.0,
             created_at=utcnow() - timedelta(seconds=age_s),
+            **refs,
         )
         for index in range(count)
     ]

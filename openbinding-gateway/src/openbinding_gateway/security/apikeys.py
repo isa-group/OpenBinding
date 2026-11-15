@@ -42,9 +42,8 @@ class ApiKeyPermission(str, Enum):
     ACCOUNT_WRITE = "account:write"
     KEYS_READ = "keys:read"
     KEYS_WRITE = "keys:write"
-    INSTANCES_READ = "instances:read"
-    INSTANCES_WRITE = "instances:write"
-    INSTANCES_VALIDATE = "instances:validate"
+    PROBLEMS_READ = "problems:read"
+    PROBLEMS_WRITE = "problems:write"
     JOBS_READ = "jobs:read"
     ENGINES_READ = "engines:read"
     ENGINES_EXECUTE = "engines:execute"
@@ -80,7 +79,6 @@ ENGINE_LIMITED_PERMISSIONS = frozenset(
         ApiKeyPermission.ENGINES_REGISTER.value,
         ApiKeyPermission.ENGINES_PUBLISH.value,
         ApiKeyPermission.ENGINES_MODERATE.value,
-        ApiKeyPermission.INSTANCES_VALIDATE.value,
         ApiKeyPermission.JOBS_READ.value,
         ApiKeyPermission.STUDIES_READ.value,
         ApiKeyPermission.STUDIES_WRITE.value,
@@ -93,11 +91,10 @@ UNCLASSIFIED_ROUTE_PERMISSION = "route:unclassified"
 #: /v1 routes that deliberately need no API-key permission.
 OPEN_V1_PREFIXES = (
     "/v1/auth",
-    "/v1/profiles",
-    "/v1/examples",
+    "/v1/bim/templates",
 )
 OPEN_V1_GET_PATHS = frozenset({
-    "/v1/dialects",
+    "/v1/engines/protocol",
 })
 
 
@@ -229,7 +226,7 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
     aliases = {
         "organizations": ("org", "organization", "organization_id", "org_id"),
         "projects": ("project", "project_id"),
-        "slugs": ("slug", "case", "study", "resource"),
+        "slugs": ("slug", "problem", "study", "resource"),
     }
     for field, names in aliases.items():
         allowed = boundary.get(field)
@@ -245,28 +242,25 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "members": {"member", "members"},
             "invitations": {"invitation", "invitations"},
             "projects": {"project", "projects"},
-            "cases": {"case", "cases"},
+            "problems": {"problem", "problems"},
             "resources": {"resource", "resources"},
             "studies": {"study", "studies"},
             "runs": {"run", "runs"},
             "cells": {"cell", "cells"},
             "artifacts": {"artifact", "artifacts"},
             "library": {"artifact", "artifacts"},
-            "blobs": {"artifact", "artifacts", "blob", "blobs"},
             "jobs": {"job", "jobs"},
             # GET /v1/jobs/{job_id}/analysis/neighborhood: a job-scoped key reads it.
             "analysis": {"job", "jobs", "analysis"},
-            "instances": {"instance", "instances"},
+            "bim": {"problem", "problems"},
             "engines": {"engine", "engines"},
             "engine-registrations": {"engine-registration", "engine-registrations"},
-            "dialects": {"dialect", "dialects"},
-            "profiles": {"profile", "profiles"},
             "pricing": {"pricing"},
             "notifications": {"notification", "notifications"},
         }
         # The last fixed collection in FastAPI's route template is the most
-        # specific resource. Thus `/projects/{project}/cases` is a case
-        # request, not a project request merely because it passes through one.
+        # specific resource. Thus `/organizations/{org}/problems` is a problem
+        # request, not an organization request merely because it passes through one.
         target = next(
             (aliases[segment] for segment in reversed(path.split("/")) if segment in aliases),
             frozenset(),
@@ -372,8 +366,14 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             if method == "GET"
             else {ApiKeyPermission.ADMIN_ACCOUNTS_WRITE.value}
         )
+    if path.startswith("/v1/organizations/") and "problems" in path.split("/")[4:5]:
+        return frozenset(
+            {ApiKeyPermission.PROBLEMS_READ.value}
+            if method == "GET"
+            else {ApiKeyPermission.PROBLEMS_WRITE.value}
+        )
     if path.startswith("/v1/artifacts") or (
-        path.startswith("/v1/organizations/") and any(part in path.split("/") for part in ("library", "blobs"))
+        path.startswith("/v1/organizations/") and "library" in path.split("/")
     ):
         return frozenset(
             {ApiKeyPermission.ARTIFACTS_READ.value}
@@ -410,6 +410,11 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         return frozenset({ApiKeyPermission.NOTIFICATIONS_READ.value})
     if path.startswith("/v1/pricing"):
         return frozenset({ApiKeyPermission.PRICING_READ.value})
+    if path == "/v1/bim/validate":
+        # Validation writes nothing; a key needs to be able to read problems.
+        return frozenset({ApiKeyPermission.PROBLEMS_READ.value})
+    if path == "/v1/engines/protocol" and method == "GET":
+        return frozenset()
     if path.startswith("/v1/engine-registrations") and (path.endswith("/approve") or path.endswith("/reject")):
         return frozenset({ApiKeyPermission.ENGINES_MODERATE.value})
     if path.startswith("/v1/engines"):
@@ -424,22 +429,12 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         if method == "GET":
             return frozenset({ApiKeyPermission.ENGINES_READ.value})
         return frozenset({ApiKeyPermission.ENGINES_REGISTER.value})
-    if path == "/v1/validate":
-        return frozenset({ApiKeyPermission.INSTANCES_VALIDATE.value})
-    if path.startswith("/v1/instances"):
-        return frozenset(
-            {ApiKeyPermission.INSTANCES_READ.value}
-            if method == "GET"
-            else {ApiKeyPermission.INSTANCES_WRITE.value}
-        )
     if path.startswith("/v1/jobs"):
         return frozenset(
             {ApiKeyPermission.JOBS_READ.value}
             if method == "GET"
             else {ApiKeyPermission.ENGINES_EXECUTE.value}
         )
-    if path.startswith("/v1/snapshots"):
-        return frozenset({ApiKeyPermission.INSTANCES_READ.value})
     if not (path == "/v1" or path.startswith("/v1/")):
         return frozenset()
     if path.startswith(OPEN_V1_PREFIXES) or (method == "GET" and _is_open_v1_read(path)):

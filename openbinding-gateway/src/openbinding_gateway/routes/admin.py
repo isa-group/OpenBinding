@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -113,10 +113,6 @@ def _aware(value):
 async def _maintenance_preview(session: AsyncSession, retention_days: int) -> dict:
     now = utcnow()
     cutoff = now - timedelta(days=retention_days)
-    from ..db.models import ArtifactVersion
-    expired_artifacts = int(await session.scalar(
-        select(func.count(Blob.id)).where(Blob.expires_at.is_not(None), Blob.expires_at <= now, ~Blob.id.in_(select(ArtifactVersion.blob_id)))
-    ) or 0)
     expired_keys = int(await session.scalar(
         select(func.count(ApiKey.id)).where(
             ApiKey.expires_at.is_not(None), ApiKey.expires_at <= now, ApiKey.revoked_at.is_(None)
@@ -142,7 +138,6 @@ async def _maintenance_preview(session: AsyncSession, retention_days: int) -> di
         if now >= deadline:
             abandoned += 1
     return {
-        "expiredArtifacts": expired_artifacts,
         "expiredApiKeys": expired_keys,
         "terminalJobs": terminal_jobs,
         "abandonedJobs": abandoned,
@@ -661,8 +656,8 @@ async def platform_overview(
         "organizations": Organization,
         "memberships": OrganizationMembership,
         "projects": Project,
-        "cases": BindingCase,
-        "caseRevisions": BindingCaseRevision,
+        "problems": BindingCase,
+        "problemRevisions": BindingCaseRevision,
         "projectResources": ProjectResource,
         "projectResourceRevisions": ProjectResourceRevision,
         "studies": Study,
@@ -864,21 +859,6 @@ async def purge_expired_data(
 ) -> dict:
     preview = await _maintenance_preview(session, request.terminal_job_retention_days)
     now = utcnow()
-    from ..db.models import ArtifactVersion
-    expired = (await session.execute(select(Blob).where(
-        Blob.expires_at.is_not(None), Blob.expires_at <= now, ~Blob.id.in_(select(ArtifactVersion.blob_id))
-    ))).scalars().all()
-    root = Path(settings.artifact_root).resolve()
-    removed_files = 0
-    for artifact in expired:
-        path = Path(artifact.storage_uri).resolve()
-        await session.delete(artifact)
-        await session.flush()
-        retained = await session.scalar(select(Blob.id).where(Blob.storage_uri == artifact.storage_uri).limit(1))
-        if not retained and path.is_relative_to(root) and path.is_file():
-            path.unlink()
-            removed_files += 1
-
     await session.execute(
         ApiKey.__table__.update()
         .where(ApiKey.expires_at.is_not(None), ApiKey.expires_at <= now, ApiKey.revoked_at.is_(None))
@@ -900,11 +880,9 @@ async def purge_expired_data(
         actor_id=administrator.id,
         action="maintenance.expired.purged",
         target_type="Platform",
-        detail={**preview, "artifactFilesRemoved": removed_files},
+        detail=preview,
     ))
     res = {
-        "artifacts": len(expired),
-        "artifactFiles": removed_files,
         "apiKeys": preview["expiredApiKeys"],
         "jobs": deleted_jobs.rowcount or 0,
     }

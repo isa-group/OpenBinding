@@ -1,5 +1,5 @@
 import type { Organization, OrganizationRole, ProjectAccessKind, StudyCell, StudyRun, Visibility } from '../../api/platform';
-import type { CaseContent, StudyContent } from '../../features/workspace/model';
+import type { StudyContent } from '../../features/workspace/model';
 import { canWrite, levelOf, type AccessLevel } from './accessLevel';
 
 export { atLeast } from '../Organization/orgModel';
@@ -85,11 +85,9 @@ export function cellBreakdown(cells: readonly StudyCell[]): Array<{ id: 'complet
  * Sealed items carry a fingerprint and never change: case revisions and study runs. Studies themselves are definitions,
  * so they are not counted here.
  */
-export function integrityOf(input: { cases?: CaseContent[]; studies?: StudyContent[] }): IntegrityItem[] {
-  const revisions = (input.cases ?? []).reduce((total, entry) => total + entry.revisions.length, 0);
+export function integrityOf(input: { studies?: StudyContent[] }): IntegrityItem[] {
   const runs = (input.studies ?? []).reduce((total, entry) => total + entry.runs.length, 0);
   const items: IntegrityItem[] = [
-    { id: 'revisions', kind: 'sealed', count: revisions, singular: 'problem version', plural: 'problem versions' },
     { id: 'runs', kind: 'sealed', count: runs, singular: 'study run', plural: 'study runs' },
   ];
   return items.filter((item) => item.count > 0);
@@ -106,16 +104,3 @@ export function countWord(item: Pick<IntegrityItem, 'count' | 'singular' | 'plur
   return item.count === 1 ? item.singular : item.plural;
 }
 
-// --- the import ceiling
-
-/** The gateway refuses a package bigger than this whatever the plan says (`import_project_package`). */
-export const GATEWAY_PACKAGE_LIMIT = 128 * 1024 * 1024;
-
-export interface ImportCeiling {
-  /** What the gateway accepts: its own 128 MiB, whatever the plan (no plan limits a package). */
-  effective: number;
-}
-
-export function importCeiling(): ImportCeiling {
-  return { effective: GATEWAY_PACKAGE_LIMIT };
-}

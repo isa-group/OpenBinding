@@ -1,7 +1,8 @@
 """Module skeleton: the ``app``, ``shared`` and ``modules`` packages and their import contracts.
 
 ``app`` and ``shared`` are still empty; ``modules`` holds the modules of ARCHITECTURE §4.2 as they arrive
-(``plans`` first, F0b), and the legacy layers reach a module through its ``application`` package only.
+(``plans`` first, then ``problems`` and ``shared``, F0b), and the legacy layers reach a module through its
+``application`` package only; ``main.py``, the composition root, also mounts the routers of its ``adapters``.
 
 import-linter lives in the ``lint`` dependency group only, so the static tests read the configuration files;
 the teeth test runs ``lint-imports`` on a copy of the source with one planted violation per contract.
@@ -136,9 +137,25 @@ def _through_application(entry: str) -> bool:
     return parts[:2] == [PACKAGE, "modules"] and len(parts) >= 4 and parts[3] == "application"
 
 
+def _composition_root_mounts_adapters(entry: str) -> bool:
+    """``main.py`` is the composition root: it mounts the HTTP adapters (routers) of the modules."""
+    path, module = entry.split(": ", 1)
+    parts = module.split(".")
+    return path == "main.py" and parts[:2] == [PACKAGE, "modules"] and len(parts) >= 4 and parts[3] == "adapters"
+
+
 def test_nothing_outside_the_new_packages_imports_them_but_a_modules_application() -> None:
-    offenders = [entry for entry in _offenders(SOURCE) if not _through_application(entry)]
+    offenders = [
+        entry for entry in _offenders(SOURCE)
+        if not _through_application(entry) and not _composition_root_mounts_adapters(entry)
+    ]
     assert not offenders, offenders
+
+
+def test_the_composition_root_mounts_only_adapters_of_known_modules() -> None:
+    mounted = [entry for entry in _offenders(SOURCE) if _composition_root_mounts_adapters(entry)]
+    assert mounted, "main.py mounts the routers of modules/problems"
+    assert all(entry.split(": ", 1)[1].split(".")[2] == "problems" for entry in mounted), mounted
 
 
 def test_import_resolver_finds_every_import_form(tmp_path: Path) -> None:

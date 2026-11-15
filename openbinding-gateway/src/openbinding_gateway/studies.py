@@ -121,7 +121,7 @@ async def seal_study_definition(session, project, user, name, definition, *, cur
             if case is None:
                 from .models.errors import api_error
                 raise api_error(422, 'missing_case_revision', 'The study case revision is unavailable.')
-            cases.append({'caseRevisionId': str(case.id), 'compositionDigest': case.digest})
+            cases.append({'caseRevisionId': str(case.id), 'compositionDigest': case.package_digest})
         engines = []
         for engine in definition.engines:
             _, mode, _ = await engine_mode(engine['name'], engine.get('mode'), definition.parameter_sets[0], session, caller=user,

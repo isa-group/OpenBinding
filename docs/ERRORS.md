@@ -31,7 +31,7 @@ extended with a stable `code` and a list of `diagnostics`. OpenAPI names it
 | Field | Type | Meaning |
 |---|---|---|
 | `type` | string | `https://openbinding.dev/problems/<code>` |
-| `title` | string | **Same value as `code`.** `/v1/validate` and the other BIM routes always did this and clients read `title` as the code; it is kept. |
+| `title` | string | **Same value as `code`.** `/v1/bim/validate` and the other BIM routes always did this and clients read `title` as the code; it is kept. |
 | `status` | integer | the HTTP status (`422`) |
 | `code` | string | stable, machine-readable. `validation_error` when the request itself is malformed (types, required fields, ranges, JSON syntax); a specific code (`weak_password`, `invalid_instance`, `checksum_mismatch`, …) when a route refuses a value it understood. |
 | `detail` | string | one-line, human-readable summary. For request validation: `Request validation failed: <pointer or parameter>: <message>` plus `(+N more)`. |
@@ -129,20 +129,35 @@ Routes keep raising `api_error(422, code, message)`; they need not know the shap
 
 ### Media type
 
-BIM routes (`/v1/validate`, `/v1/instances`, `/v1/jobs`, `/v1/engines`,
-`/v1/profiles`, … — the prefixes in `_BIM_PATH_PREFIXES`) answer
+BIM routes (`/v1/bim/…`, `/v1/jobs`, `/v1/engines`,
+`/v1/engine-registrations` — the prefixes in `_BIM_PATH_PREFIXES`) answer
 `application/problem+json`, as they always did. The platform routes
-(accounts, organizations, projects, studies, artifacts, pricing, …)
+(accounts, organizations and their problems, projects, studies, artifacts, pricing, …)
 keep `application/json`. The body is identical; only the media type differs, and
 the OpenAPI document declares the right one per path. Nothing was changed here
 on purpose: switching the platform routes would be harmless to a JSON client but
 is not needed.
 
+## Problems
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `unsupported_media_type` | 415 | an upload (`POST …/problems`, `POST …/problems/{problem}/revisions`, `POST /v1/bim/validate`) whose body is not `application/vnd.bim+zip` (or `application/zip`) |
+| `payload_too_large` | 413 | the package is larger than the toolchain's compressed limit or the plan's upload limit |
+| `invalid_request` | 422 | the body is not a readable `.bim.zip` package |
+| `invalid_instance` | 422 | the compiler refuses the package; `diagnostics` locate the refusal |
+| `slug_conflict` | 409 | the problem slug is in use in the organization |
+| `problem_has_runs` | 409 | `DELETE …/problems/{problem}`: a run, a study cell or a sealed study names one of its revisions, which are kept as their evidence |
+| `revision_not_recompilable` | 422 | the installed toolchain refuses a stored revision (or reads it as another package); `reason` carries the refusal |
+| `content_unavailable` | 409 | the stored package of a revision cannot be read |
+| `revision_required` | 422 | `POST /v1/jobs` without `revision` |
+| `contract_not_installed` | 422 | a retry of a run whose compilation needs a contract the installed toolchain does not have |
+
 ## Accounts and plans
 
 | `code` | Status | Meaning |
 |---|---|---|
-| `quota_exceeded` | 402 | a per-account limit of the plan would be passed: `maxApiKeys`, `maxFederatedEngines`, `maxRepositoryStorage` (and `maxProblems` from the problems API on). `quota` names `limit_id`, `limit` and `used` |
+| `quota_exceeded` | 402 | a per-account limit of the plan would be passed: `maxApiKeys`, `maxFederatedEngines`, `maxProblems`, `maxRepositoryStorage`. `quota` names `limit_id`, `limit` and `used` |
 | `username_unavailable` | 409 | registration or a first CAS sign-in asked for a reserved username: one that names engines or engine registrations already (engine namespaces are usernames baked into immutable manifests, and they outlive a deleted account), or one starting with `deleted-`, the pseudonyms of deleted accounts |
 | `last_owner` | 409 | `DELETE /v1/users/me`: the account is the last OWNER of an organization |
 
@@ -155,7 +170,7 @@ These operations take an optional `If-Match` header:
 
 - `PATCH /v1/organizations/{org}`
 - `PATCH …/projects/{project}`
-- `PATCH …/cases/{case}`
+- `PATCH …/problems/{problem}`
 - `PATCH …/studies/{study}`
 - `PATCH /v1/users/me`
 - `PUT /v1/notifications/preferences`

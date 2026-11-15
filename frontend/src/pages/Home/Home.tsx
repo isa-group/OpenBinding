@@ -19,7 +19,6 @@ function Eyebrow({ children }: { children: string }) {
 
 interface RuntimeCounts {
   profiles: number;
-  dialects: number;
   engines: number;
 }
 
@@ -28,13 +27,12 @@ export function Home() {
   const signedIn = Boolean(user);
   const [sessionEnded, setSessionEnded] = useState(false);
   const runtime = useResource<RuntimeCounts>(`runtime:${signedIn}`, async () => {
-    const [profiles, dialects, engines] = await Promise.all([
-      apiClient.getProfiles(),
-      apiClient.getDialects(),
+    const [profiles, engines] = await Promise.all([
+      apiClient.getProtocolProfiles(),
       // The full catalogue is for accounts; visitors get the public one.
       signedIn ? apiClient.getEngines() : apiClient.getPublicEngines(),
     ]);
-    return { profiles: profiles.length, dialects: dialects.length, engines: engines.length };
+    return { profiles: profiles.length, engines: engines.length };
   });
 
   useEffect(() => {
@@ -111,7 +109,6 @@ function Hero({ signedIn, name, plan, runtime }: { signedIn: boolean; name: stri
             <>
               <span className="is-live"><i className="status-dot" aria-hidden="true" /> Runtime catalogue connected</span>
               <span>{counts.profiles} executable profile{counts.profiles === 1 ? '' : 's'}</span>
-              <span>{counts.dialects} installed dialect{counts.dialects === 1 ? '' : 's'}</span>
               <span>{counts.engines} {signedIn ? '' : 'public '}engine revision{counts.engines === 1 ? '' : 's'}</span>
             </>
           ) : runtime.status === 'error' ? (

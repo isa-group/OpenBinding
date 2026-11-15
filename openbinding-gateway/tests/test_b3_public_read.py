@@ -16,7 +16,6 @@ from fastapi.routing import APIRoute
 from sqlalchemy import func, select
 
 from _b1_helpers import (  # noqa: F401
-    add_case_revision,
     add_version,
     gate,
     make_account,
@@ -25,6 +24,7 @@ from _b1_helpers import (  # noqa: F401
     put_member,
     random_digest,
 )
+from _problem_helpers import upload_problem
 from _repo import REPO_ROOT
 import _m96_seed as seed
 from openbinding_gateway.access import public_read
@@ -38,14 +38,14 @@ from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import (
     Artifact,
     ArtifactPublication,
-    BindingCase,
-    Blob,
     Job,
     Project,
     ProjectArtifact,
     Visibility,
 )
 from openbinding_gateway.main import app
+from openbinding_gateway.routes import v1 as v1_routes
+from openbinding_gateway.services.engines import engine_ref
 
 
 def project_routes() -> list[tuple[str, str]]:
@@ -117,23 +117,12 @@ async def ctx(api_client, registration, db_session, gate):  # noqa: F811
         write_key=await make_key(api_client, carol_h, read_perms + write_perms),
     )
 
-    # Content of the public project.
-    revision = await add_case_revision(db_session, c, digest=random_digest())
-    case = await db_session.get(BindingCase, revision.binding_case_id)
-    c.case, c.revision_digest = case.slug, revision.digest
+    # Content of the public project. (Problems belong to the organization and are members-only.)
     # Project resources are read-only since M9.6: the resource is seeded as its former write routes stored it.
     await seed.project_resource(
         db_session, c.project_id, c.user_id, slug="providers", name="Providers", kind="qos-offerings",
         documents=[{"apiVersion": "openbinding.dev/qos-binding/v1", "providers": ["alpha"]}],
     )
-    octets = {"Content-Type": "application/octet-stream"}
-    c.public_blob = (await api_client.post(
-        f"{c.url}/blobs?public=true", headers={**owner_h, **octets}, content=b"public bytes"
-    )).json()["digest"]
-    c.private_blob = (await api_client.post(
-        f"{c.url}/blobs", headers={**owner_h, **octets}, content=b"private bytes"
-    )).json()["digest"]
-
     # Two sealed library versions of the project, one published, sealed by the internal artifact service.
     artifacts = []
     for name in ("published-dataset", "hidden-dataset"):
@@ -159,7 +148,7 @@ VISITORS = ("anonymous", "outsider", "api_key")
 
 def test_the_route_table_has_the_project_surface():
     methods = {method for method, _ in ROUTES}
-    assert len(ROUTES) >= 30
+    assert len(ROUTES) >= 18
     # M9.6 removed the project library association, the only PUT under a project.
     assert {"GET", "POST", "PATCH", "DELETE"} <= methods
 
@@ -207,7 +196,7 @@ async def test_every_route_follows_the_matrix_for_non_members(ctx, who):
 async def test_denied_reads_look_exactly_like_a_private_project(ctx):
     c = ctx
     for who, status in (("outsider", 403), ("api_key", 403), ("anonymous", 401)):
-        for suffix in ("/jobs", "/package"):
+        for suffix in ("/jobs",):
             public = await get(c, who, f"{c.url}{suffix}")
             private = await get(c, who, f"{c.closed_url}{suffix}")
             ghost = await get(c, who, f"/v1/organizations/{c.slug}/projects/ghost{suffix}")
@@ -283,11 +272,11 @@ async def test_a_private_project_is_unchanged_for_non_members(ctx):
 
 async def test_flipping_the_visibility_takes_effect_at_once(ctx):
     c = ctx
-    assert (await get(c, "outsider", f"{c.url}/cases")).status_code == 200
+    assert (await get(c, "outsider", f"{c.url}/studies")).status_code == 200
     made_private = await c.client.patch(c.url, headers=c.callers["owner"], json={"visibility": "private"})
     assert made_private.status_code == 200
     assert made_private.json()["access"] == "member" and made_private.json()["effective_role"] == "OWNER"
-    assert (await get(c, "outsider", f"{c.url}/cases")).status_code == 403
+    assert (await get(c, "outsider", f"{c.url}/studies")).status_code == 403
     assert (await get(c, "anonymous", c.url)).status_code == 401
     await c.client.patch(c.url, headers=c.callers["owner"], json={"visibility": "public"})
     assert (await get(c, "outsider", c.url)).json()["access"] == "public_read"
@@ -299,41 +288,23 @@ async def test_flipping_the_visibility_takes_effect_at_once(ctx):
 async def test_the_allowed_reads_return_the_project_data(ctx):
     c = ctx
     for who in VISITORS:
-        cases = await get(c, who, f"{c.url}/cases")
-        case = await get(c, who, f"{c.url}/cases/{c.case}")
-        revisions = await get(c, who, f"{c.url}/cases/{c.case}/revisions")
-        revision = await get(c, who, f"{c.url}/cases/{c.case}/revisions/1")
         resources = await get(c, who, f"{c.url}/resources")
         resource_revisions = await get(c, who, f"{c.url}/resources/providers/revisions")
         studies = await get(c, who, f"{c.url}/studies")
         missing_run = await get(c, who, f"{c.url}/studies/nope/runs")
 
-        for response in (cases, case, revisions, revision, resources, resource_revisions, studies):
+        for response in (resources, resource_revisions, studies):
             assert response.status_code == 200, (who, str(response.url), response.text)
-        assert [item["slug"] for item in cases.json()] == [c.case]
-        assert revisions.json()[0]["digest"] == c.revision_digest
-        assert revision.json()["digest"] == c.revision_digest
         assert "providers" in {item["slug"] for item in resources.json()}
         assert resource_revisions.json()[0]["document"]["providers"] == ["alpha"]
         assert studies.json() == []
         assert missing_run.status_code == 404 and missing_run.json()["detail"]["code"] == "not_found"
 
 
-async def test_files_are_listed_and_downloaded_only_when_public(ctx):
+async def test_the_organizations_problems_are_not_public(ctx):
     c = ctx
-    for who in VISITORS:
-        listed = await get(c, who, f"{c.url}/blobs")
-        assert [item["digest"] for item in listed.json()] == [c.public_blob], who
-        assert listed.json()[0]["public"] is True
-        download = await get(c, who, f"{c.url}/blobs/{c.public_blob}")
-        assert download.status_code == 200 and download.content == b"public bytes"
-        private = await get(c, who, f"{c.url}/blobs/{c.private_blob}")
-        absent = await get(c, who, f"{c.url}/blobs/sha256-{'f' * 64}")
-        assert private.status_code == absent.status_code == 404
-        assert private.json() == absent.json()
-    owner_view = {item["digest"] for item in (await get(c, "owner", f"{c.url}/blobs")).json()}
-    assert owner_view == {c.public_blob, c.private_blob}
-    assert (await get(c, "viewer", f"{c.url}/blobs/{c.private_blob}")).content == b"private bytes"
+    for who, status in (("outsider", 403), ("api_key", 403), ("anonymous", 401)):
+        assert (await get(c, who, f"/v1/organizations/{c.slug}/problems")).status_code == status, who
 
 
 async def test_the_library_shows_only_published_artifacts_to_visitors(ctx):
@@ -379,7 +350,7 @@ async def test_a_foreign_artifact_that_is_not_published_does_not_show_through(ct
 async def counts(c) -> dict[str, int]:
     c.db.expire_all()
     result = {}
-    for model in (BindingCase, Blob, Artifact, ProjectArtifact, Project):
+    for model in (Artifact, ProjectArtifact, Project):
         result[model.__name__] = int(await c.db.scalar(select(func.count()).select_from(model)))
     return result
 
@@ -387,15 +358,10 @@ async def counts(c) -> dict[str, int]:
 # method, path suffix, JSON body (None: a raw body), exact refusal wanted (False: any non-success)
 WRITES = [
     # The resource writes are removed since M9.6.
-    ("POST", "/cases", {"slug": "intruder", "name": "Intruder"}, True),
     ("PATCH", "", {"name": "Hijacked", "visibility": "private"}, True),
-    ("PATCH", "/cases/{case}", {"name": "Hijacked"}, True),
     ("DELETE", "", None, True),
-    ("DELETE", "/cases/{case}", None, True),
-    ("DELETE", "/blobs/{public_blob}", None, True),
     ("POST", "/studies/nothing/runs", None, True),
-    ("POST", "/blobs", None, False),
-    ("POST", "/package", None, False),
+    ("POST", "/studies", {"slug": "intruder", "name": "Intruder"}, False),
 ]
 
 
@@ -405,7 +371,7 @@ async def test_no_write_works_for_a_visitor(ctx, who):
     headers = c.write_key if who == "api_key" else c.callers[who]
     before = await counts(c)
     for method, suffix, body, exact in WRITES:
-        url = c.url + suffix.format(case=c.case, public_blob=c.public_blob)
+        url = c.url + suffix
         kwargs = {"json": body} if body is not None else {"content": b"x"}
 
         response = await c.client.request(method, url, headers=headers, **kwargs)
@@ -424,10 +390,19 @@ async def test_no_write_works_for_a_visitor(ctx, who):
 
 async def test_a_viewer_still_cannot_write_and_a_member_still_can(ctx):
     c = ctx
-    viewer = await c.client.post(f"{c.url}/cases", headers=c.callers["viewer"], json={"slug": "v", "name": "V"})
-    member = await c.client.post(f"{c.url}/cases", headers=c.callers["member"], json={"slug": "m", "name": "M"})
+    revision_id = (await upload_problem(c.client, c.callers["owner"], c.slug))["revision_id"]
+    engine = {**engine_ref(v1_routes._manifest("random-search"), "bim.builtin"), "mode": "seeded",
+              "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"}}
+
+    def study(slug: str) -> dict:
+        return {"slug": slug, "name": slug.upper(), "definition": {
+            "case_revision_ids": [revision_id], "engines": [engine], "parameter_sets": [{}], "seeds": [1],
+        }}
+
+    viewer = await c.client.post(f"{c.url}/studies", headers=c.callers["viewer"], json=study("v"))
+    member = await c.client.post(f"{c.url}/studies", headers=c.callers["member"], json=study("m"))
     assert viewer.status_code == 403 and viewer.json()["detail"]["code"] == "organization_forbidden"
-    assert member.status_code == 201
+    assert member.status_code == 201, member.text
 
 
 async def test_members_only_endpoints_stay_closed_around_a_public_project(ctx):
@@ -437,7 +412,7 @@ async def test_members_only_endpoints_stay_closed_around_a_public_project(ctx):
         f"/v1/organizations/{c.slug}/audit",
         f"/v1/organizations/{c.slug}/library",
         f"{c.url}/jobs",
-        f"{c.url}/package",
+        f"/v1/organizations/{c.slug}/problems",
     ]
     for url in closed_for_visitors:
         outsider = await get(c, "outsider", url)
@@ -448,7 +423,7 @@ async def test_members_only_endpoints_stay_closed_around_a_public_project(ctx):
 
 async def test_a_bad_credential_is_still_a_401_on_a_public_read(ctx):
     c = ctx
-    response = await c.client.get(f"{c.url}/cases", headers={"Authorization": "Bearer not-a-token"})
+    response = await c.client.get(f"{c.url}/studies", headers={"Authorization": "Bearer not-a-token"})
     assert response.status_code == 401
 
 
@@ -460,10 +435,10 @@ async def test_reads_are_limited_per_caller_and_start_no_job(ctx, monkeypatch):
     monkeypatch.setattr(get_settings(), "public_read_rate_per_minute", 3)
     jobs = int(await c.db.scalar(select(func.count()).select_from(Job)))
 
-    first = [await get(c, "outsider", f"{c.url}/cases") for _ in range(3)]
-    limited = await get(c, "outsider", f"{c.url}/cases")
-    same_account = await get(c, "api_key", f"{c.url}/cases")  # a key is the same caller as its account
-    anonymous = await get(c, "anonymous", f"{c.url}/cases")  # counted by address, separately
+    first = [await get(c, "outsider", f"{c.url}/studies") for _ in range(3)]
+    limited = await get(c, "outsider", f"{c.url}/studies")
+    same_account = await get(c, "api_key", f"{c.url}/studies")  # a key is the same caller as its account
+    anonymous = await get(c, "anonymous", f"{c.url}/studies")  # counted by address, separately
 
     assert [response.status_code for response in first] == [200, 200, 200]
     assert limited.status_code == 429
@@ -473,8 +448,8 @@ async def test_reads_are_limited_per_caller_and_start_no_job(ctx, monkeypatch):
     assert anonymous.status_code == 200
     # Members read freely: the limit is for visitors of other people's projects.
     for _ in range(8):
-        assert (await get(c, "viewer", f"{c.url}/cases")).status_code == 200
-        assert (await get(c, "owner", f"{c.url}/cases")).status_code == 200
+        assert (await get(c, "viewer", f"{c.url}/studies")).status_code == 200
+        assert (await get(c, "owner", f"{c.url}/studies")).status_code == 200
     # Nothing was queued by the reads.
     assert int(await c.db.scalar(select(func.count()).select_from(Job))) == jobs
 
@@ -483,7 +458,7 @@ async def test_the_limit_can_be_switched_off(ctx, monkeypatch):
     c = ctx
     monkeypatch.setattr(get_settings(), "public_read_rate_per_minute", 0)
     for _ in range(30):
-        assert (await get(c, "outsider", f"{c.url}/cases")).status_code == 200
+        assert (await get(c, "outsider", f"{c.url}/studies")).status_code == 200
 
 
 async def test_a_refused_read_does_not_spend_the_visitors_allowance(ctx, monkeypatch):
@@ -491,10 +466,10 @@ async def test_a_refused_read_does_not_spend_the_visitors_allowance(ctx, monkeyp
     monkeypatch.setattr(get_settings(), "public_read_rate_per_minute", 2)
     for _ in range(5):  # denied routes and private projects are not public reads
         assert (await get(c, "outsider", f"{c.url}/jobs")).status_code == 403
-        assert (await get(c, "outsider", f"{c.closed_url}/cases")).status_code == 403
-    assert (await get(c, "outsider", f"{c.url}/cases")).status_code == 200
-    assert (await get(c, "outsider", f"{c.url}/cases")).status_code == 200
-    assert (await get(c, "outsider", f"{c.url}/cases")).status_code == 429
+        assert (await get(c, "outsider", f"{c.closed_url}/studies")).status_code == 403
+    assert (await get(c, "outsider", f"{c.url}/studies")).status_code == 200
+    assert (await get(c, "outsider", f"{c.url}/studies")).status_code == 200
+    assert (await get(c, "outsider", f"{c.url}/studies")).status_code == 429
 
 
 # --- the contract -----------------------------------------------------------------------

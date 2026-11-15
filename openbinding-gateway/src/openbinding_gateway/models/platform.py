@@ -6,7 +6,7 @@ import json
 import re
 import uuid
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Mapping, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
@@ -16,7 +16,6 @@ from ..security.redaction import (
     redact_provenance,
     redact_result,
 )
-from .artifacts import ArtifactUse
 
 SLUG = r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$"
 DIGEST = r"^sha256-[0-9a-f]{64}$"
@@ -133,43 +132,6 @@ class ProjectView(ProjectCreate):
             "or `public_read` (a non-member reading a public project; GET only, never a role)."
         ),
     )
-
-
-class BindingCaseCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    slug: str = Field(..., pattern=SLUG)
-    name: str = Field(..., min_length=1, max_length=160)
-    description: str = Field(default="", max_length=2000)
-
-
-class BindingCaseUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    name: Optional[str] = Field(default=None, min_length=1, max_length=160)
-    description: Optional[str] = Field(default=None, max_length=2000)
-
-
-class BindingCaseView(BindingCaseCreate):
-    id: uuid.UUID
-    project_id: uuid.UUID
-    created_by_id: uuid.UUID
-    created_at: datetime
-
-
-class CaseRevisionCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    document: dict[str, Any]
-    source_snapshot_id: Optional[uuid.UUID] = None
-    resources: list[ArtifactUse] = Field(default_factory=list)
-
-
-class CaseRevisionView(BaseModel):
-    id: uuid.UUID
-    binding_case_id: uuid.UUID
-    revision: int
-    digest: str
-    document: dict[str, Any]
-    source_snapshot_id: Optional[uuid.UUID]
-    created_at: datetime
 
 
 class ProjectResourceView(BaseModel):
@@ -307,17 +269,6 @@ class StudyCellView(BaseModel):
     metrics: dict[str, Any]
 
 
-class BlobView(BaseModel):
-    id: uuid.UUID
-    organization_id: uuid.UUID
-    project_id: uuid.UUID
-    digest: str
-    media_type: str
-    size_bytes: int
-    public: bool
-    created_at: datetime
-
-
 class NotificationView(BaseModel):
     id: uuid.UUID
     kind: str
@@ -328,14 +279,41 @@ class NotificationView(BaseModel):
     created_at: datetime
 
 
+class JobOrganizationRef(BaseModel):
+    id: uuid.UUID
+    slug: str
+
+
+class JobProblemRef(BaseModel):
+    id: uuid.UUID
+    slug: str
+    name: str
+
+
+class JobRevisionRef(BaseModel):
+    id: uuid.UUID
+    revision: int
+
+
+class JobCompilationRef(BaseModel):
+    id: uuid.UUID
+    compilation_digest: str
+    ir_digest: str
+
+
 class JobView(BaseModel):
     id: uuid.UUID
     engine_id: str
     status: str
     cancellation_requested: bool
     retry_of_id: Optional[uuid.UUID]
-    organization_id: Optional[uuid.UUID]
+    organization_id: uuid.UUID
     project_id: Optional[uuid.UUID]
+    #: What the run is of: the organization, problem, revision and compilation it names.
+    organization: Optional[JobOrganizationRef] = None
+    problem: Optional[JobProblemRef] = None
+    revision: Optional[JobRevisionRef] = None
+    compilation: Optional[JobCompilationRef] = None
     created_at: datetime
     finished_at: Optional[datetime]
     result: Optional[dict[str, Any]] = None
@@ -346,16 +324,18 @@ class JobView(BaseModel):
 
 
 def job_view(
-    job: Any, viewer: Any, *, include_results: bool = True, redact: bool = False
+    job: Any, viewer: Any, *, include_results: bool = True, redact: bool = False,
+    refs: Optional[Mapping[str, Any]] = None,
 ) -> JobView:
     """A ``JobView`` of an ORM job as ``viewer`` may see it.
 
     Provenance is copied, never edited in place. ``redact`` is for readers who
     may follow a project's work but not its inputs (a VIEWER): options are cut
-    to the non-sensitive allow-list, ``original_request`` to the problem
-    document and pinned choices, and the options echoed in the provenance and
-    the result likewise (``security/redaction.py``). The stored row is never
-    touched.
+    to the non-sensitive allow-list, ``original_request`` to the pinned
+    choices, and the options echoed in the provenance and the result likewise
+    (``security/redaction.py``). The stored row is never touched. ``refs`` are
+    the run's organization, problem, revision and compilation
+    (``repositories.jobs.refs_for``).
     """
     provenance = dict(job.provenance) if include_results and job.provenance is not None else None
     result = job.result if include_results else None
@@ -375,6 +355,7 @@ def job_view(
         options=options,
         original_request=original_request,
         provenance=provenance,
+        **(dict(refs) if refs else {}),
     )
 
 

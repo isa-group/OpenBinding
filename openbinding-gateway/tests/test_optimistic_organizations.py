@@ -1,4 +1,4 @@
-"""ETag / If-Match / 412 on updateOrganization, updateProject and updateBindingCase."""
+"""ETag / If-Match / 412 on updateOrganization, updateProject and updateProblem."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import pytest_asyncio
 from sqlalchemy import delete, func, select, update
 
 from openbinding_gateway import space_client
+from _problem_helpers import upload_problem
 from openbinding_gateway.core import revision
 from openbinding_gateway.db.models import AuditEvent, BindingCase, Organization, Project, utcnow
 from _pricing import fake_pricing_gate, largest_plan
@@ -20,7 +21,7 @@ LARGER_PLAN = largest_plan()
 
 @pytest_asyncio.fixture
 async def resources(api_client, registration):
-    """An organization, a project and a case owned by one account, with that account's headers.
+    """An organization, a project and a problem owned by one account, with that account's headers.
 
     Also a viewer, an admin (neither is the owner) and an outsider with no membership.
     """
@@ -45,10 +46,7 @@ async def resources(api_client, registration):
         f"/v1/organizations/{slug}/projects", headers=headers, json={"slug": "routing", "name": "Routing"}
     )
     assert project.status_code == 201, project.text
-    case = await api_client.post(
-        f"/v1/organizations/{slug}/projects/routing/cases", headers=headers, json={"slug": "base", "name": "Base"}
-    )
-    assert case.status_code == 201, case.text
+    case = (await upload_problem(api_client, headers, slug, slug="base"))["problem"]
     yield {
         "headers": headers,
         "gate": gate,
@@ -65,7 +63,7 @@ async def resources(api_client, registration):
             "change": {"description": "Edited"},
         },
         "case": {
-            "url": f"{base}/projects/routing/cases/base", "model": BindingCase, "id": case.json()["id"],
+            "url": f"{base}/problems/base", "model": BindingCase, "id": case["id"],
             "change": {"description": "Edited"},
         },
     }
@@ -396,7 +394,7 @@ def test_openapi_documents_if_match_and_both_failures() -> None:
     for path, operation in [
         ("/v1/organizations/{org}", "updateOrganization"),
         ("/v1/organizations/{org}/projects/{project}", "updateProject"),
-        ("/v1/organizations/{org}/projects/{project}/cases/{case}", "updateBindingCase"),
+        ("/v1/organizations/{org}/problems/{problem}", "updateProblem"),
     ]:
         patch = paths[path]["patch"]
         assert patch["operationId"] == operation
@@ -415,7 +413,7 @@ def test_openapi_declares_the_etag_of_the_reads() -> None:
     for path in [
         "/v1/organizations/{org}",
         "/v1/organizations/{org}/projects/{project}",
-        "/v1/organizations/{org}/projects/{project}/cases/{case}",
+        "/v1/organizations/{org}/problems/{problem}",
     ]:
         ok = paths[path]["get"]["responses"]["200"]
         assert "ETag" in ok["headers"]

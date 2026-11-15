@@ -1,19 +1,22 @@
 import { useMemo } from 'react';
 import { useResource } from '../../utils/useResource';
-import { loadCases } from '../Project/projectData';
+import { loadProblems } from '../Cases/problemsData';
 import type { CaseContent } from '../../features/workspace/model';
 import { revisionIndex, type RevisionInfo } from './studiesModel';
 
 export interface RevisionDirectory {
   cases: CaseContent[];
   index: Map<string, RevisionInfo>;
-  /** The cases have been read (or could not be): the labels are as good as they will get. */
+  /** The problems have been read (or could not be): the labels are as good as they will get. */
   settled: boolean;
 }
 
-/** The case revisions of the project by id, to name the rows of a matrix. A project whose cases can't be read still draws: its rows read by id. */
-export function useRevisionIndex(org: string, project: string): RevisionDirectory {
-  const resource = useResource<CaseContent[]>(`study-cases:${org}/${project}`, () => loadCases(org, project).catch(() => []));
+/**
+ * The problem versions of the organization by id, to name the rows of a matrix. An organization whose problems can't be read still draws:
+ * its rows read by id.
+ */
+export function useRevisionIndex(org: string): RevisionDirectory {
+  const resource = useResource<CaseContent[]>(`study-problems:${org}`, () => loadProblems(org).catch(() => []));
   const { data, stale } = resource;
   const cases = useMemo(() => data ?? stale ?? [], [data, stale]);
   const index = useMemo(() => revisionIndex(cases), [cases]);

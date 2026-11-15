@@ -10,12 +10,14 @@ import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
   project: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), studyCell: vi.fn(), retryStudyCell: vi.fn(),
-  attachStudyCellResult: vi.fn(), projectJobs: vi.fn(), cases: vi.fn(), revisions: vi.fn(),
+  attachStudyCellResult: vi.fn(), projectJobs: vi.fn(),
 }));
 const jobs = vi.hoisted(() => ({ jobsApi: { mine: vi.fn() } }));
 const library = vi.hoisted(() => ({ libraryApi: { versions: vi.fn().mockResolvedValue([]) } }));
 
+const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../api/library', () => library);
 vi.mock('../../api/jobs', () => jobs);
 
@@ -48,8 +50,8 @@ describe('One cell of a run, inside the Results tab', () => {
       const found = cells.find((item) => item.id === cell);
       return found ? Promise.resolve(found) : Promise.reject(refusal(404, 'not_found'));
     });
-    platform.cases.mockResolvedValue([CHECKOUT]);
-    platform.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
+    problems.list.mockResolvedValue({ problems: [CHECKOUT], total: 1, limit: 200, offset: 0 });
+    problems.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
     platform.projectJobs.mockResolvedValue([]);
     jobs.jobsApi.mine.mockResolvedValue([]);
   });
@@ -60,11 +62,11 @@ describe('One cell of a run, inside the Results tab', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Cell 2' })).toBeInTheDocument();
     expect(screen.getAllByText('Completed').length).toBeGreaterThan(0);
     const inputs = screen.getByRole('region', { name: 'Frozen inputs' });
-    expect(await within(inputs).findByRole('link', { name: 'Checkout flow · version 1' })).toHaveAttribute('href', `${ROOT}/problems/checkout-flow?version=1`);
+    expect(await within(inputs).findByRole('link', { name: 'Checkout flow · version 1' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow?version=1');
     expect(within(inputs).getByText('random-search 1.0.0')).toBeInTheDocument();
     expect(within(inputs).getByText('sampling')).toBeInTheDocument();
     expect(within(inputs).getByText('Engine defaults')).toBeInTheDocument();
-    expect(within(inputs).getByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${ROOT}/problems/checkout-flow/source?version=1`);
+    expect(within(inputs).getByRole('link', { name: 'Package and compiled form' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow/source?version=1');
     expect(within(inputs).getByRole('button', { name: 'Copy cell digest' })).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     const result = screen.getByRole('region', { name: 'Result' });

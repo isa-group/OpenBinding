@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingUnavailableError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { ProjectSettings } from './ProjectSettings';
-import { caseOf, org, project, renderProjectScreen, revisionOf, usageWithProjects } from '../../features/workspace/testKit';
+import { org, project, renderProjectScreen, runOf, studyOf, usageWithProjects } from '../../features/workspace/testKit';
 
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn(), getPricingCatalog: vi.fn() }));
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), updateProject: vi.fn(), deleteProject: vi.fn(), cases: vi.fn(), revisions: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(),
+  project: vi.fn(), updateProject: vi.fn(), deleteProject: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(),
   members: vi.fn(),
 }));
 
@@ -34,8 +34,6 @@ describe('Project settings', () => {
     platform.project.mockResolvedValue(qos);
     platform.updateProject.mockResolvedValue(qos);
     platform.deleteProject.mockResolvedValue(undefined);
-    platform.cases.mockResolvedValue([]);
-    platform.revisions.mockResolvedValue([]);
     platform.studies.mockResolvedValue([]);
     platform.studyRuns.mockResolvedValue([]);
     platform.members.mockResolvedValue([
@@ -204,13 +202,13 @@ describe('Project settings', () => {
 
   describe('deleting', () => {
     it('is blocked while the project has sealed history, and says what that is', async () => {
-      const first = caseOf('flujo');
-      platform.cases.mockResolvedValue([first]);
-      platform.revisions.mockResolvedValue([revisionOf(first, 1), revisionOf(first, 2)]);
+      const engines = studyOf('engines');
+      platform.studies.mockResolvedValue([engines]);
+      platform.studyRuns.mockResolvedValue([runOf(engines, 1), runOf(engines, 2)]);
       renderSettings();
 
       const note = await screen.findByRole('note');
-      expect(note).toHaveTextContent('Deleting is blocked: this project has sealed history (2 problem versions).');
+      expect(note).toHaveTextContent('Deleting is blocked: this project has sealed history (2 study runs).');
       expect(note).toHaveTextContent('Sealed history must stay reachable so people can still verify it.');
       expect(screen.getByRole('button', { name: 'Delete project' })).toBeDisabled();
     });

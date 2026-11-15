@@ -1,15 +1,15 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
+import type { ProblemUpload } from '../../api/problems';
 import { caseOf, org, project, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseList } from './CaseList';
 
-const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), revisions: vi.fn(), deleteCase: vi.fn() }));
-const cases = vi.hoisted(() => ({ createCase: vi.fn() }));
+const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), create: vi.fn(), remove: vi.fn() }));
 
-vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
-vi.mock('../../api/cases', () => ({ casesApi: cases }));
+vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
 const admin = org('qos-lab', { name: 'QoS Lab', effective_role: 'ADMIN' });
@@ -18,7 +18,7 @@ const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 
 const checkout = caseOf('flujo-checkout', 'Flujo de checkout', { description: 'Payments with parallel stock and shipping.' });
 const draft = caseOf('borrador', 'Borrador', { created_at: '2026-03-01T00:00:00Z' });
-const root = '/app/isa-demo/qos-benchmarks';
+const root = '/app/isa-demo';
 
 /** Shows the address the router is at, and a way to press the browser's Back button. */
 function Where() {
@@ -34,26 +34,36 @@ function Where() {
 
 const where = () => screen.getByTestId('where').textContent;
 
-function renderList(organization = group, slug = organization.slug, search = '') {
+function renderList(organization = group, search = '', projects = [qos]) {
   return renderProjectScreen(<><CaseList /><Where /></>, {
-    path: '/app/:org/:project/problems', url: `/app/${slug}/qos-benchmarks/problems${search}`, organizations: [organization],
+    path: '/app/:org/problems', url: `/app/${organization.slug}/problems${search}`, organizations: [organization], projects,
   });
 }
 
-const refusal = (status: number, code: string) => Object.assign(new HttpError(status, 'refused'), { code });
+const refusal = (status: number, code: string, extra: Record<string, unknown> = {}) => Object.assign(new HttpError(status, 'refused'), { code, ...extra });
+
+const upload = (slug: string, name: string): ProblemUpload => {
+  const item = caseOf(slug, name);
+  return {
+    problem: item, revision: revisionOf(item, 1), created: true,
+    compilation: { id: 'c1', compilation_digest: 'sha256-c', compiler_digest: 'sha256-k', ir_digest: 'sha256-i', binding_space: '4', created_at: '2026-04-02T00:00:00Z', current: true },
+  };
+};
+
+const file = () => new File([new Uint8Array([80, 75, 3, 4])], 'analisis-de-latencia.bim.zip', { type: 'application/vnd.bim+zip' });
 
 describe('Problem list', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    platform.project.mockResolvedValue(qos);
-    platform.cases.mockResolvedValue([checkout, draft]);
-    platform.revisions.mockImplementation(async (_org: string, _project: string, slug: string) => (slug === 'flujo-checkout' ? [revisionOf(checkout, 1), revisionOf(checkout, 2)] : []));
+    problems.list.mockResolvedValue({ problems: [checkout, draft], total: 2, limit: 200, offset: 0 });
+    problems.revisions.mockImplementation(async (_org: string, slug: string) => (slug === 'flujo-checkout' ? [revisionOf(checkout, 1), revisionOf(checkout, 2)] : []));
   });
 
-  it('lists the problems with their versions, what is ready to run and where each one leads', async () => {
+  it('lists the organization’s problems with their versions, what is ready to run and where each one leads', async () => {
     renderList();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Problems' })).toBeInTheDocument();
+    expect(problems.list).toHaveBeenCalledWith('isa-demo', { limit: 200 });
     const list = await screen.findByRole('list', { name: 'Problems' });
     const rows = within(list).getAllByRole('listitem');
     expect(rows).toHaveLength(2);
@@ -64,213 +74,146 @@ describe('Problem list', () => {
     expect(first.getByText(/latest v2 · /)).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
     expect(first.getByText('Payments with parallel stock and shipping.')).toBeInTheDocument();
-    expect(first.getByRole('link', { name: 'Run latest' })).toHaveAttribute('href', `${root}/runs/new?case=flujo-checkout&revision=2`);
-    expect(first.getByRole('link', { name: 'New version' })).toHaveAttribute('href', `${root}/workbench?case=flujo-checkout`);
+    expect(first.getByRole('link', { name: 'Run latest' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/runs/new?problem=flujo-checkout&revision=2');
+    expect(first.getByRole('link', { name: 'New version' })).toHaveAttribute('href', `${root}/workbench?problem=flujo-checkout`);
     const second = within(rows[1]);
     expect(second.getByText('No version yet')).toBeInTheDocument();
     expect(second.getByText('0 versions')).toBeInTheDocument();
     expect(second.getByText('No description.')).toBeInTheDocument();
     expect(second.queryByRole('link', { name: 'Run latest' })).not.toBeInTheDocument();
-    const tabs = screen.getByRole('navigation', { name: 'Project sections' });
-    expect(within(tabs).getByRole('link', { name: 'Problems' })).toHaveAttribute('aria-current', 'page');
-    for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
+    expect(screen.queryByRole('navigation', { name: 'Project sections' })).not.toBeInTheDocument();
   });
 
-  it('lists the problems of a public project read-only for someone who is not a member: nothing to run, create or delete', async () => {
-    platform.project.mockResolvedValue({ ...qos, organization_id: 'org-open', created_by_id: null, access: 'public_read', effective_role: null });
-    renderList(group, 'open-lab');
+  it('offers the three ways to add a problem: upload, the Workbench and a template', async () => {
+    renderList();
+    await screen.findByRole('list', { name: 'Problems' });
 
+    expect(screen.getByRole('button', { name: 'Upload BIM package' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Write one in the Workbench' })).toHaveAttribute('href', `${root}/workbench`);
+    expect(screen.getByRole('link', { name: 'Start from a template' })).toHaveAttribute('href', `${root}/workbench?template=demo%2F01_simple_seq`);
+  });
+
+  it('offers no run when the organization has no project to run in', async () => {
+    renderList(group, '', []);
     const list = await screen.findByRole('list', { name: 'Problems' });
-    const first = within(within(list).getAllByRole('listitem')[0]);
-    expect(first.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/problems/flujo-checkout');
-    expect(first.queryByRole('link', { name: 'Run latest' })).not.toBeInTheDocument();
-    expect(first.queryByRole('link', { name: 'New version' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'New problem' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Delete / })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Your role here/)).not.toBeInTheDocument();
-    expect(screen.getByText('You are viewing a public project (read-only).')).toBeInTheDocument();
-    const tabs = screen.getByRole('navigation', { name: 'Project sections' });
-    expect(within(tabs).queryByRole('link', { name: 'Runs' })).not.toBeInTheDocument();
+    expect(within(list).queryByRole('link', { name: 'Run latest' })).not.toBeInTheDocument();
   });
 
   it('finds a problem by name or address and says when none matches', async () => {
     renderList();
     await screen.findByRole('list', { name: 'Problems' });
 
-    fireEvent.change(screen.getByLabelText('Search problems'), { target: { value: 'borra' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search problems' }), { target: { value: 'borr' } });
     expect(within(screen.getByRole('list', { name: 'Problems' })).getAllByRole('listitem')).toHaveLength(1);
-    fireEvent.change(screen.getByLabelText('Search problems'), { target: { value: 'zzz' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search problems' }), { target: { value: 'zzz' } });
     expect(screen.getByText('No problem matches “zzz”.')).toBeInTheDocument();
   });
 
-  it('sorts by the latest version or by name', async () => {
-    renderList();
-    const list = await screen.findByRole('list', { name: 'Problems' });
-    expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent('Flujo de checkout');
-    expect(within(screen.getByLabelText('Sort')).getByRole('option', { name: 'Latest version' })).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText('Sort'), { target: { value: 'name' } });
-    expect(within(screen.getByRole('list', { name: 'Problems' })).getAllByRole('listitem')[0]).toHaveTextContent('Borrador');
-  });
-
-  it('explains how to start when the project has no problem', async () => {
-    platform.cases.mockResolvedValue([]);
+  it('explains how to start when the organization has no problem', async () => {
+    problems.list.mockResolvedValue({ problems: [], total: 0, limit: 200, offset: 0 });
     renderList();
 
-    const guide = await screen.findByRole('region', { name: 'No problems yet' });
-    expect(guide).toHaveTextContent('Start from a ready example, or create a problem and save its first version from the workbench.');
-    expect(guide.textContent).not.toMatch(/composer|compose one/);
-    expect(within(guide).getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', `${root}/workbench`);
-    expect(within(guide).queryByRole('link', { name: /library/i })).toBeNull();
+    const guide = (await screen.findByRole('heading', { name: 'No problems yet' })).closest('section') as HTMLElement;
+    expect(within(guide).getByRole('button', { name: 'Upload BIM package' })).toBeInTheDocument();
+    expect(within(guide).getByRole('link', { name: 'Start from a template' })).toHaveAttribute('href', `${root}/workbench?template=demo%2F01_simple_seq`);
   });
 
   it('keeps the page and offers a retry when the list fails', async () => {
-    platform.cases.mockRejectedValueOnce(refusal(503, 'unavailable')).mockResolvedValue([checkout]);
+    problems.list.mockRejectedValueOnce(refusal(503, 'unavailable'));
     renderList();
 
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Problems couldn’t be loaded');
-    fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText(/Problems couldn’t be loaded \(503 · unavailable\)/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByRole('list', { name: 'Problems' })).toBeInTheDocument();
   });
 
-  it('lets a VIEWER read and compare but not create, edit or delete', async () => {
+  it('lets a VIEWER read and compare but not upload, edit, run or delete', async () => {
     renderList(viewing);
+    const list = await screen.findByRole('list', { name: 'Problems' });
 
-    await screen.findByRole('list', { name: 'Problems' });
-    expect(screen.queryByRole('link', { name: /New version|Compose its first version/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Workbench' })).not.toBeInTheDocument();
-    for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/compose([?#]|$)|\/workbench\?case=/);
-    expect(screen.getByRole('note')).toHaveTextContent('You’re a VIEWER. You can open and compare problems here; creating and editing need MEMBER.');
-    expect(screen.queryByRole('button', { name: 'New problem' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'New version' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Delete/ })).not.toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'Run latest' })).toHaveLength(1);
+    expect(screen.getByRole('note')).toHaveTextContent('You can open and compare problems here; uploading and editing need MEMBER.');
+    expect(screen.queryByRole('button', { name: 'Upload BIM package' })).not.toBeInTheDocument();
+    expect(within(list).queryByRole('link', { name: 'New version' })).not.toBeInTheDocument();
+    expect(within(list).queryByRole('link', { name: 'Run latest' })).not.toBeInTheDocument();
+    expect(within(list).queryByRole('button', { name: /^Delete/ })).not.toBeInTheDocument();
   });
 
-  it('offers a MEMBER the workbench and a new problem, but not deleting', async () => {
-    renderList();
-
-    await screen.findByRole('list', { name: 'Problems' });
-    expect(screen.getByRole('link', { name: 'Workbench' })).toHaveAttribute('href', `${root}/workbench`);
-    expect(screen.getByRole('button', { name: 'New problem' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Delete/ })).not.toBeInTheDocument();
-  });
-
-  describe('new problem', () => {
+  describe('upload', () => {
     async function openDialog() {
       renderList();
       await screen.findByRole('list', { name: 'Problems' });
-      fireEvent.click(screen.getByRole('button', { name: 'New problem' }));
-      return screen.findByRole('dialog', { name: 'New problem' });
+      fireEvent.click(screen.getByRole('button', { name: 'Upload BIM package' }));
+      return screen.findByRole('dialog', { name: 'Upload a BIM package' });
     }
 
-    it('suggests the address from the name and creates the problem', async () => {
-      cases.createCase.mockResolvedValue(caseOf('analisis-de-latencia', 'Análisis de latencia'));
+    it('names the problem after the file, uploads it and opens the new problem', async () => {
+      problems.create.mockResolvedValue(upload('analisis-de-latencia', 'analisis-de-latencia'));
       const dialog = await openDialog();
 
-      fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Análisis de latencia' } });
+      fireEvent.change(within(dialog).getByLabelText('BIM package'), { target: { files: [file()] } });
+      expect(within(dialog).getByLabelText('Name')).toHaveValue('analisis-de-latencia');
       expect(within(dialog).getByLabelText('Address')).toHaveValue('analisis-de-latencia');
       fireEvent.change(within(dialog).getByLabelText(/Description/), { target: { value: 'Edge pools' } });
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Create problem' }));
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Upload problem' }));
 
-      await waitFor(() => expect(cases.createCase).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', { slug: 'analisis-de-latencia', name: 'Análisis de latencia', description: 'Edge pools' }));
-      const toast = (await screen.findByText(/created\. Compose its first version when you’re ready\./)).closest('[role="status"]') as HTMLElement;
-      expect(toast).toHaveTextContent('Problem “Análisis de latencia” created. Compose its first version when you’re ready.');
-      expect(within(toast).getByRole('link', { name: 'Compose its first version' })).toHaveAttribute('href', `${root}/workbench?case=analisis-de-latencia`);
-      for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href'), link.textContent ?? '').not.toMatch(/\/compose([?#]|$)/);
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      await waitFor(() => expect(where()).toBe(`${root}/problems`));
-      await waitFor(() => expect(platform.cases).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(problems.create).toHaveBeenCalledWith('isa-demo', expect.any(File), { slug: 'analisis-de-latencia', name: 'analisis-de-latencia', description: 'Edge pools' }));
+      // The problem page is another route: the list is left for it.
+      expect(await screen.findByText('elsewhere')).toBeInTheDocument();
     });
 
-    it('shows the toast with no dialog left open after a successful create', async () => {
-      cases.createCase.mockResolvedValue(caseOf('analisis-de-latencia', 'Análisis de latencia'));
+    it('does not send without a file', async () => {
       const dialog = await openDialog();
-      fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Análisis de latencia' } });
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Create problem' }));
-
-      expect(await screen.findByText(/created\. Compose its first version when you’re ready\./)).toBeInTheDocument();
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Upload problem' }));
+      expect(within(dialog).getByRole('alert')).toHaveTextContent('Choose the .bim.zip package to upload.');
+      expect(problems.create).not.toHaveBeenCalled();
     });
 
-    it('does not send a form without a name or with an address the gateway would refuse', async () => {
+    it('lists where a refused package is wrong (422), and keeps the dialog open', async () => {
+      problems.create.mockRejectedValue(refusal(422, 'invalid_instance', { diagnostics: [{ code: 'missing_role', message: 'The application is missing.', resource: 'instance.json' }] }));
       const dialog = await openDialog();
+      fireEvent.change(within(dialog).getByLabelText('BIM package'), { target: { files: [file()] } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Upload problem' }));
 
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Create problem' }));
-      expect(within(dialog).getByRole('alert')).toHaveTextContent('Give it a name and a valid address');
-      fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Ok' } });
-      fireEvent.change(within(dialog).getByLabelText('Address'), { target: { value: 'Not Valid' } });
-      expect(within(dialog).getByText('Lowercase letters, numbers and hyphens.')).toBeInTheDocument();
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Create problem' }));
-      expect(cases.createCase).not.toHaveBeenCalled();
-    });
-
-    it('keeps the dialog open and says so when the address is taken (409)', async () => {
-      cases.createCase.mockRejectedValue(refusal(409, 'slug_conflict'));
-      const dialog = await openDialog();
-
-      fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Flujo de checkout' } });
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Create problem' }));
-
-      expect(await within(dialog).findByRole('alert')).toHaveTextContent('That address is already used by another problem in this project (409 · slug_conflict).');
-      expect(screen.getByRole('dialog', { name: 'New problem' })).toBeInTheDocument();
+      const alert = await within(dialog).findByRole('alert');
+      expect(alert).toHaveTextContent('The package was read and refused (422 · invalid_instance), so nothing was created.');
+      expect(within(alert).getByRole('list', { name: 'What the compiler found' })).toHaveTextContent('instance.json The application is missing.');
       expect(where()).toBe(`${root}/problems?create=problem`);
     });
 
-    it('closes with Cancel and creates nothing', async () => {
+    it.each([
+      [refusal(409, 'slug_conflict'), 'That address is already used by another problem in this organization (409 · slug_conflict). Pick another one.'],
+      [new QuotaError('quota_exceeded', 'full', { limit_id: 'maxProblems', limit: 3 }), 'Your plan has no room for this (402 · quota_exceeded)'],
+      [refusal(413, 'payload_too_large'), 'The package is larger than you can upload (413 · payload_too_large), so nothing was created.'],
+    ])('says why nothing was created (%#)', async (caught, text) => {
+      problems.create.mockRejectedValue(caught);
       const dialog = await openDialog();
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      expect(cases.createCase).not.toHaveBeenCalled();
+      fireEvent.change(within(dialog).getByLabelText('BIM package'), { target: { files: [file()] } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Upload problem' }));
+
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent(text);
     });
   });
 
   describe('the dialog in the address', () => {
-    it('opens from the New problem button with create=problem in the address', async () => {
-      renderList();
-      await screen.findByRole('list', { name: 'Problems' });
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'New problem' }));
-
-      expect(await screen.findByRole('dialog', { name: 'New problem' })).toBeInTheDocument();
-      expect(where()).toBe(`${root}/problems?create=problem`);
-    });
-
     it('is open when the address holds create=problem, over the list', async () => {
-      renderList(group, group.slug, '?create=problem');
+      renderList(group, '?create=problem');
 
-      expect(await screen.findByRole('dialog', { name: 'New problem' })).toBeInTheDocument();
+      expect(await screen.findByRole('dialog', { name: 'Upload a BIM package' })).toBeInTheDocument();
       expect(screen.getByRole('heading', { level: 1, name: 'Problems' })).toBeInTheDocument();
-    });
-
-    it.each([
-      ['Cancel', (dialog: HTMLElement) => fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))],
-      ['the close button', (dialog: HTMLElement) => fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))],
-      ['Escape', (dialog: HTMLElement) => fireEvent.keyDown(dialog, { key: 'Escape' })],
-    ])('removes the query and returns the focus to New problem on %s', async (_name, close) => {
-      renderList(group, group.slug, '?create=problem');
-      const dialog = await screen.findByRole('dialog', { name: 'New problem' });
-
-      close(dialog);
-
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-      expect(where()).toBe(`${root}/problems`);
-      expect(screen.getByRole('button', { name: 'New problem' })).toHaveFocus();
-      expect(cases.createCase).not.toHaveBeenCalled();
     });
 
     it('closes by replacing the entry, so Back does not open the dialog again', async () => {
       renderList();
       await screen.findByRole('list', { name: 'Problems' });
-      const opener = screen.getByRole('button', { name: 'New problem' });
+      const opener = screen.getByRole('button', { name: 'Upload BIM package' });
       opener.focus();
       fireEvent.click(opener);
-      const dialog = await screen.findByRole('dialog', { name: 'New problem' });
+      const dialog = await screen.findByRole('dialog', { name: 'Upload a BIM package' });
+      expect(where()).toBe(`${root}/problems?create=problem`);
 
       fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-      expect(screen.getByRole('button', { name: 'New problem' })).toHaveFocus();
+      expect(screen.getByRole('button', { name: 'Upload BIM package' })).toHaveFocus();
 
       fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
       await waitFor(() => expect(where()).toBe(`${root}/problems`));
@@ -278,30 +221,18 @@ describe('Problem list', () => {
     });
 
     it('gives a VIEWER no dialog when the address asks for one', async () => {
-      renderList(viewing, viewing.slug, '?create=problem');
+      renderList(viewing, '?create=problem');
 
       await screen.findByRole('list', { name: 'Problems' });
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'New problem' })).not.toBeInTheDocument();
-      expect(cases.createCase).not.toHaveBeenCalled();
+      expect(problems.create).not.toHaveBeenCalled();
     });
   });
 
   describe('delete', () => {
-    it('is for an ADMIN, and a problem with sealed versions explains why it can’t go', async () => {
-      renderList(admin);
-      const list = await screen.findByRole('list', { name: 'Problems' });
-
-      fireEvent.click(within(list).getByRole('button', { name: 'Delete Flujo de checkout' }));
-      const dialog = await screen.findByRole('dialog', { name: 'Delete Flujo de checkout?' });
-      expect(within(dialog).getByText(/2 sealed versions, so it can’t be deleted/)).toBeInTheDocument();
-      expect(within(dialog).getByRole('button', { name: 'Delete problem' })).toBeDisabled();
-      expect(within(dialog).getByLabelText('Type flujo-checkout to confirm')).toBeDisabled();
-    });
-
-    it('deletes a problem without versions once its address is typed', async () => {
-      platform.cases.mockResolvedValueOnce([checkout, draft]).mockResolvedValue([checkout]);
-      platform.deleteCase.mockResolvedValue(undefined);
+    it('deletes a problem once its address is typed', async () => {
+      problems.list.mockResolvedValueOnce({ problems: [checkout, draft], total: 2, limit: 200, offset: 0 }).mockResolvedValue({ problems: [checkout], total: 1, limit: 200, offset: 0 });
+      problems.remove.mockResolvedValue(undefined);
       renderList(admin);
       const list = await screen.findByRole('list', { name: 'Problems' });
 
@@ -312,28 +243,33 @@ describe('Problem list', () => {
       fireEvent.change(within(dialog).getByLabelText('Type borrador to confirm'), { target: { value: 'borrador' } });
       fireEvent.click(confirm);
 
-      await waitFor(() => expect(platform.deleteCase).toHaveBeenCalledWith('qos-lab', 'qos-benchmarks', 'borrador'));
+      await waitFor(() => expect(problems.remove).toHaveBeenCalledWith('qos-lab', 'borrador'));
       expect(await screen.findByText('Problem “Borrador” deleted.')).toBeInTheDocument();
       await waitFor(() => expect(within(screen.getByRole('list', { name: 'Problems' })).getAllByRole('listitem')).toHaveLength(1));
     });
 
-    it('shows the 409 of the gateway if the problem gained a version meanwhile', async () => {
-      platform.deleteCase.mockRejectedValue(refusal(409, 'historical_references'));
+    it('says a problem that runs used is kept (409 problem_has_runs)', async () => {
+      problems.remove.mockRejectedValue(refusal(409, 'problem_has_runs'));
       renderList(admin);
       const list = await screen.findByRole('list', { name: 'Problems' });
 
-      fireEvent.click(within(list).getByRole('button', { name: 'Delete Borrador' }));
-      const dialog = await screen.findByRole('dialog', { name: 'Delete Borrador?' });
-      fireEvent.change(within(dialog).getByLabelText('Type borrador to confirm'), { target: { value: 'borrador' } });
+      fireEvent.click(within(list).getByRole('button', { name: 'Delete Flujo de checkout' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Delete Flujo de checkout?' });
+      fireEvent.change(within(dialog).getByLabelText('Type flujo-checkout to confirm'), { target: { value: 'flujo-checkout' } });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Delete problem' }));
 
-      expect(await within(dialog).findByRole('alert')).toHaveTextContent('This problem has sealed versions, so it can’t be deleted (409 · historical_references).');
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('Runs or studies name a version of this problem, so it can’t be deleted (409 · problem_has_runs).');
+    });
+
+    it('is not offered to a MEMBER', async () => {
+      renderList();
+      const list = await screen.findByRole('list', { name: 'Problems' });
+      expect(within(list).queryByRole('button', { name: /^Delete/ })).not.toBeInTheDocument();
     });
   });
 
-  it('shows the project gate when the project is not there for this account', async () => {
-    platform.project.mockRejectedValue(refusal(404, 'not_found'));
-    renderList();
-    expect(await screen.findByRole('heading', { name: 'Project not found' })).toBeInTheDocument();
+  it('shows the organization gate when the address names an organization the account is not in', async () => {
+    renderProjectScreen(<CaseList />, { path: '/app/:org/problems', url: '/app/elsewhere/problems', organizations: [group] });
+    expect(await screen.findByRole('heading', { name: 'Organization not available' })).toBeInTheDocument();
   });
 });

@@ -1,16 +1,19 @@
-"""B5: open range ends survive snapshot persistence and job creation fails closed for them."""
+"""B5: open range ends survive a problem upload (source and compilation) and job creation fails closed for them."""
 
 from __future__ import annotations
 
 import json
 import uuid
 
+import io
+import zipfile
+
 import pytest
 from sqlalchemy import select
 
+from _problem_helpers import upload_problem
 from _repo import REPO_ROOT
-from openbinding_gateway.db.models import BindingIRSnapshot, InstanceResource, InstanceSnapshot
-from openbinding_gateway.services.snapshots import snapshot_ir
+from openbinding_gateway.db.models import ProblemCompilation
 from bim_core.compiler import compile_instance
 from bim_core.package import load_package
 
@@ -49,37 +52,26 @@ async def sign_in(api_client, registration):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("latency", RANGES)
-async def test_open_ranges_round_trip_through_the_snapshot_store(api_client, db_session, registration, latency):
+async def test_open_ranges_round_trip_through_the_problem_store(api_client, db_session, registration, latency):
     headers = await sign_in(api_client, registration)
     package = package_with(latency)
-    created = await api_client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package.to_zip(),
+    created = await upload_problem(api_client, headers, archive=package.to_zip(), slug="ranges")
+    base = f"/v1/organizations/{created['org']}/problems/ranges/revisions/1"
+
+    source = await api_client.get(f"{base}/source", headers=headers)
+    assert source.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(source.content)) as archive:
+        catalog = json.loads(archive.read("candidates.json"))
+    assert catalog["spec"]["candidates"]["c1a"]["features"]["latency"] == latency
+
+    compilation = (await api_client.get(f"{base}/compilation", headers=headers)).json()
+    ir = await api_client.get(f"{base}/compilations/{compilation['id']}/ir", headers=headers)
+    assert stored(ir.json()["ir"]) == latency
+    row = await db_session.scalar(
+        select(ProblemCompilation).where(ProblemCompilation.revision_id == uuid.UUID(created["revision_id"]))
     )
-    assert created.status_code == 201, created.text
-    snapshot_id = uuid.UUID(created.json()["id"])
-
-    fetched = await api_client.get(f"/v1/instances/{snapshot_id}", headers=headers)
-    assert fetched.status_code == 200
-    assert fetched.json()["instanceDigest"] == created.json()["instanceDigest"]
-
-    snapshot = await db_session.get(InstanceSnapshot, snapshot_id)
-    resources = (
-        await db_session.execute(select(InstanceResource).where(InstanceResource.snapshot_id == snapshot_id))
-    ).scalars().all()
-    catalog = next(item for item in resources if item.path == "candidates.json")
-    assert json.loads(catalog.content)["spec"]["candidates"]["c1a"]["features"]["latency"] == latency
-    if catalog.document is not None:
-        assert catalog.document["spec"]["candidates"]["c1a"]["features"]["latency"] == latency
-
-    ir = await db_session.scalar(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot_id))
-    assert stored(ir.document) == latency
-
-    # The restore path hands back the stored IR; the toolchain checks its digest when it is used.
-    restored = await snapshot_ir(snapshot, db_session)
-    assert stored(restored.ir) == latency
-    assert restored.ir_digest == compile_instance(package).digest == ir.ir_digest
+    assert stored(row.ir) == latency
+    assert row.ir_digest == compile_instance(package).digest == compilation["ir_digest"]
 
 
 @pytest.mark.asyncio
@@ -88,18 +80,13 @@ async def test_a_job_over_open_or_finite_ranges_is_refused_with_unsupported_capa
     api_client, registration, latency
 ):
     headers = await sign_in(api_client, registration)
-    created = await api_client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package_with(latency).to_zip(),
-    )
-    assert created.status_code == 201, created.text
+    created = await upload_problem(api_client, headers, archive=package_with(latency).to_zip())
 
     job = await api_client.post(
         "/v1/jobs",
         headers={**headers, "Idempotency-Key": f"b5-{uuid.uuid4()}"},
         json={
-            "snapshot": created.json()["id"],
+            "revision": created["revision_id"],
             "engine": "random-search",
             "mode": "seeded",
             "optimization": OPTIMIZATION,

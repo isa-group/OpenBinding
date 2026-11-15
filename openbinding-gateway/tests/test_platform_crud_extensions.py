@@ -1,19 +1,14 @@
-"""Tests for CRUD extensions on platform elements: cases, resources,
-studies, reports, publications, artifacts, jobs, snapshots, and engine revisions.
-"""
+"""Tests for CRUD extensions on platform elements: problems, studies, jobs and engine revisions."""
 
 from __future__ import annotations
 
-import io
 import uuid
-import zipfile
 import pytest
 import pytest_asyncio
 
 from openbinding_gateway import space_client
-from openbinding_gateway.core.settings import get_settings
-from openbinding_gateway.db.models import InstanceSnapshot, BindingIRSnapshot
 from _pricing import fake_pricing_gate, largest_plan
+from _problem_helpers import placeholder_refs, upload_problem
 
 LARGER_PLAN = largest_plan()
 
@@ -42,52 +37,30 @@ async def _auth_headers(api_client, registration, platform_gate, username: str =
 
 
 @pytest.mark.asyncio
-async def test_case_patch_and_delete(api_client, registration, platform_gate):
-    # The resource writes this test also covered are removed since M9.6.
+async def test_problem_patch_and_delete(api_client, registration, platform_gate):
     headers = await _auth_headers(api_client, registration, platform_gate, username=f"user-{uuid.uuid4().hex[:6]}")
     org_slug = f"org-{uuid.uuid4().hex[:6]}"
-    proj_slug = "test-proj"
-
-    # Create Org & Project
     r = await api_client.post("/v1/organizations", headers=headers, json={"slug": org_slug, "name": "Test Org"})
     assert r.status_code == 201
-    r = await api_client.post(f"/v1/organizations/{org_slug}/projects", headers=headers, json={"slug": proj_slug, "name": "Test Proj", "visibility": "private"})
-    assert r.status_code == 201
+    await upload_problem(api_client, headers, org_slug, slug="case-a")
+    url = f"/v1/organizations/{org_slug}/problems/case-a"
 
-    # Case CRUD
-    c_resp = await api_client.post(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/cases",
-        headers=headers,
-        json={"slug": "case-a", "name": "Case Alpha", "description": "Desc"},
-    )
-    assert c_resp.status_code == 201
-
-    get_c = await api_client.get(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/cases/case-a",
-        headers=headers,
-    )
+    get_c = await api_client.get(url, headers=headers)
     assert get_c.status_code == 200
-    assert get_c.json()["name"] == "Case Alpha"
+    assert get_c.json()["slug"] == "case-a"
 
-    patch_c = await api_client.patch(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/cases/case-a",
-        headers=headers,
-        json={"name": "Case Alpha Updated", "description": "New Desc"},
-    )
+    patch_c = await api_client.patch(url, headers=headers, json={"name": "Case Alpha Updated", "description": "New Desc"})
     assert patch_c.status_code == 200
     assert patch_c.json()["name"] == "Case Alpha Updated"
     assert patch_c.json()["description"] == "New Desc"
 
-    del_c = await api_client.delete(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/cases/case-a",
-        headers=headers,
-    )
+    del_c = await api_client.delete(url, headers=headers)
     assert del_c.status_code == 204
 
     # Verify deleted
-    list_c = await api_client.get(f"/v1/organizations/{org_slug}/projects/{proj_slug}/cases", headers=headers)
+    list_c = await api_client.get(f"/v1/organizations/{org_slug}/problems", headers=headers)
     assert list_c.status_code == 200
-    assert len(list_c.json()) == 0
+    assert list_c.json()["problems"] == []
 
 
 @pytest.mark.asyncio
@@ -99,22 +72,11 @@ async def test_study_patch_and_delete(api_client, registration, platform_gate):
     await api_client.post("/v1/organizations", headers=headers, json={"slug": org_slug, "name": "Test Org"})
     await api_client.post(f"/v1/organizations/{org_slug}/projects", headers=headers, json={"slug": proj_slug, "name": "Test Proj", "visibility": "private"})
 
-    from test_studies_platform import executable_revision_payload
     from openbinding_gateway.routes import v1 as routes
     from openbinding_gateway.services.engines import engine_ref
 
-    # Create Case and Revision for Study
-    await api_client.post(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/cases",
-        headers=headers,
-        json={"slug": "case-for-study", "name": "Study Case"},
-    )
-    rev_resp = await api_client.post(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/cases/case-for-study/revisions",
-        headers=headers,
-        json=await executable_revision_payload(api_client, headers),
-    )
-    case_rev_id = rev_resp.json()["id"]
+    # A problem revision of the organization for the study
+    case_rev_id = (await upload_problem(api_client, headers, org_slug, slug="case-for-study"))["revision_id"]
 
     # Study CRUD
     study_resp = await api_client.post(
@@ -151,44 +113,7 @@ async def test_study_patch_and_delete(api_client, registration, platform_gate):
 
 
 @pytest.mark.asyncio
-async def test_artifact_delete(api_client, registration, platform_gate, monkeypatch, tmp_path):
-    monkeypatch.setenv("ARTIFACT_ROOT", str(tmp_path / "artifacts"))
-    get_settings.cache_clear()
-
-    headers = await _auth_headers(api_client, registration, platform_gate, username=f"user-{uuid.uuid4().hex[:6]}")
-    org_slug = f"org-{uuid.uuid4().hex[:6]}"
-    proj_slug = "test-proj"
-
-    await api_client.post("/v1/organizations", headers=headers, json={"slug": org_slug, "name": "Test Org"})
-    await api_client.post(f"/v1/organizations/{org_slug}/projects", headers=headers, json={"slug": proj_slug, "name": "Test Proj", "visibility": "private"})
-
-    # Upload artifact
-    artifact_content = b"artifact raw test data"
-    up_resp = await api_client.post(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/blobs",
-        headers={**headers, "Content-Type": "application/octet-stream"},
-        content=artifact_content,
-    )
-    assert up_resp.status_code == 201
-    digest = up_resp.json()["digest"]
-
-    # Delete artifact
-    del_resp = await api_client.delete(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/blobs/{digest}",
-        headers=headers,
-    )
-    assert del_resp.status_code == 204
-
-    # Verify not found
-    get_resp = await api_client.get(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/blobs/{digest}",
-        headers=headers,
-    )
-    assert get_resp.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_project_jobs_snapshots_and_engine_revisions(api_client, registration, db_session, platform_gate):
+async def test_project_jobs_and_engine_revisions(api_client, registration, db_session, platform_gate):
     headers = await _auth_headers(api_client, registration, platform_gate, username=f"user-{uuid.uuid4().hex[:6]}")
     org_slug = f"org-{uuid.uuid4().hex[:6]}"
     proj_slug = "test-proj"
@@ -202,7 +127,8 @@ async def test_project_jobs_snapshots_and_engine_revisions(api_client, registrat
     project = (await db_session.execute(select(Project).where(Project.slug == proj_slug))).scalars().first()
     job = Job(owner_id=project.created_by_id, project_id=project.id, organization_id=project.organization_id,
               engine_id="diagnostic", engine_job_id="metadata-fixture", service_url="https://example.invalid",
-              state=JobState.COMPLETED, original_request={"evidence": "pinned"}, result={"solutions": [{"large": "evidence"}]})
+              state=JobState.COMPLETED, original_request={"evidence": "pinned"}, result={"solutions": [{"large": "evidence"}]},
+              **placeholder_refs("organization_id"))
     db_session.add(job)
     await db_session.commit()
     metadata = await api_client.get(f"/v1/organizations/{org_slug}/projects/{proj_slug}/jobs?include_results=false", headers=headers)
@@ -221,54 +147,3 @@ async def test_project_jobs_snapshots_and_engine_revisions(api_client, registrat
     eng_revs = await api_client.get("/v1/engines/revisions", headers=headers)
     assert eng_revs.status_code == 200
     assert "revisions" in eng_revs.json()
-
-    # Snapshot retrieval
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("model.bim", "apiVersion: bim/v1\nkind: BindingProblem\n")
-    archive_bytes = buf.getvalue()
-
-    # A snapshot always has an owner; this one belongs to somebody else first.
-    other_headers = await _auth_headers(api_client, registration, platform_gate, username=f"user-{uuid.uuid4().hex[:6]}")
-    other_identity = await api_client.get("/v1/users/me", headers=other_headers)
-    assert other_identity.status_code == 200
-
-    snap = InstanceSnapshot(
-        owner_id=uuid.UUID(other_identity.json()["id"]),
-        name="test-snapshot",
-        instance_digest="sha256-" + "1" * 64,
-        package_digest="sha256-" + "2" * 64,
-        root_document={},
-        resource_digests={},
-        source_archive=archive_bytes,
-    )
-    db_session.add(snap)
-    await db_session.flush()
-
-    ir_snap = BindingIRSnapshot(
-        snapshot_id=snap.id,
-        ir_digest="sha256-" + "3" * 64,
-        document={"apiVersion": "bim/v1", "kind": "BindingProblem"},
-        source_map={},
-        compiler_version="1.0.0",
-    )
-    db_session.add(ir_snap)
-    await db_session.commit()
-
-    denied = await api_client.get(f"/v1/snapshots/{snap.id}", headers=headers)
-    assert denied.status_code == 404
-    denied_archive = await api_client.get(f"/v1/snapshots/{snap.id}/archive", headers=headers)
-    assert denied_archive.status_code == 404
-    identity = await api_client.get("/v1/users/me", headers=headers)
-    assert identity.status_code == 200
-    snap.owner_id = uuid.UUID(identity.json()["id"])
-    await db_session.commit()
-    snap_detail = await api_client.get(f"/v1/snapshots/{snap.id}", headers=headers)
-    assert snap_detail.status_code == 200
-    assert snap_detail.json()["instanceDigest"] == snap.instance_digest
-    assert snap_detail.json()["ir"] is not None
-
-    snap_archive = await api_client.get(f"/v1/snapshots/{snap.id}/archive", headers=headers)
-    assert snap_archive.status_code == 200
-    assert snap_archive.headers["content-type"] == "application/zip"
-    assert len(snap_archive.content) == len(archive_bytes)

@@ -19,8 +19,8 @@ from ..db.models import (
     AuditEvent,
     BindingCase,
     BindingCaseRevision,
-    BindingIRSnapshot,
     Job,
+    ProblemCompilation,
     JobState,
     Organization,
     OrganizationRole,
@@ -43,6 +43,7 @@ from ..models.platform import (
     StudyUpdate,
     StudyView,
 )
+from ..modules.problems.application import current_compilations, ir_analysis
 from ..services.entitlements import EntitlementService, get_entitlements
 from ..security.apikeys import allows_engine
 from ..study_jobs import (
@@ -191,7 +192,7 @@ async def create_study(
         )
     belonging = set((await session.execute(
         select(BindingCaseRevision.id).join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
-        .join(Project, Project.id == BindingCase.project_id).where(Project.organization_id == organization.id)
+        .where(BindingCase.organization_id == organization.id, BindingCaseRevision.id.in_(revision_ids))
     )).scalars().all())
     if not revision_ids <= belonging:
         raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "foreign_case_revision", "Every study case revision must belong to this organization.")
@@ -686,6 +687,15 @@ async def get_study_analytics(
             .where(BindingCaseRevision.id.in_(case_rev_ids))
         )).all()
 
+        # The compilation each revision has: the installed toolchain's, else the newest one.
+        compiled = {}
+        for row in (await session.scalars(
+            select(ProblemCompilation)
+            .where(ProblemCompilation.revision_id.in_([rev.id for rev, _ in case_rows]))
+            .order_by(ProblemCompilation.created_at)
+        )).all():
+            compiled[row.revision_id] = row
+        compiled.update(await current_compilations(session, list(compiled)))
         cases_detail = []
         total_cardinality = 1
         has_cardinality = False
@@ -693,38 +703,14 @@ async def get_study_analytics(
         for rev, case in case_rows:
             cardinality = None
             breakdown = {}
-            if rev.source_snapshot_id:
-                ir_row = (await session.execute(
-                    select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == rev.source_snapshot_id)
-                )).scalars().first()
-                if ir_row and isinstance(ir_row.document, dict):
-                    spec = ir_row.document.get("spec", {})
-                    tasks = spec.get("application", {}).get("tasks", {})
-                    eligibility = spec.get("eligibility", {})
-                    if isinstance(tasks, dict) and isinstance(eligibility, dict):
-                        breakdown = {
-                            t: len(eligibility.get(t, []))
-                            for t, task_info in sorted(tasks.items())
-                            if isinstance(task_info, dict) and task_info.get("kind") == "service"
-                        }
-                        if breakdown:
-                            card = 1
-                            for c in breakdown.values():
-                                card *= c
-                            cardinality = card
-
-            if cardinality is None and isinstance(rev.document, dict):
-                spec = rev.document.get("spec", {})
-                tasks = spec.get("application", {}).get("tasks", [])
-                candidates = spec.get("candidates", [])
-                candidate_count = len(candidates) if isinstance(candidates, list) else len(candidates.keys()) if isinstance(candidates, dict) else 1
-                if isinstance(tasks, list):
-                    task_names = [t.get("id", f"task_{idx}") for idx, t in enumerate(tasks) if isinstance(t, dict)]
-                    breakdown = {t: max(1, candidate_count) for t in task_names}
-                    cardinality = (max(1, candidate_count)) ** len(task_names) if task_names else 1
-                elif isinstance(tasks, dict):
-                    breakdown = {t: max(1, candidate_count) for t in tasks}
-                    cardinality = (max(1, candidate_count)) ** len(tasks) if tasks else 1
+            compilation = compiled.get(rev.id)
+            if compilation is not None:
+                analysis = compilation.analysis if "bindingSpaceBreakdown" in (compilation.analysis or {}) else ir_analysis(compilation.ir)
+                breakdown = dict(analysis.get("bindingSpaceBreakdown") or {})
+                if breakdown:
+                    cardinality = 1
+                    for count in breakdown.values():
+                        cardinality *= int(count)
 
             if cardinality is not None:
                 has_cardinality = True

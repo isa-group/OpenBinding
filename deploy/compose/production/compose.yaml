@@ -136,7 +136,6 @@ services:
       ENGINE_RANDOM_SEARCH_URL: http://engine-random-search:8080
       ENGINE_MANY_HEURISTIC_URL: http://engine-many-heuristic:8080
       ENGINE_EVOLUTIONARY_HEURISTICS_URL: http://engine-evolutionary-heuristics:8080
-      BIM_MODE: inproc
     secrets:
       - database_url
       - gateway_jwt_secret
@@ -204,8 +203,7 @@ services:
       ENGINE_RANDOM_SEARCH_URL: http://engine-random-search:8080
       ENGINE_MANY_HEURISTIC_URL: http://engine-many-heuristic:8080
       ENGINE_EVOLUTIONARY_HEURISTICS_URL: http://engine-evolutionary-heuristics:8080
-      # The worker re-evaluates every engine answer through BIM: same choice as the gateway.
-      BIM_MODE: inproc
+      # The worker re-evaluates every engine answer through BIM, in process as the gateway does.
       ARTIFACT_ROOT: /var/lib/openbinding/artifacts
       PUBLIC_BASE_URL: ${PUBLIC_ORIGIN:?set PUBLIC_ORIGIN in site.env}
       SPHERE_ENABLED: ${SPHERE_ENABLED:-false}

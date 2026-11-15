@@ -550,7 +550,6 @@ REQUIRED_ENVIRONMENT = {
     "gateway": {
         "APP_ENV": "prod",
         "OPENBINDING_MIGRATE": "skip",
-        "BIM_MODE": "inproc",
         "SPACE_ENABLED": "true",
         "DATABASE_URL_FILE": "/run/secrets/database_url",
         "GATEWAY_JWT_SECRET_FILE": "/run/secrets/gateway_jwt_secret",

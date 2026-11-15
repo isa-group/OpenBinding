@@ -72,16 +72,14 @@ async def test_sealed_versions_are_private_exact_and_sql_immutable(db_session, t
 
 
 @pytest.mark.asyncio
-async def test_case_composition_closes_exact_resources_without_copying_authority(db_session, tmp_path, monkeypatch):
-    import json
+async def test_a_study_version_pins_problem_revisions_by_their_package_digest(db_session):
     from copy import deepcopy
-    from openbinding_gateway.artifacts import materialize_case
-    from openbinding_gateway.core.settings import get_settings
-    from openbinding_gateway.db.models import InstanceSnapshot
-    from openbinding_gateway.models.artifacts import ArtifactUse
-    from test_artifacts_platform import multi_resource_package
+    from sqlalchemy import select
+    from _problem_helpers import problem_for
+    from openbinding_gateway.db.models import ArtifactCaseReference
+    from openbinding_gateway.services.engines import engine_ref as _engine_ref
+    from openbinding_gateway.services.engines import manifest as _manifest
 
-    monkeypatch.setattr(get_settings(), 'artifact_root', str(tmp_path))
     user = User(username='composer', email='composer@example.org', password_hash='unused', plan_cache='RESEARCH')
     db_session.add(user)
     await db_session.flush()
@@ -89,59 +87,11 @@ async def test_case_composition_closes_exact_resources_without_copying_authority
     db_session.add(org)
     await db_session.flush()
     db_session.add(OrganizationMembership(organization_id=org.id, user_id=user.id, role=OrganizationRole.OWNER))
-    package = multi_resource_package()
-    root = package.instance()
-    uses = []
-    for role, resources in root['spec']['resources'].items():
-        for alias, path in resources.items():
-            document = json.loads(package.files[path])
-            artifact = Artifact(organization_id=org.id, namespace=str(org.id), name=alias,
-                display_name=alias, kind=document['kind'], created_by_id=user.id)
-            db_session.add(artifact)
-            await db_session.flush()
-            draft = ArtifactDraft(artifact_id=artifact.id, payload=DraftContent(content=document).model_dump(), created_by_id=user.id)
-            db_session.add(draft)
-            await db_session.flush()
-            version = await seal_draft(db_session, artifact, draft, 1, None, user)
-            uses.append(ArtifactUse(role=role, alias=alias, artifact=reference(artifact, version)))
-    source, snapshot_id, rows = await materialize_case(db_session, user, org, root, uses)
-    assert all(isinstance(target, dict) and 'versionDigest' in target
-               for resources in source['spec']['resources'].values() for target in resources.values())
-    assert (await materialize_case(db_session, user, org, root, uses))[1] == snapshot_id
-    snapshot = await db_session.get(InstanceSnapshot, snapshot_id)
-    original_digest = snapshot.package_digest
-    use, version = next((use, version) for use, version in rows if use.alias == 'cat-a')
-    artifact = await db_session.get(Artifact, version.artifact_id)
-    document = json.loads((await version_content(db_session, version))[0])
-    document['spec']['candidates']['c1']['features']['latency'] += 1
-    draft = ArtifactDraft(artifact_id=artifact.id, payload=DraftContent(content=document).model_dump(), created_by_id=user.id)
-    db_session.add(draft)
     await db_session.flush()
-    changed = await seal_draft(db_session, artifact, draft, 1, None, user)
-    updated_uses = [ArtifactUse.model_validate({**item.model_dump(), 'artifact': reference(artifact, changed)}) if item.alias == use.alias else item for item in uses]
-    # Validate the portable type instead of relying on unchecked model_copy data.
-    updated_uses = [ArtifactUse.model_validate(item.model_dump()) for item in updated_uses]
-    _, changed_id, _ = await materialize_case(db_session, user, org, deepcopy(root), updated_uses)
-    assert changed_id != snapshot_id
-    assert (await db_session.get(InstanceSnapshot, snapshot_id)).package_digest == original_digest
+    revision = (await problem_for(db_session, user, organization=org)).revision
 
-    # Scientific artifact versions pin the composition, not the mutable case title.
-    from sqlalchemy import select
-    from openbinding_gateway.db.models import ArtifactCaseReference, BindingCase, BindingCaseRevision, Project
-    from openbinding_gateway.artifacts import case_composition_digest
-    from openbinding_gateway.services.engines import engine_ref as _engine_ref
-    from openbinding_gateway.services.engines import manifest as _manifest
-    project = Project(organization_id=org.id, slug='experiment', name='Experiment', created_by_id=user.id)
-    db_session.add(project)
-    await db_session.flush()
-    case = BindingCase(project_id=project.id, slug='case', name='Case', created_by_id=user.id)
-    db_session.add(case)
-    await db_session.flush()
-    revision = BindingCaseRevision(binding_case_id=case.id, revision=1, document=source,
-        digest=case_composition_digest(source, snapshot, [use.model_dump(mode='json') for use in uses]), source_snapshot_id=snapshot.id, created_by_id=user.id)
-    db_session.add(revision)
-    await db_session.flush()
-    case_ref = {'caseRevisionId': str(revision.id), 'compositionDigest': revision.digest}
+    # Scientific artifact versions pin the problem revision by its package digest, not the mutable problem title.
+    case_ref = {'caseRevisionId': str(revision.id), 'compositionDigest': revision.package_digest}
     for kind, content in [('Study', {'apiVersion': 'openbinding/study/v1', 'cases': [case_ref], 'engines': [{**_engine_ref(_manifest('random-search')), 'mode': 'seeded',
                                                                                                               'optimization': {'type': 'SINGLE', 'scalarization': 'weighted-sum'}}]})]:
         identity = Artifact(organization_id=org.id, namespace=str(org.id), name=kind.lower(),

@@ -7,10 +7,10 @@ import { AuthContext } from '../../contexts/auth';
 import { zipStore } from '../../utils/bimZip';
 import { WorkbenchPage } from './PublicPages';
 
-const api = vi.hoisted(() => ({ getBimExamples: vi.fn(), getBimExamplePackage: vi.fn(), validatePackage: vi.fn() }));
-const platform = vi.hoisted(() => ({ organizations: vi.fn(), projects: vi.fn() }));
+const api = vi.hoisted(() => ({ templates: vi.fn(), template: vi.fn(), check: vi.fn() }));
+const platform = vi.hoisted(() => ({ organizations: vi.fn() }));
 
-vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
+vi.mock('../../api/bim', () => ({ bimApi: api }));
 vi.mock('../../api/platform', () => ({ platformApi: platform }));
 
 const D = (seed: string) => `sha256-${seed.repeat(8)}`;
@@ -87,8 +87,8 @@ async function choose(file: File) {
 describe('public workbench', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    api.getBimExamples.mockResolvedValue(['demo/01_simple_seq', 'demo/02_parallel', 'placement/01_small_placement', 'literature/zhang']);
-    api.validatePackage.mockResolvedValue(valid);
+    api.templates.mockResolvedValue(['demo/01_simple_seq', 'demo/02_parallel', 'placement/01_small_placement', 'literature/zhang']);
+    api.check.mockResolvedValue(valid);
   });
 
   it('invites a visitor to choose a package, shows the limits and asks them to log in to run', async () => {
@@ -103,7 +103,7 @@ describe('public workbench', () => {
     expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/register');
     expect(screen.queryByRole('navigation', { name: 'Language sections' })).not.toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /demo\/01_simple_seq/ })).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /Official example package/ })).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: /Template package/ })).toHaveLength(3);
     expect(screen.queryByRole('button', { name: 'Validate package' })).not.toBeInTheDocument();
   });
 
@@ -118,8 +118,8 @@ describe('public workbench', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
 
     expect(await screen.findByText('Valid package')).toBeInTheDocument();
-    expect(api.validatePackage).toHaveBeenCalledTimes(1);
-    expect(api.validatePackage.mock.calls[0][0]).toEqual(bytes);
+    expect(api.check).toHaveBeenCalledTimes(1);
+    expect(api.check.mock.calls[0][0]).toEqual(bytes);
     expect(screen.getByText('checkout.bim.zip · profile qos-binding/v1 · 3 tasks')).toBeInTheDocument();
     const digests = document.querySelector('.workbench-digests') as HTMLElement;
     expect(digests).toHaveTextContent('Instance digest');
@@ -143,7 +143,7 @@ describe('public workbench', () => {
   });
 
   it('turns diagnostics into grouped, located problems that lead back to the file', async () => {
-    api.validatePackage.mockResolvedValue(invalid);
+    api.check.mockResolvedValue(invalid);
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     renderPage();
@@ -172,7 +172,7 @@ describe('public workbench', () => {
   });
 
   it('explains a package that is too large (413)', async () => {
-    api.validatePackage.mockRejectedValue(new HttpError(413, 'too large'));
+    api.check.mockRejectedValue(new HttpError(413, 'too large'));
     renderPage();
     await choose(asFile(packageBytes()));
     fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
@@ -186,7 +186,7 @@ describe('public workbench', () => {
   it('asks to wait on a rate limit (429) and keeps the file for another try', async () => {
     const limited = new HttpError(429, 'slow down');
     limited.retryAfter = 5;
-    api.validatePackage.mockRejectedValueOnce(limited);
+    api.check.mockRejectedValueOnce(limited);
     renderPage();
     await choose(asFile(packageBytes()));
     fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
@@ -195,11 +195,11 @@ describe('public workbench', () => {
     expect(screen.getByText(/Try again in 5 s\. Your file is still selected\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByText('Valid package')).toBeInTheDocument();
-    expect(api.validatePackage).toHaveBeenCalledTimes(2);
+    expect(api.check).toHaveBeenCalledTimes(2);
   });
 
   it('reports a gateway failure and offers a retry', async () => {
-    api.validatePackage.mockRejectedValueOnce(new HttpError(503, 'unavailable'));
+    api.check.mockRejectedValueOnce(new HttpError(503, 'unavailable'));
     renderPage();
     await choose(asFile(packageBytes()));
     fireEvent.click(screen.getByRole('button', { name: 'Validate package' }));
@@ -216,23 +216,23 @@ describe('public workbench', () => {
 
     expect(await screen.findByText('This file can’t be read as a BIM package')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('not a complete ZIP archive');
-    expect(api.validatePackage).not.toHaveBeenCalled();
+    expect(api.check).not.toHaveBeenCalled();
   });
 
   it('opens an official example from the address and validates it', async () => {
-    api.getBimExamplePackage.mockResolvedValue(packageBytes().slice().buffer);
-    renderPage('/workbench?example=demo%2F01_simple_seq');
+    api.template.mockResolvedValue(packageBytes().slice().buffer);
+    renderPage('/workbench?template=demo%2F01_simple_seq');
 
     expect(await screen.findByText('Valid package')).toBeInTheDocument();
-    expect(api.getBimExamplePackage).toHaveBeenCalledWith('demo/01_simple_seq');
+    expect(api.template).toHaveBeenCalledWith('demo/01_simple_seq');
     expect(screen.getByText('01_simple_seq.bim.zip')).toBeInTheDocument();
-    expect(api.validatePackage).toHaveBeenCalledTimes(1);
+    expect(api.check).toHaveBeenCalledTimes(1);
   });
 
   it('says so when an example from the address cannot be loaded', async () => {
-    api.getBimExamplePackage.mockRejectedValue(new HttpError(422, 'invalid_example'));
-    renderPage('/workbench?example=demo%2Fbroken');
-    expect(await screen.findByText(/This example package is corrupt \(422 · invalid_example\)/)).toBeInTheDocument();
+    api.template.mockRejectedValue(new HttpError(422, 'invalid_example'));
+    renderPage('/workbench?template=demo%2Fbroken');
+    expect(await screen.findByText(/This template package is corrupt \(422\)/)).toBeInTheDocument();
     expect(screen.getByText('No package yet')).toBeInTheDocument();
   });
 
@@ -245,16 +245,15 @@ describe('public workbench', () => {
     expect(screen.queryByText('checkout.bim.zip')).not.toBeInTheDocument();
   });
 
-  it('offers a signed-in account the project actions instead of the login prompt', async () => {
+  it('offers a signed-in account to save the package in one of its organizations instead of the login prompt', async () => {
     platform.organizations.mockResolvedValue([{ id: 'o', slug: 'isa-demo', name: 'ISA Demo Group' }]);
-    platform.projects.mockResolvedValue([{ id: 'p', slug: 'qos', name: 'QoS Benchmarks' }]);
-    api.getBimExamplePackage.mockResolvedValue(packageBytes().slice().buffer);
-    renderPage('/workbench?example=demo%2F01_simple_seq', lucia);
+    api.template.mockResolvedValue(packageBytes().slice().buffer);
+    renderPage('/workbench?template=demo%2F01_simple_seq', lucia);
 
     expect(await screen.findByText('Signed in as lucia')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Log in to run' })).not.toBeInTheDocument();
     await screen.findByText('Valid package');
-    fireEvent.click(screen.getByRole('button', { name: 'Save to a project' }));
-    expect(await screen.findByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' })).toHaveAttribute('href', '/app/isa-demo/qos/workbench?example=demo%2F01_simple_seq');
+    fireEvent.click(screen.getByRole('button', { name: 'Save to an organization' }));
+    expect(await screen.findByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo/workbench?template=demo%2F01_simple_seq');
   });
 });

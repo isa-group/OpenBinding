@@ -6,7 +6,6 @@ import json
 import uuid
 from typing import Any, Iterable
 
-from bim_core import PackageError
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
@@ -17,7 +16,6 @@ from .db import base as db_base
 from .db.models import (
     AuditEvent,
     BindingCaseRevision,
-    InstanceSnapshot,
     Job,
     JobState,
     Organization,
@@ -27,13 +25,14 @@ from .db.models import (
     User,
     utcnow,
 )
+from .domain.binding_space import BindingSpace
 from .domain.entitlements import Refusal
 from .jobs import lifecycle
 from .jobs.leases import aware
 from .security.roles import require_work_role
 from .services.engines import engine_mode, manifest_async
 from .services.entitlements import entitlement_service
-from .services.snapshots import persist_snapshot, snapshot_ir
+from .modules.problems.application import compile_or_get
 from .studies import aggregate_metrics
 
 
@@ -119,8 +118,8 @@ async def cell_job_mismatches(
 ) -> dict[str, dict[str, Any]]:
     """Which identities of a job differ from the cell it is offered as the result of.
 
-    The keys are ``case_revision`` (the BIM package behind the cell's pinned
-    case revision), ``engine`` (namespace, name, version and digest), ``mode``
+    The keys are ``case_revision`` (the problem revision the cell pins),
+    ``engine`` (namespace, name, version and digest), ``mode``
     (when the cell pins one) and ``seed``. Each maps to what the cell expects
     and what the job recorded; an empty result means the job is a faithful
     execution of the cell.
@@ -129,19 +128,8 @@ async def cell_job_mismatches(
     provenance = job.provenance if isinstance(job.provenance, dict) else {}
     mismatches: dict[str, dict[str, Any]] = {}
 
-    revision = await session.get(BindingCaseRevision, cell.binding_case_revision_id)
-    source = (
-        await session.get(InstanceSnapshot, revision.source_snapshot_id)
-        if revision is not None and revision.source_snapshot_id is not None
-        else None
-    )
-    expected_package = source.package_digest if source is not None else None
-    job_package = provenance.get("packageDigest")
-    if job_package is None and job.instance_snapshot_id is not None:
-        snapshot = await session.get(InstanceSnapshot, job.instance_snapshot_id)
-        job_package = snapshot.package_digest if snapshot is not None else None
-    if expected_package is None or job_package != expected_package:
-        mismatches["case_revision"] = {"cell": expected_package, "job": job_package}
+    if job.revision_id != cell.binding_case_revision_id:
+        mismatches["case_revision"] = {"cell": str(cell.binding_case_revision_id), "job": str(job.revision_id)}
 
     job_engine = provenance.get("engine") if isinstance(provenance.get("engine"), dict) else {}
     cell_engine = {field: cell.engine_ref.get(field) for field in ENGINE_IDENTITY_FIELDS}
@@ -211,14 +199,13 @@ def _response_payload(response: Any) -> dict[str, Any]:
 async def study_binding_space_refusal(
     session: AsyncSession, revision_ids: Iterable[uuid.UUID]
 ) -> Refusal | None:
-    """The first refusal among the distinct cases of a study run, decided before the run exists.
+    """The first refusal among the distinct revisions of a study run, decided before the run exists.
 
-    Each case is read from its stored IR (nothing is compiled or written) and held
-    against the deployment's binding-space limit (``MAX_BINDING_SPACE_LOG10``), so a run
-    whose cases are too large is refused whole instead of being accepted and then
-    failing cell by cell. A case whose snapshot cannot be read is left to the
-    launch of its cells, which reports it as it always did; launch applies the
-    same limit again to every job it creates.
+    Each revision's compilation by the installed toolchain (``compile_or_get``, which compiles once on a
+    miss) is held against the deployment's binding-space limit (``MAX_BINDING_SPACE_LOG10``), so a run
+    whose problems are too large is refused whole instead of being accepted and then failing cell by
+    cell. A revision that cannot be compiled is left to the launch of its cells, which reports it; launch
+    applies the same limit again to every job it creates.
     """
     seen: set[uuid.UUID] = set()
     for revision_id in revision_ids:
@@ -226,16 +213,13 @@ async def study_binding_space_refusal(
             continue
         seen.add(revision_id)
         revision = await session.get(BindingCaseRevision, revision_id)
-        if revision is None or revision.source_snapshot_id is None:
-            continue
-        source = await session.get(InstanceSnapshot, revision.source_snapshot_id)
-        if source is None:
+        if revision is None:
             continue
         try:
-            compilation = await snapshot_ir(source, session)
-        except (HTTPException, PackageError, RuntimeError):
+            compilation = await compile_or_get(session, revision)
+        except HTTPException:
             continue
-        refusal = entitlement_service.binding_space_refusal(compilation.binding_space)
+        refusal = entitlement_service.binding_space_refusal(BindingSpace.from_analysis(compilation.analysis))
         if refusal is not None:
             return refusal
     return None
@@ -269,26 +253,8 @@ async def launch_study_cell(
         return existing
 
     revision = await session.get(BindingCaseRevision, cell.binding_case_revision_id)
-    if revision is None or revision.source_snapshot_id is None:
-        raise StudyLaunchError(
-            "executable_snapshot_required",
-            "Study case revisions must pin a BIM source snapshot.",
-        )
-    source = await session.get(InstanceSnapshot, revision.source_snapshot_id)
-    if source is None:
-        raise StudyLaunchError(
-            "snapshot_not_found", "The BIM snapshot pinned by this case revision no longer exists."
-        )
-    try:
-        compilation = await snapshot_ir(source, session)
-    except (HTTPException, PackageError, RuntimeError) as exc:
-        raise StudyLaunchError("invalid_case_revision", str(exc)) from exc
-
-    # A project member may run a teammate's case. Persisting the same immutable
-    # package for the actor keeps the existing owner-scoped snapshot contract.
-    snapshot_id = await persist_snapshot(compilation, user, session)
-    if snapshot_id is None:
-        raise StudyLaunchError("snapshot_persistence_failed", "The BIM snapshot could not be persisted.")
+    if revision is None:
+        raise StudyLaunchError("revision_not_found", "The problem revision of this cell no longer exists.")
 
     engine = dict(cell.engine_ref)
     requested_mode = engine.pop("mode", None)
@@ -313,7 +279,7 @@ async def launch_study_cell(
     if isinstance(properties, dict) and "seed" in properties:
         options["seed"] = cell.seed
     payload = {
-        "snapshot": snapshot_id,
+        "revision": str(revision.id),
         "engine": engine,
         "mode": selected_mode["id"],
         "optimization": execution_optimization,

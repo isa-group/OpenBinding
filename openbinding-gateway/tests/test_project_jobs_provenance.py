@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 
+from _problem_helpers import placeholder_refs
 from _b1_helpers import gate, make_account, make_org, put_member  # noqa: F401
 from openbinding_gateway.db.models import Job, JobState
 from openbinding_gateway.models.platform import job_view
@@ -15,8 +16,8 @@ def _job(owner_id, organization_id=None, project_id=None) -> Job:
     return Job(
         owner_id=owner_id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
         service_url="http://engine", state=JobState.COMPLETED,
-        organization_id=organization_id, project_id=project_id,
-        provenance=dict(PROVENANCE),
+        organization_id=organization_id or uuid.uuid4(), project_id=project_id,
+        provenance=dict(PROVENANCE), **placeholder_refs('organization_id'),
     )
 
 

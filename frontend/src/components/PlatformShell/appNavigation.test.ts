@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Organization, Project } from '../../api/platform';
 import { routeDefinitions } from '../../routes/registry';
 import {
-  accountLinks, createItems, currentSection, labEntries, labEntryOf, mainLinks, NEEDS_PROJECT, problemsEntry,
+  accountLinks, createItems, currentSection, labEntries, labEntryOf, mainLinks, NEEDS_ORGANIZATION, NEEDS_PROJECT, problemsEntry,
   type MenuEntry,
 } from './appNavigation';
 
@@ -30,7 +30,7 @@ describe('mainLinks', () => {
   it('offers no entry of the header, Lab, New or account menus that leads to a report, library or resources address', () => {
     const addresses = [
       ...Object.values(mainLinks).map((link) => link.to),
-      ...addressesOf([problemsEntry(organization, project)]),
+      ...addressesOf([problemsEntry(organization)]),
       ...addressesOf(labEntries(organization, project)),
       ...addressesOf(createItems(organization, project)),
       ...accountLinks.map((link) => link.to),
@@ -41,20 +41,20 @@ describe('mainLinks', () => {
 });
 
 describe('problemsEntry and labEntries', () => {
-  it('lead into the current project', () => {
-    expect(problemsEntry(organization, project)).toEqual({ label: 'Problems', to: '/app/isa-demo/qos/problems' });
+  it('lead into the organization (problems) and the current project (runs, studies)', () => {
+    expect(problemsEntry(organization)).toEqual({ label: 'Problems', to: '/app/isa-demo/problems' });
     expect(labEntries(organization, project).map(({ id, label, to }) => [id, label, to])).toEqual([
       ['runs', 'Runs', '/app/isa-demo/qos/runs'], ['studies', 'Studies', '/app/isa-demo/qos/studies'],
     ]);
-    for (const address of [...addressesOf([problemsEntry(organization, project)]), ...addressesOf(labEntries(organization, project))]) {
+    for (const address of [...addressesOf([problemsEntry(organization)]), ...addressesOf(labEntries(organization, project))]) {
       expect(matchRoutes(routed, address), address).not.toBeNull();
     }
   });
 
-  it('disables Problems, Runs and Studies with the hint "Needs a project" without a current project', () => {
+  it('disables Problems without an organization, and Runs and Studies without a project', () => {
     expect(NEEDS_PROJECT).toBe('Needs a project');
-    expect(problemsEntry(organization)).toEqual({ label: 'Problems', hint: 'Needs a project' });
-    expect(problemsEntry()).toEqual({ label: 'Problems', hint: 'Needs a project' });
+    expect(NEEDS_ORGANIZATION).toBe('Needs an organization');
+    expect(problemsEntry()).toEqual({ label: 'Problems', hint: 'Needs an organization' });
     expect(labEntries(organization).map(({ label, to, hint }) => [label, to, hint])).toEqual([
       ['Runs', undefined, 'Needs a project'], ['Studies', undefined, 'Needs a project'],
     ]);
@@ -62,9 +62,9 @@ describe('problemsEntry and labEntries', () => {
 });
 
 describe('createItems', () => {
-  it('offers Problem, Study and Run in the current project, in this order', () => {
+  it('offers Problem in the organization, Study and Run in the current project, in this order', () => {
     expect(createItems(organization, project).map((item) => [item.label, item.to])).toEqual([
-      ['Problem', '/app/isa-demo/qos/problems?create=problem'],
+      ['Problem', '/app/isa-demo/problems?create=problem'],
       ['Study', '/app/isa-demo/qos/studies/new'],
       ['Run', '/app/isa-demo/qos/runs/new'],
     ]);
@@ -73,12 +73,13 @@ describe('createItems', () => {
     }
   });
 
-  it('disables the three items with the hint "Needs a project" when no project is current', () => {
-    for (const items of [createItems(), createItems(organization)]) {
-      expect(items.map((item) => [item.label, item.to, item.hint])).toEqual([
-        ['Problem', undefined, 'Needs a project'], ['Study', undefined, 'Needs a project'], ['Run', undefined, 'Needs a project'],
-      ]);
-    }
+  it('disables Study and Run without a project, and Problem without an organization', () => {
+    expect(createItems(organization).map((item) => [item.label, item.to, item.hint])).toEqual([
+      ['Problem', '/app/isa-demo/problems?create=problem', undefined], ['Study', undefined, 'Needs a project'], ['Run', undefined, 'Needs a project'],
+    ]);
+    expect(createItems().map((item) => [item.label, item.to, item.hint])).toEqual([
+      ['Problem', undefined, 'Needs an organization'], ['Study', undefined, 'Needs a project'], ['Run', undefined, 'Needs a project'],
+    ]);
   });
 
   it('has none of the former items', () => {
@@ -103,8 +104,9 @@ describe('currentSection', () => {
     ['/app/isa-demo', 'home'],
     ['/app/isa-demo/qos', 'home'],
     ['/app/isa-demo/settings/members', 'home'],
-    ['/app/isa-demo/qos/problems', 'problems'],
-    ['/app/isa-demo/qos/problems/routing', 'problems'],
+    ['/app/isa-demo/problems', 'problems'],
+    ['/app/isa-demo/problems/routing', 'problems'],
+    ['/app/isa-demo/workbench', 'problems'],
     ['/app/isa-demo/qos/runs', 'lab'],
     ['/app/isa-demo/qos/runs/new', 'lab'],
     ['/app/isa-demo/qos/studies', 'lab'],
@@ -141,7 +143,7 @@ describe('labEntryOf', () => {
   it('tells the entry of the Lab menu an address belongs to', () => {
     expect(labEntryOf('/app/isa-demo/qos/runs/job-1')).toBe('runs');
     expect(labEntryOf('/app/isa-demo/qos/studies/s1')).toBe('studies');
-    expect(labEntryOf('/app/isa-demo/qos/problems')).toBeNull();
+    expect(labEntryOf('/app/isa-demo/problems')).toBeNull();
     expect(labEntryOf('/app')).toBeNull();
   });
 });

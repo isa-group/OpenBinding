@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { platformApi, type CaseRevision, type Organization, type Project } from '../../api/platform';
+import type { Organization } from '../../api/platform';
+import { problemsApi, type ProblemRevision } from '../../api/problems';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -8,9 +9,10 @@ import { useAuth } from '../../contexts/auth';
 import { problemsPath } from '../../routes/paths/problems';
 import { useResource } from '../../utils/useResource';
 import { newestFirst } from '../Cases/casesModel';
+import { problemAccess } from '../Cases/useRouteProblem';
+import { useRouteOrganization } from '../Organization/useRouteOrganization';
 import { OrgFrame, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
-import { useRouteProject } from '../Project/useRouteProject';
-import { ActionBar } from './ActionBar';
+import { ActionBar, NEW_PROBLEM } from './ActionBar';
 import { CheckResult } from './CheckResult';
 import { PackageEditor } from './PackageEditor';
 import { PackageSource } from './PackageSource';
@@ -18,42 +20,44 @@ import { useWorkbench } from './useWorkbench';
 import { loadRefusalText } from './workbenchModel';
 import './Workbench.css';
 
-const EMPTY_REVISIONS: CaseRevision[] = [];
+const EMPTY_REVISIONS: ProblemRevision[] = [];
+/** How many problems the pickers list; the gateway's ceiling for one page. */
+const PICKER_LIMIT = 200;
 
-function WorkbenchScreen({ organization, project, canSave }: { organization: Organization; project: Project; canSave: boolean }) {
+function WorkbenchScreen({ organization, canSave }: { organization: Organization; canSave: boolean }) {
   const { user } = useAuth();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
-  const caseRef = params.get('case');
+  const org = organization.slug;
+  const problemRef = params.get('problem');
   const revisionRef = params.get('revision');
-  const requestedExample = params.get('example') ?? '';
-  const [pickedCase, setPickedCase] = useState(caseRef ?? '');
-  const root = `/app/${organization.slug}/${project.slug}`;
+  const requestedExample = params.get('template') ?? '';
+  const [pickedCase, setPickedCase] = useState(problemRef ?? '');
+  const [saveTarget, setSaveTarget] = useState(problemRef ?? NEW_PROBLEM);
 
-  const wb = useWorkbench({
-    orgSlug: organization.slug, projectSlug: project.slug, userId: user?.id, pathname: location.pathname, caseRef, revisionRef, requestedExample,
-  });
+  const wb = useWorkbench({ orgSlug: org, userId: user?.id, pathname: location.pathname, problemRef, revisionRef, requestedExample });
 
-  const cases = useResource(`wb-cases:${organization.slug}/${project.slug}`, () => platformApi.cases(organization.slug, project.slug));
-  const revisions = useResource<CaseRevision[]>(
-    `wb-revisions:${organization.slug}/${project.slug}/${pickedCase}`,
-    () => (pickedCase ? platformApi.caseRevisions(organization.slug, project.slug, pickedCase) : Promise.resolve(EMPTY_REVISIONS)),
+  const problems = useResource(`wb-problems:${org}`, async () => (await problemsApi.list(org, { limit: PICKER_LIMIT })).problems);
+  const revisions = useResource<ProblemRevision[]>(
+    `wb-revisions:${org}/${pickedCase}`,
+    () => (pickedCase ? problemsApi.revisions(org, pickedCase) : Promise.resolve(EMPTY_REVISIONS)),
   );
   // No plan limits the package or the problem size: the deployment does, and its refusals (413, the binding-space
   // refusal) say so when they happen.
-  const caseList = cases.data ?? [];
+  const problemList = problems.data ?? [];
   const revisionList = revisions.data ? newestFirst(revisions.data) : EMPTY_REVISIONS;
 
-  const pickRevision = (revision: CaseRevision) => {
-    setParams({ case: pickedCase, revision: revision.id }, { replace: true });
+  const pickRevision = (revision: ProblemRevision) => {
+    setSaveTarget(pickedCase);
+    setParams({ problem: pickedCase, revision: String(revision.revision) }, { replace: true });
   };
 
   return (
-    <OrgFrame organization={organization} project={project} section="cases" trail={[{ label: 'Workbench' }]}>
+    <OrgFrame organization={organization} trail={[{ label: 'Problems', to: problemsPath(org) }, { label: 'Workbench' }]}>
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>Workbench</h1>
-          <p>Write or check a package, see which engines can run it, then snapshot it or save it as a problem version. A saved version runs from its problem page.</p>
+          <p>Write or check a package, see which engines can run it, then save it as a new problem or as a new version of one. A saved version runs from its problem page.</p>
         </div>
       </header>
 
@@ -61,10 +65,10 @@ function WorkbenchScreen({ organization, project, canSave }: { organization: Org
         <PackageSource
           wb={wb}
           requestedExample={Boolean(requestedExample)}
-          casesHref={problemsPath(root)}
+          casesHref={problemsPath(org)}
           choices={{
-            cases: caseList,
-            state: cases.status === 'ready' ? 'ready' : cases.status === 'error' ? 'failed' : 'loading',
+            cases: problemList,
+            state: problems.status === 'ready' ? 'ready' : problems.status === 'error' ? 'failed' : 'loading',
             revisions: revisionList,
             revisionsState: !pickedCase ? 'idle' : revisions.status === 'ready' ? 'ready' : revisions.status === 'error' ? 'failed' : 'loading',
             picked: pickedCase,
@@ -94,12 +98,14 @@ function WorkbenchScreen({ organization, project, canSave }: { organization: Org
             <ActionBar
               wb={wb}
               canSave={canSave}
-              cases={caseList}
-              target={pickedCase}
-              onTarget={setPickedCase}
-              revisions={revisionList}
-              revisionsReady={revisions.status === 'ready'}
-              root={root}
+              org={org}
+              problems={problemList}
+              target={saveTarget}
+              onTarget={setSaveTarget}
+              onSaved={(problem) => {
+                setSaveTarget(problem);
+                problems.reload();
+              }}
             />
           </>
         )}
@@ -108,12 +114,14 @@ function WorkbenchScreen({ organization, project, canSave }: { organization: Org
   );
 }
 
-/** The workbench (`wb-workbench`, `/app/:org/:project/workbench`): the BIM problem editor. Check a package, see which engines can run it, then snapshot it or save it as a problem version. */
+/**
+ * The workbench (`wb-workbench`, `/app/:org/workbench`): the BIM problem editor of an organization. Check a package, see which engines can
+ * run it, then save it as a new problem or a new version of one. `?problem=&revision=` opens a version, `?template=` a template. A VIEWER
+ * can edit and check but not save.
+ */
 export function Workbench() {
-  const { organization, project, access, waiting, failure, reload } = useRouteProject();
-  if (waiting) return <OrgSkeleton label="Loading project…" />;
-  if (!organization || !project) {
-    return <OrgGate failure={organization ? failure : null} organizationName={organization?.name} onRetry={reload} />;
-  }
-  return <WorkbenchScreen organization={organization} project={project} canSave={access.canCreate} />;
+  const { organization, waiting } = useRouteOrganization();
+  if (waiting) return <OrgSkeleton label="Loading organization…" />;
+  if (!organization) return <OrgGate failure={null} subject="organization" />;
+  return <WorkbenchScreen organization={organization} canSave={problemAccess(organization).canCreate} />;
 }

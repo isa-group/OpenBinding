@@ -7,14 +7,14 @@ import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
-import { problemPath, problemsPath } from '../../routes/paths/problems';
+import { problemsPath, workbenchPath } from '../../routes/paths/problems';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { useResource, type Resource } from '../../utils/useResource';
 import { roleSource } from '../Organization/orgModel';
 import { RoleChip } from '../Organization/parts';
-import { loadCases, loadStudies } from './projectData';
+import { loadStudies } from './projectData';
 import { classifyAuthError, marker } from '../../features/workspace/errors';
-import { jobStatus, type CaseContent, type StudyContent } from '../../features/workspace/model';
+import { jobStatus, type StudyContent } from '../../features/workspace/model';
 import { cellBreakdown, countWord, integrityOf, latestRun, sealedShare, type IntegrityItem } from './projectModel';
 import { OrgFrame, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { VisibilityChip } from './parts';
@@ -62,45 +62,6 @@ function Card({ id, title, allLabel, allTo, resource, noun, children }: CardProp
       {resource.status === 'error' && <CardFailure resource={resource} noun={noun} />}
       {resource.status === 'ready' && children}
     </section>
-  );
-}
-
-function CasesCard({ root, resource }: { root: string; resource: Resource<CaseContent[]> }) {
-  const cases = resource.data ?? [];
-  return (
-    <Card id="po-cases" title="Problems" allLabel="All problems" allTo={problemsPath(root)} resource={resource} noun="problems">
-      {cases.length === 0 && <p className="org-muted">No problems yet. A problem holds a workflow, its candidates, constraints and goal.</p>}
-      {cases.slice(0, RECENT).map(({ item, revisions }) => {
-        const ordered = [...revisions].sort((a, b) => a.revision - b.revision);
-        const shown = ordered.slice(-4);
-        return (
-          <Link key={item.id} to={problemPath(root, item.slug)} viewTransition className="proj-row-card">
-            <span className="proj-row-top">
-              <strong>{item.name}</strong>
-              <small>{revisions.length === 1 ? '1 revision' : `${revisions.length} revisions`}</small>
-            </span>
-            {shown.length > 0 && (
-              <ol className="proj-revisions" aria-label={`Revisions of ${item.name}`}>
-                {ordered.length > shown.length && <li aria-hidden="true">…</li>}
-                {shown.map((revision, index) => (
-                  <li key={revision.id}>
-                    <span
-                      className={`proj-rev${index === shown.length - 1 ? ' is-latest' : ''}`}
-                      title={`${formatDate(revision.created_at) ?? '—'}${index === shown.length - 1 ? ' · latest' : ''}`}
-                    >
-                      r{revision.revision}
-                    </span>
-                    {index < shown.length - 1 && <span aria-hidden="true" className="proj-rev-arrow">→</span>}
-                  </li>
-                ))}
-              </ol>
-            )}
-            <small className="proj-row-note">{item.description || `Created ${formatDate(item.created_at) ?? '—'}`}</small>
-          </Link>
-        );
-      })}
-      {cases.length > RECENT && <small className="org-muted">{cases.length - RECENT} more in All problems.</small>}
-    </Card>
   );
 }
 
@@ -212,10 +173,10 @@ function IntegrityStrip({ items }: { items: IntegrityItem[] }) {
   );
 }
 
-function GetStarted({ root, canCreate }: { root: string; canCreate: boolean }) {
+function GetStarted({ org, root, canCreate }: { org: string; root: string; canCreate: boolean }) {
   const steps: Array<{ title: string; detail: string; cta: string; to: string; needsMember?: boolean }> = [
-    { title: 'Import an example', detail: 'Start from a ready package and adapt it.', cta: 'Open an example', to: `${root}/workbench` },
-    { title: 'Create a problem', detail: 'Compose a workflow, candidates, constraints and goal.', cta: 'New problem', to: problemsPath(root), needsMember: true },
+    { title: 'Add a problem', detail: 'Problems belong to the organization: upload a package or write one in its Workbench.', cta: 'Open problems', to: problemsPath(org) },
+    { title: 'Start a run', detail: 'Run a problem version with an exact engine.', cta: 'New run', to: `${root}/runs/new`, needsMember: true },
     { title: 'Validate a package', detail: 'Check a .bim.zip you already have.', cta: 'Open Workbench', to: '/workbench' },
   ];
   return (
@@ -240,15 +201,14 @@ function GetStarted({ root, canCreate }: { root: string; canCreate: boolean }) {
   );
 }
 
-function OverviewBody({ organization, project, canCreate, canAdminister, publicRead, role, roleTitle }: {
-  organization: Organization; project: Project; canCreate: boolean; canAdminister: boolean; publicRead: boolean; role: Organization['effective_role'] | 'PLATFORM ADMIN'; roleTitle?: string;
+function OverviewBody({ organization, project, canCreate, publicRead, role, roleTitle }: {
+  organization: Organization; project: Project; canCreate: boolean; publicRead: boolean; role: Organization['effective_role'] | 'PLATFORM ADMIN'; roleTitle?: string;
 }) {
   const { isAdmin } = useAuth();
   const org = organization.slug;
   const slug = project.slug;
   const root = `/app/${org}/${slug}`;
 
-  const cases = useResource(`overview-cases:${org}/${slug}`, () => loadCases(org, slug));
   // A visitor of a public project never reads its jobs (the gateway refuses them), so the card is neither asked for nor shown.
   const jobs = useResource<JobsData>(`overview-jobs:${org}/${slug}:${publicRead ? 'public' : 'member'}`, async () => {
     if (publicRead) return { rows: [], mine: null };
@@ -257,13 +217,9 @@ function OverviewBody({ organization, project, canCreate, canAdminister, publicR
   });
   const studies = useResource(`overview-studies:${org}/${slug}`, () => loadStudies(org, slug, RECENT));
 
-  const loaded = [cases, jobs, studies].every((item) => item.status === 'ready');
-  const empty = loaded
-    && (cases.data?.length ?? 0) === 0 && (jobs.data?.rows.length ?? 0) === 0
-    && (studies.data?.length ?? 0) === 0;
-  const sealed = [cases, studies].every((item) => item.status === 'ready')
-    ? integrityOf({ cases: cases.data, studies: studies.data })
-    : null;
+  const loaded = [jobs, studies].every((item) => item.status === 'ready');
+  const empty = loaded && (jobs.data?.rows.length ?? 0) === 0 && (studies.data?.length ?? 0) === 0;
+  const sealed = studies.status === 'ready' ? integrityOf({ studies: studies.data }) : null;
 
   const header = (
     <>
@@ -277,33 +233,28 @@ function OverviewBody({ organization, project, canCreate, canAdminister, publicR
           <p>{project.description || 'No description yet.'}</p>
         </div>
         <div className="proj-actions">
-          {publicRead ? (
-            <Action to={problemsPath(root)} variant="primary">Browse problems</Action>
-          ) : (
+          {!publicRead && (
             <>
-              <RoleAction allowed={canCreate} to={problemsPath(root)} variant="primary">New problem</RoleAction>
-              <RoleAction allowed={canCreate} to={`${root}/runs/new`} variant="secondary">Run</RoleAction>
+              <RoleAction allowed={canCreate} to={`${root}/runs/new`} variant="primary">Run</RoleAction>
               <RoleAction allowed={canCreate} to={`${root}/studies/new`} variant="secondary">New study</RoleAction>
+              <Action to={problemsPath(org)} variant="secondary">Problems</Action>
+              <Action to={workbenchPath(org)} variant="secondary">Workbench</Action>
             </>
           )}
-          <Action to={`${root}/workbench`} variant="secondary">Workbench</Action>
-          {/* The package export lives in the settings, which show it to the people who may change the project. */}
-          {!publicRead && canAdminister && <Action to={`${root}/settings`} variant="secondary">Export package</Action>}
         </div>
       </div>
-      {publicRead && <small className="org-muted">Problems, studies and the files marked public are open to read. Only members can change anything or see runs.</small>}
+      {publicRead && <small className="org-muted">Studies are open to read. Only members can change anything or see runs.</small>}
       {!publicRead && !canCreate && <small className="org-muted">You’re a VIEWER: you can read everything here; creating needs MEMBER.</small>}
     </>
   );
 
   return (
     <OrgFrame organization={organization} project={project} section="overview" header={header}>
-      {empty && !publicRead && <GetStarted root={root} canCreate={canCreate} />}
+      {empty && !publicRead && <GetStarted org={org} root={root} canCreate={canCreate} />}
       {empty && publicRead && <p className="org-muted">Nothing has been shared in this project yet.</p>}
       {sealed && !empty && <IntegrityStrip items={sealed} />}
       {!empty && (
         <div className="proj-grid">
-          <CasesCard root={root} resource={cases} />
           {!publicRead && <JobsCard root={root} resource={jobs} platformAdmin={isAdmin} />}
           <StudiesCard root={root} resource={studies} />
         </div>
@@ -312,7 +263,7 @@ function OverviewBody({ organization, project, canCreate, canAdminister, publicR
   );
 }
 
-/** A project (`proj-overview`, `/app/:org/:project`): sealed versus draft, cases, jobs and studies, each card on its own. */
+/** A project (`proj-overview`, `/app/:org/:project`): its runs and studies, each card on its own. */
 export function ProjectOverview() {
   const { context, organization, project, access, waiting, failure, reload } = useRouteProject();
   const { isAdmin } = useAuth();
@@ -326,7 +277,6 @@ export function ProjectOverview() {
       organization={organization}
       project={project}
       canCreate={access.canCreate}
-      canAdminister={access.canAdminister}
       publicRead={access.publicRead}
       role={role}
       roleTitle={roleSource(organization, context.organizations).text}

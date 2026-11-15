@@ -68,6 +68,9 @@ EXIT_PASSED, EXIT_FAILED, EXIT_CONFIG, EXIT_INCONCLUSIVE = 0, 1, 2, 3
 ENGINE = "minizinc-csp"
 MODE = "exact-weighted"
 USER = "lab-owner"
+ORG = "lab-main"
+#: The slug of the problem the hard package is uploaded as (reused by every run).
+PROBLEM_SLUG = "cancel-probe"
 DEFAULT_BASE_URL = "http://web:8080"
 DEFAULT_ENGINE_URL = "http://engine-minizinc:3000"
 JOB_PATH = "/internal/v1/jobs/{id}"
@@ -159,6 +162,8 @@ class Config:
     base_url: str = DEFAULT_BASE_URL
     password: str = ""
     user: str = USER
+    #: The organization the hard package is uploaded to (``user`` must be a MEMBER of it).
+    org: str = ORG
     engine_url: str = DEFAULT_ENGINE_URL
     engine_token: str | None = None
     tasks: int = 150
@@ -320,17 +325,25 @@ class Probe:
         self.token = token
         self.redact.add(token)
 
-        upload = self.api("POST", "/v1/instances", headers={"Content-Type": BIM_ZIP}, content=self.package())
-        snapshot = mapping(body_of(upload)).get("id")
-        if upload.status_code not in (200, 201) or not isinstance(snapshot, str):
-            raise Inconclusive(f"the hard package was not accepted as a snapshot ({describe(upload)})")
+        problems = f"/v1/organizations/{self.config.org}/problems"
+        upload = self.api(
+            "POST", problems, params={"slug": PROBLEM_SLUG}, headers={"Content-Type": BIM_ZIP}, content=self.package()
+        )
+        if upload.status_code == 409:
+            # A problem left by an earlier run: the package is the next revision of it (or already is one).
+            upload = self.api(
+                "POST", f"{problems}/{PROBLEM_SLUG}/revisions", headers={"Content-Type": BIM_ZIP}, content=self.package()
+            )
+        revision = mapping(mapping(body_of(upload)).get("revision")).get("id")
+        if upload.status_code not in (200, 201) or not isinstance(revision, str):
+            raise Inconclusive(f"the hard package was not accepted as a problem ({describe(upload)})")
 
         launch = self.api(
             "POST",
             "/v1/jobs",
             headers={"Idempotency-Key": f"cancel-probe-{uuid.uuid4().hex[:12]}"},
             json={
-                "snapshot": snapshot,
+                "revision": revision,
                 "engine": ENGINE,
                 "mode": MODE,
                 "optimization": dict(OPTIMIZATION),

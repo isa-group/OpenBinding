@@ -255,6 +255,16 @@ def _authorize_api_key(request: Request, user: User) -> None:
         )
 
 
+def authorize_counted_key(request: Request, user: Optional[User]) -> None:
+    """On a ``counted_caller`` route, an API key must still carry the route's permissions.
+
+    Visitors, sessions and credentials that name nobody pass as ``counted_caller`` left them; a valid key
+    that lacks the permission ``required_permissions`` names is refused (403), as on any other route.
+    """
+    if user is not None and authenticated_api_key(user) is not None:
+        _authorize_api_key(request, user)
+
+
 async def get_optional_user(
     request: Request,
     session: Optional[AsyncSession] = Depends(optional_session, scope="function"),

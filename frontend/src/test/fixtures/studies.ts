@@ -1,4 +1,5 @@
-import type { Analytics, BindingCase, CaseRevision, Study, StudyCell, StudyRun } from '../../api/platform';
+import type { Analytics, Study, StudyCell, StudyRun } from '../../api/platform';
+import type { Problem, ProblemRevision } from '../../api/problems';
 
 // Shared by the tests of the study screens and the S7a browser spec: the "Engines × seeds" study of the design prototype,
 // 2 case revisions × 2 engines × 1 setting × 2 seeds = 8 cells, six completed, one failed, one cancelled.
@@ -8,14 +9,14 @@ export const digestOf = (char: string): string => `sha256-${char.repeat(64)}`;
 export const RANDOM_SEARCH = { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: digestOf('b'), mode: 'sampling' };
 export const EVOLUTIONARY = { namespace: 'bim.builtin', name: 'evolutionary', version: '1.0.0', digest: digestOf('c'), mode: 'genetic' };
 
-export const CHECKOUT: BindingCase = {
-  id: 'case-checkout-flow', project_id: 'project-qos-benchmarks', slug: 'checkout-flow', name: 'Checkout flow', description: 'Payments with authentication, stock and shipping in parallel.',
-  created_by_id: 'user-admin', created_at: '2026-04-02T00:00:00Z',
+export const CHECKOUT: Problem = {
+  id: 'case-checkout-flow', organization_id: 'org-isa-demo', slug: 'checkout-flow', name: 'Checkout flow', description: 'Payments with authentication, stock and shipping in parallel.',
+  created_by_id: 'user-admin', created_at: '2026-04-02T00:00:00Z', updated_at: '2026-04-02T00:00:00Z',
 };
 
-export function revisionFixture(n: number, over: Partial<CaseRevision> = {}): CaseRevision {
+export function revisionFixture(n: number, over: Partial<ProblemRevision> = {}): ProblemRevision {
   return {
-    id: `rev-checkout-${n}`, binding_case_id: CHECKOUT.id, revision: n, digest: digestOf(String(n)), document: {}, source_snapshot_id: `snapshot-${n}`,
+    id: `rev-checkout-${n}`, problem_id: CHECKOUT.id, revision: n, package_digest: digestOf(String(n)), package_size: 4096, created_by_id: 'user-admin',
     created_at: n === 1 ? '2026-08-01T10:00:00Z' : '2026-08-20T10:05:00Z', ...over,
   };
 }
@@ -71,7 +72,7 @@ function completed(engine: typeof RANDOM_SEARCH, seed: number, result: Result): 
   };
 }
 
-export function cellFixture(ordinal: number, revision: CaseRevision, engine: typeof RANDOM_SEARCH, seed: number, state: StudyCell['state'], metrics: Record<string, unknown> = {}, over: Partial<StudyCell> = {}): StudyCell {
+export function cellFixture(ordinal: number, revision: ProblemRevision, engine: typeof RANDOM_SEARCH, seed: number, state: StudyCell['state'], metrics: Record<string, unknown> = {}, over: Partial<StudyCell> = {}): StudyCell {
   return {
     id: `00000000-0000-4000-8000-0000000002${String(ordinal).padStart(2, '0')}`,
     study_run_id: RUN_ID,

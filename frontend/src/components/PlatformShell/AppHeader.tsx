@@ -80,7 +80,7 @@ export function AppHeader({ organizations = [], projects = [], organization, pro
 
   const contextLabel = organization ? [organization.name, project?.name].filter(Boolean).join(' / ') : '';
   const initials = personInitials(user?.username);
-  const problems = problemsEntry(organization, project);
+  const problems = problemsEntry(organization);
   const lab = labEntries(organization, project);
   const items = createItems(organization, project);
 

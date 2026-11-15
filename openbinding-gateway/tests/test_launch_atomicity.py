@@ -6,11 +6,12 @@ import os
 import uuid
 
 import pytest
+from _problem_helpers import compiled_run_refs
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from _pricing import roomy_plan
-from test_idempotency_jobs import _body, _login, _snapshot
+from test_idempotency_jobs import _body, _login, _revision
 from test_job_dispatch import _account
 from test_study_cell_launch import BASE, _cells, _study
 
@@ -188,12 +189,12 @@ async def test_a_failed_flush_after_the_job_is_created_leaves_no_job(
     assert seen == []
 
 
-@pytest.mark.parametrize("failing", ["commit", "persist_snapshot", "job_flush"])
+@pytest.mark.parametrize("failing", ["commit", "job_flush"])
 async def test_a_failure_between_the_limit_check_and_the_commit_leaves_no_job(
     api_client, db_session, registration, monkeypatch, failing
 ) -> None:
     headers = await _login(api_client, registration())
-    snapshot = await _snapshot(api_client, headers)
+    revision = await _revision(api_client, headers)
     user = (await db_session.execute(select(User))).scalars().one()
     real_flush = AsyncSession.flush
 
@@ -205,16 +206,12 @@ async def test_a_failure_between_the_limit_check_and_the_commit_leaves_no_job(
             raise RuntimeError("flush failed")
         return await real_flush(self, *args, **kwargs)
 
-    async def persist(*args, **kwargs):
-        raise RuntimeError("snapshot failed")
-
     patches = {
         "commit": (AsyncSession, "commit", commit),
         "job_flush": (AsyncSession, "flush", flush),
-        "persist_snapshot": (v1, "persist_snapshot", persist),
     }
     target, name, replacement = patches[failing]
-    request = study_jobs._job_request(_body(snapshot))
+    request = study_jobs._job_request(_body(revision))
 
     with monkeypatch.context() as patch:
         patch.setattr(target, name, replacement)
@@ -232,6 +229,7 @@ async def test_a_retry_whose_dispatch_fails_keeps_its_committed_job(
     original = Job(
         owner_id=user_id, engine_id="random-search", engine_job_id="failed", service_url="http://engine",
         state=JobState.FAILED, original_request={}, options={}, provenance={},
+        **await compiled_run_refs(db_session, user_id),
     )
     db_session.add(original)
     await db_session.flush()
@@ -252,6 +250,7 @@ async def _attach_job(db_session, cell, user, organization, project, state=JobSt
         owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
         state=state, original_request={}, options={}, provenance={}, result={"termination": "FEASIBLE", "solutions": []},
         organization_id=organization.id, project_id=project.id, study_cell_id=cell.id,
+        revision_id=cell.binding_case_revision_id, compilation_id=uuid.uuid4(),
     )
     db_session.add(job)
     await db_session.flush()
@@ -330,6 +329,7 @@ async def _launched_run(api_client, db_session, registration, monkeypatch, code)
             owner_id=user_.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
             service_url="http://engine", state=JobState.QUEUED, study_cell_id=cell.id,
             organization_id=organization_.id, project_id=project_id,
+            revision_id=cell.binding_case_revision_id, compilation_id=uuid.uuid4(),
         )
         session.add(job)
         await session.flush()

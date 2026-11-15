@@ -36,8 +36,8 @@ type Outcome =
   | { tone: 'success'; text: string; follow?: { to: string; label: string } }
   | { tone: 'error'; refusal: Refusal };
 
-function DefinitionMatrix({ study, org, project }: { study: Study; org: string; project: string }) {
-  const { index } = useRevisionIndex(org, project);
+function DefinitionMatrix({ study, org }: { study: Study; org: string }) {
+  const { index } = useRevisionIndex(org);
   const grid = definitionGrid(study.definition);
   const size = definitionSize(study.definition);
   const seeds = [...study.definition.seeds].sort((a, b) => a - b);
@@ -161,7 +161,7 @@ function VersionsCard({ scope, versions, onPick, busy }: {
 function SetupTab({ scope, runs, versions, onPick, busy }: {
   scope: StudyScopeValue; runs: Resource<StudyRun[]>; versions: Resource<ArtifactVersion[] | null>; onPick: (id: string) => void; busy: boolean;
 }) {
-  const { study, organization, project, access } = scope;
+  const { study, organization, access } = scope;
   const [view, setView] = useState<'overview' | 'source'>('overview');
   return (
     <>
@@ -169,7 +169,7 @@ function SetupTab({ scope, runs, versions, onPick, busy }: {
       <TabPanel prefix="st-view" active={view}>
         {view === 'overview' ? (
           <>
-            <DefinitionMatrix study={study} org={organization.slug} project={project.slug} />
+            <DefinitionMatrix study={study} org={organization.slug} />
 
             <div className="st-two">
               <RunsCard scope={scope} runs={runs} />

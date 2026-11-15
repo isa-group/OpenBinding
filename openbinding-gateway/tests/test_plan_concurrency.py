@@ -17,10 +17,11 @@ import math
 import uuid
 
 import pytest
+from _problem_helpers import compiled_run_refs
 from sqlalchemy import func, select
 
 from test_concurrency_limit import a_job, make_user, set_limit, study_actors
-from test_idempotency_jobs import _body, _login, _post, _snapshot
+from test_idempotency_jobs import _body, _login, _post, _revision
 from test_job_dispatch import _account
 from test_study_cell_launch import BASE, _cells, _study
 from test_usage_limits import plan, set_plan
@@ -151,7 +152,7 @@ async def test_a_plan_limit_below_the_cap_refuses_the_next_job_and_a_finished_on
     set_limit(monkeypatch, 8)
     set_plan(**{LIMIT: 1})
     headers = await _login(api_client, registration())
-    snapshot = await _snapshot(api_client, headers)
+    snapshot = await _revision(api_client, headers)
 
     first = await _post(api_client, headers, _body(snapshot), key="first")
     refused = await _post(api_client, headers, _body(snapshot), key="second")
@@ -175,7 +176,7 @@ async def test_a_plan_above_the_cap_is_held_to_the_cap(api_client, db_session, r
     set_limit(monkeypatch, 1)
     set_plan(**{LIMIT: 50})
     headers = await _login(api_client, registration())
-    snapshot = await _snapshot(api_client, headers)
+    snapshot = await _revision(api_client, headers)
 
     await _post(api_client, headers, _body(snapshot), key="first")
     refused = await _post(api_client, headers, _body(snapshot), key="second")
@@ -192,7 +193,7 @@ async def test_a_plan_without_a_usable_limit_gets_the_cap_and_not_unlimited_jobs
     set_limit(monkeypatch, 2)
     set_plan(**{LIMIT: declared})
     headers = await _login(api_client, registration())
-    snapshot = await _snapshot(api_client, headers)
+    snapshot = await _revision(api_client, headers)
 
     accepted = [await _post(api_client, headers, _body(snapshot), key=f"job-{index}") for index in range(2)]
     refused = await _post(api_client, headers, _body(snapshot), key="job-2")
@@ -208,7 +209,7 @@ async def test_the_fixture_plan_that_allows_one_job_at_a_time_is_held_to_it(
 ):
     set_limit(monkeypatch, 8)  # the default gate: the fixture's default plan declares one
     headers = await _login(api_client, registration())
-    snapshot = await _snapshot(api_client, headers)
+    snapshot = await _revision(api_client, headers)
 
     await _post(api_client, headers, _body(snapshot), key="first")
     refused = await _post(api_client, headers, _body(snapshot), key="second")
@@ -223,7 +224,7 @@ async def test_an_idempotent_replay_at_the_plan_limit_returns_the_job_and_takes_
     set_limit(monkeypatch, 8)
     set_plan(**{LIMIT: 1})
     headers = await _login(api_client, registration())
-    snapshot = await _snapshot(api_client, headers)
+    snapshot = await _revision(api_client, headers)
     first = await _post(api_client, headers, _body(snapshot), key="the-key")
 
     replay = await _post(api_client, headers, _body(snapshot), key="the-key")
@@ -238,7 +239,7 @@ async def test_the_plan_limit_is_per_account(api_client, db_session, registratio
     set_limit(monkeypatch, 8)
     set_plan(**{LIMIT: 1})
     alice, bob = await _login(api_client, registration()), await _login(api_client, registration())
-    alice_snapshot, bob_snapshot = await _snapshot(api_client, alice), await _snapshot(api_client, bob)
+    alice_snapshot, bob_snapshot = await _revision(api_client, alice), await _revision(api_client, bob)
 
     first = await _post(api_client, alice, _body(alice_snapshot), key="a")
     other = await _post(api_client, bob, _body(bob_snapshot), key="b")
@@ -255,7 +256,8 @@ async def test_a_retry_at_the_plan_limit_is_a_429_and_a_replay_of_a_retry_is_not
     set_limit(monkeypatch, 8)
     set_plan(**{LIMIT: 1})
     user_id, headers = await _account(api_client, registration)
-    failed, busy = a_job(user_id, JobState.FAILED), a_job(user_id, JobState.QUEUED)
+    refs = await compiled_run_refs(db_session, user_id)
+    failed, busy = a_job(user_id, JobState.FAILED, **refs), a_job(user_id, JobState.QUEUED, **refs)
     db_session.add_all([failed, busy])
     await db_session.flush()
 

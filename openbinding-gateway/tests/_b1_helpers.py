@@ -15,8 +15,6 @@ from openbinding_gateway import space_client
 from openbinding_gateway.db.models import (
     Artifact,
     ArtifactVersion,
-    BindingCase,
-    BindingCaseRevision,
     Blob,
     ProjectArtifact,
     User,
@@ -95,10 +93,10 @@ def random_digest() -> str:
     return "sha256-" + uuid.uuid4().hex + uuid.uuid4().hex
 
 
-async def add_blob(db, ctx, digest: str, *, project_id=None, public: bool = False) -> Blob:
+async def add_blob(db, ctx, digest: str) -> Blob:
     """A blob row without bytes; ``ctx`` carries ``org_id`` and ``user_id``."""
     row = Blob(
-        organization_id=ctx.org_id, project_id=project_id, digest=digest, public=public,
+        organization_id=ctx.org_id, digest=digest,
         media_type="application/octet-stream", size_bytes=1,
         storage_uri=f"/nonexistent/{uuid.uuid4().hex}", created_by_id=ctx.user_id,
     )
@@ -127,22 +125,6 @@ async def add_version(db, ctx, *, kind: str, content_digest: str, blob: Blob | N
         db.add(ProjectArtifact(project_id=project_id, artifact_id=artifact.id))
     await db.flush()
     return artifact, version
-
-
-async def add_case_revision(db, ctx, *, digest: str, snapshot_id=None) -> BindingCaseRevision:
-    case = BindingCase(
-        project_id=ctx.project_id, slug=f"{SECRET}-case-{uuid.uuid4().hex[:6]}",
-        name=f"{SECRET} case", created_by_id=ctx.user_id,
-    )
-    db.add(case)
-    await db.flush()
-    revision = BindingCaseRevision(
-        binding_case_id=case.id, revision=1, digest=digest, document={},
-        source_snapshot_id=snapshot_id, created_by_id=ctx.user_id,
-    )
-    db.add(revision)
-    await db.flush()
-    return revision
 
 
 async def roles(client, headers, org: str) -> dict[str, str]:

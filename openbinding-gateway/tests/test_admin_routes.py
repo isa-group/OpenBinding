@@ -709,11 +709,12 @@ async def test_platform_operations_are_visible_without_direct_database_access(
 
     assert overview.status_code == 200
     assert overview.json()["counts"]["users"] == 2
+    assert {"problems", "problemRevisions"} <= set(overview.json()["counts"])
     assert set(queues.json()["counts"]) == {
         "queued", "running", "completed", "failed", "cancelled"
     }
     assert audit.json()["total"] >= 0
-    assert maintenance.json()["expiredArtifacts"] == 0
+    assert maintenance.json()["expiredApiKeys"] == 0 and "expiredArtifacts" not in maintenance.json()
 
 
 async def test_maintenance_purge_requires_the_exact_typed_confirmation(
@@ -734,4 +735,4 @@ async def test_maintenance_purge_requires_the_exact_typed_confirmation(
 
     assert refused.status_code == 422
     assert accepted.status_code == 200
-    assert accepted.json() == {"artifacts": 0, "artifactFiles": 0, "apiKeys": 0, "jobs": 0}
+    assert accepted.json() == {"apiKeys": 0, "jobs": 0}

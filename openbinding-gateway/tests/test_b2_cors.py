@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import pytest
 import pytest_asyncio
+from _problem_helpers import revision_of
+from _problem_helpers import placeholder_refs
 from pydantic import ValidationError
 
 from openbinding_gateway import main, space_client
@@ -197,17 +199,12 @@ async def test_a_429_exposes_retry_after_to_the_browser(
         json={"username_or_email": details["username"], "password": details["password"]},
     )
     headers = {"Authorization": f"Bearer {tokens.json()['access_token']}"}
-    snapshot = await api_client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=load_package(EXAMPLE).to_zip(),
-    )
-    assert snapshot.status_code == 201, snapshot.text
+    revision_id = await revision_of(api_client, headers, archive=load_package(EXAMPLE).to_zip())
     # The account's only slot is taken by a job that is still queued.
     monkeypatch.setattr(get_settings(), "max_concurrent_jobs_per_user", 1)
     db_session.add(Job(
         owner_id=user.id, engine_id="random-search", engine_job_id="busy",
-        service_url="http://engine", state=JobState.QUEUED,
+        service_url="http://engine", state=JobState.QUEUED, **placeholder_refs(),
     ))
     await db_session.commit()
     origin = allowed_origin()
@@ -216,7 +213,7 @@ async def test_a_429_exposes_retry_after_to_the_browser(
         "/v1/jobs",
         headers={**headers, "Origin": origin},
         json={
-            "snapshot": snapshot.json()["id"],
+            "revision": revision_id,
             "engine": "random-search",
             "mode": "seeded",
             "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},

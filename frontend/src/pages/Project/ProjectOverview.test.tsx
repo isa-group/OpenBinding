@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import type { Job, StudyCell } from '../../api/platform';
 import { ProjectOverview } from './ProjectOverview';
-import { caseOf, iker, org, project, renderProjectScreen, revisionOf, runOf, studyOf } from '../../features/workspace/testKit';
+import { iker, org, project, renderProjectScreen, runOf, studyOf } from '../../features/workspace/testKit';
 
 const api = vi.hoisted(() => ({ listOwnJobs: vi.fn() }));
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), cases: vi.fn(), revisions: vi.fn(), projectJobs: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(),
+  project: vi.fn(), projectJobs: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(),
 }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
@@ -16,7 +16,6 @@ vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof imp
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
 const qos = project('qos-benchmarks', { name: 'QoS Benchmarks', description: 'Reference binding cases.', visibility: 'public' });
-const checkout = caseOf('flujo', 'Flujo de checkout', { description: 'Catalog grown from 5 to 8 candidates.' });
 const study = studyOf('engines', { name: 'Engines × seeds' });
 
 const job = (id: string, engine: string, status: string, termination: string | null, createdAt: string, finishedAt: string | null): Job => ({
@@ -45,8 +44,6 @@ describe('Project overview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
-    platform.cases.mockResolvedValue([checkout]);
-    platform.revisions.mockResolvedValue([revisionOf(checkout, 1), revisionOf(checkout, 2)]);
     platform.projectJobs.mockResolvedValue(jobs);
     api.listOwnJobs.mockResolvedValue({ jobs: [{ id: 'job-1' }, { id: 'job-3' }], total: 2 });
     platform.studies.mockResolvedValue([study]);
@@ -63,12 +60,13 @@ describe('Project overview', () => {
     expect(within(band).getByText('OWNER')).toBeInTheDocument();
     expect(within(band).getByText('Reference binding cases.')).toBeInTheDocument();
     const root = '/app/isa-demo/qos-benchmarks';
-    expect(within(band).getByRole('link', { name: 'New problem' })).toHaveAttribute('href', `${root}/problems`);
     expect(within(band).getByRole('link', { name: 'Run' })).toHaveAttribute('href', `${root}/runs/new`);
     expect(within(band).getByRole('link', { name: 'New study' })).toHaveAttribute('href', `${root}/studies/new`);
     expect(within(band).queryByText('New report')).not.toBeInTheDocument();
-    expect(within(band).getByRole('link', { name: 'Workbench' })).toHaveAttribute('href', `${root}/workbench`);
-    expect(within(band).getByRole('link', { name: 'Export package' })).toHaveAttribute('href', `${root}/settings`);
+    // Problems and the Workbench belong to the organization.
+    expect(within(band).getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/problems');
+    expect(within(band).getByRole('link', { name: 'Workbench' })).toHaveAttribute('href', '/app/isa-demo/workbench');
+    expect(within(band).queryByRole('link', { name: 'Export package' })).not.toBeInTheDocument();
     const crumbs = within(band).getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', '/app/isa-demo');
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
@@ -81,21 +79,14 @@ describe('Project overview', () => {
 
     const strip = await screen.findByRole('region', { name: 'What’s sealed and what’s still a draft' });
     const chips = within(strip).getByRole('list', { name: 'Sealed and draft items' });
-    expect(within(chips).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['2 problem versions', '1 study run']);
+    expect(within(chips).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['1 study run']);
   });
 
-  it('lists the cases with their revisions', async () => {
+  it('has no Problems card: problems belong to the organization', async () => {
     renderOverview();
 
-    const cases = await screen.findByRole('region', { name: 'Problems' });
-    const card = await within(cases).findByRole('link', { name: /Flujo de checkout/ });
-    expect(card).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems/flujo');
-    expect(within(card).getByText('2 revisions')).toBeInTheDocument();
-    expect(within(card).getByText('r1')).toBeInTheDocument();
-    expect(within(card).getByText('r2')).toHaveAttribute('title', expect.stringContaining('latest'));
-    expect(within(card).getByText('r2').getAttribute('title')).not.toMatch(/sha256-|[0-9a-f]{12}/);
-    expect(within(card).getByText('Catalog grown from 5 to 8 candidates.')).toBeInTheDocument();
-    expect(within(cases).getByRole('link', { name: 'All problems' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems');
+    expect(await screen.findByRole('region', { name: 'Studies' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Problems' })).not.toBeInTheDocument();
   });
 
   it('lists every job as a summary but opens only the ones this account launched', async () => {
@@ -137,7 +128,7 @@ describe('Project overview', () => {
     renderOverview();
 
     expect(await screen.findByRole('region', { name: 'Recent runs' })).toBeInTheDocument();
-    for (const name of ['Problems', 'Studies']) expect(await screen.findByRole('region', { name })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Studies' })).toBeInTheDocument();
     await screen.findByText('Run #1 · partial');
     expect(screen.queryByRole('region', { name: 'Reports' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'All reports' })).not.toBeInTheDocument();
@@ -154,8 +145,7 @@ describe('Project overview', () => {
 
       const card = await screen.findByRole('region', { name: 'Recent runs' });
       expect(await within(card).findByRole('alert')).toHaveTextContent('Runs couldn’t be loaded (503 · unavailable). The rest of the page is unaffected.');
-      expect(await screen.findByRole('link', { name: /Flujo de checkout/ })).toBeInTheDocument();
-      expect(screen.getByRole('region', { name: 'Studies' })).toBeInTheDocument();
+      expect(await screen.findByRole('region', { name: 'Studies' })).toBeInTheDocument();
 
       fireEvent.click(within(card).getByRole('button', { name: 'Retry' }));
       expect(await within(card).findByRole('list', { name: 'Recent runs' })).toBeInTheDocument();
@@ -168,15 +158,6 @@ describe('Project overview', () => {
       const card = await screen.findByRole('region', { name: 'Recent runs' });
       expect(await within(card).findByRole('alert')).toHaveTextContent('You can’t list runs with this account or key (403).');
     });
-
-    it('cases: the strip waits for the numbers it can’t compute', async () => {
-      platform.cases.mockRejectedValue(refusal(503));
-      renderOverview();
-
-      expect(await screen.findByText(/Problems couldn’t be loaded \(503/)).toBeInTheDocument();
-      expect(screen.queryByRole('region', { name: 'What’s sealed and what’s still a draft' })).not.toBeInTheDocument();
-      expect(await screen.findByRole('list', { name: 'Recent runs' })).toBeInTheDocument();
-    });
   });
 
   describe('as a VIEWER', () => {
@@ -184,23 +165,20 @@ describe('Project overview', () => {
       platform.project.mockResolvedValue(project('qos-benchmarks', { name: 'QoS Benchmarks', organization_id: viewing.id }));
     });
 
-    it('reads everything, but cannot create and has no link to the package export of the settings', async () => {
+    it('reads everything, but cannot run or create', async () => {
       renderOverview({ slug: 'read-lab' });
 
       const title = await screen.findByRole('heading', { level: 1, name: 'QoS Benchmarks' });
       const band = title.closest('.proj-band') as HTMLElement;
       expect(within(band).getByText('VIEWER')).toBeInTheDocument();
-      expect(within(band).queryByRole('link', { name: 'New problem' })).not.toBeInTheDocument();
-      expect(within(band).getByText('New problem')).toHaveAttribute('aria-disabled', 'true');
-      expect(within(band).getByText('New problem')).toHaveAttribute('title', 'Needs MEMBER');
       expect(within(band).getByText('Run')).toHaveAttribute('aria-disabled', 'true');
+      expect(within(band).getByText('Run')).toHaveAttribute('title', 'Needs MEMBER');
       expect(within(band).queryByRole('link', { name: 'Export package' })).not.toBeInTheDocument();
       expect(within(band).getByText('You’re a VIEWER: you can read everything here; creating needs MEMBER.')).toBeInTheDocument();
     });
   });
 
   it('guides an empty project instead of showing four empty cards', async () => {
-    platform.cases.mockResolvedValue([]);
     platform.projectJobs.mockResolvedValue([]);
     platform.studies.mockResolvedValue([]);
     renderOverview();
@@ -208,8 +186,8 @@ describe('Project overview', () => {
     const guide = await screen.findByRole('region', { name: 'Get started' });
     const steps = within(guide).getAllByRole('listitem');
     expect(steps).toHaveLength(3);
-    expect(within(guide).getByRole('link', { name: 'Open an example' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/workbench');
-    expect(within(guide).getByRole('link', { name: 'New problem' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/problems');
+    expect(within(guide).getByRole('link', { name: 'Open problems' })).toHaveAttribute('href', '/app/isa-demo/problems');
+    expect(within(guide).getByRole('link', { name: 'New run' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/runs/new');
     expect(within(guide).getByRole('link', { name: 'Open Workbench' })).toHaveAttribute('href', '/workbench');
     expect(screen.queryByRole('region', { name: 'Recent runs' })).not.toBeInTheDocument();
   });
@@ -234,9 +212,9 @@ describe('Project overview', () => {
       for (const name of ['New problem', 'Run', 'New study', 'New report', 'Export package']) {
         expect(within(band).queryByText(name)).not.toBeInTheDocument();
       }
-      expect(within(band).getByRole('link', { name: 'Browse problems' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/problems');
+      expect(within(band).queryByRole('link', { name: 'Problems' })).not.toBeInTheDocument();
       const tabs = within(screen.getByRole('navigation', { name: 'Project sections' }));
-      expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Problems', 'Studies']);
+      expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Studies']);
       expect(tabs.queryByRole('link', { name: 'Published' })).not.toBeInTheDocument();
       expect(tabs.queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
       expect(tabs.queryByRole('link', { name: 'Runs' })).not.toBeInTheDocument();
@@ -244,11 +222,10 @@ describe('Project overview', () => {
       expect(tabs.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
     });
 
-    it('reads cases and studies, and never asks for the jobs, which the gateway refuses to visitors', async () => {
+    it('reads studies, and never asks for the jobs, which the gateway refuses to visitors', async () => {
       renderVisitor();
 
-      expect(await screen.findByRole('link', { name: /Flujo de checkout/ })).toBeInTheDocument();
-      expect(screen.getByRole('region', { name: 'Studies' })).toBeInTheDocument();
+      expect(await screen.findByRole('region', { name: 'Studies' })).toBeInTheDocument();
       expect(screen.queryByRole('region', { name: 'Reports' })).not.toBeInTheDocument();
       expect(screen.queryByRole('region', { name: 'Recent runs' })).not.toBeInTheDocument();
       expect(platform.projectJobs).not.toHaveBeenCalled();
@@ -256,7 +233,6 @@ describe('Project overview', () => {
     });
 
     it('does not show the get-started guide of a member when it is empty', async () => {
-      platform.cases.mockResolvedValue([]);
       platform.studies.mockResolvedValue([]);
       renderVisitor();
 
@@ -269,7 +245,7 @@ describe('Project overview', () => {
       renderOverview({ slug: 'open-lab', user: iker });
 
       const title = await screen.findByRole('heading', { level: 1, name: 'QoS Benchmarks' });
-      expect(within(title.closest('.proj-band') as HTMLElement).queryByText('New problem')).not.toBeInTheDocument();
+      expect(within(title.closest('.proj-band') as HTMLElement).queryByText('Run')).not.toBeInTheDocument();
     });
   });
 

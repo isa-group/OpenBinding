@@ -9,12 +9,14 @@ import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
   project: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), runStudy: vi.fn(), updateStudy: vi.fn(), deleteStudy: vi.fn(),
-  cases: vi.fn(), revisions: vi.fn(), analytics: vi.fn(),
+  analytics: vi.fn(),
 }));
 const library = vi.hoisted(() => ({ libraryApi: { versions: vi.fn() } }));
 const download = vi.hoisted(() => ({ saveBytes: vi.fn() }));
 
+const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../api/library', () => library);
 vi.mock('../../features/workspace/download', () => download);
 // The decision workspace is not what is under test here.
@@ -60,8 +62,8 @@ describe('One study', () => {
     platform.studies.mockResolvedValue([studyFixture()]);
     platform.studyRuns.mockResolvedValue([runFixture()]);
     platform.studyCells.mockResolvedValue(cellsFixture());
-    platform.cases.mockResolvedValue([CHECKOUT]);
-    platform.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
+    problems.list.mockResolvedValue({ problems: [CHECKOUT], total: 1, limit: 200, offset: 0 });
+    problems.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
     platform.analytics.mockResolvedValue(analyticsFixture());
     library.libraryApi.versions.mockResolvedValue([version(VERSION_ID, 1)]);
   });

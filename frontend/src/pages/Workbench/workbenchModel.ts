@@ -1,7 +1,5 @@
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import type { CaseRevision } from '../../api/platform';
-import { problemPath, problemsPath } from '../../routes/paths/problems';
 import { RANGE_CODE, RANGE_REFUSAL } from '../../utils/featureRange';
 import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import { limitProblemOf } from '../../utils/limitRefusals';
@@ -101,35 +99,27 @@ export function refusalText(refusal: Refusal, doing: string): string {
   }
 }
 
-/** Opening a problem version from the address (`?case=&revision=`) failed. */
+/** Opening a problem version from the address (`?problem=&revision=`) failed. */
 export function loadRefusalText(refusal: Refusal): string {
   if (refusal.status === 404) return `That problem version doesn’t exist any more, or you’re not in the organization it belongs to${refusalMarker(refusal)}. The package was not loaded.`;
   return refusalText(refusal, 'the package was not loaded');
 }
 
-/** Saving a problem version: what each refusal of `POST …/cases/{case}/revisions` means. */
+/** Saving: what each refusal of `POST …/problems` and `POST …/problems/{problem}/revisions` means. */
 export function saveRefusalText(refusal: Refusal): string {
   const marker = refusalMarker(refusal);
+  if (refusal.status === 409 && refusal.code === 'slug_conflict') return `That address is already used by another problem in this organization${marker}. Pick another one. Nothing was saved.`;
   switch (refusal.kind) {
-    case 'key': return `You need MEMBER in the organization to save a version, and an API key needs projects:write${marker}. Nothing was saved.`;
+    case 'key': return `You need MEMBER in the organization to save, and an API key needs problems:write${marker}. Nothing was saved.`;
     case 'session': return `Your session has ended${marker}. Log in again; the package is kept in this browser. Nothing was saved.`;
-    case 'invalid': return `The gateway refused to seal a version from this package${marker}. ${refusal.message ? `${refusal.message} ` : ''}Nothing was saved.`;
-    case 'quota': return `Your plan’s ${allowanceOf(refusal)} is used up${marker}. Nothing was saved.`;
+    case 'invalid': return `The gateway refused to seal this package${marker}. ${refusal.message ? `${refusal.message} ` : ''}Nothing was saved.`;
+    case 'quota': return `Your plan has no room for this${marker}: it counts your problems and the ${allowanceOf(refusal)} your packages take. Nothing was saved.`;
     case 'too-large': return `This package is larger than this deployment allows per request${marker}. Nothing was saved.`;
     case 'other': return refusal.status === 404
       ? `That problem no longer exists, or you’re not in its organization${marker}. Nothing was saved.`
       : `${refusal.message || 'The version could not be saved'}${marker}. Nothing was saved.`;
     default: return refusalText(refusal, 'nothing was saved');
   }
-}
-
-/**
- * Where `Open snapshot` leads: the Source tab of `problem` at the sealed version made from the snapshot (the one whose `source_snapshot_id`
- * is the snapshot's id), and the problem list when no version of that problem came from it, or no problem is chosen.
- */
-export function snapshotHref(root: string, problem: string, versions: readonly Pick<CaseRevision, 'revision' | 'source_snapshot_id'>[], snapshotId: string): string {
-  const made = problem ? versions.find((version) => version.source_snapshot_id === snapshotId) : undefined;
-  return made ? problemPath(root, problem, 'source', { version: made.revision }) : problemsPath(root);
 }
 
 // --- the package as the person sees it
@@ -224,7 +214,7 @@ export function engineRows(modes: CompatibleMode[]): EngineRow[] {
 
 // --- the draft of the workspace
 
-/** Where a workspace's unsaved edits are kept: per person, per address and per case revision. */
-export function workbenchDraftScope(userId: string | undefined, pathname: string, caseRef: string | null, revisionRef: string | null): string {
-  return `${userId || 'anonymous'}:${pathname}:${caseRef || ''}:${revisionRef || ''}`;
+/** Where a workspace's unsaved edits are kept: per person, per address and per problem version. */
+export function workbenchDraftScope(userId: string | undefined, pathname: string, problemRef: string | null, revisionRef: string | null): string {
+  return `${userId || 'anonymous'}:${pathname}:${problemRef || ''}:${revisionRef || ''}`;
 }

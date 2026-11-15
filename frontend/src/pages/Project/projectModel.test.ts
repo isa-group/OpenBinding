@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { HttpError } from '../../api/client';
 import {
-  accessIn, canOpenSection, canRead, canWrite, levelOf, cellBreakdown, countWord, GATEWAY_PACKAGE_LIMIT, importCeiling, integrityOf, latestRun,
+  accessIn, canOpenSection, canRead, canWrite, levelOf, cellBreakdown, countWord, integrityOf, latestRun,
   sealedShare, visibilityEffects,
 } from './projectModel';
-import { createRefusal, deleteRefusal, exportFailure, importRefusal, updateRefusal } from './projectErrors';
-import { caseOf, org, revisionOf, runOf, studyOf } from '../../features/workspace/testKit';
+import { createRefusal, deleteRefusal, updateRefusal } from './projectErrors';
+import { org, runOf, studyOf } from '../../features/workspace/testKit';
 
 describe('who can do what in a project', () => {
   it('reads it from the role in the organization', () => {
@@ -68,19 +68,14 @@ describe('access levels', () => {
 });
 
 describe('what is sealed and what is a draft', () => {
-  const first = caseOf('flujo');
   const study = studyOf('engines');
 
-  it('counts case revisions and study runs as sealed', () => {
-    const items = integrityOf({
-      cases: [{ item: first, revisions: [revisionOf(first, 1), revisionOf(first, 2)] }],
-      studies: [{ study, runs: [runOf(study, 1)] }],
-    });
+  it('counts study runs as sealed', () => {
+    const items = integrityOf({ studies: [{ study, runs: [runOf(study, 1)] }] });
 
-    expect(items.map((item) => [item.id, item.kind, item.count])).toEqual([['revisions', 'sealed', 2], ['runs', 'sealed', 1]]);
-    expect(sealedShare(items)).toEqual({ sealed: 3, drafts: 0, sealedPct: 100, draftPct: 0 });
-    expect(countWord(items[0])).toBe('problem versions');
-    expect(countWord(items[1])).toBe('study run');
+    expect(items.map((item) => [item.id, item.kind, item.count])).toEqual([['runs', 'sealed', 1]]);
+    expect(sealedShare(items)).toEqual({ sealed: 1, drafts: 0, sealedPct: 100, draftPct: 0 });
+    expect(countWord(items[0])).toBe('study run');
   });
 
   it('has nothing to share when nothing exists', () => {
@@ -107,12 +102,6 @@ describe('visibility in words', () => {
   });
 });
 
-describe('the import ceiling', () => {
-  it('is the gateway’s own, whatever the plan', () => {
-    expect(importCeiling()).toEqual({ effective: GATEWAY_PACKAGE_LIMIT });
-  });
-});
-
 describe('the gateway’s refusals in words', () => {
   const refusal = (status: number, code: string, message = 'refused') => Object.assign(new HttpError(status, message), { code });
 
@@ -134,23 +123,5 @@ describe('the gateway’s refusals in words', () => {
     expect(deleteRefusal(refusal(409, 'historical_references')).text).toContain('sealed history');
     expect(deleteRefusal(refusal(403, 'forbidden')).kind).toBe('forbidden');
     expect(deleteRefusal(refusal(503, 'unavailable')).text).toContain('nothing was deleted');
-  });
-
-  it('importing', () => {
-    expect(importRefusal(refusal(413, 'package_too_large')).kind).toBe('too-large');
-    expect(importRefusal(refusal(403, 'forbidden')).kind).toBe('forbidden');
-    expect(importRefusal(refusal(404, 'not_found')).kind).toBe('gone');
-    expect(importRefusal(refusal(409, 'private_dependency')).kind).toBe('unpublished');
-    expect(importRefusal(refusal(409, 'run_identity_conflict')).kind).toBe('collision');
-    expect(importRefusal(refusal(409, 'toolchain_mismatch')).kind).toBe('engine');
-    expect(importRefusal(refusal(422, 'checksum_mismatch')).kind).toBe('fingerprint');
-    expect(importRefusal(refusal(422, 'incomplete_artifact_closure', 'The package is missing exact case revisions.')).text).toContain('The package is missing exact case revisions.');
-    expect(importRefusal(refusal(503, 'unavailable')).kind).toBe('unavailable');
-  });
-
-  it('exporting', () => {
-    expect(exportFailure(refusal(403, 'forbidden'))).toContain('can’t read this project');
-    expect(exportFailure(refusal(404, 'not_found'))).toContain('no longer exists');
-    expect(exportFailure(refusal(409, 'snapshot_integrity', 'Cannot export incomplete or corrupt historical inputs.'))).toContain('Cannot export incomplete');
   });
 });

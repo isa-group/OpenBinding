@@ -10,9 +10,9 @@ The artifact cutover is in progress. The shared library, private sealing, versio
 
 `Artifact` owns a stable UUID and `(namespace, name)`. Its namespace is the owning organization UUID, independent of editable slugs. Display metadata can change. `ArtifactDraft` is editable with a required optimistic revision number. `ArtifactVersion` is sealed even when private; SQL triggers reject updates and deletion. Publication is a separate record for an exact version. Withdrawal removes discovery without destroying historical access to that published version.
 
-`Blob` replaces the former file-storage meaning of `Artifact`. Project file operations use `/v1/organizations/{org}/projects/{project}/blobs`. They do not create editorial identities. Deduplication of bytes does not confer access or merge artifact identities. Maintenance excludes blobs referenced by versions and retains shared files while any blob row uses them.
+`Blob` is content-addressed storage owned by an organization (`modules/shared/blobs.py`): one row per `(organization, digest)`, holding the uploaded `.bim.zip` of a problem revision or the bytes of a sealed library version. There are no project file routes; a blob is reached through what stores it.
 
-`DELETE .../blobs/{digest}` needs ADMIN on the project and is refused with `409 blob_in_use` while the project has sealed or revisioned elements that depend on that digest: sealed library versions, case revisions and their snapshots, and project-resource revisions. The body lists only kinds and counts, `{"references": [{"type": "case_revision", "count": 2}, ...]}`, never names. The lookup runs on the indexed digest columns (`content_digest`, `digest`, `package_digest`) of the project's own elements, not over the whole project. Blobs backing a library version are organization-level and cannot be deleted from a project at all.
+Blob rows and files stay when a problem is deleted; nothing deletes a blob through the API.
 
 The portable resource reference is:
 
@@ -37,11 +37,11 @@ See [OpenAPI](openapi.json) for request and response schemas.
 
 ## Cases and contracts
 
-A `BindingCase` describes the experiment. Revision creation accepts `resources`, each containing `role`, local `alias`, an exact `artifact` reference and optional `bindings`. The backend resolves these versions, checks their exact Dialects, validates the whole composition and materializes the executable snapshot. The revision stores references; its digest covers the document, snapshot package and resource hashes, and ordered resource uses. A changed catalog changes the composition even when the source index is otherwise identical.
+A `BindingCase` is a problem of an organization. Its revisions are the uploaded `.bim.zip` packages themselves, sealed with their `package_digest` (the toolchain's canonical package digest), `instance_digest`, file list and resource digests; there is no materialized composition of library resources. See [ARCHITECTURE.md](ARCHITECTURE.md) §4.1 (module `problems`).
 
 `spec.contracts` selects an exact Profile and Dialects using each installed contract's `{namespace,name,version,digest}`. Multiple versions of one family may be installed. Compilation never substitutes a nearby release for an unavailable exact contract. Schema-declared `{resource,id}` references are rebound in a derived document; original bytes are preserved. Arbitrary JSON/XML string replacement is not performed.
 
-The workbench is scoped by user, project path, case and revision. Permanent case links carry the selected revision. The study builder lists every executable case revision. The default QoS forms require the matching `apiVersion`; other languages use expert editing.
+The Workbench is scoped by organization, problem and revision (`/app/{org}/workbench?problem=&revision=`). The study builder lists every revision of the organization's problems.
 
 The pure language core that computes these digests is packaged separately; see [BIM core](BIM_CORE.md) for its boundary and why its bytes must not change outside a contract release.
 
@@ -55,31 +55,15 @@ Trusted extension registration rejects a duplicate namespace/name/version even
 inside a selected compilation context. Registry manifests are copied on install
 and discovery so callers cannot mutate an installed contract through a shared dict.
 
-## Snapshots and portable packages
+## Revisions and compilations
 
-Snapshots retain compiled IR, source bytes and exact contract descriptors. Reuse includes the compilation digest. Snapshot jobs use the stored IR and reject unavailable exact contracts. Snapshot inspection and archive download require ownership or membership in an organization consuming the snapshot through a case.
+A revision keeps the package bytes; its compilations keep the IR, the source map and the analysis, one row per
+toolchain (`problem_compilations`, insert-only). Reading the compilation of a revision under a new toolchain compiles
+it again and adds a row; a package the toolchain now refuses is `422 revision_not_recompilable`. A job names the
+revision and the compilation it ran and never copies the IR.
 
-Project packages include case snapshots and dependency-ordered library versions. They also include accessible sealed versions of explicitly associated project artifacts, even before any case consumes them; import restores those associations. Unsealed drafts are not release inputs and are excluded. Import verifies package, content, manifest, composition and compilation digests. Existing accessible versions are reused. Import does not grant ownership of a foreign namespace: missing external identities must be resolved from their owner. The current importer requires the exact compilation toolchain; offline import with verification alone remains pending. It does not silently reinterpret a historical snapshot.
-
-Verifiable means that retained bytes match their hashes. Recompilable additionally requires exact schemas and adapters. Reexecutable additionally requires a compatible engine deployment. A remote endpoint's registration hash does not prove the binary currently running there, and time-limited algorithms need not reproduce numerically identical results.
-
-## Reusable execution settings
-
-An `ExecutionConfiguration` version contains an exact `engine` contract, an
-explicit `mode`, requested `options`, and optionally an exact `registration`.
-`POST /v1/jobs` accepts `{ "snapshot": "uuid", "configuration": ArtifactRef }`.
-It rejects combining the version with inline engine, registration, mode or options.
-The workbench provides the common configuration version selector.
-
-The job pins `configuration_version_id` with a restrictive FK and SQL immutability.
-Its provenance stores the portable configuration reference, `requestedOptions`,
-effective `options`, selected registration and applied limits. Quota clamping never
-edits the sealed configuration. Idempotency distinguishes exact configurations,
-including when their effective options happen to coincide. Project packages retain
-configuration versions used by exported jobs and verify their provenance on import.
-The trigger `pin_job_configuration` (`db/triggers.py`) keeps the pin fixed.
-Study matrices and analysis requests still record their effective options inline;
-execution jobs can already pin an `ExecutionConfiguration` version explicitly.
+Verifiable means that retained bytes match their hashes. Recompilable additionally requires exact schemas and
+adapters. Reexecutable additionally requires a compatible engine deployment.
 
 ## Development cutover and outstanding integration
 
@@ -103,7 +87,7 @@ guarantees of newly-created library versions.
 Library studies use `apiVersion: "openbinding/study/v1"`, `cases` containing
 `{caseRevisionId, compositionDigest}`, exact `engines` (including `mode`),
 `parameter_sets` and `seeds`. Sealing checks the existing study matrix bounds,
-engine options, executable case snapshots, case composition hashes and organization
+engine options, the package digests of the revisions (`compositionDigest`) and organization
 ownership. Case revisions from different projects in that organization are allowed.
 
 Study case members have immutable FK rows in `artifact_case_references`. Study creation takes the exact case

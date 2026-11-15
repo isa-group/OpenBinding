@@ -3,6 +3,7 @@ and what a project VIEWER may read of a job."""
 
 from __future__ import annotations
 
+from _problem_helpers import placeholder_refs
 import json
 import logging
 import uuid
@@ -13,7 +14,6 @@ import pytest
 from cryptography.fernet import Fernet
 from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
-from sqlalchemy import select
 
 from _b1_helpers import gate, make_account, make_key, make_org, put_member  # noqa: F401
 from _ratelimit_fakes import DownBackend, FakeRedis
@@ -24,7 +24,7 @@ from openbinding_gateway.core.ratelimit import (
     set_auth_limiter,
 )
 from openbinding_gateway.core.settings import Settings, get_settings
-from openbinding_gateway.db.models import Job, JobState, StudyCell
+from openbinding_gateway.db.models import Job, JobState
 from openbinding_gateway.models.platform import job_view
 from openbinding_gateway.security.bodylimit import BodyLimitMiddleware, is_upload
 from openbinding_gateway.security.redaction import allowed_option_names
@@ -158,23 +158,26 @@ async def test_the_frameworks_400_for_an_unreadable_body_becomes_the_413():
 async def test_upload_routes_keep_the_larger_ceiling_and_other_routes_the_json_one():
     app = BodyLimitMiddleware(reading_app, max_request_bytes=1000, max_json_bytes=25)
 
-    upload, _ = await run_asgi(app, path="/v1/instances", chunks=[b"x" * 500])
-    blob, _ = await run_asgi(
-        app, path="/v1/organizations/o/projects/p/blobs", chunks=[b"x" * 500, b"x" * 400]
+    upload, _ = await run_asgi(app, path="/v1/bim/validate", chunks=[b"x" * 500])
+    problem, _ = await run_asgi(
+        app, path="/v1/organizations/o/problems", chunks=[b"x" * 500, b"x" * 400]
     )
     document, _ = await run_asgi(app, path="/v1/organizations", chunks=[b"x" * 500])
-    too_big_upload, _ = await run_asgi(app, path="/v1/instances", chunks=[b"x" * 600, b"x" * 600])
+    too_big_upload, _ = await run_asgi(app, path="/v1/bim/validate", chunks=[b"x" * 600, b"x" * 600])
 
     assert refusal_or_ok(upload)[0]["status"] == 200
-    assert refusal_or_ok(blob)[0]["status"] == 200
+    assert refusal_or_ok(problem)[0]["status"] == 200
     assert refusal_or_ok(document)[0]["status"] == 413
     assert refusal_or_ok(too_big_upload)[0]["status"] == 413
 
 
-def test_the_upload_routes_are_the_package_and_artifact_ones():
+def test_the_upload_routes_are_the_package_ones():
     assert is_upload("POST", "/v1/jobs")
-    assert is_upload("POST", "/v1/organizations/acme/projects/p/blobs")
-    assert is_upload("POST", "/v1/organizations/acme/projects/p/package")
+    assert is_upload("POST", "/v1/organizations/acme/problems")
+    assert is_upload("POST", "/v1/organizations/acme/problems/p/revisions")
+    assert is_upload("POST", "/v1/bim/validate")
+    assert not is_upload("POST", "/v1/organizations/acme/problems/p")
+    assert not is_upload("POST", "/v1/organizations/acme/projects/p/blobs")
     assert not is_upload("GET", "/v1/jobs")
     assert not is_upload("POST", "/v1/auth/login")
     assert not is_upload("POST", "/v1/engine-registrations")
@@ -222,7 +225,7 @@ async def test_an_upload_route_is_not_held_to_the_json_limit(api_client, monkeyp
     monkeypatch.setattr(get_settings(), "max_json_body_bytes", 64)
 
     response = await api_client.post(
-        "/v1/instances", content=b"x" * 200, headers={"content-type": "application/zip"}
+        "/v1/bim/validate", content=b"x" * 200, headers={"content-type": "application/zip"}
     )
 
     assert response.status_code != 413  # whatever the route says (401/422), not the limiter
@@ -230,7 +233,7 @@ async def test_an_upload_route_is_not_held_to_the_json_limit(api_client, monkeyp
     # The upload ceiling still applies: a declared length above it never reaches the route.
     monkeypatch.setattr(get_settings(), "max_request_body_bytes", 128)
     refused = await api_client.post(
-        "/v1/instances", content=b"x" * 300, headers={"content-type": "application/zip"}
+        "/v1/bim/validate", content=b"x" * 300, headers={"content-type": "application/zip"}
     )
     assert refused.status_code == 413
 
@@ -568,7 +571,6 @@ PROVENANCE = {
     },
     "engineReported": {"iterations": 10, "authToken": "tok-SECRET-6"},
 }
-PROBLEM = {"apiVersion": "bim/v1", "kind": "BindingProblem", "spec": {"tasks": ["t1"]}}
 
 
 async def project_with_a_job(api_client, registration, db_session, gate):  # noqa: F811
@@ -586,7 +588,6 @@ async def project_with_a_job(api_client, registration, db_session, gate):  # noq
         organization_id=uuid.UUID(organization["id"]), project_id=uuid.UUID(created.json()["id"]),
         options=dict(SENSITIVE_OPTIONS),
         original_request={
-            "bindingProblem": PROBLEM,
             "timeout": 30.0,
             "mode": {"id": "random", "auth": {"token": "tok-SECRET-7"}},
             "optimization": {"type": "SINGLE", "scalarization": "feasibility"},
@@ -596,6 +597,7 @@ async def project_with_a_job(api_client, registration, db_session, gate):  # noq
         },
         provenance=json.loads(json.dumps(PROVENANCE)),
         result={"termination": "OPTIMAL", "solutions": [], "provenance": json.loads(json.dumps(PROVENANCE))},
+        **placeholder_refs("organization_id"),
     )
     db_session.add(job)
     await db_session.flush()
@@ -628,10 +630,7 @@ async def test_a_viewer_sees_state_engine_result_and_digests_but_not_sensitive_o
     assert row["provenance"]["requestedOptions"] == HARMLESS
     assert row["result"]["provenance"]["options"] == HARMLESS
     assert row["provenance"]["registration"] == REGISTRATION_REF
-    assert row["original_request"]["bindingProblem"] == PROBLEM
-    assert set(row["original_request"]) <= {
-        "bindingProblem", "timeout", "mode", "optimization", "registration"
-    }
+    assert set(row["original_request"]) <= {"timeout", "mode", "optimization", "registration"}
     assert row["original_request"]["registration"] == REGISTRATION_REF
     assert "auth" not in row["original_request"]["mode"]
     for leaked in ("tok-SECRET", "10.0.0.5", "private.example", "free text", "private-engine"):
@@ -689,123 +688,6 @@ async def test_an_api_key_without_the_project_scope_is_refused(
     assert allowed.json()[0]["options"] == HARMLESS  # a key does not widen what a VIEWER sees
 
 
-async def project_package_with_a_study_job(api_client, registration, db_session, gate, monkeypatch):  # noqa: F811
-    """A project whose study run holds one job carrying sensitive options; returns
-    ``(slug, owner headers, package url)``."""
-    from _repo import REPO_ROOT
-    from openbinding_gateway.routes import v1 as v1_routes
-    from openbinding_gateway.services.engines import engine_ref
-    from openbinding_gateway.services import execution
-    from bim_core.package import load_package
-
-    async def solve(*args, **kwargs):
-        return {"termination": "FEASIBLE", "solutions": []}
-
-    monkeypatch.setattr(get_settings(), "job_dispatch_mode", "inline")
-    monkeypatch.setattr(execution, "solve_remote", solve)
-    owner, owner_h = await make_account(api_client, registration, db_session, gate)
-    slug = (await make_org(api_client, owner_h))["slug"]
-    package = load_package(REPO_ROOT / "examples/demo/01_simple_seq")
-    snapshot = await api_client.post(
-        "/v1/instances", headers={**owner_h, "Content-Type": "application/vnd.bim+zip"},
-        content=package.to_zip(),
-    )
-    assert snapshot.status_code == 201, snapshot.text
-    base = f"/v1/organizations/{slug}/projects"
-    assert (await api_client.post(
-        base, headers=owner_h, json={"slug": "p", "name": "P", "visibility": "private"}
-    )).status_code == 201
-    assert (await api_client.post(
-        f"{base}/p/cases", headers=owner_h, json={"slug": "c", "name": "C"}
-    )).status_code == 201
-    revision = await api_client.post(
-        f"{base}/p/cases/c/revisions", headers=owner_h,
-        json={"document": package.instance(), "source_snapshot_id": snapshot.json()["id"]},
-    )
-    assert revision.status_code == 201, revision.text
-    reference = engine_ref(v1_routes._manifest("random-search"), "bim.builtin")
-    study = await api_client.post(
-        f"{base}/p/studies", headers=owner_h,
-        json={"slug": "s", "name": "S", "definition": {
-            "case_revision_ids": [revision.json()["id"]],
-            "engines": [{**reference, "mode": "seeded",
-                         "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"}}],
-            "parameter_sets": [{"iterations": 100}], "seeds": [1],
-        }},
-    )
-    assert study.status_code == 201, study.text
-    run = await api_client.post(f"{base}/p/studies/s/runs", headers=owner_h)
-    assert run.status_code == 202, run.text
-    job = (await db_session.scalars(
-        select(Job).join(StudyCell, StudyCell.job_id == Job.id)
-        .where(StudyCell.study_run_id == uuid.UUID(run.json()["id"]))
-    )).one()
-    job.options = dict(SENSITIVE_OPTIONS)
-    job.provenance = json.loads(json.dumps(PROVENANCE))
-    job.original_request = {**(job.original_request or {}), "auth": {"token": "tok-SECRET-9"},
-                            "headers": {"Authorization": "Bearer tok-SECRET-8"}}
-    await db_session.flush()
-    return slug, owner_h, f"{base}/p/package?format=json"
-
-
-def exported_jobs(package: dict) -> list[dict]:
-    return [cell["job"] for study in package["studies"] for run in study["runs"]
-            for cell in run["cells"] if cell["job"]]
-
-
-async def test_the_package_export_gives_a_viewer_the_same_redacted_jobs_as_the_job_list(
-    api_client, registration, db_session, gate, monkeypatch  # noqa: F811
-):
-    slug, owner_h, url = await project_package_with_a_study_job(
-        api_client, registration, db_session, gate, monkeypatch
-    )
-    viewer_h = await member(api_client, registration, db_session, gate, owner_h, slug, "VIEWER")
-
-    full = await api_client.get(url, headers=owner_h)
-    redacted = await api_client.get(url, headers=viewer_h)
-
-    assert full.status_code == 200 and redacted.status_code == 200, (full.text, redacted.text)
-    [owner_job] = exported_jobs(full.json())
-    assert owner_job["options"] == SENSITIVE_OPTIONS
-    assert owner_job["request"]["auth"] == {"token": "tok-SECRET-9"}
-    assert owner_job["provenance"]["options"] == SENSITIVE_OPTIONS
-    [viewer_job] = exported_jobs(redacted.json())
-    assert viewer_job["options"] == HARMLESS
-    assert viewer_job["provenance"]["options"] == HARMLESS
-    assert viewer_job["provenance"]["irDigest"] == PROVENANCE["irDigest"]
-    assert viewer_job["provenance"]["registration"] == REGISTRATION_REF
-    assert "auth" not in viewer_job["request"] and "headers" not in viewer_job["request"]
-    assert viewer_job["state"] == owner_job["state"] and viewer_job["id"] == owner_job["id"]
-    for leaked in ("tok-SECRET", "10.0.0.5", "private.example", "free text", "private-engine"):
-        assert leaked not in redacted.text, leaked
-
-
-async def test_a_member_key_without_the_project_write_permission_gets_the_redacted_package(
-    api_client, registration, db_session, gate, monkeypatch  # noqa: F811
-):
-    slug, owner_h, url = await project_package_with_a_study_job(
-        api_client, registration, db_session, gate, monkeypatch
-    )
-    member_account, member_h = await make_account(api_client, registration, db_session, gate)
-    assert (await put_member(api_client, owner_h, slug, member_account["id"], "MEMBER")).status_code == 200
-    read_only = await make_key(api_client, member_h, ["projects:read", "studies:read", "artifacts:read"])
-    writer = await make_key(
-        api_client, member_h, ["projects:read", "projects:write", "studies:read", "artifacts:read"]
-    )
-    jobs_url = f"/v1/organizations/{slug}/projects/p/jobs"
-
-    from_key = await api_client.get(url, headers=read_only)
-    from_writer = await api_client.get(url, headers=writer)
-    listed = await api_client.get(jobs_url, headers=read_only)
-
-    assert from_key.status_code == 200, from_key.text
-    assert exported_jobs(from_key.json())[0]["options"] == HARMLESS
-    assert "tok-SECRET" not in from_key.text
-    assert listed.status_code == 200 and listed.json()[0]["options"] == HARMLESS
-    assert from_writer.status_code == 200, from_writer.text
-    assert exported_jobs(from_writer.json())[0]["options"] == SENSITIVE_OPTIONS
-
-
 def test_the_allow_list_comes_from_the_engine_manifests():
     names = allowed_option_names()
 
@@ -817,7 +699,7 @@ def test_redacting_a_job_view_never_mutates_the_job():
     job = Job(
         owner_id=uuid.uuid4(), engine_id="e", engine_job_id="1", service_url="http://engine",
         state=JobState.COMPLETED, options=dict(SENSITIVE_OPTIONS),
-        original_request={"bindingProblem": PROBLEM, "auth": {"token": "tok-SECRET-9"}},
+        original_request={"timeout": 30.0, "auth": {"token": "tok-SECRET-9"}}, organization_id=uuid.uuid4(),
         provenance=json.loads(json.dumps(PROVENANCE)),
         # Column defaults only apply on flush; this job is never persisted.
         id=uuid.uuid4(), cancellation_requested=False, created_at=datetime.now(timezone.utc),

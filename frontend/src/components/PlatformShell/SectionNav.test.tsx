@@ -86,24 +86,23 @@ describe('a side navigation that becomes a row that scrolls sideways', () => {
 });
 
 describe('ProjectTabs', () => {
-  it('links the five project tabs', () => {
+  it('links the four project tabs (problems belong to the organization)', () => {
     render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
     const nav = screen.getByRole('navigation', { name: 'Project sections' });
     expect(within(nav).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['Overview', '/app/isa-demo/qos'],
-      ['Problems', '/app/isa-demo/qos/problems'],
       ['Runs', '/app/isa-demo/qos/runs'],
       ['Studies', '/app/isa-demo/qos/studies'],
       ['Settings', '/app/isa-demo/qos/settings'],
     ]);
   });
 
-  it('has no Cases, Jobs, Publications, Published, Files, Package, Reports or Library tab', () => {
+  it('has no Problems, Cases, Jobs, Publications, Published, Files, Package, Reports or Library tab', () => {
     render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
     const nav = screen.getByRole('navigation', { name: 'Project sections' });
-    for (const former of ['Cases', 'Jobs', 'Publications', 'Published', 'Files', 'Package', 'Reports', 'Library', 'Collections']) {
+    for (const former of ['Problems', 'Cases', 'Jobs', 'Publications', 'Published', 'Files', 'Package', 'Reports', 'Library', 'Collections']) {
       expect(within(nav).queryByRole('link', { name: former }), former).not.toBeInTheDocument();
     }
     for (const link of within(nav).getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/\/(reports|library|resources|collections|files|package|publications|published)([/?#]|$)/);
@@ -111,7 +110,6 @@ describe('ProjectTabs', () => {
 
   it.each([
     ['overview', 'Overview'],
-    ['cases', 'Problems'],
     ['jobs', 'Runs'],
     ['studies', 'Studies'],
     ['settings', 'Settings'],
@@ -127,17 +125,17 @@ describe('ProjectTabs', () => {
       render(<MemoryRouter><ProjectTabs orgSlug="open" projectSlug="qos" access="public_read" /></MemoryRouter>);
 
       const nav = screen.getByRole('navigation', { name: 'Project sections' });
-      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Problems', 'Studies']);
+      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Studies']);
       expect(screen.getByRole('note')).toHaveTextContent('You are viewing a public project (read-only).');
     });
 
     it('shows every tab and no strip to a member, or when nothing says otherwise', () => {
       const { rerender } = render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" access="member" /></MemoryRouter>);
-      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(5);
+      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(4);
       expect(screen.queryByRole('note')).not.toBeInTheDocument();
 
       rerender(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
-      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(5);
+      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(4);
     });
   });
 
@@ -164,10 +162,10 @@ describe('ProjectTabs', () => {
     });
 
     it('follows the current tab when the section changes', () => {
-      const { rerender } = render(<MemoryRouter><ProjectTabs active="cases" orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
+      const { rerender } = render(<MemoryRouter><ProjectTabs active="jobs" orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
       rerender(<MemoryRouter><ProjectTabs active="studies" orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
 
-      expect(scrolled.map((tab) => tab.textContent)).toEqual(['Problems', 'Studies']);
+      expect(scrolled.map((tab) => tab.textContent)).toEqual(['Runs', 'Studies']);
     });
   });
 });

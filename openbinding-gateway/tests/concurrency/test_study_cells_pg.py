@@ -12,20 +12,17 @@ import uuid
 import pytest
 from sqlalchemy import func, select
 
-from _repo import REPO_ROOT
-
 from openbinding_gateway import study_jobs
 from openbinding_gateway.db.artifact_models import Artifact, ArtifactVersion
 from openbinding_gateway.db.models import (
     AuditEvent,
-    BindingCase,
-    BindingCaseRevision,
     Blob,
     Job,
     JobState,
     Organization,
     OrganizationMembership,
     OrganizationRole,
+    ProblemCompilation,
     Project,
     RunState,
     Study,
@@ -35,10 +32,15 @@ from openbinding_gateway.db.models import (
 )
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services.engines import engine_ref
-from openbinding_gateway.services.snapshots import compile_resolved, persist_snapshot
-from bim_core.package import load_package
+from _problem_helpers import problem_for, run_refs, seed_problem_run
 
-EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
+
+async def cell_refs(session, cell) -> dict:
+    """The revision and compilation a job of ``cell`` names (the cell's revision and its only compilation)."""
+    compilation = await session.scalar(
+        select(ProblemCompilation.id).where(ProblemCompilation.revision_id == cell.binding_case_revision_id)
+    )
+    return {"revision_id": cell.binding_case_revision_id, "compilation_id": compilation}
 
 
 async def _seed(session, prepare=None, owner_role=OrganizationRole.OWNER):
@@ -46,9 +48,10 @@ async def _seed(session, prepare=None, owner_role=OrganizationRole.OWNER):
 
     The run's owner is also a member of the organization, with ``owner_role``.
 
-    ``prepare(session, user)`` may return ``(source_snapshot_id, engine_ref)``. They are
-    written at INSERT time because PostgreSQL's triggers reject updating either
-    column of a binding case revision or a study cell afterwards.
+    ``prepare(session, user, organization)`` may return ``(run references, engine_ref)``: the
+    revision of a real problem and the engine of the cells. The cells' columns are written at
+    INSERT time because PostgreSQL's triggers reject updating them afterwards. Without it the
+    revision is a seeded one (``seed_problem_run``).
     """
     suffix = uuid.uuid4().hex[:8]
     user = User(username=f"u{suffix}", email=f"u{suffix}@example.com", password_hash="x", plan_cache="free")
@@ -63,31 +66,28 @@ async def _seed(session, prepare=None, owner_role=OrganizationRole.OWNER):
     project = Project(organization_id=organization.id, slug="p", name="P", created_by_id=user.id)
     session.add(project)
     await session.flush()
-    case = BindingCase(project_id=project.id, slug="c", name="C", created_by_id=user.id)
     blob = Blob(
-        organization_id=organization.id, project_id=project.id, digest="sha256-" + "0" * 64,
+        organization_id=organization.id, digest="sha256-" + "0" * 64,
         media_type="application/json", size_bytes=2, storage_uri="memory://blob", created_by_id=user.id,
     )
     artifact = Artifact(
         organization_id=organization.id, namespace="ns", name="study", display_name="Study", kind="Study",
         created_by_id=user.id,
     )
-    session.add_all([case, blob, artifact])
+    session.add_all([blob, artifact])
     await session.flush()
     version = ArtifactVersion(
         artifact_id=artifact.id, ordinal=1, version="1.0.0", blob_id=blob.id,
         content_digest="sha256-" + "1" * 64, version_digest="sha256-" + "2" * 64,
         manifest={"kind": "Study"}, created_by_id=user.id,
     )
-    source_snapshot_id, engine_ref = None, None
-    if prepare is not None:
-        source_snapshot_id, engine_ref = await prepare(session, user)
-    revision = BindingCaseRevision(
-        binding_case_id=case.id, revision=1, digest="sha256-" + "3" * 64, document={}, created_by_id=user.id,
-        source_snapshot_id=source_snapshot_id,
-    )
-    session.add_all([version, revision])
+    session.add(version)
     await session.flush()
+    engine_ref = None
+    if prepare is not None:
+        refs, engine_ref = await prepare(session, user, organization)
+    else:
+        refs = run_refs(await seed_problem_run(session, owner_id=user.id, organization_id=organization.id))
     study = Study(
         project_id=project.id, slug="s", name="S", definition_version_id=version.id, created_by_id=user.id,
     )
@@ -104,7 +104,7 @@ async def _seed(session, prepare=None, owner_role=OrganizationRole.OWNER):
     }
     cells = [
         StudyCell(
-            study_run_id=run.id, ordinal=ordinal, binding_case_revision_id=revision.id, engine_ref=engine,
+            study_run_id=run.id, ordinal=ordinal, binding_case_revision_id=refs["revision_id"], engine_ref=engine,
             parameters={}, seed=ordinal, fingerprint=f"sha256-{ordinal}" + "6" * 63, state=RunState.QUEUED,
         )
         for ordinal in (0, 1)
@@ -114,7 +114,7 @@ async def _seed(session, prepare=None, owner_role=OrganizationRole.OWNER):
     finished = Job(
         owner_id=user.id, engine_id="random-search", engine_job_id="engine-1", service_url="http://engine",
         state=JobState.COMPLETED, organization_id=organization.id, project_id=project.id,
-        study_cell_id=cells[0].id,
+        study_cell_id=cells[0].id, revision_id=refs["revision_id"], compilation_id=refs["compilation_id"],
     )
     session.add(finished)
     await session.flush()
@@ -136,7 +136,7 @@ async def test_two_concurrent_syncs_launch_the_next_cell_once(two_sessions, monk
         job = Job(
             owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
             service_url="http://engine", state=JobState.QUEUED, study_cell_id=cell.id,
-            organization_id=organization.id, project_id=project_id,
+            organization_id=organization.id, project_id=project_id, **await cell_refs(session, cell),
         )
         session.add(job)
         await session.flush()
@@ -207,11 +207,9 @@ async def test_two_sessions_launching_one_cell_create_one_job_and_one_reservatio
     """
     first, second = two_sessions
 
-    async def prepare(session, owner):
-        compilation = await compile_resolved(load_package(EXAMPLE).to_zip(), session, owner)
-        snapshot_id = await persist_snapshot(compilation, owner, session)
-        await session.flush()
-        return uuid.UUID(snapshot_id), {
+    async def prepare(session, owner, organization):
+        upload = await problem_for(session, owner, organization=organization)
+        return {"revision_id": upload.revision.id, "compilation_id": upload.compilation.id}, {
             **engine_ref(routes._manifest("random-search"), "bim.builtin"),
             "mode": "seeded",
             "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},

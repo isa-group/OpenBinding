@@ -9,7 +9,7 @@ from bim_core.canonical import digest
 V2_PREFIX = "v2:"
 
 
-def request_fingerprint(*, source_digest: str, body: Any, configuration: Any) -> str:
+def request_fingerprint(*, source_digest: str, body: Any) -> str:
     """Fingerprint what the client SENT, not what the gateway resolved.
 
     The engine picked by ``auto`` and the options trimmed by the caller's plan
@@ -19,9 +19,9 @@ def request_fingerprint(*, source_digest: str, body: Any, configuration: Any) ->
     The result is ``v2:`` plus a ``sha256-`` digest (74 characters), which fits
     ``String(80)``.
     """
-    return V2_PREFIX + digest({"source": source_digest, "body": body, "configuration": configuration})
+    return V2_PREFIX + digest({"source": source_digest, "body": body})
 
 
 def is_request_fingerprint(value: str | None) -> bool:
-    """True for fingerprints written by this algorithm (False for legacy rows)."""
+    """True for fingerprints written by this algorithm."""
     return value is not None and value.startswith(V2_PREFIX)

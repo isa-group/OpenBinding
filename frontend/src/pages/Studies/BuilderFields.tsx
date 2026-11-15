@@ -8,7 +8,7 @@ import { problemsPath } from '../../routes/paths/problems';
 import { formatDate } from '../../utils/format';
 import { engineLabel, studyVersionLabel } from '../../shared/lib/identity';
 import {
-  MAX_SETTINGS, isExecutable, latestExecutable, offeredRevisions, plural, readVariant,
+  MAX_SETTINGS, latestExecutable, offeredRevisions, plural, readVariant,
   describeParameters, type EngineChoice, type MatrixSize, type Variant,
 } from './studiesModel';
 
@@ -16,11 +16,12 @@ interface CasesFieldProps {
   cases: readonly CaseContent[];
   selected: readonly string[];
   onChange: (ids: string[]) => void;
-  root: string;
+  /** The organization whose problems are offered. */
+  org: string;
 }
 
 /** 1 · Cases: the executable revisions of the project. */
-export function CasesField({ cases, selected, onChange, root }: CasesFieldProps) {
+export function CasesField({ cases, selected, onChange, org }: CasesFieldProps) {
   const offered = offeredRevisions(cases);
   const toggle = (id: string) => onChange(selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id]);
   return (
@@ -28,27 +29,20 @@ export function CasesField({ cases, selected, onChange, root }: CasesFieldProps)
       <legend>1 · Problems</legend>
       {offered.length === 0 && (
         <p className="st-empty-line">
-          This project has no problem versions yet. <Link to={problemsPath(root)} viewTransition>Open Problems</Link> to seal one.
+          The organization has no problem versions yet. <Link to={problemsPath(org)} viewTransition>Open Problems</Link> to add one.
         </p>
       )}
       {offered.length > 0 && (
         <div className="st-options" role="group" aria-label="Problem versions">
-          {offered.map(({ caseName, revision }) => {
-            const ready = isExecutable(revision);
-            return (
-              <label key={revision.id} className={`st-option${ready ? '' : ' is-disabled'}`}>
-                <input type="checkbox" checked={selected.includes(revision.id)} disabled={!ready} onChange={() => toggle(revision.id)} />
-                <span className="st-option-text">
-                  <span>{caseName} · version {revision.revision}</span>
-                  <small>
-                    {ready
-                      ? `Sealed ${formatDate(revision.created_at) ?? 'on an unknown date'}`
-                      : 'No compiled snapshot yet, so engines have nothing to run. Compile it in the workbench first.'}
-                  </small>
-                </span>
-              </label>
-            );
-          })}
+          {offered.map(({ caseName, revision }) => (
+            <label key={revision.id} className="st-option">
+              <input type="checkbox" checked={selected.includes(revision.id)} onChange={() => toggle(revision.id)} />
+              <span className="st-option-text">
+                <span>{caseName} · version {revision.revision}</span>
+                <small>{`Sealed ${formatDate(revision.created_at) ?? 'on an unknown date'}`}</small>
+              </span>
+            </label>
+          ))}
         </div>
       )}
       {offered.length > 0 && (

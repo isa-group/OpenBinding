@@ -16,6 +16,7 @@ import logging
 import re
 import time
 import uuid
+from _problem_helpers import placeholder_refs
 from datetime import timedelta
 
 import httpx
@@ -26,7 +27,7 @@ from sqlalchemy import select
 
 from _pricing import pricing_catalog
 from analysis_b3_b4_b6._helpers import (
-    account_with_snapshot,
+    account_with_revision,
     answer,
     only_job,
     persisted_anywhere,
@@ -91,7 +92,7 @@ async def a_job(session, owner, *, state=JobState.RUNNING, age_s=0.0, **extra) -
         state=state,
         requested_budget_s=60.0,
         created_at=utcnow() - timedelta(seconds=age_s),
-        **extra,
+        **{**placeholder_refs(), **extra},
     )
     session.add(job)
     await session.commit()
@@ -99,8 +100,8 @@ async def a_job(session, owner, *, state=JobState.RUNNING, age_s=0.0, **extra) -
 
 
 async def a_submitted_job(api_client, db_session, registration) -> tuple[dict[str, str], Job]:
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
-    await submit(api_client, headers, snapshot_id)
+    headers, revision_id = await account_with_revision(api_client, registration)
+    await submit(api_client, headers, revision_id)
     job = await only_job(db_session)
     precondition(job.state is JobState.FAILED, f"the job ended {job.state.value}, not failed")
     return headers, job

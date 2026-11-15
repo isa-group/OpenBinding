@@ -23,7 +23,7 @@ from ..core.public_errors import (
     log_internal_failure,
 )
 from ..db import base as db_base
-from ..db.models import AuditEvent, InstanceSnapshot, Job, JobEngineEvidence, JobProvenance, JobState, User
+from ..db.models import AuditEvent, Job, JobEngineEvidence, JobProvenance, JobState, ProblemCompilation, User
 from ..job_dispatch import dispatch_persisted_job
 from ..jobs import clock as job_clock
 from ..jobs import evidence as job_evidence
@@ -45,14 +45,15 @@ from ..security.roles import require_work_role
 from ..services.engines import persisted_mode_contract
 from ..services.entitlements import EntitlementService, get_entitlements
 from ..services.execution import evaluate_engine_result
-from ..services.job_submission import _sharing_organizations
+from ..integrations import bim
 from bim_core.canonical import digest
 
 router = APIRouter(prefix="/v1/jobs", tags=["Jobs"])
 
 
-def _view(job: Job, viewer: User) -> JobView:
-    return job_view(job, viewer)
+async def _view(session: AsyncSession, job: Job, viewer: User) -> JobView:
+    refs = await job_repository.refs_for(session, [job])
+    return job_view(job, viewer, refs=refs.get(job.id))
 
 
 def _audit(session: AsyncSession, user: User, action: str, target: Job, **detail: str) -> None:
@@ -81,11 +82,6 @@ async def _owned(
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Job not found.")
     if work_by is not None:
         await require_work_role(session, work_by, [job.organization_id])
-        if job.organization_id is None and job.instance_snapshot_id is not None:
-            # Same rule as the launch: a snapshot shared by organizations is run with MEMBER in one of them.
-            snapshot = await session.get(InstanceSnapshot, job.instance_snapshot_id)
-            if snapshot is not None:
-                await require_work_role(session, work_by, await _sharing_organizations(session, snapshot, work_by))
     return job
 
 
@@ -97,7 +93,8 @@ async def list_jobs(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[JobView]:
     rows = await job_repository.list_owned(session, user.id, state=state, limit=limit)
-    return [_view(row, user) for row in rows]
+    refs = await job_repository.refs_for(session, rows)
+    return [job_view(row, user, refs=refs.get(row.id)) for row in rows]
 
 
 @router.post("/{job_id}/cancel", response_model=JobView, operation_id="cancelJob")
@@ -119,7 +116,7 @@ async def cancel_job(
         result="cancelled" if cancelled else "cancellation_requested",
     )
     await session.flush()
-    return _view(job, user)
+    return await _view(session, job, user)
 
 
 @router.post("/{job_id}/retry", response_model=JobView, status_code=202, operation_id="retryJob")
@@ -134,7 +131,11 @@ async def retry_job(
         raise api_error(status.HTTP_409_CONFLICT, "job_not_retryable", "Only failed or cancelled jobs may be retried.")
     existing = await job_repository.find_retry_of(session, user.id, original.id)
     if existing is not None:
-        return _view(existing, user)
+        return await _view(session, existing, user)
+    compilation = await session.get(ProblemCompilation, original.compilation_id)
+    if compilation is None or not bim.ir_is_installed(compilation.ir):
+        # The retry runs the same compilation; one made by another toolchain cannot run here.
+        raise api_error(422, "contract_not_installed", bim.STALE_IR_MESSAGE)
     provenance = dict(original.provenance or {})
     registration = provenance.get("registration")
     federated = (
@@ -164,7 +165,7 @@ async def retry_job(
         service_url=original.service_url, state=JobState.QUEUED, verbose=original.verbose,
         original_request=original.original_request, options=original.options, warnings=original.warnings,
         instance_complexity=original.instance_complexity,
-        instance_snapshot_id=original.instance_snapshot_id, provenance=provenance,
+        revision_id=original.revision_id, compilation_id=original.compilation_id, provenance=provenance,
         idempotency_fingerprint=original.idempotency_fingerprint,
         requested_budget_s=original.requested_budget_s, retry_of_id=original.id,
         organization_id=original.organization_id, project_id=original.project_id,
@@ -181,7 +182,7 @@ async def retry_job(
     await session.commit()
     # The job exists from here on. If dispatch fails, the redelivery sweep queues it again.
     await dispatch_persisted_job(str(replacement.id), None if db_base.is_configured() else session)
-    return _view(replacement, user)
+    return await _view(session, replacement, user)
 
 
 def _refuse(problem: PublicProblem) -> HTTPException:
@@ -247,7 +248,8 @@ async def reevaluate_job(
     row = await _reevaluable(session, job, user)
     request = job.original_request if isinstance(job.original_request, dict) else {}
     provenance = dict(job.provenance or {})
-    document = request.get("bindingProblem")
+    compilation = await session.get(ProblemCompilation, job.compilation_id)
+    document = compilation.ir if compilation is not None else None
     mode = persisted_mode_contract(request.get("mode"))
     if not isinstance(document, dict) or mode is None:
         raise _refuse(JOB_NOT_REEVALUABLE)
@@ -303,7 +305,7 @@ async def reevaluate_job(
         jobId=str(job.id), ownerId=str(job.owner_id), evidenceId=str(evidence_id), result="completed",
     )
     await session.commit()
-    return _view(job, user)
+    return await _view(session, job, user)
 
 
 @router.get(

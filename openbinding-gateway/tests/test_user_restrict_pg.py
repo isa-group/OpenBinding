@@ -18,6 +18,7 @@ import pytest
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 
+from _problem_helpers import run_refs, seed_problem_run
 from openbinding_gateway.db.models import (
     ApiKey,
     EngineRegistrationRevision,
@@ -42,12 +43,12 @@ def digest() -> str:
     return "sha256-" + uuid.uuid4().hex * 2
 
 
-def history_of(user: User) -> dict[str, object]:
+def history_of(user: User, run: dict[str, object]) -> dict[str, object]:
     engine_digest = digest()
     return {
         "job": Job(
             owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
-            state=JobState.COMPLETED, original_request={}, options={}, provenance={},
+            state=JobState.COMPLETED, original_request={}, options={}, provenance={}, **run,
         ),
         "engine": EngineRevision(
             owner_id=user.id, namespace=user.username, name="solver", version="1.0.0", digest=engine_digest, document={},
@@ -67,7 +68,9 @@ def history_of(user: User) -> dict[str, object]:
 async def test_a_user_that_history_names_cannot_be_hard_deleted(pg, kind) -> None:
     async with pg.session() as session:
         user = await a_user(session)
-        session.add(history_of(user)[kind])
+        # The run is of a problem another account created, so only the job names ``user``.
+        run = run_refs(await seed_problem_run(session, owner_id=(await a_user(session)).id))
+        session.add(history_of(user, run)[kind])
         await session.commit()
         user_id = user.id
 

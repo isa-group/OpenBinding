@@ -193,7 +193,7 @@ const invalidProblem = {
 
 interface Mocks {
   signedIn?: boolean;
-  /** Answers POST /v1/instances/validate. */
+  /** Answers POST /v1/bim/validate. */
   validate?: (route: Route) => Promise<void> | void;
   engines?: (route: Route) => Promise<void> | void;
 }
@@ -230,12 +230,12 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
   // EngineDetail reads the live catalog (the deprecated YAML at /v1/pricing is no longer requested).
   await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
   await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
-  await page.route(`${API}/v1/profiles`, json({ profiles: [profile] }));
-  await page.route(`${API}/v1/examples`, json({ examples: EXAMPLES }));
-  await page.route(`${API}/v1/examples/**`, (route) => route.fulfill({
+  await page.route(`${API}/v1/engines/protocol`, json({ profiles: [profile] }));
+  await page.route(`${API}/v1/bim/templates`, json({ templates: EXAMPLES }));
+  await page.route(`${API}/v1/bim/templates/**`, (route) => route.fulfill({
     status: 200, contentType: 'application/vnd.bim+zip', body: packageZip(), headers: { 'Content-Disposition': 'attachment; filename="01_simple_seq.bim.zip"' },
   }));
-  await page.route(`${API}/v1/instances/validate`, mocks.validate ?? json(validResult));
+  await page.route(`${API}/v1/bim/validate`, mocks.validate ?? json(validResult));
 }
 
 function watchCriticalErrors(page: Page) {
@@ -552,17 +552,17 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(calls).toBe(3);
     });
 
-    test('pub-workbench opens an example from the address, and a signed-in account can save it to a project', async ({ page }, testInfo) => {
+    test('pub-workbench opens a template from the address, and a signed-in account can save it to an organization', async ({ page }, testInfo) => {
       await mockApi(page, { signedIn: true });
-      await page.goto('/workbench?example=demo%2F01_simple_seq');
+      await page.goto('/workbench?template=demo%2F01_simple_seq');
       const main = page.locator('main');
 
       await expect(main.getByText('Valid package')).toBeVisible();
       await expect(main.getByText('Signed in as lucia')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Log in to run' })).toHaveCount(0);
-      await main.getByRole('button', { name: 'Save to a project' }).click();
-      await expect(main.getByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' }))
-        .toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/workbench?example=demo%2F01_simple_seq');
+      await main.getByRole('button', { name: 'Save to an organization' }).click();
+      await expect(main.getByRole('link', { name: 'ISA Demo Group' }))
+        .toHaveAttribute('href', '/app/isa-demo/workbench?template=demo%2F01_simple_seq');
       await ready(page);
       await shot(page, testInfo, 'workbench-signed-in');
       await expectNoHorizontalOverflow(page);

@@ -15,7 +15,7 @@ in ``PUBLIC_READ_ALLOWED``. The rest of the project API stays deny-by-default:
   project must be public, and the caller's rate window must have room. Anything
   else falls through to the usual membership check, so a private project, a
   denied route and a write answer exactly as they did before.
-* Handlers whose data is only partly public (files, library) ask
+* Handlers whose data is only partly public (the library) ask
   ``is_public_read(session)`` and narrow what they return.
 
 Reads are counted against the *caller* (the account, or the client address when
@@ -45,10 +45,6 @@ PUBLIC_READ = "public_read"
 #: GET routes a non-member may call on a PUBLIC project. Value: what is shown.
 PUBLIC_READ_ALLOWED: dict[str, str] = {
     PROJECT: "Public project metadata (the creator is not disclosed).",
-    f"{PROJECT}/cases": "Binding cases.",
-    f"{PROJECT}/cases/{{case}}": "A binding case.",
-    f"{PROJECT}/cases/{{case}}/revisions": "Sealed case revisions (and, through them, their snapshot digests).",
-    f"{PROJECT}/cases/{{case}}/revisions/{{revision}}": "One sealed case revision.",
     f"{PROJECT}/resources": "Project resources.",
     f"{PROJECT}/resources/{{resource}}/revisions": "Resource revisions.",
     f"{PROJECT}/studies": "Studies.",
@@ -56,14 +52,11 @@ PUBLIC_READ_ALLOWED: dict[str, str] = {
     f"{PROJECT}/studies/{{study}}/runs/{{run_id}}/cells": "Run cells.",
     f"{PROJECT}/studies/{{study}}/runs/{{run_id}}/cells/{{cell_id}}": "One run cell.",
     f"{PROJECT}/studies/{{study}}/runs/{{run_id}}/analytics": "Run analytics.",
-    f"{PROJECT}/blobs": "The file list, only files marked public.",
-    f"{PROJECT}/blobs/{{digest_value}}": "File download, only files marked public.",
 }
 
 #: GET routes that stay closed to non-members even on public projects.
 PUBLIC_READ_DENIED_GET: dict[str, str] = {
     f"{PROJECT}/jobs": "Jobs and their history (they carry requests, options and results of members).",
-    f"{PROJECT}/package": "Package export (a full copy, including private files and drafts).",
 }
 
 

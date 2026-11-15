@@ -1,8 +1,8 @@
-"""Collaborative platform tables built around the existing BIM v1 pipeline.
+"""Collaborative platform tables built around the BIM v1 pipeline.
 
-The source documents and solver results remain in the BIM tables.  These rows
-organise immutable references to them: organizations own projects, projects
-own binding cases and studies.
+Organizations own problems (``binding_cases``), whose revisions are uploaded
+packages kept as blobs, and the compilations of those revisions; projects own
+studies until they are retired.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -203,18 +204,20 @@ class Project(Base):
 
 
 class BindingCase(Base):
+    """A problem: a named BIM problem of an organization, whose revisions are uploaded packages."""
+
     __tablename__ = "binding_cases"
-    __table_args__ = (UniqueConstraint("project_id", "slug", name="uq_binding_case_project_slug"),)
+    __table_args__ = (UniqueConstraint("organization_id", "slug", name="uq_binding_case_org_slug"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    project_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     slug: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     description: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
     created_by_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
@@ -225,26 +228,74 @@ class BindingCase(Base):
 
 
 class BindingCaseRevision(Base):
+    """One immutable revision of a problem: the uploaded package (a blob), its digests and its file facts.
+
+    What depends on the installed toolchain (the IR, its digests, per-resource kind and dialect) is
+    in ``problem_compilations``, one row per revision and toolchain.
+    """
+
     __tablename__ = "binding_case_revisions"
     __table_args__ = (
         UniqueConstraint("binding_case_id", "revision", name="uq_binding_case_revision"),
-        UniqueConstraint("binding_case_id", "digest", name="uq_binding_case_digest"),
+        UniqueConstraint("binding_case_id", "package_digest", name="uq_binding_case_package_digest"),
         CheckConstraint("revision > 0", name="binding_case_revision_positive"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     binding_case_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("binding_cases.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("binding_cases.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     revision: Mapped[int] = mapped_column(Integer, nullable=False)
-    digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    #: The toolchain's canonical ``packageDigest`` (of the canonical archive, not of the uploaded bytes).
+    package_digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    instance_digest: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    package_blob_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("blobs.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    #: Size of the uploaded archive: what ``maxRepositoryStorage`` charges to ``created_by_id``.
+    package_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    #: The root ``instance.json``.
     document: Mapped[dict] = mapped_column(JSON, nullable=False)
-    source_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("v1_instance_snapshots.id", ondelete="SET NULL"), nullable=True, index=True
-    )
+    #: Package facts only: ``path``, ``role``, ``resource_id``, ``digest`` and ``media_type`` of every file.
+    files: Mapped[list] = mapped_column(JSON, nullable=False)
+    resource_digests: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    #: Who produced the package (an upload's file name, the Workbench, a producer); free form.
+    provenance: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
     )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
+class ProblemCompilation(Base):
+    """What one toolchain made of one revision: the IR, its source map and analysis. Insert only.
+
+    Keyed twice within a revision: by the compiler that produced it (what a lookup knows before
+    compiling) and by the compilation digest (what the toolchain reports). A toolchain release adds
+    a row and never rewrites one, so runs keep the IR they ran on.
+    """
+
+    __tablename__ = "problem_compilations"
+    __table_args__ = (
+        UniqueConstraint("revision_id", "compilation_digest", name="uq_problem_compilations_revision_digest"),
+        UniqueConstraint("revision_id", "compiler_digest", name="uq_problem_compilations_revision_compiler"),
+        # The target of the composite foreign keys that tie a run's compilation to its revision.
+        UniqueConstraint("id", "revision_id", name="uq_problem_compilations_id_revision"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    revision_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("binding_case_revisions.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    compiler_digest: Mapped[str] = mapped_column(String(80), nullable=False)
+    compilation_digest: Mapped[str] = mapped_column(String(80), nullable=False)
+    toolchain: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    ir_digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    ir: Mapped[dict] = mapped_column(JSON, nullable=False)
+    source_map: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    analysis: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
     )
@@ -383,22 +434,19 @@ class StudyCell(Base):
 
 
 class Blob(Base):
+    """A stored file of an organization. Files are global and content addressed; rows are per organization."""
+
     __tablename__ = "blobs"
-    __table_args__ = (UniqueConstraint("project_id", "digest", name="uq_artifact_project_digest"),)
+    __table_args__ = (UniqueConstraint("organization_id", "digest", name="uq_blob_organization_digest"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     organization_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True
     )
-    project_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("projects.id", ondelete="RESTRICT"), nullable=True, index=True
-    )
     digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     media_type: Mapped[str] = mapped_column(String(160), nullable=False)
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     storage_uri: Mapped[str] = mapped_column(String(1024), nullable=False)
-    public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )

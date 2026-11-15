@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from 'react';
 import { Lock } from 'lucide-react';
-import type { Organization, Project } from '../../api/platform';
+import type { Organization } from '../../api/platform';
 import { useCopy } from '../../components/ui/useCopy';
 import { Gate, type Crumb } from '../Organization/parts';
 import { OrgFrame } from '../../features/workspace/OrgFrame';
@@ -10,17 +10,16 @@ import './Cases.css';
 
 interface CaseFrameProps {
   organization: Organization;
-  project: Project;
-  /** The crumbs below the project: `Cases`, the case, the screen. The last one is where you are. */
+  /** The crumbs below the organization: `Problems`, the problem, the screen. The last one is where you are. */
   trail: Crumb[];
   width?: 'md' | 'lg' | 'wide';
   children: ReactNode;
 }
 
-/** The frame of every screen of the cases: breadcrumb, project tabs and one live content column. */
-export function CaseFrame({ organization, project, trail, width = 'wide', children }: CaseFrameProps) {
+/** The frame of every screen of the problems of an organization: breadcrumb and one live content column. */
+export function CaseFrame({ organization, trail, width = 'wide', children }: CaseFrameProps) {
   return (
-    <OrgFrame organization={organization} project={project} section="cases" trail={trail} width={width}>
+    <OrgFrame organization={organization} trail={trail} width={width}>
       {children}
     </OrgFrame>
   );

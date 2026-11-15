@@ -1,8 +1,7 @@
 import type { UsageView } from '../../api/auth';
 import type { BimResourceRef, EngineCatalogEntry, EngineMode } from '../../api/client';
 import type { ExecutionOptimization, LaunchRequest } from '../../api/jobs';
-import type { ArtifactRef } from '../../api/library';
-import type { CaseRevision } from '../../api/platform';
+import type { ProblemRevision } from '../../api/problems';
 import type { CaseContent } from '../../features/workspace/model';
 import { planLimit } from '../../features/workspace/model';
 import { RANGE_CODE, RANGE_REFUSAL } from '../../utils/featureRange';
@@ -22,56 +21,48 @@ const BUILTIN = 'bim.builtin';
 
 export interface SourceChoice {
   id: string;
-  kind: 'revision' | 'snapshot';
   label: string;
   detail: string;
-  /** The snapshot the run starts from; `null` for a revision that has none yet (one is made when the person continues). */
-  snapshotId: string | null;
-  revision: CaseRevision | null;
-  caseSlug: string | null;
+  /** The problem revision the run names. */
+  revision: ProblemRevision;
+  caseSlug: string;
   latest: boolean;
 }
 
 interface SourceInput {
   cases: readonly CaseContent[];
-  caseSlug: string | null;
+  /** The problem the address names (`?problem=`). */
+  problem: string | null;
+  /** Its version, by number or id (`?revision=`). */
   revision: string | null;
-  snapshot: string | null;
 }
 
-const newest = (revisions: readonly CaseRevision[]): CaseRevision[] => [...revisions].sort((a, b) => b.revision - a.revision);
+const newest = (revisions: readonly ProblemRevision[]): ProblemRevision[] => [...revisions].sort((a, b) => b.revision - a.revision);
 
-/** The things a run can start from: the snapshot or revision the person came from first, then the project's latest revisions. */
-export function sourceChoices({ cases, caseSlug, revision, snapshot }: SourceInput): SourceChoice[] {
+/** The versions a run can start from: those of the problem the person came from, else the latest version of the organization's problems. */
+export function sourceChoices({ cases, problem, revision }: SourceInput): SourceChoice[] {
   const choices: SourceChoice[] = [];
-  if (snapshot) {
-    choices.push({
-      id: `snapshot:${snapshot}`, kind: 'snapshot', label: 'Compiled snapshot',
-      detail: 'A compiled snapshot · it never changes', snapshotId: snapshot, revision: null, caseSlug: null, latest: false,
-    });
-  }
-  const scope = caseSlug ? cases.filter((entry) => entry.item.slug === caseSlug) : cases.slice(0, 12);
+  const scope = problem ? cases.filter((entry) => entry.item.slug === problem) : cases.slice(0, 12);
   for (const entry of scope) {
     const revisions = newest(entry.revisions);
     const wanted = revision ? revisions.filter((candidate) => String(candidate.revision) === revision || candidate.id === revision) : [];
-    const shown = caseSlug ? revisions.slice(0, 10) : [...wanted, ...revisions.slice(0, 1).filter((candidate) => !wanted.includes(candidate))];
+    const shown = problem ? revisions.slice(0, 10) : [...wanted, ...revisions.slice(0, 1).filter((candidate) => !wanted.includes(candidate))];
     for (const candidate of shown) {
       const latest = candidate === revisions[0];
       choices.push({
-        id: `revision:${candidate.id}`, kind: 'revision', label: `${entry.item.name} · version ${candidate.revision}`,
+        id: `revision:${candidate.id}`, label: `${entry.item.name} · version ${candidate.revision}`,
         detail: `${latest ? 'Latest · ' : ''}Sealed ${formatDate(candidate.created_at) ?? 'on an unknown date'}`,
-        snapshotId: candidate.source_snapshot_id, revision: candidate, caseSlug: entry.item.slug, latest,
+        revision: candidate, caseSlug: entry.item.slug, latest,
       });
     }
   }
   return choices;
 }
 
-/** The choice the address asks for: its revision, else its snapshot, else the first one offered. */
-export function initialChoice(choices: readonly SourceChoice[], revision: string | null, snapshot: string | null): string {
-  const byRevision = revision ? choices.find((choice) => choice.revision && (String(choice.revision.revision) === revision || choice.revision.id === revision)) : undefined;
-  const bySnapshot = snapshot ? choices.find((choice) => choice.id === `snapshot:${snapshot}`) : undefined;
-  return (byRevision ?? bySnapshot ?? choices[0])?.id ?? '';
+/** The choice the address asks for: its revision, else the first one offered. */
+export function initialChoice(choices: readonly SourceChoice[], revision: string | null): string {
+  const byRevision = revision ? choices.find((choice) => String(choice.revision.revision) === revision || choice.revision.id === revision) : undefined;
+  return (byRevision ?? choices[0])?.id ?? '';
 }
 
 // --- engines and modes
@@ -98,7 +89,7 @@ export const modeKey = (engine: BimResourceRef, mode: string, registration: BimR
 );
 
 /**
- * The engine modes the gateway says can (or cannot) run a snapshot. Without that reading (`compatible` is `null`) the catalog's own modes are
+ * The engine modes the gateway says can (or cannot) run a problem version. Without that reading (`compatible` is `null`) the catalog's own modes are
  * offered as unchecked: the gateway decides when the run is sent.
  */
 export function modeChoices(compatible: unknown[] | null, catalog: readonly EngineCatalogEntry[], ranges = false): ModeChoice[] {
@@ -333,26 +324,22 @@ export function optimizationFor(mode: EngineMode | undefined, criteria: number |
 
 // --- the request
 
-export type SettingsSource = 'inline' | 'saved';
-
 export interface RequestInput {
-  snapshot: string;
-  settings: SettingsSource;
-  configuration: ArtifactRef | null;
+  /** The id of the problem revision to run. */
+  revision: string;
   mode: ModeChoice | null;
   options: Record<string, unknown>;
   /** What the mode and the problem allow, from {@link optimizationFor}; left out of the request when `null`. */
   optimization?: ExecutionOptimization | null;
 }
 
-/** What `POST /v1/jobs` gets, or `null` while something is missing. Sealed settings go alone: they carry their own engine, mode and options. */
+/** What `POST /v1/jobs` gets, or `null` while something is missing. */
 export function buildRequest(input: RequestInput): LaunchRequest | null {
-  if (!input.snapshot) return null;
-  if (input.settings === 'saved') return input.configuration ? { snapshot: input.snapshot, configuration: input.configuration } : null;
+  if (!input.revision) return null;
   if (!input.mode || input.mode.compat === 'no') return null;
   // Without a named deployment the gateway finds the built-in one installed with the engine from the engine reference alone.
   return {
-    snapshot: input.snapshot, engine: input.mode.engine, mode: input.mode.mode, options: input.options,
+    revision: input.revision, engine: input.mode.engine, mode: input.mode.mode, options: input.options,
     ...(input.mode.registration ? { registration: input.mode.registration } : {}),
     ...(input.optimization ? { optimization: input.optimization } : {}),
   };

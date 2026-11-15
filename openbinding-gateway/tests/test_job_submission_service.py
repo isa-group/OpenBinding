@@ -16,7 +16,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from _pricing import pricing_catalog, roomy_plan
-from _repo import REPO_ROOT
 
 from openbinding_gateway import space_client, study_jobs
 from openbinding_gateway.core.settings import get_settings
@@ -31,10 +30,7 @@ from openbinding_gateway.services.job_submission import (
     discard_pending_launches,
     pending_launches,
 )
-from openbinding_gateway.services.snapshots import compile_resolved, persist_snapshot
-from bim_core.package import load_package
-
-EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
+from _problem_helpers import problem_for
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
 KEY = "service-key-1"
 
@@ -54,23 +50,21 @@ async def user(db_session) -> User:
 
 
 @pytest_asyncio.fixture
-async def snapshot_id(db_session, user) -> str:
-    compilation = await compile_resolved(load_package(EXAMPLE).to_zip(), db_session, user)
-    stored = await persist_snapshot(compilation, user, db_session)
-    await db_session.commit()
-    assert stored
-    return stored
+async def revision_id(db_session, user) -> str:
+    """A revision of a problem of the user's organization (the name is the fixture the tests ask for)."""
+    upload = await problem_for(db_session, user)
+    return str(upload.revision.id)
 
 
-def payload_for(snapshot: str, **extra) -> dict:
-    return {"snapshot": snapshot, "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION, **extra}
+def payload_for(revision: str, **extra) -> dict:
+    return {"revision": revision, "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION, **extra}
 
 
-def request_for(snapshot: str, payload: dict | None = None, key: str | None = KEY) -> JobSubmissionInput:
+def request_for(revision: str, payload: dict | None = None, key: str | None = KEY) -> JobSubmissionInput:
     return JobSubmissionInput(
-        payload=payload if payload is not None else payload_for(snapshot),
+        payload=payload if payload is not None else payload_for(revision),
         idempotency_key=key,
-        snapshot_id=snapshot,
+        revision_id=revision,
     )
 
 
@@ -85,8 +79,8 @@ async def job_count(session) -> int:
 # -- A new job and its replay ------------------------------------------------
 
 
-async def test_a_valid_request_creates_a_queued_job(db_session, user, snapshot_id):
-    result = await submit(db_session, user, request_for(snapshot_id))
+async def test_a_valid_request_creates_a_queued_job(db_session, user, revision_id):
+    result = await submit(db_session, user, request_for(revision_id))
 
     assert (result.kind, result.status, result.headers) == ("created", 202, {})
     assert set(result.body) == {"id", "status", "profile", "irDigest"}
@@ -98,11 +92,11 @@ async def test_a_valid_request_creates_a_queued_job(db_session, user, snapshot_i
     assert pending_launches(db_session) == []
 
 
-async def test_the_same_key_and_an_equivalent_body_replay_the_job(db_session, user, snapshot_id):
-    first = await submit(db_session, user, request_for(snapshot_id))
+async def test_the_same_key_and_an_equivalent_body_replay_the_job(db_session, user, revision_id):
+    first = await submit(db_session, user, request_for(revision_id))
     # The same request with its members in another order.
-    reordered = dict(reversed(list(payload_for(snapshot_id).items())))
-    second = await submit(db_session, user, request_for(snapshot_id, reordered))
+    reordered = dict(reversed(list(payload_for(revision_id).items())))
+    second = await submit(db_session, user, request_for(revision_id, reordered))
 
     assert first.kind == "created"
     assert (second.kind, second.status) == ("replay", 202)
@@ -116,10 +110,10 @@ async def test_the_same_key_and_an_equivalent_body_replay_the_job(db_session, us
     assert await job_count(db_session) == 1
 
 
-async def test_the_same_key_with_another_body_is_a_409_problem(db_session, user, snapshot_id):
-    body = payload_for(snapshot_id, engine="evolutionary-heuristics", mode="elitist-genetic")
-    first = await submit(db_session, user, request_for(snapshot_id, {**body, "options": {"max_evaluations": 100}}))
-    changed = await submit(db_session, user, request_for(snapshot_id, {**body, "options": {"max_evaluations": 200}}))
+async def test_the_same_key_with_another_body_is_a_409_problem(db_session, user, revision_id):
+    body = payload_for(revision_id, engine="evolutionary-heuristics", mode="elitist-genetic")
+    first = await submit(db_session, user, request_for(revision_id, {**body, "options": {"max_evaluations": 100}}))
+    changed = await submit(db_session, user, request_for(revision_id, {**body, "options": {"max_evaluations": 200}}))
 
     assert first.kind == "created"
     assert (changed.kind, changed.status) == ("problem", 409)
@@ -128,18 +122,16 @@ async def test_the_same_key_with_another_body_is_a_409_problem(db_session, user,
     assert await job_count(db_session) == 1
 
 
-async def test_a_key_is_scoped_to_the_account(db_session, user, snapshot_id):
+async def test_a_key_is_scoped_to_the_account(db_session, user, revision_id):
     other = User(
         username="other", email="other@example.org", password_hash="x", role=UserRole.USER,
         plan_cache=pricing_catalog().default_plan,
     )
     db_session.add(other)
     await db_session.commit()
-    compilation = await compile_resolved(load_package(EXAMPLE).to_zip(), db_session, other)
-    other_snapshot = await persist_snapshot(compilation, other, db_session)
-    await db_session.commit()
+    other_snapshot = str((await problem_for(db_session, other)).revision.id)
 
-    first = await submit(db_session, user, request_for(snapshot_id))
+    first = await submit(db_session, user, request_for(revision_id))
     second = await submit(db_session, other, request_for(other_snapshot))
 
     assert first.kind == second.kind == "created"
@@ -161,15 +153,15 @@ def hide_lookups(monkeypatch, hidden: int) -> None:
     monkeypatch.setattr(job_submission, "_find_idempotent_job", find)
 
 
-async def test_losing_the_insert_race_to_a_committed_winner_replays_it(db_session, user, snapshot_id, monkeypatch):
+async def test_losing_the_insert_race_to_a_committed_winner_replays_it(db_session, user, revision_id, monkeypatch):
     # About the INSERT race, which a second job must reach: the default plan allows one job at a time and
     # that limit now applies (plan ``maxConcurrentRuns``), so the account gets a roomier plan.
     space_client.get_gate().plans[user.id] = roomy_plan()
-    winner = await submit(db_session, user, request_for(snapshot_id))
+    winner = await submit(db_session, user, request_for(revision_id))
 
     # Misses the pre-check and the check after the account lock; only the INSERT notices the winner.
     hide_lookups(monkeypatch, 2)
-    loser = await submit(db_session, user, request_for(snapshot_id))
+    loser = await submit(db_session, user, request_for(revision_id))
 
     assert (loser.kind, loser.status) == ("replay", 202)
     assert loser.body["id"] == winner.body["id"]
@@ -178,7 +170,7 @@ async def test_losing_the_insert_race_to_a_committed_winner_replays_it(db_sessio
 
 
 async def test_a_race_whose_winner_rolled_back_is_a_conflict_and_burns_no_key(
-    db_session, user, snapshot_id, monkeypatch
+    db_session, user, revision_id, monkeypatch
 ):
     real_flush = AsyncSession.flush
     collided: list[bool] = []
@@ -191,7 +183,7 @@ async def test_a_race_whose_winner_rolled_back_is_a_conflict_and_burns_no_key(
         return await real_flush(self, *args, **kwargs)
 
     monkeypatch.setattr(AsyncSession, "flush", flush)
-    lost = await submit(db_session, user, request_for(snapshot_id))
+    lost = await submit(db_session, user, request_for(revision_id))
 
     assert (lost.kind, lost.status) == ("problem", 409)
     assert lost.body["code"] == "job_conflict"
@@ -199,32 +191,32 @@ async def test_a_race_whose_winner_rolled_back_is_a_conflict_and_burns_no_key(
     assert pending_launches(db_session) == []
 
     # Nothing was reserved: the same key goes through once the race is over.
-    retried = await submit(db_session, user, request_for(snapshot_id))
+    retried = await submit(db_session, user, request_for(revision_id))
     assert retried.kind == "created"
     assert await job_count(db_session) == 1
 
 
 async def test_a_request_that_waited_on_the_account_lock_gets_the_replay_not_a_429(
-    db_session, user, snapshot_id, monkeypatch
+    db_session, user, revision_id, monkeypatch
 ):
-    winner = await submit(db_session, user, request_for(snapshot_id))
+    winner = await submit(db_session, user, request_for(revision_id))
     monkeypatch.setattr(get_settings(), "max_concurrent_jobs_per_user", 1)
 
     # The pre-check misses; the lookup after the account lock sees the winner.
     hide_lookups(monkeypatch, 1)
-    waited = await submit(db_session, user, request_for(snapshot_id))
+    waited = await submit(db_session, user, request_for(revision_id))
 
     assert (waited.kind, waited.body["id"]) == ("replay", winner.body["id"])
 
 
-async def test_the_study_cell_race_returns_the_job_that_won_the_cell(db_session, user, snapshot_id):
+async def test_the_study_cell_race_returns_the_job_that_won_the_cell(db_session, user, revision_id):
     # About the unique index on the cell, which a second launch must reach: it needs a plan that allows
     # a second job in flight (the default one allows one and that limit now applies).
     space_client.get_gate().plans[user.id] = roomy_plan()
     cell_id = uuid.uuid4()
-    first = await submit(db_session, user, request_for(snapshot_id, key=None), study_cell_id=cell_id, commit=False)
+    first = await submit(db_session, user, request_for(revision_id, key=None), study_cell_id=cell_id, commit=False)
     # No key to replay by: only the unique index on the cell tells the second launch it lost.
-    second = await submit(db_session, user, request_for(snapshot_id, key=None), study_cell_id=cell_id, commit=False)
+    second = await submit(db_session, user, request_for(revision_id, key=None), study_cell_id=cell_id, commit=False)
 
     assert first.kind == "created"
     assert (second.kind, second.body["id"], second.body["idempotent"]) == ("replay", first.body["id"], True)
@@ -236,11 +228,11 @@ async def test_the_study_cell_race_returns_the_job_that_won_the_cell(db_session,
 
 
 async def test_the_concurrency_limit_is_a_retryable_429_with_its_headers(
-    db_session, user, snapshot_id, monkeypatch
+    db_session, user, revision_id, monkeypatch
 ):
     monkeypatch.setattr(get_settings(), "max_concurrent_jobs_per_user", 1)
-    first = await submit(db_session, user, request_for(snapshot_id, key="first"))
-    refused = await submit(db_session, user, request_for(snapshot_id, key="second"))
+    first = await submit(db_session, user, request_for(revision_id, key="first"))
+    refused = await submit(db_session, user, request_for(revision_id, key="second"))
 
     assert first.kind == "created"
     assert (refused.kind, refused.status) == ("problem", 429)
@@ -253,18 +245,18 @@ async def test_the_concurrency_limit_is_a_retryable_429_with_its_headers(
     assert await job_count(db_session) == 1
 
 
-async def test_a_replay_at_the_limit_is_not_refused(db_session, user, snapshot_id, monkeypatch):
+async def test_a_replay_at_the_limit_is_not_refused(db_session, user, revision_id, monkeypatch):
     monkeypatch.setattr(get_settings(), "max_concurrent_jobs_per_user", 1)
-    first = await submit(db_session, user, request_for(snapshot_id))
-    again = await submit(db_session, user, request_for(snapshot_id))
+    first = await submit(db_session, user, request_for(revision_id))
+    again = await submit(db_session, user, request_for(revision_id))
 
     assert (again.kind, again.body["id"]) == ("replay", first.body["id"])
 
 
-async def test_an_unreadable_plan_is_a_retryable_503_and_creates_nothing(db_session, user, snapshot_id):
+async def test_an_unreadable_plan_is_a_retryable_503_and_creates_nothing(db_session, user, revision_id):
     space_client.get_gate().unavailable = True
 
-    result = await submit(db_session, user, request_for(snapshot_id))
+    result = await submit(db_session, user, request_for(revision_id))
 
     assert (result.kind, result.status) == ("problem", 503)
     assert result.body["code"] == "pricing_unavailable"
@@ -272,21 +264,16 @@ async def test_an_unreadable_plan_is_a_retryable_503_and_creates_nothing(db_sess
     assert await job_count(db_session) == 0
 
 
-async def test_an_anonymous_caller_is_refused_after_the_request_is_validated(db_session):
-    upload = JobSubmissionInput(
-        payload={"mode": "seeded", "optimization": OPTIMIZATION},
-        archive=load_package(EXAMPLE).to_zip(),
-    )
-
-    result = await submit(db_session, None, upload)
+async def test_an_anonymous_caller_is_refused_before_anything_is_read(db_session, revision_id):
+    result = await submit(db_session, None, request_for(revision_id))
 
     assert (result.kind, result.status) == ("problem", 401)
     assert result.body["code"] == "unauthorized"
     assert await job_count(db_session) == 0
 
 
-async def test_a_request_the_service_refuses_names_its_problem_before_any_job(db_session, user, snapshot_id):
-    unknown = await submit(db_session, user, request_for(snapshot_id, payload_for(snapshot_id, engine="no-such-engine")))
+async def test_a_request_the_service_refuses_names_its_problem_before_any_job(db_session, user, revision_id):
+    unknown = await submit(db_session, user, request_for(revision_id, payload_for(revision_id, engine="no-such-engine")))
     missing = await submit(db_session, user, request_for(str(uuid.uuid4())))
 
     assert (unknown.status, unknown.body["code"]) == (422, "immutable_engine_required")
@@ -297,8 +284,8 @@ async def test_a_request_the_service_refuses_names_its_problem_before_any_job(db
 # -- Without commit -----------------------------------------------------------
 
 
-async def test_without_commit_the_job_waits_in_the_callers_transaction(db_session, user, snapshot_id):
-    result = await submit(db_session, user, request_for(snapshot_id), commit=False)
+async def test_without_commit_the_job_waits_in_the_callers_transaction(db_session, user, revision_id):
+    result = await submit(db_session, user, request_for(revision_id), commit=False)
 
     job_id = uuid.UUID(result.body["id"])
     assert result.kind == "created"
@@ -307,12 +294,13 @@ async def test_without_commit_the_job_waits_in_the_callers_transaction(db_sessio
     assert pending_launches(db_session) == []
 
 
-async def test_a_failing_snapshot_persister_leaves_no_job(db_session, user, snapshot_id):
+async def test_a_failing_compilation_leaves_no_job(db_session, user, revision_id, monkeypatch):
     async def broken(*args, **kwargs):
-        raise RuntimeError("snapshot failed")
+        raise RuntimeError("compilation failed")
 
-    with pytest.raises(RuntimeError, match="snapshot failed"):
-        await submit(db_session, user, request_for(snapshot_id), snapshot_persister=broken)
+    monkeypatch.setattr(job_submission, "compile_or_get", broken)
+    with pytest.raises(RuntimeError, match="compilation failed"):
+        await submit(db_session, user, request_for(revision_id))
 
     await db_session.rollback()
     assert await job_count(db_session) == 0

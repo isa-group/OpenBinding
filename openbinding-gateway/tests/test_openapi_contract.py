@@ -130,18 +130,17 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/auth/cas/start", "get"),
         ("/v1/auth/cas/callback", "get"),
         ("/v1/auth/cas/exchange", "post"),
-        ("/v1/profiles", "get"),
-        ("/v1/dialects", "get"),
+        ("/v1/engines/protocol", "get"),
         ("/v1/artifacts/{artifact_id}/versions", "get"),
         ("/v1/artifacts/{artifact_id}/versions/{version_id}/content", "get"),
         ("/v1/artifacts/resolve", "post"),
-        ("/v1/examples", "get"),
-        ("/v1/examples/{example_path}", "get"),
+        ("/v1/bim/templates", "get"),
+        ("/v1/bim/templates/{template}", "get"),
         ("/v1/pricing/catalog", "get"),
         ("/v1/pricing/current", "get"),
         # The public engine catalogue: a visitor gets the built-in and published Engines.
         ("/v1/engines", "get"),
-        ("/v1/instances/validate", "post"),
+        ("/v1/bim/validate", "post"),
     }
     for path, method, operation in operations(document):
         if (path, method) in public:
@@ -261,25 +260,28 @@ def test_engine_registration_contract_describes_private_lifecycle_and_openapi(do
 
 def test_binary_yaml_and_job_inputs_have_their_real_media_types(document):
     paths = document["paths"]
-    example = paths["/v1/examples/{example_path}"]["get"]["responses"]["200"]["content"]
-    source = paths["/v1/instances/{snapshot_id}/source"]["get"]["responses"]["200"]["content"]
-    assert set(example) == set(source) == {"application/vnd.bim+zip"}
+    template = paths["/v1/bim/templates/{template}"]["get"]["responses"]["200"]["content"]
+    source = paths["/v1/organizations/{org}/problems/{problem}/revisions/{revision}/source"]["get"]["responses"]["200"]["content"]
+    assert set(template) == set(source) == {"application/vnd.bim+zip"}
 
-    validate = paths["/v1/validate"]["post"]["requestBody"]["content"]
-    assert {"application/vnd.bim+zip", "application/json"} <= set(validate)
+    validate = paths["/v1/bim/validate"]["post"]["requestBody"]["content"]
+    assert {"application/vnd.bim+zip", "application/zip"} <= set(validate)
+    assert "application/json" not in validate
+    for upload in (
+        paths["/v1/organizations/{org}/problems"]["post"],
+        paths["/v1/organizations/{org}/problems/{problem}/revisions"]["post"],
+    ):
+        assert set(upload["requestBody"]["content"]) == {"application/vnd.bim+zip", "application/zip"}
     jobs = paths["/v1/jobs"]["post"]
-    assert {"application/vnd.bim+zip", "application/json", "multipart/form-data"} <= set(
-        jobs["requestBody"]["content"]
-    )
+    assert set(jobs["requestBody"]["content"]) == {"application/json"}
     assert any(parameter["name"] == "Idempotency-Key" for parameter in jobs["parameters"])
 
 
 @pytest.mark.parametrize(
     ("path", "component"),
     [
-        ("/v1/profiles", "ProfileList"),
-        ("/v1/dialects", "DialectList"),
-        ("/v1/examples", "ExampleList"),
+        ("/v1/engines/protocol", "ProfileList"),
+        ("/v1/bim/templates", "TemplateList"),
     ],
 )
 def test_public_catalogue_responses_satisfy_the_published_schema(document, path, component):

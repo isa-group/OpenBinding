@@ -49,18 +49,23 @@ uncertainty.
 
 ## Usage
 
-Export a scenario directory as a deterministic `.bim.zip`, then submit the
-complete package. For example:
+Export a scenario directory as a deterministic `.bim.zip`, upload it as a
+problem of your organization, and submit a job for its revision. For example:
 
 ```bash
+revision_id="$(
+  curl -sS -X POST "http://localhost:8000/v1/organizations/my-lab/problems" \
+       -H "Authorization: Bearer $TOKEN" \
+       -H "Content-Type: application/vnd.bim+zip" \
+       --data-binary @benatallah.bim.zip | jq -r .revision.id
+)"
 curl -X POST "http://localhost:8000/v1/jobs" \
-     -H "Content-Type: application/vnd.bim+zip" \
+     -H "Authorization: Bearer $TOKEN" \
      -H "Idempotency-Key: literature-benatallah" \
-     --data-binary @benatallah.bim.zip
+     -H "Content-Type: application/json" \
+     -d "{\"revision\": \"$revision_id\", \"engine\": \"random-search\", \"mode\": \"seeded\",
+          \"optimization\": {\"type\": \"SINGLE\", \"scalarization\": \"weighted-sum\"}}"
 ```
 
-The direct ZIP form uses the default compatible Engine mode. Create a snapshot
-with `POST /v1/instances` and submit
-`{ "snapshot": "...", "engine": "...", "mode": "...", "options": {...} }`
-to select a different mode. The API never treats `instance.json` alone as the
-whole scenario.
+`engine`, `mode` and `options` select the Engine mode. The API never treats
+`instance.json` alone as the whole scenario.

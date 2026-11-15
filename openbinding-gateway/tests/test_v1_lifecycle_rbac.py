@@ -8,6 +8,7 @@ import jsonschema
 import pytest
 from sqlalchemy import select
 
+from _problem_helpers import upload_problem
 from _repo import REPO_ROOT
 
 from openbinding_gateway.core.settings import Settings
@@ -15,10 +16,10 @@ from openbinding_gateway.db.models import (
     EngineCredential,
     EngineRegistrationRevision,
     EngineRevision,
-    InstanceSnapshot,
     Job,
     JobState,
     ManifestPublication,
+    ProblemCompilation,
     User,
     UserRole,
 )
@@ -27,7 +28,6 @@ from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.security.secrets import generate_key
 from openbinding_gateway.services import engines
 from bim_core.canonical import digest
-from bim_core.package import load_package
 
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
@@ -131,7 +131,6 @@ def _assert_component(component: str, payload: dict) -> None:
     ("method", "path"),
     [
         ("GET", "/v1/engine-registrations"),
-        ("POST", "/v1/validate"),
         ("POST", "/v1/jobs"),
         ("POST", "/v1/engines"),
         ("POST", "/v1/engine-registrations"),
@@ -174,37 +173,26 @@ async def test_second_user_cannot_distinguish_private_v1_resources(
     await db_session.flush()
     monkeypatch.setattr(routes, "validate_endpoint", lambda endpoint, **_kwargs: None)
 
-    package = load_package(EXAMPLE)
-    created_snapshot = await api_client.post(
-        "/v1/instances",
-        headers=_zip_headers(owner_headers),
-        content=package.to_zip(),
-    )
-    assert created_snapshot.status_code == 201, created_snapshot.text
-    snapshot_id = created_snapshot.json()["id"]
+    uploaded = await upload_problem(api_client, owner_headers, slug="private-problem")
 
     owner = (
         await db_session.execute(
             select(User).where(User.username == owner_details["username"])
         )
     ).scalars().one()
-    snapshot = await db_session.get(InstanceSnapshot, uuid.UUID(snapshot_id))
-    assert snapshot is not None
+    compilation = await db_session.scalar(
+        select(ProblemCompilation).where(ProblemCompilation.revision_id == uuid.UUID(uploaded["revision_id"]))
+    )
     job = Job(
         owner_id=owner.id,
         engine_id="random-search",
         engine_job_id="private-job",
         service_url="https://solver.example",
         state=JobState.QUEUED,
-        original_request={
-            "bindingProblem": {
-                "apiVersion": "bim/v1",
-                "kind": "BindingProblem",
-                "metadata": {"name": "private-problem"},
-                "spec": {},
-            }
-        },
-        instance_snapshot_id=snapshot.id,
+        original_request={},
+        revision_id=compilation.revision_id,
+        compilation_id=compilation.id,
+        organization_id=uuid.UUID(uploaded["problem"]["organization_id"]),
         provenance={},
     )
     db_session.add(job)
@@ -262,16 +250,15 @@ async def test_second_user_cannot_distinguish_private_v1_resources(
     }
 
     missing_id = str(uuid.uuid4())
-    for suffix in ("", "/source", "/ir"):
-        hidden = await api_client.get(
-            f"/v1/instances/{snapshot_id}{suffix}", headers=other_headers
-        )
-        missing = await api_client.get(
-            f"/v1/instances/{missing_id}{suffix}", headers=other_headers
-        )
-        _assert_same_not_found(hidden, missing)
+    problems = f"/v1/organizations/{uploaded['org']}/problems"
+    for suffix in ("", "/revisions", "/revisions/1", "/revisions/1/source"):
+        hidden = await api_client.get(f"{problems}/private-problem{suffix}", headers=other_headers)
+        missing = await api_client.get(f"{problems}/missing{suffix}", headers=other_headers)
+        # Not a member: the organization refuses before anything about the problem is looked up.
+        assert hidden.status_code == missing.status_code == 403
+        assert hidden.json() == missing.json()
 
-    for suffix in ("", "/ir", "/instance", "/report"):
+    for suffix in ("", "/report"):
         hidden = await api_client.get(
             f"/v1/jobs/{job.id}{suffix}", headers=other_headers
         )

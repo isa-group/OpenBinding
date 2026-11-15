@@ -13,7 +13,8 @@ import { useResource } from '../../utils/useResource';
 import { planCeilingsOf } from '../Jobs/launchModel';
 import { RefusalNotice } from '../Jobs/parts';
 import { MembersOnlyGate, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
-import { loadCases } from '../Project/projectData';
+import { problemsApi } from '../../api/problems';
+import { loadProblems } from '../Cases/problemsData';
 import { SLUG_PATTERN, slugFromName, type CaseContent } from '../../features/workspace/model';
 import { useRouteProject } from '../Project/useRouteProject';
 import { AdoptPanel, CasesField, EnginesField, SettingsField } from './BuilderFields';
@@ -33,7 +34,7 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
   const slug = project.slug;
   const root = `/app/${org}/${slug}`;
 
-  const cases = useResource<CaseContent[]>(`builder-cases:${org}/${slug}`, () => loadCases(org, slug));
+  const cases = useResource<CaseContent[]>(`builder-problems:${org}`, () => loadProblems(org));
   const engines = useResource<EngineCatalogEntry[]>('builder-engines', () => apiClient.getEngines());
   const usage = useResource<UsageView | null>('builder-usage', () => apiClient.getOwnUsage().catch(() => null));
   const pricing = useResource<Record<string, unknown> | null>('builder-pricing', () => apiClient.getPricingCatalog().catch(() => null));
@@ -115,7 +116,7 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
           ...head,
           definition: {
             case_revision_ids: selected,
-            engines: definitionEngines(chosen, studyCriteriaCount(revisionsOf(caseList ?? [], selected))),
+            engines: definitionEngines(chosen, studyCriteriaCount(await compiledForms(org, caseList ?? [], selected))),
             parameter_sets: settings,
             seeds: seeds.seeds,
           },
@@ -193,7 +194,7 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
                     cases={caseList ?? []}
                     selected={selected}
                     onChange={(ids) => { setPicked(ids); setRefusal(null); }}
-                    root={root}
+                    org={org}
                   />
                   <EnginesField choices={choices} selected={pickedEngines} onChange={(keys) => { setPickedEngines(keys); setRefusal(null); }} failed={engines.status === 'error'} />
                   <SettingsField
@@ -253,6 +254,23 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
       )}
     </StudyFrame>
   );
+}
+
+/** The compiled forms of the chosen problem versions (the IR of each one's current compilation); a version that can't be read is left out. */
+async function compiledForms(org: string, cases: readonly CaseContent[], ids: readonly string[]): Promise<unknown[]> {
+  const chosen = revisionsOf(cases, ids);
+  const slugOf = new Map(cases.flatMap((entry) => entry.revisions.map((revision) => [revision.id, entry.item.slug] as const)));
+  const forms = await Promise.all(chosen.map(async (revision) => {
+    const problem = slugOf.get(revision.id);
+    if (!problem) return null;
+    try {
+      const compilation = await problemsApi.compilation(org, problem, revision.revision);
+      return (await problemsApi.ir(org, problem, revision.revision, compilation.id)).ir;
+    } catch {
+      return null;
+    }
+  }));
+  return forms.filter((form) => form !== null);
 }
 
 /** A new study (`study-builder`, `/app/:org/:project/studies/new`): the cases, engines, settings and seeds that become one cell each. */

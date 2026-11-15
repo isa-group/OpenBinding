@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import uuid
+from _problem_helpers import revision_of
+from _problem_helpers import placeholder_refs
 from datetime import timedelta
 
 import pytest_asyncio
@@ -51,20 +53,15 @@ async def _register(client, details, db_session=None, *, admin=False) -> tuple[d
     return headers, user_id
 
 
-async def _create_snapshot(client, headers):
-    """Jobs are launched by JSON from a snapshot: ZIP uploads cannot carry `optimization`."""
-    snapshot = await client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=load_package(EXAMPLE).to_zip(),
-    )
-    assert snapshot.status_code == 201, snapshot.text
-    return snapshot.json()["id"]
+async def _create_revision(client, headers):
+    """Jobs are launched by JSON naming a problem revision."""
+    revision_id = await revision_of(client, headers, archive=load_package(EXAMPLE).to_zip())
+    return revision_id
 
 
-def _job_request(snapshot_id):
+def _job_request(revision_id):
     return {
-        "snapshot": snapshot_id,
+        "revision": revision_id,
         "engine": "random-search",
         "mode": "seeded",
         "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
@@ -96,17 +93,17 @@ async def test_the_api_key_allowance_returns_402_quota_exceeded(api_client, db_s
 async def test_solve_returns_429_on_concurrency_exceeded(api_client, db_session, registration, gate, monkeypatch):
     details = registration()
     headers, user_id = await _register(api_client, details, db_session)
-    snapshot_id = await _create_snapshot(api_client, headers)
+    revision_id = await _create_revision(api_client, headers)
 
     # The account's only slot is taken by a job that is still queued.
     monkeypatch.setattr(get_settings(), "max_concurrent_jobs_per_user", 1)
     db_session.add(Job(
         owner_id=user_id, engine_id="random-search", engine_job_id="busy",
-        service_url="http://engine", state=JobState.QUEUED,
+        service_url="http://engine", state=JobState.QUEUED, **placeholder_refs(),
     ))
     await db_session.commit()
 
-    response = await api_client.post("/v1/jobs", headers=headers, json=_job_request(snapshot_id))
+    response = await api_client.post("/v1/jobs", headers=headers, json=_job_request(revision_id))
 
     assert response.status_code == 429, response.text
     body = response.json()

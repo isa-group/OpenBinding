@@ -43,18 +43,18 @@ const members = [
   { id: 'm1', organization_id: 'org-acme', user_id: 'user-1', username: 'lucia', email: 'lucia@example.org', role: 'OWNER', created_at: NOW },
 ];
 
-// Slices 13 and 14 renamed the app address segments to `problems` and `runs`; the HTTP API keeps `cases` and `jobs`.
+// The problems belong to the organization (`/app/acme/problems`); runs and studies still live in a project.
 export const PROBLEMS_SEGMENT = 'problems';
 export const RUNS_SEGMENT = 'runs';
-export const PROBLEMS = `/app/acme/demo/${PROBLEMS_SEGMENT}`;
+export const PROBLEMS = `/app/acme/${PROBLEMS_SEGMENT}`;
 export const RUN_NEW = `/app/acme/demo/${RUNS_SEGMENT}/new`;
 export const RUNS = `/app/acme/demo/${RUNS_SEGMENT}`;
 
-const EXAMPLES = ['demo/01_simple_seq', 'demo/02_parallel', 'placement/01_small_placement'];
+const TEMPLATES = ['demo/01_simple_seq', 'demo/02_parallel', 'placement/01_small_placement'];
 
 /**
- * Answers the API origin: the user, the organization `acme` with its project `demo`, notifications and the few public
- * lists the screens read. Anything else is a 404 `not mocked`. Returns the non-GET requests that reached it.
+ * Answers the API origin: the user, the organization `acme` with its project `demo` and no problems, notifications and the
+ * few public lists the screens read. Anything else is a 404 `not mocked`. Returns the non-GET requests that reached it.
  */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<Recorded[]> {
   const role = options.role === undefined ? 'user' : options.role;
@@ -66,9 +66,8 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Re
   });
 
   await page.route(`${API}/**`, json({ detail: 'not mocked' }, 404));
-  await page.route(`${API}/v1/examples`, json({ examples: EXAMPLES }));
-  await page.route(`${API}/v1/profiles`, json({ profiles: [{ id: 'qos-binding/v1' }] }));
-  await page.route(`${API}/v1/dialects`, json({ dialects: [{ id: 'qos-binding' }] }));
+  await page.route(`${API}/v1/bim/templates`, json({ templates: TEMPLATES }));
+  await page.route(`${API}/v1/engines/protocol`, json({ profiles: [{ id: 'qos-binding/v1' }] }));
   await page.route(`${API}/v1/engines`, json({ engines: [] }));
   if (options.gateway === 'down') {
     for (const path of ['/health', '/health/live', '/health/ready']) await page.route(`${API}${path}`, (route) => route.abort('connectionrefused'));
@@ -94,6 +93,8 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Re
     ? route.fulfill({ status: 201, json: project('demo-two', 'demo-two') })
     : route.fulfill({ json: options.projects ?? [project('demo', 'Demo')] })));
   await page.route(`${API}/v1/organizations/acme/projects/demo`, json(project('demo', 'Demo')));
+  await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/problems`, json({ problems: [], total: 0, limit: 200, offset: 0 }));
+  await page.route((url) => url.origin + url.pathname === `${API}/v1/jobs`, json([]));
   return requests;
 }
 

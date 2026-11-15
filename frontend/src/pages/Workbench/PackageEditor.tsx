@@ -34,7 +34,7 @@ export function PackageEditor({ wb }: { wb: Workbench }) {
       <div className="wb-card-head">
         <div>
           <h2 id="wb-editor-title">Package editor</h2>
-          <p className="wb-muted">Edit the resources as forms or draw the workflow. Nothing leaves your browser until you validate, snapshot or save.</p>
+          <p className="wb-muted">Edit the resources as forms or draw the workflow. Nothing leaves your browser until you validate or save.</p>
         </div>
         <Action variant="secondary" size="sm" aria-expanded={wb.sourceOpen} aria-controls="wb-view-source" onClick={() => wb.setSourceOpen(!wb.sourceOpen)}>
           <Code2 aria-hidden="true" />View source

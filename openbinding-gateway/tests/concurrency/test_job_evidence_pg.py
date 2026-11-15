@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
+from _problem_helpers import compiled_run_refs
 from datetime import timedelta
 
 import pytest
@@ -54,11 +55,8 @@ async def a_failed_job_with_evidence(session) -> tuple[User, Job, JobEngineEvide
     job = Job(
         owner_id=owner.id, engine_id="random-search", engine_job_id="engine-1", service_url="http://engine",
         state=JobState.FAILED, attempt=1,
-        original_request={
-            "bindingProblem": {"kind": "BindingProblem"},
-            "mode": {"id": "seeded", "terminationGuarantees": ["FEASIBLE"]},
-        },
-        provenance={},
+        original_request={"mode": {"id": "seeded", "terminationGuarantees": ["FEASIBLE"]}},
+        provenance={}, **await compiled_run_refs(session, owner.id),
     )
     session.add(job)
     await session.flush()
@@ -81,7 +79,7 @@ async def a_running_job(session) -> tuple[User, Job]:
     owner = await an_owner(session)
     job = Job(
         owner_id=owner.id, engine_id="random-search", engine_job_id="engine-1", service_url="http://engine",
-        state=JobState.QUEUED, requested_budget_s=600.0, provenance={},
+        state=JobState.QUEUED, requested_budget_s=600.0, provenance={}, **await compiled_run_refs(session, owner.id),
     )
     session.add(job)
     await session.commit()

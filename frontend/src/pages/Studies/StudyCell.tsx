@@ -153,7 +153,7 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
   const studyPath = `${root}/studies/${encodeURIComponent(study.slug)}`;
   const resultsHref = studyPageHref(studyPath, 'results', { run: runId });
   const cellHref = (id: string) => studyPageHref(studyPath, 'results', { run: runId, cell: id });
-  const { index } = useRevisionIndex(org, slug);
+  const { index } = useRevisionIndex(org);
   const siblings = useResource(`cell-run:${study.id}/${runId}`, () => loadRun(org, slug, study.slug, runId));
   const one = useResource(`cell:${runId}/${cellId}`, () => platformApi.studyCell(org, slug, study.slug, runId, cellId));
   const [measureChoice, setMeasureChoice] = useState<string | null>(null);
@@ -208,12 +208,12 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
   };
 
   const inputs: Array<[string, ReactNode]> = [
-    ['Problem', info ? <Link to={problemPath(root, info.caseSlug, undefined, { version: info.revision })} viewTransition>{revisionLabel(index, cell.binding_case_revision_id)}</Link> : revisionLabel(index, cell.binding_case_revision_id)],
+    ['Problem', info ? <Link to={problemPath(org, info.caseSlug, undefined, { version: info.revision })} viewTransition>{revisionLabel(index, cell.binding_case_revision_id)}</Link> : revisionLabel(index, cell.binding_case_revision_id)],
     ['Engine', engineTitle(ref)],
     ['Mode', ref.mode ?? '—'],
     ['Settings', describeParameters(cell.parameters)],
     ['Seed', String(cell.seed)],
-    ['Snapshot', info?.snapshotId ? <Link to={problemPath(root, info.caseSlug, 'source', { version: info.revision })} viewTransition>Compiled snapshot</Link> : '—'],
+    ['Source', info ? <Link to={problemPath(org, info.caseSlug, 'source', { version: info.revision })} viewTransition>Package and compiled form</Link> : '—'],
   ];
 
   return (

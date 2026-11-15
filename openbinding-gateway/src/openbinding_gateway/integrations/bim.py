@@ -1,9 +1,8 @@
 """The gateway's one door to the BIM toolchain.
 
 BIM (compiling packages, evaluating bindings, judging engine results) is computed by
-``bim-toolchain``; the gateway reaches it only through ``bim_client.BimPort``, whose two
-implementations are interchangeable: ``InProcessBim`` calls the installed ``bim-core`` in this
-process and ``HttpBim`` calls a ``bim-service``. ``BIM_MODE`` picks one, here and nowhere else.
+``bim-toolchain``; the gateway reaches it only through ``bim_client.BimPort``, implemented by
+``InProcessBim``, which calls the installed ``bim-core`` in this process.
 
 * ``get_bim()`` is the process-wide port (built on first use, closed by ``close_bim()``; tests
   replace it with ``set_bim`` / ``bim_override``).
@@ -11,7 +10,7 @@ process and ``HttpBim`` calls a ``bim-service``. ``BIM_MODE`` picks one, here an
   blocks), so every call runs in a worker thread and never stalls the event loop.
 * ``problem_for`` / ``http_exception_for`` translate the toolchain's errors into the platform's
   problem document, once, for every route.
-* ``startup_check`` refuses to start when the service is unreachable or runs another toolchain
+* ``startup_check`` refuses to start when the toolchain does not answer or is not the installed one
   (a different ``compilerDigest``): an IR is only valid on the toolchain that produced it.
 * ``ir_is_installed`` says whether a stored IR was compiled by the installed toolchain.
 * ``toolchain_digest``, ``protocol_info``, ``package_limits``, ``profile_manifests``,
@@ -30,13 +29,12 @@ import os
 import threading
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator, Mapping, Sequence
-from urllib.parse import urlsplit
 
-from bim_client import BimPort, BimServiceError, HttpBim, InProcessBim
+from bim_client import BimPort, BimServiceError, InProcessBim
 from bim_core import BimError, CompileError, ContractError, Limits
 from bim_core.canonical import digest
 
-from ..core.settings import Settings, get_settings
+from ..core.settings import Settings
 from ..models.problem import PROBLEM_MEDIA_TYPE, problem_response, summarize
 
 logger = logging.getLogger(__name__)
@@ -68,38 +66,8 @@ class _Holder:
 _HOLDER = _Holder()
 
 
-_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
-_INSECURE_WARNED = False
-
-
-def _warn_insecure_http(url: str | None) -> None:
-    """Warn once that the token may travel over plain http to a non-loopback host (trusted network)."""
-    global _INSECURE_WARNED
-    parts = urlsplit(url or "")
-    if parts.scheme == "https" or (parts.hostname or "") in _LOOPBACK_HOSTS or _INSECURE_WARNED:
-        return
-    _INSECURE_WARNED = True
-    logger.warning(
-        "BIM_SERVICE_ALLOW_INSECURE_HTTP is on: the BIM bearer token is sent over plain http to %s; "
-        "this is only acceptable on a trusted private network (use https otherwise)",
-        parts.hostname or url,
-    )
-
-
 def build_bim(settings: Settings | None = None) -> BimPort:
-    """The port that ``BIM_MODE`` asks for (not cached; ``get_bim`` caches it)."""
-    settings = settings or get_settings()
-    if settings.bim_mode == "http":
-        if settings.bim_service_allow_insecure_http:
-            _warn_insecure_http(settings.bim_service_url)
-        # An empty variable is an unset one (compose passes ``BIM_TENANT=`` for a blank).
-        return HttpBim(
-            settings.bim_service_url,
-            token_file=settings.bim_service_token_file or None,
-            tenant=settings.bim_tenant or None,
-            timeout=settings.bim_service_timeout_s,
-            allow_insecure_http=settings.bim_service_allow_insecure_http,
-        )
+    """The in-process port (not cached; ``get_bim`` caches it)."""
     # The former BIM_MAX_* variables still size the packages this process accepts.
     return InProcessBim(limits=Limits.from_env(os.environ))
 
@@ -324,10 +292,11 @@ def schema_document(kind: str) -> dict[str, Any]:
     return copy.deepcopy(_cached(f"schema:{kind}", lambda port: port.schema(kind)))
 
 
-#: What a caller is told about an IR that another toolchain compiled. Fixed text: it names nothing stored.
+#: What a caller is told about a run whose compilation another toolchain produced. Fixed text: it
+#: names nothing stored. A new run of the revision compiles it with the installed toolchain.
 STALE_IR_MESSAGE = (
-    "This snapshot was compiled by another bim-toolchain release than the installed one and must be "
-    "recompiled before it can be used: upload the package again or ask an operator to run the IR cut-over."
+    "This run's compilation was produced by another bim-toolchain release than the installed one: "
+    "launch a new run of the revision to compile it with the installed toolchain."
 )
 
 
@@ -359,39 +328,24 @@ def _local_compiler_digest() -> str:
 
 
 async def startup_check() -> dict[str, str]:
-    """Make sure the configured toolchain answers and is the one this gateway was built with.
+    """Make sure the toolchain answers and is the one this gateway was built with.
 
-    In ``inproc`` mode the toolchain is the installed ``bim-core`` and there is nothing to
-    compare. In ``http`` mode ``/capabilities`` must answer and its ``compilerDigest`` must equal
-    the one of the installed ``bim-core``: the gateway keeps that package for the document kinds
-    it validates itself and for the error classes, and an IR compiled by one toolchain is refused
-    by another (``contract_not_installed``). Both digests are logged. The descriptors are read
-    once here so that nothing blocks the event loop for them later.
+    The toolchain is the installed ``bim-core``; its ``compilerDigest`` is logged. The descriptors
+    are read once here so that nothing blocks the event loop for them later.
     """
-    settings = get_settings()
     expected = _local_compiler_digest()
     try:
-        port = get_bim()
-    except ValueError as exc:
-        raise BimStartupError(
-            f"the BIM client is misconfigured: {exc}; for a trusted private network set "
-            "BIM_SERVICE_ALLOW_INSECURE_HTTP=true"
-        ) from exc
-    try:
-        reported = (await AsyncBim(port).capabilities())["compilerDigest"]
+        reported = (await AsyncBim(get_bim()).capabilities())["compilerDigest"]
         await asyncio.to_thread(protocol_digest)
         await asyncio.to_thread(package_limits)
     except BimError as exc:
-        raise BimStartupError(
-            f"the BIM toolchain ({settings.bim_mode}) cannot be reached: {exc.code}: {exc.message}"
-        ) from exc
-    logger.info("BIM toolchain mode=%s compilerDigest=%s expected=%s", settings.bim_mode, reported, expected)
+        raise BimStartupError(f"the BIM toolchain cannot be used: {exc.code}: {exc.message}") from exc
+    logger.info("BIM toolchain compilerDigest=%s expected=%s", reported, expected)
     if reported != expected:
         raise BimStartupError(
-            f"the BIM service runs another toolchain: compilerDigest {reported} but the installed "
-            f"bim-core is {expected}; deploy the same bim-toolchain release on both sides"
+            f"the BIM toolchain reports compilerDigest {reported} but the installed bim-core is {expected}"
         )
-    return {"mode": settings.bim_mode, "compilerDigest": reported, "expected": expected}
+    return {"mode": "inproc", "compilerDigest": reported, "expected": expected}
 
 
 # ------------------------------------------------------------------------------ error translation

@@ -32,7 +32,7 @@ from openbinding_gateway.db.models import (
 from openbinding_gateway.routes import jobs as job_routes
 from openbinding_gateway.routes import studies as study_routes
 
-from .test_study_cells_pg import _seed
+from .test_study_cells_pg import _seed, cell_refs
 
 LIVE = (JobState.QUEUED, JobState.RUNNING)
 
@@ -75,7 +75,7 @@ def _launcher(launched: list[uuid.UUID], entered: asyncio.Event | None = None, p
         job = Job(
             owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
             service_url="http://engine", state=JobState.QUEUED, study_cell_id=cell.id,
-            organization_id=organization.id, project_id=project_id,
+            organization_id=organization.id, project_id=project_id, **await cell_refs(session, cell),
         )
         session.add(job)
         await session.flush()
@@ -217,7 +217,7 @@ async def test_two_syncs_of_the_last_two_jobs_leave_the_run_finished(two_session
     running = Job(
         owner_id=world.user_id, engine_id="random-search", engine_job_id="engine-2", service_url="http://engine",
         state=JobState.RUNNING, organization_id=world.organization_id, project_id=world.project_id,
-        study_cell_id=world.waiting_id,
+        study_cell_id=world.waiting_id, **await cell_refs(first, await first.get(StudyCell, world.waiting_id)),
     )
     first.add(running)
     await first.flush()
@@ -256,7 +256,7 @@ async def test_cancelling_a_study_job_and_its_run_at_once_does_not_deadlock(two_
     queued = Job(
         owner_id=world.user_id, engine_id="random-search", engine_job_id="engine-2", service_url="http://engine",
         state=JobState.QUEUED, organization_id=world.organization_id, project_id=world.project_id,
-        study_cell_id=world.waiting_id,
+        study_cell_id=world.waiting_id, **await cell_refs(first, await first.get(StudyCell, world.waiting_id)),
     )
     first.add(queued)
     await first.flush()

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from _problem_helpers import placeholder_refs
 from datetime import timedelta
 
 import pytest
@@ -106,7 +107,7 @@ async def test_deletion_pseudonymises_the_row_and_removes_what_was_the_accounts_
     engine, engine_registration = engine_rows(user)
     job = Job(
         owner_id=user_id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="inline",
-        state=JobState.COMPLETED, original_request={}, options={}, provenance={},
+        state=JobState.COMPLETED, original_request={}, options={}, provenance={}, **placeholder_refs(),
     )
     db_session.add_all([
         engine, engine_registration, job,

@@ -12,13 +12,12 @@ import { useAuth } from '../../contexts/auth';
 import { useResource } from '../../utils/useResource';
 import { Gate } from '../Organization/parts';
 import { NotFoundScreen } from '../../routes/NotFoundScreen';
-import { loadCases, loadStudies } from './projectData';
+import { loadStudies } from './projectData';
 import { deleteRefusal, updateRefusal, type ProjectRefusal } from './projectErrors';
 import { countWord, DESCRIPTION_MAX, integrityOf, NAME_MAX, visibilityEffects, visibilityLabel } from './projectModel';
 import { canOpenSection } from './accessLevel';
 import { MembersOnlyGate, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { ProjectMembers } from './ProjectMembers';
-import { ExportPackage, ImportPackage } from './ProjectPackageSections';
 import { ProjectSettingsLayout } from './ProjectSettingsLayout';
 import { useRouteProject } from './useRouteProject';
 import './Project.css';
@@ -71,8 +70,8 @@ function DeleteDialog({ organization, project, onClose, onDeleted }: {
   );
 }
 
-function SettingsBody({ organization, project, canEdit, canImport, reloadProject, reloadWorkspace }: {
-  organization: Organization; project: Project; canEdit: boolean; canImport: boolean; reloadProject: () => void; reloadWorkspace: () => Promise<void>;
+function SettingsBody({ organization, project, canEdit, reloadProject, reloadWorkspace }: {
+  organization: Organization; project: Project; canEdit: boolean; reloadProject: () => void; reloadWorkspace: () => Promise<void>;
 }) {
   const { isAdmin } = useAuth();
   const org = organization.slug;
@@ -89,8 +88,8 @@ function SettingsBody({ organization, project, canEdit, canImport, reloadProject
 
   const history = useResource(`settings-history:${org}/${project.slug}`, async () => {
     try {
-      const [cases, studies] = await Promise.all([loadCases(org, project.slug), loadStudies(org, project.slug)]);
-      return { items: integrityOf({ cases, studies }).filter((item) => item.kind === 'sealed') };
+      const studies = await loadStudies(org, project.slug);
+      return { items: integrityOf({ studies }).filter((item) => item.kind === 'sealed') };
     } catch {
       return null;
     }
@@ -236,13 +235,6 @@ function SettingsBody({ organization, project, canEdit, canImport, reloadProject
         </div>
       </section>
 
-      {canEdit && (
-        <div className="proj-transfer">
-          <ExportPackage organization={organization} project={project} />
-          <ImportPackage organization={organization} project={project} canImport={canImport} />
-        </div>
-      )}
-
       <section className="org-section" aria-labelledby="ps-danger">
         <h2 id="ps-danger">Danger zone</h2>
         <div className="org-card is-danger org-stack">
@@ -291,7 +283,6 @@ function SettingsPage({ section }: { section: 'general' | 'members' }) {
       organization={organization}
       project={project}
       canEdit={access.canAdminister}
-      canImport={access.canCreate}
       reloadProject={reload}
       reloadWorkspace={context.reload}
     />

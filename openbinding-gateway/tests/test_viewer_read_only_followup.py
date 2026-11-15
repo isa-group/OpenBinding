@@ -1,9 +1,9 @@
 """Follow-up of finding M1: a role lost after the work was started still stops the work.
 
 Two paths kept running on a role that was checked once, at the start. A study run launches its next cells
-when the previous one ends, as the user who started the run; and ``POST /v1/jobs/{id}/retry`` of a job with
-no organization looked only at the job. A run whose owner is no longer MEMBER (demoted or removed) launches
-nothing more, and a retry of a job on a snapshot shared with organizations needs MEMBER in one of them.
+when the previous one ends, as the user who started the run; and ``POST /v1/jobs/{id}/retry`` looked only at
+the job. A run whose owner is no longer MEMBER (demoted or removed) launches nothing more, and a retry or a
+cancel of a run needs MEMBER in the organization of its problem, whoever started it.
 """
 
 # ruff: noqa: F811  (the ``lab`` fixture is imported, and tests name it as a parameter)
@@ -14,7 +14,7 @@ import uuid
 from sqlalchemy import select
 
 from _b1_helpers import gate, put_member  # noqa: F401
-from bim_core.package import load_package
+from _problem_helpers import compiled_run_refs
 from openbinding_gateway import study_jobs
 from openbinding_gateway.db.models import (
     AuditEvent,
@@ -26,7 +26,7 @@ from openbinding_gateway.db.models import (
     StudyRun,
     utcnow,
 )
-from test_viewer_read_only import EXAMPLE, Lab, Person, code_of, lab, no_dispatch  # noqa: F401
+from test_viewer_read_only import Lab, Person, code_of, lab, no_dispatch  # noqa: F401
 
 ACTION = "study.run.owner_role_revoked"
 
@@ -60,6 +60,7 @@ async def a_run(db_session, lab: Lab, owner: Person, run_number: int) -> tuple[S
     finished = Job(
         owner_id=owner.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
         state=JobState.COMPLETED, organization_id=lab.org_id, project_id=lab.project_id, study_cell_id=cells[0].id,
+        revision_id=uuid.UUID(lab.snapshot), compilation_id=lab.compilation_id,
         original_request={}, provenance={}, result={"solutions": []}, finished_at=utcnow(),
     )
     db_session.add(finished)
@@ -146,14 +147,15 @@ async def test_a_run_whose_owner_is_still_a_member_behaves_as_before(db_session,
     assert await audits(db_session, run) == []
 
 
-# -- Retry of a job with no organization on a snapshot that organizations share -----------------------
+# -- Retry and cancel of a run of the organization's problem ---------------------------------------------
 
 
 async def shared_snapshot_job(db_session, lab: Lab, person: Person) -> Job:
-    """A failed job of ``person`` outside any organization, run on the author's snapshot shared through a case."""
+    """A failed run of ``person`` of the organization's problem (the author's upload)."""
     row = Job(
         owner_id=person.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
-        state=JobState.FAILED, instance_snapshot_id=uuid.UUID(lab.snapshot), organization_id=None,
+        state=JobState.FAILED, organization_id=lab.org_id,
+        revision_id=uuid.UUID(lab.snapshot), compilation_id=lab.compilation_id,
         original_request={}, provenance={},
     )
     db_session.add(row)
@@ -200,33 +202,13 @@ async def test_a_retry_on_a_shared_snapshot_is_allowed_for_a_member(api_client, 
     assert allowed.json()["id"] != str(job.id)
 
 
-async def test_a_retry_of_a_personal_job_on_the_users_own_snapshot_needs_no_role(api_client, db_session, lab):
-    await free_slots(db_session, lab)
-    viewer = lab.people["VIEWER"]
-    own = await api_client.post(
-        "/v1/instances", headers={**viewer.headers, "Content-Type": "application/vnd.bim+zip"},
-        content=load_package(EXAMPLE).to_zip(),
-    )
-    assert own.status_code == 201, own.text
-    job = Job(
-        owner_id=viewer.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
-        state=JobState.FAILED, instance_snapshot_id=uuid.UUID(own.json()["id"]), organization_id=None,
-        original_request={}, provenance={},
-    )
-    db_session.add(job)
-    await db_session.flush()
-
-    allowed = await api_client.post(f"/v1/jobs/{job.id}/retry", headers=viewer.headers)
-
-    assert allowed.status_code == 202, allowed.text
-
-
-async def test_a_retry_of_a_job_with_no_snapshot_and_no_organization_is_unchanged(api_client, db_session, lab):
+async def test_a_viewer_here_retries_a_run_in_an_organization_of_their_own(api_client, db_session, lab):
     await free_slots(db_session, lab)
     viewer = lab.people["VIEWER"]
     job = Job(
         owner_id=viewer.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
-        state=JobState.FAILED, organization_id=None, original_request={}, provenance={},
+        state=JobState.FAILED, original_request={}, provenance={},
+        **await compiled_run_refs(db_session, viewer.id),
     )
     db_session.add(job)
     await db_session.flush()

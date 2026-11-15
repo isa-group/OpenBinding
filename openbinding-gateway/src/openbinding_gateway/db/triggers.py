@@ -19,6 +19,8 @@ source:
 Three builders cover every guard:
 
 * ``immutable(table)``: rows are sealed; UPDATE and DELETE are rejected.
+* ``immutable(table, delete=False)``: UPDATE is rejected; DELETE is left to the
+  foreign keys that history holds (``RESTRICT``), D3.
 * ``protect(table, columns)``: UPDATE is rejected when one of ``columns``
   changes (or when the extra ``when`` condition holds).
 * ``retain(table)``: DELETE is rejected; the rows are history.
@@ -65,13 +67,18 @@ def _trigger(name: str, table: str, operation: str, message: str,
     return Trigger(name, table, sqlite_sql, pg_function_sql, pg_trigger_sql, columns)
 
 
-def immutable(table: str, *, message: str | None = None) -> tuple[Trigger, Trigger]:
-    """Sealed rows: any UPDATE and any DELETE of ``table`` is rejected."""
+def immutable(table: str, *, delete: bool = True, message: str | None = None) -> tuple[Trigger, ...]:
+    """Sealed rows: any UPDATE of ``table`` is rejected, and any DELETE unless ``delete`` is false.
+
+    ``delete=False`` is for rows whose deletion history governs instead (D3): a problem revision or a
+    compilation that no run or study cell references may go, and the ``RESTRICT`` foreign keys of
+    ``jobs`` and ``study_cells`` keep the ones that were used.
+    """
     message = message or f"{table} rows are sealed and immutable"
-    return (
-        _trigger(f"immutable_{table}_update", table, "UPDATE", message),
-        _trigger(f"immutable_{table}_delete", table, "DELETE", message),
-    )
+    update = _trigger(f"immutable_{table}_update", table, "UPDATE", message)
+    if not delete:
+        return (update,)
+    return (update, _trigger(f"immutable_{table}_delete", table, "DELETE", message))
 
 
 def protect(table: str, columns: tuple[str, ...] = (), *, json_columns: tuple[str, ...] = (),
@@ -108,8 +115,8 @@ def retain(table: str, *, message: str | None = None) -> Trigger:
 TRIGGERS: tuple[Trigger, ...] = (
     *immutable("artifact_versions"),
     *immutable("artifact_dependencies"),
-    *immutable("case_artifacts"),
-    *immutable("binding_case_revisions"),
+    *immutable("binding_case_revisions", delete=False),
+    *immutable("problem_compilations", delete=False),
     *immutable("artifact_case_references"),
     protect("artifacts", ("organization_id", "namespace", "name", "kind")),
     protect("artifact_drafts", when=("OLD.sealed_version_id IS NOT NULL", "OLD.sealed_version_id IS NOT NULL"),
@@ -125,7 +132,6 @@ TRIGGERS: tuple[Trigger, ...] = (
             ("study_run_id", "ordinal", "binding_case_revision_id", "engine_ref", "parameters", "seed", "fingerprint"),
             json_columns=("engine_ref", "parameters")),
     retain("study_cells"),
-    protect("jobs", ("configuration_version_id",), name="pin_job_configuration", message="job configuration is immutable"),
 )
 
 _REGISTERED = "openbinding_triggers_registered"

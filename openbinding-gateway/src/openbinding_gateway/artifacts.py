@@ -1,8 +1,6 @@
 """One editorial authority for organization resources and exact dependencies."""
 from __future__ import annotations
 
-import os
-import tempfile
 import uuid
 from pathlib import Path
 
@@ -10,13 +8,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .collaboration import effective_role, require_role
-from .core.settings import get_settings
 from .db.models import (Artifact, ArtifactDependency, ArtifactDraft, ArtifactPublication,
     ArtifactVersion, AuditEvent, Blob, Organization, OrganizationRole, User)
 from .models.artifacts import ArtifactRef, DraftContent, StudyArtifactContent
 from .models.errors import api_error
 from .security.apikeys import authenticated_api_key, boundary_of
-from .integrations import bim, packages
+from .integrations import bim
 from .integrations.bim_host import (XmlResource, dialect_type_matches, dialect_xml_type_matches,
     resource_schema_diagnostics)
 from bim_core import PackageError
@@ -188,34 +185,10 @@ def validate_content(kind: str, payload: DraftContent) -> tuple[bytes, list[dict
 
 
 async def store_blob(session: AsyncSession, artifact: Artifact, user: User, content: bytes, media_type: str) -> Blob:
-    from .routes.artifacts import _artifact_path, _storage_limit
-    hash_value = digest_bytes(content)
-    await session.execute(select(User.id).where(User.id == user.id).with_for_update())
-    row = await session.scalar(select(Blob).where(Blob.organization_id == artifact.organization_id,
-        Blob.project_id.is_(None), Blob.digest == hash_value))
-    if row:
-        return row
-    await _storage_limit(session, user, len(content))
-    destination = _artifact_path(get_settings(), hash_value)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.exists():
-        if digest_bytes(destination.read_bytes()) != hash_value:
-            raise api_error(409, 'content_integrity', 'Existing blob is corrupt.')
-    else:
-        temporary = None
-        try:
-            with tempfile.NamedTemporaryFile(dir=destination.parent, delete=False) as handle:
-                temporary = Path(handle.name)
-                handle.write(content)
-            os.replace(temporary, destination)
-        finally:
-            if temporary:
-                temporary.unlink(missing_ok=True)
-    row = Blob(organization_id=artifact.organization_id, project_id=None, digest=hash_value,
-        media_type=media_type, size_bytes=len(content), storage_uri=str(destination), created_by_id=user.id)
-    session.add(row)
-    await session.flush()
-    return row
+    """Keep ``content`` for the artifact's organization (``modules.shared`` blob storage)."""
+    from .modules.shared.application import put_row, write_file
+
+    return await put_row(session, artifact.organization_id, write_file(content), media_type, user.id)
 
 
 async def seal_draft(session: AsyncSession, artifact: Artifact, draft: ArtifactDraft,
@@ -243,19 +216,16 @@ async def seal_draft(session: AsyncSession, artifact: Artifact, draft: ArtifactD
             raise api_error(422, 'private_dependency', 'Cross-organization dependencies must be public.')
     case_references = []
     if artifact.kind == 'Study':
-        from .db.models import BindingCase, BindingCaseRevision, Project
+        from .db.models import BindingCase, BindingCaseRevision
         members = StudyArtifactContent.model_validate(payload.content).cases
         for position, member in enumerate(members):
-            row = (await session.execute(select(BindingCaseRevision, Project.organization_id)
+            row = (await session.execute(select(BindingCaseRevision, BindingCase.organization_id)
                 .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
-                .join(Project, Project.id == BindingCase.project_id)
                 .where(BindingCaseRevision.id == member.caseRevisionId))).first()
             if row is None or row[1] != artifact.organization_id:
-                raise api_error(422, 'foreign_case_revision', f'Member {position} must be a case revision in this organization.')
-            if row[0].digest != member.compositionDigest:
-                raise api_error(422, 'case_digest_mismatch', f'Member {position} differs from the exact case composition.')
-            if row[0].source_snapshot_id is None:
-                raise api_error(422, 'case_not_executable', f'Member {position} has no materialized snapshot.')
+                raise api_error(422, 'foreign_case_revision', f'Member {position} must be a problem revision in this organization.')
+            if row[0].package_digest != member.compositionDigest:
+                raise api_error(422, 'case_digest_mismatch', f'Member {position} differs from the exact problem revision.')
             case_references.append((position, member.caseRevisionId))
         from .services.engines import engine_mode
         definition = StudyArtifactContent.model_validate(payload.content)
@@ -301,78 +271,3 @@ async def seal_draft(session: AsyncSession, artifact: Artifact, draft: ArtifactD
         detail={'ref': reference(artifact, version)}))
     await session.flush()
     return version
-
-
-async def materialize_case(session, user, organization, document, uses):
-    """Build a closed BIM archive from refs, never from a second editable copy."""
-    from copy import deepcopy
-    from .services.snapshots import compile_resolved, persist_snapshot
-    if document.get('kind') != 'Instance' or document.get('apiVersion') != 'bim/v1':
-        raise api_error(422, 'instance_required', 'A case composition requires a BIM Instance index.')
-    root = deepcopy(document)
-    if not isinstance(root.get('spec'), dict):
-        raise api_error(422, 'invalid_composition', 'The Instance spec must be an object.')
-    spec = root['spec']
-    spec['resources'] = {}
-    spec.pop('bindings', None)
-    source_spec = deepcopy(spec)
-    source_spec['resources'] = {}
-    files = {}
-    rows = []
-    aliases = set()
-    used_contracts = []
-    for use in uses:
-        if use.alias in aliases:
-            raise api_error(422, 'duplicate_alias', 'Resource aliases are package-wide unique.')
-        aliases.add(use.alias)
-        artifact, version = await resolve_version(session, use.artifact, user)
-        if artifact.organization_id != organization.id and await session.get(ArtifactPublication, version.id) is None:
-            raise api_error(422, 'private_dependency', 'Only public resources can cross organization boundaries.')
-        content, media_type = await version_content(session, version)
-        suffix = '.json' if media_type == 'application/json' else '.bpmn' if media_type == 'application/vnd.omg.bpmn+xml' else '.xml'
-        path = use.alias + suffix
-        files[path] = content
-        spec['resources'].setdefault(use.role, {})[use.alias] = path
-        source_spec['resources'].setdefault(use.role, {})[use.alias] = reference(artifact, version)
-        if use.bindings:
-            spec.setdefault('bindings', {})[use.alias] = use.bindings
-            source_spec.setdefault('bindings', {})[use.alias] = use.bindings
-        used_contracts.extend(version.manifest['contracts'])
-        rows.append((use, version))
-    if any(target not in aliases for use in uses for target in use.bindings.values()):
-        raise api_error(422, 'unknown_alias', 'Every binding target must exist in the composition.')
-    if 'contracts' not in spec:
-        profiles = [entry['manifest'] for entry in bim.profile_entries() if entry['descriptor']['id'] == spec.get('profile')]
-        if len(profiles) != 1:
-            raise api_error(422, 'profile_selection_required', 'Select an exact installed Profile version.')
-        dialects = [entry for entry in bim.dialect_entries() if spec['profile'] in entry['manifest']['spec']['compatibleProfiles']]
-        # Explicit resource contracts choose one revision of each family.
-        families = {}
-        for entry in dialects:
-            families.setdefault(entry['descriptor']['id'], []).append(entry['manifest'])
-        selected = []
-        for family, options in families.items():
-            pinned = [item for item in options if contract_reference(item) in used_contracts]
-            if len(pinned) == 1:
-                selected.append(pinned[0])
-            elif len(options) == 1:
-                selected.append(options[0])
-            else:
-                raise api_error(422, 'dialect_selection_required', f'Select an exact Dialect for {family}.')
-        spec['contracts'] = dict(profile=contract_reference(profiles[0]), dialects=[contract_reference(item) for item in selected])
-    if any(contract not in spec['contracts']['dialects'] for contract in used_contracts):
-        raise api_error(422, 'contract_mismatch', 'The composition must select the exact contracts of every resource version.')
-    source_spec['contracts'] = spec['contracts']
-    root['spec'] = spec
-    files['instance.json'] = canonical_json(root)
-    compilation = await compile_resolved(packages.zip_files(files), session)
-    snapshot_id = await persist_snapshot(compilation, user, session)
-    source = {**root, 'spec': source_spec}
-    return source, uuid.UUID(snapshot_id), rows
-
-
-def case_composition_digest(document: dict, snapshot, resources: list[dict]) -> str:
-    return digest({"document": document,
-        "packageDigest": snapshot.package_digest if snapshot else None,
-        "resourceDigests": snapshot.resource_digests if snapshot else {},
-        "resources": sorted(resources, key=lambda item: (item['role'], item['alias']))})

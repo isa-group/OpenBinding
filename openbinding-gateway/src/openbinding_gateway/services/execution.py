@@ -30,6 +30,7 @@ from ..db.models import (
     EngineRegistrationRevision,
     Job,
     JobState,
+    ProblemCompilation,
     utcnow,
 )
 from ..integrations import bim
@@ -890,10 +891,18 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
     started = time.monotonic()
     try:
         request = job.original_request or {}
-        document = request.get("bindingProblem")
+        # The engine gets the IR of the run's compilation (D5); the run never carries a copy of it.
+        compilation = await session.get(ProblemCompilation, job.compilation_id)
+        document = compilation.ir if compilation is not None else None
         if not isinstance(document, dict):
             await fail_persisted_job(
-                job, session, "job_input_invalid", started, reason="persisted BindingProblem is missing"
+                job, session, "job_input_invalid", started, reason="the run's compilation is missing"
+            )
+            return
+        if compilation.ir_digest != (job.provenance or {}).get("irDigest"):
+            await fail_persisted_job(
+                job, session, "job_input_invalid", started,
+                reason="the run's compilation does not have the IR digest the run recorded",
             )
             return
         mode_contract = persisted_mode_contract(request.get("mode"))

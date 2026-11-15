@@ -108,7 +108,7 @@ SENSITIVE_WORDS = frozenset(
      "password", "passwd", "token", "tokens", "bearer", "cookie", "cookies", "header", "headers",
      "private", "certificate", "endpoint", "url", "uri", "host", "signature", "session"}
 )
-REQUEST_KEYS = frozenset({"bindingProblem", "timeout", "mode", "optimization", "registration"})
+REQUEST_KEYS = frozenset({"timeout", "mode", "optimization", "registration"})
 REFERENCE_KEYS = frozenset({"namespace", "name", "version", "digest"})
 USAGE_COUNTER_WORDS = ("used", "usage", "consumed", "consumption", "counter", "remaining", "spent")
 
@@ -330,8 +330,8 @@ class Lab:
         self.run_id = uuid.uuid4().hex[:10]
         self.tokens: dict[str, str] = {}
         self.login_failures: dict[str, str] = {}
-        self.snapshots: dict[str, str] = {}
-        self.seeded_snapshot = False
+        self.revision_id: str | None = None
+        self.seeded_revision = False
         self.example_zip: bytes | None = None
         self.owner_job_id: str | None = None
         self.project_job_id: str | None = None
@@ -399,49 +399,50 @@ class Lab:
 
     def example_package(self) -> bytes:
         if self.example_zip is None:
-            response = self.call("GET", f"/v1/examples/{EXAMPLE_PATH}")
+            response = self.call("GET", f"/v1/bim/templates/{EXAMPLE_PATH}")
             if response.status_code != 200 or not response.content:
-                raise StepError(f"example package {EXAMPLE_PATH}: {describe(response)}")
+                raise StepError(f"template package {EXAMPLE_PATH}: {describe(response)}")
             self.example_zip = response.content
         return self.example_zip
 
-    def upload_snapshot(self, user: str) -> str:
+    def upload_problem(self) -> str:
+        """The template package uploaded as the problem ``CASE`` of ``ORG`` (by the owner); its revision id."""
         response = self.call(
-            "POST", "/v1/instances", user, headers={"Content-Type": BIM_ZIP}, content=self.example_package()
+            "POST", f"/v1/organizations/{ORG}/problems", "owner",
+            params={"slug": CASE}, headers={"Content-Type": BIM_ZIP}, content=self.example_package(),
         )
-        snapshot = mapping(body_of(response)).get("id")
-        if response.status_code != 201 or not isinstance(snapshot, str):
-            raise StepError(f"snapshot upload as {user}: {describe(response)}")
-        return snapshot
+        revision = mapping(mapping(body_of(response)).get("revision")).get("id")
+        if response.status_code not in {200, 201} or not isinstance(revision, str):
+            raise StepError(f"problem upload as owner: {describe(response)}")
+        return revision
 
-    def case_revision(self) -> Mapping[str, Any]:
-        response = self.call("GET", f"/v1/organizations/{ORG}/projects/{PROJECT}/cases/{CASE}/revisions", "owner")
+    def case_revision(self) -> Mapping[str, Any] | None:
+        """The latest revision of the seeded problem ``ORG/CASE``, or ``None`` when the problem does not exist."""
+        response = self.call("GET", f"/v1/organizations/{ORG}/problems/{CASE}/revisions", "owner")
+        if response.status_code == 404:
+            return None
         listing = body_of(response) if response.status_code == 200 else None
         revisions = [item for item in listing if isinstance(item, Mapping)] if isinstance(listing, list) else []
         if not revisions:
-            raise StepError(f"case {ORG}/{PROJECT}/{CASE} has no revision: {describe(response)}")
+            raise StepError(f"problem {ORG}/{CASE} has no revision: {describe(response)}")
         return max(revisions, key=lambda item: item.get("revision", 0))
 
-    def snapshot(self, user: str) -> str:
-        """A snapshot the user owns: the seeded one for the owner, an upload of the same package otherwise."""
-        if user not in self.snapshots:
-            seeded = None
-            if user == "owner":
-                candidate = self.case_revision().get("source_snapshot_id")
-                if isinstance(candidate, str):
-                    found = self.call("GET", f"/v1/instances/{candidate}", user)
-                    seeded = candidate if found.status_code == 200 else None
-            self.snapshots[user] = seeded or self.upload_snapshot(user)
-            self.seeded_snapshot = seeded is not None and user == "owner"
-        return self.snapshots[user]
+    def revision(self) -> str:
+        """The revision runs are of: the seeded problem's latest one, or the template uploaded as that problem."""
+        if self.revision_id is None:
+            seeded = self.case_revision()
+            seeded_id = seeded.get("id") if seeded is not None else None
+            self.seeded_revision = isinstance(seeded_id, str)
+            self.revision_id = seeded_id if isinstance(seeded_id, str) else self.upload_problem()
+        return self.revision_id
 
     # -- jobs --------------------------------------------------------------
 
     def launch(
-        self, user: str, *, key: str | None = None, options: Mapping[str, Any] | None = None, snapshot: str | None = None
+        self, user: str, *, key: str | None = None, options: Mapping[str, Any] | None = None, revision: str | None = None
     ) -> httpx.Response:
         body = {
-            "snapshot": snapshot or self.snapshot(user), "engine": "random-search", "mode": MODE,
+            "revision": revision or self.revision(), "engine": "random-search", "mode": MODE,
             "optimization": dict(OPTIMIZATION), "options": dict(options or MIN_OPTIONS),
         }
         headers = {"Idempotency-Key": key} if key else {}
@@ -574,7 +575,7 @@ def step_owner_job(lab: Lab) -> Checks:
     projects = body_of(lab.call("GET", f"/v1/organizations/{ORG}/projects", "owner")) or []
     checks.expect(any(mapping(item).get("slug") == PROJECT for item in projects), f"project {ORG}/{PROJECT} is visible")
 
-    lab.snapshot("owner")
+    lab.revision()
     created = lab.launch("owner", key=f"smoke-{lab.run_id}-job")
     accepted = mapping(body_of(created))
     job_id = accepted.get("id")
@@ -588,7 +589,7 @@ def step_owner_job(lab: Lab) -> Checks:
         checks.note(str(mapping(job.get("result")).get("error", ""))[:120])
         return checks
     inspect_result(checks, job)
-    checks.note(f"snapshot {'seeded' if lab.seeded_snapshot else 'uploaded'}")
+    checks.note(f"revision {'seeded' if lab.seeded_revision else 'uploaded'}")
     return checks
 
 
@@ -646,11 +647,11 @@ def ensure_project_job(lab: Lab) -> str:
 
     # A study run is accepted (202) even when the plan cannot be read, and then just stays queued.
     lab.require_entitlements("owner")
-    revision = lab.case_revision().get("id")
+    revision = lab.revision()
     engines = mapping(body_of(lab.call("GET", "/v1/engines", "owner"))).get("engines") or []
     engine = next((item for item in engines if mapping(item).get("name") == "random-search"), None)
     if not isinstance(revision, str) or engine is None:
-        raise StepError("cannot build a study: no case revision or no random-search engine")
+        raise StepError("cannot build a study: no problem revision or no random-search engine")
     study_path = f"/v1/organizations/{ORG}/projects/{PROJECT}/studies"
     created = lab.call(
         "POST", study_path, "owner",
@@ -696,7 +697,7 @@ def check_viewer_redaction(checks: Checks, job: Mapping[str, Any]) -> None:
         "requestedOptions": provenance.get("requestedOptions"),
         "registration": registration,
         "engineReported": provenance.get("engineReported"),
-        "request": {key: value for key, value in request.items() if key != "bindingProblem"},
+        "request": dict(request),
     }
     leaks = sensitive_keys(exposed)
     checks.expect(not leaks, f"no credential- or address-like keys in what the viewer reads ({leaks[:3]})")
@@ -712,19 +713,13 @@ def step_authorization(lab: Lab) -> Checks:
         response = lab.call(method, path)
         checks.expect(response.status_code == 401, f"anonymous {method} {path[:40]} -> 401 ({response.status_code})")
 
-    # POST /v1/jobs is personal work on snapshots the caller owns and stores no project, so an
-    # organization role does not gate it; the role gates the organization's resources (study runs).
-    try:
-        viewer_launch = lab.launch("viewer")
-    except RemoteBlocked as blocked:
-        checks.block(blocked.label, blocked.cause)
-    else:
-        checks.expect(viewer_launch.status_code == 202, f"viewer CAN launch a personal job on their own snapshot ({describe(viewer_launch)})")
-        if viewer_launch.status_code == 202:
-            viewer_job = mapping(body_of(viewer_launch)).get("id")
-            if isinstance(viewer_job, str):
-                stuck = lab.drain("viewer", [viewer_job], cancel=True)
-                checks.expect(not stuck, "the viewer's personal job ended or was cancelled within the timeout")
+    # A run belongs to the organization of its problem: a VIEWER of that organization only reads it, and is
+    # refused before anything is compiled, reserved or charged to a plan.
+    viewer_launch = lab.launch("viewer")
+    checks.expect(
+        viewer_launch.status_code == 403 and code_of(viewer_launch) == "insufficient_role",
+        f"viewer CANNOT launch a run of the organization's problem ({describe(viewer_launch)})",
+    )
 
     try:
         project_job = ensure_project_job(lab)
@@ -759,13 +754,13 @@ def step_authorization(lab: Lab) -> Checks:
 
 def step_concurrency_limit(lab: Lab) -> Checks:
     checks = lab.begin()
-    snapshot = lab.snapshot("owner")
+    revision = lab.revision()
     token = lab.login("owner")
     tag = f"smoke-{lab.run_id}-race"
 
     def attempt(index: int) -> httpx.Response:
         body = {
-            "snapshot": snapshot, "engine": "random-search", "mode": MODE,
+            "revision": revision, "engine": "random-search", "mode": MODE,
             "optimization": dict(OPTIMIZATION), "options": SLOW_OPTIONS,
         }
         return lab.client.post(

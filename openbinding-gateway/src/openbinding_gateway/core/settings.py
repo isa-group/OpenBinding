@@ -191,25 +191,6 @@ class Settings(BaseSettings):
     #: Directory holding the BIM v1 schemas and manifests.
     schemas_dir: str = "/app/schemas"
 
-    # -- BIM toolchain ---------------------------------------------------
-    #: Where the BIM language runs: ``inproc`` calls the installed ``bim-core``
-    #: in this process (development, tests, workers that carry it); ``http``
-    #: calls a ``bim-service`` (``BIM_SERVICE_URL``). Everything else in the
-    #: gateway talks to ``integrations.bim.get_bim()`` and does not care.
-    bim_mode: Literal["inproc", "http"] = "inproc"
-    #: Root of the service (``https://bim.internal``); required when ``BIM_MODE=http``.
-    bim_service_url: Optional[str] = None
-    #: File whose first line is the bearer token of the service. Never the token itself.
-    bim_service_token_file: Optional[str] = None
-    #: Seconds the gateway waits for one answer of the service.
-    bim_service_timeout_s: float = Field(default=30.0, gt=0)
-    #: Opaque tenant label sent as ``X-BIM-Tenant`` (logs and fair sharing of the
-    #: service; it never changes a result).
-    bim_tenant: Optional[str] = None
-    #: Allow the bearer token to travel over plain ``http`` to a host that is not the loopback
-    #: (``BIM_SERVICE_ALLOW_INSECURE_HTTP``). Off by default: only for a trusted private network.
-    bim_service_allow_insecure_http: bool = False
-
     # -- CORS ------------------------------------------------------------
     #: Comma-separated browser origins allowed to call the API: a closed list.
     #: The default is only the local development origins of the frontend (Vite
@@ -497,12 +478,6 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def bim_service_url_for_http(self) -> "Settings":
-        if self.bim_mode == "http" and not self.bim_service_url:
-            raise ValueError("BIM_SERVICE_URL is not set while BIM_MODE=http: name the root of the bim-service.")
-        return self
-
-    @model_validator(mode="after")
     def valid_space_service_name(self) -> "Settings":
         """Refuse a service name SPACE could not hold, before any call uses it."""
         if not SPACE_SERVICE_NAME_PATTERN.fullmatch(self.space_service_name):
@@ -546,18 +521,12 @@ class Settings(BaseSettings):
     def no_insecure_transport_in_production(self) -> "Settings":
         """Refuse plain-http switches in production.
 
-        ``BIM_SERVICE_ALLOW_INSECURE_HTTP`` sends the bim-service bearer token in
-        clear text and ``FEDERATION_REQUIRE_HTTPS=false`` lets federated engines
-        be registered and called over http. Both are for a trusted development or
-        lab network only.
+        ``FEDERATION_REQUIRE_HTTPS=false`` lets federated engines be registered
+        and called over http, which is for a trusted development or lab network
+        only.
         """
         if self.app_env != "prod":
             return self
-        if self.bim_service_allow_insecure_http:
-            raise ValueError(
-                "BIM_SERVICE_ALLOW_INSECURE_HTTP is true while APP_ENV=prod: production must reach "
-                "the bim-service over https. Unset it, or use APP_ENV=dev for a trusted private network."
-            )
         if not self.federation_require_https:
             raise ValueError(
                 "FEDERATION_REQUIRE_HTTPS is false while APP_ENV=prod: production must call federated "

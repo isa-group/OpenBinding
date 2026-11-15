@@ -96,9 +96,6 @@ os.environ["SPHERE_ENABLED"] = "false"
 # that version and plan when it creates contracts.
 os.environ["SPACE_PRICING_VERSION"] = "0.2.0"
 os.environ["SPACE_DEFAULT_PLAN"] = "FREE"
-# The suite always uses the toolchain installed beside the gateway: a ``BIM_MODE=http`` left in the environment
-# would point every test at a service that is not there.
-os.environ["BIM_MODE"] = "inproc"
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -211,6 +208,19 @@ def isolated_work_rate_limiter(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def artifact_root(tmp_path, monkeypatch):
+    """Every test stores blobs (problem packages, library content) in a directory of its own."""
+    if not GATEWAY_INSTALLED:
+        yield None
+        return
+    from openbinding_gateway.core.settings import get_settings
+
+    root = tmp_path / "artifacts"
+    monkeypatch.setattr(get_settings(), "artifact_root", str(root))
+    yield root
+
+
+@pytest.fixture(autouse=True)
 def fresh_bim_port():
     """Each test builds the BIM port its settings ask for (in process by default) and leaves none behind."""
     if not GATEWAY_INSTALLED:
@@ -258,6 +268,21 @@ async def db_session(tmp_path, monkeypatch):
     monkeypatch.setattr(get_settings(), "artifact_root", str(tmp_path / "blobs"))
     url = os.environ.get("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
     engine = create_async_engine(url)
+    if engine.dialect.name == "sqlite":
+        # pysqlite starts a transaction only at the first write, so a SAVEPOINT taken before any write opens one
+        # that its RELEASE commits; ``begin_nested`` (the job insert, a compilation's) then commits for good.
+        # Transactions begin explicitly instead, as they do on PostgreSQL (the SQLAlchemy recipe for pysqlite).
+        from sqlalchemy import event
+
+        @event.listens_for(engine.sync_engine, "connect")
+        def _no_implicit_transactions(dbapi_connection, _record):
+            dbapi_connection.isolation_level = None
+
+        @event.listens_for(engine.sync_engine, "begin")
+        def _begin_explicitly(connection):
+            if connection.get_execution_options().get("isolation_level") != "AUTOCOMMIT":
+                connection.exec_driver_sql("BEGIN")
+
     async with engine.begin() as connection:
         # A shared server keeps whatever the last test left behind; an
         # in-memory database never has anything to drop.

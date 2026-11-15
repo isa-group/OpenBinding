@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 
 import pytest_asyncio
+from _problem_helpers import upload_problem
 from sqlalchemy import func, select
 
 from _repo import REPO_ROOT
@@ -17,7 +18,6 @@ from openbinding_gateway.routes import studies as study_routes
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services import execution
 from openbinding_gateway.services.engines import engine_ref
-from bim_core.package import load_package
 from _pricing import fake_pricing_gate
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
@@ -59,29 +59,13 @@ async def _study(client, registration, seeds):
         json={"username_or_email": details["username"], "password": details["password"]},
     )
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
-    package = load_package(EXAMPLE)
-    snapshot = await client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package.to_zip(),
-    )
     await client.post("/v1/organizations", headers=headers, json={"slug": "lab", "name": "Lab"})
     await client.post(
         "/v1/organizations/lab/projects",
         headers=headers,
         json={"slug": "routing", "name": "Routing", "visibility": "private"},
     )
-    await client.post(
-        "/v1/organizations/lab/projects/routing/cases",
-        headers=headers,
-        json={"slug": "checkout", "name": "Checkout"},
-    )
-    revision = await client.post(
-        "/v1/organizations/lab/projects/routing/cases/checkout/revisions",
-        headers=headers,
-        json={"document": package.instance(), "source_snapshot_id": snapshot.json()["id"]},
-    )
-    assert revision.status_code == 201, revision.text
+    revision = await upload_problem(client, headers, "lab", slug="checkout")
     reference = engine_ref(routes._manifest("random-search"), "bim.builtin")
     created = await client.post(
         "/v1/organizations/lab/projects/routing/studies",
@@ -90,7 +74,7 @@ async def _study(client, registration, seeds):
             "slug": "compare",
             "name": "Compare",
             "definition": {
-                "case_revision_ids": [revision.json()["id"]],
+                "case_revision_ids": [revision["revision_id"]],
                 "engines": [{**reference, "mode": "seeded", "optimization": dict(OPTIMIZATION)}],
                 "parameter_sets": [{}],
                 "seeds": seeds,

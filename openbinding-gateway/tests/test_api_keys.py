@@ -357,7 +357,7 @@ async def test_a_key_without_the_route_permission_is_refused(api_client, registr
     created = await mint_key(
         api_client,
         token,
-        permissions=["instances:write"],
+        permissions=["problems:write"],
         all_engines=False,
     )
 
@@ -418,7 +418,7 @@ async def test_method_organization_project_and_slug_boundaries_all_reduce_access
         "/v1/organizations/bounded-org/projects/denied", headers=key_headers
     )
     wrong_kind = await api_client.get(
-        "/v1/organizations/bounded-org/projects/allowed/cases", headers=key_headers
+        "/v1/organizations/bounded-org/projects/allowed/resources", headers=key_headers
     )
 
     assert allowed.status_code == 200
@@ -506,7 +506,6 @@ async def test_a_key_cannot_remove_its_own_resource_boundary(api_client, registr
         "engines:register",
         "engines:publish",
         "engines:moderate",
-        "instances:validate",
         "jobs:read",
         "studies:read",
         "studies:write",
@@ -766,7 +765,85 @@ async def test_an_admin_can_issue_a_read_only_admin_key(
     ('/v1/artifacts/resolve', 'POST', 'artifacts:read'),
     ('/v1/organizations/team/library', 'POST', 'artifacts:write'),
     ('/v1/organizations/team/projects/project/library/id', 'DELETE', 'artifacts:write'),
-    ('/v1/organizations/team/projects/project/blobs', 'GET', 'artifacts:read'),
 ])
-def test_library_and_blob_permissions_share_artifact_grants(path, method, permission):
+def test_library_permissions_share_artifact_grants(path, method, permission):
     assert apikeys.required_permissions(path, method) == frozenset({permission})
+
+
+@pytest.mark.parametrize('path,method,permission', [
+    ('/v1/organizations/team/problems', 'GET', 'problems:read'),
+    ('/v1/organizations/team/problems', 'POST', 'problems:write'),
+    ('/v1/organizations/{org}/problems/{problem}', 'PATCH', 'problems:write'),
+    ('/v1/organizations/{org}/problems/{problem}', 'DELETE', 'problems:write'),
+    ('/v1/organizations/{org}/problems/{problem}/revisions/{revision}/source', 'GET', 'problems:read'),
+    ('/v1/bim/validate', 'POST', 'problems:read'),
+])
+def test_problem_routes_need_the_problem_permissions(path, method, permission):
+    assert apikeys.required_permissions(path, method) == frozenset({permission})
+
+
+@pytest.mark.parametrize('path', ['/v1/bim/templates', '/v1/bim/templates/demo/01_simple_seq', '/v1/engines/protocol'])
+def test_the_templates_and_the_engine_protocol_need_no_permission(path):
+    assert apikeys.required_permissions(path, 'GET') == frozenset()
+
+
+@pytest.fixture
+def no_dispatch(monkeypatch):
+    from openbinding_gateway.routes import v1 as routes
+
+    async def queued(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(routes, "dispatch_persisted_job", queued)
+
+
+@pytest.mark.parametrize(
+    ("boundary", "allowed"),
+    [
+        ({"organizations": ["{other}"]}, False),
+        ({"organizations": ["{org}"]}, True),
+        ({"organizations": ["{org}"], "slugs": ["another-problem"]}, False),
+        ({"organizations": ["{org}"], "slugs": ["{problem}"]}, True),
+        ({"projects": ["any-project"]}, False),
+    ],
+)
+async def test_a_run_obeys_the_key_boundary_on_the_problem_in_the_body(
+    api_client, registration, no_dispatch, boundary, allowed
+):
+    # POST /v1/jobs names the revision in its body, so no path parameter carries the boundary.
+    from openbinding_gateway import space_client
+    from openbinding_gateway.space_client import OpenGate
+    from _problem_helpers import make_org, upload_problem
+
+    space_client.set_gate(OpenGate())
+    _, token = await account(api_client, registration)
+    session_headers = {"Authorization": f"Bearer {token}"}
+    other = await make_org(api_client, session_headers)
+    uploaded = await upload_problem(api_client, session_headers)
+    names = {"org": uploaded["org"], "other": other, "problem": uploaded["problem"]["slug"]}
+    key = await mint_key(
+        api_client,
+        token,
+        permissions=["engines:execute"],
+        boundary={
+            field: [value.format(**names) for value in values]
+            for field, values in boundary.items()
+        },
+    )
+
+    launched = await api_client.post(
+        "/v1/jobs",
+        headers={"X-API-Key": key["secret"]},
+        json={
+            "revision": uploaded["revision_id"],
+            "engine": "random-search",
+            "mode": "seeded",
+            "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
+        },
+    )
+
+    if allowed:
+        assert launched.status_code == 202, launched.text
+    else:
+        assert launched.status_code == 403, launched.text
+        assert "api_key_boundary" in launched.text

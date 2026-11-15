@@ -41,12 +41,44 @@ const REMOVED_BINDINGS = [
   'cancelSponsorProposal',
   // F0b B4: the account's run history screen is gone, and with it the call that read it for that screen.
   'jobsApi.history',
+  // F0b B5: problems belong to the organization; snapshots, instances, profiles, dialects, examples and the project package are gone.
+  'workbenchApi',
+  'casesApi',
+  'platformApi.cases',
+  'platformApi.case',
+  'platformApi.revisions',
+  'platformApi.caseRevisions',
+  'platformApi.deleteCase',
+  'platformApi.artifacts',
+  'platformApi.uploadArtifact',
+  'platformApi.downloadArtifact',
+  'platformApi.deleteArtifact',
+  'platformApi.snapshot',
+  'platformApi.snapshotArchive',
+  'platformApi.exportPackage',
+  'platformApi.importPackage',
+  'jobsApi.ir',
+  'jobsApi.instance',
+  'getProfiles',
+  'getDialects',
+  'validatePackage',
+  'getBimExamples',
+  'getBimExamplePackage',
+  'getBimSnapshotIr',
+  'createBimJob',
+  'createConfiguredBimJob',
 ];
 
 const REMOVED_PATHS: [string, RegExp][] = [
   ['/v1/analysis/', /\/v1\/analysis\//],
   ['sponsor-proposals', /sponsor-proposals/],
   ['/v1/admin/organizations/…/sponsor', /\/v1\/admin\/organizations\/.*\/sponsor/],
+  ['/v1/instances', /\/v1\/instances\b/],
+  ['/v1/snapshots', /\/v1\/snapshots\b/],
+  ['/v1/profiles', /\/v1\/profiles\b/],
+  ['/v1/dialects', /\/v1\/dialects\b/],
+  ['/v1/examples', /\/v1\/examples\b/],
+  ['/v1/validate', /\/v1\/validate\b/],
 ];
 
 const KEPT_BINDINGS = [
@@ -76,11 +108,11 @@ function findings(files: Record<string, string>): string[] {
 
 const sources = import.meta.glob(['/src/**/*.{ts,tsx}', '!/src/**/*.test.*', '!/src/test/**'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
-describe('removed operations (M9.6)', () => {
-  it('lists the 33 bindings and 3 paths of the specification', () => {
-    expect(REMOVED_BINDINGS).toHaveLength(33);
-    expect(new Set(REMOVED_BINDINGS).size).toBe(33);
-    expect(REMOVED_PATHS).toHaveLength(3);
+describe('removed operations (M9.6, F0b)', () => {
+  it('lists the 33 bindings and 3 paths of M9.6, and the 25 bindings and 6 paths F0b B5 removed', () => {
+    expect(REMOVED_BINDINGS).toHaveLength(58);
+    expect(new Set(REMOVED_BINDINGS).size).toBe(58);
+    expect(REMOVED_PATHS).toHaveLength(9);
   });
 
   it('finds no binding or path of a removed operation in the application sources', () => {

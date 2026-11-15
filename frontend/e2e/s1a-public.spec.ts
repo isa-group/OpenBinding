@@ -54,8 +54,7 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
     await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: 's1a-pricing' }));
     await page.route(`${API}/v1/engines`, json({ engines: [...engines, engine('edge-solver', 'sampling', `sha256-${'f1f2f3f4'.repeat(8)}`)] }));
   }
-  await page.route(`${API}/v1/profiles`, json({ profiles: [{ id: 'qos-binding/v1' }] }));
-  await page.route(`${API}/v1/dialects`, json({ dialects: [{ id: 'qos-binding' }, { id: 'bpmn-workflow' }, { id: 'placement' }] }));
+  await page.route(`${API}/v1/engines/protocol`, json({ profiles: [{ id: 'qos-binding/v1' }] }));
   if (mocks.offline) {
     for (const path of ['/health', '/health/live', '/health/ready']) await page.route(`${API}${path}`, (route) => route.abort('connectionrefused'));
   } else {
@@ -107,7 +106,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: /Validate a package/ })).toHaveAttribute('href', '/workbench');
       await expect(main.getByRole('link', { name: /Browse the engines/ })).toHaveAttribute('href', '/engines');
       await expect(main.getByRole('link', { name: /Create an account/ })).toHaveAttribute('href', '/register');
-      await expect(main.getByRole('status', { name: 'Runtime catalogue status' })).toContainText('3 installed dialects');
       await expect(main.getByRole('status', { name: 'Runtime catalogue status' })).toContainText('3 public engine revisions');
 
       // How it works: choosing a stage changes the call to action.

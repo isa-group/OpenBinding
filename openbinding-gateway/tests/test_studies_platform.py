@@ -6,6 +6,8 @@ import uuid
 
 import pytest
 import pytest_asyncio
+from _problem_helpers import upload_problem
+from _problem_helpers import placeholder_refs
 from pydantic import ValidationError
 from sqlalchemy import select
 
@@ -20,7 +22,6 @@ from openbinding_gateway.services.engines import engine_ref
 from openbinding_gateway.routes import studies as study_routes
 from _pricing import fake_pricing_gate, largest_plan
 from openbinding_gateway.studies import aggregate_metrics, expand_study, nondominated
-from bim_core.package import load_package
 
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
@@ -159,13 +160,6 @@ async def _headers(client, registration) -> dict[str, str]:
     return {"Authorization": f"Bearer {login.json()['access_token']}"}
 
 
-async def executable_revision_payload(client, headers):
-    package = load_package(EXAMPLE)
-    snapshot = await client.post('/v1/instances', headers={**headers, 'Content-Type': 'application/vnd.bim+zip'}, content=package.to_zip())
-    assert snapshot.status_code == 201, snapshot.text
-    return {'document': package.instance(), 'source_snapshot_id': snapshot.json()['id']}
-
-
 async def test_a_study_freezes_the_case_revisions_it_selects(
     api_client, db_session, registration, study_gate
 ) -> None:
@@ -182,16 +176,7 @@ async def test_a_study_freezes_the_case_revisions_it_selects(
         headers=headers,
         json={"slug": "bench", "name": "Benchmark", "visibility": "private"},
     )
-    await api_client.post(
-        "/v1/organizations/suite-lab/projects/bench/cases",
-        headers=headers,
-        json={"slug": "case-a", "name": "Case A"},
-    )
-    revision = await api_client.post(
-        "/v1/organizations/suite-lab/projects/bench/cases/case-a/revisions",
-        headers=headers,
-        json=await executable_revision_payload(api_client, headers),
-    )
+    revision = await upload_problem(api_client, headers, "suite-lab", slug="case-a")
     created = await api_client.post(
         "/v1/organizations/suite-lab/projects/bench/studies",
         headers=headers,
@@ -199,7 +184,7 @@ async def test_a_study_freezes_the_case_revisions_it_selects(
             "slug": "from-suite",
             "name": "From suite",
             "definition": {
-                "case_revision_ids": [revision.json()["id"]],
+                "case_revision_ids": [revision["revision_id"]],
                 "engines": [study_engine(engine_ref(routes._manifest("random-search")))],
                 "parameter_sets": [{}],
                 "seeds": [0],
@@ -208,7 +193,7 @@ async def test_a_study_freezes_the_case_revisions_it_selects(
     )
 
     assert created.status_code == 201, created.text
-    assert created.json()["definition"]["case_revision_ids"] == [revision.json()["id"]]
+    assert created.json()["definition"]["case_revision_ids"] == [revision["revision_id"]]
     definition_artifact = created.json()['definition_artifact_id']
     definition_version = created.json()['definition_version_id']
     versions = (await api_client.get(f'/v1/artifacts/{definition_artifact}/versions', headers=headers)).json()
@@ -216,7 +201,7 @@ async def test_a_study_freezes_the_case_revisions_it_selects(
     assert manifest['manifest']['dependencies'] == []
     unchanged = await api_client.get('/v1/organizations/suite-lab/projects/bench/studies', headers=headers)
     assert unchanged.json()[0]['definition_version_id'] == definition_version
-    assert unchanged.json()[0]['definition']['case_revision_ids'] == [revision.json()['id']]
+    assert unchanged.json()[0]['definition']['case_revision_ids'] == [revision["revision_id"]]
 
     key = await api_client.post(
         "/v1/users/me/api-keys",
@@ -244,7 +229,7 @@ async def test_a_study_freezes_the_case_revisions_it_selects(
             "slug": "forbidden-engine",
             "name": "Forbidden engine",
             "definition": {
-                "case_revision_ids": [revision.json()["id"]],
+                "case_revision_ids": [revision["revision_id"]],
                 "engines": [study_engine(engine_ref(routes._manifest("random-search")))],
                 "parameter_sets": [{}],
                 "seeds": [0],
@@ -280,12 +265,6 @@ async def test_study_run_persists_the_exact_cartesian_matrix(
     monkeypatch.setattr(get_settings(), "job_dispatch_mode", "inline")
     monkeypatch.setattr(execution, "solve_remote", solve)
     headers = await _headers(api_client, registration)
-    package = load_package(EXAMPLE)
-    snapshot = await api_client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package.to_zip(),
-    )
     manifest = routes._manifest("random-search")
     exact_engine = study_engine(engine_ref(manifest, "bim.builtin"))
     org = await api_client.post(
@@ -298,20 +277,7 @@ async def test_study_run_persists_the_exact_cartesian_matrix(
         headers=headers,
         json={"slug": "routing", "name": "Routing", "visibility": "private"},
     )
-    case = await api_client.post(
-        "/v1/organizations/lab/projects/routing/cases",
-        headers=headers,
-        json={"slug": "checkout", "name": "Checkout"},
-    )
-    revision = await api_client.post(
-        "/v1/organizations/lab/projects/routing/cases/checkout/revisions",
-        headers=headers,
-        json={
-            "document": package.instance(),
-            "source_snapshot_id": snapshot.json()["id"],
-        },
-    )
-    assert revision.status_code == 201, revision.text
+    revision = await upload_problem(api_client, headers, "lab", slug="checkout")
     study = await api_client.post(
         "/v1/organizations/lab/projects/routing/studies",
         headers=headers,
@@ -319,7 +285,7 @@ async def test_study_run_persists_the_exact_cartesian_matrix(
             "slug": "compare",
             "name": "Compare engines",
             "definition": {
-                "case_revision_ids": [revision.json()["id"]],
+                "case_revision_ids": [revision["revision_id"]],
                 "engines": [exact_engine],
                 "parameter_sets": [{"iterations": 100}, {"iterations": 200}],
                 "seeds": [1, 2],
@@ -345,7 +311,7 @@ async def test_study_run_persists_the_exact_cartesian_matrix(
     )
 
     assert org.status_code == 201 and project.status_code == 201
-    assert case.status_code == 201 and study.status_code == 201
+    assert study.status_code == 201
     assert run.status_code == 202, run.text
     assert run.json()["cells"] == 4
     assert [cell.seed for cell in cells] == [1, 2, 1, 2]
@@ -401,56 +367,6 @@ async def test_study_run_persists_the_exact_cartesian_matrix(
     assert reused.json()['definition_artifact_id'] == artifact_id
     assert reused.json()['definition_version_id'] == original_version_id
     assert reused.json()['definition']['seeds'] == study.json()['definition']['seeds']
-    from bim_core.canonical import digest
-    exported = await api_client.get('/v1/organizations/lab/projects/routing/package?format=json', headers=headers)
-    assert exported.status_code == 200, exported.text
-    package = exported.json()
-    imported = await api_client.post('/v1/organizations/lab/projects/shared-study/package', headers=headers, json=package)
-    assert imported.status_code == 200, imported.text
-    imported_runs = await api_client.get('/v1/organizations/lab/projects/shared-study/studies/compare/runs', headers=headers)
-    assert imported_runs.json()[0]['definition_version_id'] == original_version_id
-    assert imported_runs.json()[0]['matrix_digest'] == run.json()['matrix_digest']
-    imported_cells = await api_client.get(f"/v1/organizations/lab/projects/shared-study/studies/compare/runs/{imported_runs.json()[0]['id']}/cells", headers=headers)
-    assert {cell['binding_case_revision_id'] for cell in imported_cells.json()} == {revision.json()['id']}
-    package['studies'][0]['runs'][0]['cells'][0]['seed'] = 999
-    package['packageDigest'] = digest({key: value for key, value in package.items() if key != 'packageDigest'})
-    tampered = await api_client.post('/v1/organizations/lab/projects/shared-study/package', headers=headers, json=package)
-    assert tampered.status_code == 422, tampered.text
-    assert tampered.json()['code'] == 'study_cell_mismatch'
-    # Reconstruct a new local closure: its case revision and Study identity do
-    # not exist yet, so the definition must be sealed after the case import.
-    import base64
-    import json
-    from copy import deepcopy
-    from bim_core.canonical import canonical_json, digest_bytes
-    fresh = deepcopy(exported.json())
-    fresh['studies'] = []
-    fresh_revision_id = str(uuid.uuid4())
-    fresh['cases'][0]['id'] = str(uuid.uuid4())
-    fresh['cases'][0]['slug'] = 'fresh-closure-case'
-    fresh['cases'][0]['revisions'][0]['id'] = fresh_revision_id
-    fresh_refs = {}
-    for entry in fresh['library']:
-        if entry['manifest']['kind'] != 'Study':
-            continue
-        original_digest = entry['ref']['versionDigest']
-        document = json.loads(base64.b64decode(entry['contentBase64']))
-        document['cases'][0]['caseRevisionId'] = fresh_revision_id
-        content = canonical_json(document)
-        entry['contentBase64'] = base64.b64encode(content).decode()
-        entry['manifest']['contentDigest'] = digest_bytes(content)
-        entry['manifest']['identity']['name'] += '-fresh'
-        entry['ref']['name'] += '-fresh'
-        entry['ref']['versionDigest'] = digest(entry['manifest'])
-        fresh_refs[original_digest] = entry['ref']
-    fresh['projectArtifacts'] = [fresh_refs.get(ref['versionDigest'], ref) for ref in fresh['projectArtifacts']]
-    fresh['packageDigest'] = digest({key: value for key, value in fresh.items() if key != 'packageDigest'})
-    restored_fresh = await api_client.post('/v1/organizations/lab/projects/shared-study/package', headers=headers, json=fresh)
-    assert restored_fresh.status_code == 200, restored_fresh.text
-    from openbinding_gateway.db.models import BindingCaseRevision, ArtifactCaseReference
-    assert await db_session.get(BindingCaseRevision, uuid.UUID(fresh_revision_id)) is not None
-    assert len((await db_session.scalars(select(ArtifactCaseReference).where(ArtifactCaseReference.case_revision_id == uuid.UUID(fresh_revision_id)))).all()) == 2
-
 
     removed = await api_client.delete('/v1/organizations/lab/projects/routing/studies/compare', headers=headers)
     assert removed.status_code == 409
@@ -476,7 +392,7 @@ async def test_study_cancel_and_cell_retry_are_http_idempotent(
             options={},
             provenance={},
             organization_id=organization.id,
-            project_id=project_id,
+            project_id=project_id, **placeholder_refs('organization_id'),
         )
         session.add(job)
         await session.flush()
@@ -496,16 +412,7 @@ async def test_study_cancel_and_cell_retry_are_http_idempotent(
         headers=headers,
         json={"slug": "bench", "name": "Benchmark", "visibility": "private"},
     )
-    await api_client.post(
-        "/v1/organizations/retry-lab/projects/bench/cases",
-        headers=headers,
-        json={"slug": "case-a", "name": "Case A"},
-    )
-    revision = await api_client.post(
-        "/v1/organizations/retry-lab/projects/bench/cases/case-a/revisions",
-        headers=headers,
-        json=await executable_revision_payload(api_client, headers),
-    )
+    revision = await upload_problem(api_client, headers, "retry-lab", slug="case-a")
     created = await api_client.post(
         "/v1/organizations/retry-lab/projects/bench/studies",
         headers=headers,
@@ -513,7 +420,7 @@ async def test_study_cancel_and_cell_retry_are_http_idempotent(
             "slug": "retry-study",
             "name": "Retry study",
             "definition": {
-                "case_revision_ids": [revision.json()["id"]],
+                "case_revision_ids": [revision["revision_id"]],
                 "engines": [study_engine(engine_ref(routes._manifest("random-search")))],
                 "parameter_sets": [{}],
                 "seeds": [0],

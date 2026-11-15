@@ -13,9 +13,8 @@ extension that has, and the port of this process (``integrations.bim.get_bim()``
 ``dialect_type_matches`` and ``dialect_xml_type_matches`` only select, among the Dialect manifests that
 ``BimPort.dialects()`` returned, the resource types that claim an identity; they are computed here on that data.
 
-Both implementations of the port answer all of the above (``InProcessBim`` with ``bim-core``, ``HttpBim`` with
-the ``/bim/v1/resources/...`` and ``/bim/v1/engines/validate`` endpoints of ``bim-service``), so with
-``BIM_MODE=http`` none of this runs in the gateway process. This module does not import ``bim_core``.
+The port answers all of the above (``InProcessBim`` with ``bim-core``). This module does not import
+``bim_core``.
 """
 
 from __future__ import annotations

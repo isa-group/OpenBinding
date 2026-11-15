@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import defer
 
-from ..db.models import Job, JobState
+from ..db.models import BindingCase, BindingCaseRevision, Job, JobState, Organization, ProblemCompilation
 
 
 async def get_owned(
@@ -66,3 +66,36 @@ async def list_for_project(
     if not include_results:
         query = query.options(defer(Job.result), defer(Job.original_request), defer(Job.provenance))
     return list((await session.execute(query)).scalars().all())
+
+
+async def refs_for(session: AsyncSession, jobs: list[Job]) -> dict[uuid.UUID, dict]:
+    """What each run is of, in one query: its organization, problem, revision and compilation.
+
+    The values are the ``refs`` of ``models.platform.job_view``.
+    """
+    ids = [job.id for job in jobs]
+    if not ids:
+        return {}
+    rows = (await session.execute(
+        select(
+            Job.id,
+            Organization.id, Organization.slug,
+            BindingCase.id, BindingCase.slug, BindingCase.name,
+            BindingCaseRevision.id, BindingCaseRevision.revision,
+            ProblemCompilation.id, ProblemCompilation.compilation_digest, ProblemCompilation.ir_digest,
+        )
+        .join(BindingCaseRevision, BindingCaseRevision.id == Job.revision_id)
+        .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
+        .join(Organization, Organization.id == BindingCase.organization_id)
+        .join(ProblemCompilation, ProblemCompilation.id == Job.compilation_id)
+        .where(Job.id.in_(ids))
+    )).all()
+    return {
+        row[0]: {
+            "organization": {"id": row[1], "slug": row[2]},
+            "problem": {"id": row[3], "slug": row[4], "name": row[5]},
+            "revision": {"id": row[6], "revision": row[7]},
+            "compilation": {"id": row[8], "compilation_digest": row[9], "ir_digest": row[10]},
+        }
+        for row in rows
+    }

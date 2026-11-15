@@ -1,5 +1,6 @@
 import type { PricingCatalog } from '../../api/auth';
-import type { BindingCase, CaseRevision, Study, StudyCell, StudyRun } from '../../api/platform';
+import type { Study, StudyCell, StudyRun } from '../../api/platform';
+import type { Problem, ProblemRevision } from '../../api/problems';
 
 // Data shapes and small rules the screens of an organization's workspace share: problems, runs and studies.
 
@@ -7,8 +8,8 @@ export { SLUG_PATTERN, slugFromName } from '../../pages/Organization/orgModel';
 
 /** A problem with its versions, as the lists of problems read it. */
 export interface CaseContent {
-  item: BindingCase;
-  revisions: CaseRevision[];
+  item: Problem;
+  revisions: ProblemRevision[];
 }
 
 /** A study with its runs. */

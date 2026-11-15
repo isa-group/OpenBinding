@@ -1,4 +1,4 @@
-// Address builders of the problems area (M2.6). Code that links to a problem, a problem version or the problem list builds the address here,
+// Address builders of the problems area (M2.6; organization-level since F0b). Code that links to a problem, a problem version or the problem list builds the address here,
 // so the segment is named once.
 
 /** The segment of the problem list and the problem page. */
@@ -18,15 +18,39 @@ export interface ProblemView {
   to?: number | string;
 }
 
-/** The problem list of a project; `root` is `/app/<org>/<project>`. */
-export const problemsPath = (root: string): string => `${root}/${PROBLEMS_SEGMENT}`;
+/** The root of an organization's workspace: `/app/<org>`. */
+export const organizationPath = (org: string): string => `/app/${encodeURIComponent(org)}`;
 
-/** The problem page of a project, with its tab and the version or pair it shows. */
-export function problemPath(root: string, problem: string, tab?: ProblemTabSegment, view: ProblemView = {}): string {
+function withQuery(path: string, values: Record<string, string | number | undefined>): string {
   const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(view)) {
+  for (const [key, value] of Object.entries(values)) {
     if (value !== undefined && value !== '') query.set(key, String(value));
   }
   const search = query.toString();
-  return `${problemsPath(root)}/${encodeURIComponent(problem)}${tab ? `/${tab}` : ''}${search ? `?${search}` : ''}`;
+  return search ? `${path}?${search}` : path;
+}
+
+/** The problem list of an organization: `/app/<org>/problems`. */
+export const problemsPath = (org: string): string => `${organizationPath(org)}/${PROBLEMS_SEGMENT}`;
+
+/** The problem page, with its tab and the version or pair it shows. */
+export function problemPath(org: string, problem: string, tab?: ProblemTabSegment, view: ProblemView = {}): string {
+  return withQuery(`${problemsPath(org)}/${encodeURIComponent(problem)}${tab ? `/${tab}` : ''}`, { ...view });
+}
+
+/** What the Workbench opens: a revision of a problem (the newest without `revision`), or a template. */
+export interface WorkbenchTarget {
+  problem?: string;
+  revision?: number | string;
+  template?: string;
+}
+
+/** The Workbench of an organization: `/app/<org>/workbench`, with `?problem=&revision=` or `?template=`. */
+export function workbenchPath(org: string, target: WorkbenchTarget = {}): string {
+  return withQuery(`${organizationPath(org)}/workbench`, { problem: target.problem, revision: target.revision, template: target.template });
+}
+
+/** The launcher of a run of a problem revision (`job-launch`): `?problem=&revision=`. */
+export function launchPath(root: string, problem: string, revision?: number | string): string {
+  return withQuery(`${root}/runs/new`, { problem, revision });
 }

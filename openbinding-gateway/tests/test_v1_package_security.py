@@ -2,9 +2,9 @@
 
 The rules themselves (paths, ZIP limits, XML security, canonical form, digests) belong to ``bim-core`` and
 are tested there (``packages/bim-core/tests/test_package_security.py``).  What the platform adds, and
-what is tested here, is that every refusal reaches the caller as a 422 problem, that the multipart
-upload is read as one bounded file part, and that the limits of the toolchain in use (``BIM_MAX_*`` in
-process, the service's own over HTTP) are the ones that apply.
+what is tested here, is that every refusal reaches the caller as a 422 through both entry points of a
+package (``POST /v1/bim/validate`` and the problem upload), and that the limits of the toolchain in use
+(``BIM_MAX_*``) are the ones that apply.
 """
 
 import io
@@ -13,9 +13,11 @@ import zipfile
 
 import pytest
 
+from _b1_helpers import gate, make_account  # noqa: F401,F811
+from _problem_helpers import make_org
 from openbinding_gateway.integrations import bim
-from openbinding_gateway.routes import v1 as routes
-from openbinding_gateway.routes.v1 import _multipart_zip
+from openbinding_gateway.modules.problems.adapters import bim_routes
+from openbinding_gateway.modules.problems.adapters import routes as problem_routes
 from bim_core import PackageError
 from bim_core.package import InstancePackage
 
@@ -99,13 +101,24 @@ def _package_with_bpmn(xml: bytes) -> bytes:
     ).to_zip()
 
 
-async def _validate(api_client, archive: bytes):
-    return await api_client.post("/v1/instances/validate", content=archive, headers=ZIP)
+@pytest.fixture(params=["validate", "upload"])
+async def entry(request, api_client, registration, db_session, gate):  # noqa: F811
+    """Both ways a package reaches the toolchain: the stateless validation and the problem upload."""
+    if request.param == "validate":
+        return request.param, "/v1/bim/validate", ZIP
+    _, headers = await make_account(api_client, registration, db_session, gate)
+    org = await make_org(api_client, headers)
+    return request.param, f"/v1/organizations/{org}/problems", {**headers, **ZIP}
+
+
+async def _post(api_client, entry, archive: bytes):
+    _, url, headers = entry
+    return await api_client.post(url, content=archive, headers=headers)
 
 
 @pytest.mark.asyncio
-async def test_an_archive_that_is_not_a_zip_is_a_422(api_client) -> None:
-    response = await _validate(api_client, b"not a zip archive")
+async def test_an_archive_that_is_not_a_zip_is_a_422(api_client, entry) -> None:
+    response = await _post(api_client, entry, b"not a zip archive")
 
     assert response.status_code == 422, response.text
     assert "invalid ZIP archive" in response.text
@@ -113,46 +126,46 @@ async def test_an_archive_that_is_not_a_zip_is_a_422(api_client) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("name", ["/instance.json", "../instance.json", "folder//instance.json", "C:/instance.json"])
-async def test_a_non_portable_path_is_a_422(api_client, name: str) -> None:
-    response = await _validate(api_client, _zip({name: b"{}"}))
+async def test_a_non_portable_path_is_a_422(api_client, entry, name: str) -> None:
+    response = await _post(api_client, entry, _zip({name: b"{}"}))
 
     assert response.status_code == 422, response.text
 
 
 @pytest.mark.asyncio
-async def test_a_compression_bomb_is_refused_before_its_resources_are_parsed(api_client) -> None:
-    response = await _validate(api_client, _zip({"instance.json": b"0" * 100_000}, compression=zipfile.ZIP_DEFLATED))
+async def test_a_compression_bomb_is_refused_before_its_resources_are_parsed(api_client, entry) -> None:
+    response = await _post(api_client, entry, _zip({"instance.json": b"0" * 100_000}, compression=zipfile.ZIP_DEFLATED))
 
     assert response.status_code == 422, response.text
     assert "compression ratio" in response.text
 
 
 @pytest.mark.asyncio
-async def test_a_case_folding_collision_is_a_422(api_client) -> None:
-    response = await _validate(api_client, _zip({"instance.json": json.dumps(ROOT).encode(), "A.json": b"{}", "a.json": b"{}"}))
+async def test_a_case_folding_collision_is_a_422(api_client, entry) -> None:
+    response = await _post(api_client, entry, _zip({"instance.json": json.dumps(ROOT).encode(), "A.json": b"{}", "a.json": b"{}"}))
 
     assert response.status_code == 422, response.text
     assert "duplicate package path" in response.text
 
 
 @pytest.mark.asyncio
-async def test_bpmn_that_the_official_schema_rejects_is_refused_as_an_invalid_instance(api_client) -> None:
-    accepted = await _validate(api_client, _package_with_bpmn(BPMN))
-    assert accepted.status_code == 200, accepted.text
-    assert accepted.json()["valid"] is True
+async def test_bpmn_that_the_official_schema_rejects_is_refused_as_an_invalid_instance(api_client, entry) -> None:
+    accepted = await _post(api_client, entry, _package_with_bpmn(BPMN))
+    assert accepted.status_code in (200, 201), accepted.text
 
     invalid = BPMN.replace(b'targetNamespace="https://example.test/bpmn"', b"")
-    refused = await _validate(api_client, _package_with_bpmn(invalid))
+    refused = await _post(api_client, entry, _package_with_bpmn(invalid))
     assert refused.status_code == 422, refused.text
     assert refused.json()["code"] == "invalid_instance"
     assert "OMG BPMN 2.0.2" in refused.text
 
 
 @pytest.mark.asyncio
-async def test_an_upload_above_the_compressed_limit_of_the_toolchain_is_a_413(api_client, monkeypatch) -> None:
-    monkeypatch.setattr(routes, "_max_compressed", lambda: 10)
+async def test_an_upload_above_the_compressed_limit_of_the_toolchain_is_a_413(api_client, entry, monkeypatch) -> None:
+    monkeypatch.setattr(bim_routes, "max_compressed", lambda caller: 10)
+    monkeypatch.setattr(problem_routes, "_upload_limit", lambda: 10)
 
-    response = await _validate(api_client, b"x" * 11)
+    response = await _post(api_client, entry, b"x" * 11)
 
     assert response.status_code == 413, response.text
 
@@ -165,20 +178,3 @@ def test_the_package_limits_of_the_process_are_the_former_environment_variables(
     assert bim.package_limits()["max_entries"] == 1
     with pytest.raises(PackageError, match="more than 1 entries"):
         bim.get_bim().compile(_zip(entries))
-
-
-def test_multipart_parser_preserves_zip_bytes_and_requires_one_file() -> None:
-    archive = _zip({"instance.json": json.dumps(ROOT).encode()})
-    boundary = "bim-boundary"
-
-    def part(name: str) -> bytes:
-        return (
-            f"--{boundary}\r\nContent-Disposition: form-data; name=\"package\"; filename=\"{name}\"\r\n"
-            "Content-Type: application/vnd.bim+zip\r\n\r\n"
-        ).encode() + archive + b"\r\n"
-
-    body = part("instance.bim.zip") + f"--{boundary}--\r\n".encode()
-    assert _multipart_zip(body, f"multipart/form-data; boundary={boundary}") == archive
-    duplicate = part("one.bim.zip") + part("two.bim.zip") + f"--{boundary}--\r\n".encode()
-    with pytest.raises(PackageError, match="exactly one"):
-        _multipart_zip(duplicate, f"multipart/form-data; boundary={boundary}")

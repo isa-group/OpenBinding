@@ -38,7 +38,7 @@ class FakeLab:
         self.tokens: dict[str, str] = {}
         self.issued = 0
         self.login_hits: Counter[str] = Counter()
-        self.snapshots = {"snap-seed": "lab-owner"}
+        self.revisions = {"rev-1"}
         self.jobs: dict[str, dict] = {}
         self.keys: dict[tuple[str, str], tuple[str, str]] = {}
         self.project_jobs: list[dict] = []
@@ -103,7 +103,7 @@ class FakeLab:
             return self.login(request)
         if method == "OPTIONS":
             return self.preflight(request)
-        if sub == "/v1/examples/demo/01_simple_seq":
+        if sub == "/v1/bim/templates/demo/01_simple_seq":
             return httpx.Response(200, content=b"PK-example", headers={"content-type": "application/vnd.bim+zip"})
         if user is None:
             return self.problem(401, "unauthorized")
@@ -122,12 +122,6 @@ class FakeLab:
             return self.reply(200, {"engines": [{"name": "random-search", "namespace": "bim.builtin", "version": "1.0.0", "digest": "sha256-e"}]})
         if sub.startswith("/v1/organizations"):
             return self.organizations(request, sub, user)
-        if sub == "/v1/instances" and method == "POST":
-            snapshot = f"snap-{len(self.snapshots)}"
-            self.snapshots[snapshot] = user
-            return self.reply(201, {"id": snapshot})
-        if sub.startswith("/v1/instances/"):
-            return self.reply(200, {}) if self.snapshots.get(sub.rsplit("/", 1)[-1]) == user else self.problem(404, "not_found")
         if sub == "/v1/jobs" and method == "POST":
             return self.create_job(request, user)
         if sub.startswith("/v1/jobs/"):
@@ -181,8 +175,8 @@ class FakeLab:
         base = "/v1/organizations/lab-main/projects"
         if sub == base:
             return self.reply(200, [{"slug": "bim-demo"}])
-        if sub == f"{base}/bim-demo/cases/simple-seq/revisions":
-            return self.reply(200, [{"id": "rev-1", "revision": 1, "source_snapshot_id": "snap-seed"}])
+        if sub == "/v1/organizations/lab-main/problems/simple-seq/revisions":
+            return self.reply(200, [{"id": "rev-1", "revision": 1}])
         if sub == f"{base}/bim-demo/jobs":
             return self.reply(200, [self.project_job_view(job, role, request) for job in self.project_jobs
                                     if request.url.params.get("job_id") in (None, job["id"])])
@@ -207,7 +201,7 @@ class FakeLab:
 
     def project_job_view(self, job: dict, role: str, request: httpx.Request) -> dict:
         options = {"iterations": 10, "seed": 1}
-        original = {"bindingProblem": {"kind": "BindingProblem"}, "timeout": 30, "mode": {}, "registration": {"name": "random-search"}}
+        original = {"timeout": 30, "mode": {}, "registration": {"name": "random-search"}}
         provenance = {"registration": {"name": "random-search", "version": "1.0.0"}, "options": options}
         if "leak_viewer" in self.faults:
             options = {**options, "engine_url": "http://engine-random-search:8080"}
@@ -221,8 +215,11 @@ class FakeLab:
 
     def create_job(self, request: httpx.Request, user: str) -> httpx.Response:
         body = json.loads(request.content)
-        if self.snapshots.get(body["snapshot"]) != user:
+        role = self.role_in_org(user)
+        if body.get("revision") not in self.revisions or role is None:
             return self.problem(404, "not_found")
+        if role == "VIEWER":
+            return self.problem(403, "insufficient_role")
         self.job_bodies.append(body)
         # The gateway resolves the optimization (bim-service) before it reads the plan (SPACE).
         if not isinstance(body.get("optimization"), dict):
@@ -350,7 +347,7 @@ def test_a_job_without_the_execution_optimization_is_what_the_gateway_refuses_wi
     fake.tokens[token] = "lab-owner"
     with httpx.Client(transport=fake.transport(), base_url="http://web:8080") as client:
         refused = client.post("/api/v1/jobs", headers={"Authorization": f"Bearer {token}"},
-                              json={"snapshot": "snap-seed", "engine": "random-search", "options": smoke_lab.MIN_OPTIONS})
+                              json={"revision": "rev-1", "engine": "random-search", "options": smoke_lab.MIN_OPTIONS})
     assert refused.status_code == 422 and smoke_lab.code_of(refused) == "optimization_required"
 
 
@@ -380,8 +377,8 @@ def test_missing_spaces_contracts_block_the_steps_that_need_a_plan_and_are_not_f
 
 def test_a_blocked_step_still_judges_what_does_not_depend_on_the_plan():
     step = steps_of(smoke(FakeLab("pricing_blocked")))["authorization"]
-    # the viewer's personal launch is the first call that needs a plan
-    assert step["blockedByRemote"] is True and "lab-viewer POST /v1/jobs" in step["detail"]
+    # the viewer's launch is refused on its role first; the owner's plan is the first that is read
+    assert step["blockedByRemote"] is True and "lab-owner GET /v1/users/me" in step["detail"]
     broken = steps_of(smoke(FakeLab("pricing_blocked", "admin_open")))["authorization"]
     assert broken["ok"] is False and broken["blockedByRemote"] is False
     assert "403" in broken["detail"] and "also blocked by remote" in broken["detail"]
@@ -595,11 +592,11 @@ def test_a_second_run_reuses_the_project_job_instead_of_starting_another_study()
     assert len(fake.project_jobs) == 1
 
 
-def test_the_viewer_launches_a_personal_job_but_cannot_start_a_study_run():
+def test_the_viewer_can_neither_launch_a_run_of_the_organizations_problem_nor_start_a_study_run():
     fake = FakeLab()
     step = steps_of(smoke(fake))["authorization"]
     assert step["ok"], step["detail"]
-    assert any(job["owner"] == "lab-viewer" for job in fake.jobs.values())
+    assert not any(job["owner"] == "lab-viewer" for job in fake.jobs.values())
 
 
 def test_a_viewer_that_can_start_a_study_run_fails_the_authorization_step():
@@ -617,7 +614,7 @@ def test_options_that_leak_to_the_viewer_fail_the_authorization_step():
 def test_viewer_redaction_names_each_kind_of_leak():
     leaked = {
         "options": {"iterations": 10, "engine_url": "http://engine"},
-        "original_request": {"bindingProblem": {}, "auth": {"token": "x"}},
+        "original_request": {"timeout": 30, "auth": {"token": "x"}},
         "provenance": {"registration": {"name": "random-search", "endpoint": "http://engine"}},
     }
     checks = smoke_lab.Checks()
@@ -628,7 +625,7 @@ def test_viewer_redaction_names_each_kind_of_leak():
     assert any("pinned reference" in label for label in checks.failed)
     assert any("credential- or address-like" in label for label in checks.failed)
     clean = smoke_lab.Checks()
-    smoke_lab.check_viewer_redaction(clean, {"options": {"iterations": 10, "seed": 1}, "original_request": {"bindingProblem": {"url": "kept"}}})
+    smoke_lab.check_viewer_redaction(clean, {"options": {"iterations": 10, "seed": 1}, "original_request": {"timeout": 30}})
     assert clean.ok
 
 

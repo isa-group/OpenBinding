@@ -1,5 +1,5 @@
 import type { UsageView } from '../../api/auth';
-import type { ProjectResource, ProjectResourceRevision, StoredBlob } from '../../api/platform';
+import type { ProjectResource, ProjectResourceRevision } from '../../api/platform';
 
 /** Shared by the tests of the files and resources, and by the browser specs that mock the same API. */
 
@@ -8,13 +8,6 @@ export const OWNER = 'user-admin';
 
 /** `sha256-` followed by 64 copies of one hexadecimal character. */
 export const digestOf = (char: string): string => `sha256-${char.repeat(64)}`;
-
-export function blobOf(char: string, over: Partial<StoredBlob> = {}): StoredBlob {
-  return {
-    id: `blob-${char}`, organization_id: 'org-isa-demo', project_id: PROJECT_ID, digest: digestOf(char), media_type: 'application/zip', size_bytes: 48_213,
-    public: false, expires_at: null, created_at: '2026-08-20T10:05:00Z', ...over,
-  };
-}
 
 export function resourceOf(slug: string, name = slug, over: Partial<ProjectResource> = {}): ProjectResource {
   return {

@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) > 100
+    assert len(ROUTES) == 121
 
 
 def test_the_unclassified_permission_cannot_be_granted():

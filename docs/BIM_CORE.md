@@ -80,33 +80,9 @@ left with the toolchain.
 
 ## The port
 
-`integrations/bim.py` is the only place that builds a port. The lab and the
-default deployment run BIM **in process** (`InProcessBim`, the default of
-`BIM_MODE`); `http` remains a setting for a separately deployed `bim-service`.
-
-| Setting | Meaning |
-|---|---|
-| `BIM_MODE` | `inproc` (default) or `http` |
-| `BIM_SERVICE_URL` | Required when `BIM_MODE=http` |
-| `BIM_SERVICE_TOKEN_FILE` | File holding the bearer token; the token is never an environment value |
-| `BIM_SERVICE_TIMEOUT_S` | Request timeout |
-| `BIM_TENANT` | Tenant header sent to the service |
-| `BIM_SERVICE_ALLOW_INSECURE_HTTP` | `false` by default. `true` lets the token travel over plain `http` to a non-loopback host (trusted private network only; logs a warning once). Loopback `http` is always allowed |
-
-`get_bim()` is cached and closed in the application lifespan; tests replace it
-with `bim_override`. In `http` mode startup fails if `/capabilities` cannot be
-read or if the service `compilerDigest` differs from the one the gateway's own
-`bim-core` reports. `abim()` wraps the port in `asyncio.to_thread` for async
-routes.
-
-Errors are translated in one place (`problem_for`): `CompileError` and other
-`BimError`s become the error's `http_status` or 422 (`invalid_instance` for
-compilation failures); `BimServiceError` becomes 503 `bim_unavailable` (with
-`Retry-After`), 413/422 for service limits, or 502 `bim_service_error`.
-
-IR documents are stored as plain dictionaries. Snapshot integrity is not
-re-implemented in the gateway: every port operation rebuilds the IR from the
-document and rejects a mismatch.
+`integrations/bim.py` is the only place that builds a port. The gateway runs
+BIM **in process** (`InProcessBim`); there is no setting for a separately
+deployed `bim-service`, and the gateway image installs the toolchain wheels.
 
 ## What stays in OpenBinding
 
@@ -117,9 +93,9 @@ Engine manifests are a platform catalogue.
 
 Checks about a single document (resource schema validation, secure XML parse and
 BPMN XSD validation, the Engine manifest contract) go through
-`bim_client.BimResourcePort`, an extension of `BimPort` implemented by
-`InProcessBim` (with `bim_core`) and by `HttpBim` (over the `bim-service`
-endpoints below). `integrations/bim_host.py` asks the port of the process and
+`bim_client.BimResourcePort`, an extension of `BimPort` that the gateway gets
+from `InProcessBim` (with `bim_core`); the toolchain's `HttpBim` implements the
+same port over the `bim-service` endpoints below, for its own consumers. `integrations/bim_host.py` asks the port of the process and
 nothing else: it has no import of `bim_core`, and `dialect_type_matches` and
 `dialect_xml_type_matches` are computed there over the manifests that
 `dialects()` returned.
@@ -129,8 +105,8 @@ nothing else: it has no import of `bim_core`, and `dialect_type_matches` and
 The BIM frontier is closed: `bim-service` publishes these operations (its
 OpenAPI document is
 [`contracts/openapi/bim-service.v1.json`](https://github.com/javiercavlop/bim-toolchain/blob/v0.2.0/contracts/openapi/bim-service.v1.json)
-in the toolchain), `HttpBim` implements them, and with `BIM_MODE=http` the
-gateway would run no BIM validation in its own process. Request bodies are JSON,
+in the toolchain) and `HttpBim` implements them; the gateway does not call
+them. Request bodies are JSON,
 errors are `application/problem+json` as elsewhere, and the routes need the same
 bearer token and obey the same body limit as the others.
 
@@ -194,8 +170,7 @@ Going through the port makes each operation verify and copy the IR it receives
 gateway operation. `tests/test_00_perf_probe.py` counts them (descriptors asked once
 per port, one `compile` per compilation, one `reevaluate` per answer, one
 `evaluate_many` per 500 bindings) instead of timing anything, and
-`tests/conftest.py` pins `BIM_MODE=inproc` so a variable left in the environment
-cannot send the suite to a service. The same conftest hashes passwords with the
+the port is always in process. `tests/conftest.py` hashes passwords with the
 cheapest Argon2 parameters: creating and signing in an account is the largest cost
 of the API tests (the suite ran about 280 s with the production parameters and
 151 s without).

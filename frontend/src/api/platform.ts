@@ -87,26 +87,6 @@ export interface Project {
   effective_role?: OrganizationRole | null;
 }
 
-export interface BindingCase {
-  id: string;
-  project_id: string;
-  slug: string;
-  name: string;
-  description: string;
-  created_by_id: string;
-  created_at: string;
-}
-
-export interface CaseRevision {
-  id: string;
-  binding_case_id: string;
-  revision: number;
-  digest: string;
-  document: Record<string, unknown>;
-  source_snapshot_id: string | null;
-  created_at: string;
-}
-
 export interface ProjectResource {
   id: string;
   project_id: string;
@@ -124,18 +104,6 @@ export interface ProjectResourceRevision {
   revision: number;
   digest: string;
   document: Record<string, unknown>;
-  created_at: string;
-}
-
-export interface StoredBlob {
-  id: string;
-  organization_id: string;
-  project_id: string;
-  digest: string;
-  media_type: string;
-  size_bytes: number;
-  public: boolean;
-  expires_at: string | null;
   created_at: string;
 }
 
@@ -248,14 +216,24 @@ export interface Analytics {
   binding_space?: BindingSpaceAnalytics | null;
 }
 
+export interface JobOrganizationRef { id: string; slug: string }
+export interface JobProblemRef { id: string; slug: string; name: string }
+export interface JobRevisionRef { id: string; revision: number }
+export interface JobCompilationRef { id: string; compilation_digest: string; ir_digest: string }
+
 export interface Job {
   id: string;
   engine_id: string;
   status: 'queued' | 'running' | 'completed' | 'failed' | string;
   cancellation_requested: boolean;
   retry_of_id: string | null;
-  organization_id: string | null;
+  organization_id: string;
   project_id: string | null;
+  /** What the run is of: the organization, problem, revision and compilation it names. */
+  organization?: JobOrganizationRef | null;
+  problem?: JobProblemRef | null;
+  revision?: JobRevisionRef | null;
+  compilation?: JobCompilationRef | null;
   created_at: string;
   finished_at: string | null;
   result?: {
@@ -275,23 +253,6 @@ export interface Job {
   options?: Record<string, unknown> | null;
   original_request?: Record<string, unknown> | null;
   provenance?: Record<string, unknown> | null;
-}
-
-export interface Snapshot {
-  id: string;
-  ownerId: string | null;
-  instanceDigest: string;
-  packageDigest: string;
-  archiveSize: number;
-  createdAt: string | null;
-  ir: {
-    id: string;
-    digest: string;
-    document: Record<string, unknown>;
-    sourceMap: Record<string, unknown> | null;
-    compilerVersion: string;
-    createdAt: string | null;
-  } | null;
 }
 
 export interface EngineRevision {
@@ -323,18 +284,6 @@ export interface EngineRevision {
     state?: string;
   } | null;
 }
-
-export type PackageFormat = 'zip' | 'json' | 'yaml';
-
-const PACKAGE_CONTENT_TYPES: Record<PackageFormat, string> = {
-  zip: 'application/zip', json: 'application/json', yaml: 'application/yaml',
-};
-
-/**
- * What the import answers. The contract only says “an object”; the gateway sends
- * `{ imported: { cases: 1, caseRevisions: 2, … }, packageDigest }`, but a screen must not rely on it.
- */
-export type PackageImportResult = Record<string, unknown>;
 
 const root = (org: string, project?: string) =>
   `/v1/organizations/${encodeURIComponent(org)}${project ? `/projects/${encodeURIComponent(project)}` : ''}`;
@@ -408,20 +357,6 @@ export const platformApi = {
   /** Needs ADMIN. 409 `historical_references` while the project has sealed history. */
   deleteProject: (org: string, project: string) =>
     apiClient.request<void>(root(org, project), { method: 'DELETE' }, undefined, true, true),
-  cases: (org: string, project: string) =>
-    apiClient.request<BindingCase[]>(`${root(org, project)}/cases`),
-  deleteCase: (org: string, project: string, caseSlug: string) =>
-    apiClient.request<void>(`${root(org, project)}/cases/${encodeURIComponent(caseSlug)}`, { method: 'DELETE' }),
-  case: (org: string, project: string, caseSlug: string) =>
-    apiClient.request<BindingCase>(`${root(org, project)}/cases/${encodeURIComponent(caseSlug)}`),
-  revisions: (org: string, project: string, bindingCase: string) =>
-    apiClient.request<CaseRevision[]>(
-      `${root(org, project)}/cases/${encodeURIComponent(bindingCase)}/revisions`,
-    ),
-  caseRevisions: (org: string, project: string, bindingCase: string) =>
-    apiClient.request<CaseRevision[]>(
-      `${root(org, project)}/cases/${encodeURIComponent(bindingCase)}/revisions`,
-    ),
   /** The project's older resources: library items of kinds the library screens don't own. VIEWER can read. */
   resources: (org: string, project: string) =>
     apiClient.request<ProjectResource[]>(`${root(org, project)}/resources`),
@@ -447,47 +382,12 @@ export const platformApi = {
   /** Needs ADMIN. 409 `study_history_retained` once the study has runs: archive it instead. */
   deleteStudy: (org: string, project: string, study: string) =>
     apiClient.request<void>(`${root(org, project)}/studies/${encodeURIComponent(study)}`, { method: 'DELETE' }, undefined, true, true),
-  /** The project's files (content-addressed blobs), newest first. VIEWER can read. */
-  artifacts: (org: string, project: string) =>
-    apiClient.request<StoredBlob[]>(`${root(org, project)}/blobs`),
-  /**
-   * Needs MEMBER and, for a key, `artifacts:write`. Uploading the same bytes twice keeps one copy. 402 `quota_exceeded`
-   * (`maxRepositoryStorage`) when the uploader's storage would run out, 413 `artifact_too_large` above the per-request ceiling.
-   */
-  uploadArtifact: (org: string, project: string, file: File, makePublic: boolean) =>
-    apiClient.request<StoredBlob>(`${root(org, project)}/blobs?public=${makePublic}`, {
-      method: 'POST',
-      headers: { 'Content-Type': file.type || 'application/octet-stream' },
-      body: file,
-    }, undefined, true, true),
-  downloadArtifact: (org: string, project: string, digest: string) =>
-    apiClient.requestBinary(`${root(org, project)}/blobs/${encodeURIComponent(digest)}`),
-  /** Needs ADMIN. */
-  deleteArtifact: (org: string, project: string, digest: string) =>
-    apiClient.request<void>(`${root(org, project)}/blobs/${encodeURIComponent(digest)}`, { method: 'DELETE' }, undefined, true, true),
   projectJobs: (org: string, project: string, jobId?: string) =>
     apiClient.request<Job[]>(`${root(org, project)}/jobs?${jobId ? `job_id=${encodeURIComponent(jobId)}` : 'include_results=false'}`),
-  snapshot: (id: string) =>
-    apiClient.request<Snapshot>(`/v1/snapshots/${encodeURIComponent(id)}`),
-  snapshotArchive: (id: string) =>
-    apiClient.requestBinary(`/v1/snapshots/${encodeURIComponent(id)}/archive`),
   engineRevisions: () =>
     apiClient.request<{ revisions: EngineRevision[] }>('/v1/engines/revisions'),
   engineRevision: (namespace: string, name: string, version: string) =>
     apiClient.request<EngineRevision>(`/v1/engines/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/revisions/${encodeURIComponent(version)}`),
-  /** `GET …/package?format=`: the bytes of a ZIP, JSON or YAML package (the content is for a file, never for the page). */
-  exportPackage: (org: string, project: string, format: PackageFormat = 'zip') =>
-    apiClient.requestBinary(`${root(org, project)}/package?format=${format}`),
-  /**
-   * `POST …/package`: the raw bytes of a ZIP, JSON or YAML package, checked digest by digest by the gateway. Needs MEMBER
-   * and `projects:write`. The answer is untyped in the contract; read it with `packageImportCounts`.
-   */
-  importPackage: (org: string, project: string, file: Blob, format: PackageFormat = 'zip') =>
-    apiClient.request<PackageImportResult>(`${root(org, project)}/package`, {
-      method: 'POST',
-      headers: { 'Content-Type': PACKAGE_CONTENT_TYPES[format] },
-      body: file,
-    }, undefined, true, true),
   studyRuns: (org: string, project: string, study: string) =>
     apiClient.request<StudyRun[]>(`${root(org, project)}/studies/${encodeURIComponent(study)}/runs`),
   studyCells: (org: string, project: string, study: string, run: string) =>

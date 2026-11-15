@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from _problem_helpers import upload_problem
 # ruff: noqa: E402
 
 import sys
@@ -21,10 +22,8 @@ from _pricing import fake_pricing_gate, largest_plan
 from openbinding_gateway import space_client
 from openbinding_gateway.db.models import (
     ApiKey,
-    Blob,
     AuditEvent,
     BindingCase,
-    Organization,
     Project,
     User,
     UserRole,
@@ -121,7 +120,7 @@ async def test_admin_cannot_access_private_organization_or_projects(
 
 
 @pytest.mark.asyncio
-async def test_admin_cannot_download_private_artifacts(
+async def test_admin_cannot_download_private_problem_packages(
     api_client, registration, gate, db_session, tmp_path
 ):
     owner, owner_headers = await create_account(api_client, registration, db_session)
@@ -139,55 +138,16 @@ async def test_admin_cannot_download_private_artifacts(
     )
     assert org_res.status_code == 201
 
-    proj_slug = "confidential-run"
-    proj_res = await api_client.post(
-        f"/v1/organizations/{org_slug}/projects",
-        headers=owner_headers,
-        json={"slug": proj_slug, "name": "Confidential", "visibility": "private"},
-    )
-    assert proj_res.status_code == 201
-
-    org_obj = (
-        await db_session.execute(select(Organization).where(Organization.slug == org_slug))
-    ).scalars().one()
-    proj_obj = (
-        await db_session.execute(
-            select(Project).where(
-                Project.organization_id == org_obj.id, Project.slug == proj_slug
-            )
-        )
-    ).scalars().one()
-
-    fake_digest = "sha256-" + "a" * 64
-    storage_file = tmp_path / "test_artifact.bin"
-    storage_file.write_bytes(b'{"secret": "data"}')
-
-    artifact = Blob(
-        organization_id=org_obj.id,
-        project_id=proj_obj.id,
-        digest=fake_digest,
-        media_type="application/json",
-        size_bytes=18,
-        storage_uri=str(storage_file),
-        public=False,
-        created_by_id=owner_id,
-    )
-    db_session.add(artifact)
-    await db_session.flush()
+    await upload_problem(api_client, owner_headers, org_slug, slug="confidential-run")
+    source = f"/v1/organizations/{org_slug}/problems/confidential-run/revisions/1/source"
 
     # Owner can download
-    owner_get = await api_client.get(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/blobs/{fake_digest}",
-        headers=owner_headers,
-    )
+    owner_get = await api_client.get(source, headers=owner_headers)
     assert owner_get.status_code == 200
-    assert owner_get.content == b'{"secret": "data"}'
+    assert owner_get.content.startswith(b"PK")
 
     # Admin is refused with 403
-    admin_get = await api_client.get(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/blobs/{fake_digest}",
-        headers=admin_headers,
-    )
+    admin_get = await api_client.get(source, headers=admin_headers)
     assert admin_get.status_code == 403
     assert admin_get.json()["detail"]["code"] == "organization_forbidden"
 
@@ -235,13 +195,8 @@ async def test_account_deletion_keeps_authorship_on_the_pseudonymised_account_no
     )
     assert proj_res.status_code == 201
 
-    # Owner1 creates a binding case
-    case_res = await api_client.post(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/cases",
-        headers=owner1_headers,
-        json={"slug": "case-1", "name": "Case 1"},
-    )
-    assert case_res.status_code == 201
+    # Owner1 uploads a problem of the organization
+    await upload_problem(api_client, owner1_headers, org_slug, slug="case-1")
 
     # Owner1 deletes their own account
     del_res = await api_client.request(
@@ -272,7 +227,7 @@ async def test_account_deletion_keeps_authorship_on_the_pseudonymised_account_no
     case = (
         await db_session.execute(
             select(BindingCase).where(
-                BindingCase.project_id == proj.id, BindingCase.slug == "case-1"
+                BindingCase.organization_id == org_id, BindingCase.slug == "case-1"
             )
         )
     ).scalars().one()

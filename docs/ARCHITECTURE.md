@@ -93,7 +93,7 @@ flowchart TB
 | PostgreSQL | operational source of truth | PostgreSQL 16 |
 | Redis | queues, leases, caches (including the SPACE client cache) | Redis 7 |
 | Blob store | content-addressed bytes (packages, uploads, logs, exports) | filesystem volume; S3-compatible later |
-| BIM toolchain | compile, evaluate and re-evaluate BIM, in process in the gateway, the workers and the seed (`bim_client.InProcessBim` behind `BimPort`); not a container of OpenBinding | wheels of a release of `javiercavlop/bim-toolchain` (private; to the SCORELabUS organization when public). Its `bim-service` (HTTP, `BIM_MODE=http`) is a separate deployable of that repository; neither the lab nor the default deployment runs it |
+| BIM toolchain | compile, evaluate and re-evaluate BIM, in process in the gateway, the workers and the seed (`bim_client.InProcessBim` behind `BimPort`); not a container of OpenBinding | wheels of a release of `javiercavlop/bim-toolchain` (private; to the SCORELabUS organization when public). Its `bim-service` (HTTP) is a separate deployable of that repository; the gateway has no setting to use it |
 | Engines | solvers behind `bim-engine/v1`; built-in ones run beside the gateway, federated ones anywhere | Node/TypeScript (MiniZinc), Java |
 
 Every container is a Docker Compose service (§12), except SPACE, which is remote (`space.score.us.es`). The lab only
@@ -107,15 +107,14 @@ has the one-shot `pricing-bootstrap`, a separate compose project that prepares t
 |---|---|---|---|
 | `identity` | accounts, sessions, passwords, API keys, external identities (CAS) | `IdentityProvider` (CAS), `Mailer` | `routes/auth.py`, `routes/users.py`, `routes/cas.py`, `cas.py`, `security/*` |
 | `collaboration` | organizations (nested), projects, memberships, roles, invitations, audit, notifications, public read | — | `collaboration.py`, `routes/organizations.py` (org/project/member parts), `repositories/organizations.py`, `access/public_read.py` |
-| `repository` | problems and versions, package import and export, blobs, permanent links of problems, problem metrics, and the versioned-artifact store as internal storage of sealed parts (resources of problem versions, study definitions, execution configurations) | `BimPort`, `BlobStore` | case/blob routes, `services/snapshots.py`, `services/instances.py`, `artifacts.py`; the library as a catalogue (`routes/library.py`, the library and project-resource parts of `routes/artifacts.py`) retires (§4.3) |
-| `language` | profiles, dialects, adapters, schemas, examples, compilation | `BimPort` | `integrations/bim*.py`, `services/discovery.py`, the profile and dialect lists |
+| `problems` | problems of an organization, their sealed revisions (the uploaded `.bim.zip` and its digests) and compilations (one per revision and toolchain, insert-only), the stateless BIM services (`/v1/bim/validate`, `/v1/bim/templates`) | `BimPort`, `BlobStore` | `modules/problems` (domain, application, adapters; F0b); `integrations/bim*.py`, the engine protocol document in `services/engines.py`; `artifacts.py` and the library (`routes/library.py`) retire (§4.3) |
 | `engines` | engine revisions, modes and manifests, federated deployments, conformance, capability matching | `EngineTransport` | `services/engines.py`, `services/engine_registry.py`, `services/probe.py`, `v1/remote.py` |
 | `execution` | runs: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood | `EngineTransport`, `BimPort`, `PlanPort` | `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py`, job routes |
 | `laboratory` | studies, study runs, cells, protocol metrics, trade-offs across engines | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py`; the generator moved to QACOForge; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
-| `publishing` | published results (a frozen study run), citations, Zenodo-ready export | application APIs of `repository` and `laboratory` | none: the reports, their publications and Explore were removed in F0a |
+| `publishing` | published results (a frozen study run), citations, Zenodo-ready export | application APIs of `problems` and `laboratory` | none: the reports, their publications and Explore were removed in F0a |
 | `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH through CAS) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `modules/plans` (entitlement map, per-account quotas, the package copy of the pricing; F0b); `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`. Local metering and billing sponsorship were removed in F0b |
 | `administration` | users, queues and engine health, storage and retention, audit, moderation of public content | application APIs of the other modules | `routes/admin.py`, `telemetry.py` |
-| `shared` (kernel) | settings, logging, problem+json errors, pagination, digests, clock, ids, mail | — | `core/*`, `mailer.py`, `security/bodylimit.py` |
+| `shared` (kernel) | settings, logging, problem+json errors, pagination, digests, clock, ids, mail, content-addressed blobs | — | `modules/shared` (blobs; F0b), `core/*`, `mailer.py`, `security/bodylimit.py` |
 
 ### 4.2 Layout and dependency rules
 
@@ -171,8 +170,8 @@ openbinding-gateway/src/openbinding_gateway/
    (§4.2); the blocking CI step is pending.
 2. New capabilities land directly in modules: `plans` (M4) and the language registry (M5) are the first.
 3. Move existing code one module per `refactor/<id>` change, behind characterization tests, keeping
-   `docs/openapi.json` byte-identical. Order: plans → language → engines → execution → laboratory → publishing →
-   repository → collaboration → identity → administration.
+   `docs/openapi.json` byte-identical. Order: plans → problems → engines → execution → laboratory → publishing →
+   collaboration → identity → administration.
 4. Each move deletes the old path, shrinks `ALLOWED_LEGACY`, `GATE_LIFECYCLE_LEGACY` and `MAX_LINES`, and ends
    with `routes/v1.py` and `main.py` reduced to composition.
 
@@ -286,8 +285,9 @@ classDiagram
   Account "1" --> "1" Plan : SPACE contract
 ```
 
-Mapping to `v1` names: Problem = `BindingCase`, ProblemVersion = case revision, CompiledForm = snapshot (`InstanceSnapshot`
-and its IR), Run = `Job`, Result = job result plus re-evaluation, PublishedResult = a simplified `publications`
+Mapping to `v1` names: Problem = `BindingCase` (owned by an organization), ProblemVersion = `BindingCaseRevision` (the
+uploaded package and its digests), CompiledForm = `ProblemCompilation` (its IR, per toolchain), Run = `Job` (it names a
+revision and its compilation and never copies the IR), Result = job result plus re-evaluation, PublishedResult = a simplified `publications`
 record (no report, no editions). A problem version's resources are sealed parts in the internal versioned-artifact
 store, addressed by digest; there is no component catalogue. Every sealed entity has a content digest
 that the API returns and Verify checks;
@@ -301,19 +301,19 @@ slugs.
 ```mermaid
 sequenceDiagram
   actor U as Researcher
-  participant W as Web (problem editor)
-  participant G as Gateway (repository, language)
+  participant W as Web (Workbench)
+  participant G as Gateway (problems)
   participant B as BIM toolchain
   U->>W: edit resources or upload a package
-  W->>G: POST /v1/language/compile (package)
+  W->>G: POST /v1/bim/validate (package)
   G->>B: resolve contracts, lower dialects, compile profile chain
   B-->>G: IR, diagnostics, digests
   G-->>W: diagnostics, summary metrics, compatible engine modes
-  U->>W: save as a new version
-  W->>G: POST .../problems/{p}/versions
+  U->>W: save as a new revision
+  W->>G: POST /v1/organizations/{org}/problems/{p}/revisions (package)
   G->>B: compile (exact contracts)
-  G->>G: seal version and compiled form, compute problem metrics
-  G-->>W: sealed version (number, digest), metrics, permanent link
+  G->>G: seal the revision and its compilation
+  G-->>W: sealed revision (number, package digest), compilation
 ```
 
 ### 7.2 Run a problem
@@ -325,7 +325,7 @@ sequenceDiagram
   participant P as Plans (SPACE)
   participant Q as Worker
   participant E as Engine
-  U->>G: POST /v1/jobs (version, engine mode, configuration)
+  U->>G: POST /v1/jobs (revision, engine mode, options)
   G->>G: capability check (profile chain, IR features)
   alt not covered
     G-->>U: INCOMPATIBLE with the missing capabilities
@@ -415,9 +415,11 @@ resources and takes no submissions: what it compiles is what the installed `bim-
 | `GET /v1/language/schemas/{kind}` | schemas (download) |
 | `POST /v1/language/compile` | compile a package or an exact problem version: diagnostics, summary metrics, compatible engine modes |
 
-Today the gateway serves `GET /v1/profiles` and `GET /v1/dialects` (the installed contracts, read by the home page
-and the engine registration form), `/v1/examples` and `/v1/validate`, without `Deprecation` or `Sunset` headers (the
-deprecation middleware was removed in M9.6). The registry routes (`POST /v1/dialects`, `/v1/resources`, their
+Today the gateway serves `GET /v1/engines/protocol` (the installed Profiles with the engine protocol digest, read by
+the engine registration form), `GET /v1/bim/templates` and `POST /v1/bim/validate` (the Workbench validates there and
+saves through the problems API, `POST /v1/organizations/{org}/problems` and `…/revisions`). `GET /v1/profiles`,
+`GET /v1/dialects`, `/v1/examples`, `/v1/validate`, `/v1/instances` and `/v1/snapshots` were removed in F0b, with
+no deprecation period. The registry routes (`POST /v1/dialects`, `/v1/resources`, their
 approvals), `/v1/schemas/{kind}`, `/v1/catalog` and the deprecated pricing YAML proxy `GET /v1/pricing` were removed in
 F0a.
 

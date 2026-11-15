@@ -13,15 +13,12 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from _repo import REPO_ROOT
+from _problem_helpers import problem_for
 
 from openbinding_gateway import study_jobs
 from openbinding_gateway.db.models import Job, User
 from openbinding_gateway.routes import v1 as routes
-from openbinding_gateway.services.snapshots import compile_resolved, persist_snapshot
-from bim_core.package import load_package
 
-EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
 
 
@@ -37,14 +34,11 @@ async def test_concurrent_requests_with_one_key_create_one_job(two_sessions, mon
     user = User(username="pg-idem", email="pg-idem@example.org", password_hash="x", plan_cache="free")
     first.add(user)
     await first.commit()
-    compilation = await compile_resolved(load_package(EXAMPLE).to_zip(), first, user)
-    snapshot_id = await persist_snapshot(compilation, user, first)
-    await first.commit()
-    assert snapshot_id
+    revision_id = str((await problem_for(first, user)).revision.id)
 
     factory = async_sessionmaker(first.bind, expire_on_commit=False)
     payload = {
-        "snapshot": snapshot_id,
+        "revision": revision_id,
         "engine": "random-search",
         "mode": "seeded",
         "optimization": OPTIMIZATION,

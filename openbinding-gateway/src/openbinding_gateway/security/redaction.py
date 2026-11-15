@@ -12,10 +12,9 @@ credential, and its value is a short scalar. A federated engine may declare any
 option it likes - including one a user fills with a secret - so its names are
 not trusted by being in its own schema.
 
-``original_request`` is reduced to the problem document and the pinned
-execution choices, and everything else - in particular anything under an
-``auth`` key - is dropped. The IR itself is the compiled problem and is not
-rewritten. The ``error`` of a failed job is a fixed sentence of the catalog in
+``original_request`` is reduced to the pinned execution choices, and
+everything else - in particular anything under an ``auth`` key - is dropped.
+The IR is not part of a run: it is the compilation the run names. The ``error`` of a failed job is a fixed sentence of the catalog in
 ``core.public_errors`` (older rows hold the text of the exception that stopped
 the job, which can name a private endpoint), so a redacted view replaces it
 with a fixed sentence (and the category, when the result has a code).
@@ -23,7 +22,6 @@ with a fixed sentence (and the category, when the result has a code).
 
 from __future__ import annotations
 
-import copy
 import json
 import re
 from functools import lru_cache
@@ -74,7 +72,7 @@ _MAX_OPTION_STRING = 128
 _REFERENCE_KEYS = ("namespace", "name", "version", "digest")
 
 #: Top-level keys of ``original_request`` a VIEWER may see.
-_REQUEST_KEYS = ("bindingProblem", "timeout", "mode", "optimization", "registration")
+_REQUEST_KEYS = ("timeout", "mode", "optimization", "registration")
 
 
 @lru_cache(maxsize=4)
@@ -144,16 +142,14 @@ def _reference(value: Any) -> Any:
 
 
 def redact_original_request(request: Optional[Mapping[str, Any]]) -> Optional[dict[str, Any]]:
-    """The problem document and the pinned execution choices, nothing else."""
+    """The pinned execution choices, nothing else."""
     if request is None:
         return None
     redacted: dict[str, Any] = {}
     for key in _REQUEST_KEYS:
         if key not in request:
             continue
-        if key == "bindingProblem":
-            redacted[key] = copy.deepcopy(request[key])
-        elif key == "registration":
+        if key == "registration":
             redacted[key] = _reference(request[key])
         else:
             redacted[key] = scrub(request[key])

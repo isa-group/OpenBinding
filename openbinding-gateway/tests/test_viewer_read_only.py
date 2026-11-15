@@ -1,10 +1,10 @@
 """VIEWER is a read role: it reads authorized results and never launches, repeats, cancels or deletes work.
 
-A security review found that ``POST /v1/jobs`` accepted a VIEWER on a snapshot shared with
+A security review found that ``POST /v1/jobs`` accepted a VIEWER on a package shared with
 the organization. Starting, repeating, cancelling or deleting work needs MEMBER (deleting a study, ADMIN) in
-the organization that owns it; reading needs VIEWER, with the redaction a VIEWER already has. Work with no
-organization (a user's own upload or snapshot) is personal and needs no role. An API key inherits the role
-of its user and adds its permissions; neither widens the other.
+the organization that owns it; reading needs VIEWER, with the redaction a VIEWER already has. Every run
+belongs to the organization of its problem. An API key inherits the role of its user and adds its
+permissions; neither widens the other.
 """
 
 from __future__ import annotations
@@ -16,12 +16,13 @@ import pytest
 from sqlalchemy import func, select
 
 from _b1_helpers import gate, make_account, make_key, make_org, put_member  # noqa: F401
+from _problem_helpers import upload_problem
 from _repo import REPO_ROOT
 from bim_core.package import load_package
 from openbinding_gateway.db.models import (
-    InstanceSnapshot,
     Job,
     JobState,
+    ProblemCompilation,
     Study,
     StudyRun,
 )
@@ -48,15 +49,16 @@ class Person:
 
 @dataclass
 class Lab:
-    """One organization with a project, a snapshot shared through a case, and one person of each role.
+    """One organization with a project, a problem, and one person of each role.
 
-    The snapshot belongs to ``author`` (a MEMBER), so every role reaches it only through the organization.
+    The problem was uploaded by ``author`` (a MEMBER), so every role reaches it only through the organization.
     """
 
     slug: str
     org_id: uuid.UUID
     project_id: uuid.UUID
     snapshot: str
+    compilation_id: uuid.UUID
     definition: dict
     owner_headers: dict[str, str]
     people: dict[str, Person]
@@ -76,8 +78,8 @@ def code_of(response) -> str | None:
     return body.get("code") or body.get("title") or (detail.get("code") if isinstance(detail, dict) else None)
 
 
-def job_body(snapshot: str, **extra) -> dict:
-    return {"snapshot": snapshot, "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION, **extra}
+def job_body(revision: str, **extra) -> dict:
+    return {"revision": revision, "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION, **extra}
 
 
 def study_body(lab: Lab, slug: str) -> dict:
@@ -89,7 +91,8 @@ def organization_job(lab: Lab, person: Person, state: JobState) -> Job:
     return Job(
         owner_id=person.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
         service_url="http://engine", state=state, organization_id=lab.org_id, project_id=lab.project_id,
-        options=dict(SENSITIVE_OPTIONS), original_request={"bindingProblem": PROBLEM}, provenance=dict(PROVENANCE),
+        revision_id=uuid.UUID(lab.snapshot), compilation_id=lab.compilation_id,
+        options=dict(SENSITIVE_OPTIONS), original_request={}, provenance=dict(PROVENANCE),
         result={"termination": "UNKNOWN", "solutions": [], "error": PRIVATE_ERROR, "provenance": {}} if failed else None,
     )
 
@@ -97,7 +100,7 @@ def organization_job(lab: Lab, person: Person, state: JobState) -> Job:
 async def counts(db_session) -> dict[str, int]:
     return {
         model.__name__: (await db_session.execute(select(func.count()).select_from(model))).scalar_one()
-        for model in (Job, InstanceSnapshot, Study, StudyRun)
+        for model in (Job, ProblemCompilation, Study, StudyRun)
     }
 
 
@@ -130,26 +133,20 @@ async def lab(api_client, registration, db_session, gate, no_dispatch):  # noqa:
         base, headers=owner_headers, json={"slug": "p", "name": "P", "description": "d", "visibility": "private"}
     )
     assert project.status_code == 201, project.text
-    package = load_package(EXAMPLE)
-    snapshot = await api_client.post(
-        "/v1/instances", headers={**author.headers, "Content-Type": "application/vnd.bim+zip"}, content=package.to_zip()
+    uploaded = await upload_problem(api_client, author.headers, slug, slug="c")
+    compilation = await db_session.scalar(
+        select(ProblemCompilation).where(ProblemCompilation.revision_id == uuid.UUID(uploaded["revision_id"]))
     )
-    assert snapshot.status_code == 201, snapshot.text
-    assert (await api_client.post(f"{base}/p/cases", headers=author.headers, json={"slug": "c", "name": "C"})).status_code == 201
-    revision = await api_client.post(
-        f"{base}/p/cases/c/revisions", headers=author.headers,
-        json={"document": package.instance(), "source_snapshot_id": snapshot.json()["id"]},
-    )
-    assert revision.status_code == 201, revision.text
     reference = engine_ref(v1_routes._manifest("random-search"), "bim.builtin")
     definition = {
-        "case_revision_ids": [revision.json()["id"]],
+        "case_revision_ids": [uploaded["revision_id"]],
         "engines": [{**reference, "mode": "seeded", "optimization": OPTIMIZATION}],
         "parameter_sets": [{"iterations": 100}], "seeds": [1],
     }
     built = Lab(
         slug=slug, org_id=uuid.UUID(organization["id"]), project_id=uuid.UUID(project.json()["id"]),
-        snapshot=snapshot.json()["id"], definition=definition, owner_headers=owner_headers, people=people,
+        snapshot=uploaded["revision_id"], compilation_id=compilation.id,
+        definition=definition, owner_headers=owner_headers, people=people,
         outsider=Person(uuid.UUID(outsider_account["id"]), outsider_headers),
     )
     for slug_ in ("s", *(f"doomed-{role.lower()}" for role in ROLES)):
@@ -262,18 +259,13 @@ async def test_a_member_still_reads_the_complete_job(api_client, lab):
 @pytest.fixture
 def compile_spy(monkeypatch):
     calls: list[str] = []
-    real_ir, real_compile = job_submission.snapshot_ir, job_submission.compile_resolved
-
-    async def ir(*args, **kwargs):
-        calls.append("snapshot_ir")
-        return await real_ir(*args, **kwargs)
+    real = job_submission.compile_or_get
 
     async def compiled(*args, **kwargs):
-        calls.append("compile_resolved")
-        return await real_compile(*args, **kwargs)
+        calls.append("compile_or_get")
+        return await real(*args, **kwargs)
 
-    monkeypatch.setattr(job_submission, "snapshot_ir", ir)
-    monkeypatch.setattr(job_submission, "compile_resolved", compiled)
+    monkeypatch.setattr(job_submission, "compile_or_get", compiled)
     return calls
 
 
@@ -290,7 +282,7 @@ async def test_a_denied_viewer_launch_is_refused_before_compiling_and_leaves_no_
     assert denied.status_code == 403, denied.text
     assert code_of(denied) == "insufficient_role"
     assert denied.headers["content-type"].startswith("application/problem+json")
-    assert compile_spy == [], "the role is checked before the snapshot is read or compiled"
+    assert compile_spy == [], "the role is checked before the compilation is read"
     assert await counts(db_session) == before
     held = await db_session.scalar(select(func.count()).select_from(Job).where(Job.idempotency_key == "viewer-key"))
     assert held == 0, "a denied launch reserves no idempotency key"
@@ -309,7 +301,7 @@ async def test_the_key_a_denied_viewer_sent_is_still_free_once_the_role_allows_t
     assert promoted.status_code == 200, promoted.text
     assert launched.status_code == 202, launched.text
     assert "idempotent" not in launched.json()
-    assert compile_spy, "the spy is wired: a permitted launch does read the snapshot"
+    assert compile_spy, "the spy is wired: a permitted launch does read the compilation"
 
 
 async def test_every_denied_action_of_a_viewer_changes_nothing(api_client, db_session, lab):
@@ -328,22 +320,18 @@ async def test_every_denied_action_of_a_viewer_changes_nothing(api_client, db_se
 # -- What stays allowed -------------------------------------------------------
 
 
-async def test_a_viewer_keeps_the_personal_jobs_that_belong_to_no_organization(api_client, db_session, lab):
+async def test_a_viewer_here_runs_the_problems_of_an_organization_of_their_own(api_client, db_session, lab):
     viewer = lab.people["VIEWER"]
     # The seeded queued job would count against the plan's concurrency limit, which is not the subject here.
     (await db_session.get(Job, lab.queued["VIEWER"])).state = JobState.CANCELLED
     await db_session.flush()
-    own = await api_client.post(
-        "/v1/instances", headers={**viewer.headers, "Content-Type": "application/vnd.bim+zip"},
-        content=load_package(EXAMPLE).to_zip(),
-    )
-    assert own.status_code == 201, own.text
+    own = await upload_problem(api_client, viewer.headers)
 
-    from_snapshot = await api_client.post("/v1/jobs", headers=viewer.headers, json=job_body(own.json()["id"]))
+    launched = await api_client.post("/v1/jobs", headers=viewer.headers, json=job_body(own["revision_id"]))
 
-    assert from_snapshot.status_code == 202, from_snapshot.text
-    personal = (await db_session.scalars(select(Job).where(Job.owner_id == viewer.id, Job.organization_id.is_(None)))).all()
-    assert len(personal) == 1
+    assert launched.status_code == 202, launched.text
+    job = await db_session.get(Job, uuid.UUID(launched.json()["id"]))
+    assert str(job.organization_id) == own["problem"]["organization_id"] != str(lab.org_id)
 
 
 async def upload_outcomes(client, headers) -> list[tuple[int, str | None]]:
@@ -358,8 +346,8 @@ async def upload_outcomes(client, headers) -> list[tuple[int, str | None]]:
 
 
 async def test_an_upload_is_not_a_role_decision_a_viewer_gets_what_a_member_gets(api_client, lab):
-    # An upload is the user's own package: there is no organization to hold a role in. Whatever the
-    # route answers to it (its own validation included), it is the same for both and never ``insufficient_role``.
+    # A job runs a stored revision; a package sent to POST /v1/jobs is refused before any role is looked at,
+    # the same for both and never ``insufficient_role``.
     as_viewer = await upload_outcomes(api_client, lab.people["VIEWER"].headers)
     as_member = await upload_outcomes(api_client, lab.people["MEMBER"].headers)
 
@@ -370,7 +358,7 @@ async def test_an_upload_is_not_a_role_decision_a_viewer_gets_what_a_member_gets
 # -- Another organization -----------------------------------------------------
 
 
-async def test_a_user_of_another_organization_gets_the_same_404_as_for_a_missing_snapshot(
+async def test_a_user_of_another_organization_gets_the_same_404_as_for_a_missing_revision(
     api_client, db_session, lab, compile_spy
 ):
     before = await counts(db_session)
@@ -407,7 +395,7 @@ async def test_a_user_of_another_organization_cannot_touch_the_work_of_this_one(
 # -- API keys: the role of the user and the scopes of the key -----------------
 
 
-READ_SCOPES = ["jobs:read", "instances:read", "projects:read", "studies:read"]
+READ_SCOPES = ["jobs:read", "problems:read", "projects:read", "studies:read"]
 EXECUTE_SCOPES = [*READ_SCOPES, "engines:execute", "studies:write"]
 
 

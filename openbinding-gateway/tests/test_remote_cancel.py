@@ -37,7 +37,7 @@ from analysis_b3_b4_b6._helpers import (
     PER_ATTEMPT_CANCELLATION,
     a_job,
     a_registration,
-    account_with_snapshot,
+    account_with_revision,
     answer,
     lose_the_worker,
     only_job,
@@ -580,9 +580,9 @@ async def test_the_three_paths_of_the_worker_cancel_only_when_the_capability_is_
         capability = CancellationCapability(declared=True, supported=True, id_scope=ATTEMPT_ID_SCOPE)
         monkeypatch.setattr(execution, "registration_cancellation", lambda _registration: capability)
     monkeypatch.setattr(execution, "solve_remote", an_engine_that_fails(db_session, scenario))
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
+    headers, revision_id = await account_with_revision(api_client, registration)
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     assert engine_http.deleted == (["engine-job-X"] if declared else [])

@@ -1,7 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { unzipPackage } from '../../utils/bimZip';
-import { project } from '../../features/workspace/testKit';
 import { DEFAULT_FILES } from './bimDocuments';
 import { ROOT, analysis, openWorkbench } from './workbenchTestKit';
 
@@ -13,15 +12,11 @@ import { ROOT, analysis, openWorkbench } from './workbenchTestKit';
 // Application, a penalty for a soft rule, a scale for criteria in different units); `test_b7_form_flows.py` compiles it and refuses the
 // same package without each of those parts.
 
-const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), caseRevisions: vi.fn(), snapshotArchive: vi.fn() }));
-const client = vi.hoisted(() => ({
-  getBimExamples: vi.fn(), getBimExamplePackage: vi.fn(), getOwnUsage: vi.fn(), getPricingCatalog: vi.fn(),
-}));
-const workbench = vi.hoisted(() => ({ validate: vi.fn(), snapshot: vi.fn(), ir: vi.fn(), saveRevision: vi.fn() }));
+const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), source: vi.fn(), create: vi.fn(), createRevision: vi.fn() }));
+const workbench = vi.hoisted(() => ({ validate: vi.fn(), templates: vi.fn(), template: vi.fn() }));
 
-vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
-vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
-vi.mock('../../api/workbench', () => ({ workbenchApi: workbench }));
+vi.mock('../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../api/bim', () => ({ bimApi: workbench }));
 vi.mock('../../components/CodeEditor/CodeEditor', () => ({
   CodeEditor: ({ value, onChange, ariaLabel, readOnly }: { value: string; onChange: (value: string) => void; ariaLabel: string; readOnly?: boolean }) => (
     <textarea aria-label={ariaLabel} value={value} readOnly={readOnly} onChange={(event) => onChange(event.target.value)} />
@@ -59,12 +54,9 @@ describe('Workbench · the package it writes is the package the compiler is test
   beforeEach(() => {
     localStorage.clear();
     vi.resetAllMocks();
-    platform.project.mockResolvedValue(project('qos-benchmarks', { name: 'QoS Benchmarks' }));
-    platform.cases.mockResolvedValue([]);
-    platform.caseRevisions.mockResolvedValue([]);
-    client.getBimExamples.mockResolvedValue([]);
-    client.getOwnUsage.mockResolvedValue({ plan: 'RESEARCH', capabilities: {}, features: {}, contract_pending: false });
-    client.getPricingCatalog.mockResolvedValue(null);
+    problems.list.mockResolvedValue({ problems: [], total: 0, limit: 200, offset: 0 });
+    problems.revisions.mockResolvedValue([]);
+    workbench.templates.mockResolvedValue([]);
     workbench.validate.mockResolvedValue(analysis());
   });
 

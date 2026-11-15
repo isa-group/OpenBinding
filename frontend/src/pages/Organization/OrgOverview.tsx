@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { platformApi } from '../../api/platform';
+import { problemsApi } from '../../api/problems';
+import { problemPath, problemsPath } from '../../routes/paths/problems';
 import type { Organization, Project } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
@@ -31,6 +33,36 @@ function ProjectCard({ organization, project }: { organization: Organization; pr
         {project.updated_at !== project.created_at && <span>Updated {formatDate(project.updated_at) ?? '—'}</span>}
       </span>
     </Link>
+  );
+}
+
+/** How many problems the overview lists; the rest are one click away. */
+const PROBLEMS_SHOWN = 5;
+
+/** The organization's newest problems and the way to all of them. */
+function ProblemsPanel({ slug, canCreate }: { slug: string; canCreate: boolean }) {
+  const problems = useResource(`org-problems:${slug}`, () => problemsApi.list(slug, { limit: PROBLEMS_SHOWN }));
+  const failure = problems.status === 'error' ? classifyAuthError(problems.error) : null;
+  const rows = problems.data?.problems ?? [];
+  return (
+    <section className="org-card" aria-labelledby="org-problems-title" aria-busy={problems.status === 'loading'}>
+      <div className="org-card-head">
+        <h2 id="org-problems-title">Problems{problems.data && <span className="org-count">{problems.data.total}</span>}</h2>
+        {canCreate && <Link to={`${problemsPath(slug)}?create=problem`} viewTransition>+ Upload</Link>}
+      </div>
+      {problems.status === 'loading' && <Skeleton variant="tile" />}
+      {failure && <span className="org-muted">Problems couldn’t be loaded{marker(failure)}.</span>}
+      {problems.status === 'ready' && rows.length === 0 && <span className="org-muted">None yet. A problem is a BIM package the organization runs and compares.</span>}
+      {rows.map((item) => (
+        <Link key={item.id} to={problemPath(slug, item.slug)} viewTransition className="org-sub">
+          <span>
+            <strong>{item.name}</strong>
+            <small>{item.latest_revision ? `version ${item.latest_revision.revision} · ${formatDate(item.latest_revision.created_at) ?? '—'}` : 'no version yet'}</small>
+          </span>
+        </Link>
+      ))}
+      <Link to={problemsPath(slug)} viewTransition>All problems</Link>
+    </section>
   );
 }
 
@@ -144,6 +176,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
         </section>
 
         <aside className="org-aside">
+          <ProblemsPanel slug={slug} canCreate={canCreate} />
           <section className="org-card" aria-labelledby="org-subs-title">
             <div className="org-card-head">
               <h2 id="org-subs-title">Sub-organizations</h2>
@@ -168,7 +201,7 @@ function OrgOverviewBody({ organization }: { organization: Organization }) {
   );
 }
 
-/** An organization (`org-overview`, `/app/:org`): its projects and sub-organizations. */
+/** An organization (`org-overview`, `/app/:org`): its projects, its problems and its sub-organizations. */
 export function OrgOverview() {
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <div className="org-page"><PageSkeleton /></div>;

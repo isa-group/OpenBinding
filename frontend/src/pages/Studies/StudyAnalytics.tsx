@@ -100,7 +100,7 @@ export function RunResults({ scope, runId }: { scope: StudyScopeValue; runId: st
   const slug = project.slug;
   const studyPath = `${root}/studies/${encodeURIComponent(study.slug)}`;
   const cellHref = (cellId: string) => studyPageHref(studyPath, 'results', { run: runId, cell: cellId });
-  const { index } = useRevisionIndex(org, slug);
+  const { index } = useRevisionIndex(org);
   const analytics = useResource(`analytics:${runId}`, () => platformApi.analytics(org, slug, study.slug, runId));
   const loaded = useResource(`analytics-run:${study.id}/${runId}`, () => loadRun(org, slug, study.slug, runId));
   const [engine, setEngine] = useState('');

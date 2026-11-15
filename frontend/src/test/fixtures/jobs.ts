@@ -1,4 +1,4 @@
-import type { JobDetail, JobInstanceView, JobReport } from '../../api/jobs';
+import type { JobDetail, JobReport } from '../../api/jobs';
 import type { Job } from '../../api/platform';
 
 /** Shared by the tests of the job screens and by the browser spec that mocks the same API. */
@@ -120,25 +120,25 @@ export const PROBLEM = {
   },
 };
 
+/** What the runs of the fixtures are of: version 2 of the checkout problem of `isa-demo`, and its compilation. */
+export const RUN_REFS = {
+  organization: { id: 'org-isa-demo', slug: 'isa-demo' },
+  problem: { id: 'case-checkout-flow', slug: 'checkout-flow', name: 'Checkout flow' },
+  revision: { id: 'rev-checkout-2', revision: 2 },
+  compilation: { id: 'compilation-2', compilation_digest: digestOf('9'), ir_digest: digestOf('c') },
+} as const;
+
 export function detailOf(id: string, status: string, over: Partial<JobDetail> = {}): JobDetail {
   const finished = status === 'completed' || status === 'failed';
   return {
     id,
     status,
+    ...RUN_REFS,
     provenance: provenanceOf(),
     result: status === 'completed' ? RESULT : finished ? { error: 'The deployment didn’t answer within the budget (engine unreachable).' } : null,
     ...over,
   };
 }
-
-export const INSTANCE: JobInstanceView = {
-  id: 'snapshot-2',
-  instanceDigest: digestOf('d'),
-  packageDigest: digestOf('e'),
-  fileDigests: { 'instance.json': digestOf('f') },
-  resourceDigests: {},
-  instance: { apiVersion: 'bim/v1', kind: 'Instance' },
-};
 
 export const REPORT: JobReport = {
   id: 'job-1',

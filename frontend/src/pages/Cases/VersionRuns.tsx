@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Play } from 'lucide-react';
 import { jobsApi } from '../../api/jobs';
-import { platformApi, type Job, type Organization, type Project } from '../../api/platform';
+import type { Job, Organization } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { DataTable } from '../../components/ui/DataTable';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -12,38 +12,25 @@ import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { StatusChip } from '../Jobs/parts';
 import { classifyAuthError, marker } from './caseErrors';
-import type { RouteCaseContent } from './useRouteCase';
+import type { RouteProblemContent } from './useRouteProblem';
 
-/** How many of the project's newest runs are matched against the problem; each match asks the gateway for the run's compiled snapshot. */
-const RUNS_READ = 30;
-
-interface ProblemRun {
-  job: Job;
-  revision: number;
-}
-
-/** The Runs tab of the problem page: the runs that started from a revision of this problem, newest first, each linking to its page. */
-export function VersionRuns({ organization, project, content, canCreate }: {
-  organization: Organization; project: Project; content: RouteCaseContent; canCreate: boolean;
+/** The Runs tab of the problem page: your runs of a revision of this problem, newest first, each linking to its page. */
+export function VersionRuns({ organization, content, runHref, canCreate }: {
+  organization: Organization; content: RouteProblemContent; runHref: string | null; canCreate: boolean;
 }) {
   const { item, revisions } = content;
-  const root = `/app/${organization.slug}/${project.slug}`;
-  const runs = useResource<ProblemRun[]>(`problem-runs:${organization.slug}/${project.slug}/${item.slug}:${revisions.map((revision) => revision.id).join(',')}`, async () => {
-    const byInstance = new Map(revisions.flatMap((revision) => (revision.source_snapshot_id ? [[revision.source_snapshot_id, revision.revision] as const] : [])));
-    if (byInstance.size === 0) return [];
-    const newest = [...await platformApi.projectJobs(organization.slug, project.slug)]
-      .sort((a, b) => b.created_at.localeCompare(a.created_at))
-      .slice(0, RUNS_READ);
-    // A run names no problem: its compiled snapshot does, when the account may read it.
-    const found = await Promise.all(newest.map(async (job) => {
-      const instance = await jobsApi.instance(job.id).catch(() => null);
-      const revision = instance ? byInstance.get(instance.id) : undefined;
-      return revision === undefined ? null : { job, revision };
-    }));
-    return found.filter((row): row is ProblemRun => row !== null);
+  const org = organization.slug;
+  const versionOf = new Map(revisions.map((revision) => [revision.id, revision.revision]));
+  const runs = useResource<Job[]>(`problem-runs:${org}/${item.slug}:${revisions.map((revision) => revision.id).join(',')}`, async () => {
+    // A run names the revision it ran, so the account's runs are filtered by the problem's revisions: no lookup per run.
+    const mine = await jobsApi.mine();
+    return mine
+      .filter((job) => (job.revision ? versionOf.has(job.revision.id) : false))
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
   });
   const data = runs.data ?? runs.stale;
   const failure = runs.status === 'error' ? classifyAuthError(runs.error) : null;
+  const runRoot = runHref ? runHref.slice(0, runHref.indexOf('/runs/new')) : null;
 
   return (
     <section className="org-section" aria-labelledby="pr-runs">
@@ -59,9 +46,9 @@ export function VersionRuns({ organization, project, content, canCreate }: {
           icon={<Play />}
           title="No runs of this problem yet"
           dashed
-          action={canCreate ? <Action to={`${root}/runs/new?case=${encodeURIComponent(item.slug)}`} variant="primary">Start a run</Action> : undefined}
+          action={canCreate && runHref ? <Action to={runHref} variant="primary">Start a run</Action> : undefined}
         >
-          Runs you can open that started from a version of {item.name} are listed here.
+          Your runs of a version of {item.name} are listed here.
         </EmptyState>
       )}
       {data && data.length > 0 && (
@@ -76,19 +63,22 @@ export function VersionRuns({ organization, project, content, canCreate }: {
             </tr>
           </thead>
           <tbody>
-            {data.map(({ job, revision }, index) => (
-              <tr key={job.id}>
-                <td><Link to={`${root}/runs/${encodeURIComponent(job.id)}`} viewTransition>Run {data.length - index}</Link></td>
-                <td><Link to={problemPath(root, item.slug, undefined, { version: revision })} viewTransition>Version {revision}</Link></td>
-                <td>{job.engine_id}</td>
-                <td><StatusChip status={job.status} termination={job.termination} /></td>
-                <td>{formatDateTime(job.created_at) ?? '—'}</td>
-              </tr>
-            ))}
+            {data.map((job, index) => {
+              const revision = job.revision ? versionOf.get(job.revision.id) : undefined;
+              const label = `Run ${data.length - index}`;
+              return (
+                <tr key={job.id}>
+                  <td>{runRoot ? <Link to={`${runRoot}/runs/${encodeURIComponent(job.id)}`} viewTransition>{label}</Link> : label}</td>
+                  <td>{revision !== undefined ? <Link to={problemPath(org, item.slug, undefined, { version: revision })} viewTransition>Version {revision}</Link> : '—'}</td>
+                  <td>{job.engine_id}</td>
+                  <td><StatusChip status={job.status} termination={job.termination} /></td>
+                  <td>{formatDateTime(job.created_at) ?? '—'}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </DataTable>
       )}
-      {data && <p className="org-muted">Only the {RUNS_READ} newest runs of the project are checked, and a run you can’t open isn’t listed.</p>}
     </section>
   );
 }

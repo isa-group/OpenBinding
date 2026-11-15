@@ -68,20 +68,22 @@ describe('buildCommands', () => {
       ['Home', '/app'], ['Engines', '/engines'], ['Pricing', '/pricing'],
     ]);
     expect(commands.filter((command) => ['Jobs', 'Verify', 'Verifier', 'Engine catalog', 'My engines', 'Workbench'].includes(command.label))).toEqual([]);
-    expect(commands.filter((command) => command.label === 'Problems').map((command) => command.href)).toEqual(['/app/isa-demo/qos-benchmarks/problems']);
+    expect(commands.filter((command) => command.label === 'Problems').map((command) => command.href)).toEqual(['/app/isa-demo/problems']);
   });
 
-  it('offers New problem, study and run in the current project, and none without one', () => {
+  it('offers New problem in the organization, New study and run in the current project, and none without them', () => {
     const inProject = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: false });
+    const inOrganization = buildCommands({ organizations: [organization], organization, isAdmin: false });
     const without = buildCommands({ organizations: [organization], isAdmin: false });
     const created = (commands: typeof inProject) => commands
       .filter((command) => /^New (problem|collection|study|run)$/.test(command.label)).map((command) => [command.label, command.href]);
 
     expect(created(inProject)).toEqual([
-      ['New problem', '/app/isa-demo/qos-benchmarks/problems?create=problem'],
+      ['New problem', '/app/isa-demo/problems?create=problem'],
       ['New study', '/app/isa-demo/qos-benchmarks/studies/new'],
       ['New run', '/app/isa-demo/qos-benchmarks/runs/new'],
     ]);
+    expect(created(inOrganization)).toEqual([['New problem', '/app/isa-demo/problems?create=problem']]);
     expect(created(without)).toEqual([]);
     expect(inProject.filter((command) => command.label === 'New job' || command.label === 'New case')).toEqual([]);
   });

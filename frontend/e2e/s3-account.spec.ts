@@ -64,7 +64,7 @@ const reader = {
 };
 const runner = {
   id: 'k2', name: 'ejecucion-engine-fijo', prefix: 'obk_demo0002', created_at: '2026-09-10T00:00:00Z', last_used_at: null, expires_at: null,
-  permissions: ['engines:execute', 'engines:read', 'instances:validate', 'jobs:read'], engine_access: { all: false, engines: [engineRef] }, boundary: {},
+  permissions: ['engines:execute', 'engines:read', 'problems:read', 'jobs:read'], engine_access: { all: false, engines: [engineRef] }, boundary: {},
 };
 type ApiKey = typeof reader | typeof runner;
 
@@ -567,7 +567,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The three admin-only permissions are locked with a reason, so nothing implies an admin key from the browser.
       await expect(main.getByRole('heading', { name: 'Permissions' })).toBeVisible();
-      await expect(main.getByRole('checkbox')).toHaveCount(27);
+      await expect(main.getByRole('checkbox')).toHaveCount(24);
       for (const id of ['engines:moderate', 'admin:accounts:read', 'admin:accounts:write']) {
         await expect(main.getByRole('checkbox', { name: new RegExp(`^${id}`) })).toBeDisabled();
       }
@@ -577,7 +577,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('alert')).toContainText('Choose at least one permission.');
       await capture(page, testInfo, `keynew-${name}-2-permissions`);
       await main.getByRole('button', { name: 'Preset: run an engine' }).click();
-      for (const id of ['engines:read', 'engines:execute', 'jobs:read', 'instances:validate']) {
+      for (const id of ['engines:read', 'engines:execute', 'jobs:read', 'problems:read']) {
         await expect(main.getByRole('checkbox', { name: new RegExp(`^${id}`) })).toBeChecked();
       }
       await next();
@@ -629,7 +629,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const sent = (await created).postDataJSON() as Record<string, unknown>;
       expect(sent).toMatchObject({
         name: 'ci-nightly',
-        permissions: ['engines:read', 'engines:execute', 'jobs:read', 'instances:validate'],
+        permissions: ['engines:read', 'engines:execute', 'jobs:read', 'problems:read'],
         engine_access: { all: false, engines: [engineRef] },
         boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['jobs'], slugs: ['latency-study'] },
       });
@@ -656,12 +656,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await main.getByLabel('Name').fill('admin-audit-reader');
       await main.getByRole('button', { name: 'Continue' }).click();
-      await expect(main.getByRole('checkbox')).toHaveCount(27);
+      await expect(main.getByRole('checkbox')).toHaveCount(24);
       for (const id of ['engines:moderate', 'admin:accounts:read']) {
         await expect(main.getByRole('checkbox', { name: new RegExp(`^${id}`) })).toBeEnabled();
       }
       await expect(main.getByText('Only global administrators can grant this.')).toHaveCount(0);
-      await expect(main.getByText('ADMIN', { exact: true })).toHaveCount(4);
+      await expect(main.getByText('ADMIN', { exact: true })).toHaveCount(3);
       await main.getByRole('checkbox', { name: /^admin:accounts:read/ }).check();
       await capture(page, testInfo, `keynew-${name}-admin`);
     });

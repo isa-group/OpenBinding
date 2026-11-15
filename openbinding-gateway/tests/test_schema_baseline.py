@@ -52,6 +52,11 @@ RETIRED_TABLES = frozenset({
     "reports",
     "v1_dialect_revisions",
     "v1_registered_resource_revisions",
+    # F0b B5: problems hang off the organization; snapshots fused into revisions and compilations.
+    "case_artifacts",
+    "v1_binding_ir",
+    "v1_instance_resources",
+    "v1_instance_snapshots",
 })
 
 VERSIONS = GATEWAY_ROOT / "alembic" / "versions"

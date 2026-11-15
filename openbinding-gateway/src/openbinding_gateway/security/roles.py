@@ -1,9 +1,8 @@
 """Who may start, repeat, stop or remove work: MEMBER or above in the owning organization.
 
-VIEWER is a read role. It reads the results of an organization (jobs, studies,
-artifacts), redacted by ``security.redaction``, and nothing that costs compute
-or changes state. Work that belongs to no organization (a user's own upload, a
-job of their own with no ``organization_id``) is personal and needs no role.
+VIEWER is a read role. It reads the results of an organization (runs, studies,
+problems), redacted by ``security.redaction``, and nothing that costs compute
+or changes state. Every run belongs to the organization of its problem.
 
 An API key inherits the role of its user and adds its permissions on top
 (``security.apikeys``): the route checks both, and neither widens the other.
@@ -31,11 +30,9 @@ async def require_work_role(
 ) -> None:
     """Refuse (403 ``insufficient_role``) unless ``user`` may do work for these organizations.
 
-    ``organization_ids`` are the organizations the work belongs to. Without any
-    (the work is personal) there is nothing to check. With several (a snapshot
-    shared by more than one project) a MEMBER role in any one of them is enough,
-    as that is what grants the access. This never reveals whether a resource
-    exists: callers look the resource up, and answer 404 to a non-member, first.
+    ``organization_ids`` names the organization the work belongs to (``None``
+    entries are ignored). This never reveals whether a resource exists: callers
+    look the resource up, and answer 404 to a non-member, first.
     """
     # Imported late, as ``security.redaction`` does: ``collaboration`` reaches the services.
     from ..collaboration import ROLE_STRENGTH, effective_role

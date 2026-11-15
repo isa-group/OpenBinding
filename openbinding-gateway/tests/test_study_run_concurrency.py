@@ -12,6 +12,7 @@ from __future__ import annotations
 import uuid
 
 import pytest
+from _problem_helpers import placeholder_refs
 from sqlalchemy import event, func, select
 
 from _b1_helpers import gate  # noqa: F401
@@ -148,7 +149,7 @@ async def test_a_sync_locks_the_run_and_its_cells_before_it_launches_the_next_ce
         job = Job(
             owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
             service_url="http://engine", state=JobState.QUEUED, study_cell_id=cell.id,
-            organization_id=organization.id, project_id=project_id,
+            organization_id=organization.id, project_id=project_id, **placeholder_refs('organization_id'),
         )
         session.add(job)
         await session.flush()

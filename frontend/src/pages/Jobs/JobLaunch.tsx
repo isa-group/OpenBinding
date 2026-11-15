@@ -2,22 +2,20 @@ import { useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 import type { PricingCatalog, UsageView } from '../../api/auth';
-import { casesApi } from '../../api/cases';
 import { apiClient, type EngineCatalogEntry } from '../../api/client';
 import { jobsApi, type JobReceipt } from '../../api/jobs';
-import type { ArtifactVersion } from '../../api/library';
 import type { Organization, Project } from '../../api/platform';
-import { workbenchApi } from '../../api/workbench';
+import { problemsApi } from '../../api/problems';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
-import { zipStore } from '../../utils/bimZip';
 import { useResource } from '../../utils/useResource';
 import { randomUUID } from '../../utils/uuid';
 import { classifyAuthError } from '../Account/accountErrors';
 import { irHasRanges } from '../Cases/bindingModel';
-import { loadCases } from '../Project/projectData';
+import { loadProblems } from '../Cases/problemsData';
+import { problemsPath } from '../../routes/paths/problems';
 import { canOpenSection } from '../Project/accessLevel';
 import { MembersOnlyGate, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import type { CaseContent } from '../../features/workspace/model';
@@ -26,47 +24,36 @@ import { refusalOf, type Refusal } from './jobErrors';
 import { EngineStep, ForecastBars, SettingsStep, SlotCountdown, SourceStep, type Prepared } from './LaunchSteps';
 import {
   buildRequest, criteriaCountOf, forecastOf, initialChoice, modeChoices, modeOfCatalog, optimizationFor, optionInputs, parseEngineParam,
-  planCeilingsOf, planOptions, requestOptions, sourceChoices, type SettingsSource, type SourceChoice,
+  planCeilingsOf, planOptions, requestOptions, sourceChoices,
 } from './launchModel';
 import { JobFrame, RefusalNotice } from './parts';
 
 const STEPS = ['What', 'Engine', 'Settings', 'Send'] as const;
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
-
 /**
- * Does the compiled form of the snapshot hold a range, and how many criteria does it optimize? Not being able to read it is not a reason
+ * Does the compiled form of the revision hold a range, and how many criteria does it optimize? Not being able to read it is not a reason
  * to stop: every mode is then offered, and the gateway decides about the optimization.
  */
-async function readCompiled(snapshotId: string): Promise<{ ranges: boolean; criteria: number | null }> {
+async function readCompiled(org: string, problem: string, revision: number, compilation: string): Promise<{ ranges: boolean; criteria: number | null }> {
   try {
-    const compiled: unknown = await casesApi.instanceIr(snapshotId);
-    return { ranges: irHasRanges(isRecord(compiled) && isRecord(compiled.document) ? compiled.document : compiled), criteria: criteriaCountOf(compiled) };
+    const compiled = await problemsApi.ir(org, problem, revision, compilation);
+    return { ranges: irHasRanges(compiled.ir), criteria: criteriaCountOf(compiled.ir) };
   } catch {
     return { ranges: false, criteria: null };
   }
 }
 
-/** A revision that carries no snapshot of its own is compiled the way the Workbench does: its instance document, as a package of one file. */
-async function snapshotOf(choice: SourceChoice): Promise<string> {
-  if (choice.snapshotId) return choice.snapshotId;
-  if (!choice.revision) throw new Error('This choice has nothing to compile.');
-  const made = await workbenchApi.snapshot(zipStore({ 'instance.json': JSON.stringify(choice.revision.document, null, 2) }));
-  return made.id;
-}
-
 function LaunchBody({ organization, project, canLaunch, role }: { organization: Organization; project: Project; canLaunch: boolean; role: Organization['effective_role'] }) {
   const { user } = useAuth();
   const [params] = useSearchParams();
-  const caseParam = params.get('case');
+  const problemParam = params.get('problem');
   const revisionParam = params.get('revision');
-  const snapshotParam = params.get('snapshot');
   const engineParam = parseEngineParam(params.get('engine'));
   const org = organization.slug;
   const slug = project.slug;
   const root = `/app/${org}/${slug}`;
 
-  const cases = useResource<CaseContent[]>(`launch-cases:${org}/${slug}`, () => loadCases(org, slug));
+  const cases = useResource<CaseContent[]>(`launch-problems:${org}`, () => loadProblems(org));
   const usage = useResource<UsageView | null>('launch-usage', () => apiClient.getOwnUsage().catch(() => null));
   const pricing = useResource<PricingCatalog | null>('launch-pricing', () => apiClient.getPricingCatalog().catch(() => null));
   const catalog = useResource<EngineCatalogEntry[]>('launch-engines', () => apiClient.getEngines().catch(() => []));
@@ -77,20 +64,18 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   const [preparing, setPreparing] = useState(false);
   const [prepareIssue, setPrepareIssue] = useState<Refusal | null>(null);
   const [pickedMode, setPickedMode] = useState<string | null>(null);
-  const [settings, setSettings] = useState<SettingsSource>('inline');
-  const [configuration, setConfiguration] = useState<ArtifactVersion | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [receipt, setReceipt] = useState<JobReceipt | null>(null);
   const attempt = useRef<{ fingerprint: string; key: string } | null>(null);
 
-  const choices = sourceChoices({ cases: cases.data ?? [], caseSlug: caseParam, revision: revisionParam, snapshot: snapshotParam });
-  const chosenId = picked && choices.some((choice) => choice.id === picked) ? picked : initialChoice(choices, revisionParam, snapshotParam);
+  const choices = sourceChoices({ cases: cases.data ?? [], problem: problemParam, revision: revisionParam });
+  const chosenId = picked && choices.some((choice) => choice.id === picked) ? picked : initialChoice(choices, revisionParam);
   const choice = choices.find((candidate) => candidate.id === chosenId) ?? null;
   const ready = prepared !== null && prepared.choiceId === chosenId ? prepared : null;
 
-  const compatible = ready && ready.analysis.state === 'ok' ? ready.analysis.result.compatibleModes ?? null : null;
+  const compatible = ready && ready.analysis.state === 'ok' ? ready.analysis.result.compatible_modes : null;
   const ranges = ready?.ranges === true;
   const modes = ready ? modeChoices(compatible, catalog.data ?? [], ranges) : [];
   const wanted = engineParam ? modes.find((mode) => mode.compat !== 'no' && mode.engine.namespace === engineParam.namespace && mode.engine.name === engineParam.name
@@ -105,9 +90,7 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   const invalid = plans.some((plan) => plan.invalid);
   const reduced = plans.filter((plan) => plan.reduced);
   const optimization = optimizationFor(modeOfCatalog(catalog.data ?? [], mode), ready?.criteria ?? null);
-  const request = buildRequest({
-    snapshot: ready?.snapshotId ?? '', settings, configuration: configuration?.ref ?? null, mode, options: requestOptions(plans), optimization,
-  });
+  const request = buildRequest({ revision: ready ? choice?.revision.id ?? '' : '', mode, options: requestOptions(plans), optimization });
   const sendable = canLaunch && request !== null && !invalid && !sending && receipt === null;
 
   const prepare = async () => {
@@ -116,22 +99,23 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
     setPreparing(true);
     setPrepareIssue(null);
     try {
-      const snapshotId = await snapshotOf(choice);
-      const analysis = await casesApi.analyseSnapshot(snapshotId).then(
+      const analysis = await problemsApi.compilation(org, choice.caseSlug, choice.revision.revision).then(
         (result) => ({ state: 'ok' as const, result }),
         (caught: unknown) => ({ state: 'failed' as const, caught }),
       );
       if (analysis.state === 'failed' && classifyAuthError(analysis.caught).status === 404) {
         setPrepareIssue({
-          kind: 'not-found', title: 'Snapshot not found (404)', details: [], status: 404,
-          text: 'Snapshots open for whoever made them. Pick a problem version, or make a new snapshot in the Workbench.',
+          kind: 'not-found', title: 'Problem version not found (404)', details: [], status: 404,
+          text: 'It may have been deleted with its problem. Pick another version.',
         });
         return;
       }
       // What the engines will receive decides whether a mode that takes single values only can be offered; not knowing it offers every mode.
-      const compiled = await readCompiled(snapshotId);
+      const compiled = analysis.state === 'ok'
+        ? await readCompiled(org, choice.caseSlug, choice.revision.revision, analysis.result.id)
+        : { ranges: false, criteria: null };
       setPrepared({
-        choiceId: choice.id, snapshotId, ranges: compiled.ranges, criteria: compiled.criteria,
+        choiceId: choice.id, ranges: compiled.ranges, criteria: compiled.criteria,
         analysis: analysis.state === 'ok' ? analysis : { state: 'failed', refusal: refusalOf(analysis.caught, 'launch') },
       });
       setStep(2);
@@ -162,15 +146,12 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   const forecast = forecastOf({ ceilings, bindingSpace, plan: user?.plan });
 
   const modeLabel = mode ? `${mode.engine.name} · ${mode.mode}` : 'the engine you pick';
-  const engineText = settings === 'saved' ? 'From the saved settings'
-    : mode ? `${mode.engine.name} ${mode.engine.version} · mode ${mode.mode}${mode.federated ? ' · your deployment' : ''}` : 'None chosen';
-  const settingsText = settings === 'saved'
-    ? (configuration ? `Saved: ${configuration.ref.name} v${configuration.ref.version}` : 'Saved settings (none chosen)')
-    : plans.length ? plans.map((plan) => `${plan.input.label} ${plan.effective === null ? 'default' : `${plan.effective.toLocaleString('en-US')} ${plan.input.unit}`}${plan.reduced ? ' (reduced)' : ''}`).join(' · ') : 'Engine defaults';
+  const engineText = mode ? `${mode.engine.name} ${mode.engine.version} · mode ${mode.mode}${mode.federated ? ' · your deployment' : ''}` : 'None chosen';
+  const settingsText = plans.length ? plans.map((plan) => `${plan.input.label} ${plan.effective === null ? 'default' : `${plan.effective.toLocaleString('en-US')} ${plan.input.unit}`}${plan.reduced ? ' (reduced)' : ''}`).join(' · ') : 'Engine defaults';
   const stepNotes = [
     choice?.label ?? 'Pick one',
-    settings === 'saved' ? 'From saved settings' : mode ? mode.engine.name : 'Pick one',
-    settings === 'saved' ? 'Saved settings' : reduced.length ? 'Some reduced' : 'Within plan',
+    mode ? mode.engine.name : 'Pick one',
+    reduced.length ? 'Some reduced' : 'Within plan',
     'Review',
   ];
 
@@ -184,7 +165,7 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
             <h1>Run accepted · {receipt.status === 'queued' ? 'queued' : receipt.status}</h1>
             <p>
               Your run was sent. {receipt.idempotent ? 'This exact run had already been sent, so no second run was started. ' : ''}
-              {reduced.length > 0 && settings === 'inline'
+              {reduced.length > 0
                 ? `${reduced.map((plan) => `${plan.input.label} was reduced to ${plan.effective} ${plan.input.unit}`).join(', ')}, what your plan allows; the run carries that note.`
                 : 'Nothing was reduced.'}
             </p>
@@ -214,7 +195,7 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
       )}
       {casesFailure && (
         <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={cases.reload}>Try again</Action>}>
-          The project’s problems couldn’t be loaded{casesFailure.status ? ` (${casesFailure.status})` : ''}. A snapshot from the address still works.
+          The organization’s problems couldn’t be loaded{casesFailure.status ? ` (${casesFailure.status})` : ''}.
         </Notice>
       )}
 
@@ -233,12 +214,12 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
         })}
       </ol>
 
-      {cases.status === 'loading' && !snapshotParam
-        ? <div role="status" aria-busy="true"><span className="sr-only">Loading the project’s problems…</span><Skeleton variant="panel" /></div>
+      {cases.status === 'loading'
+        ? <div role="status" aria-busy="true"><span className="sr-only">Loading the organization’s problems…</span><Skeleton variant="panel" /></div>
         : (
           <section className="job-wizard" aria-label={`Step ${step} of 4: ${STEPS[step - 1]}`}>
             {step === 1 && (
-              <SourceStep choices={choices} value={chosenId} onChange={(id) => { setPicked(id); setPrepareIssue(null); }} workbenchHref={`${root}/workbench`} />
+              <SourceStep choices={choices} value={chosenId} onChange={(id) => { setPicked(id); setPrepareIssue(null); }} problemsHref={problemsPath(org)} />
             )}
             {step === 1 && prepareIssue && <RefusalNotice refusal={prepareIssue} usageTo />}
 
@@ -258,9 +239,8 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
 
             {step === 3 && ready && (
               <SettingsStep
-                org={org} source={settings} onSource={setSettings} plans={plans} values={values}
+                plans={plans} values={values}
                 onValue={(name, value) => setValues((current) => ({ ...current, [name]: value }))}
-                configuration={configuration} onConfiguration={setConfiguration}
                 modeLabel={modeLabel}
               />
             )}

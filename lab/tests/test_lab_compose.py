@@ -520,7 +520,7 @@ def test_a_public_origin_replaces_the_urls_and_is_appended_to_the_local_cors_ori
 
 # What Settings reads; cleared so a variable of the test process cannot change the outcome.
 SETTINGS_ENVIRONMENT = (
-    "BIM_MODE", "GATEWAY_JWT_SECRET", "APP_ENV", "SPACE_ENABLED", "SPHERE_ENABLED",
+    "GATEWAY_JWT_SECRET", "APP_ENV", "SPACE_ENABLED", "SPHERE_ENABLED",
     "CORS_ALLOW_ORIGINS", "PUBLIC_BASE_URL", "FRONTEND_URL",
 )
 
@@ -586,8 +586,8 @@ def test_space_enabled_is_a_variable_in_gateway_worker_and_seed_never_a_literal(
 
 @pytest.mark.parametrize("path", LAB_MANIFESTS, ids=lambda p: p.name)
 def test_the_lab_runs_bim_in_process(path):
-    # The gateway, the worker and the seed run BIM in process (bim_client's InProcessBim, the default of
-    # BIM_MODE); the HTTP bim-service and its toolchain live in their own repository, not in the lab.
+    # The gateway, the worker and the seed run BIM in process (bim_client's InProcessBim, the only port);
+    # the HTTP bim-service and its toolchain live in their own repository, not in the lab.
     services = json.loads(path.read_text(encoding="utf-8"))["services"]
     assert "bim-service" not in services
     for name, service in services.items():
