@@ -208,6 +208,8 @@ export function VisualPane({ document, issue, facts, mutate, busy, readOnly }: V
     }).then(() => { if (dropped) setNote(`${task}: ${dropped}`); });
   };
 
+  // The offering form starts again from the document whenever the offering changes in it.
+  const offeringKey = JSON.stringify(document.offering ?? null);
   return (
     <div className="ce-visual">
       {linked && <p className="cmp-muted">This version links a problem: values are recomputed when you seal.</p>}
@@ -275,7 +277,7 @@ export function VisualPane({ document, issue, facts, mutate, busy, readOnly }: V
 
       <Part title="Offering">
         <OfferingForm
-          key={JSON.stringify(document.offering ?? null)}
+          key={offeringKey}
           current={offeringChoice(document)}
           disabled={disabled}
           onSet={(offering) => void apply((model) => setOffering(model, offering))}

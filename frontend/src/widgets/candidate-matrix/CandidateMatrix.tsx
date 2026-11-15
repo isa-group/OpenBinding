@@ -14,6 +14,8 @@ interface CandidateMatrixProps {
   renderCell?: (cell: MatrixCell, candidate: MatrixCandidate, row: MatrixRow) => ReactNode;
   /** The accessible name of the matrix. */
   label: string;
+  /** Short words beside a candidate's name (the versions that chose it, when two are compared). */
+  tags?: (task: string, candidate: string) => readonly string[];
 }
 
 const NARROW = '(max-width: 640px)';
@@ -98,11 +100,12 @@ interface TaskProps {
   mode: CandidateMatrixProps['mode'];
   onSelect?: CandidateMatrixProps['onSelect'];
   renderCell?: CandidateMatrixProps['renderCell'];
+  tags?: CandidateMatrixProps['tags'];
   narrow: boolean;
   group: string;
 }
 
-function TaskCandidates({ row, features, mode, onSelect, renderCell, narrow, group }: TaskProps) {
+function TaskCandidates({ row, features, mode, onSelect, renderCell, tags, narrow, group }: TaskProps) {
   const maxima = features.map(({ index }) => Math.max(0, ...row.candidates.flatMap((candidate) => finiteEnds(candidate.cells[index].value).map(Math.abs))));
   const content = (candidate: MatrixCandidate, column: number, index: number) => {
     const cell = candidate.cells[index];
@@ -118,6 +121,7 @@ function TaskCandidates({ row, features, mode, onSelect, renderCell, narrow, gro
     />
   );
   const count = row.candidates.length === 1 ? '1 candidate' : `${row.candidates.length} candidates`;
+  const tagsOf = (candidate: MatrixCandidate) => (tags?.(row.task, candidate.key) ?? []).map((tag) => <span key={tag} className="cm-tag">{tag}</span>);
 
   const body = narrow ? (
     <ul className="cm-cards" aria-label={`Candidates for ${row.task}`}>
@@ -127,6 +131,7 @@ function TaskCandidates({ row, features, mode, onSelect, renderCell, narrow, gro
             {mode === 'select' && radio(candidate)}
             <code>{candidate.written}</code>
             {candidate.selected && <span className="cm-selected">Selected</span>}
+            {tagsOf(candidate)}
           </div>
           <dl>
             <div><dt>Provider</dt><dd>{candidate.provider ?? '—'}</dd></div>
@@ -154,6 +159,7 @@ function TaskCandidates({ row, features, mode, onSelect, renderCell, narrow, gro
             <th scope="row">
               <code>{candidate.written}</code>
               {candidate.selected && <span className="cm-selected">Selected</span>}
+              {tagsOf(candidate)}
             </th>
             <td>{candidate.provider ?? '—'}</td>
             {features.map(({ feature, index }, column) => <td key={feature.id}>{content(candidate, column, index)}</td>)}
@@ -169,7 +175,7 @@ function TaskCandidates({ row, features, mode, onSelect, renderCell, narrow, gro
 }
 
 /** The candidates of every task: one table per task (a card per candidate on a phone), required features first. */
-export function CandidateMatrix({ matrix, mode, onSelect, renderCell, label }: CandidateMatrixProps) {
+export function CandidateMatrix({ matrix, mode, onSelect, renderCell, label, tags }: CandidateMatrixProps) {
   const narrow = useNarrow();
   const group = useId();
   const [shown, setShown] = useState<string[]>(readShown);
@@ -206,7 +212,7 @@ export function CandidateMatrix({ matrix, mode, onSelect, renderCell, label }: C
         if (row.candidates.length === 0) {
           return <p key={row.task} className="cm-local"><code>{row.task}</code> has no candidate that can serve it.</p>;
         }
-        return <TaskCandidates key={row.task} row={row} features={features} mode={mode} onSelect={onSelect} renderCell={renderCell} narrow={narrow} group={group} />;
+        return <TaskCandidates key={row.task} row={row} features={features} mode={mode} onSelect={onSelect} renderCell={renderCell} tags={tags} narrow={narrow} group={group} />;
       })}
     </section>
   );

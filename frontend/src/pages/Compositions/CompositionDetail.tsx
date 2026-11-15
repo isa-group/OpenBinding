@@ -25,17 +25,20 @@ import { useResource } from '../../utils/useResource';
 import { ReadOnlyNote } from '../Cases/parts';
 import { CompositionMissing } from './CompositionMissing';
 import { CompositionFrame } from './parts';
+import { factsSource } from './factsSource';
 import { EditorTab, type EditorEntry } from './tabs/EditorTab';
 import { OverviewTab, type CandidatesState } from './tabs/OverviewTab';
+import { VersionsTab } from './tabs/VersionsTab';
 import { relativeTime } from './time';
 import { useRouteComposition, type CompositionAccess, type RouteCompositionContent } from './useRouteComposition';
 
 type TabId = 'overview' | CompositionTabSegment;
 
-/** The tabs built so far; Versions, Analysis and Settings join with their blocks. */
+/** The tabs built so far; Analysis and Settings join with their blocks. */
 const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: 'overview', label: 'Overview' },
   { id: 'editor', label: 'Editor' },
+  { id: 'versions', label: 'Versions' },
 ];
 
 interface ShownVersion {
@@ -50,26 +53,6 @@ const findsInText = (version: CompositionVersionView) => version.evaluations.som
 ));
 
 const shortId = (id: string) => id.slice(0, 8);
-
-interface FactsSource {
-  problem: string;
-  revision: number;
-  /** The compilation the current evaluation used (its id, else its digest): the values shown were evaluated on it. */
-  compilation: string;
-}
-
-/**
- * Where the candidates of the shown version's problem are read: the facts of the compilation its values were evaluated on, not
- * of the one it links, so values and candidates never mix two compilations. None for a declared version, or when the gateway
- * did not name the problem (the reader may not read it).
- */
-function factsSource(version: CompositionVersionView | null): FactsSource | null {
-  const link = version?.problem;
-  if (!version || !link || link.problem.id === null) return null;
-  const evaluation = version.evaluations.find((item) => item.current) ?? null;
-  const compilation = evaluation?.compilation?.id ?? version.current_evaluation?.compilation?.compilation_digest ?? null;
-  return compilation ? { problem: link.problem.slug, revision: link.revision.revision, compilation } : null;
-}
 
 /** Where the shown version comes from: the composition it was forked from, the run or the binding it was derived from. */
 function Lineage({ org, version, mine }: { org: string; version: CompositionVersionView; mine: (org: string) => boolean }) {
@@ -198,6 +181,9 @@ function CompositionBody({ organization, organizations, access, content, tab, re
         {active === 'overview' && (!picked || shown.status === 'ready') && <OverviewTab org={org} model={model} version={version} candidates={candidates} />}
         {active === 'editor' && (
           <EditorTab org={org} composition={composition} version={picked ?? null} canSeal={canCreate} onSealed={reload} />
+        )}
+        {active === 'versions' && (
+          <VersionsTab org={org} composition={composition} versions={versions} shown={picked?.id ?? null} canCreate={canCreate} onChanged={() => { shown.reload(); reload(); }} />
         )}
       </TabPanel>
     </CompositionFrame>

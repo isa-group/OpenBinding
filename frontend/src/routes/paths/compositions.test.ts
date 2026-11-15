@@ -8,10 +8,10 @@ describe('the address builders of the compositions area', () => {
     expect(COMPOSITIONS_SEGMENT).toBe('compositions');
   });
 
-  it('has the Editor tab so far: Overview is the composition page itself', () => {
-    expect(COMPOSITION_TAB_SEGMENTS).toEqual(['editor']);
-    expect(isCompositionTabSegment('editor')).toBe(true);
-    for (const segment of ['overview', 'versions', 'analysis', 'settings', '']) expect(isCompositionTabSegment(segment), segment).toBe(false);
+  it('has the Editor and Versions tabs so far: Overview is the composition page itself', () => {
+    expect(COMPOSITION_TAB_SEGMENTS).toEqual(['editor', 'versions']);
+    for (const segment of ['editor', 'versions']) expect(isCompositionTabSegment(segment), segment).toBe(true);
+    for (const segment of ['overview', 'analysis', 'settings', '']) expect(isCompositionTabSegment(segment), segment).toBe(false);
   });
 
   it('builds the list with its filters, leaving out the empty ones', () => {
@@ -27,6 +27,7 @@ describe('the address builders of the compositions area', () => {
     expect(compositionPath('acme', 'order-desk', undefined, { from: 1, to: 3, view: 'compare' })).toBe('/app/acme/compositions/order-desk?from=1&to=3&view=compare');
     expect(compositionPath('acme', 'a b/c', undefined, { version: '' })).toBe('/app/acme/compositions/a%20b%2Fc');
     expect(compositionPath('acme', 'order-desk', 'editor', { version: '1.2.0' })).toBe('/app/acme/compositions/order-desk/editor?version=1.2.0');
+    expect(compositionPath('acme', 'order-desk', 'versions', { from: '1.0.0', to: '1.1.0', view: 'file' })).toBe('/app/acme/compositions/order-desk/versions?from=1.0.0&to=1.1.0&view=file');
   });
 
   it('builds the public page of a composition and the public list', () => {

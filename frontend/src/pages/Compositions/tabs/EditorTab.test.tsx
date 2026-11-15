@@ -101,7 +101,7 @@ describe('Editor tab', () => {
     await waitFor(() => expect(code()).toBe(TEXT.replace('version: 1.2.0', 'version: 1.3.0')));
     fireEvent.click(screen.getByRole('button', { name: 'Seal version' }));
 
-    await waitFor(() => expect(where()).toBe('/app/isa-demo/compositions/order-desk?version=1.3.0'));
+    await waitFor(() => expect(where()).toBe('/app/isa-demo/compositions/order-desk/versions?version=1.3.0'));
     expect(api.seal).toHaveBeenCalledWith('isa-demo', 'order-desk', TEXT.replace('version: 1.2.0', 'version: 1.3.0'));
     expect(api.get).toHaveBeenCalledTimes(2);
     expect(await screen.findByText('Version 1.3.0 sealed.')).toBeInTheDocument();

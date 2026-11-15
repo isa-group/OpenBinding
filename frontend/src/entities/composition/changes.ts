@@ -24,6 +24,20 @@ function notComparableReason(diff: CompositionVersionDiff): string | null {
   return reasons.length ? `Values are not compared: ${reasons.join(', and ')}.` : 'Values are not compared.';
 }
 
+/**
+ * Why the two sides' values are not compared, in a few words for a summary line: the problem changed, the compilation changed, or
+ * one side's values are verified and the other's declared. Null when they compare. Built only from the gateway's flags.
+ */
+export function notComparableShort(comparison: CompositionVersionDiff['comparison']): string | null {
+  if (comparison.comparable) return null;
+  const reasons: string[] = [];
+  if (comparison.problemRefChanged) reasons.push('problem changed');
+  else if (comparison.compilationChanged) reasons.push('compilation changed');
+  const { before, after } = comparison.valueStatus;
+  if (before !== after) reasons.push(`${before} vs ${after}`);
+  return reasons.length ? reasons.join(', ') : 'the gateway did not compare them';
+}
+
 /** What changed from one version to the other: sections, candidate and value changes, and whether values compare. */
 export function versionChanges(diff: CompositionVersionDiff): VersionChanges {
   return { ...summarizeChanges(diff), notComparable: notComparableReason(diff) };

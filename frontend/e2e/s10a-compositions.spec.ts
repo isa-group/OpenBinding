@@ -2,9 +2,10 @@ import { expect as baseExpect, test, type Page } from '@playwright/test';
 import { installMockApi } from './helpers/mockApi';
 
 // S10a · the compositions of an organization: composition-list (/app/:org/compositions) and the composition page composition-detail
-// with its Overview (the catalog of the version shown, its architecture and its workflow) and its Editor (Composition2Yaml code with
-// the gateway's lint, and the seal). The smoke grows with the blocks that build the composition screens: list, create, overview and
-// editor here; the comparison of versions, analysis and settings later.
+// with its Overview (the catalog of the version shown, its architecture and its workflow), its Editor (Composition2Yaml code with
+// the gateway's lint, and the seal) and its Versions (the table, and the comparison of two versions by entry and by line). The smoke
+// grows with the blocks that build the composition screens: list, create, overview, editor and versions here; analysis and settings
+// later.
 // There is no backend: e2e/helpers/mockApi.ts answers the API origin, with the compositions of e2e/helpers/mockCompositions.ts.
 
 // Several browsers share one development server, so a screen can take longer than the default five seconds to settle.
@@ -130,9 +131,57 @@ test.describe('S10a · compositions', () => {
     await expect(source).toContainText('version: 1.3.0');
 
     await main(page).getByRole('button', { name: 'Seal version' }).click();
-    await expect(page).toHaveURL(`${LIST}/order-desk?version=1.3.0`);
+    await expect(page).toHaveURL(`${LIST}/order-desk/versions?version=1.3.0`);
     await expect(main(page).getByText('Version 1.3.0 sealed.')).toBeVisible();
+    await expect(main(page).getByRole('tab', { name: 'Versions' })).toHaveAttribute('aria-selected', 'true');
     await expect(main(page).getByRole('combobox', { name: 'Version' }).locator('option:checked')).toHaveText('1.3.0 · latest');
+    const sealed = main(page).getByRole('row', { name: /^1\.3\.0/ });
+    await expect(sealed).toContainText('Latest');
+    await expect(sealed).toHaveAttribute('aria-current', 'true');
+    expect(mock.unmocked).toEqual([]);
+  });
+
+  test('the Versions tab lists the versions and compares two of them, entry by entry and line by line', async ({ page }) => {
+    const mock = await installMockApi(page, 'admin');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${LIST}/fleet-routing`);
+
+    await main(page).getByRole('tab', { name: 'Versions' }).click();
+    await expect(page).toHaveURL(`${LIST}/fleet-routing/versions`);
+    const table = main(page).getByRole('region', { name: 'Versions of Fleet routing' }).getByRole('table');
+    await expect(table.locator('tbody th code')).toHaveText(['1.2.0', '1.1.0', '1.0.0']);
+    const latest = table.getByRole('row', { name: /^1\.2\.0/ });
+    await expect(latest).toContainText('Derived from run 00000000, point 3');
+    await expect(latest).toContainText('2,980 USD/month');
+    await expect(table.getByRole('row', { name: /^1\.1\.0/ })).toContainText('its problem changed meaning');
+    await expect(table.getByRole('row', { name: /^1\.0\.0/ })).toContainText('First version');
+
+    await latest.getByRole('button', { name: 'Changes since 1.1.0' }).click();
+    await expect(latest.getByRole('list', { name: 'Value changes' })).toContainText('cost: 3,120 → 2,980');
+
+    await latest.getByRole('button', { name: 'Compare with previous' }).click();
+    await expect(page).toHaveURL(`${LIST}/fleet-routing/versions?view=compare&from=1.1.0&to=1.2.0`);
+    await expect(main(page).getByRole('combobox', { name: 'Base version' }).locator('option:checked')).toHaveText('1.1.0');
+    await expect(main(page).getByRole('combobox', { name: 'Compared with' }).locator('option:checked')).toHaveText('1.2.0');
+    const tiles = main(page).getByRole('group', { name: 'Show one kind of change' });
+    await expect(tiles.getByRole('button', { name: /Changed/ })).toContainText('1');
+    await expect(tiles.getByRole('button', { name: /Added/ })).toBeDisabled();
+    const values = main(page).getByRole('region', { name: /^Values/ });
+    await expect(values.getByRole('button', { name: /cost/ })).toHaveAttribute('aria-expanded', 'true');
+    await expect(values).toContainText('3,120 to 2,980');
+    await expect(region(page, 'Workflow changes').getByRole('group', { name: 'The workflow of Fleet routing at 1.2.0' })).toBeVisible();
+    await expect(region(page, 'Problem candidates').getByRole('row', { name: /^cand_t1_aws/ })).toContainText('In 1.1.0In 1.2.0');
+
+    await main(page).getByRole('button', { name: 'Swap versions' }).click();
+    await expect(page).toHaveURL(`${LIST}/fleet-routing/versions?view=compare&from=1.2.0&to=1.1.0`);
+    await expect(values).toContainText('2,980 to 3,120');
+
+    await main(page).getByRole('group', { name: 'Versions view' }).getByRole('button', { name: 'File' }).click();
+    await expect(page).toHaveURL(`${LIST}/fleet-routing/versions?view=file&from=1.2.0&to=1.1.0`);
+    const text = main(page).getByRole('region', { name: 'The text of 1.2.0 and 1.1.0' });
+    await expect(text).toContainText('1.2.0');
+    await expect(main(page).getByText(/lines? removed/)).toBeVisible();
+    await expect(text.locator('pre')).toHaveCount(0);
     expect(mock.unmocked).toEqual([]);
   });
 

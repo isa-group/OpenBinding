@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CompositionVersionDiff } from '../../shared/api/types';
 import fms from '../../test/fixtures/core/fms.diff.json';
-import { fieldPath, formatDiffValue, versionChanges } from './changes';
+import { fieldPath, formatDiffValue, notComparableShort, versionChanges } from './changes';
 
 const diff = () => structuredClone(fms) as CompositionVersionDiff;
 
@@ -29,6 +29,14 @@ describe('versionChanges', () => {
     const recompiled = diff();
     recompiled.comparison = { ...moved.comparison, problemRefChanged: false };
     expect(versionChanges(recompiled).notComparable).toBe('Values are not compared: the two versions were judged on different compilations.');
+  });
+
+  it('names the reason in a few words for a summary line', () => {
+    const base = diff().comparison;
+    expect(notComparableShort(base)).toBeNull();
+    expect(notComparableShort({ ...base, comparable: false, problemRefChanged: true, compilationChanged: true })).toBe('problem changed');
+    expect(notComparableShort({ ...base, comparable: false, compilationChanged: true })).toBe('compilation changed');
+    expect(notComparableShort({ ...base, comparable: false, valueStatus: { before: 'verified', after: 'declared' } })).toBe('verified vs declared');
   });
 
   it('carries the comparison as the gateway gave it', () => {

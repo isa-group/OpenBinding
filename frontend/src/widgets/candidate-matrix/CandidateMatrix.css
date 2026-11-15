@@ -4,6 +4,7 @@
 .cm-local code, .cm code { font-family: var(--font-mono); }
 .cm-row.is-selected { background: var(--tp-surface-cream); }
 .cm-selected { display: inline-block; margin-left: 8px; padding: 0 6px; border: 1px solid var(--tp-status-verified); border-radius: var(--tp-radius-full); color: var(--tp-ink-tint); font-size: 0.6875rem; font-weight: 600; }
+.cm-tag { display: inline-block; margin-left: 8px; padding: 0 6px; border: 1px dashed var(--tp-hairline-strong); border-radius: var(--tp-radius-full); color: var(--tp-ink-tint); font-size: 0.6875rem; font-weight: 600; }
 .cm-cell { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .cm-range { font-variant-numeric: tabular-nums; }
 .cm-none { color: var(--tp-stone); font-size: 0.75rem; }

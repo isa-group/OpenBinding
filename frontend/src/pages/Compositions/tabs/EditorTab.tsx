@@ -13,7 +13,7 @@ export interface EditorEntry {
 
 /**
  * Editor: the Composition2Yaml editor of the composition, starting from the version shown (or the starter when there is none).
- * A MEMBER seals; a VIEWER reads and checks the code. A new version opens on the composition page.
+ * A MEMBER seals; a VIEWER reads and checks the code. A new version opens in the Versions tab.
  */
 export function EditorTab({ org, composition, version, canSeal, onSealed }: {
   org: string;
@@ -30,7 +30,7 @@ export function EditorTab({ org, composition, version, canSeal, onSealed }: {
 
   const sealed = (result: SealResult) => {
     onSealed();
-    void navigate(compositionPath(org, composition.slug, undefined, { version: result.version.label }), {
+    void navigate(compositionPath(org, composition.slug, 'versions', { version: result.version.label }), {
       state: { toast: `Version ${result.version.label} sealed.` },
       viewTransition: true,
     });

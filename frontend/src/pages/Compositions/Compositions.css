@@ -32,3 +32,29 @@
 .cmp-panel-loading { display: flex; flex-direction: column; gap: 10px; }
 .cmp-overview { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-lg); }
 .cmp-muted { margin: 0; color: var(--tp-steel); font-size: 0.8125rem; }
+
+/* Versions tab: the view switch, the version table (cards below 640 px) and its row actions. */
+.cmv { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-md); }
+.cmv-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tp-spacing-sm); }
+.cmv-message { margin: 0; color: var(--tp-slate); font-size: 0.875rem; }
+.cmv-table th, .cmv-table td { vertical-align: top; }
+.cmv-row.is-shown { background: var(--tp-surface-cream); }
+.cmv-label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cmv-label code { font-family: var(--font-mono); font-size: 0.875rem; font-weight: 600; }
+.cmv-ordinal { display: block; color: var(--tp-steel); font-size: 0.75rem; font-weight: 400; }
+.cmv-values, .cmv-lines { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; font-size: 0.8125rem; overflow-wrap: anywhere; }
+.cmv-values span { color: var(--tp-steel); }
+.cmv-note { display: block; margin-top: 4px; color: var(--tp-slate); font-size: 0.75rem; }
+.cmv-changes { min-width: 180px; }
+.cmv-toggle { min-height: 28px; margin-bottom: 4px; padding: 0; border: 0; background: none; color: var(--tp-link); font: inherit; font-size: 0.8125rem; text-align: left; cursor: pointer; }
+.cmv-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.cmv-failure { margin: 4px 0 0; color: var(--tp-ink); font-size: 0.75rem; }
+
+@media (max-width: 640px) {
+  .cmv .ui-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .cmv .ui-table, .cmv-table, .cmv-table tr, .cmv-table th, .cmv-table td { display: block; width: 100%; box-sizing: border-box; }
+  .cmv-table tr { margin-bottom: var(--tp-spacing-sm); border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); }
+  .cmv-table td[data-label]::before { display: block; color: var(--tp-steel); content: attr(data-label); font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
+  .cmv-table td[data-label='Actions']::before { content: none; }
+  .cmv-changes { min-width: 0; }
+}

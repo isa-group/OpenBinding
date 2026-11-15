@@ -48,6 +48,13 @@ describe('CandidateMatrix', () => {
     expect(screen.getByRole('row', { name: /^c1b/ })).not.toHaveAttribute('aria-current');
   });
 
+  it('writes the tags a screen gives beside a candidate’s name', () => {
+    const tags = (task: string, candidate: string) => (task === 't1' && candidate === 'other/c1a' ? ['In 1.0.0', 'In 1.1.0'] : []);
+    render(<CandidateMatrix matrix={candidateMatrix(ambiguous as ProblemFacts)} mode="view" label="Candidates" tags={tags} />);
+    expect(within(screen.getByRole('row', { name: /other\/c1a/ })).getAllByText(/^In 1\.\d\.0$/).map((tag) => tag.textContent)).toEqual(['In 1.0.0', 'In 1.1.0']);
+    expect(within(screen.getByRole('row', { name: /^c1b/ })).queryByText(/^In /)).toBeNull();
+  });
+
   it('says a local task gets no candidate', () => {
     render(<CandidateMatrix matrix={candidateMatrix(fms as ProblemFacts)} mode="view" label="Candidates" />);
     expect(screen.getByText(/is a local task: it gets no candidate\./)).toHaveTextContent('node_classic_routing is a local task');

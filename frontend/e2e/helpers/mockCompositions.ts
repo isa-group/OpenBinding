@@ -5,6 +5,7 @@ import type { CompositionVersionView, CompositionView } from '../../src/shared/a
 // to the problem `checkout-flow`, three versions each, with evaluations and analytics, and an archived one with no version. The
 // linked versions are the gateway's own fixture (src/test/fixtures/core/fms.version.json) under other ids, labels and values; the
 // declared ones follow src/test/fixtures/compositions/declared.yaml. A composition created through the mock is kept for the page.
+// The diff of two versions is worked out here in the gateway's shape, from their documents and values.
 // The facts of the compilation the linked versions were evaluated on are core/fms.facts.json, which mockApi.ts serves for it.
 
 /** The organization that has compositions; every other one has none. */
@@ -201,6 +202,62 @@ const missing = (): CompositionReply => ({ status: 404, json: { detail: { code: 
 /** The light row of a version, as the versions list serves it without `include`. */
 const lightRow = (version: CompositionVersionView): CompositionVersionView => ({ ...version, document: null, evaluations: [], analytics: null });
 
+type Fields = Record<string, unknown>;
+type FieldChange = { path: string; before: unknown; after: unknown };
+type DiffEntry = { kind: 'added' | 'removed' | 'changed'; name: string; changes: FieldChange[] };
+
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+const asFields = (value: unknown): Fields => (typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Fields : {});
+
+/** The fields that differ between two entries, dotted (`from.version`), with `null` on the side where a field is absent. */
+function fieldChanges(before: Fields, after: Fields, prefix = ''): FieldChange[] {
+  return [...new Set([...Object.keys(before), ...Object.keys(after)])].flatMap((key) => {
+    const [b, a] = [before[key], after[key]];
+    if (same(b, a)) return [];
+    const nested = typeof b === 'object' && b !== null && typeof a === 'object' && a !== null && !Array.isArray(b) && !Array.isArray(a);
+    return nested ? fieldChanges(b as Fields, a as Fields, `${prefix}${key}.`) : [{ path: `${prefix}${key}`, before: b ?? null, after: a ?? null }];
+  });
+}
+
+/** The entries of a section: by name, added, removed or changed in some field. */
+function entries(before: Fields, after: Fields): DiffEntry[] {
+  return [...new Set([...Object.keys(before), ...Object.keys(after)])].flatMap((name): DiffEntry[] => {
+    if (!(name in before)) return [{ kind: 'added', name, changes: fieldChanges({}, asFields(after[name])) }];
+    if (!(name in after)) return [{ kind: 'removed', name, changes: fieldChanges(asFields(before[name]), {}) }];
+    const changes = fieldChanges(asFields(before[name]), asFields(after[name]));
+    return changes.length ? [{ kind: 'changed', name, changes }] : [];
+  });
+}
+
+/**
+ * The mock's diff of two versions, in the gateway's shape (`GET …/diff`): binding entries from the documents, values from the
+ * versions, the offering, and kind and workflow as general changes. Values compare when both sides have the same status and link.
+ */
+function versionDiff(before: CompositionVersionView, after: CompositionVersionView) {
+  const [b, a] = [asFields(before.document), asFields(after.document)];
+  const comparable = before.values_status === after.values_status && same(asFields(b.problem).ref, asFields(a.problem).ref);
+  const sections = [
+    { key: 'binding', label: 'Binding', entries: entries(asFields(b.binding), asFields(a.binding)) },
+    { key: 'values', label: 'Values', entries: comparable ? entries(before.values, after.values) : [] },
+    { key: 'offering', label: 'Offering', entries: entries(before.offering ? { offering: before.offering } : {}, after.offering ? { offering: after.offering } : {}) },
+  ];
+  const general = ['kind', 'workflow'].filter((key) => !same(b[key], a[key])).map((key) => ({ path: key, before: b[key] ?? null, after: a[key] ?? null }));
+  const all = sections.flatMap((section) => section.entries);
+  const count = (kind: DiffEntry['kind']) => all.filter((entry) => entry.kind === kind).length;
+  return {
+    from: { id: before.id, label: before.label },
+    to: { id: after.id, label: after.label },
+    comparison: {
+      comparable, problemRefChanged: !same(asFields(b.problem).ref, asFields(a.problem).ref), compilationChanged: false,
+      valueStatus: { before: before.values_status, after: after.values_status },
+    },
+    sections,
+    general,
+    totals: { added: count('added'), removed: count('removed'), changed: count('changed') + general.length },
+    isEmpty: all.length === 0 && general.length === 0,
+  };
+}
+
 /** A store of compositions for one page: the seeded ones plus what the page creates. */
 export function compositionStore(): CompositionStore {
   const entries = seed();
@@ -291,6 +348,13 @@ export function compositionStore(): CompositionStore {
       const entry = entries.find((item) => item.view.slug === slug);
       if (!entry) return missing();
       if (!section) return ok(entry.view);
+      const find = (value: string | null) => entry.versions.find((item) => item.id === value || item.label === value || String(item.ordinal) === value);
+      if (section === 'diff') {
+        const to = request.query.get('to') ? find(request.query.get('to')) : entry.versions.at(-1);
+        const from = request.query.get('from') ? find(request.query.get('from')) : to && entry.versions[entry.versions.indexOf(to) - 1];
+        if (!to || !from) return { status: 409, json: { detail: { code: 'diff_version_missing', error: 'There is no version to compare with.' } } };
+        return ok(versionDiff(from, to));
+      }
       if (section !== 'versions') return { status: 404, json: { detail: 'not mocked' } };
       const newest = [...entry.versions].reverse();
       if (!ref && request.method === 'POST') return seal(entry, request.text());
@@ -299,9 +363,11 @@ export function compositionStore(): CompositionStore {
         const ordered = request.query.get('order') === 'oldest' ? entry.versions : newest;
         return ok({ versions: ordered.map(lightRow), total: ordered.length, limit: 200, offset: 0 });
       }
-      const version = entry.versions.find((item) => item.id === ref || item.label === ref || String(item.ordinal) === ref);
+      const version = find(ref);
       if (!version) return { status: 404, json: { detail: { code: 'not_found', error: 'Composition version not found.' } } };
       if (tail === 'content') return { status: 200, text: texts.get(version.id) ?? '', type: 'application/yaml' };
+      // The installed toolchain has evaluated every version already: its evaluation, 200.
+      if (tail === 'evaluations' && request.method === 'POST') return ok(version.evaluations[0]);
       return ok(request.query.get('include') === 'document' ? version : { ...version, document: null });
     },
 
