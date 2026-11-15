@@ -215,7 +215,7 @@ describe('audit events in words', () => {
 describe('error events', () => {
   it('reads either spelling of every field', () => {
     const row = readErrorEvent(ERROR_EVENTS[0]);
-    expect(row).toMatchObject({ status: 402, code: 'quota_exceeded', endpoint: '/v1/jobs', method: 'POST', userId: SAM.id, userEmail: SAM.email });
+    expect(row).toMatchObject({ status: 402, code: 'quota_exceeded', endpoint: '/v1/organizations/score-ai/runs', method: 'POST', userId: SAM.id, userEmail: SAM.email });
     const snake = readErrorEvent({ ...ERROR_EVENTS[0], statusCode: undefined as never, errorCode: undefined as never, httpMethod: undefined as never, userId: undefined, userEmail: undefined, createdAt: undefined as never });
     expect(snake).toMatchObject({ status: 402, code: 'quota_exceeded', method: 'POST', userId: SAM.id, userEmail: SAM.email });
   });

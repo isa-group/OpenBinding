@@ -231,7 +231,7 @@ describe('the canonical problem document', () => {
       type: 'https://openbinding.dev/problems/validation_error', title: 'validation_error', status: 422, code: 'validation_error',
       detail: 'Request validation failed: /tasks: Input should be greater than 0', diagnostics,
     }, 422));
-    const error = await client.request('/v1/jobs', { method: 'POST' }).catch((caught: unknown) => caught);
+    const error = await client.request('/v1/organizations/score-ai/runs', { method: 'POST' }).catch((caught: unknown) => caught);
     expect(error).toMatchObject({ status: 422, code: 'validation_error', diagnostics, message: 'HTTP 422: Request validation failed: /tasks: Input should be greater than 0' });
   });
 
@@ -254,7 +254,7 @@ describe('the canonical problem document', () => {
   describe('a refusal over a limit keeps what the gateway says about it', () => {
     const fail = (status: number, body: unknown, headers: Record<string, string> = {}) => {
       fetchMock.mockResolvedValueOnce(jsonResponse(body, status, headers));
-      return client.request('/v1/jobs', { method: 'POST' }).then(() => { throw new Error('resolved'); }, (caught: unknown) => caught);
+      return client.request('/v1/organizations/score-ai/runs', { method: 'POST' }).then(() => { throw new Error('resolved'); }, (caught: unknown) => caught);
     };
     const quota = { limit_id: 'MAX_BINDING_SPACE_LOG10', state: 'unmeasured', unit: 'log10 combinations', source: 'technical' };
 

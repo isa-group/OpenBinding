@@ -5,7 +5,7 @@ result (the job is FAILED, ``termination`` UNKNOWN, no solutions).
 
 Closed by contract C4 (they were ``xfail(strict=True)``): the engine's raw
 answer is kept before BIM is called, the failure has the code
-``bim_evaluation_failed``, and ``POST /v1/jobs/{id}/reevaluate`` evaluates the
+``bim_evaluation_failed``, and ``POST /v1/organizations/{org}/runs/{run}/reevaluate`` evaluates the
 kept answer without running the engine again.
 """
 
@@ -95,7 +95,7 @@ async def test_a_failed_reevaluation_has_an_explicit_diagnostic_code(
 async def test_there_is_an_authorized_way_to_retry_the_evaluation(
     api_client, db_session, registration, bim_down, engine_answers, monkeypatch
 ):
-    """Closed (C4): ``POST /v1/jobs/{id}/reevaluate`` evaluates the kept answer once BIM answers again."""
+    """Closed (C4): ``POST /v1/organizations/{org}/runs/{run}/reevaluate`` evaluates the kept answer once BIM answers again."""
     headers, job = await _failed_job(api_client, db_session, registration)
     monkeypatch.setattr(bim.AsyncBim, "reevaluate", REAL_REEVALUATE)
 

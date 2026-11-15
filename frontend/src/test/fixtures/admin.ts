@@ -161,11 +161,11 @@ const event = (n: number, statusCode: number, category: ApiErrorEventItem['categ
 });
 
 export const ERROR_EVENTS: ApiErrorEventItem[] = [
-  event(1, 402, 'pricing_quota', 'quota_exceeded', '/v1/jobs', SAM, '2026-10-09T07:40:00Z', {
+  event(1, 402, 'pricing_quota', 'quota_exceeded', '/v1/organizations/score-ai/runs', SAM, '2026-10-09T07:40:00Z', {
     quota: { limit_id: 'maxApiKeys', used: 10, limit: 10, unit: 'key' },
   }),
-  event(2, 402, 'pricing_quota', 'quota_exceeded', '/v1/jobs', SAM, '2026-10-09T06:10:00Z'),
-  event(3, 429, 'concurrency', 'concurrency_limit_exceeded', '/v1/jobs', SAM, '2026-10-08T18:20:00Z'),
+  event(2, 402, 'pricing_quota', 'quota_exceeded', '/v1/organizations/score-ai/runs', SAM, '2026-10-09T06:10:00Z'),
+  event(3, 429, 'concurrency', 'concurrency_limit_exceeded', '/v1/organizations/score-ai/runs', SAM, '2026-10-08T18:20:00Z'),
   event(4, 503, 'system_bug', 'pricing_unavailable', '/v1/users/me/usage', null, '2026-10-08T03:10:00Z'),
 ];
 

@@ -34,7 +34,7 @@ async def _public_view_of_the_only_job(client, db_session, headers) -> str:
     job = await only_job(db_session)
     precondition(job.state is JobState.FAILED, f"the job ended {job.state.value}, not failed")
     response = await client.get(run_url(job), headers=headers)
-    precondition(response.status_code == 200, f"GET /v1/jobs/<id> answered {response.status_code}")
+    precondition(response.status_code == 200, f"GET /v1/organizations/{{org}}/runs/<id> answered {response.status_code}")
     return response.text
 
 

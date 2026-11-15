@@ -416,8 +416,8 @@ jobs:
           fi
 
       - name: Build and start services
-        # gateway-dev dispatches jobs through Dramatiq: POST /v1/jobs stores a
-        # QUEUED row, publishes it to Redis and answers 202, and only a worker
+        # gateway-dev dispatches jobs through Dramatiq: POST /v1/organizations/{org}/runs
+        # stores a QUEUED row, publishes it to Redis and answers 202, and only a worker
         # moves it on. worker-dev depends on gateway-dev, not the reverse, so
         # compose does not start it unless it is named; without it every job
         # stays queued and the integration tests time out.

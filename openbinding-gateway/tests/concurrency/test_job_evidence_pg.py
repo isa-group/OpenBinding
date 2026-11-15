@@ -3,7 +3,7 @@
 Needs PostgreSQL (``TEST_DATABASE_URL``): the ``two_sessions`` fixture skips
 anywhere else, because SQLite ignores row locks. What these pin:
 
-* two simultaneous ``POST /v1/jobs/{id}/reevaluate`` complete the job once;
+* two simultaneous ``POST /v1/organizations/{org}/runs/{run}/reevaluate`` complete the job once;
 * BIM is called with no row lock held, so a cancellation does not wait for it;
 * a cancellation that arrives while BIM works ends the job CANCELLED, never
   COMPLETED, both for the worker and for the retry of a failed job;

@@ -398,17 +398,17 @@ of the release. Use the `server_name` of the first `listen 443 ssl` server of `n
    curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/x%2Fy?a=1&b=%20"
    ```
 
-5. `/%61pi/x` answers `400`; `/api/v1/jobs?limit=5` arrives as `GET /v1/jobs?limit=5`; `/static/a%20b.css` and
+5. `/%61pi/x` answers `400`; `/api/v1/organizations?limit=5` arrives as `GET /v1/organizations?limit=5`; `/static/a%20b.css` and
    `/avatars/u1.png?v=2` arrive unchanged, as `GET /static/a%20b.css` and `GET /avatars/u1.png?v=2`; and with
-   `--path-as-is`, `/api//v1/jobs` and `/api/v1/x/../jobs` arrive as `//v1/jobs` and `/v1/x/../jobs`:
+   `--path-as-is`, `/api//v1/organizations` and `/api/v1/x/../organizations` arrive as `//v1/organizations` and `/v1/x/../organizations`:
 
    ```bash
    curl -sk -o /dev/null -w '%{http_code}\n' --resolve <name>:8443:127.0.0.1 "https://<name>:8443/%61pi/x"
-   curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/jobs?limit=5"
+   curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/organizations?limit=5"
    curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/static/a%20b.css"
    curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/avatars/u1.png?v=2"
-   curl -sk --path-as-is --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api//v1/jobs"
-   curl -sk --path-as-is --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/x/../jobs"
+   curl -sk --path-as-is --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api//v1/organizations"
+   curl -sk --path-as-is --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/x/../organizations"
    docker logs gw1
    ```
 
@@ -468,13 +468,13 @@ rm -r <tls dir>
        /v1/bim/templates/demo%2F01_simple_seq
      ```
 
-   - Through the origin, with `curl --path-as-is`, request `/api//v1/jobs` and `/api/v1/x/../jobs`, which reach the
-     gateway as `//v1/jobs` and `/v1/x/../jobs`. Record the status and body of both in the deployment notes; they
+   - Through the origin, with `curl --path-as-is`, request `/api//v1/organizations` and `/api/v1/x/../organizations`, which
+     reach the gateway as `//v1/organizations` and `/v1/x/../organizations`. Record the status and body of both in the deployment notes; they
      document how the real gateway answers the raw form:
 
      ```bash
-     curl -sS --path-as-is -w '\n%{http_code}\n' "<origin>/api//v1/jobs"
-     curl -sS --path-as-is -w '\n%{http_code}\n' "<origin>/api/v1/x/../jobs"
+     curl -sS --path-as-is -w '\n%{http_code}\n' "<origin>/api//v1/organizations"
+     curl -sS --path-as-is -w '\n%{http_code}\n' "<origin>/api/v1/x/../organizations"
      ```
 
    - Restart only the gateway container, as the daemon does in the case of the section

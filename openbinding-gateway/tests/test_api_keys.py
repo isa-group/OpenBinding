@@ -826,7 +826,7 @@ def no_dispatch(monkeypatch):
 async def test_a_run_obeys_the_key_boundary_on_the_problem_in_the_body(
     api_client, registration, no_dispatch, boundary, allowed
 ):
-    # POST /v1/jobs names the revision in its body, so no path parameter carries the boundary.
+    # The run names its revision in the body, not in the path, so the boundary on the problem is checked there.
     from openbinding_gateway import space_client
     from openbinding_gateway.space_client import OpenGate
     from _problem_helpers import make_org, upload_problem

@@ -1,4 +1,4 @@
-"""POST /v1/jobs under ``SPACE_ENABLED=false`` (the open gate) and under a plan that misses a limit.
+"""POST /v1/organizations/{org}/runs under ``SPACE_ENABLED=false`` (the open gate) and under a plan that misses a limit.
 
 The open gate grants every limit unbounded, so only the deployment's technical
 ceilings apply. A real plan that does not declare ``maxRunMinutes`` fails

@@ -47,7 +47,7 @@ async def rows(pg, model) -> int:
 def an_event(organization_id, *, age_days: float, user_id=None, code: str = "rate_limit_exceeded") -> ApiErrorEvent:
     return ApiErrorEvent(
         id=uuid.uuid4(), user_id=user_id, organization_id=organization_id, status_code=429, category="concurrency",
-        error_code=code, endpoint="/v1/jobs", http_method="POST", detail={}, created_at=utcnow() - timedelta(days=age_days),
+        error_code=code, endpoint="/v1/organizations/acme/runs", http_method="POST", detail={}, created_at=utcnow() - timedelta(days=age_days),
     )
 
 
