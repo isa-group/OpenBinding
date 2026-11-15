@@ -5,8 +5,6 @@ import { describeExpression } from '../../entities/problem/expressions';
 import type { ProblemFacts } from '../../shared/api/types';
 import { formatFeature, type FeatureValue } from '../../utils/featureRange';
 
-export { SLUG_PATTERN, slugFromName } from '../../features/workspace/model';
-
 /** The longest a case's name and description may be (`BindingCaseCreate` in the contract). */
 export const NAME_MAX = 160;
 export const DESCRIPTION_MAX = 2000;

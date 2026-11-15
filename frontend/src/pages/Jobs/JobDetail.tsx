@@ -196,7 +196,7 @@ function JobDetailBody({ organization, jobId, canWork }: { organization: Organiz
 
       <Timeline status={state} created={created} finished={finished} feed={live.feed} />
       <Settings provenance={detail.provenance} />
-      <ResultSection detail={detail} org={org} jobId={jobId} origin={origin} />
+      <ResultSection detail={detail} org={org} jobId={jobId} origin={origin} canDerive={canWork} />
       <Provenance
         provenance={detail.provenance}
         compilation={detail.compilation ?? null}

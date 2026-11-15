@@ -7,7 +7,7 @@ import { Action } from '../../components/ui/Action';
 import { FormField } from '../../components/ui/FormField';
 import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
-import { SLUG_PATTERN, slugFromName } from '../../features/workspace/model';
+import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
 import { atLeast, buildForest, flatten, pathOf } from './orgModel';
 import { generalFailure } from '../../features/workspace/errors';
 import { classifyAuthError, marker } from '../../shared/api/errors';

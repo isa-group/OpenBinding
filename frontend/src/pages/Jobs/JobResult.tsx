@@ -6,6 +6,7 @@ import { SourceView } from '../../components/rendering/SourceView';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
+import { DeriveCompositionDialog } from '../../features/derive/DeriveCompositionDialog';
 import { problemPath, workbenchPath } from '../../routes/paths/problems';
 import { classifyAuthError, marker } from '../../shared/api/errors';
 import { normalizeStatus, numberText, violationsOf } from './jobsModel';
@@ -143,19 +144,40 @@ function NeighborhoodPanel({ org, jobId }: { org: string; jobId: string }) {
   );
 }
 
+/** Keep a solution of the run as a version of a composition (MEMBER): the derive dialog. */
+function DerivePanel({ org, jobId, solutions }: { org: string; jobId: string; solutions: JobSolution[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="job-card" aria-labelledby="job-derive">
+      <div className="job-card-head">
+        <h2 id="job-derive">Keep it as a composition</h2>
+        <Action variant="secondary" size="sm" onClick={() => setOpen(true)}>Derive composition</Action>
+      </div>
+      <p className="org-muted">
+        The gateway writes the Composition2Yaml document of a solution of this run, with the values it computes, and seals it as a version
+        of a composition. You see it before it is sealed.
+      </p>
+      {open && <DeriveCompositionDialog org={org} source={{ run: jobId, solutions }} onClose={() => setOpen(false)} />}
+    </section>
+  );
+}
+
 interface ResultSectionProps {
   detail: JobDetail;
   /** The organization the run belongs to. */
   org: string;
   jobId: string;
   origin: Origin | null;
+  /** MEMBER: may derive a composition from the run. */
+  canDerive: boolean;
 }
 
 /** The authoritative result: what the gateway re-evaluated, in the shape of the state the run ended in. */
-export function ResultSection({ detail, org, jobId, origin }: ResultSectionProps) {
+export function ResultSection({ detail, org, jobId, origin, canDerive }: ResultSectionProps) {
   const state = normalizeStatus(detail.status);
   const result = detail.result ?? null;
-  const solutions = Array.isArray(result?.solutions) ? result.solutions.filter(isRecord) as JobSolution[] : [];
+  const listed = Array.isArray(result?.solutions) ? result.solutions as unknown[] : [];
+  const solutions = listed.filter(isRecord) as JobSolution[];
   const completed = state !== 'queued' && state !== 'running' && state !== 'cancelled' && state !== 'failed';
   const { problem, constraints } = useRunProblem(origin, completed);
   // What the engine said about itself comes with the run (`remote`), beside the gateway's re-evaluation.
@@ -186,6 +208,7 @@ export function ResultSection({ detail, org, jobId, origin }: ResultSectionProps
         <>
           <p className="org-muted job-footnote">Numbers are OpenBinding’s own re-check of the engine’s answer.</p>
           <NeighborhoodPanel org={org} jobId={jobId} />
+          {canDerive && state === 'completed' && <DerivePanel org={org} jobId={jobId} solutions={listed as JobSolution[]} />}
         </>
       )}
     </RunResult>

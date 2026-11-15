@@ -8,6 +8,10 @@ import type { CompositionVersionView, CompositionView } from '../../src/shared/a
 // The diff of two versions is worked out here in the gateway's shape, from their documents and values.
 // The facts of the compilation the linked versions were evaluated on are core/fms.facts.json, which mockApi.ts serves for it.
 // On request (`{ evolution: true }`) a fourth composition with a longer history is seeded, for the evolution charts (J5).
+// Deriving (`POST …/derive`, J1) writes the FMS fixture's binding of checkout-flow@1 into a composition, which from then on is
+// evaluated: a check or a seal recomputes its values from T1's candidate, as the gateway's F1 fixtures give them (core/fms.version.json
+// for one candidate, core/fms.diff.json for the other), and the diff of its two versions is that golden. Texts the mock writes are
+// block YAML, and it reads back the texts it wrote.
 
 /** The organization that has compositions; every other one has none. */
 export const COMPOSITIONS_ORG = 'isa-demo';
@@ -97,6 +101,36 @@ function semanticsChanged(version: CompositionVersionView): CompositionVersionVi
 
 const RUN = uuid(0xa1);
 
+// -- Derived from a run: the FMS binding of checkout-flow@1, evaluated by the mock's toolchain
+
+/** The gateway's F1 diff golden of the FMS fixture: 1.0.0 → a 1.1.0 that binds T1 to another candidate. */
+const FMS_DIFF = core('fms.diff.json') as {
+  from: { id: string; label: string };
+  to: { id: string; label: string };
+  sections: Array<{ key: string; entries: Array<{ name: string; changes: Array<{ path: string; before: unknown; after: unknown }> }> }>;
+};
+const goldenChange = (section: string, name: string) => FMS_DIFF.sections.find((item) => item.key === section)?.entries.find((entry) => entry.name === name)?.changes[0];
+const T1_BEFORE = String(goldenChange('binding', 'T1')?.before);
+const T1_AFTER = String(goldenChange('binding', 'T1')?.after);
+type Values = CompositionVersionView['values'];
+/** The values of the FMS binding by T1's candidate: 1.0.0's, and 1.1.0's as the golden changes them. */
+const FMS_VALUES: Record<string, Values> = {
+  [T1_BEFORE]: FMS.values,
+  [T1_AFTER]: Object.fromEntries(Object.entries(FMS.values).map(([name, value]) => {
+    const change = goldenChange('values', name);
+    return [name, change ? { ...value, value: Number(change.after) } : value];
+  })),
+};
+const DERIVED_REF = `${COMPOSITIONS_ORG}/problems/checkout-flow@1`;
+const DERIVED_REVISION = { id: 'rev-checkout-1', revision: 1 };
+
+/** T1's candidate in a document's binding. */
+const t1Of = (document: Record<string, unknown>) => String((asFields(asFields(document.binding).T1)).candidate ?? '');
+/** What the mock's toolchain computes for a document of the FMS problem; the 1.0.0 values for a binding it does not know. */
+const evaluated = (document: Record<string, unknown>): Values => FMS_VALUES[t1Of(document)] ?? FMS.values;
+/** Values as a document writes them: a bare number for unit `1`. */
+const documentValues = (values: Values) => Object.fromEntries(Object.entries(values).map(([name, { value, unit }]) => [name, unit === '1' ? value : { value, unit }]));
+
 function composition(n: number, slug: string, name: string, over: Partial<CompositionView>, versions: CompositionVersionView[]): CompositionView {
   const latest = versions[versions.length - 1];
   return {
@@ -112,6 +146,8 @@ interface Entry {
   view: CompositionView;
   /** Oldest first. */
   versions: CompositionVersionView[];
+  /** A run was derived into it: its texts link the FMS problem and are evaluated by T1's candidate. */
+  evaluated?: boolean;
 }
 
 /**
@@ -211,6 +247,39 @@ const SCHEMA = {
 };
 
 const scalar = (text: string, key: string) => new RegExp(`^${key}:[ \\t]*(.*)$`, 'm').exec(text)?.[1]?.trim().replace(/^["']|["']$/g, '') ?? null;
+
+const NUMBER_LIKE = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?$/;
+const RESERVED = /^(?:true|false|null|yes|no|on|off|~)$/i;
+/** A scalar as block YAML writes it: plain when it reads back as the same string, double-quoted otherwise. */
+function yamlScalar(value: unknown): string {
+  if (value === null || value === undefined) return 'null';
+  if (typeof value !== 'string') return String(value);
+  return /^[A-Za-z0-9_][\w./@+-]*$/.test(value) && !NUMBER_LIKE.test(value) && !RESERVED.test(value) ? value : JSON.stringify(value);
+}
+
+const isContainer = (value: unknown): value is Record<string, unknown> | unknown[] => typeof value === 'object' && value !== null;
+const isEmpty = (value: Record<string, unknown> | unknown[]) => (Array.isArray(value) ? value.length === 0 : Object.keys(value).length === 0);
+const inline = (value: unknown) => (isContainer(value) && isEmpty(value) ? (Array.isArray(value) ? '[]' : '{}') : yamlScalar(value));
+
+function yamlLines(value: Record<string, unknown> | unknown[], indent: number): string[] {
+  const pad = ' '.repeat(indent);
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => {
+      if (!isContainer(item) || isEmpty(item)) return [`${pad}- ${inline(item)}`];
+      if (Array.isArray(item)) return [`${pad}-`, ...yamlLines(item, indent + 2)];
+      const [first, ...rest] = yamlLines(item, indent + 2);
+      return [`${pad}- ${first.trimStart()}`, ...rest];
+    });
+  }
+  return Object.entries(value).flatMap(([key, item]) => (
+    isContainer(item) && !isEmpty(item) ? [`${pad}${key}:`, ...yamlLines(item, indent + 2)] : [`${pad}${key}: ${inline(item)}`]
+  ));
+}
+
+/** A document as the mock writes it (`serialise`, a derivation, a check's canonical form): block YAML. */
+const yamlText = (document: Record<string, unknown>) => `${yamlLines(document, 0).join('\n')}\n`;
+/** The key a written text is read back by: its `version:` line may have been changed since. */
+const readingKey = (text: string) => text.replace(/^version:.*$/m, '');
 
 /** The mock's lint: an unknown `kind` is an error at its value; everything else passes. */
 function lint(text: string) {
@@ -326,13 +395,86 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     }
   }
 
-  /** A text read back as the stored document of its composition, with the text's label and kind. */
+  /** The documents of the texts the mock wrote, by `readingKey`. */
+  const written = new Map<string, Record<string, unknown>>();
+  const write = (document: Record<string, unknown>): string => {
+    const text = yamlText(document);
+    written.set(readingKey(text), structuredClone(document));
+    return text;
+  };
+
+  /**
+   * A text read back: the document the mock wrote it from, or else the stored document of its composition; either with the text's
+   * label and kind.
+   */
   const documentOf = (text: string): Record<string, unknown> => {
     const slug = scalar(text, 'composition') ?? '';
     const latest = entries.find((entry) => entry.view.slug === slug)?.versions.at(-1);
-    const base = (latest?.document as Record<string, unknown> | null | undefined)
+    const base = written.get(readingKey(text)) ?? (latest?.document as Record<string, unknown> | null | undefined)
       ?? { syntaxVersion: '1.0', composition: slug, workflow: null, binding: {}, values: {} };
     return { ...structuredClone(base), version: scalar(text, 'version') ?? '', kind: scalar(text, 'kind') ?? '' };
+  };
+
+  /** A new version of an entry with this label, text and document: a copy of `from` (by default its latest version), changed by `over`. */
+  const store = (
+    entry: Entry, label: string, text: string, document: Record<string, unknown>, over: Partial<CompositionVersionView> = {},
+    from: CompositionVersionView | undefined = entry.versions.at(-1),
+  ) => {
+    sealed += 1;
+    const now = new Date().toISOString();
+    const version: CompositionVersionView = {
+      ...structuredClone(from ?? declaredVersion(0, label, 0, now)),
+      id: uuid(0xe000 + sealed), ordinal: entry.versions.length + 1, label, created_at: now, content_digest: digest('e'),
+      document: { ...document, composition: entry.view.slug },
+      ...over,
+    };
+    entry.versions.push(version);
+    texts.set(version.id, text);
+    entry.view = {
+      ...entry.view, updated_at: now, version_count: entry.versions.length,
+      latest_version: { id: version.id, ordinal: version.ordinal, label, values_status: version.values_status, created_at: now },
+    };
+    return version;
+  };
+
+  /** What an evaluated entry's version holds for these values: its values and its evaluation's. */
+  const evaluatedFields = (version: CompositionVersionView, values: Values): Partial<CompositionVersionView> => ({
+    values, values_status: 'verified', verified: true,
+    evaluations: version.evaluations.map((item) => ({ ...item, values, outcome: 'verified' as const })),
+    current_evaluation: version.current_evaluation && { ...version.current_evaluation, outcome: 'verified' as const },
+  });
+
+  /** `POST …/derive` from a run: the FMS binding of checkout-flow@1 as `version`, previewed (`seal: false`) or sealed. */
+  const derive = (entry: Entry, request: CompositionRequest): CompositionReply => {
+    const sent = request.body() as { run?: string; point?: number; version?: string; seal?: boolean };
+    const label = String(sent.version ?? '');
+    const run = String(sent.run ?? '');
+    const point = sent.point ?? 0;
+    const fms = FMS.document as Record<string, unknown>;
+    const values = evaluated(fms);
+    const document = {
+      syntaxVersion: '1.0', composition: entry.view.slug, version: label, kind: entry.view.kind,
+      problem: { ref: DERIVED_REF, compilation: asFields(fms.problem).compilation }, workflow: fms.workflow, binding: fms.binding,
+      values: documentValues(values), evidence: { run, point, evaluatedBy: 'gateway', toolchain: 'bim-core 0.2.0' },
+    };
+    const text = write(document);
+    entry.evaluated = true;
+    if (sent.seal === false) return ok({ content: text, document, values, diagnostics: [] });
+    const existing = entry.versions.find((version) => version.label === label);
+    if (existing && texts.get(existing.id) !== text) {
+      return { status: 409, json: { detail: { code: 'version_label_taken', error: `Version ${label} already holds another content.` } } };
+    }
+    const base = structuredClone(FMS);
+    const version = existing ?? store(entry, label, text, document, {
+      ...evaluatedFields(base, values), kind: entry.view.kind, created_by_id: AUTHOR, evidence_run: { id: run },
+      problem: base.problem && { ...base.problem, problem: { id: 'case-checkout-flow', slug: 'checkout-flow', name: 'Checkout flow' }, revision: DERIVED_REVISION },
+      derivation: { source: 'run', run: { id: run }, point, revision: DERIVED_REVISION },
+    }, base);
+    const derivation = {
+      id: uuid(0xe200 + version.ordinal), source: 'run', revision_id: DERIVED_REVISION.id, compilation_id: base.problem?.linked_compilation?.id,
+      binding: {}, binding_digest: digest('d'), provenance: {}, job_id: run, point, created_by_id: AUTHOR, created_at: version.created_at,
+    };
+    return ok({ version, evaluation: version.evaluations[0], derivation, diagnostics: [] }, existing ? 200 : 201);
   };
 
   const seal = (entry: Entry, text: string): CompositionReply => {
@@ -342,26 +484,22 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     const existing = entry.versions.find((version) => version.label === label);
     if (existing && texts.get(existing.id) === text) return ok({ version: existing, evaluation: existing.evaluations[0], diagnostics: [] });
     if (existing) return { status: 409, json: { detail: { code: 'version_label_taken', error: `Version ${label} already holds another content.` } } };
-    sealed += 1;
-    const now = new Date().toISOString();
-    const latest = entry.versions.at(-1) ?? declaredVersion(0, label, 0, now);
-    const version: CompositionVersionView = {
-      ...structuredClone(latest),
-      id: uuid(0xe000 + sealed), ordinal: entry.versions.length + 1, label, created_at: now, content_digest: digest('e'),
-      document: { ...documentOf(text), composition: entry.view.slug },
-    };
-    entry.versions.push(version);
-    texts.set(version.id, text);
-    entry.view = {
-      ...entry.view, updated_at: now, version_count: entry.versions.length,
-      latest_version: { id: version.id, ordinal: version.ordinal, label, values_status: version.values_status, created_at: now },
-    };
+    const document = documentOf(text);
+    const latest = entry.versions.at(-1);
+    const over = entry.evaluated && latest ? { ...evaluatedFields(latest, evaluated(document)), derivation: null, evidence_run: null } : {};
+    const version = store(entry, label, text, document, over);
     return ok({ version, evaluation: version.evaluations[0], diagnostics: [] }, 201);
   };
 
   const check = (entry: Entry, text: string): CompositionReply => {
     const linted = lint(text);
     if (!linted.valid) return ok({ valid: false, values_status: null, values: null, content: null, diagnostics: linted.diagnostics });
+    if (entry.evaluated && /^problem\s*:/m.test(text)) {
+      // The toolchain computes the values of the binding the text names; the canonical form states them.
+      const document = documentOf(text);
+      const values = evaluated(document);
+      return ok({ valid: true, values_status: 'verified', values, content: write({ ...document, values: documentValues(values) }), diagnostics: [] });
+    }
     return ok({
       valid: true, values_status: /^problem\s*:/m.test(text) ? 'verified' : 'declared', values: entry.versions.at(-1)?.values ?? {}, content: text, diagnostics: [],
     });
@@ -402,11 +540,15 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
       const entry = entries.find((item) => item.view.slug === slug);
       if (!entry) return missing();
       if (!section) return ok(entry.view);
+      if (section === 'derive' && request.method === 'POST') return derive(entry, request);
       const find = (value: string | null) => entry.versions.find((item) => item.id === value || item.label === value || String(item.ordinal) === value);
       if (section === 'diff') {
         const to = request.query.get('to') ? find(request.query.get('to')) : entry.versions.at(-1);
         const from = request.query.get('from') ? find(request.query.get('from')) : to && entry.versions[entry.versions.indexOf(to) - 1];
         if (!to || !from) return { status: 409, json: { detail: { code: 'diff_version_missing', error: 'There is no version to compare with.' } } };
+        // The pair the gateway's F1 diff golden compares answers that golden, under these versions' ids and labels.
+        const golden = entry.evaluated && t1Of(asFields(from.document)) === T1_BEFORE && t1Of(asFields(to.document)) === T1_AFTER;
+        if (golden) return ok({ ...structuredClone(FMS_DIFF), from: { id: from.id, label: from.label }, to: { id: to.id, label: to.label } });
         return ok(versionDiff(from, to));
       }
       if (section !== 'versions') return { status: 404, json: { detail: 'not mocked' } };
@@ -436,7 +578,7 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
           const linted = lint(request.text());
           return linted.valid ? ok({ document: documentOf(request.text()), diagnostics: [] }) : refused(linted.diagnostics);
         }
-        case 'serialise': return { status: 200, text: `${JSON.stringify(request.body(), null, 2)}\n`, type: 'application/yaml' };
+        case 'serialise': return { status: 200, text: write(request.body()), type: 'application/yaml' };
         default: return null;
       }
     },

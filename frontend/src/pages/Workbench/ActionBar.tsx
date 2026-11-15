@@ -4,7 +4,7 @@ import type { Problem } from '../../api/problems';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { problemPath } from '../../routes/paths/problems';
-import { SLUG_PATTERN, slugFromName } from '../Cases/casesModel';
+import { SLUG_PATTERN, slugFromName } from '../../shared/lib/slug';
 import type { Workbench } from './useWorkbench';
 
 /** The value of the problem picker that saves the package as a new problem. */

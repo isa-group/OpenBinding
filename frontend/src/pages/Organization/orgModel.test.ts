@@ -4,7 +4,7 @@ import {
 } from './orgModel';
 import { auditFixture } from './auditFixture';
 import { changesOf, describeEvent, kindOf, toCsv } from './auditModel';
-import { slugFromName } from '../../features/workspace/model';
+import { slugFromName } from '../../shared/lib/slug';
 import { org } from '../../features/workspace/testKit';
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });

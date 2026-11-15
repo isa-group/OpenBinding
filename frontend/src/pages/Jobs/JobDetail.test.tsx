@@ -16,6 +16,8 @@ const facts = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../entities/problem/facts', async (actual) => ({ ...await actual<typeof import('../../entities/problem/facts')>(), problemFactsApi: facts }));
 vi.mock('../../features/workspace/download', () => ({ saveBytes: vi.fn() }));
+const compositions = vi.hoisted(() => ({ list: vi.fn(), create: vi.fn(), derive: vi.fn() }));
+vi.mock('../../entities/composition/api', () => ({ compositionsApi: compositions }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const reader = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
@@ -43,6 +45,7 @@ describe('One run', () => {
     facts.get.mockResolvedValue(PROBLEM_FACTS);
     problems.revision.mockResolvedValue({ document: { apiVersion: 'bim/v1', kind: 'Instance' } });
     runsApi.neighborhood.mockResolvedValue(NEIGHBORHOOD);
+    compositions.list.mockResolvedValue({ compositions: [], total: 0, limit: 200, offset: 0 });
   });
 
   it('shows a finished run: its state, outcome, who ran it and from what', async () => {
@@ -428,5 +431,41 @@ describe('One run', () => {
     expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Cancel run' })).not.toBeInTheDocument();
     expect(runsApi.get).toHaveBeenLastCalledWith('read-lab', JOB_ID);
+  });
+
+  it('offers a MEMBER to derive a composition from a completed run, with its solutions, in a dialog', async () => {
+    renderJob();
+
+    const panel = await screen.findByRole('region', { name: 'Keep it as a composition' });
+    expect(within(screen.getByRole('region', { name: 'Run result' })).getByRole('region', { name: 'Keep it as a composition' })).toBe(panel);
+    fireEvent.click(within(panel).getByRole('button', { name: 'Derive composition' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Derive a composition' });
+    await waitFor(() => expect(compositions.list).toHaveBeenCalledWith('isa-demo', { archived: false, sort: 'updated', limit: 200 }));
+    fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Checkout plan' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Next' }));
+    const points = await within(dialog).findByRole('region', { name: 'Solutions of the run' });
+    expect(within(points).getAllByRole('radio').map((radio) => radio.closest('label')?.textContent)).toEqual(['Solution 1', 'Solution 2']);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Back' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Derive a composition' })).not.toBeInTheDocument());
+    expect(compositions.create).not.toHaveBeenCalled();
+  });
+
+  it('offers no derivation to a VIEWER, nor for a run with no solution to keep', async () => {
+    const view = renderJob(JOB_ID, '/app/read-lab');
+    await screen.findByRole('region', { name: 'Run result' });
+    expect(screen.queryByRole('button', { name: 'Derive composition' })).not.toBeInTheDocument();
+    view.unmount();
+
+    runsApi.get.mockResolvedValue(full('completed', { result: { ...RESULT, termination: 'INFEASIBLE', solutions: [S1] } }));
+    const infeasible = renderJob();
+    await screen.findByRole('heading', { name: 'Why no combination works' });
+    expect(screen.queryByRole('button', { name: 'Derive composition' })).not.toBeInTheDocument();
+    infeasible.unmount();
+
+    runsApi.get.mockResolvedValue(full('completed', { result: { termination: 'FEASIBLE', solutions: [] } }));
+    renderJob();
+    await screen.findByRole('region', { name: 'Run result' });
+    expect(screen.queryByRole('button', { name: 'Derive composition' })).not.toBeInTheDocument();
   });
 });
