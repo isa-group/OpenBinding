@@ -23,9 +23,11 @@ INDEX = "<!doctype html><html><head></head><body><div id=root></div><script src=
 ROLES = {"lab-owner": "OWNER", "lab-member": "MEMBER", "lab-viewer": "VIEWER"}
 LIMIT = 3
 ALL_STEPS = [
-    "proxy_and_spa", "login", "owner_job", "idempotency", "authorization",
+    "proxy_and_spa", "login", "upload", "owner_job", "study", "idempotency", "authorization",
     "concurrency_limit", "cors", "body_limit", "plan_usage", "login_throttle",
 ]
+TEMPLATE = b"PK-example"
+ENGINE = {"name": "random-search", "namespace": "bim.builtin", "version": "1.0.0", "digest": "sha256-e"}
 
 
 class FakeLab:
@@ -38,11 +40,13 @@ class FakeLab:
         self.tokens: dict[str, str] = {}
         self.issued = 0
         self.login_hits: Counter[str] = Counter()
-        self.revisions = {"rev-1"}
+        self.revisions: dict[str, str] = {"rev-1": "simple-seq"}
+        self.problems: dict[str, bytes] = {}
         self.jobs: dict[str, dict] = {}
         self.keys: dict[tuple[str, str], tuple[str, str]] = {}
         self.studies: set[str] = set()
         self.study_runs = 0
+        self.study_polls = 0
         self.job_bodies: list[dict] = []
         self.study_definitions: list[dict] = []
 
@@ -105,7 +109,7 @@ class FakeLab:
         if method == "OPTIONS":
             return self.preflight(request)
         if sub == "/v1/bim/templates/demo/01_simple_seq":
-            return httpx.Response(200, content=b"PK-example", headers={"content-type": "application/vnd.bim+zip"})
+            return httpx.Response(200, content=TEMPLATE, headers={"content-type": "application/vnd.bim+zip"})
         if user is None:
             return self.problem(401, "unauthorized")
         if sub in {"/v1/users/me", "/v1/users/me/usage"} and "pricing_blocked" in self.faults:
@@ -120,7 +124,11 @@ class FakeLab:
             allowed = user == "lab-admin" or "admin_open" in self.faults
             return self.reply(200, {"users": 6}) if allowed else self.problem(403, "forbidden")
         if sub == "/v1/engines":
-            return self.reply(200, {"engines": [{"name": "random-search", "namespace": "bim.builtin", "version": "1.0.0", "digest": "sha256-e"}]})
+            return self.reply(200, {"engines": [{**ENGINE, "id": "bim.builtin/random-search", "ref": ENGINE, "modes": []}]})
+        if sub == "/v1/bim/validate" and method == "POST":
+            if "invalid_template" in self.faults:
+                return self.problem(422, "invalid_package")
+            return self.reply(200, {"valid": True, "packageDigest": self.digest(request.content), "diagnostics": []})
         if sub.startswith("/v1/organizations"):
             return self.organizations(request, sub, user)
         return self.problem(404, "not_found")
@@ -143,6 +151,10 @@ class FakeLab:
         self.tokens[access] = name
         return self.reply(200, {"access_token": access, "refresh_token": f"refresh-token-{name}-{self.issued}",
                                 "token_type": "bearer", "expires_in": 900})
+
+    @staticmethod
+    def digest(content: bytes) -> str:
+        return f"sha256-{len(content):064d}"
 
     def missing_users(self) -> set[str]:
         return {fault.removeprefix("missing:") for fault in self.faults if fault.startswith("missing:")}
@@ -179,13 +191,24 @@ class FakeLab:
             return self.job(sub, request.method, user, role)
         if role is None:
             return self.problem(403, "organization_forbidden")
-        if sub == "/v1/organizations/lab-main/problems":
-            return self.reply(200, {"problems": [{"slug": "simple-seq"}], "total": 1})
-        if sub == "/v1/organizations/lab-main/problems/simple-seq/revisions":
+        problems = "/v1/organizations/lab-main/problems"
+        if sub == problems and request.method == "POST":
+            return self.upload(request, role)
+        if sub == problems:
+            listed = [{"slug": "simple-seq"}, *({"slug": slug} for slug in self.problems)]
+            return self.reply(200, {"problems": listed, "total": len(listed)})
+        if sub == f"{problems}/simple-seq/revisions":
             return self.reply(200, [{"id": "rev-1", "revision": 1}])
+        if sub.startswith(f"{problems}/") and sub.removeprefix(f"{problems}/").split("/")[0] in self.problems:
+            return self.revision_part(sub.removeprefix(f"{problems}/"))
+        studies = "/v1/organizations/lab-main/studies"
+        if sub.startswith(f"{studies}/") and request.method == "GET":
+            return self.study_run(sub.removeprefix(f"{studies}/"))
         if sub == "/v1/organizations/lab-main/studies" and request.method == "POST":
             if role == "VIEWER":
                 return self.problem(403, "organization_forbidden")
+            if "pricing_blocked" in self.faults:
+                return self.pricing_unavailable()
             document = json.loads(request.content)
             slug = document["slug"]
             engines = document["definition"]["engines"]
@@ -195,12 +218,55 @@ class FakeLab:
             created = slug not in self.studies
             self.studies.add(slug)
             return self.reply(201, {"slug": slug}) if created else self.problem(409, "slug_conflict")
-        if sub == "/v1/organizations/lab-main/studies/smoke-lab/runs" and request.method == "POST":
+        if sub.startswith(f"{studies}/") and sub.endswith("/runs") and request.method == "POST":
+            if sub.split("/")[5] not in self.studies:
+                return self.problem(404, "not_found")
             if role == "VIEWER" and "viewer_run_open" not in self.faults:
                 return self.problem(403, "organization_forbidden")
             self.study_runs += 1
-            return self.reply(202, {"id": "run-1", "state": "running"})
+            revision = self.study_definitions[-1]["revision_ids"][0]
+            frozen = {"problems": [{"revisionId": revision, "compilationId": "compilation-1"}]}
+            return self.reply(202, {"id": "run-1", "state": "running", "definition": frozen, "definition_digest": "sha256-frozen"})
         return self.reply(200, {})
+
+    def upload(self, request: httpx.Request, role: str) -> httpx.Response:
+        if role == "VIEWER":
+            return self.problem(403, "insufficient_role")
+        if "pricing_blocked" in self.faults:
+            return self.pricing_unavailable()
+        slug = request.url.params.get("slug", "")
+        if slug in self.problems or slug == "simple-seq":
+            return self.problem(409, "slug_conflict")
+        self.problems[slug] = request.content
+        revision = f"rev-{slug}"
+        self.revisions[revision] = slug
+        digest = "sha256-other" if "digest_mismatch" in self.faults else self.digest(request.content)
+        return self.reply(201, {"problem": {"slug": slug}, "revision": {"id": revision, "revision": 1, "package_digest": digest},
+                                "created": True, "compilation": {"id": "compilation-1"}})
+
+    def revision_part(self, rest: str) -> httpx.Response:
+        slug, *tail = rest.split("/")
+        if tail == ["revisions", "1", "source"]:
+            return httpx.Response(200, content=self.problems[slug], headers={"content-type": "application/vnd.bim+zip"})
+        if tail == ["revisions", "1", "compilation"]:
+            modes = [{"engine": ENGINE, "mode": "seeded", "compatible": "no_engine" not in self.faults}]
+            return self.reply(200, {"id": "compilation-1", "compatible_modes": modes})
+        return self.problem(404, "not_found")
+
+    def study_run(self, rest: str) -> httpx.Response:
+        parts = rest.split("/")
+        if len(parts) < 3 or parts[0] not in self.studies or parts[2] != "run-1":
+            return self.problem(404, "not_found")
+        self.study_polls += 1
+        done = self.study_polls >= 2 and "study_stuck" not in self.faults
+        state = ("partial" if "cell_failed" in self.faults else "completed") if done else "running"
+        if parts[3:] == ["cells"]:
+            seeds = self.study_definitions[-1]["seeds"]
+            cells = [{"id": f"cell-{seed}", "seed": seed, "state": "completed" if done else "running"} for seed in seeds]
+            if "cell_failed" in self.faults:
+                cells[0]["state"] = "failed"
+            return self.reply(200, cells)
+        return self.reply(200, {"id": "run-1", "state": state, "definition_digest": "sha256-frozen"})
 
     def viewer_job_view(self, job_id: str) -> dict:
         """A run as a VIEWER reads it: completed, with the options and the request redacted (unless a fault leaks them)."""
@@ -219,7 +285,7 @@ class FakeLab:
     def create_job(self, request: httpx.Request, user: str) -> httpx.Response:
         body = json.loads(request.content)
         role = self.role_in_org(user)
-        if body.get("revision") not in self.revisions:
+        if body.get("revision") not in self.revisions or "refuse_runs" in self.faults:
             return self.problem(404, "not_found")
         if role == "VIEWER":
             return self.problem(403, "insufficient_role")
@@ -243,7 +309,7 @@ class FakeLab:
             return self.problem(429, "concurrency_limit_exceeded", {"Retry-After": "15"})
         job_id = str(uuid.uuid4())
         slow = body["options"].get("iterations", 0) >= 1_000_000
-        self.jobs[job_id] = {"owner": user, "status": "queued", "polls": 0, "slow": slow}
+        self.jobs[job_id] = {"owner": user, "status": "queued", "polls": 0, "slow": slow, "revision": body["revision"]}
         if key:
             self.keys[(user, key)] = (job_id, fingerprint)
         return self.reply(202, {"id": job_id, "status": "queued", "profile": "qos-binding/v1", "irDigest": "sha256-ir"})
@@ -269,7 +335,7 @@ class FakeLab:
             job["status"] = "completed"
         elif job["status"] == "queued":
             job["status"] = "running"
-        body: dict = {"id": job_id, "status": job["status"]}
+        body: dict = {"id": job_id, "status": job["status"], "revision": {"id": job["revision"], "revision": 1}}
         if job["status"] == "completed":
             body.update(self.finished())
         return self.reply(200, body)
@@ -332,7 +398,7 @@ def test_every_step_passes_against_a_healthy_lab():
     report = smoke(FakeLab(), with_space=True)
     assert failing(report) == [], [step for step in report["steps"] if not step["ok"]]
     assert [step["name"] for step in report["steps"]] == ALL_STEPS
-    assert report["ok"] is True and report["passed"] == 10 and report["failed"] == 0 and report["skipped"] == []
+    assert report["ok"] is True and report["passed"] == 12 and report["failed"] == 0 and report["skipped"] == []
     assert report["blocked"] == 0 and report["blockedSteps"] == []
     assert not any(step["blockedByRemote"] for step in report["steps"])
 
@@ -345,8 +411,10 @@ def test_jobs_and_study_engines_carry_the_mode_and_the_execution_optimization():
         body["mode"] == "seeded" and body["optimization"] == {"type": "SINGLE", "scalarization": "weighted-sum"}
         for body in fake.job_bodies
     )
-    # The viewer reads the owner's run: no study is created to have a run to read.
-    assert fake.study_definitions == []
+    # The study step's one study: its engine is the full reference, with the mode and the optimization.
+    assert len(fake.study_definitions) == 1
+    assert fake.study_definitions[0]["engines"] == [{**ENGINE, "mode": "seeded", "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"}}]
+    assert fake.study_definitions[0]["seeds"] == [1, 2]
 
 
 def test_a_job_without_the_execution_optimization_is_what_the_gateway_refuses_with_422():
@@ -361,7 +429,7 @@ def test_a_job_without_the_execution_optimization_is_what_the_gateway_refuses_wi
 
 # -- steps blocked by the remote -----------------------------------------------
 
-BLOCKED_STEPS = ["login", "owner_job", "idempotency", "authorization", "concurrency_limit", "plan_usage"]
+BLOCKED_STEPS = ["login", "upload", "owner_job", "study", "idempotency", "authorization", "concurrency_limit", "plan_usage"]
 
 
 def test_missing_spaces_contracts_block_the_steps_that_need_a_plan_and_are_not_failures():
@@ -379,8 +447,8 @@ def test_missing_spaces_contracts_block_the_steps_that_need_a_plan_and_are_not_f
         assert "pricing_unavailable" in step["detail"]
     for name in ("proxy_and_spa", "cors", "body_limit", "login_throttle"):
         assert by_name[name]["ok"] is True and by_name[name]["blockedByRemote"] is False
-    # no study is started either
-    assert fake.studies == set() and fake.study_runs == 0
+    # no problem is uploaded and no study is started either
+    assert fake.problems == {} and fake.studies == set() and fake.study_runs == 0
 
 
 def test_a_blocked_step_still_judges_what_does_not_depend_on_the_plan():
@@ -429,7 +497,7 @@ def test_only_a_503_pricing_unavailable_counts_as_blocked_by_the_remote():
 
 
 def test_the_login_throttle_runs_last_so_it_cannot_block_the_other_steps():
-    assert smoke_lab.RUN_ORDER[-1] == 9
+    assert smoke_lab.RUN_ORDER[-1] == 11
     fake = FakeLab()
     smoke(fake, with_space=True)
     assert [path for _, path in fake.requests[-11:]] == ["/api/v1/auth/login"] * 11
@@ -473,7 +541,7 @@ def test_a_failing_step_gives_exit_one_and_does_not_stop_the_next_ones(capsys):
     code, report, _ = run_main(FakeLab("spa_404"), capsys)
     assert code == 1 and report["ok"] is False
     assert failing(report) == ["proxy_and_spa"]
-    assert len(report["steps"]) == 10
+    assert len(report["steps"]) == 12
 
 
 def test_a_missing_password_is_a_configuration_error(capsys):
@@ -488,7 +556,7 @@ def test_an_unreachable_lab_fails_every_step_without_a_traceback(capsys):
 
     code = smoke_lab.main([], {"DEMO_SEED_PASSWORD": PASSWORD}, transport=httpx.MockTransport(refuse), sleep=lambda _: None)
     report = json.loads(capsys.readouterr().out)
-    assert code == 1 and report["failed"] == 9
+    assert code == 1 and report["failed"] == 11
     assert all("ConnectError" in step["detail"] for step in report["steps"])
 
 
@@ -498,11 +566,14 @@ def test_a_user_that_cannot_sign_in_fails_the_login_step_and_what_needs_it():
     assert not failed["login"]["ok"] and "lab-viewer" in failed["login"]["detail"]
     assert not failed["authorization"]["ok"]
     assert failed["proxy_and_spa"]["ok"] and failed["owner_job"]["ok"] and failed["idempotency"]["ok"]
+    assert failed["upload"]["ok"] and failed["study"]["ok"]
 
 
 def test_skip_leaves_out_optional_steps_and_the_space_step_needs_its_flag():
-    report = smoke(FakeLab(), skip=frozenset({6, 7, 8, 9}))
-    assert [step["name"] for step in report["steps"]] == ["proxy_and_spa", "login", "owner_job", "idempotency", "authorization"]
+    report = smoke(FakeLab(), skip=frozenset({8, 9, 10, 11}))
+    assert [step["name"] for step in report["steps"]] == [
+        "proxy_and_spa", "login", "upload", "owner_job", "study", "idempotency", "authorization",
+    ]
     assert report["skipped"] == ["concurrency_limit", "cors", "body_limit", "plan_usage", "login_throttle"]
     assert report["ok"] is True
 
@@ -528,9 +599,9 @@ def test_with_space_the_plan_step_does_call_the_usage_endpoint():
     assert ("GET", "/api/v1/users/me/usage") in fake.requests
 
 
-def test_skip_accepts_numbers_and_names_but_only_for_steps_six_to_nine():
-    assert smoke_lab.parse_skip("6, cors,body_limit") == frozenset({6, 7, 8})
-    for bad in ("1", "login", "10", "nonsense"):
+def test_skip_accepts_numbers_and_names_but_only_for_steps_eight_to_eleven():
+    assert smoke_lab.parse_skip("8, cors,body_limit") == frozenset({8, 9, 10})
+    for bad in ("1", "login", "study", "12", "nonsense"):
         with pytest.raises(Exception, match="can be skipped"):
             smoke_lab.parse_skip(bad)
     with pytest.raises(SystemExit) as exit_info:
@@ -543,7 +614,7 @@ def test_an_unexpected_exception_in_a_step_is_reported_redacted():
     step = steps_of(report)["proxy_and_spa"]
     assert not step["ok"] and "RuntimeError" in step["detail"]
     assert PASSWORD not in step["detail"] and "***" in step["detail"]
-    assert failing(report) == ["proxy_and_spa"] and len(report["steps"]) == 9
+    assert failing(report) == ["proxy_and_spa"] and len(report["steps"]) == 11
 
 
 # -- step 1 --------------------------------------------------------------------
@@ -557,6 +628,35 @@ def test_the_spa_fallback_must_return_the_index():
 # -- step 3 --------------------------------------------------------------------
 
 
+def test_the_upload_step_uploads_the_template_it_validated_as_a_new_problem():
+    fake = FakeLab()
+    report = smoke(fake, skip=frozenset({8, 9, 10, 11}))
+    step = steps_of(report)["upload"]
+    assert step["ok"], step["detail"]
+    assert list(fake.problems.values()) == [TEMPLATE]
+    (slug,) = fake.problems
+    assert slug.startswith("smoke-")
+    # The run, the study and the idempotency launches are of the uploaded revision.
+    assert {job["revision"] for job in fake.jobs.values()} == {f"rev-{slug}"}
+    assert fake.study_definitions[0]["revision_ids"] == [f"rev-{slug}"]
+
+
+@pytest.mark.parametrize(
+    ("fault", "expected"),
+    [
+        ("invalid_template", "the template validates"),
+        ("digest_mismatch", "same packageDigest"),
+        ("no_engine", "random-search can run it"),
+    ],
+)
+def test_the_upload_step_names_what_went_wrong(fault, expected):
+    step = steps_of(smoke(FakeLab(fault)))["upload"]
+    assert not step["ok"] and expected in step["detail"]
+
+
+# -- step 4 --------------------------------------------------------------------
+
+
 def test_the_owner_job_step_reports_a_timeout_instead_of_hanging():
     step = steps_of(smoke(FakeLab("stuck")))["owner_job"]
     assert not step["ok"] and "timeout" in step["detail"]
@@ -567,7 +667,24 @@ def test_the_result_must_show_the_authoritative_reevaluation():
     assert not step["ok"] and "reference evaluator" in step["detail"]
 
 
-# -- step 4 --------------------------------------------------------------------
+# -- step 5 --------------------------------------------------------------------
+
+
+def test_the_study_step_runs_one_cell_per_seed_and_waits_for_them():
+    fake = FakeLab()
+    step = steps_of(smoke(fake))["study"]
+    assert step["ok"], step["detail"]
+    assert fake.study_runs == 1 and len(fake.studies) == 1
+
+
+def test_a_study_run_that_does_not_end_or_loses_a_cell_fails_the_step():
+    stuck = steps_of(smoke(FakeLab("study_stuck")))["study"]
+    assert not stuck["ok"] and "timeout" in stuck["detail"]
+    partial = steps_of(smoke(FakeLab("cell_failed")))["study"]
+    assert not partial["ok"] and "every cell completed" in partial["detail"] and "partial" in partial["detail"]
+
+
+# -- step 6 --------------------------------------------------------------------
 
 
 def test_idempotency_failures_are_named():
@@ -578,25 +695,25 @@ def test_idempotency_failures_are_named():
 
 def test_the_same_key_of_another_account_gives_another_job():
     fake = FakeLab()
-    smoke(fake, skip=frozenset({6, 7, 8, 9}))
+    smoke(fake, skip=frozenset({8, 9, 10, 11}))
     owners = [job["owner"] for job in fake.jobs.values()]
     assert "lab-member" in owners and owners.count("lab-owner") >= 2
 
 
-# -- step 5 --------------------------------------------------------------------
+# -- step 7 --------------------------------------------------------------------
 
 
 def test_the_viewer_reads_the_owners_run_with_redacted_options():
     fake = FakeLab()
     step = steps_of(smoke(fake))["authorization"]
     assert step["ok"], step["detail"]
-    assert fake.studies == set() and fake.study_runs == 0
+    # The one study run is the study step's: the viewer started none.
+    assert fake.study_runs == 1
 
 
 def test_without_a_run_of_the_owner_the_viewer_read_fails_the_authorization_step():
-    fake = FakeLab()
-    fake.revisions = set()  # every launch is refused, so the owner_job step leaves no run to read
-    step = steps_of(smoke(fake, skip=frozenset({6, 7, 8, 9})))["authorization"]
+    fake = FakeLab("refuse_runs")  # every launch is refused, so the owner_job step leaves no run to read
+    step = steps_of(smoke(fake, skip=frozenset({8, 9, 10, 11})))["authorization"]
     assert not step["ok"]
     assert "no run of the owner" in step["detail"]
 
@@ -644,7 +761,7 @@ def test_non_admins_must_get_403_and_the_admin_200_on_admin_routes():
     assert not step["ok"] and "403" in step["detail"]
 
 
-# -- step 6 --------------------------------------------------------------------
+# -- step 8 --------------------------------------------------------------------
 
 
 def test_five_simultaneous_launches_hit_the_concurrency_limit_and_the_slot_is_freed():
@@ -659,7 +776,7 @@ def test_a_gateway_without_the_limit_fails_the_concurrency_step():
     assert not step["ok"] and "at least one launch got a 429" in step["detail"]
 
 
-# -- step 7 --------------------------------------------------------------------
+# -- step 9 --------------------------------------------------------------------
 
 
 def test_cors_allows_the_lab_origin_and_refuses_another():
@@ -668,7 +785,7 @@ def test_cors_allows_the_lab_origin_and_refuses_another():
     assert not step["ok"] and "evil.example" in step["detail"]
 
 
-# -- step 8 --------------------------------------------------------------------
+# -- step 10 -------------------------------------------------------------------
 
 
 def test_a_body_over_16_mib_is_a_413_problem_json():
@@ -682,7 +799,7 @@ def test_a_gateway_that_accepts_the_oversized_body_fails_and_a_hang_is_reported(
     assert not hung["ok"] and "ReadTimeout" in hung["detail"]
 
 
-# -- step 9 --------------------------------------------------------------------
+# -- step 11 -------------------------------------------------------------------
 
 
 def test_twelve_failed_logins_end_in_a_429_with_retry_after():
@@ -698,7 +815,7 @@ def test_a_gateway_without_throttling_fails_the_step():
     assert not step["ok"] and "429" in step["detail"]
 
 
-# -- step 10 -------------------------------------------------------------------
+# -- step 12 -------------------------------------------------------------------
 
 
 def test_the_plan_step_wants_plan_and_capabilities_without_counters():

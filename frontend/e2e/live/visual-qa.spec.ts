@@ -252,7 +252,7 @@ const VIEWER_STOPS: Stop[] = [
     path: `${ORG_PATH}/problems`,
     ready: (page) => page.getByRole('list', { name: 'Problems' }),
     extra: async (page, label) => {
-      await expect.soft(page.getByRole('button', { name: 'New problem' }), `${label}: a viewer sees "New problem"`).toHaveCount(0);
+      await expect.soft(page.getByRole('button', { name: 'Upload BIM package' }), `${label}: a viewer sees "Upload BIM package"`).toHaveCount(0);
     },
   },
   {

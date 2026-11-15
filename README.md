@@ -153,6 +153,39 @@ local emergency tool and binds only to loopback:
 docker compose --profile db-tools up -d adminer
 ```
 
+### Quick start: upload, run, study
+
+The organization is the only container: it holds problems, runs and studies. In the web application, open an
+organization, then **Problems → Upload BIM package** (or start one in the Workbench from a template), **Run this
+version** on the problem page, and **Studies → New study** to compare engines over versions and seeds. The same walk
+through the API, signed in with a token (`TOKEN`) of a MEMBER of the organization `my-lab`:
+
+```bash
+API=http://localhost:8000
+AUTH="Authorization: Bearer $TOKEN"
+# 1. Upload a package as a new problem (revision 1); the gateway compiles it once.
+curl -sS "$API/v1/bim/templates/demo/01_simple_seq" -o simple-seq.bim.zip
+curl -sS -H "$AUTH" -H 'Content-Type: application/vnd.bim+zip' --data-binary @simple-seq.bim.zip \
+  "$API/v1/organizations/my-lab/problems?slug=simple-seq"
+# 2. Run that revision on an engine mode (202, then poll the run until it is completed).
+curl -sS -H "$AUTH" -H 'Content-Type: application/json' "$API/v1/organizations/my-lab/runs" \
+  -d '{"revision": "<revision id>", "engine": "random-search", "mode": "seeded",
+       "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"}}'
+curl -sS -H "$AUTH" "$API/v1/organizations/my-lab/runs/<run id>"
+# 3. A study of the revision x engine modes x seeds, and a run of it, which freezes the definition.
+curl -sS -H "$AUTH" -H 'Content-Type: application/json' "$API/v1/organizations/my-lab/studies" \
+  -d '{"slug": "seeds", "name": "Seeds", "definition": {"revision_ids": ["<revision id>"],
+       "engines": [{"namespace": "bim.builtin", "name": "random-search", "version": "1.0.0", "digest": "<digest from /v1/engines>",
+                    "mode": "seeded", "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"}}],
+       "parameter_sets": [{}], "seeds": [1, 2]}}'
+curl -sS -H "$AUTH" -X POST "$API/v1/organizations/my-lab/studies/seeds/runs"
+```
+
+`POST /v1/bim/validate` checks a package without storing it. The walk is also an API test
+(`openbinding-gateway/tests/test_f0b_walk.py`), a mocked browser test (`frontend/e2e/f0b-walk.spec.ts`), a live
+browser test against the lab (`frontend/e2e/live/03-upload-run-study.spec.ts`) and steps 3 to 5 of
+`openbinding-gateway/tools/smoke_lab.py`.
+
 ### Reset the dev database
 
 The schema is one Alembic revision, regenerated from the models
@@ -171,11 +204,11 @@ docker volume rm openbinding_pgdata
 
 The volume name follows the Compose project name; use
 `docker volume ls --format '{{.Name}}'` if `COMPOSE_PROJECT_NAME` is set. This
-procedure leaves Redis, artifacts and other development volumes intact.
+procedure leaves Redis, the stored packages and other development volumes intact.
 
 ### Seeding development data
 
-To populate the database with a complete set of development entities (users, hierarchical organizations, projects, compiled BIM v1 cases, real solver jobs, comparative studies, and API keys) for testing all platform features:
+To populate the database with a complete set of development entities (users, hierarchical organizations, problems with compiled revisions, real solver runs, comparative studies, and API keys) for testing all platform features:
 
 ```bash
 # Seed development data (idempotent: adds or updates without duplicating)
@@ -209,19 +242,20 @@ always returns `202`. Results use `OPTIMAL`, `FEASIBLE`, `INFEASIBLE`, or `UNKNO
 the BIM services answer errors as `application/problem+json` with source-located
 diagnostics, and the organization's routes as the platform JSON envelope.
 
-The React workbench is a single transactional `InstanceWorkspace` over the
-same package and compiler contracts used by API clients. Its surrounding
-platform shell adds the organization/project context, onboarding for new
-accounts, the organization's problems, resources, studies, the public engine catalogue,
+The React Workbench is the organization's BIM problem editor, over the same
+package and compiler contracts used by API clients; it saves a valid package as
+a new problem or a new version, and runs nothing itself. Its surrounding
+platform shell adds the organization context, onboarding for new
+accounts, the organization's problems, runs and studies, the public engine catalogue,
 authenticated Engine management (`/app/engines`) with owner telemetry. Pricing
 is managed in the remote SPHERE and SPACE UIs, not in OpenBinding.
 
 ### Scientific Provenance, Deep Inspection & Replication
 
 OpenBinding guarantees strict cryptographic immutability and provenance:
-- **In-browser ZIP Uncompression & Inspection**: Explore `.bim.zip` problem revisions and artifact archives directly in the browser with directory trees and syntax-highlighted code inspection via CodeMirror.
+- **In-browser ZIP Uncompression & Inspection**: Explore `.bim.zip` problem revisions directly in the browser with directory trees and syntax-highlighted code inspection via CodeMirror.
 - **Frozen study definitions**: A study keeps its editable matrix inline; every study run freezes a copy of it, with its digest and the compilation each problem revision runs on, so editing a study never changes what a run ran. Archive/restore preserves execution history.
-- **Dedicated Deep-Linked Views**: Full-page inspection and editing for Problems (`/app/:org/problems/:problem`), their revisions and Jobs (`/jobs/:jobId`).
+- **Dedicated Deep-Linked Views**: Full-page inspection and editing for Problems (`/app/:org/problems/:problem`), their revisions, Runs (`/app/:org/runs/:run`) and Studies (`/app/:org/studies/:study`).
 
 ## Repository layout
 

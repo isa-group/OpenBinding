@@ -289,12 +289,24 @@ classDiagram
 
 Mapping to `v1` names: Problem = `BindingCase` (owned by an organization), ProblemVersion = `BindingCaseRevision` (the
 uploaded package and its digests), CompiledForm = `ProblemCompilation` (its IR, per toolchain), Run = `Job` (it names a
-revision and its compilation and never copies the IR), Result = job result plus re-evaluation, PublishedResult = a simplified `publications`
-record (no report, no editions). A problem version is its uploaded package, addressed by digest; there is no
+revision and its compilation and never copies the IR), Result = job result plus re-evaluation, PublishedResult = not built
+yet (F1/F9; the old `publications` table is retired). A problem version is its uploaded package, addressed by digest; there is no
 component catalogue. A study run freezes its definition, with the compilation of each revision it runs. Every sealed entity has a content digest
 that the API returns and Verify checks;
 screens name it as §5.4 says. Permanent links address problems and published results independently of
 slugs.
+
+**As built after F0b.** The organization is the only container; the schema has 25 tables. An organization owns its
+problems (`binding_cases`), their revisions (`binding_case_revisions`: the uploaded package, held by a `blobs` row of
+that organization, with its digests) and their compilations (`problem_compilations`: the IR of a revision by one
+toolchain, insert-only and unique by `(revision_id, compiler_digest)` and by `(revision_id, compilation_digest)`). A run
+(`jobs`) belongs to the organization and names a revision and a compilation through a composite foreign key, so it cannot
+run another revision's IR. A study (`studies`) holds the editable definition; a study run (`study_runs`) holds the frozen
+copy and its digest, and each cell (`study_cells`) pins the compilation it runs. There are no projects, no artifact store,
+no snapshots and no public read. Sealed rows reject UPDATE through triggers declared once in `db/triggers.py`
+(`immutable`, `protect`, `retain`); history is kept by `RESTRICT` foreign keys rather than by refusing every DELETE, so
+a problem nobody ran can be deleted ([ADR 0023](adr/0023-trigger-ddl-single-source.md),
+[ADR 0024](adr/0024-immutable-means-no-update.md)).
 
 ## 7. Key flows
 
@@ -340,6 +352,14 @@ sequenceDiagram
     Q-->>U: SSE status, then the rendered result (trade-off set if several objectives)
   end
 ```
+
+A run never copies the IR. `createRun` resolves the revision's compilation by compile-or-get: it is looked up by
+`(revision, compilerDigest)` and compiled and stored only on a miss, once per revision and toolchain
+([ADR 0027](adr/0027-compile-or-get.md)). The run records the compilation's id and IR digest; the worker loads the IR
+from `problem_compilations` when it claims the job and refuses to run one whose digest differs
+([ADR 0026](adr/0026-engine-ir-from-problem-compilations.md)). Re-evaluation, the neighbourhood and the IR view read the
+same row, and a study run pins one compilation per revision for all its cells
+([ADR 0028](adr/0028-frozen-study-definitions.md)).
 
 ### 7.3 Study
 
@@ -528,7 +548,7 @@ flowchart LR
 No SPACE and no SPHERE run in any stack. OpenBinding uses the remote SPACE at `https://space.score.us.es`, which
 follows the SPHERE permanent link. The lab has one optional compose project, `compose.lab-pricing.json`, with a
 one-shot `pricing-bootstrap` (`mem_limit` 96 MiB, no database, no volume, no published port; see
-[qa/PRICING_PROFILE.md](qa/PRICING_PROFILE.md)). It takes a MANAGEMENT key of the remote SPACE from
+`docs/qa/PRICING_PROFILE.md` (removed with the factory artifacts in `e47da50d5`; in git history)). It takes a MANAGEMENT key of the remote SPACE from
 `DEMO_SPACE_MANAGEMENT_KEY`, supplied by the lab supervisor from a root-only secret file outside the repository, and
 in two steps:
 
@@ -557,6 +577,13 @@ remote SPACE and its routes are unverified until the first live run of the one-s
 | Datasets, raw campaign results | Zenodo | never in Git or the platform database |
 
 Purges run through `/v1/admin/maintenance/preview|purge` and scheduled workers.
+
+Package files are content addressed and shared across organizations, so no request handler ever unlinks one: a request
+that did could race with another organization's uncommitted upload of the same bytes, and a rolled-back delete would
+still lose the file. A blob row is unique per organization and digest and is only file storage (no public route, no
+quota meaning). Deleting a problem deletes rows and leaves the blob rows; deleting an organization deletes its blob
+rows; a later sweeper reclaims files no committed row references ([ADR 0032](adr/0032-blobs-are-file-storage.md)).
+Storage is charged per revision, to the account that created it ([ADR 0035](adr/0035-storage-charged-per-revision.md)).
 
 The schema is one Alembic revision, the baseline that `openbinding-gateway/tools/rebaseline.py` generates from the
 models and from the trigger declarations of `db/triggers.py` (the only source of trigger DDL). A schema change edits
@@ -613,12 +640,28 @@ Each move is one `refactor/<id>` change that updates CI, Dockerfiles, documentat
 
 | ADR | Decision |
 |---|---|
-| [0001](adr/0001-record-architecture-decisions.md)–[0013](adr/0013-committed-openapi-snapshot.md) | baseline decisions (BIM as canonical language behind a port, engines as services, durable jobs, pinned MiniZinc, datasets outside Git, frontend stack, problem+json, layered gateway, OpenAPI snapshot) |
-| [0014](adr/0014-render-never-dump.md) | render, never dump |
-| [0015](adr/0015-plans-through-space-and-sphere-clients.md) | plans through SPACE and SPHERE with their real clients (supersedes 0010); SPHERE at `sphere.score.us.es`, the remote SPACE at `space.score.us.es` |
-| [0016](adr/0016-extensible-language-profiles-and-dialects.md) | profiles that extend profiles, adapter tiers, language API |
-| [0017](adr/0017-modular-monolith-and-feature-sliced-frontend.md) | modular monolith and feature-sliced frontend (evolves 0012) |
-| [0018](adr/0018-problem-centred-vocabulary.md) | problem-centred vocabulary in the UI, API `v1` unchanged |
-| [0019](adr/0019-previews-and-retention.md) | previews before merge and storage retention |
-| [0020](adr/0020-smaller-platform.md) | a smaller platform: journeys decide what exists; five features retire; people read names, machines read digests |
-| [0021](adr/0021-docker-compose-only.md) | Docker Compose deploys every environment; Kubernetes manifests removed |
+| [0022](adr/0022-one-schema-baseline.md) | one schema baseline, regenerated by script (D1) |
+| [0023](adr/0023-trigger-ddl-single-source.md) | trigger DDL has one source, `db/triggers.py` (D2) |
+| [0024](adr/0024-immutable-means-no-update.md) | immutable rows reject UPDATE; history is kept by `RESTRICT` foreign keys (D3) |
+| [0025](adr/0025-workbench-stays-bim-editor.md) | the Workbench stays as the BIM problem editor (D4) |
+| [0026](adr/0026-engine-ir-from-problem-compilations.md) | a run executes the IR of its compilation and never copies it (D5) |
+| [0027](adr/0027-compile-or-get.md) | compile-or-get, keyed by the compiler digest (D6) |
+| [0028](adr/0028-frozen-study-definitions.md) | study runs freeze their definitions and pin compilations (D7) |
+| [0029](adr/0029-no-run-presets-in-f0b.md) | no run presets or execution configurations in F0b (D8) |
+| [0030](adr/0030-run-columns.md) | the columns of a run (D9) |
+| [0031](adr/0031-engine-protocol-endpoint.md) | `GET /v1/engines/protocol` replaces `/v1/profiles` (D12) |
+| [0032](adr/0032-blobs-are-file-storage.md) | blobs are file storage; requests never unlink files (D14) |
+| [0033](adr/0033-pricing-entitlement-map.md) | pricing 0.2.0 through one entitlement map (D15) |
+| [0034](adr/0034-no-public-read-in-f0b.md) | no public read in F0b (D17) |
+| [0035](adr/0035-storage-charged-per-revision.md) | storage is charged per revision (D23) |
+| [0036](adr/0036-bim-services-under-v1-bim.md) | the BIM language services live under `/v1/bim` (D25) |
+| [0037](adr/0037-anonymous-workbench-stays.md) | anonymous validation at `/workbench` stays (D26) |
+| [0038](adr/0038-old-composition2yaml-removed.md) | the problem-authoring Composition2Yaml is removed (D27) |
+| [0039](adr/0039-drop-v1-job-provenance.md) | `v1_job_provenance` is dropped (D28) |
+| [0040](adr/0040-deleted-accounts-deactivate-engines.md) | a deleted account's federated engines are deactivated (D29) |
+
+The earlier records, 0001 to 0021 (BIM behind a port, engines as services, durable jobs, the frontend stack,
+problem+json, the layered gateway, the OpenAPI snapshot, plans through SPACE and SPHERE, extensible profiles, the
+modular monolith, the problem-centred vocabulary, previews and retention, the smaller platform, Docker Compose only),
+were removed with the factory process artifacts in `e47da50d5` and remain in git history; [`adr/`](adr/README.md) lists
+the current ones.

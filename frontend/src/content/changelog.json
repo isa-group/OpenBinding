@@ -1,6 +1,22 @@
 {
   "platform": [
     {
+      "version": "F0b",
+      "date": "Unreleased",
+      "title": "Re-anchoring: the organization holds problems, runs and studies",
+      "changes": [
+        "Walk upload, run and study end to end (API test, mocked and live browser walks, lab smoke) and record the F0b decisions as ADRs 0022-0040",
+        "Remove projects: the organization is the only container, with no public read",
+        "Freeze study definitions in study runs and remove the artifact store, the library and project resources",
+        "Move runs under the organization (/v1/organizations/{org}/runs)",
+        "Hang problems off the organization, fuse snapshots into revisions and compilations, and rebind the Workbench to /v1/bim and the problems API",
+        "Reduce the Workbench to the BIM problem editor and retire job history and the redirect tables",
+        "Enforce pricing 0.2.0 per account and pseudonymise deleted accounts",
+        "Remove the problem-authoring Composition2Yaml (Studio)",
+        "Rebaseline the schema on one Alembic revision with triggers from one module"
+      ]
+    },
+    {
       "version": "0.1.0",
       "date": "2026-11-04",
       "title": "OpenBinding platform",

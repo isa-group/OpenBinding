@@ -8,9 +8,7 @@ data (the image copies only ``src/``).
 
 from __future__ import annotations
 
-import ast
 import hashlib
-from pathlib import Path
 
 import pytest
 import yaml
@@ -25,7 +23,6 @@ SOURCE = GATEWAY_ROOT / "src" / "openbinding_gateway"
 DOCS_YAML = REPO_ROOT / "docs" / "pricing" / "openbinding-0.2.0.yml"
 PACKAGE_YAML = SOURCE / "modules" / "plans" / "pricing" / "openbinding-0.2.0.yml"
 PUBLISHED_SHA256 = "4b9c7203c2771991be54c11bddf1fee5fc385c8cc5fa28b21e6d06b37d5b75b1"
-MAP = SOURCE / "modules" / "plans" / "domain" / "entitlement_map.py"
 
 
 def published() -> dict:
@@ -127,39 +124,4 @@ def test_the_problems_quota_counts_the_next_problem():
     assert quotas.problems_quota(10**6, plan(maxProblems=float("inf"))) is None
 
 
-# -- No id is spelled outside the map ------------------------------------------------
-
-
-def _string_ids(path: Path, root: Path = SOURCE) -> list[str]:
-    """``file:line`` of every string literal passed as an entitlement id."""
-    found: list[str] = []
-    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-        if not isinstance(node, ast.Call):
-            continue
-        function = node.func
-        name = function.attr if isinstance(function, ast.Attribute) else getattr(function, "id", None)
-        if name in {"limit", "allows"}:
-            arguments = node.args[:1]
-        elif name in {"feature_refusal", "require_feature"}:
-            arguments = node.args[1:2]
-        else:
-            continue
-        if any(isinstance(argument, ast.Constant) and isinstance(argument.value, str) for argument in arguments):
-            found.append(f"{path.relative_to(root)}:{node.lineno}")
-    return found
-
-
-def test_no_entitlement_id_is_a_string_literal_outside_the_map():
-    offenders = [hit for path in sorted(SOURCE.rglob("*.py")) if path != MAP for hit in _string_ids(path)]
-
-    assert not offenders, offenders
-
-
-def test_the_scan_sees_a_spelled_id(tmp_path):
-    planted = tmp_path / "planted.py"
-    planted.write_text(
-        'caps.limit("maxApiKeys")\nservice.feature_refusal(caps, "runs")\nquery.limit(1)\ncaps.limit(ids.MAX_API_KEYS)\n',
-        encoding="utf-8",
-    )
-
-    assert _string_ids(planted, tmp_path) == ["planted.py:1", "planted.py:2"]
+# The scan that no id is spelled outside the map is ``tools/check_retired_surface.py`` (tests/test_retired_surface.py).

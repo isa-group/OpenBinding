@@ -1,7 +1,9 @@
+import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
 import type { Page, Route } from '@playwright/test';
 import type { AdminUserView } from '../../src/api/auth';
-import type { Job } from '../../src/api/platform';
+import type { Job, Study, StudyCell, StudyRun } from '../../src/api/platform';
+import type { Problem, ProblemRevision } from '../../src/api/problems';
 import { digestOf as caseDigest, irDocument } from '../../src/pages/Cases/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../../src/pages/Pricing/pricingFixture';
 import {
@@ -11,7 +13,7 @@ import {
   EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, QOS_PROFILE,
   REPORT_FAILED, REPORT_PENDING, REPORT_VERIFIED, SHARED_SOLVER, SOLVER_IN_REVIEW, reportOf as registrationReport,
 } from '../../src/test/fixtures/engines';
-import { NEIGHBORHOOD, REGISTRATION, RUN_REFS, SOLUTION, detailOf as jobDetailOf, jobOf } from '../../src/test/fixtures/jobs';
+import { NEIGHBORHOOD, REGISTRATION, RESULT, RUN_REFS, SOLUTION, detailOf as jobDetailOf, jobOf } from '../../src/test/fixtures/jobs';
 import {
   RANDOM_SEARCH, REVISION_2, analyticsFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
 } from '../../src/test/fixtures/studies';
@@ -548,6 +550,340 @@ export async function installMockApi(page: Page, session: Session): Promise<Mock
       await call.fulfill({ status: reply.status ?? 200, contentType: reply.type ?? 'application/octet-stream', body: reply.bytes });
     } else if (reply.text !== undefined) {
       await call.fulfill({ status: reply.status ?? 200, contentType: reply.type ?? 'text/plain', body: reply.text });
+    } else {
+      await call.fulfill({ status: reply.status ?? 200, json: reply.json });
+    }
+  });
+  return handle;
+}
+
+// -- The F0b walk: one organization that starts with nothing and keeps what the walk writes
+
+/** The organization of the walk (`isa-demo` of the gallery, with no problem, run or study until the walk makes them). */
+export const WALK_ORG = 'isa-demo';
+
+export interface WalkHandle extends MockHandle {
+  /** What the walk wrote, in order. */
+  sent: {
+    /** Every package `POST /v1/bim/validate` was asked to check. */
+    validated: Buffer[];
+    /** The problems created (`createProblem`) and the versions added (`createProblemRevision`), with the package each carried. */
+    uploads: Array<{ problem: string; revision: number; id: string; bytes: Buffer }>;
+    /** The bodies of `createRun`. */
+    runs: Array<Record<string, unknown>>;
+    /** The bodies of `createStudy`. */
+    studies: Array<Record<string, unknown>>;
+  };
+}
+
+interface WalkProblem {
+  item: Problem;
+  revisions: Array<{ row: ProblemRevision; bytes: Buffer }>;
+}
+
+interface WalkRun {
+  summary: Job;
+  reads: number;
+}
+
+interface WalkStudyRun {
+  run: StudyRun;
+  cells: StudyCell[];
+  reads: number;
+}
+
+const sha256 = (bytes: Buffer | string) => `sha256-${createHash('sha256').update(bytes).digest('hex')}`;
+
+/** How many times a run, or a study run's cells, is read before it moves on: the screens poll, so this is a few seconds. */
+const READS_TO_START = 1;
+const READS_TO_FINISH = 2;
+
+/**
+ * The gateway for the F0b walk (`e2e/f0b-walk.spec.ts`): nobody is signed in until `POST /v1/auth/login`; then the organization
+ * `isa-demo` holds the problems, versions, runs and studies the walk creates, read back as the gateway would answer them. A version's
+ * source is the package that was uploaded, byte for byte. A run is queued, then running, then completed with the fixture result; a study
+ * run's cells go from queued to completed the same way. Everything else (the account, the plan, the engines, the templates list) is the
+ * gallery's. A request neither answers is a 404 recorded in `unmocked`, which the walk expects to stay empty.
+ */
+export async function installWalkApi(page: Page, template: Buffer): Promise<WalkHandle> {
+  const handle: WalkHandle = { unmocked: [], sent: { validated: [], uploads: [], runs: [], studies: [] } };
+  const problems: WalkProblem[] = [];
+  const runs = new Map<string, WalkRun>();
+  const studies: Study[] = [];
+  const studyRuns = new Map<string, WalkStudyRun[]>();
+  let serial = 0;
+  const nextId = (prefix: string) => {
+    serial += 1;
+    return `${prefix}-${String(serial).padStart(4, '0')}`;
+  };
+  await page.clock.setFixedTime(new Date(NOW));
+
+  const latestOfRow = (problem: WalkProblem) => {
+    const newest = problem.revisions[problem.revisions.length - 1]?.row;
+    return newest ? { id: newest.id, revision: newest.revision, package_digest: newest.package_digest, created_at: newest.created_at } : null;
+  };
+  const shown = (problem: WalkProblem) => ({ ...problem.item, latest_revision: latestOfRow(problem) });
+  const compilationFor = (row: ProblemRevision) => ({
+    id: `compilation-${row.id}`, revision_id: row.id, compilation_digest: sha256(`compilation:${row.package_digest}`), compiler_digest: caseDigest('8'),
+    ir_digest: sha256(`ir:${row.package_digest}`), binding_space: ANALYSIS.bindingSpace, created_at: NOW, current: true, toolchain: {}, analysis: ANALYSIS,
+    resources: { application: { role: 'application', path: 'application.json', apiVersion: 'qos-binding/v1', kind: 'Application' } },
+    compatible_modes: COMPATIBLE_MODES(),
+  });
+  const addRevision = (problem: WalkProblem, bytes: Buffer) => {
+    const row: ProblemRevision = {
+      id: nextId(`rev-${problem.item.slug}`), problem_id: problem.item.id, revision: problem.revisions.length + 1, package_digest: sha256(bytes),
+      package_size: bytes.length, created_by_id: ME_ID, created_at: NOW,
+    };
+    problem.revisions.push({ row, bytes });
+    problem.item = { ...problem.item, updated_at: NOW };
+    handle.sent.uploads.push({ problem: problem.item.slug, revision: row.revision, id: row.id, bytes });
+    return row;
+  };
+  const upload = (problem: WalkProblem, row: ProblemRevision, created: boolean) => {
+    return { problem: shown(problem), revision: row, created, compilation: { ...compilationFor(row), compatible_modes: undefined } };
+  };
+  const revisionOf = (problem: WalkProblem, ref: string) => problem.revisions.find(({ row }) => String(row.revision) === ref || row.id === ref || row.package_digest === ref);
+  const refsOf = (revisionId: string) => {
+    for (const problem of problems) {
+      const found = problem.revisions.find(({ row }) => row.id === revisionId);
+      if (found) {
+        const compilation = compilationFor(found.row);
+        return {
+          problem, row: found.row,
+          refs: {
+            organization: { id: 'org-isa-demo', slug: WALK_ORG },
+            problem: { id: problem.item.id, slug: problem.item.slug, name: problem.item.name },
+            revision: { id: found.row.id, revision: found.row.revision },
+            compilation: { id: compilation.id, compilation_digest: compilation.compilation_digest, ir_digest: compilation.ir_digest },
+          },
+        };
+      }
+    }
+    return null;
+  };
+
+  const problemRoute = (request: Request, body: Buffer | null): Reply => {
+    const { method, parts, query } = request;
+    const [, , , , slug, sub, ref, tail, , last] = parts;
+    if (!slug) {
+      if (method === 'POST') {
+        const bytes = body ?? Buffer.alloc(0);
+        const wanted = query.get('slug') ?? 'uploaded';
+        if (problems.some((problem) => problem.item.slug === wanted)) {
+          return { status: 409, json: { detail: { code: 'slug_conflict', error: 'That problem slug is in use in this organization.' } } };
+        }
+        const problem: WalkProblem = {
+          item: {
+            id: nextId('problem'), organization_id: 'org-isa-demo', slug: wanted, name: query.get('name') ?? wanted, description: query.get('description') ?? '',
+            created_by_id: ME_ID, created_at: NOW, updated_at: NOW,
+          },
+          revisions: [],
+        };
+        problems.push(problem);
+        return ok(upload(problem, addRevision(problem, bytes), true), 201);
+      }
+      return ok({ problems: problems.map(shown), total: problems.length, limit: Number(query.get('limit') ?? 50), offset: 0 });
+    }
+    const problem = problems.find((item) => item.item.slug === slug || item.item.id === slug);
+    if (!problem) return notFound('Problem not found.');
+    if (!sub) return ok(shown(problem));
+    if (sub !== 'revisions') return notFound('Not mocked.');
+    if (!ref) {
+      if (method === 'POST') {
+        const bytes = body ?? Buffer.alloc(0);
+        const same = problem.revisions.find(({ row }) => row.package_digest === sha256(bytes));
+        return same ? ok(upload(problem, same.row, false), 200) : ok(upload(problem, addRevision(problem, bytes), true), 201);
+      }
+      return ok([...problem.revisions].reverse().map(({ row }) => row));
+    }
+    const found = revisionOf(problem, ref);
+    if (!found) return notFound('Problem revision not found.');
+    if (!tail) return ok({ ...revisionDetail(found.row as typeof PROBLEM_REVISIONS[number]), compilations: [] });
+    if (tail === 'source') return { status: 200, bytes: found.bytes, type: 'application/vnd.bim+zip' };
+    if (tail === 'compilation') return ok(compilationFor(found.row));
+    if (tail === 'compilations' && last === 'ir') {
+      return ok({ id: compilationFor(found.row).id, ir_digest: compilationFor(found.row).ir_digest, ir: irDocument(8), source_map: {} });
+    }
+    return notFound('Not mocked.');
+  };
+
+  const runRoute = (request: Request): Reply => {
+    const { method, parts, query } = request;
+    const [, , , , runId, action] = parts;
+    if (!runId) {
+      if (method === 'POST') {
+        const sent = request.body();
+        handle.sent.runs.push(sent);
+        const found = refsOf(String(sent.revision ?? ''));
+        if (!found) return notFound('Problem revision not found.');
+        const id = `00000000-0000-4000-8000-${String(1000 + runs.size).padStart(12, '0')}`;
+        runs.set(id, { summary: jobOf(id, 'random-search', 'queued', null, NOW, null, { organization_id: 'org-isa-demo', ...found.refs, created_by: { id: ME_ID, username: ME.username } }), reads: 0 });
+        return ok({ id, status: 'queued', irDigest: found.refs.compilation.ir_digest }, 202);
+      }
+      const rows = [...runs.values()].map(({ summary }) => summary)
+        .filter((row) => (!query.get('problem') || row.problem?.slug === query.get('problem')) && (!query.get('revision') || row.revision?.id === query.get('revision')));
+      return ok({ runs: rows.slice(0, Number(query.get('limit') ?? 50)), total: rows.length });
+    }
+    const run = runs.get(runId);
+    if (!run) return notFound('Run not found.');
+    if (action === 'neighborhood') return ok({ ...NEIGHBORHOOD, jobId: runId });
+    if (action) return notFound('Not mocked.');
+    run.reads += 1;
+    const status = run.reads > READS_TO_FINISH ? 'completed' : run.reads > READS_TO_START ? 'running' : 'queued';
+    run.summary = { ...run.summary, status, termination: status === 'completed' ? 'FEASIBLE' : null, finished_at: status === 'completed' ? NOW : null };
+    const { organization, problem, revision, compilation } = run.summary as Job & typeof RUN_REFS;
+    return ok({ ...run.summary, ...jobDetailOf(runId, status, { organization, problem, revision, compilation }), ...(status === 'completed' ? { result: RESULT } : {}) });
+  };
+
+  const studyRoute = (request: Request): Reply => {
+    const { method, parts } = request;
+    const [, , , , slug, action, runId, tail, cellId] = parts;
+    if (!slug) {
+      if (method === 'POST') {
+        const sent = request.body() as { slug: string; name: string; description?: string; definition: Study['definition'] };
+        handle.sent.studies.push(sent);
+        const study: Study = {
+          archived: false, id: nextId('study'), organization_id: 'org-isa-demo', slug: sent.slug, name: sent.name, description: sent.description ?? '',
+          definition: sent.definition, definition_digest: sha256(JSON.stringify(sent.definition)), state: 'ready', created_by_id: ME_ID, created_at: NOW,
+        };
+        studies.push(study);
+        return ok(study, 201);
+      }
+      return ok(studies);
+    }
+    const study = studies.find((item) => item.slug === slug);
+    if (!study) return notFound('Study not found.');
+    if (!action) return { status: 200, json: study };
+    if (action !== 'runs') return notFound('Not mocked.');
+    const own = studyRuns.get(study.slug) ?? [];
+    if (!runId) {
+      if (method === 'POST') {
+        const id = `00000000-0000-4000-8000-${String(2000 + own.length).padStart(12, '0')}`;
+        const definition = study.definition;
+        const frozen = {
+          apiVersion: 'openbinding/study-run/v1',
+          problems: definition.revision_ids.map((revisionId) => {
+            const found = refsOf(revisionId);
+            return {
+              revisionId, problemId: found?.problem.item.id ?? '', revision: found?.row.revision ?? 0, packageDigest: found?.row.package_digest ?? '',
+              compilationId: found?.refs.compilation.id ?? '', compilationDigest: found?.refs.compilation.compilation_digest ?? '', irDigest: found?.refs.compilation.ir_digest ?? '',
+            };
+          }),
+          engines: definition.engines, parameterSets: definition.parameter_sets, seeds: definition.seeds,
+        };
+        const cells: StudyCell[] = [];
+        for (const revisionId of definition.revision_ids) {
+          for (const engine of definition.engines) {
+            for (const parameters of definition.parameter_sets) {
+              for (const seed of definition.seeds) {
+                const ordinal = cells.length;
+                cells.push({
+                  id: `00000000-0000-4000-8000-${String(3000 + ordinal).padStart(12, '0')}`, study_run_id: id, ordinal, binding_case_revision_id: revisionId,
+                  compilation_id: refsOf(revisionId)?.refs.compilation.id ?? '', engine_ref: { ...engine } as unknown as StudyCell['engine_ref'], parameters, seed,
+                  fingerprint: sha256(`${id}:${ordinal}`), job_id: null, state: 'queued', metrics: {},
+                });
+              }
+            }
+          }
+        }
+        const run: StudyRun = {
+          id, study_id: study.id, run_number: own.length + 1, state: 'running', matrix_digest: sha256(`matrix:${id}`), cells: cells.length, summary: {},
+          definition: frozen, definition_digest: sha256(JSON.stringify(frozen)), created_at: NOW, finished_at: null,
+        };
+        studyRuns.set(study.slug, [{ run, cells, reads: 0 }, ...own]);
+        return ok(run, 202);
+      }
+      return ok(own.map((item) => item.run));
+    }
+    const entry = own.find((item) => item.run.id === runId);
+    if (!entry) return notFound('Study run not found.');
+    if (!tail) return ok(entry.run);
+    if (tail === 'cells') {
+      if (!cellId) {
+        entry.reads += 1;
+        const done = entry.reads > READS_TO_FINISH;
+        entry.cells = entry.cells.map((cell) => {
+          const engine = cell.engine_ref as { namespace: string; name: string; version: string };
+          const finished = done ? {
+            state: 'completed' as const, job_id: `00000000-0000-4000-8000-${String(4000 + cell.ordinal).padStart(12, '0')}`,
+            metrics: {
+              status: 'completed', feasible: true, termination: 'FEASIBLE', objectives: { cost: 0.1 + cell.ordinal / 100, latency: 400 + cell.ordinal },
+              runtimeSeconds: 30 + cell.ordinal, engine: `${engine.namespace}/${engine.name}@${engine.version}`, seed: cell.seed,
+            },
+          } : { state: (entry.reads > READS_TO_START ? 'running' : 'queued') as StudyCell['state'] };
+          return { ...cell, ...finished };
+        });
+        if (done) entry.run = { ...entry.run, state: 'completed', finished_at: NOW };
+        return ok(entry.cells);
+      }
+      const cell = entry.cells.find((item) => item.id === cellId);
+      return cell ? ok(cell) : notFound('Study cell not found.');
+    }
+    if (tail === 'analytics') {
+      const completed = entry.cells.filter((cell) => cell.state === 'completed');
+      const objective = (name: string) => completed.map((cell) => Number((cell.metrics.objectives as Record<string, number> | undefined)?.[name] ?? 0));
+      return ok(analyticsFixture({
+        cells: entry.cells.length, completed: completed.length, failed: 0, feasible: completed.length, infeasible: 0,
+        objective_distributions: { cost: objective('cost'), latency: objective('latency') },
+        runtimes_s: completed.map((cell) => Number(cell.metrics.runtimeSeconds ?? 0)),
+        stability: Object.fromEntries([...new Set(completed.map((cell) => String(cell.metrics.engine)))].map((engine) => [engine, { samples: 2, distinct: 2, repeatability: 0.5 }])),
+      }));
+    }
+    return notFound('Not mocked.');
+  };
+
+  const walkRoute = (request: Request, body: Buffer | null, signedIn: boolean): Reply | null => {
+    const { method, parts } = request;
+    const [first, area, second, third] = parts;
+    if (first !== 'v1') return null;
+    if (area === 'auth' && second === 'login' && method === 'POST') {
+      return ok({ access_token: 'walk-access', refresh_token: 'walk-refresh', token_type: 'bearer', expires_in: 900 });
+    }
+    if (!signedIn && SESSION_ONLY.has(area)) return { status: 401, json: { detail: { code: 'not_authenticated', error: 'Authentication required.' } } };
+    if (area === 'bim' && second === 'validate' && method === 'POST') {
+      handle.sent.validated.push(body ?? Buffer.alloc(0));
+      return ok({
+        valid: true, instanceDigest: sha256(`instance:${sha256(body ?? '')}`), packageDigest: sha256(body ?? Buffer.alloc(0)), irDigest: sha256(`ir:${sha256(body ?? '')}`),
+        fileDigests: {}, resourceDigests: {}, diagnostics: [], compatibleModes: COMPATIBLE_MODES(), analysis: ANALYSIS,
+        ...(request.query.get('include') === 'ir' ? { ir: irDocument(8), sourceMap: {} } : {}),
+      });
+    }
+    if (area === 'bim' && second === 'templates' && third) return { status: 200, type: 'application/vnd.bim+zip', bytes: template };
+    if (area === 'organizations' && second === WALK_ORG) {
+      switch (parts[3]) {
+        case 'problems': return problemRoute(request, body);
+        case 'runs': return runRoute(request);
+        case 'studies': return studyRoute(request);
+        default: return null;
+      }
+    }
+    return null;
+  };
+
+  await page.route(`${API}/**`, async (call: Route) => {
+    const request = call.request();
+    const url = new URL(request.url());
+    const parts = url.pathname.split('/').filter(Boolean);
+    const body = request.postDataBuffer();
+    const known: Request = {
+      method: request.method(), parts, query: url.searchParams, archive: template,
+      body: () => {
+        try {
+          return (request.postDataJSON() ?? {}) as Record<string, unknown>;
+        } catch {
+          return {};
+        }
+      },
+    };
+    const signedIn = Boolean(request.headers().authorization);
+    const reply = walkRoute(known, body, signedIn) ?? route(known);
+    if (!reply) {
+      handle.unmocked.push(`${known.method} ${url.pathname}`);
+      await call.fulfill({ status: 404, json: { detail: 'not mocked' } });
+    } else if (reply.status === 204) {
+      await call.fulfill({ status: 204 });
+    } else if (reply.bytes) {
+      await call.fulfill({ status: reply.status ?? 200, contentType: reply.type ?? 'application/octet-stream', body: reply.bytes });
     } else {
       await call.fulfill({ status: reply.status ?? 200, json: reply.json });
     }

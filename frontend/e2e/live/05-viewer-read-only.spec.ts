@@ -10,10 +10,10 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
     await page.goto(`${ORG_PATH}/problems`);
 
     await expect(page.getByRole('list', { name: 'Problems' })).toBeVisible();
-    const note = page.getByRole('note').filter({ hasText: 'creating and editing need MEMBER' });
+    const note = page.getByRole('note').filter({ hasText: 'uploading and editing need MEMBER' });
     await expect(note).toBeVisible();
     await expect(note).toContainText('VIEWER');
-    await expect(page.getByRole('button', { name: 'New problem' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Upload BIM package' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /^Delete / })).toHaveCount(0);
     await capture(page, testInfo, 'viewer-case-list');
 
@@ -21,7 +21,7 @@ test.describe('live · lab-viewer reads and edits nothing', () => {
     await expect(page.locator('code.case-slug')).toHaveText(CASE);
     await expect(page.getByRole('tab', { name: 'Versions' })).toBeVisible();
     await expect(page.getByRole('note').filter({ hasText: 'New versions need MEMBER; deleting needs ADMIN' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'New version' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Upload new version' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Delete problem' })).toHaveCount(0);
     await capture(page, testInfo, 'viewer-case');
     expect(errors).toEqual([]);

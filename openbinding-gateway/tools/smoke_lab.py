@@ -19,25 +19,30 @@ Environment (the ``seed`` compose service passes the gateway's, so nothing is sp
     DEMO_SEED_PASSWORD   required; the password the seed gave every synthetic user.
     SMOKE_BASE_URL       optional; default http://web:8080 (the proxy inside the lab network).
 
-Steps (a failure never aborts the next one; 6-9 can be dropped with ``--skip``):
+Steps (a failure never aborts the next one; 8-11 can be dropped with ``--skip``):
     1 proxy_and_spa     /healthz, SPA index, SPA fallback on a made-up deep route, /api/health/ready
     2 login             admin, owner, member, viewer and outsider sign in (Bearer tokens)
-    3 owner_job         owner: profile, problems, a random-search run of the seeded problem, result shape
-    4 idempotency       same key + body -> same run; same key + other body -> 409; other account -> other run, readable by both
-    5 authorization     401 without token, the viewer/outsider/admin matrix (the viewer reads the problem and the owner's run, redacted, but launches no run and starts no study run)
-    6 concurrency_limit 5 simultaneous launches -> a 429 with Retry-After, and the slot is freed afterwards
-    7 cors              preflight allowed from the lab origin, refused from another origin
-    8 body_limit        a JSON body over 16 MiB -> 413 problem+json
-    9 login_throttle    12 failed logins of a made-up user -> 429 with Retry-After
-   10 plan_usage        (--with-space) the owner's plan and capabilities, without usage counters
+    3 upload            owner: the template validates, is uploaded as a new problem of lab-main, and its revision is that package
+    4 owner_job         owner: profile, problems, a random-search run of the uploaded revision, result shape
+    5 study             owner: a study of the revision x random-search x 2 seeds, run, every cell completed, the definition frozen
+    6 idempotency       same key + body -> same run; same key + other body -> 409; other account -> other run, readable by both
+    7 authorization     401 without token, the viewer/outsider/admin matrix (the viewer reads the problem and the owner's run, redacted, but launches no run and starts no study run)
+    8 concurrency_limit 5 simultaneous launches -> a 429 with Retry-After, and the slot is freed afterwards
+    9 cors              preflight allowed from the lab origin, refused from another origin
+   10 body_limit        a JSON body over 16 MiB -> 413 problem+json
+   11 login_throttle    12 failed logins of a made-up user -> 429 with Retry-After
+   12 plan_usage        (--with-space) the owner's plan and capabilities, without usage counters
+
+Steps 3 to 5 are the F0b walk (upload, run, study) on the organization's paths. Every smoke uploads one problem
+(``smoke-<run id>``) and creates one study of it in lab-main; nothing is deleted, since runs keep their problem.
 
 The login throttle counts per client address AND identifier (``authrl:login:id:<ip>:<hash>``) and, with a
-10x larger budget, per address alone. Step 9 therefore uses an identifier no other step uses and runs last,
+10x larger budget, per address alone. Step 11 therefore uses an identifier no other step uses and runs last,
 so the logins of the other steps are not the ones that get blocked; it still consumes part of the per-address
 budget for the length of the window (300 s by default).
 
 Usage:
-    python tools/smoke_lab.py [--base-url URL] [--skip 6,7,8,9] [--with-space] [--job-timeout 120]
+    python tools/smoke_lab.py [--base-url URL] [--skip 8,9,10,11] [--with-space] [--job-timeout 120]
 """
 
 from __future__ import annotations
@@ -74,12 +79,17 @@ THROTTLE_ATTEMPTS = 12
 ORG, CASE = "lab-main", "simple-seq"
 #: The seeded problem (``/v1/organizations/{org}/problems/{problem}``).
 PROBLEM = f"/v1/organizations/{ORG}/problems/{CASE}"
-#: The runs of the lab organization (``/v1/organizations/{org}/runs``).
+#: The problems, runs and studies of the lab organization.
+PROBLEMS = f"/v1/organizations/{ORG}/problems"
 RUNS = f"/v1/organizations/{ORG}/runs"
+STUDIES = f"/v1/organizations/{ORG}/studies"
 EXAMPLE_PATH = "demo/01_simple_seq"
-STUDY_SLUG = "smoke-lab"
+#: The seeds of the study step: one cell each.
+STUDY_SEEDS = (1, 2)
 
 TERMINAL = frozenset({"completed", "failed", "cancelled"})
+#: A study run that is over (``partial``: some cells failed or were cancelled).
+STUDY_TERMINAL = frozenset({"completed", "partial", "failed", "cancelled"})
 TERMINATIONS = frozenset({"OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"})
 #: random-search has one mode; a job and every study engine must name it explicitly.
 MODE = "seeded"
@@ -102,9 +112,9 @@ BLOCKED_HINT = (
 )
 
 #: Step number -> optional via --skip.
-SKIPPABLE = (6, 7, 8, 9)
-#: 9 last: it burns the per-address login budget.
-RUN_ORDER = (1, 2, 3, 4, 5, 6, 7, 8, 10, 9)
+SKIPPABLE = (8, 9, 10, 11)
+#: 11 last: it burns the per-address login budget.
+RUN_ORDER = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 11)
 
 #: Key words that make a name look like a credential or an address (as security/redaction.py).
 SENSITIVE_WORDS = frozenset(
@@ -335,7 +345,8 @@ class Lab:
         self.tokens: dict[str, str] = {}
         self.login_failures: dict[str, str] = {}
         self.revision_id: str | None = None
-        self.seeded_revision = False
+        self.problem_slug = f"smoke-{self.run_id}"
+        self.study_slug = f"smoke-{self.run_id}"
         self.example_zip: bytes | None = None
         self.owner_job_id: str | None = None
         self.checks = Checks()
@@ -408,35 +419,31 @@ class Lab:
             self.example_zip = response.content
         return self.example_zip
 
-    def upload_problem(self) -> str:
-        """The template package uploaded as the problem ``CASE`` of ``ORG`` (by the owner); its revision id."""
+    def upload_problem(self) -> Mapping[str, Any]:
+        """The template package uploaded by the owner as the new problem ``problem_slug`` of ``ORG``; the answer."""
         response = self.call(
-            "POST", f"/v1/organizations/{ORG}/problems", "owner",
-            params={"slug": CASE}, headers={"Content-Type": BIM_ZIP}, content=self.example_package(),
+            "POST", PROBLEMS, "owner",
+            params={"slug": self.problem_slug}, headers={"Content-Type": BIM_ZIP}, content=self.example_package(),
         )
-        revision = mapping(mapping(body_of(response)).get("revision")).get("id")
-        if response.status_code not in {200, 201} or not isinstance(revision, str):
+        body = mapping(body_of(response))
+        revision = mapping(body.get("revision")).get("id")
+        if response.status_code != 201 or not isinstance(revision, str):
             raise StepError(f"problem upload as owner: {describe(response)}")
-        return revision
+        self.revision_id = revision
+        return body
 
-    def case_revision(self) -> Mapping[str, Any] | None:
-        """The latest revision of the seeded problem ``ORG/CASE``, or ``None`` when the problem does not exist."""
-        response = self.call("GET", f"/v1/organizations/{ORG}/problems/{CASE}/revisions", "owner")
-        if response.status_code == 404:
-            return None
-        listing = body_of(response) if response.status_code == 200 else None
+    def seeded_revision(self, user: str) -> str | None:
+        """The latest revision of the seeded problem ``ORG/CASE`` as ``user`` reads it, or ``None``."""
+        listing = body_of(self.call("GET", f"{PROBLEM}/revisions", user))
         revisions = [item for item in listing if isinstance(item, Mapping)] if isinstance(listing, list) else []
-        if not revisions:
-            raise StepError(f"problem {ORG}/{CASE} has no revision: {describe(response)}")
-        return max(revisions, key=lambda item: item.get("revision", 0))
+        latest = max(revisions, key=lambda item: item.get("revision", 0), default={})
+        return latest.get("id") if isinstance(latest.get("id"), str) else None
 
     def revision(self) -> str:
-        """The revision runs are of: the seeded problem's latest one, or the template uploaded as that problem."""
+        """The revision runs and the study are of: the one the upload step made (made now when that step did not run)."""
         if self.revision_id is None:
-            seeded = self.case_revision()
-            seeded_id = seeded.get("id") if seeded is not None else None
-            self.seeded_revision = isinstance(seeded_id, str)
-            self.revision_id = seeded_id if isinstance(seeded_id, str) else self.upload_problem()
+            self.upload_problem()
+        assert self.revision_id is not None
         return self.revision_id
 
     # -- jobs --------------------------------------------------------------
@@ -564,6 +571,35 @@ def inspect_result(checks: Checks, job: Mapping[str, Any]) -> None:
         checks.note("no toolchain field in the provenance")
 
 
+def step_upload(lab: Lab) -> Checks:
+    checks = lab.begin()
+    archive = lab.example_package()
+    checked = lab.call("POST", "/v1/bim/validate", "owner", headers={"Content-Type": BIM_ZIP}, content=archive)
+    report = mapping(body_of(checked))
+    checks.expect(checked.status_code == 200 and report.get("valid") is True, f"the template validates ({describe(checked)})")
+
+    uploaded = lab.upload_problem()
+    revision = mapping(uploaded.get("revision"))
+    checks.expect(revision.get("revision") == 1, "the upload is revision 1 of a new problem")
+    checks.expect(
+        bool(revision.get("package_digest")) and revision.get("package_digest") == report.get("packageDigest"),
+        "the revision is the package that was validated (same packageDigest)",
+    )
+    base = f"{PROBLEMS}/{lab.problem_slug}/revisions/1"
+    source = lab.call("GET", f"{base}/source", "owner")
+    checks.expect(source.status_code == 200 and source.content == archive, f"its source is the uploaded package, byte for byte ({source.status_code})")
+    compilation = lab.call("GET", f"{base}/compilation", "owner")
+    modes = mapping(body_of(compilation)).get("compatible_modes")
+    runnable = [item for item in modes if isinstance(item, Mapping) and item.get("compatible")] if isinstance(modes, list) else []
+    checks.expect(
+        compilation.status_code == 200 and any(mapping(item.get("engine")).get("name") == "random-search" for item in runnable),
+        f"its compilation says random-search can run it ({describe(compilation)})",
+    )
+    listed = mapping(body_of(lab.call("GET", PROBLEMS, "owner"))).get("problems") or []
+    checks.expect(any(mapping(item).get("slug") == lab.problem_slug for item in listed), f"problem {lab.problem_slug} is listed in {ORG}")
+    return checks
+
+
 def step_owner_job(lab: Lab) -> Checks:
     checks = lab.begin()
     try:
@@ -592,7 +628,70 @@ def step_owner_job(lab: Lab) -> Checks:
         checks.note(str(mapping(job.get("result")).get("error", ""))[:120])
         return checks
     inspect_result(checks, job)
-    checks.note(f"revision {'seeded' if lab.seeded_revision else 'uploaded'}")
+    revision = mapping(job.get("revision"))
+    checks.expect(revision.get("id") == lab.revision_id, "the run names the uploaded revision")
+    return checks
+
+
+def engine_reference(lab: Lab, name: str) -> Mapping[str, Any]:
+    """The full reference (namespace, name, version, digest) of an engine the owner can use."""
+    listing = mapping(body_of(lab.call("GET", "/v1/engines", "owner"))).get("engines")
+    for item in listing if isinstance(listing, list) else []:
+        reference = mapping(mapping(item).get("ref")) or mapping(item)
+        if reference.get("name") == name and all(reference.get(key) for key in REFERENCE_KEYS):
+            return {key: reference[key] for key in sorted(REFERENCE_KEYS)}
+    raise StepError(f"engine {name} is not in /v1/engines")
+
+
+def wait_for_study_run(lab: Lab, path: str) -> tuple[str, Mapping[str, Any]]:
+    """Poll a study run until it is over; ``("timeout", last body)`` after ``job_timeout_s``."""
+    deadline = lab.clock() + lab.config.job_timeout_s
+    last: Mapping[str, Any] = {}
+    while True:
+        response = lab.call("GET", path, "owner")
+        if response.status_code == 200:
+            last = mapping(body_of(response))
+            if last.get("state") in STUDY_TERMINAL:
+                return str(last["state"]), last
+        elif response.status_code >= 400 and response.status_code != 429:
+            return f"http-{response.status_code}", last
+        if lab.clock() >= deadline:
+            return "timeout", last
+        lab.sleep(lab.config.poll_interval_s)
+
+
+def step_study(lab: Lab) -> Checks:
+    checks = lab.begin()
+    revision = lab.revision()
+    engine = {**engine_reference(lab, "random-search"), "mode": MODE, "optimization": dict(OPTIMIZATION)}
+    definition = {
+        "revision_ids": [revision], "engines": [engine],
+        "parameter_sets": [{"iterations": MIN_OPTIONS["iterations"]}], "seeds": list(STUDY_SEEDS),
+    }
+    created = lab.call("POST", STUDIES, "owner", json={"slug": lab.study_slug, "name": f"Smoke {lab.run_id}", "definition": definition})
+    if not checks.expect(created.status_code == 201, f"study {lab.study_slug} created ({describe(created)})"):
+        return checks
+    started = lab.call("POST", f"{STUDIES}/{lab.study_slug}/runs", "owner")
+    run = mapping(body_of(started))
+    run_id = run.get("id")
+    if not checks.expect(started.status_code == 202 and isinstance(run_id, str), f"study run accepted ({describe(started)})"):
+        return checks
+    frozen = mapping(run.get("definition"))
+    problems = [mapping(item) for item in frozen.get("problems") or [] if isinstance(item, Mapping)]
+    checks.expect(bool(run.get("definition_digest")), "the run carries the digest of its frozen definition")
+    checks.expect(
+        [item.get("revisionId") for item in problems] == [revision] and all(item.get("compilationId") for item in problems),
+        "the frozen definition names the revision and the compilation it runs",
+    )
+
+    path = f"{STUDIES}/{lab.study_slug}/runs/{run_id}"
+    state, last = wait_for_study_run(lab, path)
+    checks.expect(state == "completed", f"the study run completes (got {state})")
+    cells = body_of(lab.call("GET", f"{path}/cells", "owner"))
+    rows = [mapping(item) for item in cells] if isinstance(cells, list) else []
+    checks.expect(len(rows) == len(STUDY_SEEDS), f"one cell per seed ({len(rows)})")
+    checks.expect(bool(rows) and all(item.get("state") == "completed" for item in rows), "every cell completed")
+    checks.expect(last.get("definition_digest") == run.get("definition_digest"), "the frozen definition did not change while it ran")
     return checks
 
 
@@ -665,7 +764,8 @@ def step_authorization(lab: Lab) -> Checks:
     checks.expect(problem.status_code == 200, f"viewer reads the organization's problem ({describe(problem)})")
     # A run belongs to the organization of its problem: a VIEWER of that organization reads it, and is refused
     # a launch before anything is compiled, reserved or charged to a plan.
-    viewer_launch = lab.launch("viewer")
+    # Of the uploaded revision, or of the seeded problem when nothing was uploaded: no upload is attempted for it.
+    viewer_launch = lab.launch("viewer", revision=lab.revision_id or lab.seeded_revision("viewer") or str(uuid.uuid4()))
     checks.expect(
         viewer_launch.status_code == 403 and code_of(viewer_launch) == "insufficient_role",
         f"viewer CANNOT launch a run of the organization's problem ({describe(viewer_launch)})",
@@ -684,7 +784,7 @@ def step_authorization(lab: Lab) -> Checks:
             job = mapping(body_of(seen))
             checks.expect(job.get("status") == "completed" and job.get("result") is not None, "viewer sees the state and the result")
             check_viewer_redaction(checks, job)
-    run = lab.call("POST", f"/v1/organizations/{ORG}/studies/{STUDY_SLUG}/runs", "viewer")
+    run = lab.call("POST", f"{STUDIES}/{lab.study_slug}/runs", "viewer")
     checks.expect(run.status_code in {403, 404}, f"viewer CANNOT start a study run in the organization ({describe(run)})")
 
     for label, path in (("problem", PROBLEM), ("runs", RUNS), ("organization", f"/v1/organizations/{ORG}")):
@@ -830,14 +930,16 @@ def step_plan_usage(lab: Lab) -> Checks:
 STEPS: dict[int, tuple[str, Callable[[Lab], Checks]]] = {
     1: ("proxy_and_spa", step_proxy_and_spa),
     2: ("login", step_login),
-    3: ("owner_job", step_owner_job),
-    4: ("idempotency", step_idempotency),
-    5: ("authorization", step_authorization),
-    6: ("concurrency_limit", step_concurrency_limit),
-    7: ("cors", step_cors),
-    8: ("body_limit", step_body_limit),
-    9: ("login_throttle", step_login_throttle),
-    10: ("plan_usage", step_plan_usage),
+    3: ("upload", step_upload),
+    4: ("owner_job", step_owner_job),
+    5: ("study", step_study),
+    6: ("idempotency", step_idempotency),
+    7: ("authorization", step_authorization),
+    8: ("concurrency_limit", step_concurrency_limit),
+    9: ("cors", step_cors),
+    10: ("body_limit", step_body_limit),
+    11: ("login_throttle", step_login_throttle),
+    12: ("plan_usage", step_plan_usage),
 }
 
 
@@ -877,7 +979,7 @@ def run_smoke(
     skipped: list[str] = []
     for number in RUN_ORDER:
         name = STEPS[number][0]
-        if number in config.skip or (number == 10 and not config.with_space):
+        if number in config.skip or (number == 12 and not config.with_space):
             skipped.append(name)
             continue
         steps.append(run_step(lab, number))
@@ -910,7 +1012,7 @@ def parse_skip(value: str) -> frozenset[int]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="API smoke test of the lab demo through the nginx proxy.")
     parser.add_argument("--base-url", default=None, help=f"proxy origin (default $SMOKE_BASE_URL or {DEFAULT_BASE_URL})")
-    parser.add_argument("--skip", type=parse_skip, default=frozenset(), help="optional steps to leave out: numbers or names among 6-9")
+    parser.add_argument("--skip", type=parse_skip, default=frozenset(), help="optional steps to leave out: numbers or names among 8-11")
     parser.add_argument("--with-space", action="store_true", help="also check the owner's plan and capabilities (needs SPACE contracts)")
     parser.add_argument("--origin", default="http://localhost:18100", help="origin that must pass CORS")
     parser.add_argument("--evil-origin", default="http://evil.example", help="origin that must not pass CORS")

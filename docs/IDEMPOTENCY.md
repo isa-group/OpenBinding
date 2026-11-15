@@ -26,7 +26,8 @@ still never loses the job) and translates the `JobSubmissionResult` (`created`,
 A study cell builds its own `RunRequest` and calls the same service
 (`study_jobs.launch_study_cell`), with no HTTP request in between. The service does the lookup of the key, the account lock, the
 fingerprint comparison (current and legacy), the concurrency check, the
-`IntegrityError` race handling and the persistence of the snapshot and the job.
+`IntegrityError` race handling, the compilation of the revision (compile-or-get: the stored one, or compiled
+once for the installed toolchain) and the persistence of the job, which names that compilation and never copies the IR.
 Moving the code changed none of G1-G4 or of the wire contract; the unit tests of
 the service are `tests/test_job_submission_service.py`, and the HTTP-level ones
 are `tests/test_idempotency_jobs.py` and `tests/concurrency/test_jobs_idempotency_pg.py`.
@@ -338,7 +339,7 @@ for B4.
 | Gateway restarts between the Engine's answer and the database commit | The result is lost for that attempt; the job is requeued or failed by the reconciler |
 | Replica with a skewed clock | No effect on PostgreSQL (all comparisons use the database clock); on SQLite there is only one process |
 | Database connection holding the reconciler lock drops | Two replicas may run a cycle at once; harmless, every step is conditioned |
-| Lease lost (B3) | The late result is discarded (fencing, unchanged). The remote job of the lost attempt is asked to stop only for an Engine that declares the capability, never the one that runs the job and never an id a newer attempt also holds; the slow holder still waits for its Engine (limit above). Execution on the Engine stays at-least-once. See [qa/SECURITY_REVIEW.md](qa/SECURITY_REVIEW.md) |
+| Lease lost (B3) | The late result is discarded (fencing, unchanged). The remote job of the lost attempt is asked to stop only for an Engine that declares the capability, never the one that runs the job and never an id a newer attempt also holds; the slow holder still waits for its Engine (limit above). Execution on the Engine stays at-least-once. See `docs/qa/SECURITY_REVIEW.md` (removed with the factory artifacts in `e47da50d5`; in git history) |
 | BIM fails during re-evaluation (B4) | The job becomes `FAILED` (`bim_evaluation_failed`) but the engine's raw answer is **kept** in `job_engine_evidence` and can be evaluated again without solving (see *Engine answers kept for re-evaluation*) |
 | Analysis task whose worker keeps dying | Requeued twice, failed as `analysis_abandoned` on the third lost lease |
 | Client retries after a timeout with the same key | Replay of the original job |
@@ -372,7 +373,7 @@ that existed before this change (`test_job_leases_pg.py` first four tests,
 The 26 compose-shape tests now live in the normal suite
 (`tests/test_pg_harness.py`) and are no longer skipped; the studies fixture
 creates the owner's membership; each test has a 60 s watchdog. An earlier run
-(SHA `5aebc7c8`) gave 45 passed, 26 skipped. See [qa/PG_HARNESS.md](qa/PG_HARNESS.md).
+(SHA `5aebc7c8`) gave 45 passed, 26 skipped. See `docs/qa/PG_HARNESS.md` (removed with the factory artifacts in `e47da50d5`; in git history).
 The tests listed below were written in an earlier change; they skip without
 `TEST_DATABASE_URL`. This page does not break the 58 down per file, so treat the
 list as scope, not as a per-test result:
@@ -401,10 +402,15 @@ claim race there is decided by the single `UPDATE`. Two replicas claiming the sa
 cancellation at once is `tests/concurrency/test_remote_cancel_pg.py`, written to run on
 PostgreSQL in the lab and not executed in the SQLite runs.
 
+**The F0b walk** (`tests/test_f0b_walk.py`, SQLite and a fake engine) takes one run and a study's cells from
+`queued` to `completed` through the worker's runner (`dispatch_persisted_job`, which the Dramatiq actor awaits), and
+checks that every run and cell names the one compilation of its revision and that no IR is stored outside
+`problem_compilations`.
+
 **Not exercised anywhere:** a real Redis / Dramatiq broker failing mid-batch,
 real remote Engines under crash injection, the cancel call against an Engine that
 implements it.
 
 Related: [ACCOUNTS_AND_PLANS.md](ACCOUNTS_AND_PLANS.md) (the concurrency cap),
 [ARCHITECTURE.md](ARCHITECTURE.md) (where `jobs/` sits), and
-[qa/JOINT_STATUS.md](qa/JOINT_STATUS.md).
+`docs/qa/JOINT_STATUS.md` (removed with the factory artifacts in `e47da50d5`; in git history).

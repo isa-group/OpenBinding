@@ -476,7 +476,7 @@ def one_pass(db_session, monkeypatch):
 
 
 async def test_a_cycle_needs_no_analysis_tasks_or_sponsor_proposals(one_pass, db_session, owner, logs):
-    # Both tables are in RETIRED_TABLES (tests/test_schema_baseline.py).
+    # Both tables are in RETIRED_TABLES (tools/check_retired_surface.py).
     source = inspect.getsource(reconciler)
     assert "sweep_expired" not in source
     assert "redeliver_analysis" not in source and "analysis_jobs" not in source

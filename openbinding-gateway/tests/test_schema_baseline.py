@@ -10,7 +10,7 @@ Decisions D1 and D2 of the F0b plan: ``tools/rebaseline.py`` writes the only rev
 * ``register_triggers`` refuses a trigger on a table or column the metadata lacks;
 * the partial indexes keep their ``WHERE``; ``downgrade base`` leaves only ``alembic_version``;
 * ``alembic/env.py`` refuses a database stamped with a revision this checkout does not have;
-* no retired table comes back (``RETIRED_TABLES``, grown by each block that drops one).
+* no retired table comes back (``RETIRED_TABLES``, kept in ``tools/check_retired_surface.py``).
 
 ``test_schema_baseline_pg.py`` checks the same parity on PostgreSQL.
 """
@@ -31,47 +31,13 @@ from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import Column, Integer, MetaData, String, Table, create_engine
 
-from _paths import GATEWAY_ROOT
+from _paths import GATEWAY_ROOT, gateway_tool
 from openbinding_gateway.db import models  # noqa: F401  (every table and the triggers)
 from openbinding_gateway.db.base import Base
 from openbinding_gateway.db.triggers import TRIGGERS, protect, register_triggers, render
 
-#: Tables that features removed before or during F0b used to own. None may be modelled or migrated again.
-RETIRED_TABLES = frozenset({
-    # Before F0b (M9.6 and the pricing and federation work).
-    "analysis_tasks",
-    "federated_engines",
-    "pricing_releases",
-    "sponsor_proposals",
-    # F0b B1: the leftovers of the features F0a removed.
-    "artifact_evidence",
-    "collection_items",
-    "collection_revisions",
-    "collections",
-    "publications",
-    "reports",
-    "v1_dialect_revisions",
-    "v1_registered_resource_revisions",
-    # F0b B5: problems hang off the organization; snapshots fused into revisions and compilations.
-    "case_artifacts",
-    "v1_binding_ir",
-    "v1_instance_resources",
-    "v1_instance_snapshots",
-    # F0b B6: runs move under the organization; the write-only run provenance copy goes (D28).
-    "v1_job_provenance",
-    # F0b B7: study runs freeze their definitions; the artifact store and the project resources go.
-    "artifact_case_references",
-    "artifact_dependencies",
-    "artifact_drafts",
-    "artifact_publications",
-    "artifact_versions",
-    "artifacts",
-    "project_artifacts",
-    "project_resource_revisions",
-    "project_resources",
-    # F0b B8: projects go; the organization is the only container.
-    "projects",
-})
+#: Tables that features removed before or during F0b used to own (``tools/check_retired_surface.py`` lists them).
+RETIRED_TABLES = gateway_tool("check_retired_surface").RETIRED_TABLES
 
 VERSIONS = GATEWAY_ROOT / "alembic" / "versions"
 

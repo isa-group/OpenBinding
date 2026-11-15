@@ -17,10 +17,10 @@ At `31b7de6f`:
 | `seed_lab` | **Closed** | Idempotent |
 | `smoke_lab` | **Closed** | **9/9**: `proxy_and_spa`, `login`, `owner_job`, `idempotency`, `authorization` (24 checks), `concurrency_limit`, `cors`, `body_limit`, `login_throttle`. `plan_usage` skipped (SPACE on hold) |
 | Playwright desktop + mobile | **Closed** | **30 passed, 0 failed, 0 skipped**, 0 visual problems (`E2E_SUMMARY passed=30`); screenshots reviewed: 131 images including `screenshots/_summary.png` |
-| Remote cancellation end to end | **Closed** | `tools/cancel_probe.py` via `lab_compose seed` with `DEMO_SEED_TOOL=cancel_probe.py`: `passed`, `ok` true, 9 checks ok, 0 findings; job `cancelled` about 1.0 s after the cancel request (then `POST /v1/jobs/{id}/cancel`, now `POST /v1/organizations/{org}/runs/{run}/cancel`) ([qa/ENGINE_CANCELLATION_E2E.md](qa/ENGINE_CANCELLATION_E2E.md)) |
-| Snapshot `invalid_instance` of the seed | **Cause found** | the 0.1.x package pins a contract version that 0.2.0 does not install (`contract_not_installed`); kept as evidence, 422 `snapshot_not_recompilable`; revision 2 of `simple-seq` runs ([qa/SNAPSHOT_INVALID_INSTANCE.md](qa/SNAPSHOT_INVALID_INSTANCE.md)) |
+| Remote cancellation end to end | **Closed** | `tools/cancel_probe.py` via `lab_compose seed` with `DEMO_SEED_TOOL=cancel_probe.py`: `passed`, `ok` true, 9 checks ok, 0 findings; job `cancelled` about 1.0 s after the cancel request (then `POST /v1/jobs/{id}/cancel`, now `POST /v1/organizations/{org}/runs/{run}/cancel`) (`docs/qa/ENGINE_CANCELLATION_E2E.md` (removed with the factory artifacts in `e47da50d5`; in git history)) |
+| Snapshot `invalid_instance` of the seed | **Cause found** | the 0.1.x package pins a contract version that 0.2.0 does not install (`contract_not_installed`); kept as evidence, 422 `snapshot_not_recompilable`; revision 2 of `simple-seq` runs (`docs/qa/SNAPSHOT_INVALID_INSTANCE.md` (removed with the factory artifacts in `e47da50d5`; in git history)) |
 | Two stale snapshots of other owners (`lab-member`, `lab-viewer`) | **Open, residual risk** | status `blocked` (`snapshot_conflict`); not decided to delete |
-| PostgreSQL 16 real | **Closed** | 113 passed, 0 skipped, 0 failed at `59ef9749` ([qa/PG_REAL_RUN.md](qa/PG_REAL_RUN.md)) |
+| PostgreSQL 16 real | **Closed** | 113 passed, 0 skipped, 0 failed at `59ef9749` (`docs/qa/PG_REAL_RUN.md` (removed with the factory artifacts in `e47da50d5`; in git history)) |
 | Lab with SPACE enabled and real contracts | **NO EJECUTADO** | SPACE on hold, zero calls; `DEMO_SPACE_ENABLED=false` |
 | By-eye mobile/desktop check | **Manual**, not recorded as done | the automated visual QA found 0 problems |
 
@@ -38,7 +38,7 @@ Where the history below says "one old snapshot ... `invalid_instance`" without a
 - Playwright against the live lab (the `e2e` service): **30 passed, 0 failed, 0 skipped** at `c2d46151` (summary
   2026-10-14T13:41:20Z).
 - The PostgreSQL 16 concurrency harness gave **70 passed, 0 skipped** at `bef53047` (67 plus 3 plan-concurrency tests;
-  migrations up to `b6c7d8e9f0a1`); it runs separately from the lab, see [PG_HARNESS.md](qa/PG_HARNESS.md).
+  migrations up to `b6c7d8e9f0a1`); it runs separately from the lab, see `docs/qa/PG_HARNESS.md` (removed with the factory artifacts in `e47da50d5`; in git history).
 
 **Observation at `b2780381`, 2026-10-14 (history):** smoke
 9/9, Playwright 30 passed / 0 failed / 0 skipped, PostgreSQL 67 passed / 0 skipped.
@@ -87,7 +87,7 @@ if this document does not state it. `mem_limit` bounds the container, not the
 page cache of the named volumes, and image builds are not limited by it.
 
 Optional: the pricing profile `compose.lab-pricing.json` is a 96 MiB one-shot against the remote SPACE, a separate
-project outside this 3776 MiB sum; see [qa/PRICING_PROFILE.md](qa/PRICING_PROFILE.md).
+project outside this 3776 MiB sum; see `docs/qa/PRICING_PROFILE.md` (removed with the factory artifacts in `e47da50d5`; in git history).
 
 **Unprivileged containers.** The gateway image (`gateway`, `worker`, `seed`) runs as
 UID/GID 10001 with no login shell. Root inside a rootless
@@ -152,7 +152,7 @@ Contents access to `javiercavlop/bim-toolchain`.
 | `DEMO_SPACE_DEFAULT_PLAN` | gateway, worker, seed (as `SPACE_DEFAULT_PLAN`) | `FREE` (must exist in the pricing) |
 | `DEMO_SPACE_DEV_SERVICE` | gateway, worker and seed (as `SPACE_SERVICE_NAME`); seed also as `SPACE_DEV_SERVICE_NAME` | the name of a SPACE *development* service that exists in SPACE (for example `openbinding-dev`); the gateway and worker read and write contracts only on it, and `seed_lab.py --space-contracts` refuses `openbinding` (and any production name) and requires it to equal `SPACE_SERVICE_NAME` |
 | `DEMO_SPACE_DEV_PLAN` | seed **only** (as `SPACE_DEV_PLAN`) | a plan of that service's pricing version, for the contracts of the synthetic users |
-| `DEMO_SEED_TOOL` | seed | `seed_lab.py`, or `smoke_lab.py` for the API smoke (a file of `openbinding-gateway/tools/`; `seed_dev.py` also exists; `cancel_probe.py` was run the same way, see [qa/ENGINE_CANCELLATION_E2E.md](qa/ENGINE_CANCELLATION_E2E.md)) |
+| `DEMO_SEED_TOOL` | seed | `seed_lab.py`, or `smoke_lab.py` for the API smoke (a file of `openbinding-gateway/tools/`; `seed_dev.py` also exists; `cancel_probe.py` was run the same way, see `docs/qa/ENGINE_CANCELLATION_E2E.md` (removed with the factory artifacts in `e47da50d5`; in git history)) |
 | `DEMO_SEED_ARGS` | seed | `--verbose` for a seed, `--with-space` for the smoke (see "Seeding" and "API smoke") |
 | `DEMO_SEED_PASSWORD` | seed (`seed_lab.py`, `smoke_lab.py`) and e2e (the live specs sign the synthetic users in with it) | any synthetic value of 10+ characters; the supervisor injects it; `compose.lab.json` passes it only to `seed` and `e2e`, as `${DEMO_SEED_PASSWORD}` with no value and no default |
 | `DEMO_E2E` | e2e | `1` runs the live specs when the service starts; anything else (`0`, unset) only creates `/results/done` and sleeps. See "Browser specs and visual QA inside the lab" |
@@ -337,6 +337,10 @@ Things to know before reading the result:
 - The gateway throttles logins to 10 per user per 5 minutes. The functional specs
   run only in the `desktop` project, `mobile` runs only the visual QA, and the
   helper waits out a `429`; still, two complete runs within five minutes can wait.
+- `03-upload-run-study` is the F0b walk as `lab-owner`: it uploads the template as a new problem `walk-<time>`, saves an
+  edit from the Workbench as version 2, saves a template as `walk-<time>-template`, runs version 2 on `random-search`
+  and runs a study of it (version 2 × `random-search` and `evolutionary-heuristics` × seeds 1 and 2). Each run adds two
+  problems and one study to `lab-main`; nothing is deleted.
 - `04-job-random-search` starts one real job as `lab-owner` (so the lab keeps it) and
   the visual QA opens a finished job of `lab-owner` as "a result". With
   `DEMO_SPACE_ENABLED=true` and no contract the launch is `503 pricing_unavailable` and
@@ -398,7 +402,7 @@ the lab network, where `web:8080` resolves):
 DEMO_SEED_TOOL=smoke_lab.py DEMO_SEED_ARGS='--with-space' docker compose run --rm --no-deps seed
 ```
 
-Use `DEMO_SEED_ARGS='--skip 6,7,8,9'` to leave out the optional steps. Drop
+Use `DEMO_SEED_ARGS='--skip 8,9,10,11'` to leave out the optional steps. Drop
 `--with-space` when the users have no SPACE contract or `DEMO_SPACE_ENABLED=false`:
 step `plan_usage` runs only with that flag, and the other steps complete against
 the open gate. It reads `DEMO_SEED_PASSWORD`
@@ -424,24 +428,28 @@ check `remote_probe.py` before reading it as a seeding gap.
 | --- | --- |
 | `proxy_and_spa` | `/healthz`, SPA index, SPA fallback on an unknown route, `/api/health/ready` |
 | `login` | `lab-admin`, `lab-owner`, `lab-member`, `lab-viewer` and `lab-outsider` sign in with Bearer tokens |
-| `owner_job` | `lab-owner` profile and the problems of `lab-main`; a minimal `random-search` job (`mode: seeded`, `optimization: {type: SINGLE, scalarization: weighted-sum}`, which the gateway requires in the request and the package does not carry) on a revision of the seeded problem; result shape and the gateway's reevaluation provenance |
+| `upload` | `lab-owner` validates the template `demo/01_simple_seq` (`POST /v1/bim/validate`) and uploads it as a new problem `smoke-<run id>` of `lab-main`; revision 1 has the validated `packageDigest`, its source is the uploaded package byte for byte, and its compilation says `random-search` can run it |
+| `owner_job` | `lab-owner` profile and the problems of `lab-main`; a minimal `random-search` run (`mode: seeded`, `optimization: {type: SINGLE, scalarization: weighted-sum}`, which the gateway requires in the request and the package does not carry) of the uploaded revision; result shape and the gateway's reevaluation provenance |
+| `study` | a study `smoke-<run id>` of that revision × `random-search` × seeds 1 and 2, run: the run freezes its definition (digest, revision, compilation), and both cells complete |
 | `idempotency` | same key and body, same job; same key and other body, 409; another account, another job |
-| `authorization` | 401 without token; viewer reads the organization's problem, cannot launch a run of it (403 `insufficient_role`) nor start a study run in the organization, and reads the owner's run with redacted options; outsider reads none of them; non-admins get 403 on `/api/v1/admin/*` |
+| `authorization` | 401 without token; viewer reads the organization's problem, cannot launch a run of it (403 `insufficient_role`) nor start a run of the step's study, and reads the owner's run with redacted options; outsider reads none of them; non-admins get 403 on `/api/v1/admin/*` |
 | `concurrency_limit` | 5 simultaneous launches against `MAX_CONCURRENT_JOBS_PER_USER=3`: a 429 with `Retry-After`, slot freed afterwards |
 | `cors` | preflight allowed from `http://localhost:18100`, refused from `http://evil.example` |
 | `body_limit` | JSON over 16 MiB gets a 413 problem+json |
 | `plan_usage` | (`--with-space`) plan and capabilities of the owner, no usage counters |
 | `login_throttle` | 12 failed logins of a made-up user end in a 429 with `Retry-After`; the counter is per address and identifier |
 
-It writes to the lab database only through the API (jobs of `lab-owner` and
-`lab-member`; the viewer reads the owner's run directly); it never registers users and never touches
+Steps `upload`, `owner_job` and `study` are the F0b walk (upload, run, study) on the organization's paths.
+It writes to the lab database only through the API: one problem and one study of `lab-owner` per run (nothing is
+deleted, since runs keep their problem), and runs of `lab-owner` and `lab-member` (the viewer reads the owner's run
+directly); it never registers users and never touches
 SPACE or SPHERE. Running it again within five minutes finds the login throttle
 already tripped for its probe user, which still counts as a pass. What it does
 not cover (browser, Playwright, the visual mobile/desktop check) is
 left to the live Playwright run.
 
 **Run of 2026-10-13, SHA `5aebc7c8` (`DEMO_SPACE_ENABLED=false`, without
-`--with-space`): 9/9 steps passed in 24.4 s.** The later run at `b2780381` also gave 9/9 (duration not
+`--with-space`): 9/9 steps passed in 24.4 s** (with the steps of that time: no `upload` or `study`). The later run at `b2780381` also gave 9/9 (duration not
 recorded in this document), and so did the run at `c2d46151` in 6.0 s. All three ran with the removed `bim-service`
 container. `plan_usage` needs `--with-space`
 and was omitted on 2026-10-13 (**not executed**); whether it was run at `b2780381` is not recorded here. Whether it was run at `c2d46151` is not recorded here either.

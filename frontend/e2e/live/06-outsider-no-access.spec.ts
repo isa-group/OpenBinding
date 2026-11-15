@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { CASE, ORG, OTHER_ORG, RUNS_PATH, capture, signInByApi, watchPageErrors } from './support';
+import { API, CASE, ORG, OTHER_ORG, RUNS_PATH, capture, signInByApi, watchPageErrors } from './support';
 
 // lab-outsider owns lab-other and has no role in lab-main: the interface must show nothing of lab-main and must not even say that it exists.
 
@@ -23,7 +23,7 @@ test.describe('live · lab-outsider has no access to lab-main', () => {
       const path = new URL(response.url()).pathname;
       if (path.includes(`/v1/organizations/${ORG}`)) statuses.push(response.status());
     });
-    await signInByApi(page, 'outsider');
+    const token = await signInByApi(page, 'outsider');
 
     await page.goto(`/app/${ORG}`);
     await expect(page.getByRole('heading', { name: 'Organization not available' })).toBeVisible();
@@ -34,10 +34,14 @@ test.describe('live · lab-outsider has no access to lab-main', () => {
     await expect(page.getByRole('heading', { name: 'Organization not available' })).toBeVisible();
     await capture(page, testInfo, 'outsider-organization-settings');
 
-    // Nothing of the organization is on screen, and what the gateway said to the interface is a refusal, never a success.
+    // Nothing of the organization is on screen. The interface resolves an organization from the account's own list, so it may not
+    // ask the gateway about lab-main at all; whatever it asked was refused, and so is every question asked directly.
     await expect(page.getByText(CASE, { exact: true })).toHaveCount(0);
-    expect(statuses.length, 'the interface should have asked the gateway about lab-main').toBeGreaterThan(0);
-    for (const status of statuses) expect([403, 404], `a call about lab-main answered ${status}`).toContain(status);
+    for (const status of statuses) expect([403, 404], `a call of the interface about lab-main answered ${status}`).toContain(status);
+    for (const path of [`/v1/organizations/${ORG}`, `/v1/organizations/${ORG}/members`, `/v1/organizations/${ORG}/problems`]) {
+      const answer = await page.request.get(`${API}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+      expect([403, 404], `GET ${path} answered ${answer.status()}`).toContain(answer.status());
+    }
     expect(errors).toEqual([]);
   });
 

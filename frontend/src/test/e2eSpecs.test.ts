@@ -59,9 +59,9 @@ describe('the Playwright specs', () => {
   describe('the live project', () => {
     const specs = liveFiles.filter((name) => name.endsWith('.spec.ts'));
 
-    it('covers login, navigation, the case, a job, the viewer, the outsider, the plan page and the visual QA', () => {
+    it('covers login, navigation, the upload-run-study walk, a job, the viewer, the outsider, the plan page and the visual QA', () => {
       expect(specs.map((name) => name.replace(`${live}/`, ''))).toEqual([
-        '01-login.spec.ts', '02-navigation.spec.ts', '03-case-simple-seq.spec.ts', '04-job-random-search.spec.ts',
+        '01-login.spec.ts', '02-navigation.spec.ts', '03-upload-run-study.spec.ts', '04-job-random-search.spec.ts',
         '05-viewer-read-only.spec.ts', '06-outsider-no-access.spec.ts', '07-plan-and-consoles.spec.ts', 'visual-qa.spec.ts',
       ]);
       for (const name of specs) expect(read(name), name).toMatch(/\btest\(|\btest\.describe\(/);
