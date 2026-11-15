@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -124,3 +124,90 @@ class CompilationIr(BaseModel):
     ir_digest: str
     ir: dict[str, Any]
     source_map: dict[str, Any] = Field(default_factory=dict)
+
+
+# -- The facts of a compiled problem (``getProblemCompilationFacts``, ``validateBimPackage?include=facts``) --
+
+
+class ProblemFactsEligible(BaseModel):
+    """A candidate a task may take: its key, and how a Composition2Yaml document writes it for that task."""
+
+    candidate: str = Field(description="`<resource>/<id>`: the candidate's key, the same as `ProblemFactsCandidate.key`.")
+    written: str = Field(description="The candidate's id, or `<resource>/<id>` when two catalogs give the task that id.")
+
+
+class ProblemFactsTask(BaseModel):
+    id: str
+    kind: Literal["service", "local"]
+    eligible: list[ProblemFactsEligible] = Field(description="In the IR's order; empty for a local task.")
+
+
+class ProblemFactsRange(BaseModel):
+    """A range value: an end that is `null` has no limit."""
+
+    min: Union[int, float, None]
+    max: Union[int, float, None]
+
+
+class ProblemValueOrigin(BaseModel):
+    """Where the package writes a value: the resource, its file and the JSON Pointer within it."""
+
+    kind: Literal["package"]
+    resource: str
+    path: str
+    pointer: str
+
+
+class ProblemFactsCandidate(BaseModel):
+    key: str = Field(description="`<resource>/<id>`, opaque.")
+    resource: str
+    id: str
+    provider: Optional[str] = Field(description="The provider's id in the candidate's catalog.")
+    values: dict[str, Union[int, float, ProblemFactsRange]] = Field(description="By application feature.")
+    origins: dict[str, ProblemValueOrigin] = Field(description="By application feature.")
+
+
+class ProblemFactsFeature(BaseModel):
+    id: str
+    unit: str
+    direction: Optional[Literal["min", "max"]]
+    required: bool = Field(description="Whether the evaluator reports it for every binding (`requiredFeatures`).")
+
+
+class ProblemSourceOrigin(BaseModel):
+    resource: str
+    path: str
+    pointer: str
+
+
+class ProblemFactsConstraint(BaseModel):
+    id: str = Field(description="`<resource>/<id>`.")
+    enforcement: Literal["hard", "soft"]
+    expression: dict[str, Any] = Field(description="The IR expression the constraint asserts.")
+    when: Optional[dict[str, Any]] = Field(description="The IR expression that guards it, as the IR has it.")
+    penalty: Optional[dict[str, Any]] = Field(description="The IR expression of a soft constraint's penalty.")
+    origin: Optional[ProblemSourceOrigin]
+
+
+class ProblemFactsObjectives(BaseModel):
+    criteria: list[dict[str, Any]] = Field(description="`spec.optimization.criteria`, as the IR has them.")
+    penalties: list[dict[str, Any]] = Field(description="`spec.optimization.penalties`, as the IR has them.")
+
+
+class ProblemFactsView(BaseModel):
+    """The facts of one compiled problem: what the workflow graph, the candidate matrix and the editors read.
+
+    Computed by the gateway from the stored (or drafted) compilation; nothing in it is evaluated.
+    """
+
+    ir_digest: str
+    tasks: list[ProblemFactsTask] = Field(description="In the order a depth-first walk of the workflow first meets each.")
+    candidates: list[ProblemFactsCandidate] = Field(description="Every candidate of every catalog, by key.")
+    features: list[ProblemFactsFeature]
+    workflow: Any = Field(
+        description="The workflow in the Composition2Yaml shape (`seq`, `and`, `xor`, `loop`): the `workflow:` "
+        "a document derived from this compilation writes.",
+    )
+    constraints: list[ProblemFactsConstraint]
+    objectives: ProblemFactsObjectives
+    binding_space: Optional[str] = Field(description="The number of bindings, as a decimal string.")

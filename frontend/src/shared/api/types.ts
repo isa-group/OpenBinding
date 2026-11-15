@@ -7,3 +7,6 @@ type Schemas = components['schemas'];
 
 /** The single-task swaps of one solution of a run (`GET …/runs/{run}/neighborhood`). */
 export type NeighborhoodResponse = Schemas['NeighborhoodResponse'];
+
+/** The facts of one compiled problem (`GET …/compilations/{compilation}/facts`; `facts` of `POST /v1/bim/validate?include=facts`). */
+export type ProblemFacts = Schemas['ProblemFactsView'];

@@ -1654,6 +1654,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/problems/{problem}/revisions/{revision}/compilations/{compilation}/facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the facts of one compilation
+         * @description The facts of one compilation, named by its id or its `compilation_digest`: its tasks and the candidates
+         *     each may take (as a document writes them), every candidate's values with units and origins, the features,
+         *     the workflow in the Composition2Yaml shape, the constraints, the objectives and the binding-space size.
+         *
+         *     The same projection `POST /v1/bim/validate?include=facts` answers for a package that is not stored.
+         */
+        get: operations["getProblemCompilationFacts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{org}/problems/{problem}/revisions/{revision}/compilations/{compilation}/ir": {
         parameters: {
             query?: never;
@@ -2387,6 +2411,7 @@ export interface components {
             };
             compatibleModes: components["schemas"]["EngineCompatibility"][];
             diagnostics: Record<string, never>[];
+            facts?: components["schemas"]["ProblemFactsView"];
             fileDigests: {
                 [key: string]: string;
             };
@@ -5096,6 +5121,179 @@ export interface components {
             /** Tasks */
             tasks: number;
         };
+        /** ProblemFactsCandidate */
+        ProblemFactsCandidate: {
+            /** Id */
+            id: string;
+            /**
+             * Key
+             * @description `<resource>/<id>`, opaque.
+             */
+            key: string;
+            /**
+             * Origins
+             * @description By application feature.
+             */
+            origins: {
+                [key: string]: components["schemas"]["ProblemValueOrigin"];
+            };
+            /**
+             * Provider
+             * @description The provider's id in the candidate's catalog.
+             */
+            provider: string | null;
+            /** Resource */
+            resource: string;
+            /**
+             * Values
+             * @description By application feature.
+             */
+            values: {
+                [key: string]: number | components["schemas"]["ProblemFactsRange"];
+            };
+        };
+        /** ProblemFactsConstraint */
+        ProblemFactsConstraint: {
+            /**
+             * Enforcement
+             * @enum {string}
+             */
+            enforcement: "hard" | "soft";
+            /**
+             * Expression
+             * @description The IR expression the constraint asserts.
+             */
+            expression: {
+                [key: string]: unknown;
+            };
+            /**
+             * Id
+             * @description `<resource>/<id>`.
+             */
+            id: string;
+            origin: components["schemas"]["ProblemSourceOrigin"] | null;
+            /**
+             * Penalty
+             * @description The IR expression of a soft constraint's penalty.
+             */
+            penalty: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * When
+             * @description The IR expression that guards it, as the IR has it.
+             */
+            when: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * ProblemFactsEligible
+         * @description A candidate a task may take: its key, and how a Composition2Yaml document writes it for that task.
+         */
+        ProblemFactsEligible: {
+            /**
+             * Candidate
+             * @description `<resource>/<id>`: the candidate's key, the same as `ProblemFactsCandidate.key`.
+             */
+            candidate: string;
+            /**
+             * Written
+             * @description The candidate's id, or `<resource>/<id>` when two catalogs give the task that id.
+             */
+            written: string;
+        };
+        /** ProblemFactsFeature */
+        ProblemFactsFeature: {
+            /** Direction */
+            direction: ("min" | "max") | null;
+            /** Id */
+            id: string;
+            /**
+             * Required
+             * @description Whether the evaluator reports it for every binding (`requiredFeatures`).
+             */
+            required: boolean;
+            /** Unit */
+            unit: string;
+        };
+        /** ProblemFactsObjectives */
+        ProblemFactsObjectives: {
+            /**
+             * Criteria
+             * @description `spec.optimization.criteria`, as the IR has them.
+             */
+            criteria: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Penalties
+             * @description `spec.optimization.penalties`, as the IR has them.
+             */
+            penalties: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
+         * ProblemFactsRange
+         * @description A range value: an end that is `null` has no limit.
+         */
+        ProblemFactsRange: {
+            /** Max */
+            max: number | null;
+            /** Min */
+            min: number | null;
+        };
+        /** ProblemFactsTask */
+        ProblemFactsTask: {
+            /**
+             * Eligible
+             * @description In the IR's order; empty for a local task.
+             */
+            eligible: components["schemas"]["ProblemFactsEligible"][];
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "service" | "local";
+        };
+        /**
+         * ProblemFactsView
+         * @description The facts of one compiled problem: what the workflow graph, the candidate matrix and the editors read.
+         *
+         *     Computed by the gateway from the stored (or drafted) compilation; nothing in it is evaluated.
+         */
+        ProblemFactsView: {
+            /**
+             * Binding Space
+             * @description The number of bindings, as a decimal string.
+             */
+            binding_space: string | null;
+            /**
+             * Candidates
+             * @description Every candidate of every catalog, by key.
+             */
+            candidates: components["schemas"]["ProblemFactsCandidate"][];
+            /** Constraints */
+            constraints: components["schemas"]["ProblemFactsConstraint"][];
+            /** Features */
+            features: components["schemas"]["ProblemFactsFeature"][];
+            /** Ir Digest */
+            ir_digest: string;
+            objectives: components["schemas"]["ProblemFactsObjectives"];
+            /**
+             * Tasks
+             * @description In the order a depth-first walk of the workflow first meets each.
+             */
+            tasks: components["schemas"]["ProblemFactsTask"][];
+            /**
+             * Workflow
+             * @description The workflow in the Composition2Yaml shape (`seq`, `and`, `xor`, `loop`): the `workflow:` a document derived from this compilation writes.
+             */
+            workflow: unknown;
+        };
         /** ProblemList */
         ProblemList: {
             /** Limit */
@@ -5106,6 +5304,15 @@ export interface components {
             problems: components["schemas"]["ProblemView"][];
             /** Total */
             total: number;
+        };
+        /** ProblemSourceOrigin */
+        ProblemSourceOrigin: {
+            /** Path */
+            path: string;
+            /** Pointer */
+            pointer: string;
+            /** Resource */
+            resource: string;
         };
         /** ProblemUpdate */
         ProblemUpdate: {
@@ -5127,6 +5334,23 @@ export interface components {
             created: boolean;
             problem: components["schemas"]["ProblemView"];
             revision: components["schemas"]["RevisionView"];
+        };
+        /**
+         * ProblemValueOrigin
+         * @description Where the package writes a value: the resource, its file and the JSON Pointer within it.
+         */
+        ProblemValueOrigin: {
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "package";
+            /** Path */
+            path: string;
+            /** Pointer */
+            pointer: string;
+            /** Resource */
+            resource: string;
         };
         /** ProblemView */
         ProblemView: {
@@ -7865,8 +8089,8 @@ export interface operations {
     validateBimPackage: {
         parameters: {
             query?: {
-                /** @description `ir` also returns the IR and its source map. */
-                include?: "ir" | null;
+                /** @description A comma list over `ir` (also return the IR and its source map) and `facts` (also return the facts of the compiled problem, as `getProblemCompilationFacts` answers them). */
+                include?: string | null;
             };
             header?: never;
             path?: never;
@@ -13069,6 +13293,87 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getProblemCompilationFacts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                org: string;
+                problem: string;
+                revision: string;
+                compilation: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description `private, immutable`. */
+                    "Cache-Control"?: string;
+                    /** @description The compilation digest and `.facts`, quoted: the facts never change. */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemFactsView"];
+                };
+            };
+            /** @description The caller's copy (`If-None-Match`) is the facts. */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such resource, or none this caller may see. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The compiled problem cannot be read (`problem_facts_unreadable`, with `reason`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
                 };
             };
             /** @description Account authentication is not configured on this deployment. */

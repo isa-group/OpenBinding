@@ -1,0 +1,170 @@
+{
+  "analysis": {
+    "bindingSpace": "2",
+    "candidates": 4,
+    "constraints": 0,
+    "placement": false,
+    "tasks": 3
+  },
+  "compatibleModes": [],
+  "diagnostics": [],
+  "facts": {
+    "binding_space": "2",
+    "candidates": [
+      {
+        "id": "c1a",
+        "key": "catalog/c1a",
+        "origins": {
+          "latency": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/c1a/features/latency",
+            "resource": "catalog"
+          }
+        },
+        "provider": null,
+        "resource": "catalog",
+        "values": {
+          "latency": 10
+        }
+      },
+      {
+        "id": "c1b",
+        "key": "catalog/c1b",
+        "origins": {
+          "latency": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/c1b/features/latency",
+            "resource": "catalog"
+          }
+        },
+        "provider": null,
+        "resource": "catalog",
+        "values": {
+          "latency": 20
+        }
+      },
+      {
+        "id": "c2a",
+        "key": "catalog/c2a",
+        "origins": {
+          "latency": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/c2a/features/latency",
+            "resource": "catalog"
+          }
+        },
+        "provider": null,
+        "resource": "catalog",
+        "values": {
+          "latency": 15
+        }
+      },
+      {
+        "id": "c3a",
+        "key": "catalog/c3a",
+        "origins": {
+          "latency": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/c3a/features/latency",
+            "resource": "catalog"
+          }
+        },
+        "provider": null,
+        "resource": "catalog",
+        "values": {
+          "latency": 5
+        }
+      }
+    ],
+    "constraints": [],
+    "features": [
+      {
+        "direction": "min",
+        "id": "latency",
+        "required": true,
+        "unit": "ms"
+      }
+    ],
+    "ir_digest": "sha256-60bcb31e7657328019504362399bce4ec937edc97095456f5bb9094f91174eb5",
+    "objectives": {
+      "criteria": [
+        {
+          "direction": "minimize",
+          "feature": {
+            "id": "latency",
+            "resource": "application"
+          },
+          "id": "latency",
+          "normalize": {
+            "clamp": false,
+            "max": 1000.0,
+            "min": 0.0
+          }
+        }
+      ],
+      "penalties": []
+    },
+    "tasks": [
+      {
+        "eligible": [
+          {
+            "candidate": "catalog/c1a",
+            "written": "c1a"
+          },
+          {
+            "candidate": "catalog/c1b",
+            "written": "c1b"
+          }
+        ],
+        "id": "t1",
+        "kind": "service"
+      },
+      {
+        "eligible": [
+          {
+            "candidate": "catalog/c2a",
+            "written": "c2a"
+          }
+        ],
+        "id": "t2",
+        "kind": "service"
+      },
+      {
+        "eligible": [
+          {
+            "candidate": "catalog/c3a",
+            "written": "c3a"
+          }
+        ],
+        "id": "t3",
+        "kind": "service"
+      }
+    ],
+    "workflow": {
+      "seq": [
+        "t1",
+        "t2",
+        "t3"
+      ]
+    }
+  },
+  "fileDigests": {
+    "application.json": "sha256-2128acb004c0e099f7eb6ce1f654dfa255a8b385fc231cde2993452f28bd7f2c",
+    "candidates.json": "sha256-bb5edc37f6f15483754114b748b65f1ddb619c27419efbf3274bef1dd0aa1a67",
+    "instance.json": "sha256-d9534e35ae076da1090b404e8b8ac9b209cef2a31f18fcd41df1322e554ca19c",
+    "optimization.json": "sha256-cf5d5f77374dad9fa494abaf838523ebb75c045be06967a9a6aa567beeb11b4d"
+  },
+  "instanceDigest": "sha256-08145e410a15555b02a3704d6fb3316ee29ed879a3f0d1d0de3f1dcb8005228f",
+  "irDigest": "sha256-60bcb31e7657328019504362399bce4ec937edc97095456f5bb9094f91174eb5",
+  "packageDigest": "sha256-c978c315df1f9b78aa4094724dc274601e6ad2f597f36d1d4f4bdbcd773734fd",
+  "resourceDigests": {
+    "application": "sha256-2128acb004c0e099f7eb6ce1f654dfa255a8b385fc231cde2993452f28bd7f2c",
+    "catalog": "sha256-bb5edc37f6f15483754114b748b65f1ddb619c27419efbf3274bef1dd0aa1a67",
+    "optimization": "sha256-cf5d5f77374dad9fa494abaf838523ebb75c045be06967a9a6aa567beeb11b4d"
+  },
+  "valid": true
+}

@@ -147,12 +147,24 @@ def _ref(item: Mapping[str, Any]) -> CandidateRef:
 
 def _constraint_locations(spec: Mapping[str, Any], source_map: Mapping[str, Any]) -> dict[str, str]:
     """Where each constraint and placement rule is written, by its ``<resource>/<id>``."""
-    found: dict[str, str] = {}
+    return {
+        name: f"{entry['path']} at {entry.get('pointer', '/')}"
+        for name, entry in constraint_sources(spec, source_map).items()
+    }
+
+
+def constraint_sources(spec: Mapping[str, Any], source_map: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
+    """The ``sourceMap`` entry of each constraint and placement rule that has one, by its ``<resource>/<id>``.
+
+    An entry is ``{resource, path, pointer}``: the resource of the package that writes the rule, its file,
+    and the JSON Pointer within that file.
+    """
+    found: dict[str, Mapping[str, Any]] = {}
 
     def note(ref: Any, pointer: str) -> None:
         entry = source_map.get(pointer) if isinstance(source_map, Mapping) else None
         if isinstance(ref, Mapping) and isinstance(entry, Mapping) and entry.get("path"):
-            found[f"{ref.get('resource')}/{ref.get('id')}"] = f"{entry['path']} at {entry.get('pointer', '/')}"
+            found[constraint_name(ref)] = entry
 
     for position, constraint in enumerate(spec.get("constraints", ())):
         note(constraint.get("ref"), f"/spec/constraints/{position}")
@@ -161,6 +173,11 @@ def _constraint_locations(spec: Mapping[str, Any], source_map: Mapping[str, Any]
             for position, rule in enumerate(model.get(member, ())):
                 note(rule.get("ref"), f"/spec/placement/{index}/{member}/{position}")
     return found
+
+
+def constraint_name(ref: Mapping[str, Any]) -> str:
+    """A constraint or rule as the facts and the diagnostics name it: ``<resource>/<id>``."""
+    return f"{ref.get('resource')}/{ref.get('id')}"
 
 
 # --------------------------------------------------------------------------- against a problem

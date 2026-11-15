@@ -833,6 +833,7 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             },
             "ir": {"$ref": "#/components/schemas/BindingProblem"},
             "sourceMap": {"type": "object"},
+            "facts": {"$ref": "#/components/schemas/ProblemFactsView"},
         },
         "additionalProperties": False,
     }

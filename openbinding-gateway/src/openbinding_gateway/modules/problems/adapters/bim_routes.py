@@ -7,7 +7,7 @@ starts from. They answer ``application/problem+json``, as the BIM routes always 
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
 
 from bim_core.canonical import digest_bytes
 from fastapi import APIRouter, Depends, Query, Request
@@ -27,6 +27,8 @@ from ..application.validate import validate_package
 router = APIRouter(prefix="/v1/bim", tags=["BIM"])
 
 ZIP_MEDIA_TYPES = ("application/vnd.bim+zip", "application/zip")
+#: ``include``: a comma list over ``ir`` and ``facts``; anything else is a 422 ``validation_error``.
+INCLUDE_PATTERN = r"^(ir|facts)(,(ir|facts))*$"
 
 
 def max_compressed(caller: User | None) -> int:
@@ -51,14 +53,22 @@ def max_compressed(caller: User | None) -> int:
 )
 async def validate_bim_package(
     request: Request,
-    include: Literal["ir"] | None = Query(default=None, description="`ir` also returns the IR and its source map."),
+    include: str | None = Query(
+        default=None,
+        pattern=INCLUDE_PATTERN,
+        description="A comma list over `ir` (also return the IR and its source map) and `facts` (also return the "
+        "facts of the compiled problem, as `getProblemCompilationFacts` answers them).",
+    ),
     caller: User | None = Depends(counted_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ) -> dict[str, Any]:
     # Counted for anybody; a key must carry ``problems:read`` (validation writes nothing).
     authorize_counted_key(request, caller)
     archive = await read_package(PackageRequest(request.headers, request.body, lambda: max_compressed(caller)))
-    return await validate_package(archive, caller, session, include_ir=include == "ir")
+    included = set(include.split(",")) if include else set()
+    return await validate_package(
+        archive, caller, session, include_ir="ir" in included, include_facts="facts" in included,
+    )
 
 
 @router.get("/templates", operation_id="listBimTemplates", summary="List the templates a problem can start from")

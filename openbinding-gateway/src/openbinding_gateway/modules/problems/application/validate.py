@@ -18,6 +18,7 @@ from ....services.engines import compatible_modes
 from ....services.entitlements import entitlement_service
 from ..domain.compilation import analysis_summary
 from .compile import compile_package
+from .facts import compilation_facts
 
 
 async def validate_package(
@@ -26,16 +27,19 @@ async def validate_package(
     session: AsyncSession | None,
     *,
     include_ir: bool = False,
+    include_facts: bool = False,
 ) -> dict[str, Any]:
     """Compile ``archive`` and report its identities, its analysis and the engine modes that fit it.
 
     With ``include_ir`` the IR and its source map come back too (the same compile, the same work class):
-    the Workbench's IR view and workflow drawing read them.
+    the Workbench's IR view reads them. With ``include_facts`` the facts of the same compilation come
+    back as ``facts``, exactly as ``getProblemCompilationFacts`` answers them for a stored one.
     """
     compilation = await compile_package(archive)
     refusal = entitlement_service.binding_space_refusal(BindingSpace.from_analysis(compilation.analysis))
     if refusal is not None:
         raise api_error(refusal.status, refusal.code, refusal.detail, **refusal.extra)
+    analysis = analysis_summary(compilation.ir, compilation.analysis)
     body: dict[str, Any] = {
         "valid": True,
         "instanceDigest": compilation.instance_digest,
@@ -43,11 +47,15 @@ async def validate_package(
         "irDigest": compilation.ir_digest,
         "fileDigests": compilation.file_digests,
         "resourceDigests": compilation.resource_digests,
-        "analysis": analysis_summary(compilation.ir, compilation.analysis),
+        "analysis": analysis,
         "compatibleModes": await compatible_modes(compilation.ir, caller, session),
         "diagnostics": [],
     }
     if include_ir:
         body["ir"] = compilation.ir
         body["sourceMap"] = compilation.source_map
+    if include_facts:
+        body["facts"] = compilation_facts(
+            compilation.ir, compilation.source_map, analysis, ir_digest=compilation.ir_digest,
+        )
     return body

@@ -166,6 +166,19 @@ async def compilation_by_digest(
     )
 
 
+async def compilation_by_ref(session: AsyncSession, revision_id: uuid.UUID, ref: str) -> ProblemCompilation | None:
+    """The stored compilation of a revision named by ``ref``: its id or its ``compilation_digest``."""
+    if is_digest(ref):
+        return await compilation_by_digest(session, revision_id, ref)
+    try:
+        parsed = uuid.UUID(ref)
+    except ValueError:
+        return None
+    return await session.scalar(
+        select(ProblemCompilation).where(ProblemCompilation.id == parsed, ProblemCompilation.revision_id == revision_id)
+    )
+
+
 # -- Compile or get ----------------------------------------------------------------------------------
 
 

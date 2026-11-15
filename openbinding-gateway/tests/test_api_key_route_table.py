@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 136
+    assert len(ROUTES) == 137
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -96,6 +96,17 @@ def test_the_analysis_workspace_is_gone_and_the_neighbourhood_stays_a_run_read()
     request = {"method": "GET", "path_params": {"org": "acme", "run": "r1"}, "path": neighbourhood}
     assert allows_request(runs_only, **request)
     assert not allows_request(problems_only, **request)
+
+
+def test_the_facts_of_a_compilation_are_a_problem_read():
+    facts = "/v1/organizations/{org}/problems/{problem}/revisions/{revision}/compilations/{compilation}/facts"
+
+    assert ("GET", facts) in ROUTES
+    assert required_permissions(facts, "GET") == frozenset({"problems:read"})
+    # A problem-scoped key reads them; a run-scoped one does not.
+    request = {"method": "GET", "path_params": {"org": "acme", "problem": "p", "revision": "1", "compilation": "c"}, "path": facts}
+    assert allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["problem"]}}), **request)
+    assert not allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["run"]}}), **request)
 
 
 def test_the_runs_of_an_organization_are_jobs_reads_and_engine_executions():

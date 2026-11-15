@@ -157,6 +157,7 @@ is not needed.
 | `problem_has_runs` | 409 | `DELETE …/problems/{problem}`: a run, a study cell or a sealed study names one of its revisions, which are kept as their evidence |
 | `problem_has_compositions` | 409 | `DELETE …/problems/{problem}`: a sealed composition version, or one of its evaluations, names one of its revisions. Delete the compositions that link the problem first |
 | `revision_not_recompilable` | 422 | the installed toolchain refuses a stored revision (or reads it as another package); `reason` carries the refusal |
+| `problem_facts_unreadable` | 422 | `getProblemCompilationFacts` or `validateBimPackage?include=facts`: the compiled problem lacks a member the facts read, or holds one this version cannot read; `reason` says which |
 | `content_unavailable` | 409 | the stored package of a revision cannot be read |
 | `revision_required` | 422 | `createRun` (`POST /v1/organizations/{org}/runs`) without `revision` |
 | `revision_not_in_organization` | 409 | `createRun` names a revision of another organization the caller can see: launch it from that organization |

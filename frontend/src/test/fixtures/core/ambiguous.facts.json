@@ -1,0 +1,165 @@
+{
+  "binding_space": "3",
+  "candidates": [
+    {
+      "id": "c1a",
+      "key": "catalog/c1a",
+      "origins": {
+        "latency": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/c1a/features/latency",
+          "resource": "catalog"
+        }
+      },
+      "provider": null,
+      "resource": "catalog",
+      "values": {
+        "latency": 10
+      }
+    },
+    {
+      "id": "c1b",
+      "key": "catalog/c1b",
+      "origins": {
+        "latency": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/c1b/features/latency",
+          "resource": "catalog"
+        }
+      },
+      "provider": null,
+      "resource": "catalog",
+      "values": {
+        "latency": 20
+      }
+    },
+    {
+      "id": "c2a",
+      "key": "catalog/c2a",
+      "origins": {
+        "latency": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/c2a/features/latency",
+          "resource": "catalog"
+        }
+      },
+      "provider": null,
+      "resource": "catalog",
+      "values": {
+        "latency": 15
+      }
+    },
+    {
+      "id": "c3a",
+      "key": "catalog/c3a",
+      "origins": {
+        "latency": {
+          "kind": "package",
+          "path": "candidates.json",
+          "pointer": "/spec/candidates/c3a/features/latency",
+          "resource": "catalog"
+        }
+      },
+      "provider": null,
+      "resource": "catalog",
+      "values": {
+        "latency": 5
+      }
+    },
+    {
+      "id": "c1a",
+      "key": "other/c1a",
+      "origins": {
+        "latency": {
+          "kind": "package",
+          "path": "other.json",
+          "pointer": "/spec/candidates/c1a/features/latency",
+          "resource": "other"
+        }
+      },
+      "provider": null,
+      "resource": "other",
+      "values": {
+        "latency": 12
+      }
+    }
+  ],
+  "constraints": [],
+  "features": [
+    {
+      "direction": "min",
+      "id": "latency",
+      "required": true,
+      "unit": "ms"
+    }
+  ],
+  "ir_digest": "sha256-06e63c3406db363ce6760be2a182d78b2a4cdfcb764bcd9a4d9a86e90eb6ced3",
+  "objectives": {
+    "criteria": [
+      {
+        "direction": "minimize",
+        "feature": {
+          "id": "latency",
+          "resource": "application"
+        },
+        "id": "latency",
+        "normalize": {
+          "clamp": false,
+          "max": 1000.0,
+          "min": 0.0
+        }
+      }
+    ],
+    "penalties": []
+  },
+  "tasks": [
+    {
+      "eligible": [
+        {
+          "candidate": "catalog/c1a",
+          "written": "catalog/c1a"
+        },
+        {
+          "candidate": "catalog/c1b",
+          "written": "c1b"
+        },
+        {
+          "candidate": "other/c1a",
+          "written": "other/c1a"
+        }
+      ],
+      "id": "t1",
+      "kind": "service"
+    },
+    {
+      "eligible": [
+        {
+          "candidate": "catalog/c2a",
+          "written": "c2a"
+        }
+      ],
+      "id": "t2",
+      "kind": "service"
+    },
+    {
+      "eligible": [
+        {
+          "candidate": "catalog/c3a",
+          "written": "c3a"
+        }
+      ],
+      "id": "t3",
+      "kind": "service"
+    }
+  ],
+  "workflow": {
+    "seq": [
+      "t1",
+      "t2",
+      "t3"
+    ]
+  }
+}

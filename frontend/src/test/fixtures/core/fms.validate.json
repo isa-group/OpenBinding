@@ -1,0 +1,684 @@
+{
+  "analysis": {
+    "bindingSpace": "32",
+    "candidates": 10,
+    "constraints": 0,
+    "placement": false,
+    "tasks": 6
+  },
+  "compatibleModes": [],
+  "diagnostics": [],
+  "facts": {
+    "binding_space": "32",
+    "candidates": [
+      {
+        "id": "cand_t1_aws",
+        "key": "catalog/cand_t1_aws",
+        "origins": {
+          "availability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t1_aws/features/availability",
+            "resource": "catalog"
+          },
+          "cost": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t1_aws/features/cost",
+            "resource": "catalog"
+          },
+          "execution_time": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t1_aws/features/execution_time",
+            "resource": "catalog"
+          },
+          "reliability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t1_aws/features/reliability",
+            "resource": "catalog"
+          },
+          "security": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t1_aws/features/security",
+            "resource": "catalog"
+          }
+        },
+        "provider": "amazon",
+        "resource": "catalog",
+        "values": {
+          "availability": 0.9995,
+          "cost": 220,
+          "execution_time": 210,
+          "reliability": 0.9975,
+          "security": 5
+        }
+      },
+      {
+        "id": "cand_t1_google_cloud",
+        "key": "catalog/cand_t1_google_cloud",
+        "origins": {
+          "availability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t1_google_cloud/features/availability",
+            "resource": "catalog"
+          },
+          "cost": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t1_google_cloud/features/cost",
+            "resource": "catalog"
+          },
+          "execution_time": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t1_google_cloud/features/execution_time",
+            "resource": "catalog"
+          },
+          "reliability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t1_google_cloud/features/reliability",
+            "resource": "catalog"
+          },
+          "security": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t1_google_cloud/features/security",
+            "resource": "catalog"
+          }
+        },
+        "provider": "google",
+        "resource": "catalog",
+        "values": {
+          "availability": 0.9998,
+          "cost": 240,
+          "execution_time": 220,
+          "reliability": 0.998,
+          "security": 5
+        }
+      },
+      {
+        "id": "cand_t2_radius_iot_network",
+        "key": "catalog/cand_t2_radius_iot_network",
+        "origins": {
+          "availability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t2_radius_iot_network/features/availability",
+            "resource": "catalog"
+          },
+          "cost": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t2_radius_iot_network/features/cost",
+            "resource": "catalog"
+          },
+          "execution_time": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t2_radius_iot_network/features/execution_time",
+            "resource": "catalog"
+          },
+          "reliability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t2_radius_iot_network/features/reliability",
+            "resource": "catalog"
+          },
+          "security": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t2_radius_iot_network/features/security",
+            "resource": "catalog"
+          }
+        },
+        "provider": "radius",
+        "resource": "catalog",
+        "values": {
+          "availability": 0.998,
+          "cost": 500,
+          "execution_time": 420,
+          "reliability": 0.993,
+          "security": 4
+        }
+      },
+      {
+        "id": "cand_t2_samsara_fleet_api",
+        "key": "catalog/cand_t2_samsara_fleet_api",
+        "origins": {
+          "availability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t2_samsara_fleet_api/features/availability",
+            "resource": "catalog"
+          },
+          "cost": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t2_samsara_fleet_api/features/cost",
+            "resource": "catalog"
+          },
+          "execution_time": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t2_samsara_fleet_api/features/execution_time",
+            "resource": "catalog"
+          },
+          "reliability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t2_samsara_fleet_api/features/reliability",
+            "resource": "catalog"
+          },
+          "security": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t2_samsara_fleet_api/features/security",
+            "resource": "catalog"
+          }
+        },
+        "provider": "samsara",
+        "resource": "catalog",
+        "values": {
+          "availability": 0.9984999999999999,
+          "cost": 650,
+          "execution_time": 520,
+          "reliability": 0.9940000000000001,
+          "security": 4
+        }
+      },
+      {
+        "id": "cand_t3_distance_matrix_api",
+        "key": "catalog/cand_t3_distance_matrix_api",
+        "origins": {
+          "availability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t3_distance_matrix_api/features/availability",
+            "resource": "catalog"
+          },
+          "cost": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t3_distance_matrix_api/features/cost",
+            "resource": "catalog"
+          },
+          "execution_time": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t3_distance_matrix_api/features/execution_time",
+            "resource": "catalog"
+          },
+          "reliability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t3_distance_matrix_api/features/reliability",
+            "resource": "catalog"
+          },
+          "security": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t3_distance_matrix_api/features/security",
+            "resource": "catalog"
+          }
+        },
+        "provider": "google",
+        "resource": "catalog",
+        "values": {
+          "availability": 0.9995,
+          "cost": 900,
+          "execution_time": 300,
+          "reliability": 0.996,
+          "security": 5
+        }
+      },
+      {
+        "id": "cand_t3_here_routing_api",
+        "key": "catalog/cand_t3_here_routing_api",
+        "origins": {
+          "availability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t3_here_routing_api/features/availability",
+            "resource": "catalog"
+          },
+          "cost": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t3_here_routing_api/features/cost",
+            "resource": "catalog"
+          },
+          "execution_time": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t3_here_routing_api/features/execution_time",
+            "resource": "catalog"
+          },
+          "reliability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t3_here_routing_api/features/reliability",
+            "resource": "catalog"
+          },
+          "security": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t3_here_routing_api/features/security",
+            "resource": "catalog"
+          }
+        },
+        "provider": "here",
+        "resource": "catalog",
+        "values": {
+          "availability": 0.9990000000000001,
+          "cost": 300,
+          "execution_time": 380,
+          "reliability": 0.995,
+          "security": 4
+        }
+      },
+      {
+        "id": "cand_t5_amazon_braket",
+        "key": "catalog/cand_t5_amazon_braket",
+        "origins": {
+          "availability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t5_amazon_braket/features/availability",
+            "resource": "catalog"
+          },
+          "cost": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t5_amazon_braket/features/cost",
+            "resource": "catalog"
+          },
+          "execution_time": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t5_amazon_braket/features/execution_time",
+            "resource": "catalog"
+          },
+          "reliability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t5_amazon_braket/features/reliability",
+            "resource": "catalog"
+          },
+          "security": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t5_amazon_braket/features/security",
+            "resource": "catalog"
+          }
+        },
+        "provider": "amazon",
+        "resource": "catalog",
+        "values": {
+          "availability": 0.9990000000000001,
+          "cost": 1200,
+          "execution_time": 9000,
+          "reliability": 0.99,
+          "security": 5
+        }
+      },
+      {
+        "id": "cand_t5_ibm_quantum",
+        "key": "catalog/cand_t5_ibm_quantum",
+        "origins": {
+          "availability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t5_ibm_quantum/features/availability",
+            "resource": "catalog"
+          },
+          "cost": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t5_ibm_quantum/features/cost",
+            "resource": "catalog"
+          },
+          "execution_time": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t5_ibm_quantum/features/execution_time",
+            "resource": "catalog"
+          },
+          "reliability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t5_ibm_quantum/features/reliability",
+            "resource": "catalog"
+          },
+          "security": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t5_ibm_quantum/features/security",
+            "resource": "catalog"
+          }
+        },
+        "provider": "ibm",
+        "resource": "catalog",
+        "values": {
+          "availability": 0.997,
+          "cost": 1500,
+          "execution_time": 12000,
+          "reliability": 0.997,
+          "security": 5
+        }
+      },
+      {
+        "id": "cand_t6_paypal",
+        "key": "catalog/cand_t6_paypal",
+        "origins": {
+          "availability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t6_paypal/features/availability",
+            "resource": "catalog"
+          },
+          "cost": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t6_paypal/features/cost",
+            "resource": "catalog"
+          },
+          "execution_time": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t6_paypal/features/execution_time",
+            "resource": "catalog"
+          },
+          "reliability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t6_paypal/features/reliability",
+            "resource": "catalog"
+          },
+          "security": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t6_paypal/features/security",
+            "resource": "catalog"
+          }
+        },
+        "provider": "paypal",
+        "resource": "catalog",
+        "values": {
+          "availability": 0.9995,
+          "cost": 1200,
+          "execution_time": 450,
+          "reliability": 0.992,
+          "security": 4
+        }
+      },
+      {
+        "id": "cand_t6_stripe",
+        "key": "catalog/cand_t6_stripe",
+        "origins": {
+          "availability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t6_stripe/features/availability",
+            "resource": "catalog"
+          },
+          "cost": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t6_stripe/features/cost",
+            "resource": "catalog"
+          },
+          "execution_time": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t6_stripe/features/execution_time",
+            "resource": "catalog"
+          },
+          "reliability": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t6_stripe/features/reliability",
+            "resource": "catalog"
+          },
+          "security": {
+            "kind": "package",
+            "path": "candidates.json",
+            "pointer": "/spec/candidates/cand_t6_stripe/features/security",
+            "resource": "catalog"
+          }
+        },
+        "provider": "stripe",
+        "resource": "catalog",
+        "values": {
+          "availability": 0.9998999999999999,
+          "cost": 950,
+          "execution_time": 520,
+          "reliability": 0.995,
+          "security": 5
+        }
+      }
+    ],
+    "constraints": [],
+    "features": [
+      {
+        "direction": "min",
+        "id": "cost",
+        "required": true,
+        "unit": "USD/month"
+      },
+      {
+        "direction": "min",
+        "id": "execution_time",
+        "required": true,
+        "unit": "ms"
+      },
+      {
+        "direction": "max",
+        "id": "availability",
+        "required": true,
+        "unit": "1"
+      },
+      {
+        "direction": "max",
+        "id": "reliability",
+        "required": true,
+        "unit": "1"
+      },
+      {
+        "direction": "max",
+        "id": "security",
+        "required": true,
+        "unit": "score"
+      }
+    ],
+    "ir_digest": "sha256-ce9ba8d3ba7fb496ffec455d0494f6a4bed622b7d2a147811afc4a783604cdc3",
+    "objectives": {
+      "criteria": [
+        {
+          "direction": "minimize",
+          "feature": {
+            "id": "cost",
+            "resource": "application"
+          },
+          "id": "cost",
+          "normalize": {
+            "clamp": true,
+            "max": 10000.0,
+            "min": 0.0
+          }
+        },
+        {
+          "direction": "minimize",
+          "feature": {
+            "id": "execution_time",
+            "resource": "application"
+          },
+          "id": "execution_time",
+          "normalize": {
+            "clamp": true,
+            "max": 20000.0,
+            "min": 0.0
+          }
+        },
+        {
+          "direction": "maximize",
+          "feature": {
+            "id": "availability",
+            "resource": "application"
+          },
+          "id": "availability",
+          "normalize": {
+            "clamp": true,
+            "max": 1.0,
+            "min": 0.0
+          }
+        },
+        {
+          "direction": "maximize",
+          "feature": {
+            "id": "reliability",
+            "resource": "application"
+          },
+          "id": "reliability",
+          "normalize": {
+            "clamp": true,
+            "max": 1.0,
+            "min": 0.0
+          }
+        },
+        {
+          "direction": "maximize",
+          "feature": {
+            "id": "security",
+            "resource": "application"
+          },
+          "id": "security",
+          "normalize": {
+            "clamp": true,
+            "max": 5.0,
+            "min": 1.0
+          }
+        }
+      ],
+      "penalties": []
+    },
+    "tasks": [
+      {
+        "eligible": [
+          {
+            "candidate": "catalog/cand_t1_aws",
+            "written": "cand_t1_aws"
+          },
+          {
+            "candidate": "catalog/cand_t1_google_cloud",
+            "written": "cand_t1_google_cloud"
+          }
+        ],
+        "id": "T1",
+        "kind": "service"
+      },
+      {
+        "eligible": [
+          {
+            "candidate": "catalog/cand_t2_radius_iot_network",
+            "written": "cand_t2_radius_iot_network"
+          },
+          {
+            "candidate": "catalog/cand_t2_samsara_fleet_api",
+            "written": "cand_t2_samsara_fleet_api"
+          }
+        ],
+        "id": "T2",
+        "kind": "service"
+      },
+      {
+        "eligible": [
+          {
+            "candidate": "catalog/cand_t3_distance_matrix_api",
+            "written": "cand_t3_distance_matrix_api"
+          },
+          {
+            "candidate": "catalog/cand_t3_here_routing_api",
+            "written": "cand_t3_here_routing_api"
+          }
+        ],
+        "id": "T3",
+        "kind": "service"
+      },
+      {
+        "eligible": [],
+        "id": "node_classic_routing",
+        "kind": "local"
+      },
+      {
+        "eligible": [
+          {
+            "candidate": "catalog/cand_t5_amazon_braket",
+            "written": "cand_t5_amazon_braket"
+          },
+          {
+            "candidate": "catalog/cand_t5_ibm_quantum",
+            "written": "cand_t5_ibm_quantum"
+          }
+        ],
+        "id": "T5",
+        "kind": "service"
+      },
+      {
+        "eligible": [
+          {
+            "candidate": "catalog/cand_t6_paypal",
+            "written": "cand_t6_paypal"
+          },
+          {
+            "candidate": "catalog/cand_t6_stripe",
+            "written": "cand_t6_stripe"
+          }
+        ],
+        "id": "T6",
+        "kind": "service"
+      }
+    ],
+    "workflow": {
+      "seq": [
+        "T1",
+        "T2",
+        "T3",
+        {
+          "xor": [
+            {
+              "flow": "node_classic_routing",
+              "probability": 0.8
+            },
+            {
+              "flow": "T5",
+              "probability": 0.2
+            }
+          ]
+        },
+        "T6"
+      ]
+    }
+  },
+  "fileDigests": {
+    "application.json": "sha256-c9ad1cc74654dba8df80700eafd5f57056cdd0ec3dc745555b73493c5b81bfc3",
+    "candidates.json": "sha256-06084e97c201a71be54994e995d17d43a9a2ca621be4cada5dec04667ca64097",
+    "instance.json": "sha256-a9e90e9e2af3d82832f5982f92a4fd1b135745903acd8bc1485c283bbc002e9f",
+    "optimization.json": "sha256-c53eec010b179dfe129526570fd1c21cab9339fd00925bf55b92a36389f421d4",
+    "routing.json": "sha256-5e4d20522fe93ef6aecac2736a653ee16cb759648525f9a05daeddfd6394acd7"
+  },
+  "instanceDigest": "sha256-abf8d95aaf5ee6f3d6256ec37e308f4e17a5336b3034234547a35a3a8fd46144",
+  "irDigest": "sha256-ce9ba8d3ba7fb496ffec455d0494f6a4bed622b7d2a147811afc4a783604cdc3",
+  "packageDigest": "sha256-de5a5072325dc30b281304b032d610c9da4967ecaf51063c2506ea4b61cd881c",
+  "resourceDigests": {
+    "application": "sha256-c9ad1cc74654dba8df80700eafd5f57056cdd0ec3dc745555b73493c5b81bfc3",
+    "catalog": "sha256-06084e97c201a71be54994e995d17d43a9a2ca621be4cada5dec04667ca64097",
+    "optimization": "sha256-c53eec010b179dfe129526570fd1c21cab9339fd00925bf55b92a36389f421d4",
+    "routing": "sha256-5e4d20522fe93ef6aecac2736a653ee16cb759648525f9a05daeddfd6394acd7"
+  },
+  "valid": true
+}
