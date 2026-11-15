@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { measurePage, prepareCapture, waitUntilSettled } from '../helpers/pageChecks';
-import { API, CASE, ORG, PROJECT_PATH, RESULTS_DIR, signInByApi } from './support';
+import { API, CASE, ORG, ORG_PATH, RESULTS_DIR, RUNS_PATH, signInByApi } from './support';
 
 /**
  * Visual QA of the main screens at the two sizes of the project (`desktop` 1280x800 and `mobile` 390x844 with touch: see
@@ -10,6 +10,9 @@ import { API, CASE, ORG, PROJECT_PATH, RESULTS_DIR, signInByApi } from './suppor
  * - no horizontal overflow (`document.documentElement.scrollWidth <= window.innerWidth`);
  * - no `console.error`, no `pageerror`, no 5xx answer (4xx answers are counted and listed, not failed: a 404 the interface expects is
  *   not a defect, and Chromium logs each one as a console error that would hide the real ones, so those log lines are set aside);
+ *   the one 5xx listed with them is the 503 of the published pricing (`GET /v1/pricing/catalog|current`, `pricing_unavailable`),
+ *   which is how the gateway says SPHERE cannot be read: the lab runs without SPHERE credentials, and the screens that read the
+ *   pricing say it cannot be read instead of failing;
  * - a visible main landmark;
  * - on mobile, every visible button, link, summary and field at least 24 px high (WCAG 2.5.8; a link inside a line of text is exempt,
  *   as the criterion says);
@@ -35,6 +38,8 @@ const finishedResult = (target: Page) =>
   });
 /** Chromium logs every 4xx/5xx of a sub-resource as a console error; the answers are counted on their own. */
 const STATUS_LOG = /^Failed to load resource: the server responded with a status of \d{3}/;
+/** The published pricing answers 503 `pricing_unavailable` whenever SPHERE cannot be read, as in a lab without SPHERE credentials. */
+const PRICING_UNREADABLE = /^\/api\/v1\/pricing\/(catalog|current)$/;
 
 interface Stop {
   /** Label of the screen in the log and the name of its screenshot. */
@@ -64,8 +69,10 @@ function watch(page: Page) {
   page.on('response', (response) => {
     const status = response.status();
     if (status < 400) return;
-    const line = `${status} ${response.request().method()} ${new URL(response.url()).pathname}`;
-    (status >= 500 ? seen.http5xx : seen.http4xx).push(line);
+    const path = new URL(response.url()).pathname;
+    const line = `${status} ${response.request().method()} ${path}`;
+    const serverError = status >= 500 && !(status === 503 && PRICING_UNREADABLE.test(path));
+    (serverError ? seen.http5xx : seen.http4xx).push(line);
   });
   return {
     /** What was seen since the last call. */
@@ -237,11 +244,10 @@ const LOGIN: Stop = { slug: 'login', path: '/login', ready: (page) => page.getBy
 
 const OWNER_STOPS: Stop[] = [
   { slug: 'panel', path: '/app', ready: (page) => page.getByRole('heading', { level: 1, name: /^Hello, / }) },
-  { slug: 'organization-projects', path: `/app/${ORG}`, ready: (page) => page.locator('#platform-main').locator(`a[href="${PROJECT_PATH}"]`).first() },
-  { slug: 'project', path: PROJECT_PATH, ready: (page) => page.getByRole('navigation', { name: 'Project sections' }) },
-  { slug: 'cases', path: `${PROJECT_PATH}/problems`, ready: (page) => page.getByRole('list', { name: 'Problems' }) },
-  { slug: 'case', path: `${PROJECT_PATH}/problems/${CASE}`, ready: (page) => page.locator('code.case-slug') },
-  { slug: 'jobs', path: `${PROJECT_PATH}/runs`, ready: (page) => page.getByRole('heading', { level: 1, name: 'Runs' }) },
+  { slug: 'organization', path: `/app/${ORG}`, ready: (page) => page.locator('#platform-main').getByRole('link', { name: 'All problems' }) },
+  { slug: 'cases', path: `${ORG_PATH}/problems`, ready: (page) => page.getByRole('list', { name: 'Problems' }) },
+  { slug: 'case', path: `${ORG_PATH}/problems/${CASE}`, ready: (page) => page.locator('code.case-slug') },
+  { slug: 'jobs', path: `${RUNS_PATH}`, ready: (page) => page.getByRole('heading', { level: 1, name: 'Runs' }) },
   { slug: 'plan-permissions', path: '/app/account/usage', ready: (page) => page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Plan & permissions' }) },
   { slug: 'team-organization', path: `/app/${ORG}/settings/members`, ready: (page) => page.locator('#platform-main').getByRole('heading', { level: 1 }) },
 ];
@@ -250,15 +256,15 @@ const OWNER_STOPS: Stop[] = [
 const VIEWER_STOPS: Stop[] = [
   {
     slug: 'viewer-cases',
-    path: `${PROJECT_PATH}/problems`,
+    path: `${ORG_PATH}/problems`,
     ready: (page) => page.getByRole('list', { name: 'Problems' }),
     extra: async (page, label) => {
-      await expect.soft(page.getByRole('button', { name: 'New problem' }), `${label}: a viewer sees "New problem"`).toHaveCount(0);
+      await expect.soft(page.getByRole('button', { name: 'Upload BIM package' }), `${label}: a viewer sees "Upload BIM package"`).toHaveCount(0);
     },
   },
   {
     slug: 'viewer-jobs',
-    path: `${PROJECT_PATH}/runs`,
+    path: `${RUNS_PATH}`,
     ready: (page) => page.getByRole('heading', { level: 1, name: 'Runs' }),
     extra: async (page, label) => {
       await expect.soft(page.getByRole('link', { name: 'New run' }), `${label}: a viewer sees "New run"`).toHaveCount(0);
@@ -267,7 +273,7 @@ const VIEWER_STOPS: Stop[] = [
   },
   {
     slug: 'viewer-job-launch',
-    path: `${PROJECT_PATH}/runs/new?case=${CASE}`,
+    path: `${RUNS_PATH}/new?problem=${CASE}`,
     ready: (page) => page.getByRole('heading', { level: 1, name: 'New run' }),
     extra: async (page, label) => {
       await expect.soft(page.getByText('starting a run needs MEMBER'), `${label}: the launch page does not say a run needs MEMBER`).toBeVisible();
@@ -287,19 +293,19 @@ test.describe('live · visual QA', () => {
     const token = await signInByApi(page, 'owner');
 
     // "A result" is a finished job of the owner: the one spec 04 starts, or any other (the API smoke leaves some).
-    const listed = await page.request.get(`${API}/v1/jobs?limit=100`, { headers: { Authorization: `Bearer ${token}` } });
-    const jobs = listed.ok() ? await listed.json() as Array<{ id: string; status: string }> : [];
+    const listed = await page.request.get(`${API}/v1/organizations/${ORG}/runs?limit=100`, { headers: { Authorization: `Bearer ${token}` } });
+    const jobs = listed.ok() ? (await listed.json() as { runs: Array<{ id: string; status: string }> }).runs : [];
     const finished = jobs.find((job) => String(job.status).toLowerCase() === 'completed');
     const stops = [...OWNER_STOPS];
     const skipped: Array<{ slug: string; why: string }> = [];
     if (finished) {
       stops.splice(6, 0, {
         slug: 'job-result',
-        path: `${PROJECT_PATH}/runs/${finished.id}`,
+        path: `${RUNS_PATH}/${finished.id}`,
         ready: (target) => finishedResult(target),
       });
     } else {
-      skipped.push({ slug: 'job-result', why: `the owner has no completed job to open (GET /v1/jobs answered ${listed.status()}, ${jobs.length} jobs); run 04-job-random-search first` });
+      skipped.push({ slug: 'job-result', why: `the owner has no completed job to open (listRuns answered ${listed.status()}, ${jobs.length} jobs); run 04-job-random-search first` });
       testInfo.annotations.push({ type: 'skipped-screen', description: 'job-result: no completed job' });
     }
     await report(testInfo, 'owner', await walk(page, testInfo, stops, skipped));

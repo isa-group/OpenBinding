@@ -1,5 +1,6 @@
 import ast
 import uuid
+from _problem_helpers import placeholder_refs
 from datetime import timedelta
 from pathlib import Path
 
@@ -8,7 +9,6 @@ from sqlalchemy import inspect as sa_inspect
 
 from openbinding_gateway import repositories
 from openbinding_gateway.db.models import Job, JobState, User, utcnow
-from openbinding_gateway.db.platform_models import Organization, Project
 from openbinding_gateway.repositories import jobs as job_repository
 from _pricing import pricing_catalog
 
@@ -29,99 +29,111 @@ def _job(owner: User, age_s: int = 0, **kwargs) -> Job:
     kwargs.setdefault("state", JobState.QUEUED)
     return Job(
         owner_id=owner.id,
-        engine_id="random-search",
         engine_job_id=uuid.uuid4().hex,
         service_url="http://engine",
         created_at=utcnow() - timedelta(seconds=age_s),
-        **kwargs,
+        **{"engine_id": "random-search", **placeholder_refs(), **kwargs},
     )
 
 
 @pytest.mark.asyncio
-async def test_get_owned_hides_other_owners_jobs(db_session):
-    owner, other = await _user(db_session), await _user(db_session)
-    job = _job(owner)
+async def test_get_in_org_hides_the_runs_of_other_organizations(db_session):
+    owner = await _user(db_session)
+    org, other_org = uuid.uuid4(), uuid.uuid4()
+    job = _job(owner, organization_id=org)
     db_session.add(job)
     await db_session.flush()
 
-    assert (await job_repository.get_owned(db_session, job.id, owner.id)).id == job.id
-    assert (await job_repository.get_owned(db_session, job.id, owner.id, lock=True)).id == job.id
-    assert await job_repository.get_owned(db_session, job.id, other.id) is None
-    assert await job_repository.get_owned(db_session, uuid.uuid4(), owner.id) is None
+    assert (await job_repository.get_in_org(db_session, org, job.id)).id == job.id
+    assert (await job_repository.get_in_org(db_session, org, job.id, lock=True)).id == job.id
+    assert await job_repository.get_in_org(db_session, other_org, job.id) is None
+    assert await job_repository.get_in_org(db_session, org, uuid.uuid4()) is None
 
 
 @pytest.mark.asyncio
-async def test_list_owned_filters_state_and_clamps_limit(db_session):
-    owner, other = await _user(db_session), await _user(db_session)
-    failed = _job(owner, 30, state=JobState.FAILED)
-    newest = _job(owner, 10)
-    older = _job(owner, 20)
-    db_session.add_all([failed, newest, older, _job(other)])
+async def test_list_in_org_filters_pages_counts_and_leaves_the_heavy_columns_unread(db_session):
+    owner, teammate = await _user(db_session), await _user(db_session)
+    org = uuid.uuid4()
+    failed = _job(owner, 30, state=JobState.FAILED, organization_id=org, result={"x": 1})
+    newest = _job(teammate, 10, organization_id=org, engine_id="evolutionary-heuristics")
+    older = _job(owner, 20, organization_id=org)
+    db_session.add_all([failed, newest, older, _job(owner)])
+    await db_session.flush()
+    ids = [newest.id, older.id, failed.id]
+    db_session.expire_all()
+
+    rows, total = await job_repository.list_in_org(db_session, org)
+    assert [row.id for row in rows] == ids and total == 3
+    assert {"result", "original_request", "provenance"} <= sa_inspect(rows[0]).unloaded
+    queued, total = await job_repository.list_in_org(db_session, org, state=JobState.QUEUED)
+    assert [row.id for row in queued] == ids[:2] and total == 2
+    page, total = await job_repository.list_in_org(db_session, org, limit=1, offset=1)
+    assert [row.id for row in page] == [ids[1]] and total == 3
+    engine, _ = await job_repository.list_in_org(db_session, org, engine="evolutionary-heuristics")
+    assert [row.id for row in engine] == [ids[0]]
+
+
+@pytest.mark.asyncio
+async def test_list_in_org_keeps_only_visible_runs_and_pages_them_without_reading_results(db_session):
+    owner = await _user(db_session)
+    org = uuid.uuid4()
+    allowed = [
+        _job(owner, age, organization_id=org, provenance={"engine": {"name": "seen"}}, result={"x": age})
+        for age in (10, 20, 30)
+    ]
+    hidden = _job(owner, 15, organization_id=org, provenance={"engine": {"name": "hidden"}})
+    bare = _job(owner, 25, organization_id=org)
+    db_session.add_all([*allowed, hidden, bare])
+    await db_session.flush()
+    ids = [job.id for job in allowed]
+    db_session.expire_all()
+    seen: list = []
+
+    def visible(provenance) -> bool:
+        seen.append(provenance)
+        return isinstance(provenance, dict) and provenance["engine"]["name"] == "seen"
+
+    rows, total = await job_repository.list_in_org(db_session, org, visible=visible)
+    assert [row.id for row in rows] == ids and total == 3 and len(seen) == 5
+    assert {"result", "original_request", "provenance"} <= sa_inspect(rows[0]).unloaded
+    page, total = await job_repository.list_in_org(db_session, org, limit=1, offset=1, visible=visible)
+    assert [row.id for row in page] == [ids[1]] and total == 3
+    beyond, total = await job_repository.list_in_org(db_session, org, offset=5, visible=visible)
+    assert beyond == [] and total == 3
+
+
+@pytest.mark.asyncio
+async def test_list_in_org_filters_by_revision_and_problem(db_session):
+    from _problem_helpers import seed_problem_run
+
+    owner = await _user(db_session)
+    seeded = await seed_problem_run(db_session, owner_id=owner.id)
+    org = seeded["organization_id"]
+    other = await seed_problem_run(db_session, owner_id=owner.id, organization_id=org)
+    mine = _job(owner, 10, **{key: seeded[key] for key in ("organization_id", "revision_id", "compilation_id")})
+    theirs = _job(owner, 5, **{key: other[key] for key in ("organization_id", "revision_id", "compilation_id")})
+    db_session.add_all([mine, theirs])
     await db_session.flush()
 
-    rows = await job_repository.list_owned(db_session, owner.id)
-    assert [row.id for row in rows] == [newest.id, older.id, failed.id]
-    queued = await job_repository.list_owned(db_session, owner.id, state=JobState.QUEUED)
-    assert [row.id for row in queued] == [newest.id, older.id]
-    assert [row.id for row in await job_repository.list_owned(db_session, owner.id, limit=2)] == [
-        newest.id,
-        older.id,
-    ]
-    assert len(await job_repository.list_owned(db_session, owner.id, limit=0)) == 1
-    assert len(await job_repository.list_owned(db_session, owner.id, limit=-5)) == 1
+    by_revision, _ = await job_repository.list_in_org(db_session, org, revision=seeded["revision_id"])
+    by_problem, _ = await job_repository.list_in_org(db_session, org, problem=str(seeded["problem_id"]))
+    assert [row.id for row in by_revision] == [row.id for row in by_problem] == [mine.id]
 
 
 @pytest.mark.asyncio
-async def test_find_retry_of_returns_most_recent(db_session):
-    owner, other = await _user(db_session), await _user(db_session)
+async def test_find_retry_of_returns_the_most_recent_retry_whoever_made_it(db_session):
+    owner, teammate = await _user(db_session), await _user(db_session)
     original = _job(owner, 100, state=JobState.FAILED)
     db_session.add(original)
     await db_session.flush()
     first = _job(owner, 50, retry_of_id=original.id)
-    latest = _job(owner, 5, retry_of_id=original.id)
-    foreign = _job(other, 1, retry_of_id=original.id)
-    db_session.add_all([first, latest, foreign])
+    latest = _job(teammate, 5, retry_of_id=original.id)
+    db_session.add_all([first, latest])
     await db_session.flush()
 
-    found = await job_repository.find_retry_of(db_session, owner.id, original.id)
+    found = await job_repository.find_retry_of(db_session, original.id)
     assert found.id == latest.id
-    assert await job_repository.find_retry_of(db_session, owner.id, latest.id) is None
-
-
-@pytest.mark.asyncio
-async def test_list_for_project_with_and_without_job_id(db_session):
-    owner = await _user(db_session)
-    organization = Organization(
-        slug=f"org-{uuid.uuid4().hex[:8]}", name="Org",
-        billing_sponsor_user_id=owner.id, created_by_id=owner.id,
-    )
-    db_session.add(organization)
-    await db_session.flush()
-    project = Project(
-        organization_id=organization.id, slug="p", name="P", created_by_id=owner.id
-    )
-    db_session.add(project)
-    await db_session.flush()
-    older = _job(owner, 20, project_id=project.id, result={"x": 1}, original_request={"r": 1})
-    newer = _job(owner, 10, project_id=project.id, result={"x": 2}, original_request={"r": 2})
-    db_session.add_all([older, newer, _job(owner, 5)])
-    await db_session.flush()
-    project_id, older_id, newer_id = project.id, older.id, newer.id
-    db_session.expire_all()
-
-    rows = await job_repository.list_for_project(db_session, project_id)
-    assert [row.id for row in rows] == [newer_id, older_id]
-    assert rows[0].result == {"x": 2}
-
-    one = await job_repository.list_for_project(db_session, project_id, job_id=older_id)
-    assert [row.id for row in one] == [older_id]
-    assert await job_repository.list_for_project(db_session, project_id, job_id=uuid.uuid4()) == []
-
-    db_session.expire_all()
-    light = await job_repository.list_for_project(db_session, project_id, include_results=False)
-    assert [row.id for row in light] == [newer_id, older_id]
-    unloaded = sa_inspect(light[0]).unloaded
-    assert {"result", "original_request", "provenance"} <= unloaded
+    assert await job_repository.find_retry_of(db_session, latest.id) is None
 
 
 def test_repositories_do_not_import_routes_services_or_fastapi():

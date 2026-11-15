@@ -26,7 +26,7 @@ blindly copied from an unmerged branch.
 | SPHERE capability | Decision | OpenBinding interpretation |
 |---|---|---|
 | Public shell and dashboards | Adapt | A binding observatory centred on projects, cases, studies, engines and reproducible activity |
-| Organizations and teams | Extend | Arbitrarily nested organizations, inherited roles, invitations, sponsors and unique-member accounting |
+| Organizations and teams | Extend | Arbitrarily nested organizations, inherited roles and invitations |
 | Pricings and immutable versions | Adapt (revised) | Immutable BIM/case revisions in the user platform. Pricing lifecycle: not in OpenBinding; it lives in the remote SPHERE/SPACE consoles and is read-only here (see below) |
 | Public/private resources | Adapt | Project, case and artifact visibility |
 | Collections | Exclude | Removed in F0a: a study selects its case revisions directly |

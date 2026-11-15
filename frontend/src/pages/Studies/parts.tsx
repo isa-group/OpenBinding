@@ -1,38 +1,26 @@
 import type { ReactNode } from 'react';
-import type { Organization, Project, StudyCell } from '../../api/platform';
-import { ProjectTabs } from '../../components/PlatformShell/ProjectTabs';
-import { Breadcrumb, Gate, type Crumb } from '../Organization/parts';
+import type { Organization, StudyCell } from '../../api/platform';
+import { Gate, type Crumb } from '../Organization/parts';
+import { OrgFrame } from '../../features/workspace/OrgFrame';
 import { stateWord, countStates, breakdownText } from './studiesModel';
-import '../Project/Project.css';
+import '../../features/workspace/kit.css';
 import '../Jobs/Jobs.css';
 import './Studies.css';
 
 interface StudyFrameProps {
   organization: Organization;
-  project: Project;
-  /** The crumbs below the project: `Studies`, then the screen. The last one is where you are. */
+  /** The crumbs below the organization: `Studies`, then the screen. The last one is where you are. */
   trail: Crumb[];
   width?: 'md' | 'lg' | 'wide';
   children: ReactNode;
 }
 
-/** The frame of every project screen about studies: breadcrumb, the project tabs with Studies current, and one live content column. */
-export function StudyFrame({ organization, project, trail, width = 'wide', children }: StudyFrameProps) {
-  const root = `/app/${organization.slug}/${project.slug}`;
-  const items: Crumb[] = [
-    { label: 'Home', to: '/app' },
-    { label: organization.name, to: `/app/${organization.slug}` },
-    { label: project.name, to: root },
-    ...trail,
-  ];
+/** The frame of every screen about the studies of an organization: breadcrumb and one live content column. */
+export function StudyFrame({ organization, trail, width = 'wide', children }: StudyFrameProps) {
   return (
-    <div className="proj-frame">
-      <div className="proj-band">
-        <div className="proj-band-inner"><Breadcrumb items={items} /></div>
-      </div>
-      <ProjectTabs active="studies" orgSlug={organization.slug} projectSlug={project.slug} access={project.access} />
-      <div className={`proj-body st-body is-${width}`} aria-live="polite">{children}</div>
-    </div>
+    <OrgFrame organization={organization} trail={trail} width={width} bodyClassName="st-body">
+      {children}
+    </OrgFrame>
   );
 }
 

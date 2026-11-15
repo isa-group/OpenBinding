@@ -1,4 +1,3 @@
-import type { Neighborhood } from '../analysis/neighborhood';
 import { config } from '../config';
 import { PricingUnavailableError, QuotaError } from './auth';
 import { bindingSpaceFrom, limitNoticeFrom, type BindingSpaceReport, type LimitNotice } from './limitNotice';
@@ -29,27 +28,9 @@ import type {
 } from './auth';
 import type { AdminErrorOverview, AdminErrorListResponse } from '../pages/Admin/types';
 import { rememberCasFlow } from '../utils/authFlow';
-import { randomUUID } from '../utils/uuid';
 
-/** One solve in an account's history. */
+/** How a run ended, in BIM v1 terms. */
 export type Termination = 'OPTIMAL' | 'FEASIBLE' | 'INFEASIBLE' | 'UNKNOWN';
-
-export interface JobSummary {
-  id: string;
-  engine_id: string;
-  status: 'queued' | 'running' | 'completed' | 'failed';
-  termination?: Termination | null;
-  solutions?: number | null;
-  created_at: string;
-  finished_at?: string | null;
-}
-
-export interface JobHistory {
-  jobs: JobSummary[];
-  total: number;
-  /** How far back this contract keeps them: jobHistoryDays. */
-  retention_days: number;
-}
 
 export interface BimResourceRef {
   namespace: string;
@@ -116,42 +97,6 @@ export interface BimProfile {
   output: BimProfileOutput;
   protocol: string;
   protocolDigest: string;
-}
-
-export interface BimDialectResourceType {
-  apiVersion: string;
-  kind: string;
-  roles: string[];
-  mediaType: string;
-  schemaDigest: string;
-  xmlRoot?: { namespace: string; localName: string };
-}
-
-export interface BimDialectExtensionPoint {
-  target: { apiVersion: string; kind: string };
-  pointer: string;
-  schemaDigest: string;
-}
-
-export interface BimIrFeature {
-  dimension: string;
-  value: string;
-}
-
-/** One independently versioned source Dialect installed in this gateway. */
-export interface BimDialect {
-  apiVersion: 'bim/v1';
-  kind: 'Dialect';
-  metadata: BimMetadata;
-  spec: {
-    compatibleProfiles: string[];
-    resourceTypes: BimDialectResourceType[];
-    extensionPoints: BimDialectExtensionPoint[];
-    irFeatures: BimIrFeature[];
-    adapter: BimAdapter;
-    extensions?: Record<string, unknown>;
-  };
-  digest: string;
 }
 
 export interface CapabilitySelector {
@@ -270,7 +215,7 @@ export interface EngineCatalogResult {
   fellBackToPublic: boolean;
 }
 
-/** 200 from POST /v1/instances/validate: the package compiled and is pinned by these digests. */
+/** 200 from POST /v1/bim/validate: the package compiled and is pinned by these digests. */
 export interface PackageValidation {
   valid: true;
   instanceDigest: string;
@@ -383,10 +328,6 @@ export interface BimCompatibleMode {
   mode: string;
   compatible: boolean;
   diagnostics?: Array<Record<string, unknown>>;
-}
-
-export interface V1JobStatus extends JobStatus {
-  error?: string;
 }
 
 /**
@@ -806,175 +747,6 @@ export class ApiClient {
     }
   }
 
-  async getProfiles(): Promise<BimProfile[]> {
-    const body = await this.request<{ profiles: BimProfile[] }>('/v1/profiles');
-    return body.profiles || [];
-  }
-
-  async getDialects(): Promise<BimDialect[]> {
-    const body = await this.request<{ dialects: BimDialect[] }>('/v1/dialects');
-    return body.dialects || [];
-  }
-
-  /**
-   * Validate a package without an account and without running an engine (POST /v1/instances/validate).
-   *
-   * A package the gateway reads and rejects answers 422 with diagnostics; that is a result, not a failure, so it
-   * comes back as `{ valid: false }`. Too large (413), wrong media type (415) and rate limits (429) throw HttpError.
-   */
-  async validatePackage(archive: Uint8Array, signal?: AbortSignal): Promise<PackageValidationOutcome> {
-    const body = await this.request<Record<string, unknown>>('/v1/instances/validate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/vnd.bim+zip' },
-      body: archive as unknown as BodyInit,
-      signal,
-    }, undefined, true, false);
-    if (isRecord(body) && body.valid === true) {
-      return {
-        valid: true,
-        result: {
-          valid: true,
-          instanceDigest: String(body.instanceDigest ?? ''),
-          packageDigest: String(body.packageDigest ?? ''),
-          fileDigests: isRecord(body.fileDigests) ? body.fileDigests as Record<string, string> : {},
-          resourceDigests: isRecord(body.resourceDigests) ? body.resourceDigests as Record<string, string> : {},
-          irDigest: String(body.irDigest ?? ''),
-          diagnostics: Array.isArray(body.diagnostics) ? body.diagnostics.filter(isRecord) : [],
-        },
-      };
-    }
-    const detail = isRecord(body) ? body.detail : undefined;
-    const detailRecord = isRecord(detail) ? detail : undefined;
-    const diagnostics = isRecord(body) && Array.isArray(body.diagnostics)
-      ? body.diagnostics
-      : Array.isArray(detailRecord?.diagnostics) ? detailRecord.diagnostics : [];
-    return {
-      valid: false,
-      refusal: {
-        status: typeof body?.status === 'number' ? body.status : 422,
-        code: (typeof body?.code === 'string' ? body.code : undefined)
-          ?? (typeof body?.title === 'string' ? body.title : undefined)
-          ?? (typeof detailRecord?.code === 'string' ? detailRecord.code : undefined) ?? 'invalid_request',
-        message: (typeof detail === 'string' ? detail : undefined)
-          ?? (typeof detailRecord?.message === 'string' ? detailRecord.message : undefined)
-          ?? (typeof detailRecord?.error === 'string' ? detailRecord.error : undefined)
-          ?? 'The package could not be validated.',
-        diagnostics: diagnostics.filter(isRecord),
-      },
-    };
-  }
-
-  async getBimSnapshotIr(snapshot: string): Promise<Record<string, unknown>> {
-    return this.request<Record<string, unknown>>(`/v1/instances/${encodeURIComponent(snapshot)}/ir`);
-  }
-
-  async createBimJob(
-    snapshot: string,
-    engine: BimResourceRef,
-    registration: BimResourceRef,
-    mode?: string,
-    options: Record<string, unknown> = {},
-    idempotencyKey: string = randomUUID(),
-  ): Promise<{ id: string; status: string; irDigest: string }> {
-    return this.request<{ id: string; status: string; irDigest: string }>('/v1/jobs', {
-      method: 'POST',
-      headers: { 'Idempotency-Key': idempotencyKey },
-      body: JSON.stringify({ snapshot, engine, registration, mode, options }),
-    });
-  }
-
-  async getV1Job(jobId: string, signal?: AbortSignal): Promise<V1JobStatus> {
-    return this.request<V1JobStatus>(`/v1/jobs/${encodeURIComponent(jobId)}`, signal ? { signal } : {});
-  }
-
-  async createConfiguredBimJob(snapshot: string, configuration: import('./library').ArtifactRef): Promise<{ id: string; status: string; irDigest: string }> {
-    return this.request('/v1/jobs', {
-      method: 'POST', headers: { 'Idempotency-Key': randomUUID() },
-      body: JSON.stringify({ snapshot, configuration }),
-    });
-  }
-
-  async getBimExamples(): Promise<string[]> {
-    const body = await this.request<{ examples: string[] }>('/v1/examples');
-    return body.examples || [];
-  }
-
-  async getBimExamplePackage(path: string): Promise<ArrayBuffer> {
-    return this.requestBinary(`/v1/examples/${path.split('/').map(encodeURIComponent).join('/')}`);
-  }
-
-  async getBindingNeighborhood(jobId: string, solutionIndex: number, task: string, limit: number, signal?: AbortSignal): Promise<Neighborhood> {
-    const query = new URLSearchParams({ solution_index: String(solutionIndex), limit: String(limit) });
-    if (task) query.set('task', task);
-    const result = await this.request<Neighborhood & { detail?: string; title?: string }>(`/v1/jobs/${encodeURIComponent(jobId)}/analysis/neighborhood?${query}`, { signal });
-    // A 422 throws; this guards a 200 whose body is not an evaluation.
-    if (!result.coverage || !Array.isArray(result.moves)) throw new Error(typeof result.detail === 'string' ? result.detail : result.title || 'Neighborhood evaluation could not be completed');
-    return result;
-  }
-
-  async getJobStatus(jobId: string, timeoutMs: number = 30000): Promise<JobStatus> {
-    return this.request<JobStatus>(`/v1/jobs/${jobId}`, {}, timeoutMs);
-  }
-
-  async pollJob(
-    jobId: string,
-    onUpdate?: (status: JobStatus) => void,
-    interval: number = 2000
-  ): Promise<JobStatus['result']> {
-    return new Promise<JobStatus['result']>((resolve, reject) => {
-      const start = Date.now();
-      let consecutiveErrors = 0;
-      const MAX_CONSECUTIVE_ERRORS = 3;
-
-      const poll = async () => {
-        try {
-          if (Date.now() - start > 7200000) {
-            reject(new Error('Polling timed out'));
-            return;
-          }
-
-          const status = await this.getJobStatus(jobId, 30000);
-          consecutiveErrors = 0; // Reset on success
-          
-          if (onUpdate) {
-            onUpdate(status);
-          }
-
-          if (status.status === 'completed') {
-            resolve(status.result);
-          } else if (status.status === 'failed') {
-            reject(new Error(status.result?.error || 'Run failed'));
-          } else {
-            setTimeout(poll, interval);
-          }
-        } catch (error: unknown) {
-          consecutiveErrors++;
-
-          // If the job is not found (404), it likely completed synchronously
-          // or the engine restarted. Don't retry indefinitely.
-          if (error instanceof HttpError && error.status === 404) {
-            reject(new Error(
-              'The run could not be found on the server. ' +
-              'It may have completed synchronously or the engine may have restarted.'
-            ));
-            return;
-          }
-
-          // For transient errors, allow a few retries before giving up
-          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-            reject(error);
-            return;
-          }
-
-          // Retry with a longer backoff
-          setTimeout(poll, interval * 2);
-        }
-      };
-
-      poll();
-    });
-  }
-
   // -- Accounts --------------------------------------------------------
   //
   // Every one of these is a documented gateway endpoint. The interface is a
@@ -1058,7 +830,7 @@ export class ApiClient {
 
   /**
    * Trade the one-time code of the CAS redirect for a session. Answers the plan change that signing in caused (linking CAS raises
-   * BASIC to RESEARCH, at no extra cost), or `null` when the plan did not change.
+   * FREE to RESEARCH, at no extra cost), or `null` when the plan did not change.
    */
   async exchangeCasCode(code: string): Promise<PlanChange | null> {
     const session = await this.request<CasSession>('/v1/auth/cas/exchange', {
@@ -1132,19 +904,6 @@ export class ApiClient {
     return this.request<UsageView>('/v1/users/me/usage');
   }
 
-  /**
-   * Your own solves, as far back as the plan keeps them.
-   *
-   * Summaries only - a result can be hundreds of megabytes, and this is for
-   * finding the one you want. `getJobStatus` returns the answer itself.
-   */
-  async listOwnJobs(params: { limit?: number; offset?: number } = {}): Promise<JobHistory> {
-    const query = new URLSearchParams();
-    if (params.limit != null) query.set('limit', String(params.limit));
-    if (params.offset != null) query.set('offset', String(params.offset));
-    const suffix = query.toString() ? `?${query}` : '';
-    return this.request<JobHistory>(`/v1/users/me/jobs${suffix}`);
-  }
 
   /**
    * The active Pricing2Yaml document, digest-verified by the gateway and served as JSON.
@@ -1317,7 +1076,13 @@ export class ApiClient {
     );
   }
 
-  /** Read the pinned BIM engine protocol digest advertised by the gateway. */
+  /** The installed Profiles with the engine protocol each one targets (`GET /v1/engines/protocol`, anonymous). */
+  async getProtocolProfiles(): Promise<BimProfile[]> {
+    const body = await this.request<{ profiles: BimProfile[] }>('/v1/engines/protocol');
+    return body.profiles || [];
+  }
+
+  /** Read the pinned BIM engine protocol digest advertised by the gateway (`GET /v1/engines/protocol`, anonymous). */
   async getBimProfile(): Promise<{
     id: 'qos-binding/v1';
     output: { apiVersion: 'bim/v1'; kind: 'BindingProblem'; schemaDigest: string };
@@ -1325,7 +1090,7 @@ export class ApiClient {
     protocolDigest: string;
     digest: string;
   }> {
-    const profile = (await this.getProfiles()).find((item) => item.id === 'qos-binding/v1');
+    const profile = (await this.getProtocolProfiles()).find((item) => item.id === 'qos-binding/v1');
     const output = profile?.output;
     if (!profile || output?.apiVersion !== 'bim/v1' || output?.kind !== 'BindingProblem'
       || profile.protocol !== 'bim-engine/v1') {

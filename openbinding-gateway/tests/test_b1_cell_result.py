@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from _problem_helpers import run_refs, seed_problem_run, upload_problem
 import copy
 import uuid
 from types import SimpleNamespace
@@ -13,6 +14,7 @@ from _b1_helpers import gate, make_account, put_member  # noqa: F401
 from _repo import REPO_ROOT
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import Job, JobState, StudyCell
+from openbinding_gateway.db.platform_models import ProblemCompilation
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services import execution
 from openbinding_gateway.services.engines import engine_ref
@@ -20,7 +22,7 @@ from bim_core.package import load_package
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
-BASE = "/v1/organizations/lab/projects/routing"
+BASE = "/v1/organizations/lab"
 
 
 async def build_world(api_client, db_session, registration, gate, monkeypatch, *, parameter_sets, seeds):  # noqa: F811
@@ -40,35 +42,19 @@ async def build_world(api_client, db_session, registration, gate, monkeypatch, *
     monkeypatch.setattr(execution, "solve_remote", solve)
     owner, headers = await make_account(api_client, registration, db_session, gate)
     package = load_package(EXAMPLE)
-    snapshot = await api_client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package.to_zip(),
-    )
-    assert snapshot.status_code == 201, snapshot.text
     exact_engine = {
         **engine_ref(routes._manifest("random-search"), "bim.builtin"),
         "mode": "seeded",
         "optimization": dict(OPTIMIZATION),
     }
-    for path, body in (
-        ("/v1/organizations", {"slug": "lab", "name": "Binding Lab"}),
-        ("/v1/organizations/lab/projects", {"slug": "routing", "name": "Routing", "visibility": "private"}),
-        (f"{BASE}/cases", {"slug": "checkout", "name": "Checkout"}),
-    ):
-        created = await api_client.post(path, headers=headers, json=body)
-        assert created.status_code == 201, created.text
-    revision = await api_client.post(
-        f"{BASE}/cases/checkout/revisions",
-        headers=headers,
-        json={"document": package.instance(), "source_snapshot_id": snapshot.json()["id"]},
-    )
-    assert revision.status_code == 201, revision.text
+    created = await api_client.post("/v1/organizations", headers=headers, json={"slug": "lab", "name": "Binding Lab"})
+    assert created.status_code == 201, created.text
+    revision = (await upload_problem(api_client, headers, "lab", slug="checkout"))["revision"]
     study = await api_client.post(
         f"{BASE}/studies",
         headers=headers,
         json={"slug": "compare", "name": "Compare", "definition": {
-            "case_revision_ids": [revision.json()["id"]],
+            "revision_ids": [revision["id"]],
             "engines": [exact_engine],
             "parameter_sets": parameter_sets,
             "seeds": seeds,
@@ -83,7 +69,7 @@ async def build_world(api_client, db_session, registration, gate, monkeypatch, *
     assert len(cells) == 2 and all(cell.job_id for cell in cells), [c.metrics for c in cells]
     jobs = [await db_session.get(Job, cell.job_id) for cell in cells]
     return SimpleNamespace(
-        owner=owner, headers=headers, run=run.json(), cells=cells, jobs=jobs, revision=revision.json(),
+        owner=owner, headers=headers, run=run.json(), cells=cells, jobs=jobs, revision=revision,
         engine=exact_engine, package=package,
         url=lambda cell: f"{BASE}/studies/compare/runs/{run.json()['id']}/cells/{cell.id}/result",
     )
@@ -107,7 +93,8 @@ async def clone_job(db_session, source: Job, *, owner_id=None, patch=None, **fie
         engine_job_id=str(uuid.uuid4()), service_url=source.service_url,
         state=source.state, original_request=source.original_request, options=options,
         provenance=provenance, result=source.result, termination=source.termination,
-        instance_snapshot_id=source.instance_snapshot_id, finished_at=source.finished_at,
+        revision_id=source.revision_id, compilation_id=source.compilation_id,
+        organization_id=source.organization_id, finished_at=source.finished_at,
         created_at=source.created_at,
     )
     values.update(fields)
@@ -118,6 +105,13 @@ async def clone_job(db_session, source: Job, *, owner_id=None, patch=None, **fie
 
 
 DELETE = object()
+#: A patch key of ``clone_job`` callers: the clone runs another revision (of the same organization).
+OTHER_REVISION = "revision"
+
+
+async def another_revision(db_session, job: Job) -> dict:
+    seeded = await seed_problem_run(db_session, owner_id=job.owner_id, organization_id=job.organization_id)
+    return run_refs(seeded)
 
 
 async def attach(api_client, world, cell, job, headers=None):
@@ -177,9 +171,9 @@ async def test_a_failed_job_of_the_cell_is_attached_as_a_failed_cell(api_client,
         ({"engine.version": "9.9.9"}, ["engine"]),
         ({"engine.name": "another-engine"}, ["engine"]),
         ({"mode": "another-mode"}, ["mode"]),
-        ({"packageDigest": "sha256-" + "c" * 64}, ["case_revision"]),
+        ({OTHER_REVISION: True}, ["case_revision"]),
         (
-            {"options.seed": 2, "packageDigest": "sha256-" + "c" * 64, "engine.namespace": "other.ns"},
+            {"options.seed": 2, OTHER_REVISION: True, "engine.namespace": "other.ns"},
             ["case_revision", "engine", "seed"],
         ),
     ],
@@ -189,7 +183,11 @@ async def test_a_job_of_another_case_engine_mode_or_seed_is_refused(
 ):
     cell = world.cells[0]
     before = cell.job_id
-    impostor = await clone_job(db_session, world.jobs[0], patch=patch)
+    patch = dict(patch)
+    fields_of_job = {}
+    if patch.pop(OTHER_REVISION, False):
+        fields_of_job = await another_revision(db_session, world.jobs[0])
+    impostor = await clone_job(db_session, world.jobs[0], patch=patch, **fields_of_job)
 
     response = await attach(api_client, world, cell, impostor)
 
@@ -202,6 +200,32 @@ async def test_a_job_of_another_case_engine_mode_or_seed_is_refused(
         assert "cell" in detail["details"][field] and "job" in detail["details"][field]
         assert detail["details"][field]["cell"] != detail["details"][field]["job"]
     assert all(field in detail["error"] for field in fields)
+    await db_session.refresh(cell)
+    assert cell.job_id == before
+
+
+async def test_a_job_of_the_same_revision_on_another_compilation_is_refused(api_client, db_session, world):
+    # D7: a run pins one compilation per revision; a job that ran another compilation of the same
+    # revision (a newer toolchain, say) did not run this cell.
+    cell = world.cells[0]
+    before = cell.job_id
+    pinned = await db_session.get(ProblemCompilation, cell.compilation_id)
+    newer = ProblemCompilation(
+        revision_id=pinned.revision_id, compiler_digest="sha256-" + "d" * 64,
+        compilation_digest="sha256-" + uuid.uuid4().hex + uuid.uuid4().hex, toolchain={},
+        ir_digest=pinned.ir_digest, ir=pinned.ir, source_map={}, analysis={},
+    )
+    db_session.add(newer)
+    await db_session.flush()
+    other = await clone_job(db_session, world.jobs[0], compilation_id=newer.id)
+
+    response = await attach(api_client, world, cell, other)
+
+    assert response.status_code == 409, response.text
+    detail = response.json()["detail"]
+    assert detail["code"] == "cell_job_mismatch"
+    assert detail["fields"] == ["compilation"]
+    assert detail["details"]["compilation"] == {"cell": str(cell.compilation_id), "job": str(newer.id)}
     await db_session.refresh(cell)
     assert cell.job_id == before
 
@@ -225,18 +249,18 @@ async def test_a_job_without_a_recorded_seed_cannot_stand_for_a_seeded_cell(api_
     assert response.json()["detail"]["details"]["seed"] == {"cell": 1, "job": None}
 
 
-async def test_a_job_whose_package_is_unknown_is_a_case_mismatch(api_client, db_session, world):
-    unknown = await clone_job(
-        db_session, world.jobs[0], patch={"packageDigest": DELETE}, instance_snapshot_id=None
-    )
-    response = await attach(api_client, world, world.cells[0], unknown)
+async def test_a_job_of_another_revision_with_the_same_package_is_a_case_mismatch(api_client, db_session, world):
+    # The recorded package digest is the cell's; what decides is the revision the job ran.
+    other = await clone_job(db_session, world.jobs[0], **await another_revision(db_session, world.jobs[0]))
+    response = await attach(api_client, world, world.cells[0], other)
     assert response.status_code == 409
     assert response.json()["detail"]["fields"] == ["case_revision"]
 
 
-async def test_other_peoples_jobs_are_not_found(api_client, db_session, registration, gate, world):  # noqa: F811
+async def test_a_job_of_another_organization_is_not_found(api_client, db_session, registration, gate, world):  # noqa: F811
     stranger, _ = await make_account(api_client, registration, db_session, gate)
-    foreign = await clone_job(db_session, world.jobs[0], owner_id=uuid.UUID(stranger["id"]))
+    elsewhere = run_refs(await seed_problem_run(db_session, owner_id=uuid.UUID(stranger["id"])))
+    foreign = await clone_job(db_session, world.jobs[0], owner_id=uuid.UUID(stranger["id"]), **elsewhere)
 
     response = await attach(api_client, world, world.cells[0], foreign)
     missing = await api_client.post(
@@ -289,16 +313,18 @@ async def test_roles_and_credentials_decide_who_may_attach(api_client, db_sessio
     cell = world.cells[0]
     own = await clone_job(db_session, world.jobs[0], owner_id=uuid.UUID(member["id"]))
     owners = await clone_job(db_session, world.jobs[0])
+    teammates = await clone_job(db_session, world.jobs[0])
 
     as_viewer = await attach(api_client, world, cell, owners, viewer_headers)
     as_outsider = await attach(api_client, world, cell, owners, outsider_headers)
     anonymous = await api_client.post(world.url(cell), json={"job_id": str(owners.id)})
-    others_job_as_member = await attach(api_client, world, cell, owners, member_headers)
+    teammates_job_as_member = await attach(api_client, world, cell, teammates, member_headers)
     own_job_as_member = await attach(api_client, world, cell, own, member_headers)
 
     assert as_viewer.status_code == 403
     assert as_viewer.json()["detail"]["code"] == "organization_forbidden"
     assert as_outsider.status_code == 403
     assert anonymous.status_code == 401
-    assert others_job_as_member.status_code == 404
+    # Runs belong to the organization (D10): a MEMBER attaches a teammate's run as well as their own.
+    assert teammates_job_as_member.status_code == 200, teammates_job_as_member.text
     assert own_job_as_member.status_code == 200, own_job_as_member.text

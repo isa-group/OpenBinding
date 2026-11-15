@@ -3,7 +3,7 @@
 ``.bim-toolchain/contracts/consumers/openbinding/*.json`` are scripts of the requests the platform makes to
 BIM and the answers it relies on (compile and validate, compatibility, optimization, evaluation, re-evaluation,
 result validation). They are written and checked by the toolchain against its service; this runs the same scripts
-through ``integrations.bim.get_bim()``, the port the gateway really uses (in process unless ``BIM_MODE=http``), so
+through ``integrations.bim.get_bim()``, the port the gateway really uses (in process), so
 that a change on either side that breaks what the platform depends on is caught on the platform's side too.
 
 Answers are compared as the fixtures record them: ``irDigest``, ``compilationDigest`` and ``toolchain`` are dropped

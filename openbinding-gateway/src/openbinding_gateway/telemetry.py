@@ -29,7 +29,7 @@ from .core.settings import get_settings
 from .db import base as db_base
 from .db.models import Job, utcnow
 from .db.platform_models import ApiErrorEvent
-from .domain import binding_space, usage_counters
+from .domain import binding_space
 from .models.problem import CORRELATION_ID_KEY
 
 logger = logging.getLogger(__name__)
@@ -85,7 +85,7 @@ def categorize_error(status_code: int, code: str) -> str:
     """Map status codes and machine error codes to business diagnostics categories."""
     if (
         status_code == 402
-        or code in ("quota_exceeded", "quota_exhausted", usage_counters.UNKNOWN_CODE)
+        or code in ("quota_exceeded", "quota_exhausted")
         or code in binding_space.REFUSAL_CODES
     ):
         return "pricing_quota"
@@ -270,7 +270,8 @@ async def record_job_failure(
     """Hook called when a Job transitions to JobState.FAILED."""
     return await record_api_error(
         status_code=500,
-        endpoint=f"/v1/jobs/{job.id}",
+        # The run's address, with the organization by id (the API takes an id or a slug): the hook reads nothing more.
+        endpoint=f"/v1/organizations/{job.organization_id}/runs/{job.id}",
         http_method="POST",
         error_code="solver_crashed",
         category="solver_failure",

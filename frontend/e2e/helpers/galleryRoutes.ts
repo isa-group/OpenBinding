@@ -6,7 +6,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 /** The registry order of the areas; an area file that is not listed comes after them, by name. */
 const AREA_ORDER = [
-  'public', 'auth', 'engines', 'account', 'organizations', 'project', 'problems', 'runs', 'studies',
+  'public', 'auth', 'engines', 'account', 'organizations', 'problems', 'runs', 'studies',
   'admin',
 ];
 
@@ -28,7 +28,7 @@ export function readAreaSources(): Array<{ area: string; source: string }> {
 /**
  * The route pattern without its optional segments (`:section?`), each dropped with its slash, so an example address visits the base
  * address of a screen that takes sections (`/app/account/:section?` is visited at `/app/account`). Fill the other parameters afterwards.
- * A `?` that starts a query (`/app/:org?create=project`) is not an optional marker: the marker ends the segment.
+ * A `?` that starts a query (`/app/:org?create=organization`) is not an optional marker: the marker ends the segment.
  */
 export function dropOptionalSegments(path: string): string {
   return path.replace(/\/:[A-Za-z][A-Za-z0-9]*\?(?=\/|$)/g, '') || '/';
@@ -37,23 +37,6 @@ export function dropOptionalSegments(path: string): string {
 /** Every `live(` call the area files make: the screens that `readGalleryScreens` has to find. */
 export function countLiveCalls(): number {
   return readAreaSources().reduce((total, { source }) => total + (source.match(/^\s*live\(/gm)?.length ?? 0), 0);
-}
-
-export interface MovedAddress {
-  id: string;
-  area: string;
-  /** The old address, a route pattern. */
-  from: string;
-  /** The address it leads to, a path pattern with the parameters of `from`. */
-  to: string;
-  /** The entry computes its target with `options.target`: `to` is not what the browser ends on. */
-  customTarget: boolean;
-}
-
-/** Every `moved('id', '/from', '/to'…` line of the area files (one call per line, literal arguments). */
-export function readMovedAddresses(): MovedAddress[] {
-  return readAreaSources().flatMap(({ area, source }) => [...source.matchAll(/^\s*moved\('([a-z0-9-]+)',\s*'(\/[^']*)',\s*'(\/[^']*)'(.*)$/gm)]
-    .map((match) => ({ id: match[1], area, from: match[2], to: match[3], customTarget: match[4].includes('target:') })));
 }
 
 export interface GalleryScreen {
@@ -72,10 +55,8 @@ export interface GalleryScreen {
 
 export const EXAMPLE = {
   org: 'isa-demo',
-  project: 'qos-benchmarks',
   case: 'checkout-flow',
   revision: '2',
-  snapshot: '00000000-0000-4000-8000-0000000000e1',
   artifact: 'providers-eu',
   draft: 'draft-providers-4',
   version: '3',
@@ -99,9 +80,9 @@ const PARAMS_OF: Record<string, Record<string, string>> = {
 /** The query string that makes a screen show something instead of its starting point. */
 const QUERY_OF: Record<string, string> = {
   'eng-registration-detail': `?namespace=alex.rivera&version=0.3.1&digest=sha256-${'e5f6'.repeat(16)}`,
-  'job-launch': '?case=checkout-flow&revision=2',
+  'job-launch': '?problem=checkout-flow&revision=2',
   'study-builder': '?case=checkout-flow&revision=2',
-  'wb-workbench': '?case=checkout-flow&revision=2',
+  'wb-workbench': '?problem=checkout-flow&revision=2',
 };
 
 export function readGalleryScreens(): GalleryScreen[] {

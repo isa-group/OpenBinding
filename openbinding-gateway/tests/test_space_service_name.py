@@ -20,14 +20,15 @@ from pydantic import ValidationError
 
 from openbinding_gateway import space_client
 from openbinding_gateway.core.settings import DEFAULT_SPACE_SERVICE_NAME, Settings
-from openbinding_gateway.space_client import SpacePricingGate, feature_id
+from openbinding_gateway.space_client import SpacePricingGate
 from space_client import SpaceError
+from _space_tokens import ORGANIZATION, trusted_payload
 
 PRODUCTION = "openbinding"
 DEV = "openbinding-dev"
-PLAN = "BASIC"
-OTHER_PLAN = "PRO"
-VERSION = "0.1.0"
+PLAN = "FREE"
+OTHER_PLAN = "LAB"
+VERSION = "0.2.0"
 API_KEY = "never-logged-api-key"
 
 
@@ -66,7 +67,11 @@ class ServiceRecorder:
 
         def generate_user_pricing_token(self, user_id):
             self._outer.calls.append(("token", user_id))
-            return a_token(self._outer.service, {"solve": True, "export": False}, {"maxJobs": 7})
+            self._user = user_id
+            return a_token(self._outer.service, {"runs": True, "export": False}, {"maxJobs": 7})
+
+        def verify_pricing_token(self, token, organization_id=None, issuer=None, leeway=None):
+            return trusted_payload(token, self._user)
 
     class _Contracts:
         def __init__(self, outer: "ServiceRecorder"):
@@ -94,7 +99,10 @@ class ServiceRecorder:
 def gate_for(service: str | None, recorder: ServiceRecorder, monkeypatch) -> SpacePricingGate:
     monkeypatch.delenv("SPACE_SERVICE_NAME", raising=False)
     options = {} if service is None else {"space_service_name": service}
-    return SpacePricingGate(Settings(_env_file=None, space_pricing_version=VERSION, **options), client=recorder)
+    return SpacePricingGate(
+        Settings(_env_file=None, space_pricing_version=VERSION, space_organization_id=ORGANIZATION, **options),
+        client=recorder,
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -115,7 +123,7 @@ async def test_caps_read_only_the_configured_service(monkeypatch):
     caps = await gate_for(DEV, recorder, monkeypatch).caps(uuid.uuid4())
 
     assert caps.plan == PLAN  # not the production plan sitting in the same contract
-    assert caps.features == {"solve": True, "export": False}  # the production-only names are dropped
+    assert caps.features == {"runs": True, "export": False}  # the production-only names are dropped
     assert caps.limits == {"maxJobs": 7.0}
     assert [call[0] for call in recorder.calls] == ["token", "get_contract"]
 
@@ -185,11 +193,6 @@ async def test_no_operation_ever_mentions_the_production_service(monkeypatch):
         )
 
 
-def test_feature_identifiers_carry_the_configured_service_name():
-    assert feature_id("solve", DEV) == "openbinding-dev-solve"
-    assert feature_id("solve") == "openbinding-solve"
-
-
 # -- the default is unchanged --------------------------------------------------------------------
 
 
@@ -244,7 +247,10 @@ def test_an_invalid_environment_value_stops_the_start(monkeypatch):
 
 @pytest.mark.parametrize("app_env", ["dev", "test", "prod"])
 def test_the_name_is_not_restricted_by_the_environment(app_env, monkeypatch):
-    extra = {"space_enabled": True, "gateway_jwt_secret": "s" * 32, "cors_allow_origins": "https://example.org"}
+    extra = {
+        "space_enabled": True, "space_organization_id": ORGANIZATION,
+        "gateway_jwt_secret": "s" * 32, "cors_allow_origins": "https://example.org",
+    }
     for name in (PRODUCTION, DEV):
         settings = Settings(_env_file=None, app_env=app_env, space_service_name=name, **extra)
         assert settings.space_service_name == name

@@ -12,7 +12,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
 import { formatDate } from '../../utils/format';
-import { formatCount } from '../../utils/limits';
+import { formatCount, LIMIT } from '../../utils/limits';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, fallbackMessage } from './accountErrors';
 import { AccountKeyNew } from './AccountKeyNew';
@@ -39,7 +39,7 @@ interface Snapshot {
 
 async function loadSnapshot(): Promise<Snapshot> {
   const [keys, usage] = await Promise.all([apiClient.listApiKeys(), apiClient.getOwnUsage().catch(() => null)]);
-  return { keys, limit: usage?.capabilities.apiKeys, loadedAt: Date.now() };
+  return { keys, limit: usage?.capabilities[LIMIT.maxApiKeys], loadedAt: Date.now() };
 }
 
 function KeyCard({ apiKey, expired, onRotate, onRevoke }: {

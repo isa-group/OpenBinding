@@ -90,7 +90,6 @@ export function SourcePanel({ wb }: { wb: Workbench }) {
               {wb.compiledIr ? (
                 <>
                   <dl className="wb-ir-facts">
-                    <div><dt>Snapshot</dt><dd>Saved privately</dd></div>
                     <div><dt>IR digest</dt><dd><button type="button" onClick={() => void copy(wb.compiledIr?.digest ?? '', 'ir')}>{status('ir') === 'copied' ? 'Copied' : status('ir') === 'failed' ? 'Copy failed' : 'Copy digest'}</button></dd></div>
                     {wb.analysisData?.bindingSpace && <div><dt>Binding space</dt><dd><BindingSpaceBadge cardinality={wb.analysisData.bindingSpace} /></dd></div>}
                   </dl>
@@ -99,7 +98,7 @@ export function SourcePanel({ wb }: { wb: Workbench }) {
                   </Suspense>
                 </>
               ) : !wb.irLoading && !wb.irError ? (
-                <Notice tone="info">Compile the current package to inspect the exact normalized IR sent to a compatible engine. This saves a private snapshot of it.</Notice>
+                <Notice tone="info">Compile the current package to inspect the exact normalized IR sent to a compatible engine. Nothing is stored.</Notice>
               ) : null}
             </div>
           </div>

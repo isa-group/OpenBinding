@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
-import { FeatureCell } from '../Library/FeatureCell';
+import { FeatureCell } from './FeatureCell';
 import {
   DEFAULT_AST_ASSERTION, DEFAULT_CEL_ASSERTION, IDENTIFIER_PATTERN, candidateFeatures, isRecord, isRegisteredResourceRef, nextIdentifier, optionalNumber,
   withCandidateFeatures,

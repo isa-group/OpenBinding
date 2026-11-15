@@ -5,7 +5,7 @@ result (the job is FAILED, ``termination`` UNKNOWN, no solutions).
 
 Closed by contract C4 (they were ``xfail(strict=True)``): the engine's raw
 answer is kept before BIM is called, the failure has the code
-``bim_evaluation_failed``, and ``POST /v1/jobs/{id}/reevaluate`` evaluates the
+``bim_evaluation_failed``, and ``POST /v1/organizations/{org}/runs/{run}/reevaluate`` evaluates the
 kept answer without running the engine again.
 """
 
@@ -16,12 +16,13 @@ import json
 import pytest
 from bim_client import BimServiceError
 
+from _problem_helpers import run_url
 from openbinding_gateway.db.models import JobState
 from openbinding_gateway.integrations import bim
 from openbinding_gateway.services import execution
 
 from ._helpers import (
-    account_with_snapshot,
+    account_with_revision,
     answer,
     only_job,
     persisted_anywhere,
@@ -53,8 +54,8 @@ def engine_answers(monkeypatch):
 
 
 async def _failed_job(api_client, db_session, registration):
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
-    await submit(api_client, headers, snapshot_id)
+    headers, revision_id = await account_with_revision(api_client, registration)
+    await submit(api_client, headers, revision_id)
     job = await only_job(db_session)
     precondition(job.state is JobState.FAILED, f"the job ended {job.state.value}, not failed")
     return headers, job
@@ -94,10 +95,10 @@ async def test_a_failed_reevaluation_has_an_explicit_diagnostic_code(
 async def test_there_is_an_authorized_way_to_retry_the_evaluation(
     api_client, db_session, registration, bim_down, engine_answers, monkeypatch
 ):
-    """Closed (C4): ``POST /v1/jobs/{id}/reevaluate`` evaluates the kept answer once BIM answers again."""
+    """Closed (C4): ``POST /v1/organizations/{org}/runs/{run}/reevaluate`` evaluates the kept answer once BIM answers again."""
     headers, job = await _failed_job(api_client, db_session, registration)
     monkeypatch.setattr(bim.AsyncBim, "reevaluate", REAL_REEVALUATE)
 
-    response = await api_client.post(f"/v1/jobs/{job.id}/reevaluate", headers=headers)
+    response = await api_client.post(run_url(job, "/reevaluate"), headers=headers)
 
     assert response.status_code in (200, 202)

@@ -3,7 +3,7 @@ import { render } from '@testing-library/react';
 import { MemoryRouter, Outlet, parsePath, Route, Routes } from 'react-router-dom';
 import { vi } from 'vitest';
 import type { UsageView, UserProfile } from '../../api/auth';
-import type { Organization, OrganizationMember, Project } from '../../api/platform';
+import type { Organization, OrganizationMember } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { AuthContext } from '../../contexts/auth';
 import { Where } from './Where';
@@ -13,11 +13,11 @@ export const lucia: UserProfile = {
   id: 'user-lucia', username: 'lucia.vega', email: 'lucia@example.test', role: 'user', is_active: true, plan: 'RESEARCH', created_at: '2026-03-01T00:00:00Z',
 };
 
-export const iker: UserProfile = { ...lucia, id: 'user-iker', username: 'iker.mora', email: 'iker@example.test', role: 'admin', plan: 'PRO' };
+export const iker: UserProfile = { ...lucia, id: 'user-iker', username: 'iker.mora', email: 'iker@example.test', role: 'admin', plan: 'LAB' };
 
 export function org(slug: string, over: Partial<Organization> = {}): Organization {
   return {
-    id: `org-${slug}`, slug, name: slug.toUpperCase(), parent_id: null, billing_sponsor_user_id: lucia.id, effective_role: 'OWNER', created_at: '2026-03-03T00:00:00Z',
+    id: `org-${slug}`, slug, name: slug.toUpperCase(), parent_id: null, effective_role: 'OWNER', created_at: '2026-03-03T00:00:00Z',
     ...over,
   };
 }
@@ -29,20 +29,16 @@ export function member(user: string, role: OrganizationMember['role'], over: Par
   };
 }
 
-export function project(slug: string, over: Partial<Project> = {}): Project {
-  return {
-    id: `project-${slug}`, organization_id: 'org-isa-demo', slug, name: slug, description: '', visibility: 'private', created_by_id: lucia.id,
-    created_at: '2026-04-01T00:00:00Z', updated_at: '2026-04-01T00:00:00Z', ...over,
-  };
-}
-
-/** The RESEARCH plan of pricing 0.1.0. */
+/** The RESEARCH plan of pricing 0.2.0. */
 export function researchUsage(): UsageView {
   return {
     plan: 'RESEARCH',
     contract_pending: false,
     features: {},
-    capabilities: { organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120, concurrentJobs: 3 },
+    capabilities: {
+      maxProblems: null, maxRepositoryStorage: null, maxRunMinutes: 30, maxConcurrentRuns: 4, maxStudyCells: 5000,
+      maxFederatedEngines: 3, maxApiKeys: 10,
+    },
   };
 }
 
@@ -66,7 +62,7 @@ export function renderScreen(ui: ReactElement, options: RenderOptions) {
   const organizations = options.organizations ?? [];
   const reload = options.reload ?? vi.fn().mockResolvedValue(undefined);
   const context: PlatformOutletContext = {
-    organizations, projects: [], organization: organizations[0], project: undefined, loading: options.loading ?? false, reload,
+    organizations, organization: organizations[0], loading: options.loading ?? false, reload,
   };
   const view = render(
     <MemoryRouter initialEntries={[{ ...parsePath(options.url), state: options.state }]}>

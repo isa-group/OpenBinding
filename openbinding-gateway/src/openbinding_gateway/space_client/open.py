@@ -1,10 +1,12 @@
 """A stateless gate for ``SPACE_ENABLED=false``: development and QacoBench only.
 
 It grants every functional capability and keeps nothing: no plans, no
-contracts, no counters. Its allowances are finite where the system has a
-technical ceiling (never above it) and unbounded elsewhere. Production refuses to start without SPACE (see
-``Settings.space_required_in_production``), so this can never decide a real
-account's entitlements.
+contracts, no counters. Its features and limits are generated from the
+entitlement map (``modules/plans/domain/entitlement_map.py``): every required
+feature is granted and every required limit is unbounded (``inf``), so only the
+deployment's technical ceilings apply. Production refuses to start without SPACE
+(see ``Settings.space_required_in_production``), so this can never decide a
+real account's entitlements.
 """
 
 from __future__ import annotations
@@ -13,68 +15,34 @@ import base64
 import json
 import uuid
 from dataclasses import dataclass, field
+from importlib import resources
 from typing import Dict, Optional
 
-from ..core.settings import get_settings
+from ..modules.plans.application import entitlement_map
 from .gate import PlanCaps, SubscriptionSnapshot
 
-#: The per-request payload ceiling ``routes/v1.py`` and ``routes/artifacts.py``
-#: pass to the policy (they hard-code it); the open gate must never grant more.
-PAYLOAD_TECHNICAL_CEILING_BYTES = 512 * 1024 * 1024
+#: The pricing version the package copy holds (``modules/plans/pricing``).
+PACKAGE_PRICING_VERSION = "0.2.0"
 
-#: Features the gateway or the interface evaluate. ``OpenCaps.allows`` grants any
-#: identifier, but listing these keeps the usage view shaped like a real plan's.
-OPEN_FEATURES = (
-    "authoring",
-    "solve",
-    "federatedEngines",
-    "apiAccess",
-    "collaboration",
-    "studies",
-    "advancedAnalytics",
-    "reproducibleExport",
-    "publishing",
-    "reproducibilityArchive",
-    "institutionalBranding",
-)
+#: Features the gateway reads: every one granted (``OpenCaps.allows`` grants any
+#: identifier too; listing them keeps the usage view shaped like a real plan's).
+OPEN_FEATURES = entitlement_map.REQUIRED_FEATURES
 
-#: Allowances with no technical ceiling: unbounded, which is how a real plan
-#: expresses "unlimited" too (``inf``; ``PlanCaps.limit`` reads it as ``None``).
-#: Absent would not do: a missing allowance is zero (fail closed).
-UNBOUNDED_LIMITS = (
-    "apiKeys",
-    "federatedEngines",
-    "maxIterations",
-    "maxInstanceComplexityLog10",
-    "jobHistoryDays",
-    "organizations",
-    "members",
-    "projects",
-    "privateProjects",
-    "collections",
-    "studies",
-    "storageBytes",
-)
+#: Limits the gateway reads, all unbounded: ``inf`` is how a real plan says
+#: "unlimited" too (``PlanCaps.limit`` reads it as ``None``). Absent would not
+#: do: a missing allowance is zero (fail closed).
+UNBOUNDED_LIMITS = entitlement_map.REQUIRED_LIMITS
 
 
 def open_limits() -> Dict[str, float]:
-    """Every allowance the gateway reads, as open as the configured system allows.
+    """Every limit the gateway reads, unbounded; the technical ceilings of the deployment still apply."""
+    return {name: float("inf") for name in UNBOUNDED_LIMITS}
 
-    The allowances that ``access.policy`` checks against a technical ceiling
-    (solve timeout, request payload) are granted exactly that ceiling: finite,
-    and never above it, because the policy refuses a larger entitlement. The
-    rest have no technical ceiling and are unbounded. ``concurrentJobs`` is
-    informative (the enforced concurrency limit is
-    ``MAX_CONCURRENT_JOBS_PER_USER``, independent of the plan).
-    """
-    settings = get_settings()
-    limits: Dict[str, float] = {name: float("inf") for name in UNBOUNDED_LIMITS}
-    limits["maxTimeoutSeconds"] = float(settings.engine_solve_timeout_s)
-    limits["maxPayloadBytes"] = float(
-        min(settings.max_request_body_bytes, PAYLOAD_TECHNICAL_CEILING_BYTES)
-    )
-    limits["concurrentJobs"] = float(settings.max_concurrent_jobs_per_user)
-    return limits
+
+def package_pricing_document() -> str:
+    """The Pricing2Yaml text shipped with the gateway (a byte copy of ``docs/pricing/openbinding-0.2.0.yml``)."""
+    source = resources.files("openbinding_gateway.modules.plans") / "pricing" / f"openbinding-{PACKAGE_PRICING_VERSION}.yml"
+    return source.read_text(encoding="utf-8")
 
 
 @dataclass(frozen=True)
@@ -100,6 +68,10 @@ class OpenGate:
 
     async def caps(self, user_id: uuid.UUID) -> PlanCaps:
         return OpenCaps()
+
+    async def pricing_document(self) -> str:
+        """The package copy of the published pricing: there is no SPACE to ask."""
+        return package_pricing_document()
 
     async def create_contract(
         self,

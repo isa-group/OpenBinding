@@ -14,11 +14,15 @@ from datetime import timedelta
 import pytest
 import pytest_asyncio
 
+from _problem_helpers import runs_url_for
 from openbinding_gateway.security import apikeys
 from openbinding_gateway.db.models import ApiKey, utcnow
 
 from _repo import REPO_ROOT
-from _pricing import largest_plan
+from _pricing import caps_for, largest_plan, pricing_catalog
+
+#: How many keys the default plan allows.
+ALLOWANCE = int(caps_for(pricing_catalog().default_plan).limit("maxApiKeys"))
 
 
 async def account(client, registration) -> tuple[dict, str]:
@@ -259,7 +263,8 @@ async def gate():
 async def test_the_plan_bounds_how_many_keys_you_may_hold(api_client, registration, gate):
     """The active SPACE entitlement bounds active keys."""
     _, token = await account(api_client, registration)
-    await mint_key(api_client, token, "only BASIC key")
+    for n in range(ALLOWANCE):
+        await mint_key(api_client, token, f"allowed key {n}")
 
     refused = await api_client.post(
         "/v1/users/me/api-keys",
@@ -270,14 +275,35 @@ async def test_the_plan_bounds_how_many_keys_you_may_hold(api_client, registrati
     assert refused.status_code == 402
     detail = refused.json()["detail"]
     assert detail["code"] == "quota_exceeded"
-    assert detail["quota"]["limit_id"] == "apiKeys"
-    assert detail["quota"]["limit"] == 1
+    assert detail["quota"]["limit_id"] == "maxApiKeys"
+    assert detail["quota"]["limit"] == ALLOWANCE
+
+
+async def test_a_plan_without_api_access_mints_no_key(api_client, registration, gate):
+    profile, token = await account(api_client, registration)
+    caps = caps_for(pricing_catalog().default_plan)
+    without = {**caps.features, "apiAccess": False}
+
+    async def no_api_access(user_id):
+        return type(caps)(plan=caps.plan, features=without, limits=dict(caps.limits))
+
+    gate.caps = no_api_access
+    refused = await api_client.post(
+        "/v1/users/me/api-keys",
+        headers={"Authorization": f"Bearer {token}"},
+        json=key_payload("not entitled"),
+    )
+
+    assert refused.status_code == 403, refused.text
+    assert refused.json()["detail"]["code"] == "feature_not_entitled"
 
 
 async def test_revoking_one_frees_the_allowance(api_client, registration, gate):
     # The count is of *live* keys, so a revoked one is not held against you.
     _, token = await account(api_client, registration)
     first = await mint_key(api_client, token, "one")
+    for n in range(1, ALLOWANCE):
+        await mint_key(api_client, token, f"more {n}")
 
     await api_client.delete(
         f"/v1/users/me/api-keys/{first['id']}",
@@ -332,7 +358,7 @@ async def test_a_key_without_the_route_permission_is_refused(api_client, registr
     created = await mint_key(
         api_client,
         token,
-        permissions=["instances:write"],
+        permissions=["problems:write"],
         all_engines=False,
     )
 
@@ -346,63 +372,69 @@ async def test_a_key_without_the_route_permission_is_refused(api_client, registr
     assert detail["missing_permissions"] == ["account:read"]
 
 
-async def test_method_organization_project_and_slug_boundaries_all_reduce_access(
+async def test_method_organization_kind_and_slug_boundaries_all_reduce_access(
     api_client, registration
 ):
+    from openbinding_gateway import space_client
+    from openbinding_gateway.space_client import OpenGate
+    from _problem_helpers import make_org, upload_problem
+
+    space_client.set_gate(OpenGate())
     _, token = await account(api_client, registration)
     session_headers = {"Authorization": f"Bearer {token}"}
-    organization = await api_client.post(
-        "/v1/organizations",
-        headers=session_headers,
-        json={"slug": "bounded-org", "name": "Bounded organization"},
-    )
-    first = await api_client.post(
-        "/v1/organizations/bounded-org/projects",
-        headers=session_headers,
-        json={"slug": "allowed", "name": "Allowed", "visibility": "private"},
-    )
-    second = await api_client.post(
-        "/v1/organizations/bounded-org/projects",
-        headers=session_headers,
-        json={"slug": "denied", "name": "Denied", "visibility": "public"},
-    )
-    assert organization.status_code == first.status_code == second.status_code == 201
+    await make_org(api_client, session_headers, "bounded-org")
+    await upload_problem(api_client, session_headers, "bounded-org", slug="allowed")
+    await upload_problem(api_client, session_headers, "bounded-org", slug="denied")
     key = await mint_key(
         api_client,
         token,
-        permissions=["projects:read", "projects:write"],
+        permissions=["problems:read", "problems:write", "studies:read"],
         boundary={
             "methods": ["GET"],
             "organizations": ["bounded-org"],
-            "projects": ["allowed"],
-            "resource_kinds": ["projects"],
+            "resource_kinds": ["problems"],
             "slugs": ["allowed"],
         },
     )
     key_headers = {"X-API-Key": key["secret"]}
 
     allowed = await api_client.get(
-        "/v1/organizations/bounded-org/projects/allowed", headers=key_headers
+        "/v1/organizations/bounded-org/problems/allowed", headers=key_headers
     )
     wrong_method = await api_client.patch(
-        "/v1/organizations/bounded-org/projects/allowed",
+        "/v1/organizations/bounded-org/problems/allowed",
         headers=key_headers,
         json={"name": "Changed"},
     )
     denied_response = await api_client.get(
-        "/v1/organizations/bounded-org/projects/denied", headers=key_headers
+        "/v1/organizations/bounded-org/problems/denied", headers=key_headers
     )
     wrong_kind = await api_client.get(
-        "/v1/organizations/bounded-org/projects/allowed/cases", headers=key_headers
+        "/v1/organizations/bounded-org/studies", headers=key_headers
     )
 
-    assert allowed.status_code == 200
+    assert allowed.status_code == 200, allowed.text
     assert wrong_method.status_code == 403
     assert wrong_method.json()["detail"]["code"] == "api_key_boundary"
     assert denied_response.status_code == 403
     assert denied_response.json()["detail"]["code"] == "api_key_boundary"
     assert wrong_kind.status_code == 403
     assert wrong_kind.json()["detail"]["code"] == "api_key_boundary"
+
+
+async def test_a_boundary_on_projects_is_refused(api_client, registration):
+    """Projects are gone: a key cannot be bounded to them, and no permission names them."""
+    _, token = await account(api_client, registration)
+    headers = {"Authorization": f"Bearer {token}"}
+    bounded = await api_client.post(
+        "/v1/users/me/api-keys", headers=headers,
+        json=key_payload("projects", boundary={"projects": ["p"]}),
+    )
+    named = await api_client.post(
+        "/v1/users/me/api-keys", headers=headers,
+        json=key_payload("projects", permissions=["projects:read"]),
+    )
+    assert bounded.status_code == named.status_code == 422
 
 
 async def test_rotation_preserves_authority_and_revokes_the_old_secret(
@@ -455,7 +487,7 @@ async def test_a_key_cannot_remove_its_own_resource_boundary(api_client, registr
     parent = await mint_key(
         api_client,
         token,
-        permissions=["keys:write", "projects:read"],
+        permissions=["keys:write", "problems:read"],
         boundary={"organizations": ["bounded-org"]},
     )
 
@@ -464,7 +496,7 @@ async def test_a_key_cannot_remove_its_own_resource_boundary(api_client, registr
         headers={"X-API-Key": parent["secret"]},
         json=key_payload(
             "attempted escalation",
-            permissions=["projects:read"],
+            permissions=["problems:read"],
             boundary={},
         ),
     )
@@ -481,7 +513,6 @@ async def test_a_key_cannot_remove_its_own_resource_boundary(api_client, registr
         "engines:register",
         "engines:publish",
         "engines:moderate",
-        "instances:validate",
         "jobs:read",
         "studies:read",
         "studies:write",
@@ -736,12 +767,99 @@ async def test_an_admin_can_issue_a_read_only_admin_key(
 
 
 @pytest.mark.parametrize('path,method,permission', [
-    ('/v1/artifacts/id', 'PATCH', 'artifacts:write'),
-    ('/v1/artifacts/id/versions', 'GET', 'artifacts:read'),
-    ('/v1/artifacts/resolve', 'POST', 'artifacts:read'),
-    ('/v1/organizations/team/library', 'POST', 'artifacts:write'),
-    ('/v1/organizations/team/projects/project/library/id', 'DELETE', 'artifacts:write'),
-    ('/v1/organizations/team/projects/project/blobs', 'GET', 'artifacts:read'),
+    ('/v1/organizations/team/studies', 'GET', 'studies:read'),
+    ('/v1/organizations/team/studies', 'POST', 'studies:write'),
+    ('/v1/organizations/{org}/studies/{study}', 'GET', 'studies:read'),
+    ('/v1/organizations/{org}/studies/{study}', 'PATCH', 'studies:write'),
+    ('/v1/organizations/{org}/studies/{study}/runs', 'POST', 'studies:write'),
+    ('/v1/organizations/{org}/studies/{study}/runs/{run_id}', 'GET', 'studies:read'),
+    ('/v1/organizations/{org}/studies/{study}/runs/{run_id}/cells/{cell_id}/retry', 'POST', 'studies:write'),
 ])
-def test_library_and_blob_permissions_share_artifact_grants(path, method, permission):
+def test_study_routes_need_the_study_permissions(path, method, permission):
     assert apikeys.required_permissions(path, method) == frozenset({permission})
+
+
+@pytest.mark.parametrize('path', ['/v1/artifacts/id/versions', '/v1/organizations/team/library'])
+def test_the_library_is_gone_and_its_paths_are_unclassified(path):
+    assert apikeys.required_permissions(path, 'GET') in (
+        frozenset({apikeys.UNCLASSIFIED_ROUTE_PERMISSION}), frozenset({'organizations:read'}),
+    )
+    assert 'artifacts:read' not in apikeys.ALL_PERMISSIONS
+
+
+@pytest.mark.parametrize('path,method,permission', [
+    ('/v1/organizations/team/problems', 'GET', 'problems:read'),
+    ('/v1/organizations/team/problems', 'POST', 'problems:write'),
+    ('/v1/organizations/{org}/problems/{problem}', 'PATCH', 'problems:write'),
+    ('/v1/organizations/{org}/problems/{problem}', 'DELETE', 'problems:write'),
+    ('/v1/organizations/{org}/problems/{problem}/revisions/{revision}/source', 'GET', 'problems:read'),
+    ('/v1/bim/validate', 'POST', 'problems:read'),
+])
+def test_problem_routes_need_the_problem_permissions(path, method, permission):
+    assert apikeys.required_permissions(path, method) == frozenset({permission})
+
+
+@pytest.mark.parametrize('path', ['/v1/bim/templates', '/v1/bim/templates/demo/01_simple_seq', '/v1/engines/protocol'])
+def test_the_templates_and_the_engine_protocol_need_no_permission(path):
+    assert apikeys.required_permissions(path, 'GET') == frozenset()
+
+
+@pytest.fixture
+def no_dispatch(monkeypatch):
+    from openbinding_gateway.modules.execution.adapters import routes as runs_routes
+
+    async def queued(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(runs_routes, "dispatch_persisted_job", queued)
+
+
+@pytest.mark.parametrize(
+    ("boundary", "allowed"),
+    [
+        ({"organizations": ["{other}"]}, False),
+        ({"organizations": ["{org}"]}, True),
+        ({"organizations": ["{org}"], "slugs": ["another-problem"]}, False),
+        ({"organizations": ["{org}"], "slugs": ["{problem}"]}, True),
+    ],
+)
+async def test_a_run_obeys_the_key_boundary_on_the_problem_in_the_body(
+    api_client, registration, no_dispatch, boundary, allowed
+):
+    # The run names its revision in the body, not in the path, so the boundary on the problem is checked there.
+    from openbinding_gateway import space_client
+    from openbinding_gateway.space_client import OpenGate
+    from _problem_helpers import make_org, upload_problem
+
+    space_client.set_gate(OpenGate())
+    _, token = await account(api_client, registration)
+    session_headers = {"Authorization": f"Bearer {token}"}
+    other = await make_org(api_client, session_headers)
+    uploaded = await upload_problem(api_client, session_headers)
+    names = {"org": uploaded["org"], "other": other, "problem": uploaded["problem"]["slug"]}
+    key = await mint_key(
+        api_client,
+        token,
+        permissions=["engines:execute"],
+        boundary={
+            field: [value.format(**names) for value in values]
+            for field, values in boundary.items()
+        },
+    )
+
+    launched = await api_client.post(
+        runs_url_for(uploaded["revision_id"]),
+        headers={"X-API-Key": key["secret"]},
+        json={
+            "revision": uploaded["revision_id"],
+            "engine": "random-search",
+            "mode": "seeded",
+            "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
+        },
+    )
+
+    if allowed:
+        assert launched.status_code == 202, launched.text
+    else:
+        assert launched.status_code == 403, launched.text
+        assert "api_key_boundary" in launched.text

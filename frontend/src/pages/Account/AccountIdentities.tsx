@@ -19,6 +19,7 @@ import { useResource } from '../../utils/useResource';
 import { readCatalog } from '../Pricing/pricingModel';
 import { classifyAuthError, fallbackMessage, marker, type AuthFailure } from './accountErrors';
 import { AccountLayout, LoadFailure, PermissionNotice } from './AccountLayout';
+import { LIMIT } from '../../utils/limits';
 import './AccountIdentities.css';
 
 /** The phrase the gateway asks for before it moves a RESEARCH account off the institutional plan. */
@@ -72,7 +73,7 @@ function UnlinkDialog({ identity, researching, onClose, onUnlinked }: {
   const catalog = useResource('unlink-catalog', () => researching ? apiClient.getPricingCatalog().catch(() => null) : Promise.resolve(null));
   const view = catalog.data ? readCatalog(catalog.data) : null;
   const fallbackPlan = view?.plans.find((plan) => !plan.byAgreement && plan.id !== 'RESEARCH')?.id ?? null;
-  const jobs = view?.groups.flatMap((group) => group.rows).find((row) => row.id === 'concurrentJobs');
+  const jobs = view?.groups.flatMap((group) => group.rows).find((row) => row.id === LIMIT.maxConcurrentRuns);
   const cellText = (planId: string | null) => {
     const index = view?.plans.findIndex((plan) => plan.id === planId) ?? -1;
     const cell = index >= 0 ? jobs?.cells[index] : undefined;

@@ -2,24 +2,23 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { org, project, renderProjectScreen } from '../Project/testKit';
-import { CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, digestOf, revisionFixture, studyFixture } from '../../test/fixtures/studies';
+import { org, renderOrgScreen } from '../../features/workspace/testKit';
+import { CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, studyFixture } from '../../test/fixtures/studies';
 import { StudyBuilder } from './StudyBuilder';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), cases: vi.fn(), revisions: vi.fn(), createStudy: vi.fn(),
+  createStudy: vi.fn(),
 }));
 const client = vi.hoisted(() => ({ getEngines: vi.fn(), getOwnUsage: vi.fn(), getPricingCatalog: vi.fn() }));
-const library = vi.hoisted(() => ({ libraryApi: { list: vi.fn(), versions: vi.fn(), content: vi.fn() } }));
 
+const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
-vi.mock('../../api/library', () => library);
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
-const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
-const ROOT = '/app/isa-demo/qos-benchmarks';
+const ROOT = '/app/isa-demo';
 
 const mode = (id: string, seconds: number) => ({
   id, profile: 'qos-binding/v1', ir: { apiVersion: 'bim/v1', kind: 'BindingProblem' }, algorithm: id, capabilities: {}, limits: {}, guarantees: { termination: ['FEASIBLE'], exact: false },
@@ -31,14 +30,14 @@ const engineEntry = (ref: typeof RANDOM_SEARCH) => {
 };
 
 const usage = {
-  plan: 'RESEARCH', contract_pending: false, features: {}, capabilities: { maxTimeoutSeconds: 60, studies: 25 },
+  plan: 'RESEARCH', contract_pending: false, features: {}, capabilities: { maxRunMinutes: 1, maxStudyCells: 5000 },
 };
 
 const refusal = (status: number, code: string, message = 'refused') => Object.assign(new HttpError(status, message), { code });
 
 function renderBuilder(options: { query?: string; slug?: string } = {}) {
-  return renderProjectScreen(<StudyBuilder />, {
-    path: '/app/:org/:project/studies/new', url: `/app/${options.slug ?? 'isa-demo'}/qos-benchmarks/studies/new${options.query ?? ''}`, organizations: [group, viewing],
+  return renderOrgScreen(<StudyBuilder />, {
+    path: '/app/:org/studies/new', url: `/app/${options.slug ?? 'isa-demo'}/studies/new${options.query ?? ''}`, organizations: [group, viewing],
   });
 }
 
@@ -56,29 +55,25 @@ async function chooseMatrix() {
 describe('A new study', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    platform.project.mockResolvedValue(qos);
-    platform.cases.mockResolvedValue([CHECKOUT]);
-    platform.revisions.mockResolvedValue([REVISION_1, REVISION_2, revisionFixture(3, { source_snapshot_id: null })]);
+    problems.list.mockResolvedValue({ problems: [CHECKOUT], total: 1, limit: 200, offset: 0 });
+    problems.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
     client.getEngines.mockResolvedValue([engineEntry(RANDOM_SEARCH), engineEntry(EVOLUTIONARY)]);
     client.getOwnUsage.mockResolvedValue(usage);
     client.getPricingCatalog.mockResolvedValue({});
-    library.libraryApi.list.mockResolvedValue([]);
-    library.libraryApi.versions.mockResolvedValue([]);
-    library.libraryApi.content.mockResolvedValue('{}');
   });
 
-  it('offers the executable revisions, the engine modes, the settings and the seeds', async () => {
+  it('offers the versions of the organization’s problems, the engine modes, the settings and the seeds', async () => {
     renderBuilder();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'New study' })).toBeInTheDocument();
     expect(screen.getByText('Pick the problems, engines, settings and seeds. Every combination becomes one cell.')).toBeInTheDocument();
     expect(await checkbox(/Checkout flow · version 2/)).toBeEnabled();
-    expect(await checkbox(/Checkout flow · version 3/)).toBeDisabled();
-    expect(screen.getByText(/No compiled snapshot yet, so engines have nothing to run/)).toBeInTheDocument();
+    expect(await checkbox(/Checkout flow · version 1/)).toBeEnabled();
+    expect(problems.list).toHaveBeenCalledWith('isa-demo', { limit: 200 });
     expect(await checkbox(/random-search 1\.0\.0/)).not.toBeChecked();
     expect(screen.getByLabelText(SEEDS)).toHaveValue('1, 2');
-    const tabs = screen.getByRole('navigation', { name: 'Project sections' });
-    expect(within(tabs).getByRole('link', { name: 'Studies' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('navigation', { name: 'Project sections' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
     expect(create()).toBeDisabled();
     const needed = screen.getByRole('list', { name: 'Still needed' });
     expect(within(needed).getByText('Give the study a name.')).toBeInTheDocument();
@@ -110,10 +105,10 @@ describe('A new study', () => {
     await waitFor(() => expect(platform.createStudy).toHaveBeenCalledTimes(1));
     const { mode: randomMode, ...randomIdentity } = RANDOM_SEARCH;
     const { mode: evolutionaryMode, ...evolutionaryIdentity } = EVOLUTIONARY;
-    expect(platform.createStudy).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', {
+    expect(platform.createStudy).toHaveBeenCalledWith('isa-demo', {
       slug: 'engines-vs-seeds', name: 'Engines vs seeds', description: '',
       definition: {
-        case_revision_ids: [REVISION_1.id, REVISION_2.id],
+        revision_ids: [REVISION_1.id, REVISION_2.id],
         engines: [
           { ...randomIdentity, mode: randomMode, optimization: { type: 'SINGLE', scalarization: 'weighted-sum' } },
           { ...evolutionaryIdentity, mode: evolutionaryMode, optimization: { type: 'SINGLE', scalarization: 'weighted-sum' } },
@@ -122,7 +117,7 @@ describe('A new study', () => {
         seeds: [1, 2],
       },
     });
-    const sent = platform.createStudy.mock.calls[0][2] as { definition: { engines: Array<{ optimization?: unknown }> } };
+    const sent = platform.createStudy.mock.calls[0][1] as { definition: { engines: Array<{ optimization?: unknown }> } };
     expect(sent.definition.engines.every((engine) => engine.optimization !== undefined)).toBe(true);
     expect(await screen.findByRole('heading', { name: 'Study created' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open the study' })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds`);
@@ -142,7 +137,7 @@ describe('A new study', () => {
     fireEvent.click(create());
 
     await waitFor(() => expect(platform.createStudy).toHaveBeenCalledTimes(1));
-    const sent = platform.createStudy.mock.calls[0][2] as { definition: { parameter_sets: unknown[]; seeds: number[] } };
+    const sent = platform.createStudy.mock.calls[0][1] as { definition: { parameter_sets: unknown[]; seeds: number[] } };
     expect(sent.definition.parameter_sets).toEqual([{}, { time_budget_ms: 120000 }]);
     expect(sent.definition.seeds).toEqual([1, 2]);
   });
@@ -176,14 +171,14 @@ describe('A new study', () => {
     expect(create()).toBeDisabled();
   });
 
-  it('says what the gateway refused: no study definitions left, a key without the engine, a taken address', async () => {
+  it('says what the gateway refused: an allowance used up, a key without the engine, a taken address', async () => {
     renderBuilder();
     await chooseMatrix();
     fireEvent.change(screen.getByLabelText('Study name'), { target: { value: 'Refused' } });
 
-    platform.createStudy.mockRejectedValueOnce(new QuotaError('quota_exceeded', 'full', { limit_id: 'studies', limit: 25, used: 25 }));
+    platform.createStudy.mockRejectedValueOnce(new QuotaError('quota_exceeded', 'full', { limit_id: 'maxRepositoryStorage', limit: 500, used: 500 }));
     fireEvent.click(create());
-    expect(await screen.findByText('The sponsor has no study definitions left (402 · quota_exceeded)')).toBeInTheDocument();
+    expect(await screen.findByText('Out of storage (402 · quota_exceeded)')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
     expect(create()).toBeEnabled();
 
@@ -207,33 +202,6 @@ describe('A new study', () => {
     expect(await checkbox(/Checkout flow · version 2/)).not.toBeChecked();
   });
 
-  it('creates a study from a shared definition of the library', async () => {
-    library.libraryApi.list.mockResolvedValue([
-      { id: 'art-study', organization_id: 'org-isa-demo', namespace: 'isa-demo', name: 'study-1', display_name: 'Engines × seeds', kind: 'Study', description: '', labels: {}, archived: false },
-      { id: 'art-other', organization_id: 'org-isa-demo', namespace: 'isa-demo', name: 'catalog', display_name: 'Providers', kind: 'CandidateCatalog', description: '', labels: {}, archived: false },
-    ]);
-    library.libraryApi.versions.mockResolvedValue([
-      { id: 'ver-1', artifact_id: 'art-study', ordinal: 1, ref: { namespace: 'isa-demo', name: 'study-1', version: '1', versionDigest: digestOf('v') }, contentDigest: digestOf('e'), withdrawn: false, public: false },
-    ]);
-    library.libraryApi.content.mockResolvedValue(JSON.stringify({ cases: [{}, {}], engines: [{}, {}], parameter_sets: [{}], seeds: [1, 2] }));
-    platform.createStudy.mockResolvedValue(studyFixture());
-    renderBuilder();
-
-    fireEvent.click(await screen.findByRole('radio', { name: 'Reuse a shared definition' }));
-    expect(screen.queryByRole('option', { name: 'Providers' })).not.toBeInTheDocument();
-    await screen.findByRole('option', { name: 'Engines × seeds' });
-    fireEvent.change(screen.getByLabelText('Study definition'), { target: { value: 'art-study' } });
-    await screen.findByRole('option', { name: 'study-1 v1' });
-    expect(document.body.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
-    fireEvent.change(screen.getByLabelText('Sealed version'), { target: { value: 'ver-1' } });
-
-    expect(await screen.findByText(/From the library · 8 cells/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Create from this definition' }));
-    await waitFor(() => expect(platform.createStudy).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', {
-      slug: 'engines-seeds', name: 'Engines × seeds', description: '', definition_version_id: 'ver-1',
-    }));
-  });
-
   it('lets a viewer look through the form but not create', async () => {
     renderBuilder({ slug: 'read-lab' });
 
@@ -245,10 +213,17 @@ describe('A new study', () => {
     expect(screen.queryByRole('list', { name: 'Still needed' })).not.toBeInTheDocument();
   });
 
-  it('reads a project that is not there like one the account cannot see', async () => {
-    platform.project.mockRejectedValue(refusal(404, 'not_found'));
+  it('reads an organization that is not the account’s like one that does not exist', async () => {
+    renderBuilder({ slug: 'ghost-lab' });
+
+    expect(await screen.findByRole('heading', { name: 'Organization not available' })).toBeInTheDocument();
+  });
+
+  it('offers no way to reuse a shared definition: a study keeps its own', async () => {
     renderBuilder();
 
-    expect(await screen.findByRole('heading', { name: 'Project not found' })).toBeInTheDocument();
+    await checkbox(/Checkout flow · version 1/);
+    expect(screen.queryByRole('radio', { name: 'Reuse a shared definition' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Sealed version')).not.toBeInTheDocument();
   });
 });

@@ -24,7 +24,7 @@ METHODS = {"get", "put", "post", "delete", "patch", "options", "head", "trace"}
     "path",
     [
         "/v1/analysis/sources",
-        "/v1/organizations/isa-demo/projects/p1/resources",
+        "/v1/organizations/isa-demo/studies",
         "/health",
         "/v1/engines",
     ],

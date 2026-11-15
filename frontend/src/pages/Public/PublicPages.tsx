@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { CircleCheck, CircleAlert, FileArchive, Upload, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { apiClient, HttpError, type PackageValidationOutcome } from '../../api/client';
+import { bimApi } from '../../api/bim';
+import { HttpError, type PackageValidationOutcome } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { Notice } from '../../components/ui/Notice';
-import { ProjectPicker } from '../../components/ui/ProjectPicker';
+import { OrganizationPicker } from '../../components/ui/OrganizationPicker';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
+import { workbenchPath } from '../../routes/paths/problems';
 import { BIM_PACKAGE_LIMITS, BimPackageError } from '../../utils/bimZip';
 import { formatBytes } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
@@ -19,7 +21,7 @@ import './PublicPages.css';
 interface Selected {
   name: string;
   bytes: Uint8Array;
-  /** The official example it came from, which a signed-in account can carry into a project. */
+  /** The official example it came from, which a signed-in account can open in the Workbench of an organization. */
   example: string | null;
 }
 
@@ -43,8 +45,8 @@ function fileLabel(bytes: number): string {
 export function WorkbenchPage() {
   const { user } = useAuth();
   const [params] = useSearchParams();
-  const requestedExample = params.get('example');
-  const examples = useResource('workbench-examples', () => apiClient.getBimExamples());
+  const requestedExample = params.get('template');
+  const examples = useResource('workbench-templates', () => bimApi.templates());
   const { copy, status: copyStatus } = useCopy();
   const input = useRef<HTMLInputElement>(null);
   const runId = useRef(0);
@@ -74,7 +76,7 @@ export function WorkbenchPage() {
       return;
     }
     try {
-      const outcome = await apiClient.validatePackage(target.bytes);
+      const outcome = await bimApi.check(target.bytes);
       if (id !== runId.current) return;
       setRun({ status: 'done', outcome, model });
       if (!outcome.valid) setTab('diagnostics');
@@ -89,15 +91,15 @@ export function WorkbenchPage() {
   const loadExample = async (path: string) => {
     setExampleError(null);
     try {
-      const buffer = await apiClient.getBimExamplePackage(path);
+      const buffer = await bimApi.template(path);
       const target: Selected = { name: `${path.split('/').at(-1) ?? 'example'}.bim.zip`, bytes: new Uint8Array(buffer), example: path };
       setSelected(target);
       await validate(target);
     } catch (error) {
       setRun({ status: 'idle' });
       setExampleError(error instanceof HttpError && error.status === 422
-        ? 'This example package is corrupt (422 · invalid_example). Other examples are unaffected.'
-        : error instanceof Error ? error.message : 'The example could not be loaded.');
+        ? 'This template package is corrupt (422). Other templates are unaffected.'
+        : error instanceof Error ? error.message : 'The template could not be loaded.');
     }
   };
 
@@ -210,26 +212,25 @@ export function WorkbenchPage() {
           <div className="workbench-card">
             <span className="workbench-kicker">Try a package</span>
             {exampleError && <Notice tone="error">{exampleError}</Notice>}
-            {examples.status === 'loading' && <small>Reading the official examples…</small>}
+            {examples.status === 'loading' && <small>Reading the templates…</small>}
             {suggested.map((path) => (
               <button key={path} type="button" className="workbench-try" onClick={() => { setRun({ status: 'loading' }); void loadExample(path); }}>
                 <strong>{path}</strong>
-                <small>Official example package</small>
+                <small>Template package</small>
               </button>
             ))}
-            {examples.status === 'ready' && suggested.length === 0 && <small>This deployment ships no example packages.</small>}
+            {examples.status === 'ready' && suggested.length === 0 && <small>This deployment ships no template packages.</small>}
           </div>
 
           <div className="workbench-card is-account">
             {user ? (
               <>
                 <strong>Signed in as {user.username}</strong>
-                <span>Save this package as a problem version in one of your projects, then run it with an exact engine.</span>
+                <span>Save this package as a problem of one of your organizations, then run it with an exact engine.</span>
                 <div className="workbench-account-actions">
-                  <ProjectPicker variant="primary" label="Save to a project" destination={(org, project) => `/app/${org}/${project}/workbench${selected?.example ? `?example=${encodeURIComponent(selected.example)}` : ''}`} />
-                  <ProjectPicker label="Run" destination={(org, project) => `/app/${org}/${project}/runs/new`} />
+                  <OrganizationPicker variant="primary" label="Save to an organization" destination={(org) => workbenchPath(org, { template: selected?.example ?? undefined })} />
                 </div>
-                {selected && !selected.example && <small>An uploaded file isn’t carried across: add it again in the project workbench.</small>}
+                {selected && !selected.example && <small>An uploaded file isn’t carried across: add it again in the organization’s Workbench.</small>}
               </>
             ) : (
               <>

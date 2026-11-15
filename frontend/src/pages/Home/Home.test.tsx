@@ -6,8 +6,7 @@ import { HttpError, SESSION_ENDED_EVENT } from '../../api/client';
 import { Home } from './Home';
 
 const api = vi.hoisted(() => ({
-  getProfiles: vi.fn(),
-  getDialects: vi.fn(),
+  getProtocolProfiles: vi.fn(),
   getEngines: vi.fn(),
   getPublicEngines: vi.fn(),
 }));
@@ -26,8 +25,7 @@ describe('Home', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     auth.user = null;
-    api.getProfiles.mockResolvedValue([{ id: 'qos-binding/v1' }]);
-    api.getDialects.mockResolvedValue([{ id: 'json' }, { id: 'bpmn' }]);
+    api.getProtocolProfiles.mockResolvedValue([{ id: 'qos-binding/v1' }]);
     api.getEngines.mockResolvedValue([engine('private-solver'), engine('random-search')]);
     api.getPublicEngines.mockResolvedValue([engine('random-search'), engine('evolutionary')]);
   });
@@ -43,7 +41,6 @@ describe('Home', () => {
       const runtime = screen.getByRole('status', { name: 'Runtime catalogue status' });
       expect(await within(runtime).findByText('2 public engine revisions')).toBeInTheDocument();
       expect(within(runtime).getByText('1 executable profile')).toBeInTheDocument();
-      expect(within(runtime).getByText('2 installed dialects')).toBeInTheDocument();
       expect(api.getEngines).not.toHaveBeenCalled();
     });
 
@@ -61,7 +58,7 @@ describe('Home', () => {
     });
 
     it('says so when the runtime catalogue cannot be read', async () => {
-      api.getProfiles.mockRejectedValue(new Error('offline'));
+      api.getProtocolProfiles.mockRejectedValue(new Error('offline'));
       renderHome();
 
       expect(await screen.findByText('Runtime catalogue unavailable')).toBeInTheDocument();
@@ -144,14 +141,14 @@ describe('Home', () => {
   });
 
   describe('plans and links', () => {
-    it('summarises the four plans and points to the live pricing', () => {
+    it('summarises the three plans and points to the live pricing', () => {
       renderHome();
 
-      for (const name of ['Basic', 'Research', 'Advanced', 'Pro']) expect(screen.getByText(name, { selector: '.home-kicker' })).toBeInTheDocument();
+      for (const name of ['Free', 'Research', 'Lab']) expect(screen.getByText(name, { selector: '.home-kicker' })).toBeInTheDocument();
       expect(screen.getByText('1 concurrent run')).toBeInTheDocument();
-      expect(screen.getByText('Unlimited API keys')).toBeInTheDocument();
+      expect(screen.getByText('200 API keys')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
-      expect(screen.getByText(/Headline limits from pricing 0\.1\.0/)).toBeInTheDocument();
+      expect(screen.getByText(/Headline limits from pricing 0\.2\.0/)).toBeInTheDocument();
     });
 
     it('links only to routes that exist', async () => {

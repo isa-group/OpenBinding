@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-export type CreateKind = 'organization' | 'project';
+export type CreateKind = 'organization';
 
 /** The address that opens the creation dialog over the screen at `base`. */
 export const createAddress = (base: string, kind: CreateKind): string => `${base}?create=${kind}`;

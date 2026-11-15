@@ -24,9 +24,9 @@ vi.mock('../../api/client', async () => ({
 configure({ asyncUtilTimeout: 5000 });
 
 const OVERVIEW: OverviewAnswer = {
-  counts: { users: 7, apiKeys: 9, identities: 3, organizations: 3, projects: 5, cases: 4, studies: 2, studyRuns: 3, artifacts: 12 },
+  counts: { users: 7, apiKeys: 9, identities: 3, organizations: 3, problems: 4, problemRevisions: 6, runs: 12, studies: 2, studyRuns: 3 },
   jobs: { queued: 1, running: 1, completed: 2, failed: 1, cancelled: 1 },
-  contracts: { BASIC: 3, ADVANCED: 1, RESEARCH: 1, PRO: 2 },
+  contracts: { FREE: 3, RESEARCH: 2, LAB: 2 },
   recentAudit: [
     { id: 'a1', action: 'contract.subscription.changed', targetType: 'User', targetId: MARIA.id, actorId: ALEX.id, createdAt: '2026-09-01T09:00:00Z' },
   ],
@@ -43,7 +43,7 @@ describe('admin-overview · how the platform is doing', () => {
     api.adminErrorOverview.mockResolvedValue(ERROR_OVERVIEW);
     api.getCurrentPricing.mockResolvedValue({ version: '0.1.0', digest: 'sha256-x', url: 'https://sphere.example.test/0.1.0' });
     api.adminListEngineRegistrations.mockResolvedValue([]);
-    api.adminMaintenancePreview.mockResolvedValue({ expiredArtifacts: 0, expiredApiKeys: 0, terminalJobs: 0, abandonedJobs: 0, terminalJobCutoff: '2026-01-01T00:00:00Z' });
+    api.adminMaintenancePreview.mockResolvedValue({ expiredApiKeys: 0, terminalJobs: 0, abandonedJobs: 0, terminalJobCutoff: '2026-01-01T00:00:00Z' });
   });
 
   afterEach(() => {
@@ -55,9 +55,9 @@ describe('admin-overview · how the platform is doing', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Administration' })).toBeInTheDocument();
     const accounts = block('Accounts');
     expect(await within(accounts).findByText('7')).toBeInTheDocument();
-    expect(within(accounts).getByText('3 BASIC')).toBeInTheDocument();
-    expect(within(accounts).getByText('2 PRO')).toBeInTheDocument();
-    expect(within(accounts).getByRole('img', { name: 'Accounts by plan: BASIC 3, ADVANCED 1, RESEARCH 1, PRO 2' })).toBeInTheDocument();
+    expect(within(accounts).getByText('3 FREE')).toBeInTheDocument();
+    expect(within(accounts).getByText('2 LAB')).toBeInTheDocument();
+    expect(within(accounts).getByRole('img', { name: 'Accounts by plan: FREE 3, RESEARCH 2, LAB 2' })).toBeInTheDocument();
     expect(within(accounts).getByText('9 API keys · 3 linked identities')).toBeInTheDocument();
     expect(within(accounts).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/admin/users');
   });
@@ -118,8 +118,10 @@ describe('admin-overview · how the platform is doing', () => {
     renderAdmin(<AdminOverview />);
     const numbers = await screen.findByRole('region', { name: 'The platform in numbers' });
     await waitFor(() => expect(within(numbers).getByText('12')).toBeInTheDocument());
-    expect(within(numbers).getByText('Stored artifacts')).toBeInTheDocument();
+    expect(within(numbers).getByText('Runs')).toBeInTheDocument();
     expect(within(numbers).getByText('Problems')).toBeInTheDocument();
+    expect(within(numbers).queryByText('Projects')).not.toBeInTheDocument();
+    expect(within(numbers).queryByText('Stored artifacts')).not.toBeInTheDocument();
   });
 
   it('opens every administration tool, with the ids and routes of the prototype', async () => {

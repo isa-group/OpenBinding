@@ -16,6 +16,7 @@ import logging
 import re
 import time
 import uuid
+from _problem_helpers import placeholder_refs, run_url
 from datetime import timedelta
 
 import httpx
@@ -26,7 +27,7 @@ from sqlalchemy import select
 
 from _pricing import pricing_catalog
 from analysis_b3_b4_b6._helpers import (
-    account_with_snapshot,
+    account_with_revision,
     answer,
     only_job,
     persisted_anywhere,
@@ -91,7 +92,7 @@ async def a_job(session, owner, *, state=JobState.RUNNING, age_s=0.0, **extra) -
         state=state,
         requested_budget_s=60.0,
         created_at=utcnow() - timedelta(seconds=age_s),
-        **extra,
+        **{**placeholder_refs(), **extra},
     )
     session.add(job)
     await session.commit()
@@ -99,8 +100,8 @@ async def a_job(session, owner, *, state=JobState.RUNNING, age_s=0.0, **extra) -
 
 
 async def a_submitted_job(api_client, db_session, registration) -> tuple[dict[str, str], Job]:
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
-    await submit(api_client, headers, snapshot_id)
+    headers, revision_id = await account_with_revision(api_client, registration)
+    await submit(api_client, headers, revision_id)
     job = await only_job(db_session)
     precondition(job.state is JobState.FAILED, f"the job ended {job.state.value}, not failed")
     return headers, job
@@ -311,7 +312,7 @@ async def test_an_unreachable_engine_shows_its_sentence_and_not_its_host(
     monkeypatch.setattr(execution, "solve_remote", solve)
 
     headers, job = await a_submitted_job(api_client, db_session, registration)
-    response = await api_client.get(f"/v1/jobs/{job.id}", headers=headers)
+    response = await api_client.get(run_url(job), headers=headers)
 
     assert response.status_code == 200
     assert_a_catalog_failure(response.json()["result"], "engine_unreachable")
@@ -342,7 +343,7 @@ async def test_an_unexpected_exception_is_an_internal_error_and_its_text_stays_o
     engine_says(monkeypatch, RuntimeError(f"connection to server at {INTERNAL_HOST} ({INTERNAL_ADDRESS}), port 5432 failed"))
 
     headers, job = await a_submitted_job(api_client, db_session, registration)
-    body = (await api_client.get(f"/v1/jobs/{job.id}", headers=headers)).text
+    body = (await api_client.get(run_url(job), headers=headers)).text
 
     assert_a_catalog_failure(job.result, "internal_error")
     for leak in (INTERNAL_HOST, INTERNAL_ADDRESS, "RuntimeError", "connection to server at", "Traceback"):
@@ -387,7 +388,7 @@ async def test_a_failure_event_for_the_administration_holds_the_sentence_and_not
     _, job = await a_submitted_job(api_client, db_session, registration)
 
     events = (await db_session.execute(select(ApiErrorEvent))).scalars().all()
-    failures = [event for event in events if event.endpoint == f"/v1/jobs/{job.id}"]
+    failures = [event for event in events if event.endpoint == run_url(job)]
     assert len(failures) == 1
     assert JOB_FAILURES[job.result["code"]] in repr(failures[0].detail)
     assert PRIVATE_HOST not in repr(failures[0].detail)

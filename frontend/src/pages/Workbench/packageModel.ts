@@ -4,7 +4,7 @@ import { isRange, type FeatureValue } from '../../utils/featureRange';
 /**
  * What a .bim.zip contains, read in the browser so it can be drawn as files, a workflow and tables.
  *
- * The gateway stays the authority on validity (POST /v1/instances/validate). This reads the same package to show its
+ * The gateway stays the authority on validity (POST /v1/bim/validate). This reads the same package to show its
  * shape, so everything here is tolerant: a file that does not look as expected is left out of the picture, never
  * guessed at, and never an error.
  */

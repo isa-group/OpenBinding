@@ -10,8 +10,9 @@ The seam is the point. SPACE is early-stage software whose API will move, and
 when it does ``SpacePricingGate`` changes and nothing else does.
 
 The protocol only reads and manages contracts: what a plan includes (``caps``),
-the contract itself and the token the browser evaluates features against. The
-gateway counts and charges no consumption.
+the contract itself, the token the browser evaluates features against, and the
+published pricing document the startup check reads. The gateway counts and
+charges no consumption.
 """
 
 from __future__ import annotations
@@ -20,20 +21,6 @@ import math
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Protocol, runtime_checkable
-
-from ..core.settings import DEFAULT_SPACE_SERVICE_NAME
-
-
-def feature_id(feature: str, service_name: str = DEFAULT_SPACE_SERVICE_NAME) -> str:
-    """The identifier SPACE knows a feature by.
-
-    Feature identifiers are ``<service>-<feature>``, where the service is the
-    one configured in ``Settings.space_service_name``. One helper, because the
-    convention is easy to get subtly wrong and a mistyped identifier fails as
-    "feature not in your plan" rather than as an error - which is exactly the
-    kind of bug that reaches production.
-    """
-    return f"{service_name}-{feature}"
 
 
 @dataclass(frozen=True)
@@ -123,6 +110,9 @@ class PricingGate(Protocol):
 
     async def caps(self, user_id: uuid.UUID) -> PlanCaps:
         """The features and static ceilings this user's plan imposes."""
+
+    async def pricing_document(self) -> str:
+        """The Pricing2Yaml text of the pricing version this gateway contracts (the startup check reads it)."""
 
     async def create_contract(
         self,

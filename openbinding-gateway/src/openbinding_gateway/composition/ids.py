@@ -26,14 +26,26 @@ import re
 #: 83 corpus packages use these five -- the exception is the toolchain's own example
 #: fixture -- so they are normative here rather than conventional. Naming the catalog
 #: anything else yields a semantically identical package with a different digest and no
-#: hint why. A placement resource is a sixth id, and this version does express it: its own
-#: name lives in ``emit.PLACEMENT`` because the document belongs to a dialect rather than
-#: to ``qos-binding/v1``, not because the language has no home for it.
+#: hint why. A placement resource is a sixth id, ``PLACEMENT``; its document belongs to a
+#: dialect rather than to ``qos-binding/v1``.
 APPLICATION = "application"
 CATALOG = "catalog"
 ROUTING = "routing"
 CONSTRAINTS = "constraints"
 OPTIMIZATION = "optimization"
+PLACEMENT = "placement"
+
+#: File name per resource id, as the corpus names them. The ids are normative because they
+#: reach the IR; the file names are not -- renaming them all at once leaves the digest
+#: byte-identical (measured). A package reader accepts exactly these resources.
+FILES: dict[str, str] = {
+    APPLICATION: "application.json",
+    CATALOG: "candidates.json",
+    ROUTING: "routing.json",
+    CONSTRAINTS: "constraints.json",
+    OPTIMIZATION: "optimization.json",
+    PLACEMENT: "placement.json",
+}
 
 #: The profile role each resource is declared under in the package manifest. The routing
 #: overlay belongs to the candidate-catalog role, not to the application role: the

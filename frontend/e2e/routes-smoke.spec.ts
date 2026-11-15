@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
-import { countLiveCalls, dropOptionalSegments, readAreaSources, readMovedAddresses } from './helpers/galleryRoutes';
+import { countLiveCalls, dropOptionalSegments, readAreaSources } from './helpers/galleryRoutes';
 
-// Visits every screen of the route registry (src/routes/areas/*.tsx) with example parameter values, and every moved address
-// (`moved('id', '/from', '/to'…` lines of the same files) to see that it ends on its new address.
+// Visits every screen of the route registry (src/routes/areas/*.tsx) with example parameter values. There are no redirects: an old
+// address is answered by no screen.
 // There is no backend: the API origin is answered by page.route(), signed in only for /app screens.
 
 const API = 'http://localhost:8000';
@@ -25,19 +25,11 @@ function readRegistry(): Screen[] {
 }
 
 const screens = readRegistry();
-const movedAddresses = readMovedAddresses();
 
 /** The base address of a pattern: an optional segment (`:section?`) is dropped with its slash before the parameters are filled. */
 const exampleUrl = (path: string) => dropOptionalSegments(path)
   .replace(':org', 'isa-demo')
-  .replace(':project', 'qos')
   .replace(/:[A-Za-z]+/g, 'sample');
-
-/** Example values for a moved address: the organization and the project the mock knows, every other parameter its own name. */
-const namedUrl = (path: string) => dropOptionalSegments(path)
-  .replace(':org', 'isa-demo')
-  .replace(':project', 'qos')
-  .replace(/:([A-Za-z]+)/g, '$1');
 
 const account = (role: 'user' | 'admin') => ({
   id: 'smoke-user-id',
@@ -50,14 +42,7 @@ const account = (role: 'user' | 'admin') => ({
 });
 
 const organization = {
-  id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null,
-  billing_sponsor_user_id: 'smoke-user-id', effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
-};
-
-const project = {
-  id: 'project-1', organization_id: 'org-1', slug: 'qos', name: 'QoS Benchmarks', description: 'Smoke project',
-  visibility: 'private', created_by_id: 'smoke-user-id', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z',
-  access: 'member', effective_role: 'OWNER',
+  id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
 };
 
 async function mockApi(page: Page, role: 'user' | 'admin' | null) {
@@ -67,7 +52,6 @@ async function mockApi(page: Page, role: 'user' | 'admin' | null) {
   await page.route(`${API}/v1/users/me`, (route) => route.fulfill({ json: account(role) }));
   await page.route(`${API}/v1/users/me/pricing-token`, (route) => route.fulfill({ json: { pricing_token: 'smoke-token' } }));
   await page.route(`${API}/v1/organizations`, (route) => route.fulfill({ json: [organization] }));
-  await page.route(`${API}/v1/organizations/isa-demo/projects`, (route) => route.fulfill({ json: [project] }));
   await page.route(`${API}/v1/notifications**`, (route) => route.fulfill({ json: [] }));
 }
 
@@ -121,7 +105,7 @@ function forbiddenIn(screenId: string, texts: string[]): string[] {
   return texts.flatMap((text) => patterns.flatMap((pattern) => [...text.matchAll(pattern)].map((match) => `"${match[0]}" in "${text.slice(0, 120)}"`)));
 }
 
-/** A route pattern (`/app/:org/:project/problems/:case/:tab?`) as a regular expression over a pathname. */
+/** A route pattern (`/app/:org/problems/:case/:tab?`) as a regular expression over a pathname. */
 function patternRegex(pattern: string): RegExp {
   const segments = pattern.split('/').filter(Boolean).map((segment) => {
     if (!segment.startsWith(':')) return `/${segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`;
@@ -144,7 +128,7 @@ test.describe('route registry', () => {
 
   test('rejects the six words, whatever their letter case, except the engine registration publication text', () => {
     expect(forbiddenIn('job-list', ['Jobs', 'my case', 'Cases and JOB'])).toHaveLength(4);
-    expect(forbiddenIn('pub-home', ['Publications and public projects'])).toEqual(['"Publications" in "Publications and public projects"']);
+    expect(forbiddenIn('pub-home', ['Publications and public results'])).toEqual(['"Publications" in "Publications and public results"']);
     expect(forbiddenIn('study-detail', ['A publication'])).toHaveLength(1);
     expect(forbiddenIn('eng-registration-detail', ['Publication', 'Request publication'])).toEqual([]);
     expect(forbiddenIn('eng-registration-detail', ['Jobs'])).toHaveLength(1);
@@ -152,8 +136,9 @@ test.describe('route registry', () => {
   });
 
   test('knows which pathnames are screens of the registry', () => {
-    expect(isScreenAddress('/app/isa-demo/qos/problems/checkout')).toBe(true);
-    expect(isScreenAddress('/app/runs')).toBe(true);
+    expect(isScreenAddress('/app/isa-demo/problems/checkout')).toBe(true);
+    expect(isScreenAddress('/app/isa-demo/qos/problems/checkout')).toBe(false);
+    expect(isScreenAddress('/app/account/keys')).toBe(true);
     expect(isScreenAddress('/explore')).toBe(false);
     expect(isScreenAddress('/')).toBe(true);
     expect(isScreenAddress('/app/isa-demo/qos/cases/checkout/compare')).toBe(false);
@@ -190,30 +175,5 @@ for (const screen of screens) {
 
     // The vocabulary of the interface: Problem and Run, never case or job (nor publication outside the engine registration).
     expect(forbiddenIn(screen.id, await visibleTexts(page)), `${screen.id} (${screen.path}) shows words the vocabulary rules out`).toEqual([]);
-  });
-}
-
-for (const address of movedAddresses) {
-  test(`${address.area} moved ${address.id} ${address.from} -> ${address.to}`, async ({ page }) => {
-    test.setTimeout(90_000);
-    const isApp = (path: string) => path === '/app' || path.startsWith('/app/');
-    const admin = /^\/app\/admin(\/|$)/.test(address.to);
-    await mockApi(page, isApp(address.from) || isApp(address.to) ? (admin ? 'admin' : 'user') : null);
-
-    const start = namedUrl(address.from);
-    await page.goto(start, { waitUntil: 'domcontentloaded' });
-
-    if (address.customTarget) {
-      // The target is computed: only the old address has to be left behind.
-      await expect.poll(() => new URL(page.url()).pathname, { timeout: 30_000 }).not.toBe(new URL(start, 'http://localhost').pathname);
-      await expect.poll(() => isScreenAddress(new URL(page.url()).pathname), { message: `${address.id} should land on a screen of the registry`, timeout: 30_000 }).toBe(true);
-      return;
-    }
-    // The old address is replaced by the new one, each parameter keeping its own value.
-    const expected = new URL(namedUrl(address.to), 'http://localhost');
-    await expect.poll(() => new URL(page.url()).pathname, { timeout: 30_000 }).toBe(expected.pathname);
-    if (expected.search) expect(new URL(page.url()).search).toContain(expected.search);
-    // And the new address is a screen of the registry, not a missing page.
-    expect(isScreenAddress(expected.pathname), `${address.id} leads to ${expected.pathname}, which no screen of the registry has`).toBe(true);
   });
 }

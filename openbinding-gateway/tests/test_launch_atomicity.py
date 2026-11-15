@@ -2,32 +2,36 @@
 
 from __future__ import annotations
 
+import dataclasses
 import os
 import uuid
 
 import pytest
+from _problem_helpers import compiled_run_refs, run_url
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from _pricing import roomy_plan
-from test_idempotency_jobs import _body, _login, _snapshot
+from test_idempotency_jobs import _body, _login, _revision
 from test_job_dispatch import _account
 from test_study_cell_launch import BASE, _cells, _study
 
+from openbinding_gateway.services import job_submission
 from openbinding_gateway import space_client, study_jobs
 from openbinding_gateway.db.models import (
+    BindingCase,
+    BindingCaseRevision,
     Job,
     JobState,
     Organization,
-    Project,
     RunState,
     StudyCell,
     User,
     utcnow,
 )
-from openbinding_gateway.routes import jobs as job_routes
+from openbinding_gateway.modules.execution.adapters import routes as runs_routes
+from openbinding_gateway.modules.execution.application import RunRequest
 from openbinding_gateway.routes import studies as study_routes
-from openbinding_gateway.routes import v1
 
 
 async def _queued_run(api_client, registration, monkeypatch, seeds, code="concurrency_limit_exceeded"):
@@ -47,8 +51,7 @@ async def _queued_run(api_client, registration, monkeypatch, seeds, code="concur
 async def _actors(db_session):
     user = (await db_session.execute(select(User))).scalars().one()
     organization = (await db_session.execute(select(Organization).where(Organization.slug == "lab"))).scalars().one()
-    project = (await db_session.execute(select(Project).where(Project.slug == "routing"))).scalars().one()
-    return user, organization, project
+    return user, organization
 
 
 async def _jobs_of(db_session, cell_id) -> int:
@@ -64,7 +67,7 @@ def dispatched(monkeypatch):
         async def dispatch(job_id, request_session=None):
             seen.append((job_id, session.in_transaction()))
 
-        monkeypatch.setattr(v1, "dispatch_persisted_job", dispatch)
+        monkeypatch.setattr(study_jobs, "dispatch_persisted_job", dispatch)
         return seen
 
     return install
@@ -74,23 +77,23 @@ async def test_launch_links_the_cell_in_one_transaction_and_dispatches_after_the
     api_client, db_session, registration, monkeypatch, dispatched
 ) -> None:
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
-    user, organization, project = await _actors(db_session)
+    user, organization = await _actors(db_session)
     (cell,) = await _cells(db_session, run_id)
     seen = dispatched(db_session)
 
-    job = await study_jobs.launch_study_cell(db_session, cell, user, organization, project.id)
+    job = await study_jobs.launch_study_cell(db_session, cell, user, organization)
 
     # Written by the job's own INSERT, nothing committed and nothing queued yet.
     assert job.study_cell_id == cell.id
     assert cell.job_id == job.id
-    assert job.project_id == project.id
+    assert job.organization_id == organization.id
     assert seen == []
-    assert v1.pending_launches(db_session) == [job.id]
+    assert job_submission.pending_launches(db_session) == [job.id]
 
     await study_jobs.commit_launched(db_session)
 
     assert seen == [(str(job.id), False)]
-    assert v1.pending_launches(db_session) == []
+    assert job_submission.pending_launches(db_session) == []
     assert await _jobs_of(db_session, cell.id) == 1
 
 
@@ -98,40 +101,40 @@ async def test_a_second_launch_of_the_same_cell_returns_the_first_job(
     api_client, db_session, registration, monkeypatch, dispatched
 ) -> None:
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
-    user, organization, project = await _actors(db_session)
+    user, organization = await _actors(db_session)
     # About the cell's unique index, which a second launch must reach: it needs a plan that allows a
     # second job in flight (the default one allows one and that limit now applies).
     space_client.get_gate().plans[user.id] = roomy_plan()
     (cell,) = await _cells(db_session, run_id)
     seen = dispatched(db_session)
-    payloads: list[dict] = []
-    real_request = study_jobs._job_request
+    requests: list[RunRequest] = []
 
-    def spy(payload, key=None):
-        payloads.append(payload)
-        return real_request(payload, key)
+    class Spy(job_submission.JobSubmission):
+        async def submit(self, request):
+            requests.append(request)
+            return await super().submit(request)
 
-    monkeypatch.setattr(study_jobs, "_job_request", spy)
+    monkeypatch.setattr(study_jobs, "JobSubmission", Spy)
 
-    first = await study_jobs.launch_study_cell(db_session, cell, user, organization, project.id)
+    first = await study_jobs.launch_study_cell(db_session, cell, user, organization)
     await study_jobs.commit_launched(db_session)
 
     # A launch that did not see the first one (no key to replay by) loses the cell's unique index.
-    again = study_jobs._response_payload(
-        await v1._create_job_core(
-            real_request(payloads[0]), user, db_session, commit=False, dispatch=False, study_cell_id=cell.id
+    again = (
+        await job_submission.JobSubmission(db_session, user, commit=False, study_cell_id=cell.id).submit(
+            dataclasses.replace(requests[0], idempotency_key=None)
         )
-    )
+    ).body
     # And a plain launch of a cell that already has a job is a replay.
     cell.job_id = None
     await db_session.flush()
-    replay = await study_jobs.launch_study_cell(db_session, cell, user, organization, project.id)
+    replay = await study_jobs.launch_study_cell(db_session, cell, user, organization)
 
     assert again["id"] == str(first.id)
     assert again["idempotent"] is True
     assert replay.id == first.id
     assert await _jobs_of(db_session, cell.id) == 1
-    assert v1.pending_launches(db_session) == []
+    assert job_submission.pending_launches(db_session) == []
     assert [job_id for job_id, _ in seen] == [str(first.id)]
 
 
@@ -139,19 +142,19 @@ async def test_a_retry_launch_after_detaching_the_old_job_creates_a_new_one(
     api_client, db_session, registration, monkeypatch, dispatched
 ) -> None:
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
-    user, organization, project = await _actors(db_session)
+    user, organization = await _actors(db_session)
     # The detached first job is still in flight, so the new launch needs a plan that allows a second
     # one (the default plan allows one and that limit now applies).
     space_client.get_gate().plans[user.id] = roomy_plan()
     (cell,) = await _cells(db_session, run_id)
     dispatched(db_session)
 
-    first = await study_jobs.launch_study_cell(db_session, cell, user, organization, project.id)
+    first = await study_jobs.launch_study_cell(db_session, cell, user, organization)
     await study_jobs.commit_launched(db_session)
     first.study_cell_id = None  # what retry_study_cell does to the superseded job
     cell.job_id = None
     await db_session.flush()
-    second = await study_jobs.launch_study_cell(db_session, cell, user, organization, project.id)
+    second = await study_jobs.launch_study_cell(db_session, cell, user, organization)
     await study_jobs.commit_launched(db_session)
 
     assert second.id != first.id
@@ -164,7 +167,7 @@ async def test_a_failed_flush_after_the_job_is_created_leaves_no_job(
     api_client, db_session, registration, monkeypatch, dispatched
 ) -> None:
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
-    user, organization, project = await _actors(db_session)
+    user, organization = await _actors(db_session)
     (cell,) = await _cells(db_session, run_id)
     cell_id = cell.id
     seen = dispatched(db_session)
@@ -179,21 +182,21 @@ async def test_a_failed_flush_after_the_job_is_created_leaves_no_job(
     monkeypatch.setattr(AsyncSession, "flush", flush)
 
     with pytest.raises(RuntimeError, match="flush failed"):
-        await study_jobs.launch_study_cell(db_session, cell, user, organization, project.id)
+        await study_jobs.launch_study_cell(db_session, cell, user, organization)
 
     monkeypatch.setattr(AsyncSession, "flush", real_flush)
     assert await db_session.scalar(select(func.count()).select_from(Job)) == 0
     assert await db_session.scalar(select(StudyCell.job_id).where(StudyCell.id == cell_id)) is None
-    assert v1.pending_launches(db_session) == []
+    assert job_submission.pending_launches(db_session) == []
     assert seen == []
 
 
-@pytest.mark.parametrize("failing", ["commit", "persist_snapshot", "job_flush"])
+@pytest.mark.parametrize("failing", ["commit", "job_flush"])
 async def test_a_failure_between_the_limit_check_and_the_commit_leaves_no_job(
     api_client, db_session, registration, monkeypatch, failing
 ) -> None:
     headers = await _login(api_client, registration())
-    snapshot = await _snapshot(api_client, headers)
+    revision = await _revision(api_client, headers)
     user = (await db_session.execute(select(User))).scalars().one()
     real_flush = AsyncSession.flush
 
@@ -205,21 +208,22 @@ async def test_a_failure_between_the_limit_check_and_the_commit_leaves_no_job(
             raise RuntimeError("flush failed")
         return await real_flush(self, *args, **kwargs)
 
-    async def persist(*args, **kwargs):
-        raise RuntimeError("snapshot failed")
-
     patches = {
         "commit": (AsyncSession, "commit", commit),
         "job_flush": (AsyncSession, "flush", flush),
-        "persist_snapshot": (v1, "persist_snapshot", persist),
     }
     target, name, replacement = patches[failing]
-    request = study_jobs._job_request(_body(snapshot))
+    organization_id = await db_session.scalar(
+        select(BindingCase.organization_id)
+        .join(BindingCaseRevision, BindingCaseRevision.binding_case_id == BindingCase.id)
+        .where(BindingCaseRevision.id == uuid.UUID(revision))
+    )
+    request = RunRequest.from_document(organization_id, _body(revision))
 
     with monkeypatch.context() as patch:
         patch.setattr(target, name, replacement)
         with pytest.raises(RuntimeError, match="failed"):
-            await v1.create_job(request, caller=user, session=db_session)
+            await job_submission.JobSubmission(db_session, user).submit(request)
 
     await db_session.rollback()
     assert await db_session.scalar(select(func.count()).select_from(Job)) == 0
@@ -232,6 +236,7 @@ async def test_a_retry_whose_dispatch_fails_keeps_its_committed_job(
     original = Job(
         owner_id=user_id, engine_id="random-search", engine_job_id="failed", service_url="http://engine",
         state=JobState.FAILED, original_request={}, options={}, provenance={},
+        **await compiled_run_refs(db_session, user_id),
     )
     db_session.add(original)
     await db_session.flush()
@@ -239,19 +244,20 @@ async def test_a_retry_whose_dispatch_fails_keeps_its_committed_job(
     async def broken(*args, **kwargs):
         raise RuntimeError("broker down")
 
-    monkeypatch.setattr(job_routes, "dispatch_persisted_job", broken)
+    monkeypatch.setattr(runs_routes, "dispatch_persisted_job", broken)
     with pytest.raises(RuntimeError, match="broker down"):
-        await api_client.post(f"/v1/jobs/{original.id}/retry", headers=headers)
+        await api_client.post(run_url(original, "/retry"), headers=headers)
 
     retries = await db_session.scalar(select(func.count(Job.id)).where(Job.retry_of_id == original.id))
     assert retries == 1
 
 
-async def _attach_job(db_session, cell, user, organization, project, state=JobState.QUEUED) -> Job:
+async def _attach_job(db_session, cell, user, organization, state=JobState.QUEUED) -> Job:
     job = Job(
         owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
         state=state, original_request={}, options={}, provenance={}, result={"termination": "FEASIBLE", "solutions": []},
-        organization_id=organization.id, project_id=project.id, study_cell_id=cell.id,
+        organization_id=organization.id, study_cell_id=cell.id,
+        revision_id=cell.binding_case_revision_id, compilation_id=uuid.uuid4(),
     )
     db_session.add(job)
     await db_session.flush()
@@ -278,9 +284,9 @@ async def test_cancelling_a_run_respects_the_state_of_each_job(
     api_client, db_session, registration, monkeypatch, behind_its_back, state, cancellation
 ) -> None:
     headers, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
-    user, organization, project = await _actors(db_session)
+    user, organization = await _actors(db_session)
     (cell,) = await _cells(db_session, run_id)
-    job = await _attach_job(db_session, cell, user, organization, project)
+    job = await _attach_job(db_session, cell, user, organization)
     if behind_its_back is not None:
         # A worker moved the job on; this session still holds it as queued.
         await db_session.execute(
@@ -300,11 +306,11 @@ async def test_cancelling_a_queued_cell_job_through_the_job_route_cancels_its_ce
     api_client, db_session, registration, monkeypatch
 ) -> None:
     headers, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
-    user, organization, project = await _actors(db_session)
+    user, organization = await _actors(db_session)
     (cell,) = await _cells(db_session, run_id)
-    job = await _attach_job(db_session, cell, user, organization, project)
+    job = await _attach_job(db_session, cell, user, organization)
 
-    cancelled = await api_client.post(f"/v1/jobs/{job.id}/cancel", headers=headers)
+    cancelled = await api_client.post(run_url(job, "/cancel"), headers=headers)
 
     assert cancelled.status_code == 200, cancelled.text
     assert cancelled.json()["status"] == "cancelled"
@@ -315,21 +321,22 @@ async def test_cancelling_a_queued_cell_job_through_the_job_route_cancels_its_ce
 async def _launched_run(api_client, db_session, registration, monkeypatch, code):
     """Three cells: the first has a finished job, the others wait. Returns what a sync needs."""
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1, 2, 3])
-    user, organization, project = await _actors(db_session)
+    user, organization = await _actors(db_session)
     first, second, third = await _cells(db_session, run_id)
-    done = await _attach_job(db_session, first, user, organization, project, JobState.COMPLETED)
+    done = await _attach_job(db_session, first, user, organization, JobState.COMPLETED)
     first.state = RunState.RUNNING
     await db_session.flush()
     calls: list[int] = []
 
-    async def launch(session, cell, user_, organization_, project_id):
+    async def launch(session, cell, user_, organization_):
         calls.append(cell.ordinal)
         if cell.ordinal == second.ordinal:
             raise study_jobs.StudyLaunchError(code, "refused")
         job = Job(
             owner_id=user_.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
             service_url="http://engine", state=JobState.QUEUED, study_cell_id=cell.id,
-            organization_id=organization_.id, project_id=project_id,
+            organization_id=organization_.id,
+            revision_id=cell.binding_case_revision_id, compilation_id=uuid.uuid4(),
         )
         session.add(job)
         await session.flush()

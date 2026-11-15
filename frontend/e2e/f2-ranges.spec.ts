@@ -7,17 +7,13 @@ import { REGISTRATION, detailOf } from '../src/test/fixtures/jobs';
 // F2 · ranges of candidate features, from the problems to the engines.
 // A feature of a candidate is a number or a range { min, max } whose ends are numbers or null (no limit). This walks it through the
 // screens that read it (the Overview and the Versions tab of a problem page) and decide on it
-// (the engine step of a run, a run the engine refused, the workbench, a run that failed for ranges). Snapshot pages are covered by their unit tests. The API origin is the shared mock of the QA gallery with a few answers of
+// (the engine step of a run, a run the engine refused, the workbench's check result, a run that failed for ranges). The Source tab is covered by its unit tests. The API origin is the shared mock of the QA gallery with a few answers of
 // its own on top. Unlike the other specs, the pictures are always taken (test-results/, ignored by git): they are the evidence of F2.
 
-// The first screens are slow to open under load (the problem page reads the case and then its compiled snapshot), so a wait is generous.
+// The first screens are slow to open under load (the problem page reads the problem and then its compilation), so a wait is generous.
 const expect = baseExpect.configure({ timeout: 20_000 });
 
-const ME_ID = '00000000-0000-4000-8000-000000000005';
-const S1 = '00000000-0000-4000-8000-0000000000e0';
-const S2 = '00000000-0000-4000-8000-0000000000e1';
-
-const ROOT = '/app/isa-demo/qos-benchmarks';
+const PROBLEMS = '/app/isa-demo/problems';
 
 function watchCriticalErrors(page: Page) {
   const critical: string[] = [];
@@ -42,23 +38,21 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
   expect(overflow, `${name} should not scroll sideways`).toBeLessThanOrEqual(1);
 }
 
-/** Answers `GET` of a snapshot with a compiled form in which some qualities were edited: the same revision, one step later. */
-function snapshotWith(pay: number, edit: (candidates: Record<string, { features: Record<string, unknown> }>) => void, id: string) {
+/** The IR of a version's compilation, with some qualities edited: version 2 is version 1 one step later. */
+function irWith(pay: number, edit: (candidates: Record<string, { features: Record<string, unknown> }>) => void) {
   const document = irDocument(pay) as { spec: { candidates: { providers: { candidates: Record<string, { features: Record<string, unknown> }> } } } };
   edit(document.spec.candidates.providers.candidates);
-  return {
-    id, ownerId: ME_ID, instanceDigest: digestOf('a'), packageDigest: digestOf('b'), archiveSize: 48_213, createdAt: '2026-08-20T10:05:00Z',
-    ir: { id: `ir-${id}`, digest: digestOf('c'), document, sourceMap: null, compilerVersion: '1.0.0', createdAt: '2026-08-20T10:05:00Z' },
-  };
+  return document;
 }
 
-async function answerSnapshots(page: Page) {
-  const reply = (id: string, pay: number, edit: Parameters<typeof snapshotWith>[1]) => page.route(new RegExp(`/v1/snapshots/${id}$`), (route) => route.fulfill({
-    status: 200, json: snapshotWith(pay, edit, id),
-  }));
-  await reply(S1, 5, () => undefined);
+async function answerCompilations(page: Page) {
+  const reply = (revision: number, pay: number, edit: Parameters<typeof irWith>[1]) => page.route(
+    new RegExp(`/v1/organizations/isa-demo/problems/checkout-flow/revisions/${revision}/compilations/[^/]+/ir$`),
+    (route) => route.fulfill({ status: 200, json: { id: `compilation-${revision}`, ir_digest: digestOf('c'), ir: irWith(pay, edit), source_map: {} } }),
+  );
+  await reply(1, 5, () => undefined);
   // One step later: a number became an open range, a range moved, and an open range became a number.
-  await reply(S2, 8, (candidates) => {
+  await reply(2, 8, (candidates) => {
     candidates['authenticate-1'].features.latency = { min: null, max: 60 };
     candidates['authenticate-2'].features.cost = { min: 0.02, max: 0.05 };
     candidates['authenticate-3'].features.latency = 90;
@@ -82,10 +76,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test('case-detail · bars for ranges on the Overview and what changed between two versions on the Versions tab', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await installMockApi(page, 'admin');
-      await answerSnapshots(page);
+      await answerCompilations(page);
       const main = page.locator('#platform-main');
 
-      await page.goto(`${ROOT}/problems/checkout-flow?version=2`);
+      await page.goto(`${PROBLEMS}/checkout-flow?version=2`);
       const providers = main.getByRole('region', { name: 'Candidates' });
       await expect(providers.getByRole('table')).toBeVisible();
       await expect(providers.getByRole('row', { name: /auth-1/ })).toContainText('≤ 60 ms');
@@ -104,7 +98,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         return;
       }
 
-      await page.goto(`${ROOT}/problems/checkout-flow/versions?from=1&to=2`);
+      await page.goto(`${PROBLEMS}/checkout-flow/versions?from=1&to=2`);
       const row = (what: RegExp) => main.getByRole('row', { name: what });
       await expect(row(/authenticate-1 · latency \(now a range\)/)).toContainText('40 ms');
       await expect(row(/authenticate-1 · latency \(now a range\)/)).toContainText('≤ 60 ms');
@@ -123,24 +117,26 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const pointer = '/spec/candidates/providers/candidates/authenticate-3/features/latency';
       const refusal = [{ code: 'unsupported_capability_value', message: 'featureValues interval is not declared by this mode', pointer }];
 
-      await page.route(`${API}/v1/validate`, (route) => route.fulfill({
+      await answerCompilations(page);
+      await page.route(/\/v1\/organizations\/isa-demo\/problems\/checkout-flow\/revisions\/2\/compilation$/, (route) => route.fulfill({
         status: 200,
         json: {
-          valid: true, instanceDigest: digestOf('a'), packageDigest: digestOf('b'), irDigest: digestOf('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],
+          id: 'compilation-2', revision_id: 'rev-checkout-2', compilation_digest: digestOf('9'), compiler_digest: digestOf('8'), ir_digest: digestOf('c'),
+          binding_space: '125892', created_at: '2026-08-20T10:05:00Z', current: true, toolchain: {}, resources: {},
           analysis: { tasks: 6, candidates: 24, constraints: 2, placement: false, bindingSpace: '125892' },
-          compatibleModes: [
+          compatible_modes: [
             { engine: PUBLIC_ENGINES[0].ref, registration: REGISTRATION, mode: 'sampling', compatible: false, diagnostics: refusal },
             { engine: PUBLIC_ENGINES[2].ref, registration: { ...REGISTRATION, name: 'minizinc-deployment' }, mode: 'cp', compatible: true },
           ],
         },
       }));
       // The engine that was left on is refused anyway at the gateway (as if its manifest said interval and the problem said otherwise).
-      await page.route(/\/v1\/jobs$/, (route) => (route.request().method() === 'POST'
+      await page.route(/\/v1\/organizations\/isa-demo\/runs$/, (route) => (route.request().method() === 'POST'
         ? route.fulfill({ status: 422, json: failureBody(422, 'unsupported_capability_value', 'featureValues interval is not declared by this mode', { diagnostics: refusal }) })
         : route.fallback()));
       const main = page.locator('#platform-main');
 
-      await page.goto(`${ROOT}/runs/new?case=checkout-flow&revision=2`);
+      await page.goto('/app/isa-demo/runs/new?problem=checkout-flow&revision=2');
       await main.getByRole('button', { name: 'Continue' }).click();
       const engines = main.getByRole('radiogroup', { name: 'Engine' });
       const off = engines.getByRole('radio', { name: /^random-search/ });
@@ -178,7 +174,7 @@ test.describe('desktop · F2 ranges in the workbench and in a failed run', () =>
     const critical = watchCriticalErrors(page);
     await installMockApi(page, 'admin');
     const refusal = [{ code: 'unsupported_capability_value', message: 'featureValues interval is not declared by this mode', pointer: '/spec/candidates/service-a/features/latency' }];
-    await page.route(`${API}/v1/validate`, (route) => route.fulfill({
+    await page.route(`${API}/v1/bim/validate`, (route) => route.fulfill({
       status: 200,
       json: {
         valid: true, instanceDigest: digestOf('a'), packageDigest: digestOf('b'), irDigest: digestOf('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],
@@ -191,7 +187,7 @@ test.describe('desktop · F2 ranges in the workbench and in a failed run', () =>
     }));
     const main = page.locator('#platform-main');
 
-    await page.goto(`${ROOT}/workbench`);
+    await page.goto('/app/isa-demo/workbench');
     await main.getByRole('navigation', { name: 'BIM resources' }).getByRole('button', { name: /candidates\.json/ }).click();
     await expect(main.getByLabel('service-a QoS latency')).toHaveValue('10');
     await main.getByRole('group', { name: 'latency for service-a: value or range' }).getByRole('button', { name: 'Range' }).click();
@@ -200,10 +196,14 @@ test.describe('desktop · F2 ranges in the workbench and in a failed run', () =>
     await expect(main.getByLabel('latency for service-a max', { exact: true })).toHaveValue('+∞');
 
     await main.getByRole('button', { name: 'Validate', exact: true }).click();
-    const note = main.getByRole('note').filter({ hasText: 'This package has range features' });
-    await expect(note).toContainText('1 engine mode is off.');
-    await expect(note.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-    await expect(main.getByRole('option', { name: /random-search · sampling .* can’t run ranges/ })).toHaveAttribute('disabled', '');
+    // The check result says which modes are off and why; the Workbench runs nothing itself (a saved version runs from its problem page).
+    await main.getByRole('tab', { name: /Engines that can run it/ }).click();
+    const table = main.getByRole('table', { name: 'Engine modes and whether they can run this package' });
+    const off = table.getByRole('row').filter({ hasText: 'random-search' });
+    await expect(off).toContainText('No');
+    await expect(off).toContainText('This package has range features; this engine only accepts single values');
+    await expect(table.getByRole('row').filter({ hasText: 'minizinc' })).toContainText('Yes');
+    await expect(main.getByRole('button', { name: 'Solve' })).toHaveCount(0);
     await capture(page, testInfo, 'workbench-desktop-ranges');
     expect(critical).toEqual([]);
   });
@@ -212,7 +212,7 @@ test.describe('desktop · F2 ranges in the workbench and in a failed run', () =>
     const critical = watchCriticalErrors(page);
     await installMockApi(page, 'admin');
     const pointer = '/spec/candidates/providers/candidates/authenticate-3/features/latency';
-    await page.route(/\/v1\/jobs\/job-range-failed$/, (route) => route.fulfill({
+    await page.route(/\/v1\/organizations\/isa-demo\/runs\/job-range-failed$/, (route) => route.fulfill({
       status: 200,
       json: detailOf('job-range-failed', 'failed', {
         result: { code: 'unsupported_capability_value', error: 'unsupported_capability_value: featureValues interval is not declared by this mode', diagnostics: [{ code: 'unsupported_capability_value', message: 'featureValues interval is not declared by this mode', pointer }] },
@@ -220,7 +220,7 @@ test.describe('desktop · F2 ranges in the workbench and in a failed run', () =>
     }));
     const main = page.locator('#platform-main');
 
-    await page.goto(`${ROOT}/runs/job-range-failed`);
+    await page.goto('/app/isa-demo/runs/job-range-failed');
     const alert = main.getByRole('alert').filter({ hasText: 'This engine only accepts single values' });
     await expect(alert).toContainText(`featureValues interval is not declared by this mode (${pointer})`);
     await expect(alert).not.toContainText('Nothing was started.');

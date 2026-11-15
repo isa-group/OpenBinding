@@ -1,39 +1,27 @@
 import { Fragment, type ReactNode } from 'react';
 import { Lock } from 'lucide-react';
-import type { Organization, Project } from '../../api/platform';
-import { ProjectTabs } from '../../components/PlatformShell/ProjectTabs';
+import type { Organization } from '../../api/platform';
 import { useCopy } from '../../components/ui/useCopy';
-import { Breadcrumb, Gate, type Crumb } from '../Organization/parts';
+import { Gate, type Crumb } from '../Organization/parts';
+import { OrgFrame } from '../../features/workspace/OrgFrame';
 import { describeFlow, type FlowNode, type TaskInfo } from './bindingModel';
-import '../Project/Project.css';
+import '../../features/workspace/kit.css';
 import './Cases.css';
 
 interface CaseFrameProps {
   organization: Organization;
-  project: Project;
-  /** The crumbs below the project: `Cases`, the case, the screen. The last one is where you are. */
+  /** The crumbs below the organization: `Problems`, the problem, the screen. The last one is where you are. */
   trail: Crumb[];
   width?: 'md' | 'lg' | 'wide';
   children: ReactNode;
 }
 
-/** The frame of every screen of the cases: breadcrumb, project tabs and one live content column. */
-export function CaseFrame({ organization, project, trail, width = 'wide', children }: CaseFrameProps) {
-  const root = `/app/${organization.slug}/${project.slug}`;
-  const items: Crumb[] = [
-    { label: 'Home', to: '/app' },
-    { label: organization.name, to: `/app/${organization.slug}` },
-    { label: project.name, to: root },
-    ...trail,
-  ];
+/** The frame of every screen of the problems of an organization: breadcrumb and one live content column. */
+export function CaseFrame({ organization, trail, width = 'wide', children }: CaseFrameProps) {
   return (
-    <div className="proj-frame">
-      <div className="proj-band">
-        <div className="proj-band-inner"><Breadcrumb items={items} /></div>
-      </div>
-      <ProjectTabs active="cases" orgSlug={organization.slug} projectSlug={project.slug} access={project.access} />
-      <div className={`proj-body is-${width}`} aria-live="polite">{children}</div>
-    </div>
+    <OrgFrame organization={organization} trail={trail} width={width}>
+      {children}
+    </OrgFrame>
   );
 }
 

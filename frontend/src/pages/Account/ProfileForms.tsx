@@ -196,10 +196,6 @@ function deletionRefusal(code: string | undefined, fallback: string): string {
   switch (code) {
     case 'last_owner':
       return 'You’re the last owner of an organization (409 · last_owner). Make someone else an owner, or delete the organization, first.';
-    case 'organization_owner_required':
-      return 'Some of your shared work belongs to an organization with no other owner (409 · organization_owner_required). Make someone else an owner first.';
-    case 'sponsor_transfer_required':
-      return 'You sponsor an organization that has no other owner to take over (409 · sponsor_transfer_required). Make another member an owner so the sponsorship can move to them, or delete the organization, first.';
     case 'last_pricing_admin':
       return 'You’re the last pricing administrator (409 · last_pricing_admin). Another admin must exist before this account can go.';
     default:

@@ -16,6 +16,7 @@ from _pricing import caps_for, fake_pricing_gate, largest_plan, pricing_catalog
 from openbinding_gateway import space_client
 from openbinding_gateway.access import policy
 from openbinding_gateway.core.public_errors import PRICING_UNAVAILABLE
+from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.models.errors import api_error
 from openbinding_gateway.services.entitlements import (
     UPLOAD_CEILING_BYTES,
@@ -132,8 +133,8 @@ def test_the_dependency_hands_out_the_shared_service():
 
 
 def test_a_granted_feature_passes():
-    assert entitlement_service.feature_refusal(caps_for(DEFAULT_PLAN), "solve") is None
-    entitlement_service.require_feature(caps_for(DEFAULT_PLAN), "solve")
+    assert entitlement_service.feature_refusal(caps_for(DEFAULT_PLAN), "runs") is None
+    entitlement_service.require_feature(caps_for(DEFAULT_PLAN), "runs")
 
 
 def test_a_denied_feature_is_the_stable_403():
@@ -163,78 +164,31 @@ def test_a_denied_feature_can_carry_the_callers_wording():
 
 def test_ceilings_and_clamps_are_the_policys():
     caps = caps_for(DEFAULT_PLAN)
-    over = {"time_budget_ms": int(caps.limit("maxTimeoutSeconds")) * 1000 + 1, "iterations": 5}
+    over = {"time_budget_ms": int(caps.limit("maxRunMinutes")) * 60_000 + 1, "iterations": 5}
 
     assert entitlement_service.clamp_options(over, caps) == policy.clamp_options(over, caps)
-    assert entitlement_service.payload_ceiling(caps, 1 << 40) == policy.payload_ceiling_bytes(caps, 1 << 40)
+    assert entitlement_service.payload_ceiling(1 << 40) == policy.payload_ceiling_bytes(1 << 40)
     assert entitlement_service.solve_timeout(caps, 1e9) == policy.solve_timeout_s(caps, 1e9)
-    assert entitlement_service.complexity_too_large(1e9, caps) is policy.instance_complexity_too_large(1e9, caps)
-    assert entitlement_service.complexity_too_large(None, caps) is False
 
 
-def test_a_plan_above_the_technical_ceiling_is_the_pricing_misconfigured_503():
-    caps = caps_for(DEFAULT_PLAN)
-
+def test_a_plan_without_run_minutes_is_the_pricing_misconfigured_503():
     with pytest.raises(HTTPException) as raised:
-        entitlement_service.payload_ceiling(caps, 1)
+        entitlement_service.solve_timeout(space_client.PlanCaps(plan="X"), 1800.0)
 
     assert raised.value.status_code == 503
     assert detail_of(raised.value)["code"] == policy.PRICING_MISCONFIGURED
 
 
-async def test_the_upload_limit_is_the_plan_capped_by_the_platform(gate):
-    small, large = uuid.uuid4(), uuid.uuid4()
-    gate.plans[large] = LARGER_PLAN
-
-    assert await entitlement_service.upload_limit(small) == int(caps_for(DEFAULT_PLAN).limit("maxPayloadBytes"))
-    assert await entitlement_service.upload_limit(large) == min(
-        UPLOAD_CEILING_BYTES, int(caps_for(LARGER_PLAN).limit("maxPayloadBytes"))
-    )
+def test_the_upload_limit_is_the_package_setting_capped_by_the_platform():
+    assert entitlement_service.upload_limit() == min(UPLOAD_CEILING_BYTES, get_settings().max_package_bytes)
 
 
-async def test_the_upload_limit_fails_closed_when_pricing_is_unavailable(gate):
-    gate.unavailable = True
-
-    with pytest.raises(HTTPException) as raised:
-        await entitlement_service.upload_limit(uuid.uuid4())
-
-    assert raised.value.status_code == 503
-
-
-# -- Sponsor and storage quotas ---------------------------------------------
-
-
-async def test_sponsor_usage_within_the_contract_passes(gate):
-    allowance = int(caps_for(DEFAULT_PLAN).limit("studies"))
-
-    await entitlement_service.enforce_sponsor_usage(uuid.uuid4(), {"studies": allowance})
-
-
-async def test_sponsor_usage_above_the_contract_is_the_stable_402(gate):
-    allowance = int(caps_for(DEFAULT_PLAN).limit("studies"))
-
-    with pytest.raises(HTTPException) as raised:
-        await entitlement_service.enforce_sponsor_usage(uuid.uuid4(), {"studies": allowance + 1})
-
-    assert raised.value.status_code == 402
-    assert detail_of(raised.value) == {
-        "code": "sponsor_quota_exceeded",
-        "error": f"The sponsor contract allows {allowance} studies; this operation would exceed it.",
-        "quota": {"limit_id": "studies", "limit": allowance, "used": allowance + 1},
-    }
-
-
-async def test_sponsor_usage_with_unreadable_pricing_is_the_503(gate):
-    gate.unavailable = True
-
-    with pytest.raises(HTTPException) as raised:
-        await entitlement_service.enforce_sponsor_usage(uuid.uuid4(), {"studies": 0})
-
-    assert raised.value.status_code == 503
+# -- The storage quota (maxRepositoryStorage, MB = 10**6 bytes) ---------------
 
 
 async def test_storage_quota_counts_the_incoming_bytes_but_reports_what_is_stored(gate):
-    limit = int(caps_for(DEFAULT_PLAN).limit("storageBytes"))
+    megabytes = caps_for(DEFAULT_PLAN).limit("maxRepositoryStorage")
+    limit = int(megabytes * 10**6)
 
     async def stored() -> int:
         return limit - 10
@@ -245,22 +199,37 @@ async def test_storage_quota_counts_the_incoming_bytes_but_reports_what_is_store
 
     assert raised.value.status_code == 402
     assert detail_of(raised.value) == {
-        "code": "storage_quota_exceeded",
-        "error": "The sponsor storage allowance would be exceeded.",
-        "quota": {"limit_id": "storageBytes", "limit": limit, "used": limit - 10},
+        "code": "quota_exceeded",
+        "error": f"Your plan allows {megabytes:g} MB of stored problems; this upload would exceed it.",
+        "quota": {
+            "limit_id": "maxRepositoryStorage", "limit": megabytes, "used": round((limit - 10) / 10**6, 6),
+            "unit": "MB", "source": "plan", "used_bytes": limit - 10, "incoming_bytes": 11,
+        },
     }
 
 
 async def test_storage_is_not_measured_when_the_plan_is_unlimited():
     class Unbounded:
         async def caps(self, user_id):
-            return space_client.PlanCaps(plan="X", features={}, limits={"storageBytes": float("inf")})
+            return space_client.PlanCaps(plan="X", features={}, limits={"maxRepositoryStorage": float("inf")})
 
     async def stored() -> int:
         raise AssertionError("an unlimited plan must not pay for the storage query")
 
     service = EntitlementService(lambda: Unbounded())
     await service.enforce_storage_quota(uuid.uuid4(), 1 << 40, stored)
+
+
+async def test_storage_with_unreadable_pricing_is_the_503(gate):
+    gate.unavailable = True
+
+    async def stored() -> int:
+        return 0
+
+    with pytest.raises(HTTPException) as raised:
+        await entitlement_service.enforce_storage_quota(uuid.uuid4(), 1, stored)
+
+    assert raised.value.status_code == 503
 
 
 # -- The migrated routes answer what they always did ------------------------
@@ -293,12 +262,11 @@ async def test_the_profile_and_usage_routes_report_the_service_caps(api_client, 
     }
 
 
-@pytest.mark.parametrize("path", ["/v1/users/me", "/v1/users/me/usage"])
-async def test_the_account_routes_keep_their_503_wording(api_client, registration, gate, path, caplog):
+async def test_the_usage_route_keeps_its_503_wording(api_client, registration, gate, caplog):
     _, headers = await register(api_client, registration)
     gate.unavailable = True
 
-    response = await api_client.get(path, headers=headers)
+    response = await api_client.get("/v1/users/me/usage", headers=headers)
 
     assert response.status_code == 503
     assert response.json()["detail"] == {
@@ -307,6 +275,17 @@ async def test_the_account_routes_keep_their_503_wording(api_client, registratio
     }
     assert REASON not in response.text
     assert REASON in caplog.text
+
+
+async def test_the_profile_answers_while_pricing_is_unavailable(api_client, registration, gate):
+    profile, headers = await register(api_client, registration)
+    gate.unavailable = True
+
+    me = await api_client.get("/v1/users/me", headers=headers)
+
+    assert me.status_code == 200, me.text
+    assert me.json()["id"] == profile["id"]
+    assert me.json()["plan"] == DEFAULT_PLAN  # the plan recorded at registration, read from the database
 
 
 async def test_a_route_503_equals_what_the_inline_translation_produced(gate):

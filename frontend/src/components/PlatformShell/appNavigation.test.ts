@@ -1,20 +1,16 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import type { Organization, Project } from '../../api/platform';
-import { movedRoutes, routeDefinitions } from '../../routes/registry';
+import type { Organization } from '../../api/platform';
+import { routeDefinitions } from '../../routes/registry';
 import {
-  accountLinks, createItems, currentSection, labEntries, labEntryOf, labLinks, mainLinks, NEEDS_PROJECT, problemsEntry,
+  accountLinks, createItems, currentSection, mainLinks, NEEDS_ORGANIZATION, organizationEntries, organizationSectionOf,
   type MenuEntry,
 } from './appNavigation';
 
 const organization = { slug: 'isa-demo', name: 'ISA demo' } as Organization;
-const project = { slug: 'qos', name: 'QoS' } as Project;
 
-/** The screens, and the old addresses that stay valid on purpose (`permanent`): a link of the navigation may lead to either. */
-const routed = [
-  ...routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path })),
-  ...movedRoutes.filter((route) => route.permanent).map((route) => ({ id: route.id, path: route.path })),
-];
+/** The screens: a link of the navigation leads to one of them. */
+const routed = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
 const pathOf = (address: string) => address.split(/[?#]/)[0];
 const addressesOf = (entries: readonly MenuEntry[]) => entries.flatMap((entry) => (entry.to ? [entry.to] : []));
 
@@ -30,62 +26,57 @@ describe('mainLinks', () => {
     }
   });
 
-  it('offers no entry of the header, Lab, New or account menus that leads to a report, library or resources address', () => {
+  it('offers no entry of the header, New or account menus that leads to a report, library, resources or project address', () => {
     const addresses = [
       ...Object.values(mainLinks).map((link) => link.to),
-      ...addressesOf([problemsEntry(organization, project)]),
-      ...addressesOf(labEntries(organization, project)),
-      ...addressesOf(createItems(organization, project)),
+      ...addressesOf(organizationEntries(organization)),
+      ...addressesOf(createItems(organization)),
       ...accountLinks.map((link) => link.to),
     ];
     expect(addresses.length).toBeGreaterThan(13);
     expect(addresses.filter((address) => /\/(reports|library|resources)([/?#]|$)/.test(address))).toEqual([]);
+    for (const address of addresses) expect(address).not.toMatch(/project/);
   });
 });
 
-describe('problemsEntry and labEntries', () => {
-  it('lead into the current project, and Runs does not need one', () => {
-    expect(problemsEntry(organization, project)).toEqual({ label: 'Problems', to: '/app/isa-demo/qos/problems' });
-    expect(labEntries(organization, project).map(({ id, label, to }) => [id, label, to])).toEqual([
-      ['runs', 'Runs', '/app/runs'], ['studies', 'Studies', '/app/isa-demo/qos/studies'],
+describe('organizationEntries', () => {
+  it('lead into the organization (problems, runs, studies), in this order', () => {
+    expect(organizationEntries(organization).map(({ id, label, to }) => [id, label, to])).toEqual([
+      ['problems', 'Problems', '/app/isa-demo/problems'], ['runs', 'Runs', '/app/isa-demo/runs'], ['studies', 'Studies', '/app/isa-demo/studies'],
     ]);
-    for (const address of [...addressesOf([problemsEntry(organization, project)]), ...addressesOf(labEntries(organization, project))]) {
+    for (const address of addressesOf(organizationEntries(organization))) {
       expect(matchRoutes(routed, address), address).not.toBeNull();
     }
   });
 
-  it('disables Problems and Studies with the hint "Needs a project" without a current project', () => {
-    expect(NEEDS_PROJECT).toBe('Needs a project');
-    expect(problemsEntry(organization)).toEqual({ label: 'Problems', hint: 'Needs a project' });
-    expect(problemsEntry()).toEqual({ label: 'Problems', hint: 'Needs a project' });
-    expect(labEntries(organization).map(({ label, to, hint }) => [label, to, hint])).toEqual([
-      ['Runs', labLinks.runs.to, undefined], ['Studies', undefined, 'Needs a project'],
+  it('disables Problems, Runs and Studies without an organization', () => {
+    expect(NEEDS_ORGANIZATION).toBe('Needs an organization');
+    expect(organizationEntries().map(({ label, to, hint }) => [label, to, hint])).toEqual([
+      ['Problems', undefined, 'Needs an organization'], ['Runs', undefined, 'Needs an organization'], ['Studies', undefined, 'Needs an organization'],
     ]);
   });
 });
 
 describe('createItems', () => {
-  it('offers Problem, Study and Run in the current project, in this order', () => {
-    expect(createItems(organization, project).map((item) => [item.label, item.to])).toEqual([
-      ['Problem', '/app/isa-demo/qos/problems?create=problem'],
-      ['Study', '/app/isa-demo/qos/studies/new'],
-      ['Run', '/app/isa-demo/qos/runs/new'],
+  it('offers Problem, Study and Run in the organization, in this order', () => {
+    expect(createItems(organization).map((item) => [item.label, item.to])).toEqual([
+      ['Problem', '/app/isa-demo/problems?create=problem'],
+      ['Study', '/app/isa-demo/studies/new'],
+      ['Run', '/app/isa-demo/runs/new'],
     ]);
-    for (const address of addressesOf(createItems(organization, project))) {
+    for (const address of addressesOf(createItems(organization))) {
       expect(matchRoutes(routed, pathOf(address)), address).not.toBeNull();
     }
   });
 
-  it('disables the three items with the hint "Needs a project" when no project is current', () => {
-    for (const items of [createItems(), createItems(organization)]) {
-      expect(items.map((item) => [item.label, item.to, item.hint])).toEqual([
-        ['Problem', undefined, 'Needs a project'], ['Study', undefined, 'Needs a project'], ['Run', undefined, 'Needs a project'],
-      ]);
-    }
+  it('disables every item without an organization', () => {
+    expect(createItems().map((item) => [item.label, item.to, item.hint])).toEqual([
+      ['Problem', undefined, 'Needs an organization'], ['Study', undefined, 'Needs an organization'], ['Run', undefined, 'Needs an organization'],
+    ]);
   });
 
   it('has none of the former items', () => {
-    const labels = createItems(organization, project).map((item) => item.label);
+    const labels = createItems(organization).map((item) => item.label);
     for (const former of ['Organization', 'Project', 'Case', 'Collection', 'Job', 'API key', 'Engine']) expect(labels).not.toContain(former);
   });
 });
@@ -104,15 +95,17 @@ describe('currentSection', () => {
   it.each([
     ['/app', 'home'],
     ['/app/isa-demo', 'home'],
-    ['/app/isa-demo/qos', 'home'],
+    ['/app/isa-demo/qos', null],
     ['/app/isa-demo/settings/members', 'home'],
-    ['/app/isa-demo/qos/problems', 'problems'],
-    ['/app/isa-demo/qos/problems/routing', 'problems'],
-    ['/app/runs', 'lab'],
-    ['/app/isa-demo/qos/runs', 'lab'],
-    ['/app/isa-demo/qos/runs/new', 'lab'],
-    ['/app/isa-demo/qos/studies', 'lab'],
-    ['/app/isa-demo/qos/studies/engines-vs-seeds', 'lab'],
+    ['/app/isa-demo/problems', 'problems'],
+    ['/app/isa-demo/problems/routing', 'problems'],
+    ['/app/isa-demo/workbench', 'problems'],
+    ['/app/isa-demo/runs', 'runs'],
+    ['/app/isa-demo/runs/new', 'runs'],
+    ['/app/isa-demo/runs/job-1', 'runs'],
+    ['/app/isa-demo/studies', 'studies'],
+    ['/app/isa-demo/studies/engines-vs-seeds', 'studies'],
+    ['/app/isa-demo/qos/studies', null],
     ['/engines', 'engines'],
     ['/app/engines/registrations', 'engines'],
     ['/language', null],
@@ -138,16 +131,17 @@ describe('currentSection', () => {
     expect(currentSection(mainLinks.home.to)).toBe('home');
     expect(currentSection(mainLinks.engines.to)).toBe('engines');
     expect(currentSection(mainLinks.admin.to)).toBe('admin');
-    expect(currentSection(labLinks.runs.to)).toBe('lab');
   });
 });
 
-describe('labEntryOf', () => {
-  it('tells the entry of the Lab menu an address belongs to', () => {
-    expect(labEntryOf('/app/runs')).toBe('runs');
-    expect(labEntryOf('/app/isa-demo/qos/runs/job-1')).toBe('runs');
-    expect(labEntryOf('/app/isa-demo/qos/studies/s1')).toBe('studies');
-    expect(labEntryOf('/app/isa-demo/qos/problems')).toBeNull();
-    expect(labEntryOf('/app')).toBeNull();
+describe('organizationSectionOf', () => {
+  it('tells the organization section an address belongs to', () => {
+    expect(organizationSectionOf('/app/isa-demo/runs/job-1')).toBe('runs');
+    expect(organizationSectionOf('/app/isa-demo/qos/runs/job-1')).toBeNull();
+    expect(organizationSectionOf('/app/isa-demo/studies/s1')).toBe('studies');
+    expect(organizationSectionOf('/app/isa-demo/problems')).toBe('problems');
+    expect(organizationSectionOf('/app/isa-demo/workbench')).toBe('problems');
+    expect(organizationSectionOf('/app/engines/registrations')).toBeNull();
+    expect(organizationSectionOf('/app')).toBeNull();
   });
 });

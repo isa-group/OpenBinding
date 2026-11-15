@@ -20,14 +20,9 @@ from __future__ import annotations
 import asyncio
 import copy
 import logging
-import os
-import sqlite3
-import subprocess
-import sys
 import uuid
 from datetime import datetime, timedelta
 from itertools import product
-from pathlib import Path
 from types import SimpleNamespace
 
 import httpx
@@ -42,7 +37,7 @@ from analysis_b3_b4_b6._helpers import (
     PER_ATTEMPT_CANCELLATION,
     a_job,
     a_registration,
-    account_with_snapshot,
+    account_with_revision,
     answer,
     lose_the_worker,
     only_job,
@@ -585,9 +580,9 @@ async def test_the_three_paths_of_the_worker_cancel_only_when_the_capability_is_
         capability = CancellationCapability(declared=True, supported=True, id_scope=ATTEMPT_ID_SCOPE)
         monkeypatch.setattr(execution, "registration_cancellation", lambda _registration: capability)
     monkeypatch.setattr(execution, "solve_remote", an_engine_that_fails(db_session, scenario))
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
+    headers, revision_id = await account_with_revision(api_client, registration)
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     assert engine_http.deleted == (["engine-job-X"] if declared else [])
@@ -909,61 +904,6 @@ def test_the_engines_are_asked_to_stop_a_job_from_one_place_only():
                     callers.append(f"{path.relative_to(SOURCE).as_posix()}:{node.lineno}")
 
     assert [caller.split(":")[0] for caller in callers] == ["services/execution.py"], callers
-
-
-# -- The migration ------------------------------------------------------------------------------------------------
-
-
-PREVIOUS_REVISION = "a5b6c7d8e9f0"
-THIS_REVISION = "b6c7d8e9f0a1"
-
-
-def alembic(database: Path, *arguments: str) -> subprocess.CompletedProcess:
-    environment = {**os.environ, "DATABASE_URL": f"sqlite+aiosqlite:///{database}"}
-    return subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", "alembic.ini", *arguments],
-        cwd=ROOT, env=environment, capture_output=True, text=True, check=False,
-    )
-
-
-def run(database: Path, *arguments: str) -> str:
-    done = alembic(database, *arguments)
-    assert done.returncode == 0, done.stdout + done.stderr
-    return done.stdout
-
-
-def table_info(database: Path) -> tuple[set[str], dict[str, int]]:
-    with sqlite3.connect(database) as connection:
-        columns = {row[1] for row in connection.execute("PRAGMA table_info(job_engine_attempts)")}
-        indexes = {row[1]: row[2] for row in connection.execute("PRAGMA index_list(job_engine_attempts)")}
-    return columns, indexes
-
-
-def test_the_migration_hangs_from_the_previous_head_and_its_downgrade_drops_the_table(tmp_path):
-    database = tmp_path / "attempts.db"
-
-    heads = run(database, "heads")
-    assert heads.count("(head)") == 1
-    # Later revisions (e7f8a9b0c1d2, M9.6) hang from this one; it is pinned by id.
-    assert f"{PREVIOUS_REVISION} -> {THIS_REVISION}" in run(database, "history")
-
-    run(database, "upgrade", PREVIOUS_REVISION)
-    assert table_info(database) == (set(), {})
-
-    run(database, "upgrade", THIS_REVISION)
-    columns, indexes = table_info(database)
-    assert columns == {
-        "id", "job_id", "attempt", "engine_job_id", "endpoint", "registered_at",
-        "cancel_state", "cancel_attempts", "next_cancel_at",
-    }
-    assert indexes["uq_job_engine_attempts_job_attempt"] == 1  # unique
-    assert "ix_job_engine_attempts_cancel_due" in indexes
-
-    run(database, "downgrade", PREVIOUS_REVISION)  # drops the table and the ids and pending cancellations in it
-    assert table_info(database) == (set(), {})
-
-    run(database, "upgrade", THIS_REVISION)
-    assert table_info(database)[0]
 
 
 def test_the_defaults_of_the_cancellation_settings():

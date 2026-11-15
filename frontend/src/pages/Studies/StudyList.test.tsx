@@ -1,12 +1,12 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { org, project, renderProjectScreen } from '../Project/testKit';
+import { org, renderOrgScreen } from '../../features/workspace/testKit';
 import { cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyList } from './StudyList';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), updateStudy: vi.fn(), deleteStudy: vi.fn(),
+  studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), updateStudy: vi.fn(), deleteStudy: vi.fn(),
 }));
 const client = vi.hoisted(() => ({ getOwnUsage: vi.fn() }));
 
@@ -16,21 +16,19 @@ vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof impor
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
 const member = org('team-lab', { name: 'Team Lab', effective_role: 'MEMBER' });
-const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
-const ROOT = '/app/isa-demo/qos-benchmarks';
+const ROOT = '/app/isa-demo';
 
 const refusal = (status: number, code: string) => Object.assign(new HttpError(status, 'refused'), { code });
 
 function renderList(options: { organizations?: ReturnType<typeof org>[]; slug?: string } = {}) {
-  return renderProjectScreen(<StudyList />, {
-    path: '/app/:org/:project/studies', url: `/app/${options.slug ?? 'isa-demo'}/qos-benchmarks/studies`, organizations: options.organizations ?? [group, viewing, member],
+  return renderOrgScreen(<StudyList />, {
+    path: '/app/:org/studies', url: `/app/${options.slug ?? 'isa-demo'}/studies`, organizations: options.organizations ?? [group, viewing, member],
   });
 }
 
-describe('Studies of a project', () => {
+describe('Studies of an organization', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    platform.project.mockResolvedValue(qos);
     platform.studies.mockResolvedValue([studyFixture()]);
     platform.studyRuns.mockResolvedValue([runFixture()]);
     platform.studyCells.mockResolvedValue(cellsFixture());
@@ -41,20 +39,19 @@ describe('Studies of a project', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Studies' })).toBeInTheDocument();
     expect(screen.getByText(/A study runs every combination of problems × engines × settings × seeds/)).toBeInTheDocument();
-    const list = await screen.findByRole('list', { name: 'Studies of the project' });
+    const list = await screen.findByRole('list', { name: 'Studies of the organization' });
     expect(within(list).getByRole('link', { name: /Engines × seeds/ })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds`);
     expect(within(list).getByText('2 problem versions × 2 engines × 1 setting × 2 seeds = 8 cells')).toBeInTheDocument();
     expect(within(list).getByRole('link', { name: 'Last run #1' })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds/progress?run=00000000-0000-4000-8000-000000000101`);
     expect(within(list).getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })).toBeInTheDocument();
-    const tabs = screen.getByRole('navigation', { name: 'Project sections' });
-    expect(within(tabs).getByRole('link', { name: 'Studies' })).toHaveAttribute('aria-current', 'page');
-    expect(platform.studies).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', true);
+    expect(screen.queryByRole('navigation', { name: 'Project sections' })).not.toBeInTheDocument();
+    expect(platform.studies).toHaveBeenCalledWith('isa-demo', true);
   });
 
   it('shows no allowance meter and asks for no usage: nothing is counted per account', async () => {
     renderList();
 
-    await screen.findByRole('list', { name: 'Studies of the project' });
+    await screen.findByRole('list', { name: 'Studies of the organization' });
     expect(client.getOwnUsage).not.toHaveBeenCalled();
     expect(screen.queryByText(/study runs this month|Study definitions \(sponsor\)|renews/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/\d+ of \d+/)).not.toBeInTheDocument();
@@ -74,7 +71,7 @@ describe('Studies of a project', () => {
     renderList({ slug: 'read-lab' });
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Studies' })).toBeInTheDocument();
-    expect(await screen.findByRole('list', { name: 'Studies of the project' })).toBeInTheDocument();
+    expect(await screen.findByRole('list', { name: 'Studies of the organization' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'New study' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
@@ -89,19 +86,19 @@ describe('Studies of a project', () => {
   });
 
   it('archives a study and restores it', async () => {
-    platform.updateStudy.mockResolvedValue(studyFixture({ archived: true }));
+    platform.updateStudy.mockResolvedValue({ value: studyFixture({ archived: true }), etag: null });
     renderList();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Archive' }));
     expect(await screen.findByText('Archived: it can’t start new runs, and existing results stay.')).toBeInTheDocument();
-    expect(platform.updateStudy).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds', { archived: true });
+    expect(platform.updateStudy).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', { archived: true });
   });
 
   it('keeps archived studies out of sight until asked', async () => {
     platform.studies.mockResolvedValue([studyFixture(), studyFixture({ id: 'study-old', slug: 'old', name: 'Old study', archived: true })]);
     renderList();
 
-    const list = await screen.findByRole('list', { name: 'Studies of the project' });
+    const list = await screen.findByRole('list', { name: 'Studies of the organization' });
     expect(within(list).queryByText('Old study')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('checkbox', { name: /Show archived studies/ }));
     expect(within(list).getByText('Old study')).toBeInTheDocument();
@@ -111,7 +108,7 @@ describe('Studies of a project', () => {
 
   it('archives instead when a study with runs is deleted, because runs are history', async () => {
     platform.deleteStudy.mockRejectedValue(refusal(409, 'study_history_retained'));
-    platform.updateStudy.mockResolvedValue(studyFixture({ archived: true }));
+    platform.updateStudy.mockResolvedValue({ value: studyFixture({ archived: true }), etag: null });
     renderList();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
@@ -119,8 +116,8 @@ describe('Studies of a project', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete study' }));
 
     expect(await screen.findByText('This study has runs, so it was archived instead of deleted. Its runs and results stay intact.')).toBeInTheDocument();
-    expect(platform.deleteStudy).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds');
-    expect(platform.updateStudy).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds', { archived: true });
+    expect(platform.deleteStudy).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds');
+    expect(platform.updateStudy).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', { archived: true });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
@@ -142,13 +139,13 @@ describe('Studies of a project', () => {
     expect(await screen.findByText(/Studies couldn’t be loaded \(503 · unavailable\)/)).toBeInTheDocument();
     expect(screen.queryByText('No studies yet')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByRole('list', { name: 'Studies of the project' })).toBeInTheDocument();
+    expect(await screen.findByRole('list', { name: 'Studies of the organization' })).toBeInTheDocument();
   });
 
-  it('reads a project that is not there like one the account cannot see', async () => {
-    platform.project.mockRejectedValue(refusal(404, 'not_found'));
-    renderList();
+  it('reads an organization that is not the account’s like one that does not exist', async () => {
+    renderList({ slug: 'ghost-lab' });
 
-    expect(await screen.findByRole('heading', { name: 'Project not found' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /not available|not found/i })).toBeInTheDocument();
+    expect(platform.studies).not.toHaveBeenCalled();
   });
 });

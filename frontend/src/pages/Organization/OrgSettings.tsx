@@ -3,24 +3,23 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CheckCircle2, Lock, TriangleAlert } from 'lucide-react';
 import { platformApi } from '../../api/platform';
 import type { Organization } from '../../api/platform';
+import { problemsApi } from '../../api/problems';
 import { Action } from '../../components/ui/Action';
 import { FormField } from '../../components/ui/FormField';
 import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
-import { useAuth } from '../../contexts/auth';
 import { useResource } from '../../utils/useResource';
-import { ancestorsOf, atLeast, descendantsOf, initialsOf, pathOf, sponsorName } from './orgModel';
+import { ancestorsOf, atLeast, descendantsOf, pathOf } from './orgModel';
 import { classifyAuthError, generalFailure, marker, type AuthFailure } from './orgErrors';
 import { Choice, NeutralGate, PageSkeleton, RoleChip } from './parts';
 import { NotFoundScreen } from '../../routes/NotFoundScreen';
 import { OrgAudit } from './OrgAudit';
 import { OrgMembers } from './OrgMembers';
 import { OrgSettingsLayout } from './OrgSettingsLayout';
-import { sponsorRefusal } from './sponsorModel';
 import { useRouteOrganization } from './useRouteOrganization';
 import './Organization.css';
 
-/** The words for each way an update of the organization (rename, move) can be refused; naming a sponsor has its own, in `sponsorModel`. */
+/** The words for each way an update of the organization (rename, move) can be refused. */
 function updateRefusal(failure: AuthFailure): string {
   switch (failure.code) {
     case 'organization_cycle':
@@ -29,8 +28,6 @@ function updateRefusal(failure: AuthFailure): string {
       return `Choose either a new parent or the top level, not both${marker(failure)}.`;
     case 'organization_forbidden':
       return `You need ADMIN here, and in the new parent, for this${marker(failure)}.`;
-    case 'pricing_unavailable':
-      return `Limits can’t be checked right now${marker(failure)}. Nothing changed.`;
     default:
       if (failure.kind === 'not-found') return `The organization or its new parent no longer exists${marker(failure)}. Reload the page and try again.`;
       if (failure.kind === 'invalid') return `The gateway refused that value${marker(failure)}.${failure.message ? ` ${failure.message}` : ''}`;
@@ -40,28 +37,24 @@ function updateRefusal(failure: AuthFailure): string {
 
 function SettingsBody({ organization }: { organization: Organization }) {
   const { context } = useRouteOrganization();
-  const { user } = useAuth();
   const navigate = useNavigate();
   const slug = organization.slug;
   const role = organization.effective_role;
   const canEdit = atLeast(role, 'ADMIN');
-  const canSponsor = atLeast(role, 'OWNER');
-  const me = user ? { id: user.id, username: user.username } : null;
 
   const people = useResource(`settings-people:${slug}`, () => platformApi.members(slug).catch(() => null));
-  const projects = useResource(`settings-projects:${slug}`, () => platformApi.projects(slug).catch(() => null));
+  const problems = useResource(`settings-problems:${slug}`, () => problemsApi.list(slug, { limit: 1 }).catch(() => null));
+  const studies = useResource(`settings-studies:${slug}`, () => platformApi.studies(slug, true).catch(() => null));
 
   const [draftName, setDraftName] = useState<string | null>(null);
   const [moveTo, setMoveTo] = useState<string | null>(null);
-  const [busy, setBusy] = useState<'name' | 'move' | 'sponsor' | null>(null);
+  const [busy, setBusy] = useState<'name' | 'move' | null>(null);
   const [toast, setToast] = useState('');
-  const [errors, setErrors] = useState<{ name?: string; move?: string; sponsor?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; move?: string }>({});
   const [deleting, setDeleting] = useState(false);
 
   const name = draftName ?? organization.name;
   const nameUnchanged = name.trim() === organization.name || !name.trim();
-  const sponsor = sponsorName(organization, people.data ?? [], me);
-  const sponsorPlan = me && organization.billing_sponsor_user_id === me.id ? user?.plan : undefined;
 
   // --- where it sits
   const currentParentId = organization.parent_id ?? '';
@@ -71,9 +64,6 @@ function SettingsBody({ organization }: { organization: Organization }) {
   const parentVisible = !organization.parent_id || others.some((item) => item.id === organization.parent_id);
   const targetOrg = others.find((item) => item.id === target);
   const previewPath = targetOrg ? pathOf(targetOrg, context.organizations) : [];
-
-  // --- who sponsors it: a user may only name themselves
-  const canTakeSponsorship = Boolean(me && organization.billing_sponsor_user_id !== me.id);
 
   const flash = (text: string) => {
     setToast(text);
@@ -103,23 +93,6 @@ function SettingsBody({ organization }: { organization: Organization }) {
     }
   };
 
-  /** Make the caller the sponsor: it changes at once. */
-  const takeSponsorship = async () => {
-    if (!me) return;
-    setBusy('sponsor');
-    setToast('');
-    setErrors({});
-    try {
-      await platformApi.updateOrganization(slug, { billing_sponsor_user_id: me.id });
-      await context.reload();
-      flash('Sponsor changed. Size limits now come from the new sponsor’s plan.');
-    } catch (caught) {
-      setErrors({ sponsor: sponsorRefusal(caught) });
-    } finally {
-      setBusy(null);
-    }
-  };
-
   const saveName = (event: FormEvent) => {
     event.preventDefault();
     if (nameUnchanged) return;
@@ -141,7 +114,8 @@ function SettingsBody({ organization }: { organization: Organization }) {
     : targetOrg ? `Members of ${targetOrg.name} will inherit their roles here.` : 'Only direct members will have roles here.';
 
   const impact: Array<{ n: string; l: string }> = [
-    { n: projects.data ? String(projects.data.length) : '—', l: 'projects' },
+    { n: problems.data ? String(problems.data.total) : '—', l: problems.data?.total === 1 ? 'problem' : 'problems' },
+    { n: studies.data ? String(studies.data.length) : '—', l: studies.data?.length === 1 ? 'study' : 'studies' },
     { n: String(below.length), l: below.length === 1 ? 'sub-organization' : 'sub-organizations' },
     { n: people.data ? String(people.data.length) : '—', l: people.data?.length === 1 ? 'direct member' : 'direct members' },
   ];
@@ -156,7 +130,7 @@ function SettingsBody({ organization }: { organization: Organization }) {
       {!canEdit && (
         <Notice tone="info">
           <Lock aria-hidden="true" className="org-inline-icon" /> You’re a <strong>{role}</strong>, so these settings are read-only.
-          Renaming, moving and deleting need ADMIN; changing the sponsor needs OWNER. Ask an owner or admin in <Link to={`/app/${slug}/settings/members`}>Members</Link>.
+          Renaming, moving and deleting need ADMIN. Ask an owner or admin in <Link to={`/app/${slug}/settings/members`}>Members</Link>.
         </Notice>
       )}
 
@@ -252,40 +226,14 @@ function SettingsBody({ organization }: { organization: Organization }) {
         </div>
       </section>
 
-      <section className="org-section" aria-labelledby="os-sponsor">
-        <div>
-          <h2 id="os-sponsor">Sponsor</h2>
-          <p className="org-muted">
-            The sponsor’s plan sets this organization’s size limits. Sponsoring gives no role or access. Only an OWNER can change it, and only to themselves:
-            nobody can make another person pay.
-          </p>
-        </div>
-        <div className="org-card org-stack">
-          <div className="org-sponsor">
-            <span className="org-avatar" aria-hidden="true">{initialsOf(sponsor.replace(/ \(you\)$/, ''))}</span>
-            <span>
-              <strong>{sponsor}</strong>
-              <small>Current sponsor{sponsorPlan ? ` · ${sponsorPlan} plan` : ''}</small>
-            </span>
-          </div>
-          {canSponsor && canTakeSponsorship && (
-            <>
-              <span className="org-muted">The new sponsor’s limits are checked first. If this organization’s projects and members don’t fit, nothing changes.</span>
-              <Action variant="secondary" onClick={() => void takeSponsorship()} busy={busy === 'sponsor'}>Make me the sponsor</Action>
-            </>
-          )}
-          {!canSponsor && <span className="org-muted">Needs OWNER. Your role here is {role}.</span>}
-          {errors.sponsor && <Notice tone="error">{errors.sponsor}</Notice>}
-        </div>
-      </section>
-
       <section className="org-section" aria-labelledby="os-danger">
         <h2 id="os-danger">Danger zone</h2>
         <div className="org-card is-danger org-stack">
           <strong>Delete this organization</strong>
           <span className="org-muted">
-            Deletes everything inside it, including sub-organizations. An organization with sealed history (published reports,
-            study runs, problem versions or library versions) can’t be deleted. This can’t be undone.
+            Deletes everything inside it, including sub-organizations: problems and their versions, studies, members and
+            invitations. Runs and study runs are history, so an organization that has any, here or below, can’t be deleted.
+            This can’t be undone.
           </span>
           <dl className="org-impact" aria-label="What deleting removes">
             {impact.map((item) => <div key={item.l}><dt>{item.l}</dt><dd>{item.n}</dd></div>)}
@@ -297,7 +245,7 @@ function SettingsBody({ organization }: { organization: Organization }) {
       {deleting && (
         <DeleteDialog
           organization={organization}
-          summary={`This removes ${projects.data?.length ?? 'its'} project(s) and ${below.length} sub-organization(s). It is refused (409) if anything inside has sealed history.`}
+          summary={`This removes ${problems.data?.total ?? 'its'} problem(s), ${studies.data?.length ?? 'its'} study(ies) and ${below.length} sub-organization(s). It is refused (409) if anything inside has runs or study runs.`}
           onClose={() => setDeleting(false)}
           onDeleted={async () => {
             await context.reload();
@@ -332,7 +280,7 @@ function DeleteDialog({ organization, summary, onClose, onDeleted }: {
     } catch (caught) {
       const failure = classifyAuthError(caught);
       if (failure.code === 'historical_references') {
-        setError(`It has sealed history, so it can’t be deleted${marker(failure)}. ${failure.message ?? ''}`.trim());
+        setError(`It has runs or study runs, so it can’t be deleted${marker(failure)}. ${failure.message ?? ''}`.trim());
       } else if (failure.status === 403) {
         setError(`You need ADMIN here to delete it${marker(failure)}. Nothing was deleted.`);
       } else if (failure.kind === 'not-found') {
@@ -368,7 +316,7 @@ function DeleteDialog({ organization, summary, onClose, onDeleted }: {
   );
 }
 
-/** General section: name, place, sponsor and deletion. */
+/** General section: name, place and deletion. */
 function GeneralSection() {
   const { organization, waiting } = useRouteOrganization();
   if (waiting) return <div className="org-page"><PageSkeleton /></div>;

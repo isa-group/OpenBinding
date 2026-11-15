@@ -9,13 +9,13 @@ from openbinding_gateway.space_client import PlanCaps
 
 
 def test_a_plan_with_the_feature_is_not_refused() -> None:
-    caps = PlanCaps(plan="X", features={"solve": True})
+    caps = PlanCaps(plan="X", features={"runs": True})
 
-    assert feature_refusal(caps, "solve") is None
+    assert feature_refusal(caps, "runs") is None
 
 
 def test_a_plan_without_the_feature_is_a_403() -> None:
-    caps = PlanCaps(plan="X", features={"solve": True, "studies": False})
+    caps = PlanCaps(plan="X", features={"runs": True, "studies": False})
 
     refusal = feature_refusal(caps, "studies")
 
@@ -44,7 +44,7 @@ def test_the_concurrency_limit_is_a_retryable_429() -> None:
         "Concurrency limit exceeded.",
         extra={
             "concurrency": {
-                "limit_id": "concurrentJobs", "limit": 8, "used": 8, "active": 8,
+                "limit_id": "maxConcurrentRuns", "limit": 8, "used": 8, "active": 8,
                 "unit": "job", "source": "technical",
             }
         },

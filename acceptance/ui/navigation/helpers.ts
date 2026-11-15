@@ -16,8 +16,6 @@ export interface Recorded {
 export interface MockOptions {
   /** null: no session. */
   role?: Role | null;
-  /** The projects of `acme`; defaults to the project `demo`. */
-  projects?: unknown[];
   /** Every dependency up (default), or a gateway that does not answer. */
   gateway?: 'up' | 'down';
 }
@@ -31,30 +29,25 @@ const account = (role: Role) => ({
 });
 
 export const organization = (slug: string, name: string) => ({
-  id: `org-${slug}`, slug, name, parent_id: null, billing_sponsor_user_id: 'user-1', effective_role: 'OWNER', created_at: NOW,
-});
-
-export const project = (slug: string, name: string) => ({
-  id: `project-${slug}`, organization_id: 'org-acme', slug, name, description: '', visibility: 'private',
-  created_by_id: 'user-1', created_at: NOW, updated_at: NOW, access: 'member', effective_role: 'OWNER',
+  id: `org-${slug}`, slug, name, parent_id: null, effective_role: 'OWNER', created_at: NOW,
 });
 
 const members = [
   { id: 'm1', organization_id: 'org-acme', user_id: 'user-1', username: 'lucia', email: 'lucia@example.org', role: 'OWNER', created_at: NOW },
 ];
 
-// Slices 13 and 14 renamed the app address segments to `problems` and `runs`; the HTTP API keeps `cases` and `jobs`.
+// The problems, the runs and the studies belong to the organization (`/app/acme/problems`, `/app/acme/runs`, `/app/acme/studies`).
 export const PROBLEMS_SEGMENT = 'problems';
 export const RUNS_SEGMENT = 'runs';
-export const PROBLEMS = `/app/acme/demo/${PROBLEMS_SEGMENT}`;
-export const RUN_NEW = `/app/acme/demo/${RUNS_SEGMENT}/new`;
-export const RUNS_ALL = `/app/${RUNS_SEGMENT}`;
+export const PROBLEMS = `/app/acme/${PROBLEMS_SEGMENT}`;
+export const RUN_NEW = `/app/acme/${RUNS_SEGMENT}/new`;
+export const RUNS = `/app/acme/${RUNS_SEGMENT}`;
 
-const EXAMPLES = ['demo/01_simple_seq', 'demo/02_parallel', 'placement/01_small_placement'];
+const TEMPLATES = ['demo/01_simple_seq', 'demo/02_parallel', 'placement/01_small_placement'];
 
 /**
- * Answers the API origin: the user, the organization `acme` with its project `demo`, notifications and the few public
- * lists the screens read. Anything else is a 404 `not mocked`. Returns the non-GET requests that reached it.
+ * Answers the API origin: the user, the organization `acme` with no problems, runs or studies, notifications and the
+ * few public lists the screens read. Anything else is a 404 `not mocked`. Returns the non-GET requests that reached it.
  */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<Recorded[]> {
   const role = options.role === undefined ? 'user' : options.role;
@@ -66,9 +59,8 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Re
   });
 
   await page.route(`${API}/**`, json({ detail: 'not mocked' }, 404));
-  await page.route(`${API}/v1/examples`, json({ examples: EXAMPLES }));
-  await page.route(`${API}/v1/profiles`, json({ profiles: [{ id: 'qos-binding/v1' }] }));
-  await page.route(`${API}/v1/dialects`, json({ dialects: [{ id: 'qos-binding' }] }));
+  await page.route(`${API}/v1/bim/templates`, json({ templates: TEMPLATES }));
+  await page.route(`${API}/v1/engines/protocol`, json({ profiles: [{ id: 'qos-binding/v1' }] }));
   await page.route(`${API}/v1/engines`, json({ engines: [] }));
   if (options.gateway === 'down') {
     for (const path of ['/health', '/health/live', '/health/ready']) await page.route(`${API}${path}`, (route) => route.abort('connectionrefused'));
@@ -88,12 +80,10 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Re
     : route.fulfill({ json: [organization('acme', 'Acme')] })));
   await page.route(`${API}/v1/organizations/acme`, json(organization('acme', 'Acme')));
   await page.route(`${API}/v1/organizations/lab-two`, json(organization('lab-two', 'lab-two')));
-  await page.route(`${API}/v1/organizations/acme/projects/demo-two`, json(project('demo-two', 'demo-two')));
   await page.route(`${API}/v1/organizations/acme/members`, json(members));
-  await page.route(`${API}/v1/organizations/acme/projects`, (route) => (route.request().method() === 'POST'
-    ? route.fulfill({ status: 201, json: project('demo-two', 'demo-two') })
-    : route.fulfill({ json: options.projects ?? [project('demo', 'Demo')] })));
-  await page.route(`${API}/v1/organizations/acme/projects/demo`, json(project('demo', 'Demo')));
+  await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/problems`, json({ problems: [], total: 0, limit: 200, offset: 0 }));
+  await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/runs`, json({ runs: [], total: 0 }));
+  await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/studies`, json([]));
   return requests;
 }
 

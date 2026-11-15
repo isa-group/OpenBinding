@@ -60,36 +60,32 @@ openbinding-gateway/.venv/bin/python tools/build_bim_packages.py \
 
 ### Example Command
 
-To submit the **Simple Sequence** package using the default Random Search mode:
+A run names a revision of a problem, and a problem belongs to an organization
+you are a MEMBER of. Upload the package as a problem first, then submit a job
+for its revision. For the **Many-Objective** example (`$TOKEN` is a session
+token or an API key; `my-lab` is your organization):
 
 ```bash
-curl -X POST "http://localhost:8000/v1/jobs" \
+revision_id="$(
+  curl -sS -X POST "http://localhost:8000/v1/organizations/my-lab/problems" \
+    -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/vnd.bim+zip" \
-    -H "Idempotency-Key: demo-01" \
-    --data-binary @01_simple_seq.bim.zip
-```
-
-To select an Engine mode or supply options, first create an immutable snapshot
-from the ZIP and then create a job from that snapshot. For the
-**Many-Objective** example:
-
-```bash
-snapshot_id="$(
-  curl -sS -X POST "http://localhost:8000/v1/instances" \
-    -H "Content-Type: application/vnd.bim+zip" \
-    --data-binary @12_many_obj_pareto.bim.zip | jq -r .id
+    --data-binary @12_many_obj_pareto.bim.zip | jq -r .revision.id
 )"
 
-jq -n --arg snapshot "$snapshot_id" \
-  '{snapshot:$snapshot, engine:"many-heuristic", mode:"pareto-sampling", options:{iterations:1000}}' |
-  curl -sS -X POST "http://localhost:8000/v1/jobs" \
+jq -n --arg revision "$revision_id" \
+  '{revision:$revision, engine:"many-heuristic", mode:"pareto-sampling", options:{iterations:1000},
+    optimization:{type:"MANY", scalarization:"pareto-front"}}' |
+  curl -sS -X POST "http://localhost:8000/v1/organizations/my-lab/runs" \
+    -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
     -H "Idempotency-Key: demo-12" \
     --data-binary @-
 ```
 
-Both job forms return `202 Accepted`. A JSON job body accepts a `snapshot`; it
-does not accept an inline root document in place of the complete BIM package.
+The run is accepted with `202 Accepted`. To check a package without storing it, post it
+to `POST /v1/bim/validate`, which needs no account and answers its digests,
+analysis and compatible Engine modes.
 
 The two-objective package in `11_multi_obj_negative/` can be routed to the
 federated `multi-heuristic` after following the

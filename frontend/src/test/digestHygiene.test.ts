@@ -24,9 +24,9 @@ const TEST_KIT = /\/(testKit|[A-Za-z]*TestUtils)\.tsx?$|\/src\/test\/setup\.ts$/
 
 // Every file the TEST_KIT pattern leaves out of the scan; a new test-kit file needs an edit here.
 const TEST_KIT_FILES: readonly string[] = [
+  '/src/features/workspace/testKit.tsx',
   '/src/pages/Admin/adminTestUtils.tsx',
   '/src/pages/Organization/testKit.tsx',
-  '/src/pages/Project/testKit.tsx',
   '/src/test/setup.ts',
 ];
 
@@ -39,16 +39,14 @@ const ALLOWED = /\/src\/(components\/rendering\/(SourceView|LogPanel)|utils\/(di
 const EXEMPT_FILES: readonly string[] = [
   // api layer: request and response types carry ids and digests as data
   '/src/api/auth.ts',
-  '/src/api/cases.ts',
+  '/src/api/bim.ts',
   '/src/api/client.ts',
-  '/src/api/compositions.ts',
   '/src/api/health.ts',
-  '/src/api/' + 'jobs.ts',
-  '/src/api/library.ts',
+  '/src/api/runs.ts',
   '/src/api/limitNotice.ts',
   '/src/api/platform.ts',
   '/src/api/problem.ts',
-  '/src/api/workbench.ts',
+  '/src/api/problems.ts',
   // log and source views: raw engine output and source text are shown verbatim
   '/src/components/rendering/LogPanel.css',
   '/src/components/rendering/LogPanel.tsx',
@@ -59,8 +57,8 @@ const EXEMPT_FILES: readonly string[] = [
   '/src/pages/Cases/fixtures.ts',
   '/src/pages/Organization/auditFixture.ts',
   '/src/pages/Pricing/pricingFixture.ts',
-  '/src/pages/Project/packageFixture.ts',
   '/src/test/fixtures/admin.ts',
+  '/src/test/fixtures/agreementCatalog.ts',
   '/src/test/fixtures/engines.ts',
   '/src/test/fixtures/jobs.ts',
   '/src/test/fixtures/resources.ts',

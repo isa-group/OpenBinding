@@ -15,18 +15,8 @@ import type { Workbench } from './useWorkbench';
 
 type ResultView = 'analysis' | 'engines' | 'files';
 
-export interface PlanFacts {
-  name: string | null;
-  /** The plan's ceiling for the size of a problem, as a power of ten. */
-  ceiling: number | null;
-  /** The plan's ceiling for one request, as people read it (`128 MiB`). */
-  maxLabel: string | null;
-}
-
 interface CheckResultProps {
   wb: Workbench;
-  plan: PlanFacts;
-  pricingHref: string;
 }
 
 /** The fix a diagnostic suggests, when the gateway wrote one. */
@@ -98,30 +88,6 @@ function AuthGate({ refusal }: { refusal: Refusal }) {
   );
 }
 
-function TooBig({ refusal, plan, pricingHref, onReduce }: { refusal: Refusal; plan: PlanFacts; pricingHref: string; onReduce: () => void }) {
-  const ceiling = refusal.limit ?? plan.ceiling;
-  const scale = Math.max(30, Math.ceil((ceiling ?? 0) * 1.2));
-  return (
-    <div className="wb-too-big" role="alert">
-      <strong>Too big for your plan{refusalMarker({ status: refusal.status, code: refusal.code ?? 'instance complexity' })}</strong>
-      <div className="wb-limit-bar" aria-hidden="true">
-        <i />
-        {ceiling !== null && <b style={{ left: `${Math.min(100, Math.round((ceiling / scale) * 100))}%` }} />}
-      </div>
-      <span>
-        {ceiling !== null ? <>Your {plan.name ? `${plan.name} ` : ''}plan allows up to <Power log10={ceiling} /> combinations. </> : 'Your plan limits how many combinations a problem may have. '}
-        {refusal.size
-          ? <>This package has {refusal.size}.</>
-          : 'The server doesn’t report the measured size in this answer, so we can’t show how far over it is.'}
-      </span>
-      <span className="wb-links">
-        <button type="button" className="wb-link" onClick={onReduce}>Reduce candidates</button>
-        <Link to={pricingHref} viewTransition>Compare plans</Link>
-      </span>
-    </div>
-  );
-}
-
 function ValidSummary({ wb }: { wb: Workbench }) {
   const { copy, status } = useCopy();
   const name = wb.root?.metadata?.name || 'Package';
@@ -177,7 +143,7 @@ function AnalysisView({ wb }: { wb: Workbench }) {
           <FlowDrawing flow={model?.flow ?? null} caption={model?.log10 != null ? <span>Possible combinations ≈ <Power log10={model.log10} /></span> : undefined} />
         ) : (
           <div className="wb-flow-ask">
-            <p className="wb-muted">The drawing comes from the compiled package. Drawing it saves a private snapshot of the package, the same one the actions below use.</p>
+            <p className="wb-muted">The drawing comes from the compiled package. Drawing it has the gateway compile the package once more; nothing is stored.</p>
             <Action variant="secondary" busy={wb.irLoading} onClick={() => void wb.compile()}>Draw the workflow</Action>
           </div>
         )}
@@ -239,13 +205,13 @@ function FilesView({ wb }: { wb: Workbench }) {
           </li>
         ))}
       </ul>
-      <p className="wb-muted">This package lives in your browser until you snapshot it or save it as a problem version.</p>
+      <p className="wb-muted">This package lives in your browser until you save it as a problem or a problem version.</p>
     </>
   );
 }
 
 /** What checking the package answered: still compiling, nothing yet, a refusal in its own words, or the valid package and what is in it. */
-export function CheckResult({ wb, plan, pricingHref }: CheckResultProps) {
+export function CheckResult({ wb }: CheckResultProps) {
   const [view, setView] = useState<ResultView>('analysis');
   const { refusal, status } = wb;
   const reduceCandidates = () => {
@@ -269,9 +235,8 @@ export function CheckResult({ wb, plan, pricingHref }: CheckResultProps) {
     return (
       <div className="wb-check-failed">
         {(refusal.kind === 'session' || refusal.kind === 'key') && <AuthGate refusal={refusal} />}
-        {refusal.kind === 'too-big' && <TooBig refusal={refusal} plan={plan} pricingHref={pricingHref} onReduce={reduceCandidates} />}
         {LIMIT_KINDS.includes(refusal.kind) && (
-          // No "compare plans" here: the plan doesn't state the limit, this deployment caps it whatever the plan, or the plan can't be applied.
+          // No "compare plans" here: this deployment caps the size whatever the plan, or the plan can't be applied.
           <Notice
             tone="error"
             title={`${refusal.title ?? 'A limit refused the package'}${refusalMarker(refusal)}`}
@@ -284,9 +249,7 @@ export function CheckResult({ wb, plan, pricingHref }: CheckResultProps) {
         )}
         {refusal.kind === 'too-large' && (
           <div className="wb-alert" role="alert">
-            {plan.maxLabel
-              ? `The file is larger than your plan allows per request (${plan.maxLabel}) · ${refusal.status ?? 413}.`
-              : `The package is larger than your plan allows per request${refusalMarker(refusal)}.`}
+            {`The package is larger than this deployment allows per request${refusalMarker(refusal)}.`}
           </div>
         )}
         {refusal.kind === 'invalid' && (
@@ -294,6 +257,11 @@ export function CheckResult({ wb, plan, pricingHref }: CheckResultProps) {
             Not valid · {problems.length === 1 ? '1 problem' : `${problems.length} problems`}{refusalMarker(refusal)}
             {wb.origin !== 'package' && <span className="wb-alert-note"> Your current package was kept.</span>}
           </div>
+        )}
+        {refusal.kind === 'quota' && (
+          <Notice tone="error" title={`Out of an allowance of your plan${refusalMarker(refusal)}`}>
+            {refusalText(refusal, 'nothing was checked')}
+          </Notice>
         )}
         {(refusal.kind === 'unsupported' || refusal.kind === 'busy' || refusal.kind === 'unavailable' || refusal.kind === 'other') && (
           <Notice

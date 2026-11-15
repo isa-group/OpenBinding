@@ -10,14 +10,11 @@ failed, and a worker that lost its lease cannot write anything afterwards.
 from __future__ import annotations
 
 import asyncio
-import os
-import sqlite3
-import subprocess
-import sys
 import time
 import uuid
+from _problem_helpers import revision_of, runs_url_for
+from _problem_helpers import placeholder_refs
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -62,7 +59,7 @@ async def a_job(session, owner, *, budget_s=600.0, age_s=0.0, state=JobState.QUE
         state=state,
         requested_budget_s=budget_s,
         created_at=utcnow() - timedelta(seconds=age_s),
-        **extra,
+        **{**placeholder_refs(), **extra},
     )
     session.add(job)
     # Committed, because a worker that loses its lease rolls its session back.
@@ -135,6 +132,8 @@ async def test_a_heartbeat_renews_the_lease_only_for_its_holder(db_session, owne
     assert await leases.renew_lease(factory, job.id, str(uuid.uuid4())) is False
     await db_session.refresh(job)
     assert at(job.lease_until) < utcnow() + timedelta(seconds=5)
+    # The in-memory database is one connection: the test's read ends before the next renewal begins its own.
+    await db_session.commit()
 
     assert await leases.renew_lease(factory, job.id, token) is True
     await db_session.refresh(job)
@@ -157,6 +156,7 @@ async def test_each_renewal_pushes_the_lease_further(db_session, owner, monkeypa
         assert await leases.renew_lease(factory, job.id, token) is True
         await db_session.refresh(job)
         deadlines.append(at(job.lease_until))
+        await db_session.commit()
 
     assert deadlines == sorted(set(deadlines))
     assert deadlines[1] - deadlines[0] == timedelta(seconds=10)
@@ -301,7 +301,7 @@ async def test_a_failure_with_the_lease_is_recorded(db_session, owner):
     assert job.finished_at is not None
 
 
-async def _account_with_snapshot(client, registration) -> tuple[dict[str, str], str]:
+async def _account_with_revision(client, registration) -> tuple[dict[str, str], str]:
     details = registration()
     created = await client.post("/v1/auth/register", json=details)
     assert created.status_code == 201, created.text
@@ -310,21 +310,16 @@ async def _account_with_snapshot(client, registration) -> tuple[dict[str, str], 
         json={"username_or_email": details["username"], "password": details["password"]},
     )
     headers = {"Authorization": f"Bearer {logged.json()['access_token']}"}
-    snapshot = await client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=load_package(EXAMPLE).to_zip(),
-    )
-    assert snapshot.status_code == 201, snapshot.text
-    return headers, snapshot.json()["id"]
+    revision_id = await revision_of(client, headers, archive=load_package(EXAMPLE).to_zip())
+    return headers, revision_id
 
 
-async def _submit(client, headers, snapshot_id) -> None:
+async def _submit(client, headers, revision_id) -> None:
     response = await client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers=headers,
         json={
-            "snapshot": snapshot_id,
+            "revision": revision_id,
             "engine": "random-search",
             "mode": "seeded",
             "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
@@ -358,9 +353,9 @@ async def test_a_job_that_finishes_is_completed_and_unleased(
         return _answer()
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+    headers, revision_id = await _account_with_revision(api_client, registration)
 
-    await _submit(api_client, headers, snapshot_id)
+    await _submit(api_client, headers, revision_id)
 
     job = (await db_session.execute(select(Job))).scalars().one()
     await db_session.refresh(job)
@@ -381,9 +376,9 @@ async def test_a_cancellation_that_arrives_during_the_solve_wins_over_its_late_r
         return _answer()
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+    headers, revision_id = await _account_with_revision(api_client, registration)
 
-    await _submit(api_client, headers, snapshot_id)
+    await _submit(api_client, headers, revision_id)
 
     job = (await db_session.execute(select(Job))).scalars().one()
     await db_session.refresh(job)
@@ -407,9 +402,9 @@ async def test_a_result_that_arrives_after_the_job_was_taken_back_is_discarded(
         return _answer()
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+    headers, revision_id = await _account_with_revision(api_client, registration)
 
-    await _submit(api_client, headers, snapshot_id)
+    await _submit(api_client, headers, revision_id)
 
     job = (await db_session.execute(select(Job))).scalars().one()
     await db_session.refresh(job)
@@ -485,9 +480,9 @@ async def test_the_session_is_idle_during_the_solve_and_committed_before_the_hea
     monkeypatch.setattr(leases, "stop_heartbeat", stop)
     monkeypatch.setattr(leases, "hold_lease", hold)
     monkeypatch.setattr(db_session, "refresh", refresh)
-    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+    headers, revision_id = await _account_with_revision(api_client, registration)
 
-    await _submit(api_client, headers, snapshot_id)
+    await _submit(api_client, headers, revision_id)
 
     solved = events.index(("solve", False, True))  # no open transaction, lease token kept
     after = events[solved + 1 :]
@@ -783,9 +778,9 @@ async def test_the_engine_job_id_is_committed_before_the_worker_waits_for_the_re
         return _answer()
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+    headers, revision_id = await _account_with_revision(api_client, registration)
 
-    await _submit(api_client, headers, snapshot_id)
+    await _submit(api_client, headers, revision_id)
 
     job = (await db_session.execute(select(Job))).scalars().one()
     assert seen["committed_by_callback"] == 1 and seen["in_transaction"] is False
@@ -808,9 +803,9 @@ async def test_a_result_discarded_because_the_lease_was_lost_cancels_the_remote_
         return _answer()
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+    headers, revision_id = await _account_with_revision(api_client, registration)
 
-    await _submit(api_client, headers, snapshot_id)
+    await _submit(api_client, headers, revision_id)
 
     job = (await db_session.execute(select(Job))).scalars().one()
     await db_session.refresh(job)
@@ -829,9 +824,9 @@ async def test_a_cancellation_noticed_after_the_solve_cancels_the_remote_job(
         return _answer()
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+    headers, revision_id = await _account_with_revision(api_client, registration)
 
-    await _submit(api_client, headers, snapshot_id)
+    await _submit(api_client, headers, revision_id)
 
     job = (await db_session.execute(select(Job))).scalars().one()
     await db_session.refresh(job)
@@ -847,9 +842,9 @@ async def test_an_engine_failure_after_acceptance_cancels_the_remote_job_and_fai
         raise execution.RemoteEngineError("remote engine timed out")
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+    headers, revision_id = await _account_with_revision(api_client, registration)
 
-    await _submit(api_client, headers, snapshot_id)
+    await _submit(api_client, headers, revision_id)
 
     job = (await db_session.execute(select(Job))).scalars().one()
     await db_session.refresh(job)
@@ -872,9 +867,9 @@ async def test_a_cancellation_that_cannot_be_delivered_does_not_change_the_outco
 
     monkeypatch.setattr(execution, "cancel_remote", broken)
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+    headers, revision_id = await _account_with_revision(api_client, registration)
 
-    await _submit(api_client, headers, snapshot_id)
+    await _submit(api_client, headers, revision_id)
 
     job = (await db_session.execute(select(Job))).scalars().one()
     await db_session.refresh(job)
@@ -889,72 +884,10 @@ async def test_an_engine_id_that_cannot_be_stored_does_not_fail_the_solve(
         return _answer()
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+    headers, revision_id = await _account_with_revision(api_client, registration)
 
-    await _submit(api_client, headers, snapshot_id)
+    await _submit(api_client, headers, revision_id)
 
     job = (await db_session.execute(select(Job))).scalars().one()
     await db_session.refresh(job)
     assert job.state is JobState.COMPLETED
-
-
-# -- The migration ----------------------------------------------------------
-
-PREVIOUS_REVISION = "d1e2f3a4b5c6"
-LEASE_COLUMNS = {"lease_token", "lease_until", "claimed_at", "attempt"}
-
-
-def alembic(database: Path, *arguments: str) -> subprocess.CompletedProcess:
-    environment = {**os.environ, "DATABASE_URL": f"sqlite+aiosqlite:///{database}"}
-    return subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", "alembic.ini", *arguments],
-        cwd=ROOT, env=environment, capture_output=True, text=True, check=False,
-    )
-
-
-def job_columns(database: Path) -> dict[str, tuple]:
-    with sqlite3.connect(database) as connection:
-        return {row[1]: row for row in connection.execute("PRAGMA table_info(jobs)")}
-
-
-def job_triggers(database: Path) -> set[str]:
-    with sqlite3.connect(database) as connection:
-        rows = connection.execute("SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'jobs'")
-        return {name for (name,) in rows}
-
-
-def job_indexes(database: Path) -> set[str]:
-    with sqlite3.connect(database) as connection:
-        return {row[1] for row in connection.execute("PRAGMA index_list(jobs)")}
-
-
-def run(database: Path, *arguments: str) -> None:
-    done = alembic(database, *arguments)
-    assert done.returncode == 0, done.stdout + done.stderr
-
-
-def test_the_migration_adds_the_lease_columns_and_keeps_the_job_triggers(tmp_path):
-    database = tmp_path / "leases.db"
-
-    run(database, "upgrade", PREVIOUS_REVISION)
-    triggers = job_triggers(database)
-    assert {"protect_jobs", "pin_job_configuration"} <= triggers
-    assert not LEASE_COLUMNS & set(job_columns(database))
-
-    run(database, "upgrade", "head")
-    columns = job_columns(database)
-    assert LEASE_COLUMNS <= set(columns)
-    assert columns["attempt"][3] == 1  # NOT NULL
-    assert columns["attempt"][4].strip("'\"") == "0"  # SQLite reports the default as "'0'"
-    assert columns["lease_token"][3] == 0 and columns["lease_until"][3] == 0
-    assert "ix_jobs_state_lease_until" in job_indexes(database)
-    assert job_triggers(database) == triggers
-
-    run(database, "downgrade", PREVIOUS_REVISION)
-    assert not LEASE_COLUMNS & set(job_columns(database))
-    assert "ix_jobs_state_lease_until" not in job_indexes(database)
-    assert job_triggers(database) == triggers
-
-    run(database, "upgrade", "head")
-    assert LEASE_COLUMNS <= set(job_columns(database))
-    assert job_triggers(database) == triggers

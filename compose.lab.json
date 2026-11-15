@@ -21,7 +21,7 @@
       "volumes": [
         {
           "type": "volume",
-          "source": "lab-pg-3",
+          "source": "lab-pg-4",
           "target": "/var/lib/postgresql/data"
         }
       ],
@@ -157,6 +157,7 @@
         "SPACE_ENABLED": "${DEMO_SPACE_ENABLED}",
         "SPACE_URL": "${SPACE_URL}",
         "SPACE_API_KEY": "${SPACE_API_KEY}",
+        "SPACE_ORGANIZATION_ID": "${SPACE_ORGANIZATION_ID}",
         "SPACE_SERVICE_NAME": "${DEMO_SPACE_DEV_SERVICE}",
         "SPACE_PRICING_VERSION": "${DEMO_SPACE_PRICING_VERSION}",
         "SPACE_DEFAULT_PLAN": "${DEMO_SPACE_DEFAULT_PLAN}",
@@ -216,6 +217,7 @@
         "SPACE_ENABLED": "${DEMO_SPACE_ENABLED}",
         "SPACE_URL": "${SPACE_URL}",
         "SPACE_API_KEY": "${SPACE_API_KEY}",
+        "SPACE_ORGANIZATION_ID": "${SPACE_ORGANIZATION_ID}",
         "SPACE_SERVICE_NAME": "${DEMO_SPACE_DEV_SERVICE}",
         "SPACE_PRICING_VERSION": "${DEMO_SPACE_PRICING_VERSION}",
         "SPACE_DEFAULT_PLAN": "${DEMO_SPACE_DEFAULT_PLAN}",
@@ -381,7 +383,7 @@
     }
   },
   "volumes": {
-    "lab-pg-3": {},
+    "lab-pg-4": {},
     "lab-redis": {},
     "lab-artifacts-2": {},
     "lab-e2e": {}

@@ -1,80 +1,92 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { BindingCase, CaseRevision } from '../../api/platform';
+import type { Problem } from '../../api/problems';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
-import { problemPath, problemsPath } from '../../routes/paths/problems';
-import { refusalText, snapshotHref } from './workbenchModel';
+import { problemPath } from '../../routes/paths/problems';
+import { SLUG_PATTERN, slugFromName } from '../Cases/casesModel';
 import type { Workbench } from './useWorkbench';
+
+/** The value of the problem picker that saves the package as a new problem. */
+export const NEW_PROBLEM = '';
 
 interface ActionBarProps {
   wb: Workbench;
-  /** MEMBER or above in the project's organization. */
+  /** MEMBER or above in the organization. */
   canSave: boolean;
-  cases: BindingCase[];
+  org: string;
+  problems: Problem[];
+  /** The problem to save into, or {@link NEW_PROBLEM}. */
   target: string;
   onTarget: (slug: string) => void;
-  /** The versions the target problem has now, to tell a new version from one that already existed. */
-  revisions: readonly CaseRevision[];
-  /** The versions of the target problem have been read, so a saved version can be told from one that already existed. */
-  revisionsReady: boolean;
-  root: string;
+  /** After a save: the problem it saved into, so the picker follows. */
+  onSaved?: (problem: string) => void;
 }
 
-/** What a valid package can become: a snapshot, a run, or a version of a problem. Shown only once the gateway has accepted the package. */
-export function ActionBar({ wb, canSave, cases, target, onTarget, revisions, revisionsReady, root }: ActionBarProps) {
+/**
+ * What a valid package can become: a new problem of the organization, or a new version of one of its problems. Shown only once the gateway
+ * has accepted the package. Nothing runs from here: a saved version runs from its problem page, which the notice after a save links to.
+ */
+export function ActionBar({ wb, canSave, org, problems, target, onTarget, onSaved }: ActionBarProps) {
+  const [name, setName] = useState('');
   if (wb.status !== 'valid') return null;
-  const targetCase = cases.find((item) => item.slug === target);
-  // A version saved just now is sealed from the snapshot but is not in the list read when the problem was chosen.
-  const known = wb.saved && !wb.saved.existing ? [wb.saved.revision, ...revisions] : revisions;
+  const targetProblem = problems.find((item) => item.slug === target);
+  const packageName = typeof wb.root?.metadata?.name === 'string' ? wb.root.metadata.name : '';
+  const shownName = name || packageName;
+  const slug = slugFromName(shownName);
+  const saved = wb.saved;
+
+  const submit = async () => {
+    const upload = await wb.save(targetProblem ? { kind: 'version', problem: targetProblem.slug } : { kind: 'new', name: shownName.trim() || undefined, slug: SLUG_PATTERN.test(slug) ? slug : undefined });
+    if (upload) onSaved?.(upload.problem.slug);
+  };
+
   return (
     <div className="wb-dock">
-      {canSave && cases.length === 0 && (
-        <p className="wb-muted">This project has no problems yet. <Link to={problemsPath(root)} viewTransition>Start one in Problems</Link> to save this package as its first version.</p>
-      )}
-      {wb.snapshot && !wb.snapshotIssue && (
-        <Notice tone="success" action={<Link to={snapshotHref(root, target, known, wb.snapshot.id)} viewTransition>Open snapshot</Link>}>Snapshot created. It is private to your account and never changes.</Notice>
-      )}
-      {wb.snapshotIssue && <Notice tone="error" title="The snapshot couldn’t be made">{refusalText(wb.snapshotIssue, 'no snapshot was made')}</Notice>}
-      {wb.saved && (
+      {saved && (
         <Notice
           tone="success"
           action={(
-            <Link to={wb.saved.existing ? problemPath(root, target, 'versions') : problemPath(root, target, undefined, { version: wb.saved.revision.revision })} viewTransition>
-              {wb.saved.existing ? 'See versions' : 'Open it'}
+            <Link to={problemPath(org, saved.upload.problem.slug, undefined, { version: saved.upload.revision.revision })} viewTransition>
+              Open the problem
             </Link>
           )}
         >
-          {wb.saved.existing
-            ? `Same content as version ${wb.saved.revision.revision}, so no new version was needed.`
-            : `Version ${wb.saved.revision.revision} of ${targetCase?.name ?? target} saved and sealed.`}
+          {saved.existing
+            ? `Unchanged: this is version ${saved.upload.revision.revision} of ${saved.upload.problem.name}.`
+            : `Saved as version ${saved.upload.revision.revision} of ${saved.upload.problem.name}. Run it from its page.`}
         </Notice>
       )}
-      {wb.saveIssue && <Notice tone="error" title="The version wasn’t saved">{wb.saveIssue}</Notice>}
+      {wb.saveIssue && <Notice tone="error" title="The package wasn’t saved">{wb.saveIssue}</Notice>}
       <section className="wb-bar" aria-label="Package actions">
         <span className="wb-bar-note">
           {canSave
-            ? 'Valid packages can be snapshotted, run or saved as a version of a problem.'
-            : 'You can snapshot and run with your own account; saving into this project needs MEMBER.'}
+            ? 'Save a valid package as a new problem, or as a new version of one; it runs from its problem page.'
+            : 'You can edit and check here; saving into the organization needs MEMBER.'}
         </span>
-        <Action variant="secondary" busy={wb.snapshotBusy} onClick={() => void wb.compile()}>{wb.snapshot ? 'Snapshot created' : 'Create snapshot'}</Action>
-        <Action variant="secondary" onClick={() => document.getElementById('wb-run')?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })}>Run…</Action>
-        {canSave && cases.length > 0 && (
+        {canSave && (
           <label className="wb-bar-case">
             <span className="sr-only">Save into problem</span>
             <select aria-label="Save into problem" value={target} onChange={(event) => onTarget(event.target.value)}>
-              <option value="">Save into a problem…</option>
-              {cases.map((item) => <option key={item.id} value={item.slug}>{item.name}</option>)}
+              <option value={NEW_PROBLEM}>A new problem</option>
+              {problems.map((item) => <option key={item.id} value={item.slug}>{item.name}</option>)}
             </select>
+          </label>
+        )}
+        {canSave && !targetProblem && (
+          <label className="wb-bar-case">
+            <span className="sr-only">Name of the new problem</span>
+            <input aria-label="Name of the new problem" value={shownName} placeholder="Problem name" onChange={(event) => setName(event.target.value)} />
           </label>
         )}
         <Action
           variant="primary"
           busy={wb.saveBusy}
-          disabled={!canSave || !target || !revisionsReady}
-          title={!canSave ? 'Saving into this project needs MEMBER' : !target ? 'Choose the problem to save into' : !revisionsReady ? 'Reading the problem’s versions…' : undefined}
-          onClick={() => void wb.saveRevision(target, revisions)}
+          disabled={!canSave}
+          title={!canSave ? 'Saving into the organization needs MEMBER' : undefined}
+          onClick={() => void submit()}
         >
-          Save as problem version
+          {targetProblem ? `Save as a new version of ${targetProblem.name}` : 'Save as a new problem'}
         </Action>
       </section>
     </div>

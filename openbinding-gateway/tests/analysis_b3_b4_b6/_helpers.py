@@ -16,8 +16,8 @@ from datetime import timedelta
 
 from sqlalchemy import select
 
+from _problem_helpers import revision_of, run_refs, runs_url_for, seed_problem_run
 from _repo import REPO_ROOT as EXAMPLES_ROOT
-from bim_core.package import load_package
 from openbinding_gateway.db.base import Base
 from openbinding_gateway.db.models import EngineRegistrationRevision, Job, JobState, utcnow
 from openbinding_gateway.jobs import clock, leases
@@ -94,6 +94,8 @@ async def a_job(session, owner, *, state=JobState.QUEUED, registration=None, **e
     if registration is not None:
         extra.setdefault("original_request", {"registration": registration_reference(registration)})
         extra.setdefault("service_url", registration.endpoint)
+    if "revision_id" not in extra:
+        extra.update(run_refs(await seed_problem_run(session, owner_id=owner.id)))
     job = Job(
         owner_id=owner.id,
         engine_id="random-search",
@@ -132,23 +134,18 @@ async def account_headers(client, registration) -> dict[str, str]:
     return {"Authorization": f"Bearer {logged.json()['access_token']}"}
 
 
-async def account_with_snapshot(client, registration) -> tuple[dict[str, str], str]:
+async def account_with_revision(client, registration) -> tuple[dict[str, str], str]:
+    """An account and a revision of a problem it uploaded into an organization of its own."""
     headers = await account_headers(client, registration)
-    snapshot = await client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=load_package(EXAMPLE).to_zip(),
-    )
-    precondition(snapshot.status_code == 201, f"snapshot answered {snapshot.status_code}")
-    return headers, snapshot.json()["id"]
+    return headers, await revision_of(client, headers)
 
 
-async def submit(client, headers, snapshot_id) -> None:
+async def submit(client, headers, revision_id) -> None:
     response = await client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers=headers,
         json={
-            "snapshot": snapshot_id,
+            "revision": revision_id,
             "engine": "random-search",
             "mode": "seeded",
             "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
@@ -183,13 +180,15 @@ async def only_job(session) -> Job:
     return job
 
 
-async def persisted_anywhere(session, needle: str) -> bool:
-    """Whether ``needle`` is stored in any column of any table.
+async def persisted_anywhere(session, needle: str, *, exclude: set[str] | frozenset[str] = frozenset()) -> bool:
+    """Whether ``needle`` is stored in any column of any table but the ``exclude`` ones.
 
     Deliberately blind to the schema: a fix may keep the evidence in a new table
     or column, and the claim under test is only that the bytes are not lost.
     """
     for table in Base.metadata.sorted_tables:
+        if table.name in exclude:
+            continue
         for row in (await session.execute(select(table))).all():
             if needle in repr(tuple(row)):
                 return True

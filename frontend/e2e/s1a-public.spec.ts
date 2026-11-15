@@ -54,8 +54,7 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
     await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: 's1a-pricing' }));
     await page.route(`${API}/v1/engines`, json({ engines: [...engines, engine('edge-solver', 'sampling', `sha256-${'f1f2f3f4'.repeat(8)}`)] }));
   }
-  await page.route(`${API}/v1/profiles`, json({ profiles: [{ id: 'qos-binding/v1' }] }));
-  await page.route(`${API}/v1/dialects`, json({ dialects: [{ id: 'qos-binding' }, { id: 'bpmn-workflow' }, { id: 'placement' }] }));
+  await page.route(`${API}/v1/engines/protocol`, json({ profiles: [{ id: 'qos-binding/v1' }] }));
   if (mocks.offline) {
     for (const path of ['/health', '/health/live', '/health/ready']) await page.route(`${API}${path}`, (route) => route.abort('connectionrefused'));
   } else {
@@ -107,7 +106,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: /Validate a package/ })).toHaveAttribute('href', '/workbench');
       await expect(main.getByRole('link', { name: /Browse the engines/ })).toHaveAttribute('href', '/engines');
       await expect(main.getByRole('link', { name: /Create an account/ })).toHaveAttribute('href', '/register');
-      await expect(main.getByRole('status', { name: 'Runtime catalogue status' })).toContainText('3 installed dialects');
       await expect(main.getByRole('status', { name: 'Runtime catalogue status' })).toContainText('3 public engine revisions');
 
       // How it works: choosing a stage changes the call to action.
@@ -124,7 +122,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // Plans.
       const plans = main.getByRole('region', { name: 'Free to start, institutional when you scale' });
-      for (const plan of ['Basic', 'Research', 'Advanced', 'Pro']) await expect(plans.getByText(plan, { exact: true })).toBeVisible();
+      for (const plan of ['Free', 'Research', 'Lab']) await expect(plans.locator('.home-kicker').getByText(plan, { exact: true })).toBeVisible();
       await expect(plans.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
 
       await expectNoHorizontalOverflow(page);
@@ -152,15 +150,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.locator('.home-hero').screenshot({ path: testInfo.outputPath(`home-${name}-signed-in.png`), animations: 'disabled', style: HIDE_FLOATING });
     });
 
-    test('/status is replaced by /about, which holds the service-status note', async ({ page }, testInfo) => {
+    test('/about holds the service-status note, and nothing links to /status', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
       await page.goto('/pricing');
-      await page.goto('/status?probe=1');
+      await page.goto('/about');
       const main = page.locator('main');
 
-      // The query of the retired address is dropped.
-      await expect.poll(() => new URL(page.url()).pathname + new URL(page.url()).search).toBe('/about');
       await expect(main.getByText('Service status: All systems operational')).toBeVisible();
       await expect(page.locator('footer a[href="/status"], header a[href="/status"]')).toHaveCount(0);
       await ready(page);

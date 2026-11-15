@@ -16,7 +16,7 @@ import { MaintenanceSection } from './AdminMaintenance';
 import { QueuesSection } from './AdminQueues';
 import { ageLabel, count, describeAdminFailure, overviewSectionOf, overviewSectionPath, shortId, statusTone, type OverviewSection } from './adminModel';
 
-const PLAN_ORDER = ['BASIC', 'ADVANCED', 'RESEARCH', 'PRO'];
+const PLAN_ORDER = ['FREE', 'RESEARCH', 'LAB'];
 const PLAN_TONES: Array<'muted' | 'info' | 'success' | 'warning'> = ['muted', 'info', 'success', 'warning'];
 
 const QUEUE_STATES = [
@@ -190,7 +190,7 @@ function OverviewScreen() {
       </div>
 
       <section className="adm-numbers" aria-label="The platform in numbers">
-        {([['Organizations', counts.organizations], ['Projects', counts.projects], ['Problems', counts.cases], ['Studies', counts.studies], ['Study runs', counts.studyRuns], ['Stored artifacts', counts.artifacts]] as const).map(([label, value]) => (
+        {([['Organizations', counts.organizations], ['Problems', counts.problems], ['Problem versions', counts.problemRevisions], ['Runs', counts.runs], ['Studies', counts.studies], ['Study runs', counts.studyRuns]] as const).map(([label, value]) => (
           <div key={label}><strong>{count(value)}</strong><span>{label}</span></div>
         ))}
       </section>

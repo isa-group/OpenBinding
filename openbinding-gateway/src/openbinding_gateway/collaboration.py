@@ -6,21 +6,16 @@ import uuid
 from typing import Iterable
 
 from fastapi import status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .db.models import (
-    Blob,
-    Collection,
     Organization,
     OrganizationMembership,
     OrganizationRole,
-    Project,
-    Study,
     User,
 )
 from .models.errors import api_error
-from .services.entitlements import entitlement_service
 
 ROLE_STRENGTH = {
     OrganizationRole.VIEWER: 1,
@@ -78,8 +73,6 @@ async def descendant_ids(session: AsyncSession, organization_id: uuid.UUID) -> l
 async def effective_role(
     session: AsyncSession, organization_id: uuid.UUID, user: User
 ) -> OrganizationRole | None:
-    if getattr(user, "is_anonymous", False):
-        return None
     ancestors = await ancestor_ids(session, organization_id)
     if not ancestors:
         return None
@@ -101,15 +94,6 @@ async def require_role(
     minimum: OrganizationRole,
 ) -> OrganizationRole:
     role = await effective_role(session, organization.id, user)
-    if role is None and getattr(user, "is_anonymous", False):
-        # Only eligible public reads reach a handler without credentials; for
-        # everything else (a private project, a missing one) this is still a 401.
-        raise api_error(
-            status.HTTP_401_UNAUTHORIZED,
-            "unauthorized",
-            "This endpoint needs an account. Send a session token or an API key.",
-            headers={"WWW-Authenticate": 'Bearer realm="openbinding"'},
-        )
     if role is None or ROLE_STRENGTH[role] < ROLE_STRENGTH[minimum]:
         raise api_error(
             status.HTTP_403_FORBIDDEN,
@@ -133,170 +117,6 @@ async def assert_acyclic_move(
             "organization_cycle",
             "An organization cannot be moved below one of its descendants.",
         )
-
-
-async def project_by_ref(
-    session: AsyncSession, organization_id: uuid.UUID, reference: str | uuid.UUID
-) -> Project | None:
-    try:
-        parsed = reference if isinstance(reference, uuid.UUID) else uuid.UUID(str(reference))
-    except ValueError:
-        parsed = None
-    return (
-        await session.execute(
-            select(Project).where(
-                Project.organization_id == organization_id,
-                Project.id == parsed if parsed is not None else Project.slug == str(reference),
-            )
-        )
-    ).scalars().first()
-
-
-async def require_project(
-    session: AsyncSession,
-    organization: Organization,
-    reference: str | uuid.UUID,
-    user: User,
-    minimum: OrganizationRole,
-) -> Project:
-    if minimum is OrganizationRole.VIEWER:
-        # The one central place where "public_read" is granted (see access/public_read.py).
-        from .access.public_read import admit_public_project
-
-        public = await admit_public_project(session, organization, reference, user)
-        if public is not None:
-            return public
-    await require_role(session, organization, user, minimum)
-    project = await project_by_ref(session, organization.id, reference)
-    if project is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Project not found.")
-    return project
-
-
-async def organization_usage(
-    session: AsyncSession, organization_ids: Iterable[uuid.UUID]
-) -> dict[str, int]:
-    """Structural usage for an exact set of sponsored organizations."""
-
-    ids = tuple(set(organization_ids))
-    if not ids:
-        return {
-            "organizations": 0,
-            "members": 0,
-            "projects": 0,
-            "privateProjects": 0,
-            "collections": 0,
-            "studies": 0,
-            "storageBytes": 0,
-        }
-    organizations = len(ids)
-    members = int(
-        await session.scalar(
-            select(func.count(func.distinct(OrganizationMembership.user_id))).where(
-                OrganizationMembership.organization_id.in_(ids)
-            )
-        )
-        or 0
-    )
-    projects = int(
-        await session.scalar(select(func.count(Project.id)).where(Project.organization_id.in_(ids)))
-        or 0
-    )
-    private_projects = int(
-        await session.scalar(
-            select(func.count(Project.id)).where(
-                Project.organization_id.in_(ids), Project.visibility == "private"
-            )
-        )
-        or 0
-    )
-    project_ids = select(Project.id).where(Project.organization_id.in_(ids))
-    collections = int(
-        await session.scalar(select(func.count(Collection.id)).where(Collection.project_id.in_(project_ids)))
-        or 0
-    )
-    studies = int(
-        await session.scalar(select(func.count(Study.id)).where(Study.project_id.in_(project_ids)))
-        or 0
-    )
-    storage_bytes = int(
-        await session.scalar(
-            select(func.coalesce(func.sum(Blob.size_bytes), 0)).where(
-                Blob.organization_id.in_(ids)
-            )
-        )
-        or 0
-    )
-    return {
-        "organizations": organizations,
-        "members": members,
-        "projects": projects,
-        "privateProjects": private_projects,
-        "collections": collections,
-        "studies": studies,
-        "storageBytes": storage_bytes,
-    }
-
-
-async def sponsor_organization_ids(
-    session: AsyncSession, sponsor_user_id: uuid.UUID
-) -> list[uuid.UUID]:
-    return list(
-        (
-            await session.execute(
-                select(Organization.id).where(
-                    Organization.billing_sponsor_user_id == sponsor_user_id
-                )
-            )
-        ).scalars()
-    )
-
-
-async def sponsor_usage(session: AsyncSession, sponsor_user_id: uuid.UUID) -> dict[str, int]:
-    return await organization_usage(
-        session, await sponsor_organization_ids(session, sponsor_user_id)
-    )
-
-
-async def sponsor_has_member(
-    session: AsyncSession, sponsor_user_id: uuid.UUID, user_id: uuid.UUID
-) -> bool:
-    return bool(
-        await session.scalar(
-            select(func.count(OrganizationMembership.id))
-            .join(Organization, Organization.id == OrganizationMembership.organization_id)
-            .where(
-                Organization.billing_sponsor_user_id == sponsor_user_id,
-                OrganizationMembership.user_id == user_id,
-            )
-        )
-    )
-
-
-async def enforce_sponsor_usage(
-    session: AsyncSession, sponsor: User, usage: dict[str, int]
-) -> None:
-    """Validate a complete hypothetical sponsor total in one contract read."""
-
-    await entitlement_service.enforce_sponsor_usage(sponsor.id, usage)
-
-
-async def enforce_sponsor_capacity(
-    session: AsyncSession,
-    sponsor: User,
-    dimension: str,
-    *,
-    increment: int = 1,
-) -> None:
-    # Every structural quota mutation for one sponsor serializes on the same
-    # row.  Without this lock two concurrent creates can both observe one free
-    # slot and commit past the contract limit.
-    await session.execute(
-        select(User.id).where(User.id == sponsor.id).with_for_update()
-    )
-    usage = await sponsor_usage(session, sponsor.id)
-    usage[dimension] += increment
-    await enforce_sponsor_usage(session, sponsor, {dimension: usage[dimension]})
 
 
 def strongest(roles: Iterable[OrganizationRole]) -> OrganizationRole | None:

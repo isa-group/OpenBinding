@@ -1,4 +1,6 @@
-"""ZIP bombs against the instance routes: a controlled 4xx in bounded time, never an inflated stream.
+"""ZIP bombs against the package routes: a controlled 4xx in bounded time, never an inflated stream.
+
+Both entry points of a package are attacked: ``POST /v1/bim/validate`` and the problem upload.
 
 Two places read an upload: the platform reads ``instance.json`` before the toolchain has judged the archive
 (``integrations.packages.instance_document``), and the toolchain then loads the whole package. Neither may
@@ -15,6 +17,8 @@ import zipfile
 
 import pytest
 
+from _b1_helpers import gate, make_account  # noqa: F401,F811
+from _problem_helpers import make_org
 from openbinding_gateway.integrations import packages
 
 ZIP = {"Content-Type": "application/vnd.bim+zip"}
@@ -56,24 +60,34 @@ def _bomb(compression: int, *, declared: int | None, size: int = 48 * 1024 * 102
     return archive if declared is None else _declare_size(archive, declared)
 
 
-async def _validate(api_client, archive: bytes):
+@pytest.fixture(params=["validate", "upload"])
+async def entry(request, api_client, registration, db_session, gate):  # noqa: F811
+    if request.param == "validate":
+        return "/v1/bim/validate", ZIP
+    _, headers = await make_account(api_client, registration, db_session, gate)
+    org = await make_org(api_client, headers)
+    return f"/v1/organizations/{org}/problems", {**headers, **ZIP}
+
+
+async def _validate(api_client, entry, archive: bytes):
+    url, headers = entry
     started = time.monotonic()
-    response = await api_client.post("/v1/instances/validate", content=archive, headers=ZIP)
+    response = await api_client.post(url, content=archive, headers=headers)
     assert time.monotonic() - started < BUDGET_SECONDS
     return response
 
 
 @pytest.mark.asyncio
-async def test_a_deflate_bomb_with_an_honest_header_is_a_422(api_client) -> None:
-    response = await _validate(api_client, _bomb(zipfile.ZIP_DEFLATED, declared=None, size=8 * 1024 * 1024))
+async def test_a_deflate_bomb_with_an_honest_header_is_a_422(api_client, entry) -> None:
+    response = await _validate(api_client, entry, _bomb(zipfile.ZIP_DEFLATED, declared=None, size=8 * 1024 * 1024))
 
     assert response.status_code == 422, response.text
     assert "compression ratio" in response.text
 
 
 @pytest.mark.asyncio
-async def test_a_deflate_bomb_declaring_a_small_size_is_a_422(api_client) -> None:
-    response = await _validate(api_client, _bomb(zipfile.ZIP_DEFLATED, declared=64))
+async def test_a_deflate_bomb_declaring_a_small_size_is_a_422(api_client, entry) -> None:
+    response = await _validate(api_client, entry, _bomb(zipfile.ZIP_DEFLATED, declared=64))
 
     assert response.status_code == 422, response.text
     assert "could not read package entry" in response.text
@@ -82,8 +96,8 @@ async def test_a_deflate_bomb_declaring_a_small_size_is_a_422(api_client) -> Non
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method", [zipfile.ZIP_BZIP2, zipfile.ZIP_LZMA])
 @pytest.mark.parametrize("declared", [None, 64])
-async def test_bzip2_and_lzma_entries_are_a_422(api_client, method: int, declared) -> None:
-    response = await _validate(api_client, _bomb(method, declared=declared, size=16 * 1024 * 1024))
+async def test_bzip2_and_lzma_entries_are_a_422(api_client, entry, method: int, declared) -> None:
+    response = await _validate(api_client, entry, _bomb(method, declared=declared, size=16 * 1024 * 1024))
 
     assert response.status_code == 422, response.text
     assert "compression method" in response.text or "compression ratio" in response.text

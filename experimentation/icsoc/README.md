@@ -25,8 +25,8 @@ contains three applications, 35 infrastructure sizes, and one pinned dataset
 seed: 105 BIM v1 Instances in total.
 
 Every Instance is a directory rooted at `instance.json`. The campaign builds a
-deterministic `.bim.zip`, creates or reuses an immutable snapshot, and submits a
-job to `/v1`. Every returned binding is reevaluated by the gateway's
+deterministic `.bim.zip`, uploads it as a problem of your organization (or finds the
+revision it already is), and submits a job for that revision to `/v1`. Every returned binding is reevaluated by the gateway's
 authoritative BIM v1 evaluator before its metrics and objective are recorded.
 
 ## Engine compatibility
@@ -109,6 +109,9 @@ Without it, the generator tests that read the source data and
 
 ## Run the experiment
 
+Reproducing a campaign recorded before problems moved to organizations (the
+snapshot API) checks out commit `9084896d`, the last one that serves it.
+
 ```bash
 # 0) Environment
 uv pip install -e ./openbinding-gateway pandas matplotlib scipy httpx --python .venv/bin/python
@@ -126,7 +129,10 @@ docker compose --profile dev up -d --build gateway-dev \
   --out experimentation/icsoc/out/bim-v1 \
   --dataset-seeds 146588263
 
-# 3) Resumable campaign (one exact and two heuristic lanes)
+# 3) Resumable campaign (one exact and two heuristic lanes). The instances are
+#    uploaded as problems of an organization you are a MEMBER of; the token is a
+#    session token or an API key with problems:write, engines:execute and jobs:read.
+export OPENBINDING_ORG=my-lab OPENBINDING_TOKEN=...
 .venv/bin/python experimentation/icsoc/campaign.py
 
 # Optional independent lanes

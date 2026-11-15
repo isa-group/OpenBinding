@@ -177,7 +177,7 @@ describe('Audit log', () => {
     renderAudit();
     await screen.findByRole('list', { name: 'Audit events, newest first' });
 
-    fireEvent.change(screen.getByLabelText('Action'), { target: { value: 'project.deleted' } });
+    fireEvent.change(screen.getByLabelText('Action'), { target: { value: 'problem.deleted' } });
     expect(await screen.findByText(/No events match these filters\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
 

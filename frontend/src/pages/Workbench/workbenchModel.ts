@@ -1,9 +1,9 @@
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import type { CaseRevision } from '../../api/platform';
-import { problemPath, problemsPath } from '../../routes/paths/problems';
 import { RANGE_CODE, RANGE_REFUSAL } from '../../utils/featureRange';
-import { limitProblemOf, sizeOf } from '../../utils/limitRefusals';
+import { inInterfaceWords } from '../../components/ui/interfaceWords';
+import { limitProblemOf } from '../../utils/limitRefusals';
+import { limitInfo } from '../../utils/limits';
 import type { WorkspaceFiles } from '../../utils/workspaceDraft';
 import { isRecord, parseJson, type BimDocument, type CompatibleMode, type Diagnostic, type ResourceEntry } from './bimDocuments';
 
@@ -12,12 +12,13 @@ import { isRecord, parseJson, type BimDocument, type CompatibleMode, type Diagno
 // --- what the gateway can refuse
 
 export type RefusalKind =
-  | 'invalid' | 'too-big' | 'too-large' | 'session' | 'key' | 'unsupported' | 'busy' | 'unavailable' | 'other'
-  // A size limit that isn't "your plan's, exceeded": the plan doesn't state it, this deployment caps it, it couldn't be measured, or the plan can't be applied.
-  | 'limit-unknown' | 'technical' | 'unmeasured' | 'misconfigured';
+  // `quota`: an allowance of the plan is used up (402), such as its repository storage.
+  | 'invalid' | 'quota' | 'too-large' | 'session' | 'key' | 'unsupported' | 'busy' | 'unavailable' | 'other'
+  // A size limit no plan sets: this deployment caps it, it couldn't be measured, or the plan can't be applied.
+  | 'technical' | 'unmeasured' | 'misconfigured';
 
 /** The refusals that are about a limit the package can't fix by being valid or by a credential: each has its own sentence in `message`. */
-export const LIMIT_KINDS: readonly RefusalKind[] = ['limit-unknown', 'technical', 'unmeasured', 'misconfigured'];
+export const LIMIT_KINDS: readonly RefusalKind[] = ['technical', 'unmeasured', 'misconfigured'];
 
 export interface Refusal {
   kind: RefusalKind;
@@ -30,11 +31,9 @@ export interface Refusal {
   title?: string;
   /** The problems a 422 lists, one per place in the package. */
   diagnostics: Diagnostic[];
-  /** What a 402 names: the allowance and its ceiling. */
+  /** What a 402 or a size refusal names: the limit and its ceiling. */
   limitId?: string;
   limit?: number;
-  /** How big the package is, in words, when the answer measured it. */
-  size?: string;
 }
 
 /** `(422)` or `(403 · api_key_boundary)`: the status and code of a refusal. */
@@ -46,10 +45,9 @@ export function refusalMarker(refusal: Pick<Refusal, 'status' | 'code'>): string
 /** Sort a failed call into the cases the workbench has words for. */
 export function refusalOf(caught: unknown): Refusal {
   if (caught instanceof QuotaError) {
-    const size = sizeOf(caught.bindingSpace, caught.notice) ?? undefined;
     return {
-      kind: 'too-big', status: 402, code: caught.code, message: caught.message, diagnostics: [],
-      limitId: caught.quota?.limit_id ?? caught.notice?.limit_id, limit: caught.quota?.limit ?? caught.notice?.limit, ...(size ? { size } : {}),
+      kind: 'quota', status: 402, code: caught.code, message: caught.message, diagnostics: [],
+      limitId: caught.quota?.limit_id ?? caught.notice?.limit_id, limit: caught.quota?.limit ?? caught.notice?.limit,
     };
   }
   if (caught instanceof HttpError) {
@@ -59,8 +57,8 @@ export function refusalOf(caught: unknown): Refusal {
       message: caught.message.replace(/^HTTP \d+: /, ''),
       diagnostics: (caught.diagnostics ?? []).filter(isRecord) as Diagnostic[],
     };
-    // A 403 that says the plan sets no size limit is not a key without permission, and a 422 over the deployment's cap
-    // or one that couldn't be measured is not an invalid package: each is told in its own words.
+    // A 422 over the deployment's size cap, or one whose size couldn't be measured, is not an invalid package, and a 503 for
+    // a plan that can't be applied is not an outage: each is told in its own words.
     const limited = limitProblemOf(caught, '', '');
     if (limited) {
       return { ...base, kind: limited.kind, title: limited.title, message: limited.text.trim(), limitId: limited.limitId, limit: caught.notice?.limit };
@@ -79,61 +77,49 @@ export function refusalOf(caught: unknown): Refusal {
   return { kind: 'other', message: caught instanceof Error ? caught.message : String(caught), diagnostics: [] };
 }
 
+/** What a 402 is out of, in the words of the plan: `storage`, else `allowance`. */
+function allowanceOf(refusal: Refusal): string {
+  return refusal.limitId ? inInterfaceWords(limitInfo(refusal.limitId).short) : 'allowance';
+}
+
 /** The sentence for a refusal that isn't one of the screen's own states. */
 export function refusalText(refusal: Refusal, doing: string): string {
   const marker = refusalMarker(refusal);
   switch (refusal.kind) {
-    case 'limit-unknown':
     case 'technical':
     case 'unmeasured':
     case 'misconfigured': return `${refusal.message.replace(/\.$/, '')}${marker}, so ${doing}.`;
     case 'unsupported': return `The gateway doesn’t take this kind of file${marker}. Use a .bim.zip package.`;
     case 'busy': return `Too many requests${marker}. Wait a moment and try again.`;
     case 'unavailable': return `A service OpenBinding depends on isn’t answering${marker}, so ${doing}. This says nothing about your package; try again in a moment.`;
-    case 'too-big': return `This package is bigger than your plan can compile${marker}, so ${doing}.`;
-    case 'too-large': return `This package is larger than your plan allows per request${marker}, so ${doing}.`;
+    case 'quota': return `Your plan’s ${allowanceOf(refusal)} is used up${marker}, so ${doing}. Free some, or see your plan.`;
+    case 'too-large': return `This package is larger than this deployment allows per request${marker}, so ${doing}.`;
     case 'session': return `Your session has ended${marker}. Log in again; your package is kept in this browser.`;
     default: return refusal.status === undefined ? refusal.message : `${refusal.message || 'That couldn’t be done'}${marker}, so ${doing}.`;
   }
 }
 
-/** Opening a problem version from the address (`?case=&revision=`) failed. */
+/** Opening a problem version from the address (`?problem=&revision=`) failed. */
 export function loadRefusalText(refusal: Refusal): string {
   if (refusal.status === 404) return `That problem version doesn’t exist any more, or you’re not in the organization it belongs to${refusalMarker(refusal)}. The package was not loaded.`;
   return refusalText(refusal, 'the package was not loaded');
 }
 
-/** Saving a problem version: what each refusal of `POST …/cases/{case}/revisions` means. */
+/** Saving: what each refusal of `POST …/problems` and `POST …/problems/{problem}/revisions` means. */
 export function saveRefusalText(refusal: Refusal): string {
   const marker = refusalMarker(refusal);
+  if (refusal.status === 409 && refusal.code === 'slug_conflict') return `That address is already used by another problem in this organization${marker}. Pick another one. Nothing was saved.`;
   switch (refusal.kind) {
-    case 'key': return `You need MEMBER in the organization to save a version, and an API key needs projects:write${marker}. Nothing was saved.`;
+    case 'key': return `You need MEMBER in the organization to save, and an API key needs problems:write${marker}. Nothing was saved.`;
     case 'session': return `Your session has ended${marker}. Log in again; the package is kept in this browser. Nothing was saved.`;
-    case 'invalid': return `The gateway refused to seal a version from this package${marker}. ${refusal.message ? `${refusal.message} ` : ''}Nothing was saved.`;
-    case 'too-big': return `This package is bigger than your plan can compile${marker}. Nothing was saved.`;
-    case 'too-large': return `This package is larger than your plan allows per request${marker}. Nothing was saved.`;
+    case 'invalid': return `The gateway refused to seal this package${marker}. ${refusal.message ? `${refusal.message} ` : ''}Nothing was saved.`;
+    case 'quota': return `Your plan has no room for this${marker}: it counts your problems and the ${allowanceOf(refusal)} your packages take. Nothing was saved.`;
+    case 'too-large': return `This package is larger than this deployment allows per request${marker}. Nothing was saved.`;
     case 'other': return refusal.status === 404
       ? `That problem no longer exists, or you’re not in its organization${marker}. Nothing was saved.`
       : `${refusal.message || 'The version could not be saved'}${marker}. Nothing was saved.`;
     default: return refusalText(refusal, 'nothing was saved');
   }
-}
-
-/**
- * Where `Open snapshot` leads: the Source tab of `problem` at the sealed version made from the snapshot (the one whose `source_snapshot_id`
- * is the snapshot's id), and the problem list when no version of that problem came from it, or no problem is chosen.
- */
-export function snapshotHref(root: string, problem: string, versions: readonly Pick<CaseRevision, 'revision' | 'source_snapshot_id'>[], snapshotId: string): string {
-  const made = problem ? versions.find((version) => version.source_snapshot_id === snapshotId) : undefined;
-  return made ? problemPath(root, problem, 'source', { version: made.revision }) : problemsPath(root);
-}
-
-// --- the plan's ceilings
-
-/** The plan's ceiling for the size of a compiled problem, as a power of ten; `null` when unlimited or unknown. */
-export function complexityCeiling(capability: unknown, planValue: number | null): number | null {
-  if (typeof capability === 'number' && Number.isFinite(capability)) return capability;
-  return planValue;
 }
 
 // --- the package as the person sees it
@@ -199,35 +185,6 @@ export interface EngineRow {
   why: string;
 }
 
-/** What the run says when an engine refuses a package for its ranges, plus the diagnostics' pointers when the gateway sent them. */
-export const RANGE_RUN_ERROR = 'This engine only accepts single values, and this package has range features (a min and a max, open or not). Pick a mode that declares interval values, or edit those candidates to use single values.';
-
-/** Did the run end because the engine mode doesn't take ranges (`unsupported_capability_value`)? */
-export function isRangeRefusal(caught: unknown): boolean {
-  if (caught instanceof HttpError) {
-    if (caught.code === RANGE_CODE) return true;
-    if ((caught.diagnostics ?? []).some((row) => isRecord(row) && row.code === RANGE_CODE)) return true;
-  }
-  return caught instanceof Error && caught.message.includes(RANGE_CODE);
-}
-
-/**
- * Where the diagnostics of such a refusal point, as ` The gateway pointed at candidates.json#/spec/candidates/a/features/latency, ….`
- * (empty when it sent none). The refusal is `engine_mode_incompatible` with an `unsupported_capability_value` diagnostic among its
- * diagnostics, which may carry no pointer at all: only the range diagnostics are read (every one when the refusal itself is the range
- * code), by `pointer` (inside `resource` when named), else by `irPath`.
- */
-export function rangePointers(caught: unknown): string {
-  const rows = (caught instanceof HttpError ? caught.diagnostics ?? [] : []).filter(isRecord);
-  const ranged = rows.filter((row) => row.code === RANGE_CODE);
-  const own = caught instanceof HttpError && caught.code === RANGE_CODE ? rows : [];
-  const pointers = (ranged.length > 0 ? ranged : own).flatMap((row) => {
-    if (typeof row.pointer === 'string' && row.pointer !== '') return [typeof row.resource === 'string' && row.resource !== '' ? `${row.resource}#${row.pointer}` : row.pointer];
-    return typeof row.irPath === 'string' && row.irPath !== '' ? [row.irPath] : [];
-  }).slice(0, 5);
-  return pointers.length ? ` The gateway pointed at ${pointers.join(', ')}.` : '';
-}
-
 /** Did the gateway turn the mode down because of ranges (`unsupported_capability_value`, or an interval it can't take)? */
 export function refusesRanges(mode: CompatibleMode): boolean {
   return mode.compatible !== true && (mode.diagnostics ?? []).some((diagnostic) => (
@@ -255,20 +212,9 @@ export function engineRows(modes: CompatibleMode[]): EngineRow[] {
   }));
 }
 
-/** Does any candidate of any catalog of the package hold a range (an object under `features`)? */
-export function filesHaveRanges(files: WorkspaceFiles): boolean {
-  return Object.entries(files).some(([path, source]) => {
-    if (!path.toLowerCase().endsWith('.json')) return false;
-    const document = parseJson(source);
-    const candidates = document?.kind === 'CandidateCatalog' && isRecord(document.spec) ? document.spec.candidates : undefined;
-    const entries = isRecord(candidates) ? Object.values(candidates) : Array.isArray(candidates) ? candidates : [];
-    return entries.some((entry) => isRecord(entry) && isRecord(entry.features) && Object.values(entry.features).some(isRecord));
-  });
-}
-
 // --- the draft of the workspace
 
-/** Where a workspace's unsaved edits are kept: per person, per address and per case revision. */
-export function workbenchDraftScope(userId: string | undefined, pathname: string, caseRef: string | null, revisionRef: string | null): string {
-  return `${userId || 'anonymous'}:${pathname}:${caseRef || ''}:${revisionRef || ''}`;
+/** Where a workspace's unsaved edits are kept: per person, per address and per problem version. */
+export function workbenchDraftScope(userId: string | undefined, pathname: string, problemRef: string | null, revisionRef: string | null): string {
+  return `${userId || 'anonymous'}:${pathname}:${problemRef || ''}:${revisionRef || ''}`;
 }

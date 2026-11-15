@@ -85,8 +85,11 @@ services:
       - SPACE_URL=${SPACE_URL:-https://space.score.us.es}
       - SPACE_API_KEY=${SPACE_API_KEY:-}
       - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
-      - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
+      - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.2.0}
       - SPACE_DEFAULT_PLAN=${SPACE_DEFAULT_PLAN:-}
+      - SPACE_ORGANIZATION_ID=${SPACE_ORGANIZATION_ID:-}
+      - SPACE_TOKEN_ISSUER=${SPACE_TOKEN_ISSUER:-space}
+      - SPACE_TOKEN_LEEWAY_S=${SPACE_TOKEN_LEEWAY_S:-30}
       - REDIS_URL=redis://redis:6379/0
       - JOB_DISPATCH_MODE=dramatiq
       - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
@@ -102,7 +105,6 @@ services:
       # BIM (compile, evaluate, re-evaluate) runs in this process (bim_client's
       # InProcessBim). The BIM toolchain lives in its own repository
       # (javiercavlop/bim-toolchain); this stack builds and runs no bim-service.
-      - BIM_MODE=${BIM_MODE:-inproc}
       # Comma-separated Fernet keys for stored engine credentials: the first
       # encrypts, all decrypt (rotation). FEDERATION_SECRET_KEY is the legacy
       # single key, still read after them.
@@ -158,8 +160,11 @@ services:
       - SPACE_URL=${SPACE_URL:-https://space.score.us.es}
       - SPACE_API_KEY=${SPACE_API_KEY:-}
       - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
-      - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
+      - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.2.0}
       - SPACE_DEFAULT_PLAN=${SPACE_DEFAULT_PLAN:-}
+      - SPACE_ORGANIZATION_ID=${SPACE_ORGANIZATION_ID:-}
+      - SPACE_TOKEN_ISSUER=${SPACE_TOKEN_ISSUER:-space}
+      - SPACE_TOKEN_LEEWAY_S=${SPACE_TOKEN_LEEWAY_S:-30}
       # Comma-separated Fernet keys for stored engine credentials: the first
       # encrypts, all decrypt (rotation). FEDERATION_SECRET_KEY is the legacy
       # single key, still read after them.
@@ -170,8 +175,7 @@ services:
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
       - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
-      # The worker re-evaluates every engine answer through BIM: same choice as the gateway.
-      - BIM_MODE=${BIM_MODE:-inproc}
+      # The worker re-evaluates every engine answer through BIM, in process as the gateway does.
       - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:8000}
       - SPHERE_ENABLED=${SPHERE_ENABLED:-false}

@@ -3,9 +3,9 @@ import { failureBody } from './helpers/problems';
 import type { Job, Study, StudyCell, StudyRun } from '../src/api/platform';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { jobOf } from '../src/test/fixtures/jobs';
-import { digestOf as resourceDigest, usageOf } from '../src/test/fixtures/resources';
+import { usageOf } from '../src/test/fixtures/resources';
 import {
-  CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, RUN_ID, VERSION_ID, analyticsFixture, cellFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
+  CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, RUN_ID, analyticsFixture, cellFixture, cellsFixture, runFixture, studyFixture,
 } from '../src/test/fixtures/studies';
 
 // S7a · studies: study-list, study-builder and study-detail with its tabs Setup, Progress (the run) and Results (analytics, cells and the CSV export).
@@ -30,35 +30,23 @@ const token = (expiresInSeconds: number) => [
 
 const lucia = {
   id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-03-02T00:00:00Z', cas_verified: true, institutional_branding: true,
+  created_at: '2026-03-02T00:00:00Z', cas_verified: true,
 };
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 
-const org = (id: string, slug: string, name: string, role: Role, sponsor = 'user-1') => ({
-  id, slug, name, parent_id: null, billing_sponsor_user_id: sponsor, effective_role: role, created_at: '2026-03-03T00:00:00Z',
+const org = (id: string, slug: string, name: string, role: Role) => ({
+  id, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z',
 });
 
-const project = (n: number, orgId: string, slug: string, name: string) => ({
-  id: `project-${n}`, organization_id: orgId, slug, name, description: '', visibility: 'private', created_by_id: 'user-1',
-  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
-  // The contract's `ProjectView.access`: these specs reach every project as a member.
-  access: 'member' as const, effective_role: 'OWNER' as Role,
-});
-
-const projectsOf: Record<string, ReturnType<typeof project>[]> = {
-  'isa-demo': [project(1, 'org-isa-demo', 'qos-benchmarks', 'QoS Benchmarks'), project(2, 'org-isa-demo', 'checkout-privado', 'Checkout (privado)')],
-  'read-lab': [project(4, 'org-4', 'bench', 'Bench')],
-};
-
-// --- the studies of the project
+// --- the studies of the organization
 
 const NEW_RUN_ID = '00000000-0000-4000-8000-000000000102';
 const LIVE_RUN_ID = '00000000-0000-4000-8000-000000000111';
 
-const liveStudy = studyFixture({ id: 'study-live-sweep', slug: 'live-sweep', name: 'Live sweep', definition_artifact_id: 'artifact-live-sweep', definition: { case_revision_ids: [REVISION_2.id], engines: [RANDOM_SEARCH], parameter_sets: [{}], seeds: [1, 2, 3, 4, 5, 6] } });
-const placement = studyFixture({ id: 'study-placement', slug: 'placement-sweep', name: 'Placement sweep', description: 'Pools and latencies on the edge.', definition_artifact_id: 'artifact-placement' });
-const oldStudy = studyFixture({ id: 'study-old', slug: 'old-study', name: 'Old study', archived: true, definition_artifact_id: 'artifact-old' });
+const liveStudy = studyFixture({ id: 'study-live-sweep', slug: 'live-sweep', name: 'Live sweep', definition: { revision_ids: [REVISION_2.id], engines: [RANDOM_SEARCH], parameter_sets: [{}], seeds: [1, 2, 3, 4, 5, 6] } });
+const placement = studyFixture({ id: 'study-placement', slug: 'placement-sweep', name: 'Placement sweep', description: 'Pools and latencies on the edge.' });
+const oldStudy = studyFixture({ id: 'study-old', slug: 'old-study', name: 'Old study', archived: true });
 
 /** The cells of the run that is still going: two done, two solving, two waiting; once `done` is set, all of them completed. */
 function liveCells(done: boolean): StudyCell[] {
@@ -72,17 +60,17 @@ function liveCells(done: boolean): StudyCell[] {
 }
 
 const liveRun = (done: boolean): StudyRun => runFixture({
-  id: LIVE_RUN_ID, study_id: liveStudy.id, definition_version_id: 'version-live', run_number: 1, state: done ? 'completed' : 'running', cells: 6,
+  id: LIVE_RUN_ID, study_id: liveStudy.id, run_number: 1, state: done ? 'completed' : 'running', cells: 6,
   created_at: '2026-10-09T08:00:00Z', finished_at: done ? '2026-10-09T08:06:00Z' : null,
 });
 
 // --- the jobs an account could attach to a cell
 
 const mineJobs: Job[] = [
-  jobOf('job-mine-a', 'random-search', 'completed', 'FEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:01:05Z', { project_id: 'project-1' }),
-  jobOf('job-mine-b', 'evolutionary', 'failed', 'UNKNOWN', '2026-10-02T09:00:00Z', '2026-10-02T09:00:20Z', { project_id: 'project-1' }),
+  jobOf('job-mine-a', 'random-search', 'completed', 'FEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:01:05Z', { created_by: { id: 'user-1', username: 'lucia' } }),
+  jobOf('job-mine-b', 'evolutionary', 'failed', 'UNKNOWN', '2026-10-02T09:00:00Z', '2026-10-02T09:00:20Z', { created_by: { id: 'user-1', username: 'lucia' } }),
 ];
-const otherJobs: Job[] = [jobOf('job-theirs', 'minizinc', 'completed', 'OPTIMAL', '2026-10-03T09:00:00Z', '2026-10-03T09:02:00Z', { project_id: 'project-1' })];
+const otherJobs: Job[] = [jobOf('job-theirs', 'minizinc', 'completed', 'OPTIMAL', '2026-10-03T09:00:00Z', '2026-10-03T09:02:00Z', { created_by: { id: 'user-2', username: 'ana' } })];
 
 // --- what the gateway answers
 
@@ -97,22 +85,13 @@ const engineEntry = (ref: typeof RANDOM_SEARCH) => {
 };
 
 
-const artifact = (id: string, kind: string, display: string) => ({
-  id, organization_id: 'org-isa-demo', namespace: 'isa-demo', name: id, display_name: display, kind, description: '', labels: {}, archived: false, created_at: '2026-08-01T00:00:00Z',
-});
-
-const version = (id: string, artifactId: string, ordinal: number) => ({
-  id, artifact_id: artifactId, ordinal, ref: { namespace: 'isa-demo', name: artifactId, version: String(ordinal), versionDigest: resourceDigest('v') },
-  contentDigest: resourceDigest('e'), manifest: { mediaType: 'application/json', contracts: [], dependencies: [] }, based_on_id: null, public: false, withdrawn: false,
-});
-
 type Overridable = 'studies' | 'create' | 'run' | 'cancel' | 'retry' | 'attach' | 'update' | 'delete' | 'runs' | 'cells' | 'cell' | 'analytics' | 'report';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
   refuse: Partial<Record<Overridable, Handler>>;
   /** What each write carried, to check what was sent. */
-  sent: { create?: unknown; run?: string; cancel?: string; retry: string[]; attach?: { cell: string; job: unknown }; update: unknown[]; deleted: string[]; report?: unknown };
+  sent: { create?: unknown; run?: string; cancel?: string; retry: string[]; attach?: { cell: string; job: unknown }; update: unknown[]; ifMatch: Array<string | undefined>; deleted: string[]; report?: unknown };
   studies: Study[];
   runs: Record<string, StudyRun[]>;
   cells: Record<string, StudyCell[]>;
@@ -133,7 +112,7 @@ const analyticsBody = () => analyticsFixture();
 async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   const state: State = {
     refuse: {},
-    sent: { retry: [], update: [], deleted: [] },
+    sent: { retry: [], update: [], ifMatch: [], deleted: [] },
     studies: [studyFixture(), liveStudy, placement, oldStudy],
     runs: { 'engines-vs-seeds': [runFixture()], 'live-sweep': [liveRun(false)] },
     cells: { [RUN_ID]: cellsFixture(), [LIVE_RUN_ID]: liveCells(false) },
@@ -141,7 +120,8 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   };
   const organizations = [
     org('org-isa-demo', 'isa-demo', 'ISA Demo Group', options.role ?? 'OWNER'),
-    org('org-4', 'read-lab', 'Read Lab', 'VIEWER', 'user-nora'),
+    org('org-4', 'read-lab', 'Read Lab', 'VIEWER'),
+    org('org-5', 'empty-lab', 'Empty Lab', 'OWNER'),
   ];
   await page.addInitScript(() => {
     localStorage.setItem('openbinding-access-token', 's7a-access');
@@ -156,72 +136,42 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(`${API}/v1/users/me/usage`, json(usageOf({
     plan: 'RESEARCH',
-    capabilities: { maxPayloadBytes: 134_217_728, maxTimeoutSeconds: 60, maxIterations: 1_000_000, studies: 25, concurrentJobs: 3 },
+    capabilities: { maxRunMinutes: 1, maxStudyCells: 5000, maxConcurrentRuns: 3 },
   })));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
   await page.route(`${API}/v1/engines`, json({ engines: [engineEntry(RANDOM_SEARCH), engineEntry(EVOLUTIONARY)] }));
 
-  // The versions of the library's artifacts: the study definitions that can be reused.
-  await page.route(new RegExp(`^${API}/v1/artifacts/[^/]+/versions(/.*)?(\\?.*)?$`), (route) => {
-    const parts = new URL(route.request().url()).pathname.split('/').filter(Boolean);
-    const [, , artifactId, , versionId, tail] = parts;
-    if (tail === 'content') {
-      return route.fulfill({ status: 200, contentType: 'text/plain', body: JSON.stringify({ apiVersion: 'openbinding/study/v1', cases: [{}, {}], engines: [{}, {}], parameter_sets: [{}], seeds: [1, 2] }) });
-    }
-    if (versionId) return json(version(versionId, artifactId, 1))(route);
-    return json([version(artifactId === 'artifact-engines-vs-seeds' ? VERSION_ID : `${artifactId}-v1`, artifactId, 1), version(`${artifactId}-v2`, artifactId, 2)])(route);
-  });
-
-  // The jobs of this account, to attach one to a cell.
-  await page.route(new RegExp(`^${API}/v1/jobs(\\?.*)?$`), json(mineJobs));
-  await page.route(new RegExp(`^${API}/v1/jobs/[^/]+$`), json({ id: 'job-mine-a', status: 'completed', result: { termination: 'FEASIBLE', solutions: [] } }));
-
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
     const url = new URL(route.request().url());
     const parts = url.pathname.split('/').filter(Boolean);
-    const [, , orgSlug, section, projectSlug, sub, subId, action, actionId, tail, cellId, verb] = parts;
+    const [, , orgSlug, section, runId] = parts;
+    // /v1/organizations/{org}/studies/{study}/runs/{run}/cells/{cell}/{verb}
+    const [, , , , subId, action, actionId, tail, cellId, verb] = parts;
     const method = route.request().method();
     const found = organizations.find((item) => item.slug === orgSlug);
 
     if (!orgSlug) return json(organizations)(route);
-    if (section === 'library') {
-      return json([
-        artifact('artifact-engines-vs-seeds', 'Study', 'Engines × seeds'),
-        artifact('artifact-catalog', 'CandidateCatalog', 'Providers'),
-      ])(route);
-    }
     if (section === 'members') return json([])(route);
-    if (section !== 'projects') return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
-
-    const list = projectsOf[orgSlug] ?? [];
-    if (!projectSlug) return json(list)(route);
-    const current = list.find((item) => item.slug === projectSlug);
-    if (!current) return detail(404, 'not_found', 'Project not found.')(route);
-    if (!sub) return json(current)(route);
-
-    if (sub === 'cases') {
-      if (!subId) return json([CHECKOUT])(route);
-      if (action === 'revisions') return json([REVISION_1, REVISION_2, revisionFixture(3, { source_snapshot_id: null })])(route);
+    if (section === 'runs') {
+      // The runs of the organization: the attach dialog offers the finished ones, whoever launched them; a cell's run opens here.
+      if (!runId) return json({ runs: [...mineJobs, ...otherJobs], total: mineJobs.length + otherJobs.length })(route);
+      return json({ ...mineJobs[0], id: runId, status: 'completed', provenance: {}, result: { termination: 'FEASIBLE', solutions: [] } })(route);
+    }
+    if (section === 'problems') {
+      // The study builder and the matrices name the problem versions of the organization.
+      const [, , , , problemSlug, problemSub] = parts;
+      if (!problemSlug) return json({ problems: [CHECKOUT], total: 1, limit: 200, offset: 0 })(route);
+      if (problemSub === 'revisions') return json([REVISION_1, REVISION_2])(route);
       return json(CHECKOUT)(route);
     }
-    if (sub === 'jobs') return json([...mineJobs, ...otherJobs])(route);
-    if (sub === 'reports') {
-      if (method === 'POST') {
-        state.sent.report = bodyOf(route);
-        if (state.refuse.report) return state.refuse.report(route);
-        const sent = bodyOf(route);
-        return json({
-          artifact_id: 'artifact-report', version_id: null, draft_id: 'draft-1', draft_revision: 1, id: 'report-1', project_id: current.id, study_run_id: sent.study_run_id ?? null,
-          slug: sent.slug, title: sent.title, document: sent.document, digest: '', state: 'draft', created_at: '2026-10-09T09:00:00Z',
-        }, 201)(route);
-      }
-      return json([])(route);
-    }
-    if (sub !== 'studies') return json([])(route);
+    if (section !== 'studies') return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
 
-    // --- studies
-    const studies = projectSlug === 'checkout-privado' ? [] : state.studies;
+    // --- studies of the organization
+    if (!found) return detail(403, 'organization_forbidden', 'This action requires viewer access to the organization.')(route);
+    const studies = orgSlug === 'empty-lab' ? [] : state.studies;
+    /** A study's revision, as its ETag: it changes with every edit. */
+    const etagOf = (study: Study) => `"${study.id}-${state.sent.update.length}"`;
     if (!subId) {
       if (method === 'POST') {
         state.sent.create = bodyOf(route);
@@ -229,7 +179,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
         const sent = bodyOf(route) as { slug: string; name: string; description: string; definition?: Study['definition'] };
         if (state.studies.some((item) => item.slug === sent.slug)) return detail(409, 'slug_conflict', 'That study slug is in use.')(route);
         const made = studyFixture({
-          id: `study-${sent.slug}`, slug: sent.slug, name: sent.name, description: sent.description, definition_artifact_id: `artifact-${sent.slug}`,
+          id: `study-${sent.slug}`, slug: sent.slug, name: sent.name, description: sent.description,
           ...(sent.definition ? { definition: sent.definition } : {}),
         });
         state.studies.push(made);
@@ -238,15 +188,23 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       if (state.refuse.studies) return state.refuse.studies(route);
       return json(studies)(route);
     }
+    if (method === 'GET' && !action && state.refuse.studies) return state.refuse.studies(route);
     const study = studies.find((item) => item.slug === subId);
     if (!study) return detail(404, 'not_found', 'Study not found.')(route);
     if (!action) {
       if (method === 'PATCH') {
         const sent = bodyOf(route);
+        state.sent.ifMatch.push(route.request().headers()['if-match']);
+        if (state.refuse.update) {
+          state.sent.update.push(sent);
+          return state.refuse.update(route);
+        }
+        if (route.request().headers()['if-match'] && route.request().headers()['if-match'] !== etagOf(study)) {
+          return route.fulfill({ status: 412, headers: { ETag: etagOf(study), 'Access-Control-Expose-Headers': 'ETag' }, json: failureBody(412, 'precondition_failed', 'The resource changed since it was read; fetch it again and retry.') });
+        }
         state.sent.update.push(sent);
-        if (state.refuse.update) return state.refuse.update(route);
         Object.assign(study, sent);
-        return json(study)(route);
+        return route.fulfill({ status: 200, headers: { ETag: etagOf(study), 'Access-Control-Expose-Headers': 'ETag' }, json: study });
       }
       if (method === 'DELETE') {
         state.sent.deleted.push(study.slug);
@@ -255,7 +213,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
         state.studies = state.studies.filter((item) => item.slug !== study.slug);
         return route.fulfill({ status: 204 });
       }
-      return json(study)(route);
+      return route.fulfill({ status: 200, headers: { ETag: etagOf(study), 'Access-Control-Expose-Headers': 'ETag' }, json: study });
     }
     if (action !== 'runs') return json([])(route);
 
@@ -267,7 +225,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     const cellsOf = (run: string): StudyCell[] => (run === LIVE_RUN_ID ? liveCells(state.liveDone) : state.cells[run] ?? []);
     if (!actionId) {
       if (method === 'POST') {
-        state.sent.run = url.searchParams.get('definition_version_id') ?? '';
+        state.sent.run = study.slug;
         if (state.refuse.run) return state.refuse.run(route);
         const made = runFixture({ id: NEW_RUN_ID, run_number: 2, state: 'queued', finished_at: null, created_at: '2026-10-09T09:30:00Z' });
         state.runs[study.slug] = [made, ...(state.runs[study.slug] ?? [])];
@@ -359,7 +317,7 @@ const viewports = [
   { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 2 },
 ] as const;
 
-const ROOT = '/app/isa-demo/qos-benchmarks';
+const ROOT = '/app/isa-demo';
 const STUDY = `${ROOT}/studies/engines-vs-seeds`;
 // The study page (`study-detail`): Progress and Results of the study run named by `?run=`, and a cell inside Results.
 const RUN = `${STUDY}/progress?run=${RUN_ID}`;
@@ -373,16 +331,17 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test.describe.configure({ mode: 'default' });
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('study-list /app/:org/:project/studies · rows, archive and delete, with no allowance meter', async ({ page }, testInfo) => {
+    test('study-list /app/:org/studies · rows, archive and delete, with no allowance meter', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/studies`);
       const main = page.locator('#platform-main');
-      const list = main.getByRole('list', { name: 'Studies of the project' });
+      const list = main.getByRole('list', { name: 'Studies of the organization' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'Studies' })).toBeVisible();
       await expect(main.getByText(/A study runs every combination of problems × engines × settings × seeds/)).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Studies', exact: true })).toHaveAttribute('aria-current', 'page');
+      // Studies belong to the organization: the crumbs lead back to it.
+      await expect(main.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'ISA Demo Group' })).toHaveAttribute('href', ROOT);
       await expect(main.getByRole('link', { name: 'New study' })).toHaveAttribute('href', `${ROOT}/studies/new`);
       await expect(list.getByRole('listitem')).toHaveCount(3);
       await expect(list.getByRole('link', { name: 'Last run #1' }).first()).toHaveAttribute('href', RUN);
@@ -411,21 +370,21 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(dialog).toBeVisible();
       await capture(page, testInfo, `list-${name}-delete-dialog`);
       await dialog.getByRole('button', { name: 'Delete study' }).click();
-      await expect(main.getByText('This study has runs, so it was archived instead of deleted. Results cited by reports stay intact.')).toBeVisible();
+      await expect(main.getByText('This study has runs, so it was archived instead of deleted. Its runs and results stay intact.')).toBeVisible();
       expect(state.sent.deleted).toEqual(['engines-vs-seeds']);
       await capture(page, testInfo, `list-${name}-delete-archives`);
       expect(critical).toEqual([]);
     });
 
-    test('study-list /app/:org/:project/studies · empty, 503, a viewer and a project that is not there', async ({ page }, testInfo) => {
+    test('study-list /app/:org/studies · empty, 503, a viewer and an organization that is not the account’s', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
-      await page.goto('/app/isa-demo/checkout-privado/studies');
+      await page.goto('/app/empty-lab/studies');
       await expect(main.getByText('No studies yet')).toBeVisible();
       await expect(main.getByText('2 problem versions × 2 engines × 2 seeds = 8 runs, all with the same rules. That’s a study.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Build a study' })).toHaveAttribute('href', '/app/isa-demo/checkout-privado/studies/new');
+      await expect(main.getByRole('link', { name: 'Build a study' })).toHaveAttribute('href', '/app/empty-lab/studies/new');
       await capture(page, testInfo, `list-${name}-empty`);
 
       state.refuse.studies = unavailable;
@@ -435,12 +394,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `list-${name}-503`);
       state.refuse.studies = undefined;
       await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('list', { name: 'Studies of the project' })).toBeVisible();
+      await expect(main.getByRole('list', { name: 'Studies of the organization' })).toBeVisible();
 
       // A viewer reads; nothing on the screen creates, archives or deletes.
-      await page.goto('/app/read-lab/bench/studies');
+      await page.goto('/app/read-lab/studies');
       await expect(main.getByRole('heading', { level: 1, name: 'Studies' })).toBeVisible();
-      await expect(main.getByRole('list', { name: 'Studies of the project' })).toBeVisible();
+      await expect(main.getByRole('list', { name: 'Studies of the organization' })).toBeVisible();
       await expect(main.getByRole('link', { name: 'New study' })).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'Archive' })).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'Delete' })).toHaveCount(0);
@@ -448,13 +407,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText(/sponsor’s plan|usage isn’t shown/)).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-viewer`);
 
-      await page.goto('/app/isa-demo/ghost/studies');
-      await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
+      await page.goto('/app/ghost-lab/studies');
+      await expect(main.getByRole('heading', { name: 'Organization not available' })).toBeVisible();
       await capture(page, testInfo, `list-${name}-404`);
       expect(critical).toEqual([]);
     });
 
-    test('study-builder /app/:org/:project/studies/new · the matrix, what it uses of the plan, created', async ({ page }, testInfo) => {
+    test('study-builder /app/:org/studies/new · the matrix, what it uses of the plan, created', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/studies/new`);
@@ -463,8 +422,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'New study' })).toBeVisible();
       await expect(main.getByText('Pick the problems, engines, settings and seeds. Every combination becomes one cell.')).toBeVisible();
-      await expect(main.getByRole('checkbox', { name: /Checkout flow · version 3/ })).toBeDisabled();
-      await expect(main.getByText(/No compiled snapshot yet, so engines have nothing to run/)).toBeVisible();
+      await expect(main.getByRole('checkbox', { name: /Checkout flow · version 2/ })).toBeEnabled();
       await expect(create).toBeDisabled();
       await expect(main.getByRole('list', { name: 'Still needed' })).toContainText('Choose at least one engine mode.');
       await capture(page, testInfo, `builder-${name}-empty`);
@@ -492,7 +450,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(state.sent.create).toMatchObject({
         slug: 'budgets-and-seeds', name: 'Budgets and seeds', description: '',
         definition: {
-          case_revision_ids: [REVISION_1.id, REVISION_2.id],
+          revision_ids: [REVISION_1.id, REVISION_2.id],
           parameter_sets: [{}, { time_budget_ms: 120000 }],
           seeds: [1, 2, 3],
         },
@@ -506,7 +464,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('study-builder /app/:org/:project/studies/new · 422, 402, 403 and 409 before and after sending', async ({ page }, testInfo) => {
+    test('study-builder /app/:org/studies/new · 422, 402, 403 and 409 before and after sending', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/studies/new?case=checkout-flow&revision=2`);
@@ -538,9 +496,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(create).toBeEnabled();
       const side = main.getByRole('complementary', { name: 'Matrix and plan' });
 
-      state.refuse.create = detail(402, 'quota_exceeded', 'Study quota exhausted.', { quota: { limit_id: 'studies', limit: 25, used: 25 } });
+      state.refuse.create = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'maxRepositoryStorage', limit: 500, used: 500 } });
       await create.click();
-      await expect(side.getByText('The sponsor has no study definitions left (402 · quota_exceeded)')).toBeVisible();
+      await expect(side.getByText('Out of storage (402 · quota_exceeded)')).toBeVisible();
       await expect(side.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
       await capture(page, testInfo, `builder-${name}-402`, { area: side });
 
@@ -563,52 +521,49 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('study-builder /app/:org/:project/studies/new · a viewer, and reusing a shared definition', async ({ page }, testInfo) => {
+    test('study-builder /app/:org/studies/new · a viewer, and no shared definition to reuse', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
-      await page.goto('/app/read-lab/bench/studies/new');
+      await page.goto('/app/read-lab/studies/new');
       await expect(main.getByText(/Creating studies needs MEMBER; you’re a VIEWER of Read Lab/)).toBeVisible();
       await main.getByRole('checkbox', { name: /Checkout flow · version 1/ }).check();
       await expect(main.getByRole('button', { name: 'Create study' })).toBeDisabled();
       await expect(main.getByLabel('Study name')).toBeDisabled();
       await capture(page, testInfo, `builder-${name}-viewer`, { height: 1500 });
 
+      // A study keeps its own definition: the builder offers no shared one to reuse.
       await page.goto(`${ROOT}/studies/new`);
-      await main.getByRole('radio', { name: 'Reuse a shared definition' }).check({ force: true });
-      await expect(main.getByRole('option', { name: 'Providers' })).toHaveCount(0);
-      await main.getByLabel('Study definition').selectOption({ label: 'Engines × seeds' });
-      await main.getByLabel('Sealed version').selectOption({ index: 1 });
-      await expect(main.getByText(/From the library · 8 cells/)).toBeVisible();
-      await expect(main.getByLabel('Address')).toHaveValue('engines-seeds');
-      await capture(page, testInfo, `builder-${name}-adopt`);
-      await main.getByRole('button', { name: 'Create from this definition' }).click();
-      await expect(main.getByRole('heading', { name: 'Study created' })).toBeVisible();
-      expect(state.sent.create).toMatchObject({ slug: 'engines-seeds', name: 'Engines × seeds', definition_version_id: VERSION_ID });
-      await capture(page, testInfo, `builder-${name}-adopt-created`);
+      await expect(main.getByRole('checkbox', { name: /Checkout flow · version 1/ })).toBeVisible();
+      await expect(main.getByRole('radio', { name: 'Reuse a shared definition' })).toHaveCount(0);
+      await expect(main.getByLabel('Sealed version')).toHaveCount(0);
+      expect(state.sent.create).toBeUndefined();
       expect(critical).toEqual([]);
     });
 
-    test('study-detail /app/:org/:project/studies/:study/setup · the matrix, its runs and a new run', async ({ page }, testInfo) => {
+    test('study-detail /app/:org/studies/:study/setup · the matrix, its runs and a new run', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${STUDY}/setup`);
       const main = page.locator('#platform-main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Engines × seeds' })).toBeVisible();
-      await expect(main.getByText('Definition version 1 · sealed', { exact: true })).toBeVisible();
+      await expect(main.getByText('2 problem versions × 2 engines × 1 setting × 2 seeds = 8 cells', { exact: true })).toBeVisible();
       const grid = main.getByRole('region', { name: 'The cells of the matrix' });
       await expect(grid.getByRole('columnheader')).toHaveCount(5);
       await expect(grid.getByText('cell 7')).toBeVisible();
       await expect(main.getByText(/2 problem versions × 2 engines × 1 setting × 2 seeds = 8 cells\. Settings: 1 · engine defaults\./)).toBeVisible();
       await expect(main.getByRole('link', { name: /Run #1/ })).toHaveAttribute('href', RUN);
       await expect(main.getByRole('link', { name: 'Open the definition in the library' })).toHaveCount(0);
+      const definitionCard = main.getByRole('region', { name: 'Definition', exact: true });
+      await expect(definitionCard.getByRole('button', { name: 'Copy the definition digest' })).toBeVisible();
+      await expect(definitionCard).not.toContainText('sha256-');
       await expect(main.getByRole('region', { name: 'Study definition source' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-top`);
       await main.getByRole('tab', { name: 'Source' }).click();
       const definitionSource = main.getByRole('region', { name: 'Study definition source' });
-      await expect(definitionSource).toContainText('"case_revision_ids"');
+      await expect(definitionSource).toContainText('"revision_ids"');
       await expect(definitionSource.getByRole('button', { name: 'Download Study definition source' })).toBeVisible();
       await capture(page, testInfo, `detail-${name}-source`, { area: definitionSource });
       await main.getByRole('tab', { name: 'Overview' }).click();
@@ -617,19 +572,19 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Run study' }).click();
       await expect(main.getByText('Run #2 accepted (202). Cells start as run slots free up.')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Follow run #2' })).toHaveAttribute('href', `${STUDY}/progress?run=${NEW_RUN_ID}`);
-      expect(state.sent.run).toBe(VERSION_ID);
+      expect(state.sent.run).toBe('engines-vs-seeds');
       await expect(main.getByRole('link', { name: /Run #2/ }).first()).toBeVisible();
       await capture(page, testInfo, `detail-${name}-run-accepted`);
 
       // Every way the gateway refuses to start one.
-      state.refuse.run = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'storageBytes', limit: 100, used: 100 } });
+      state.refuse.run = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'maxRepositoryStorage', limit: 100, used: 100 } });
       await main.getByRole('button', { name: 'Run study' }).click();
       await expect(main.getByText('Out of storage (402 · quota_exceeded)')).toBeVisible();
       await expect(main.getByText('You’ve used 100 of 100 storage. Nothing was started.')).toBeVisible();
       await capture(page, testInfo, `detail-${name}-402`, { height: 1300 });
       state.refuse.run = (route) => route.fulfill({
         status: 429, headers: { 'Retry-After': '15' },
-        json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 } } },
+        json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'maxConcurrentRuns', limit: 3, used: 3 } } },
       });
       await main.getByRole('button', { name: 'Run study' }).click();
       await expect(main.getByText('All your run slots are busy (429 · concurrency_limit_exceeded)')).toBeVisible();
@@ -637,9 +592,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       state.refuse.run = detail(403, 'feature_not_entitled', 'The plan does not entitle studies.');
       await main.getByRole('button', { name: 'Run study' }).click();
       await expect(main.getByText('Your plan doesn’t include studies right now (403 · feature_not_entitled)')).toBeVisible();
-      state.refuse.run = detail(409, 'evidence_only_study', 'This gallery contains stored evidence.');
+      state.refuse.run = detail(409, 'study_archived', 'Restore this study before starting another run.');
       await main.getByRole('button', { name: 'Run study' }).click();
-      await expect(main.getByText('This study only holds stored evidence (409 · evidence_only_study)')).toBeVisible();
+      await expect(main.getByText('This study is archived (409 · study_archived)')).toBeVisible();
       await capture(page, testInfo, `detail-${name}-409`, { height: 1300 });
       state.refuse.run = detail(403, 'api_key_engine_forbidden', 'This key does not grant Evolutionary.');
       await main.getByRole('button', { name: 'Run study' }).click();
@@ -648,18 +603,24 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('study-detail /app/:org/:project/studies/:study/setup · archive, versions, edit, delete, a viewer and a study that is not there', async ({ page }, testInfo) => {
+    test('study-detail /app/:org/studies/:study/setup · edit the definition, archive, edit, delete, a viewer and a study that is not there', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
       await page.goto(`${STUDY}/setup`);
       await expect(main.getByRole('heading', { level: 1, name: 'Engines × seeds' })).toBeVisible();
-      const select = main.getByRole('combobox', { name: 'Use version' });
-      await expect(select).toBeEnabled();
-      await select.selectOption({ index: 1 });
-      await expect(main.getByText(/The study now uses that definition version/)).toBeVisible();
-      expect(state.sent.update).toContainEqual({ definition_version_id: `artifact-engines-vs-seeds-v2` });
+      // The definition is edited in place, with the revision it was read at; the runs keep what they froze.
+      await main.getByRole('button', { name: 'Edit definition' }).click();
+      const editor = page.getByRole('dialog', { name: 'Edit definition' });
+      const nextDefinition = { ...studyFixture().definition, seeds: [1, 2, 3] };
+      await editor.getByLabel('Definition (JSON)').fill(JSON.stringify(nextDefinition, null, 2));
+      await capture(page, testInfo, `detail-${name}-edit-definition`);
+      await editor.getByRole('button', { name: 'Save definition' }).click();
+      await expect(main.getByText(/Definition saved\. The next run uses it/)).toBeVisible();
+      expect(state.sent.update).toContainEqual({ definition: nextDefinition });
+      expect(state.sent.ifMatch[state.sent.ifMatch.length - 1]).toBe('"study-engines-vs-seeds-0"');
+      await expect(main.getByText('2 problem versions × 2 engines × 1 setting × 3 seeds = 12 cells', { exact: true })).toBeVisible();
 
       await main.getByRole('button', { name: 'Archive' }).click();
       await expect(main.getByText('Archived: it can’t start new runs, and existing results stay.')).toBeVisible();
@@ -679,18 +640,18 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await main.getByRole('button', { name: 'Delete' }).click();
       await page.getByRole('dialog', { name: 'Delete Engines vs seeds?' }).getByRole('button', { name: 'Delete study' }).click();
-      await expect(main.getByText('This study has runs, so it was archived instead of deleted. Results cited by reports stay intact.')).toBeVisible();
+      await expect(main.getByText('This study has runs, so it was archived instead of deleted. Its runs and results stay intact.')).toBeVisible();
 
       // A viewer reads only.
-      await page.goto('/app/read-lab/bench/studies/old-study');
+      await page.goto('/app/read-lab/studies/old-study');
       await expect(main.getByRole('heading', { level: 1, name: 'Old study' })).toBeVisible();
       await expect(main.getByText(/You can read this study\. Running, archiving and editing it need MEMBER in Read Lab\./)).toBeVisible();
-      for (const label of ['Run study', 'Archive', 'Edit details', 'Delete']) await expect(main.getByRole('button', { name: label })).toHaveCount(0);
+      for (const label of ['Run study', 'Archive', 'Edit details', 'Edit definition', 'Delete']) await expect(main.getByRole('button', { name: label })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-viewer`, { height: 1400 });
 
       await page.goto(`${ROOT}/studies/ghost`);
       await expect(main.getByRole('heading', { name: 'Study not found' })).toBeVisible();
-      await expect(main.getByText('No study with this address in QoS Benchmarks (404).')).toBeVisible();
+      await expect(main.getByText('No study with this address in ISA Demo Group (404).')).toBeVisible();
       await capture(page, testInfo, `detail-${name}-404`);
 
       state.refuse.studies = unavailable;
@@ -700,13 +661,19 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('study-detail /app/:org/:project/studies/:study/progress · the cells as a matrix and a table, retry and no report', async ({ page }, testInfo) => {
+    test('study-detail /app/:org/studies/:study/progress · the cells as a matrix and a table, retry and no report', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(RUN);
       const main = page.locator('#platform-main');
 
       await expect(main.getByRole('heading', { level: 2, name: 'Run #1' })).toBeVisible();
+      // What the run froze when it started: its problem versions, each with the compilation it ran, and the matrix.
+      const frozen = main.getByRole('region', { name: 'Frozen definition' });
+      await expect(frozen.getByRole('listitem')).toHaveCount(2);
+      await expect(frozen.getByRole('button', { name: 'Copy the digest of the frozen definition' })).toBeVisible();
+      await expect(frozen).toContainText('The study’s current definition is this one.');
+      await expect(frozen).not.toContainText('sha256-');
       await expect(main.getByText(/Sep 20, 2026, 09:00 UTC → Sep 20, 2026, 09:20 UTC/)).toBeVisible();
       const progress = main.getByRole('region', { name: 'Progress of the run' });
       await expect(progress.getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })).toBeVisible();
@@ -750,14 +717,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(state.sent.report).toBeUndefined();
 
       // A viewer sees it all and changes nothing.
-      await page.goto(`/app/read-lab/bench/studies/engines-vs-seeds/progress?run=${RUN_ID}`);
+      await page.goto(`/app/read-lab/studies/engines-vs-seeds/progress?run=${RUN_ID}`);
       await expect(main.getByRole('heading', { level: 2, name: 'Run #1' })).toBeVisible();
       for (const label of ['Cancel run', 'Retry cell 1', 'Retry 2 unfinished cells']) await expect(main.getByRole('button', { name: label })).toHaveCount(0);
       await capture(page, testInfo, `run-${name}-viewer`, { height: 1300 });
       expect(critical).toEqual([]);
     });
 
-    test('study-detail /app/:org/:project/studies/:study/progress · a run that is going, cancel, and the ways it cannot be shown', async ({ page }, testInfo) => {
+    test('study-detail /app/:org/studies/:study/progress · a run that is going, cancel, and the ways it cannot be shown', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const live = `${ROOT}/studies/live-sweep/progress?run=${LIVE_RUN_ID}`;
@@ -804,7 +771,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('study-detail /app/:org/:project/studies/:study/results · a finished cell and how the engines compare', async ({ page }, testInfo) => {
+    test('study-detail /app/:org/studies/:study/results · a finished cell and how the engines compare', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
       await page.goto(cellPath(2));
@@ -812,15 +779,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 2, name: 'Cell 2' })).toBeVisible();
       const inputs = main.getByRole('region', { name: 'Frozen inputs' });
-      await expect(inputs.getByRole('link', { name: 'Checkout flow · version 1' })).toHaveAttribute('href', `${ROOT}/problems/checkout-flow?version=1`);
+      await expect(inputs.getByRole('link', { name: 'Checkout flow · version 1' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow?version=1');
       await expect(inputs.getByText('random-search 1.0.0')).toBeVisible();
-      await expect(inputs.getByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${ROOT}/problems/checkout-flow/source?version=1`);
+      await expect(inputs.getByRole('link', { name: 'Package and compiled form' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow/source?version=1');
       await expect(inputs.getByRole('button', { name: 'Copy cell digest' })).toHaveText('Copy digest');
       await expect(inputs).not.toContainText(/sha256-|[0-9a-f]{12}/);
       const result = main.getByRole('region', { name: 'Result' });
       await expect(result.getByText('0.121')).toBeVisible();
       await expect(result.getByText('430')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open run' })).toHaveAttribute('href', `${ROOT}/runs/00000000-0000-4000-8000-000000000302`);
+      await expect(main.getByRole('link', { name: 'Open run' })).toHaveAttribute('href', '/app/isa-demo/runs/00000000-0000-4000-8000-000000000302');
       const rivals = main.getByRole('list', { name: 'Cost of each engine on this input' });
       await expect(rivals.getByRole('listitem')).toHaveCount(2);
       await expect(rivals.getByRole('link', { name: 'evolutionary' })).toHaveAttribute('href', cellPath(0));
@@ -843,7 +810,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('study-detail /app/:org/:project/studies/:study/results · a cell that failed, was cancelled, takes an attached job, a viewer and a cell that is not there', async ({ page }, testInfo) => {
+    test('study-detail /app/:org/studies/:study/results · a cell that failed, was cancelled, takes an attached job, a viewer and a cell that is not there', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
@@ -854,13 +821,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('Failed: The engine deployment didn’t answer in time.')).toBeVisible();
       await expect(main.getByText(/Code engine_unreachable · timeout\./)).toBeVisible();
       await capture(page, testInfo, `cell-${name}-failed`, { height: 1500 });
-      state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'storageBytes', limit: 50, used: 50 } });
+      state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'maxRepositoryStorage', limit: 50, used: 50 } });
       await main.getByRole('button', { name: 'Retry this cell' }).click();
       await expect(main.getByText('Out of storage (402 · quota_exceeded)')).toBeVisible();
       await capture(page, testInfo, `cell-${name}-402`, { height: 1500 });
       state.refuse.retry = (route) => route.fulfill({
         status: 429, headers: { 'Retry-After': '15' },
-        json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 } } },
+        json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'maxConcurrentRuns', limit: 3, used: 3 } } },
       });
       await main.getByRole('button', { name: 'Retry this cell' }).click();
       await expect(main.getByText('All your run slots are busy (429 · concurrency_limit_exceeded)')).toBeVisible();
@@ -869,13 +836,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('Cell queued again.')).toBeVisible();
       expect(state.sent.retry).toHaveLength(3);
 
-      // A cancelled cell can take the result of a job that was already run.
+      // A cancelled cell can take the result of a run of the organization, whoever launched it (D10).
       await page.goto(cellPath(5));
-      await expect(main.getByText('Cancelled before it ran. Retry it, or attach the result of a run you already did with the same inputs.')).toBeVisible();
+      await expect(main.getByText('Cancelled before it ran. Retry it, or attach the result of a run of the organization with the same inputs.')).toBeVisible();
       await main.getByRole('button', { name: 'Use an existing run’s result' }).click();
       const dialog = page.getByRole('dialog', { name: 'Use an existing run’s result' });
       const choices = dialog.getByRole('radiogroup', { name: 'Finished runs' });
-      await expect(choices.getByRole('radio')).toHaveCount(2);
+      await expect(choices.getByRole('radio')).toHaveCount(3);
+      await expect(choices.getByRole('radio', { name: /minizinc · completed · by ana/ })).toBeVisible();
       await expect(dialog.getByRole('button', { name: 'Attach this result' })).toBeDisabled();
       await choices.getByRole('radio', { name: /random-search · completed/ }).check();
       await capture(page, testInfo, `cell-${name}-attach`);
@@ -889,7 +857,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(state.sent.attach).toEqual({ cell: cells[5].id, job: { job_id: 'job-mine-a' } });
 
       // A viewer reads only.
-      await page.goto(`/app/read-lab/bench/studies/engines-vs-seeds/results?run=${RUN_ID}&cell=${cells[1].id}`);
+      await page.goto(`/app/read-lab/studies/engines-vs-seeds/results?run=${RUN_ID}&cell=${cells[1].id}`);
       await expect(main.getByText('Read-only: retrying and attaching a result need MEMBER in Read Lab.')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Retry this cell' })).toHaveCount(0);
       await capture(page, testInfo, `cell-${name}-viewer`, { height: 1500 });
@@ -901,7 +869,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('study-detail /app/:org/:project/studies/:study/results · charts, rankings and seeds', async ({ page }, testInfo) => {
+    test('study-detail /app/:org/studies/:study/results · charts, rankings and seeds', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
       await page.goto(RESULTS);
@@ -953,7 +921,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('study-detail /app/:org/:project/studies/:study/results · empty, 503, 404 and a viewer', async ({ page }, testInfo) => {
+    test('study-detail /app/:org/studies/:study/results · empty, 503, 404 and a viewer', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
@@ -975,10 +943,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await page.goto(`${STUDY}/results?run=ghost`);
       await expect(main.getByRole('heading', { name: 'Run not found' })).toBeVisible();
-      await expect(main.getByText('No such run in QoS Benchmarks (404).')).toBeVisible();
+      await expect(main.getByText('No such run in this study (404).')).toBeVisible();
       await capture(page, testInfo, `analytics-${name}-404`);
 
-      await page.goto(`/app/read-lab/bench/studies/engines-vs-seeds/results?run=${RUN_ID}`);
+      await page.goto(`/app/read-lab/studies/engines-vs-seeds/results?run=${RUN_ID}`);
       await expect(main.getByRole('heading', { level: 2, name: 'Compare results · run #1' })).toBeVisible();
       await expect(main.getByRole('button', { name: 'Create a report' })).toHaveCount(0);
       await capture(page, testInfo, `analytics-${name}-viewer`, { height: 1500 });
@@ -991,7 +959,7 @@ test.describe('desktop · S7a study-cell, a job that is not a run of the cell', 
   test.describe.configure({ mode: 'default' });
   test.use({ viewport: viewports[0].viewport, isMobile: false, deviceScaleFactor: 1 });
 
-  test('study-detail /app/:org/:project/studies/:study/results · attaching a job that differs from the cell (409 cell_job_mismatch)', async ({ page }, testInfo) => {
+  test('study-detail /app/:org/studies/:study/results · attaching a job that differs from the cell (409 cell_job_mismatch)', async ({ page }, testInfo) => {
     const critical = watchCriticalErrors(page);
     const state = await mockApi(page);
     const main = page.locator('#platform-main');

@@ -1,36 +1,33 @@
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
-import { HttpError, apiClient, type BimAnalysisData, type BimAnalysisResponse } from '../../api/client';
-import type { ArtifactVersion } from '../../api/library';
-import { platformApi, type CaseRevision } from '../../api/platform';
-import { workbenchApi } from '../../api/workbench';
+import { bimApi } from '../../api/bim';
+import { HttpError, type BimAnalysisData, type BimAnalysisResponse } from '../../api/client';
+import { problemsApi, type ProblemUpload } from '../../api/problems';
 import { packageFiles, unzipPackage, zipStore } from '../../utils/bimZip';
 import { migrateFiles } from '../../utils/bimVocabulary';
 import { loadDraft, saveDraft, type WorkspaceFiles } from '../../utils/workspaceDraft';
 import { sourceDiff, toYaml } from '../../utils/workspaceViews';
 import {
-  DEFAULT_BPMN, DEFAULT_FILES, allModesFromAnalysis, diagnosticSelection, errorDiagnostics, executionKey, instanceResources, isRecord,
-  isRegisteredResourceRef, modesFromAnalysis, parseJson, pretty, resourcePathForDiagnostic,
-  type BindingResult, type BimDocument, type CompatibleMode, type CompiledIr, type Diagnostic, type WorkspaceStatus,
+  DEFAULT_BPMN, DEFAULT_FILES, allModesFromAnalysis, diagnosticSelection, errorDiagnostics, instanceResources,
+  modesFromAnalysis, parseJson, pretty, resourcePathForDiagnostic,
+  type BimDocument, type CompatibleMode, type CompiledIr, type Diagnostic, type WorkspaceStatus,
 } from './bimDocuments';
-import { isAbort, pollV1Job } from './pollJob';
-import {
-  RANGE_RUN_ERROR, filesHaveRanges, isRangeRefusal, rangePointers, refusalOf, refusalText, saveRefusalText, workbenchDraftScope, type Refusal,
-} from './workbenchModel';
+import { refusalOf, refusalText, saveRefusalText, workbenchDraftScope, type Refusal } from './workbenchModel';
 
 export type EditorTab = 'resources' | 'form' | 'bpmn';
 export type SourceView = 'json' | 'yaml' | 'workflow' | 'bpmnXml' | 'ir' | 'diff';
-export type RunState = 'idle' | 'queued' | 'running' | 'completed' | 'failed';
 
-/** Where the package on screen was last checked from: the editor, or a file or example that was brought in. */
+/** Where the package on screen was last checked from: the editor, or a file or template that was brought in. */
 export type CheckOrigin = 'package' | 'import' | 'example';
 
 export interface WorkbenchOptions {
   orgSlug: string;
-  projectSlug: string;
   userId?: string;
   pathname: string;
-  caseRef: string | null;
+  /** The problem the address opens (`?problem=`). */
+  problemRef: string | null;
+  /** Its version, by number or id (`?revision=`); the newest without it. */
   revisionRef: string | null;
+  /** The template the address opens (`?template=`). */
   requestedExample: string;
 }
 
@@ -41,24 +38,14 @@ export interface PackageDigests {
 }
 
 export interface SavedRevision {
-  revision: CaseRevision;
-  /** The same content was sealed before: nothing new exists. */
+  /** What the save made: the problem, its revision and compilation. */
+  upload: ProblemUpload;
+  /** The package already was that version (200): nothing new exists. */
   existing: boolean;
 }
 
-interface Snapshot {
-  id: string;
-  irDigest: string;
-}
-
-/** A case revision's package: its registered resources as they are, or the files of the snapshot it came from. */
-async function packageOfRevision(revision: CaseRevision): Promise<WorkspaceFiles> {
-  const spec = revision.document.spec as { resources?: Record<string, Record<string, unknown>> } | undefined;
-  const exact = Object.values(spec?.resources || {}).every((group) => Object.values(group).every((target) => isRegisteredResourceRef(target)));
-  if (exact) return { 'instance.json': pretty(revision.document) };
-  if (revision.source_snapshot_id) return unzipPackage(await platformApi.snapshotArchive(revision.source_snapshot_id));
-  return { 'instance.json': pretty(revision.document) };
-}
+/** What a save targets: a new problem of the organization, or a new version of one of its problems. */
+export type SaveTarget = { kind: 'new'; slug?: string; name?: string } | { kind: 'version'; problem: string };
 
 /** Read a package and have the gateway check it. Throws for a package that isn't a bim/v1 Instance or isn't valid. */
 async function checkedPackage(archive: ArrayBuffer): Promise<{ files: WorkspaceFiles; response: BimAnalysisResponse }> {
@@ -70,7 +57,7 @@ async function checkedPackage(archive: ArrayBuffer): Promise<{ files: WorkspaceF
     });
   }
   const canonicalFiles = packageFiles(candidateFiles);
-  const response = await workbenchApi.validate(zipStore(canonicalFiles));
+  const response = await bimApi.validate(zipStore(canonicalFiles));
   if (response.valid === false) {
     throw Object.assign(new HttpError(422, 'The BIM package did not pass validation.'), { diagnostics: response.diagnostics ?? [] });
   }
@@ -85,7 +72,7 @@ const digestsOf = (response: BimAnalysisResponse): PackageDigests => ({
   compiled: String(response.irDigest ?? ''),
 });
 
-/** What opening the screen found for its address: the draft of the workspace, a case revision, an example, or nothing yet. */
+/** What opening the screen found for its address: the draft of the workspace, a problem version, a template, or nothing yet. */
 type Hydration =
   | { scope: string; kind: 'files'; files: WorkspaceFiles; migrated: string[] }
   | { scope: string; kind: 'example'; files: WorkspaceFiles; response: BimAnalysisResponse }
@@ -95,16 +82,27 @@ type Hydration =
 interface HydrationRequest {
   scope: string;
   requestedExample: string;
-  caseRef: string | null;
+  problemRef: string | null;
   revisionRef: string | null;
   orgSlug: string;
-  projectSlug: string;
 }
 
-async function hydrate({ scope, requestedExample, caseRef, revisionRef, orgSlug, projectSlug }: HydrationRequest): Promise<Hydration> {
+/** The package of a problem version, exactly as it was uploaded: the newest version when none is named. */
+async function packageOfRevision(org: string, problem: string, revisionRef: string | null): Promise<WorkspaceFiles> {
+  let revision = revisionRef;
+  if (!revision) {
+    const revisions = await problemsApi.revisions(org, problem);
+    const newest = [...revisions].sort((a, b) => b.revision - a.revision)[0];
+    if (!newest) throw new HttpError(404, 'This problem has no version yet.');
+    revision = String(newest.revision);
+  }
+  return unzipPackage(await problemsApi.source(org, problem, revision));
+}
+
+async function hydrate({ scope, requestedExample, problemRef, revisionRef, orgSlug }: HydrationRequest): Promise<Hydration> {
   if (requestedExample) {
     try {
-      const prepared = await checkedPackage(await apiClient.getBimExamplePackage(requestedExample));
+      const prepared = await checkedPackage(await bimApi.template(requestedExample));
       return { scope, kind: 'example', files: prepared.files, response: prepared.response };
     } catch (reason: unknown) {
       const failure = refusalOf(reason);
@@ -112,12 +110,9 @@ async function hydrate({ scope, requestedExample, caseRef, revisionRef, orgSlug,
     }
   }
   let draft = await loadDraft(scope);
-  if (!draft && caseRef && revisionRef && orgSlug && projectSlug) {
+  if (!draft && problemRef && orgSlug) {
     try {
-      const revisions = await platformApi.caseRevisions(orgSlug, projectSlug, caseRef);
-      const revision = revisions.find((item) => item.id === revisionRef || String(item.revision) === revisionRef);
-      if (!revision) throw new HttpError(404, 'The selected problem version is unavailable.');
-      draft = await packageOfRevision(revision);
+      draft = await packageOfRevision(orgSlug, problemRef, revisionRef);
     } catch (reason: unknown) {
       return { scope, kind: 'revision-refused', failure: refusalOf(reason) };
     }
@@ -130,10 +125,11 @@ async function hydrate({ scope, requestedExample, caseRef, revisionRef, orgSlug,
 
 /**
  * The state of the workbench: the files of the package and the history of editing them, what the gateway said when it checked them,
- * the snapshot and revision made from them, and the run. Screens read it and call its actions; nothing here draws.
+ * and the problem version saved from them. Nothing runs here: a saved version runs from its problem page. Screens read it and call its
+ * actions; nothing here draws.
  */
-export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, revisionRef, requestedExample }: WorkbenchOptions) {
-  const draftScope = workbenchDraftScope(userId, pathname, caseRef, revisionRef);
+export function useWorkbench({ orgSlug, userId, pathname, problemRef, revisionRef, requestedExample }: WorkbenchOptions) {
+  const draftScope = workbenchDraftScope(userId, pathname, problemRef, revisionRef);
 
   // The package
   const [files, setFiles] = useState<WorkspaceFiles>(DEFAULT_FILES);
@@ -160,19 +156,7 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
   const [analysisData, setAnalysisData] = useState<BimAnalysisData | null>(null);
   const [digests, setDigests] = useState<PackageDigests | null>(null);
 
-  // The snapshot and the revision
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const snapshotRef = useRef<Snapshot | null>(null);
-  /** Closing the screen stops the polling of a run; starting another run stops the one before it. */
-  const screenOpen = useRef<AbortController | null>(null);
-  const runWatcher = useRef<AbortController | null>(null);
-  useEffect(() => {
-    const controller = new AbortController();
-    screenOpen.current = controller;
-    return () => controller.abort();
-  }, []);
-  const [snapshotBusy, setSnapshotBusy] = useState(false);
-  const [snapshotIssue, setSnapshotIssue] = useState<Refusal | null>(null);
+  // The compiled form and the saved version
   const [compiledIr, setCompiledIr] = useState<CompiledIr | null>(null);
   const [irLoading, setIrLoading] = useState(false);
   const [irError, setIrError] = useState<string | null>(null);
@@ -180,25 +164,12 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
   const [saved, setSaved] = useState<SavedRevision | null>(null);
   const [saveIssue, setSaveIssue] = useState<string | null>(null);
 
-  // The run
-  const [runState, setRunState] = useState<RunState>('idle');
-  const [runError, setRunError] = useState<string | null>(null);
-  const [runRange, setRunRange] = useState(false);
-  const [result, setResult] = useState<BindingResult | null>(null);
-  const [resultJobId, setResultJobId] = useState<string>();
-  const [selectedMode, setSelectedMode] = useState('');
-  const [configuration, setConfiguration] = useState<{ org: string; version: ArtifactVersion } | null>(null);
-
   // The editor
   const [editorTab, setEditorTab] = useState<EditorTab>('resources');
   const [sourceOpen, setSourceOpen] = useState(false);
   const [sourceView, setSourceView] = useState<SourceView>('json');
   const [focusedBpmnElement, setFocusedBpmnElement] = useState<string | null>(null);
   const [editorSelection, setEditorSelection] = useState<{ anchor: number; head: number } | undefined>();
-
-  /** A configuration picked for one organization is not carried to another. */
-  const executionConfiguration = configuration?.org === orgSlug ? configuration.version : null;
-  const setExecutionConfiguration = (version: ArtifactVersion | null) => setConfiguration(version ? { org: orgSlug, version } : null);
 
   const hydrated = hydratedScope === draftScope;
   const loadIssue = revisionRefusal?.scope === draftScope ? revisionRefusal.failure : null;
@@ -209,7 +180,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
   const application = applicationResource?.path ? parseJson(files[applicationResource.path]) : null;
   const bpmnPath = resources.find((resource) => resource.kind === 'BPMN')?.path;
   const workflowText = pretty(application?.spec?.workflow || {});
-  const selectedCompatibility = compatibleModes.find((item) => executionKey(item) === selectedMode);
   const selectedResource = resources.find((resource) => resource.path === selectedPath);
   const selectedKind = selectedPath === 'instance.json' ? 'Instance' : selectedResource?.kind || selectedDocument?.kind || 'Unknown';
   const selectedYaml = useMemo(() => (selectedDocument ? toYaml(selectedDocument) : null), [selectedDocument]);
@@ -218,8 +188,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     [baseline, files, selectedPath],
   );
   const selectedChanged = baseline[selectedPath] !== files[selectedPath];
-  const rootDocument = root as Record<string, unknown> | null;
-  const hasRanges = useMemo(() => filesHaveRanges(files), [files]);
 
   // --- bringing a package in
 
@@ -237,17 +205,10 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     setCompatibleModes([]);
     setAnalysisData(null);
     setDigests(null);
-    setSelectedMode('');
-    snapshotRef.current = null;
-    setSnapshot(null);
-    setSnapshotIssue(null);
     setCompiledIr(null);
     setIrError(null);
     setSaved(null);
     setSaveIssue(null);
-    setResult(null);
-    setRunState('idle');
-    setRunError(null);
   };
 
   const remember = (current: WorkspaceFiles) => {
@@ -278,7 +239,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
       setCompatibleModes(modes);
       setAnalysisData(outcome.response.analysis || null);
       setDigests(digestsOf(outcome.response));
-      setSelectedMode(modes[0] ? executionKey(modes[0]) : '');
       setStatus('valid');
     } else if (outcome.kind === 'example-refused') {
       setOrigin('example');
@@ -294,14 +254,14 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
 
   useEffect(() => {
     let active = true;
-    void hydrate({ scope: draftScope, requestedExample, caseRef, revisionRef, orgSlug, projectSlug }).then((outcome) => {
+    void hydrate({ scope: draftScope, requestedExample, problemRef, revisionRef, orgSlug }).then((outcome) => {
       if (active) applyHydration(outcome);
     });
-    void apiClient.getBimExamples().then((value) => { if (active) setExamples(value); }).catch(() => { if (active) setExamples([]); });
+    void bimApi.templates().then((value) => { if (active) setExamples(value); }).catch(() => { if (active) setExamples([]); });
     return () => { active = false; };
-  }, [draftScope, requestedExample, caseRef, revisionRef, orgSlug, projectSlug, attempt]);
+  }, [draftScope, requestedExample, problemRef, revisionRef, orgSlug, attempt]);
 
-  /** Read the case revision again after it could not be loaded. */
+  /** Read the problem version again after it could not be loaded. */
   const retryLoad = () => {
     setRevisionRefusal(null);
     setAttempt((value) => value + 1);
@@ -358,9 +318,8 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     setOrigin('package');
     setRefusal(null);
     setDiagnostics([]);
-    setResult(null);
     try {
-      const response = await workbenchApi.validate(zipStore(packageFiles(candidateFiles)));
+      const response = await bimApi.validate(zipStore(packageFiles(candidateFiles)));
       if (response.valid === false) {
         const problems = (response.diagnostics ?? []) as Diagnostic[];
         setStatus('failed');
@@ -373,7 +332,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
       setCompatibleModes(modes);
       setAnalysisData(response.analysis || null);
       setDigests(digestsOf(response));
-      setSelectedMode((current) => (modes.some((item) => executionKey(item) === current) ? current : modes[0] ? executionKey(modes[0]) : ''));
       setDiagnostics((response.diagnostics ?? []) as Diagnostic[]);
       setStatus('valid');
       return response;
@@ -386,7 +344,7 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     }
   };
 
-  /** Bring in a `.bim.zip` or an example. It replaces the workspace only when the gateway accepts it; otherwise the workspace stays as it was. */
+  /** Bring in a `.bim.zip` or a template. It replaces the workspace only when the gateway accepts it; otherwise the workspace stays as it was. */
   const importArchive = async (archive: ArrayBuffer, from: CheckOrigin = 'import') => {
     setStatus('validating');
     setOrigin(from);
@@ -399,7 +357,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
       setCompatibleModes(modes);
       setAnalysisData(prepared.response.analysis || null);
       setDigests(digestsOf(prepared.response));
-      if (modes[0]) setSelectedMode(executionKey(modes[0]));
       setStatus('valid');
     } catch (caught: unknown) {
       const failure = refusalOf(caught);
@@ -409,15 +366,9 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     }
   };
 
-  /** A file the person chose or dropped: refused here when it is bigger than the plan takes in one request, as the gateway would (413). */
-  const importFile = async (file: File, maxBytes: number | null) => {
-    if (maxBytes !== null && file.size > maxBytes) {
-      setStatus('failed');
-      setOrigin('import');
-      setDiagnostics([]);
-      setRefusal({ kind: 'too-large', status: 413, message: 'The file is larger than the plan allows per request.', diagnostics: [] });
-      return;
-    }
+  /** A file the person chose or dropped: refused here when it is bigger than the deployment takes in one request, as the gateway would (413). */
+  // No size check here: the deployment sets the ceiling, and its 413 says so.
+  const importFile = async (file: File) => {
     await importArchive(await file.arrayBuffer(), 'import');
   };
 
@@ -427,7 +378,7 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     setOrigin('example');
     setRefusal(null);
     try {
-      await importArchive(await apiClient.getBimExamplePackage(path), 'example');
+      await importArchive(await bimApi.template(path), 'example');
     } catch (caught: unknown) {
       const failure = refusalOf(caught);
       setStatus('failed');
@@ -452,101 +403,45 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     }
   };
 
-  // --- snapshot, compiled form, revision
+  // --- compiled form, saving
 
-  /** The private snapshot of the package as it is now: made once, reused until the package changes. */
-  const ensureSnapshot = async (): Promise<Snapshot> => {
-    if (snapshotRef.current) return snapshotRef.current;
-    const made = await workbenchApi.snapshot(zipStore(packageFiles(filesRef.current)));
-    snapshotRef.current = made;
-    setSnapshot(made);
-    return made;
-  };
-
-  /** Snapshot the package and read its compiled form. */
+  /** Read the compiled form of the package as it is now: the gateway validates it once more and answers with its IR (nothing is stored). */
   const compile = async (): Promise<boolean> => {
     setIrLoading(true);
     setIrError(null);
-    setSnapshotBusy(true);
-    setSnapshotIssue(null);
     try {
-      const made = await ensureSnapshot();
-      const document = await workbenchApi.ir(made.id);
-      setCompiledIr({ snapshot: made.id, digest: made.irDigest, document });
+      const response = await bimApi.validate(zipStore(packageFiles(filesRef.current)), { include: 'ir' });
+      if (!response.ir) throw new HttpError(422, 'The gateway did not return the compiled form.');
+      setCompiledIr({ digest: String(response.irDigest ?? ''), document: response.ir });
       return true;
     } catch (caught: unknown) {
-      const failure = refusalOf(caught);
-      setSnapshotIssue(failure);
-      setIrError(refusalText(failure, 'the package could not be compiled'));
+      setIrError(refusalText(refusalOf(caught), 'the package could not be compiled'));
       return false;
     } finally {
       setIrLoading(false);
-      setSnapshotBusy(false);
     }
   };
 
-  const saveRevision = async (caseSlug: string, existing: readonly CaseRevision[]) => {
-    if (!rootDocument) return;
+  /**
+   * Save the package: as a new problem of the organization, or as a new version of one of its problems. The same package again is not a
+   * new version: the gateway answers with the version it already is (200), and `saved.existing` says so.
+   */
+  const save = async (target: SaveTarget) => {
     setSaveBusy(true);
     setSaveIssue(null);
     setSaved(null);
     try {
-      const made = await ensureSnapshot();
-      const revision = await workbenchApi.saveRevision(orgSlug, projectSlug, caseSlug, rootDocument, made.id);
-      setSaved({ revision, existing: existing.some((item) => item.id === revision.id) });
+      const archive = zipStore(packageFiles(filesRef.current));
+      const upload = target.kind === 'new'
+        ? await problemsApi.create(orgSlug, archive, { slug: target.slug, name: target.name })
+        : await problemsApi.createRevision(orgSlug, target.problem, archive);
+      setSaved({ upload, existing: !upload.created });
+      return upload;
     } catch (caught: unknown) {
       setSaveIssue(saveRefusalText(refusalOf(caught)));
+      return null;
     } finally {
       setSaveBusy(false);
-    }
-  };
-
-  // --- the run
-
-  const run = async () => {
-    let mode = selectedCompatibility;
-    if (!mode && !executionConfiguration) {
-      const analysis = await validate();
-      if (!analysis) return;
-      mode = modesFromAnalysis(analysis)[0];
-    }
-    if (!mode && !executionConfiguration) {
-      setRunState('failed');
-      setRunError('No engine mode is compatible with this package. Open “Engines that can run it” to see why.');
-      return;
-    }
-    setRunState('queued');
-    setRunError(null);
-    setRunRange(false);
-    setResult(null);
-    runWatcher.current?.abort();
-    const watcher = new AbortController();
-    runWatcher.current = watcher;
-    screenOpen.current?.signal.addEventListener('abort', () => watcher.abort(), { once: true });
-    try {
-      const made = await ensureSnapshot();
-      const receipt = executionConfiguration
-        ? await apiClient.createConfiguredBimJob(made.id, executionConfiguration.ref)
-        : await apiClient.createBimJob(made.id, mode!.engine, mode!.registration, mode!.mode);
-      if (watcher.signal.aborted) return;
-      const job = await pollV1Job(receipt.id, { signal: watcher.signal, onStatus: (reading) => { if (reading.status === 'running') setRunState('running'); } });
-      if (job.status === 'failed') {
-        const detail = isRecord(job.result) && typeof job.result.error === 'string' ? job.result.error : (job.error || 'The run failed.');
-        throw new Error(detail);
-      }
-      setResultJobId(receipt.id);
-      setResult(isRecord(job.result) ? job.result as BindingResult : null);
-      setRunState('completed');
-    } catch (caught: unknown) {
-      // The screen closed or a newer run took over: nobody is waiting for this one any more.
-      if (watcher.signal.aborted || isAbort(caught)) return;
-      setRunState('failed');
-      if (isRangeRefusal(caught)) {
-        setRunRange(true);
-        setRunError(`${RANGE_RUN_ERROR}${rangePointers(caught)}`);
-        return;
-      }
-      setRunError(refusalText(refusalOf(caught), 'the run did not finish'));
     }
   };
 
@@ -625,14 +520,12 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     // check: while an example is being brought in, the package is being checked
     status: !hydrated && requestedExample ? 'validating' as WorkspaceStatus : status,
     origin, refusal, diagnostics, allModes, compatibleModes, analysisData, digests,
-    // snapshot and revision
-    snapshot, snapshotBusy, snapshotIssue, compiledIr, irLoading, irError, saveBusy, saved, saveIssue,
-    // run
-    hasRanges, runRange, runState, runError, result, resultJobId, selectedMode, setSelectedMode, executionConfiguration, setExecutionConfiguration,
+    // compiled form and saved version
+    compiledIr, irLoading, irError, saveBusy, saved, saveIssue,
     // editor
     editorTab, setEditorTab, sourceOpen, setSourceOpen, sourceView, setSourceView, focusedBpmnElement, editorSelection,
     // actions
-    validate, importArchive, importFile, loadExample, exportPackage, ensureSnapshot, compile, saveRevision, run, retryLoad,
+    validate, importArchive, importFile, loadExample, exportPackage, compile, save, retryLoad,
     undo, reset, updateWorkspace, updateSelectedDocument, updateSource, updateWorkflow, acceptBpmn, bpmnFailed, updateBpmnDraft, selectResource, openDiagnostic,
   };
 }

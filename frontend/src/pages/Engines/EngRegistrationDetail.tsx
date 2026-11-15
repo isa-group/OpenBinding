@@ -8,7 +8,8 @@ import { Action } from '../../components/ui/Action';
 import { DataTable } from '../../components/ui/DataTable';
 import { ErrorState, StateAction } from '../../components/ui/ErrorState';
 import { Notice, type NoticeTone } from '../../components/ui/Notice';
-import { ProjectPicker } from '../../components/ui/ProjectPicker';
+import { OrganizationPicker } from '../../components/ui/OrganizationPicker';
+import { launchPath } from '../../routes/paths/runs';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
@@ -373,9 +374,9 @@ export function EngRegistrationDetail() {
           )}
           {owner && <Action to={newVersionHref(ref)} variant="secondary">Edit as a new version</Action>}
           {engineRef && (
-            <ProjectPicker
+            <OrganizationPicker
               label="Launch a run with it"
-              destination={(org, project) => `/app/${org}/${project}/runs/new?engine=${encodeURIComponent(bimResourceKey(engineRef))}`}
+              destination={(org) => launchPath(org, { engine: bimResourceKey(engineRef) })}
             />
           )}
         </div>

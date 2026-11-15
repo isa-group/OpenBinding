@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CaseContent } from '../Project/projectModel';
+import type { CaseContent } from '../../features/workspace/model';
 import { axisOf, cellsCsv, engineRows, measureTitle, percentOf, rankEngines, scatterOf, seedGroups, spreadOf } from './analyticsModel';
 import { CHECKOUT, REVISION_1, REVISION_2, cellFixture, cellsFixture, RANDOM_SEARCH } from '../../test/fixtures/studies';
 import { measuresOf, revisionIndex } from './studiesModel';

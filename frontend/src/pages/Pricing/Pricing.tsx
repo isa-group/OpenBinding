@@ -32,7 +32,7 @@ const LIMIT_OUTCOMES = [
   {
     mark: 'Reduced',
     title: 'Budgets above your ceiling are lowered',
-    body: 'A time budget or iteration count above your plan runs at the ceiling, with an OPTION_CLAMPED note showing requested and applied values.',
+    body: 'A time budget above your plan’s maximum time per run, or an iteration count above what the deployment allows, runs at the ceiling, with an OPTION_CLAMPED note showing requested and applied values.',
   },
   {
     mark: 'Wait',
@@ -41,8 +41,8 @@ const LIMIT_OUTCOMES = [
   },
   {
     mark: 'Rejected',
-    title: 'The problem is too big for the plan',
-    body: 'A binding space above your complexity ceiling can’t run in a smaller form. Reduce candidates or tasks, or ask for an agreement.',
+    title: 'The problem is too big for the deployment',
+    body: 'A binding space above the deployment’s technical ceiling can’t run in a smaller form. Reduce candidates or tasks.',
   },
 ];
 
@@ -311,7 +311,7 @@ export function Pricing() {
             <Matrix view={view} highlight={highlight} plan={plan} onContact={setContactPlan} />
             <p className="pricing-legend">
               Rounded figures show the exact value underneath. Monthly limits renew each month; capacity limits are freed when
-              work finishes; per-request ceilings apply to each run. Sponsored limits count across every organization a sponsor backs.
+              work finishes; per-request ceilings apply to each run. Every limit counts for the account that does the work.
             </p>
 
             {view.gates.length > 0 && (
@@ -388,7 +388,7 @@ export function Pricing() {
                   <strong>RESEARCH for Universidad de Sevilla</strong>
                   <p>
                     Free for accounts with a verified CAS identity. It’s a plan, not a role: it doesn’t make you an admin or change
-                    your organization roles. Unlinking the identity can move you back to BASIC.
+                    your organization roles. Unlinking the identity can move you back to FREE.
                   </p>
                 </div>
                 <Action variant="primary" to={user ? '/app/account/identities' : '/login'}>{user ? 'Manage identities' : 'Log in with CAS'}</Action>

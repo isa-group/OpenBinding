@@ -1,11 +1,12 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import type { BindingCase, CaseRevision, Job } from '../src/api/platform';
-import { ENGINE, INSTANCE, NEIGHBORHOOD, PROBLEM, REGISTRATION, REPORT, detailOf, jobOf, provenanceOf } from '../src/test/fixtures/jobs';
+import type { Job } from '../src/api/platform';
+import type { Problem, ProblemRevision } from '../src/api/problems';
+import { ENGINE, NEIGHBORHOOD, PROBLEM, REGISTRATION, detailOf, jobOf, provenanceOf } from '../src/test/fixtures/jobs';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
 
-// S6a · execution: job-launch, job-list, job-detail and job-history.
+// S6a · execution: job-launch, job-list and job-detail.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
 // so they can be looked at after a run. Every test walks a screen through its states on a desktop and on a phone.
 
@@ -27,41 +28,30 @@ const token = (expiresInSeconds: number) => [
 
 const lucia = {
   id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-03-02T00:00:00Z', cas_verified: true, institutional_branding: true,
+  created_at: '2026-03-02T00:00:00Z', cas_verified: true,
 };
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 
-const org = (id: string, slug: string, name: string, role: Role, sponsor = 'user-1') => ({
-  id, slug, name, parent_id: null, billing_sponsor_user_id: sponsor, effective_role: role, created_at: '2026-03-03T00:00:00Z',
+const org = (id: string, slug: string, name: string, role: Role) => ({
+  id, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z',
 });
 
-const project = (n: number, orgId: string, slug: string, name: string) => ({
-  id: `project-${n}`, organization_id: orgId, slug, name, description: '', visibility: 'private', created_by_id: 'user-1',
-  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
-  // The contract's `ProjectView.access`: these specs reach every project as a member.
-  access: 'member' as const, effective_role: 'OWNER' as Role,
-});
+// --- the problem a run can start from (the one the runs of the fixtures name)
 
-const projectsOf: Record<string, ReturnType<typeof project>[]> = {
-  'isa-demo': [project(1, 'org-isa-demo', 'qos-benchmarks', 'QoS Benchmarks'), project(2, 'org-isa-demo', 'checkout-privado', 'Checkout (privado)')],
-  'read-lab': [project(4, 'org-4', 'bench', 'Bench')],
+const checkout: Problem = {
+  id: 'case-checkout-flow', organization_id: 'org-isa-demo', slug: 'checkout-flow', name: 'Checkout flow', description: '', created_by_id: 'user-1',
+  created_at: '2026-04-02T00:00:00Z', updated_at: '2026-04-02T00:00:00Z',
 };
 
-// --- the case a run can start from
-
-const flujo: BindingCase = {
-  id: 'case-flujo-checkout', project_id: 'project-1', slug: 'flujo-checkout', name: 'Flujo de checkout', description: '', created_by_id: 'user-1', created_at: '2026-04-02T00:00:00Z',
-};
-
-const caseRevision = (n: number): CaseRevision => ({
-  id: `case-flujo-checkout-r${n}`, binding_case_id: flujo.id, revision: n, digest: digestOf(String(n)), document: {},
-  source_snapshot_id: `snapshot-${n}`, created_at: `2026-08-0${n}T10:00:00Z`,
+const problemRevision = (n: number): ProblemRevision => ({
+  id: `rev-checkout-${n}`, problem_id: checkout.id, revision: n, package_digest: digestOf(String(n)), package_size: 2048, created_by_id: 'user-1',
+  created_at: `2026-08-0${n}T10:00:00Z`,
 });
 
 // --- the runs
 
-const mine = { project_id: 'project-1', organization_id: 'org-isa-demo' };
+const mine = { organization_id: 'org-isa-demo', created_by: { id: 'user-1', username: 'lucia.vega' } };
 const rows = {
   feasible: jobOf('job-feasible-1', 'random-search', 'completed', 'FEASIBLE', '2026-09-30T09:00:00Z', '2026-09-30T09:01:05Z', mine),
   running: jobOf('job-running-2', 'minizinc', 'running', null, '2026-10-08T08:00:00Z', null, mine),
@@ -70,14 +60,20 @@ const rows = {
   cancelled: jobOf('job-cancelled-5', 'random-search', 'cancelled', null, '2026-10-06T12:00:00Z', '2026-10-06T12:00:03Z', mine),
   infeasible: jobOf('job-infeasible-6', 'minizinc', 'completed', 'INFEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:00:40Z', mine),
   routed: jobOf('job-routed-7', 'evolutionary-heuristics', 'completed', 'OPTIMAL', '2026-10-03T11:00:00Z', '2026-10-03T11:00:12Z', mine),
-  theirs: jobOf('job-theirs-8', 'evolutionary', 'completed', 'OPTIMAL', '2026-10-02T10:00:00Z', '2026-10-02T10:02:00Z', mine),
+  theirs: jobOf('job-theirs-8', 'evolutionary', 'completed', 'OPTIMAL', '2026-10-02T10:00:00Z', '2026-10-02T10:02:00Z', { ...mine, created_by: { id: 'user-2', username: 'ana' } }),
   live: jobOf('job-live-10', 'minizinc', 'running', null, '2026-10-09T08:00:00Z', null, mine),
 };
 
-const projectRows: Job[] = [rows.running, rows.queued, rows.failed, rows.cancelled, rows.feasible, rows.infeasible, rows.theirs];
-const ownRows: Job[] = [rows.running, rows.queued, rows.failed, rows.cancelled, rows.feasible, rows.infeasible, rows.routed, rows.live];
+/** The runs of ISA Demo Group, as `listRuns` lists them: every member sees all of them. */
+const orgRows: Job[] = [rows.running, rows.queued, rows.failed, rows.cancelled, rows.feasible, rows.infeasible, rows.routed, rows.theirs];
 
-/** What `GET /v1/jobs/{id}` answers for each run, given the state of the test; `null` is a 404. */
+/** What `getRun` answers for each run of ISA Demo Group (its summary and its detail), given the state of the test; `null` is a 404. */
+function runOf(id: string, state: State): Record<string, unknown> | null {
+  const found = detailTable[id]?.(state);
+  const summary = [...Object.values(rows)].find((row) => row.id === id) ?? jobOf(id, 'random-search', 'queued', null, '2026-10-09T09:00:00Z', null, mine);
+  return found ? { ...summary, ...found } : null;
+}
+
 const detailTable: Record<string, (state: State) => ReturnType<typeof detailOf> | null> = {
   'job-feasible-1': () => detailOf('job-feasible-1', 'completed'),
   'job-running-2': () => detailOf('job-running-2', 'running'),
@@ -88,6 +84,7 @@ const detailTable: Record<string, (state: State) => ReturnType<typeof detailOf> 
     result: { termination: 'INFEASIBLE', solutions: [{ violations: [{ constraint: 'sla-latencia', message: 'Total latency is 742 ms; at most 600 ms is allowed.' }] }] },
   }),
   'job-routed-7': () => detailOf('job-routed-7', 'completed'),
+  'job-theirs-8': () => detailOf('job-theirs-8', 'completed'),
   'job-live-10': (state) => detailOf('job-live-10', state.liveDone ? 'completed' : 'running'),
   'job-new-9': () => detailOf('job-new-9', 'queued', { provenance: provenanceOf({ requestedOptions: { time_budget_ms: 600000 }, options: { time_budget_ms: 60000 } }) }),
 };
@@ -109,9 +106,11 @@ const engines = [
   { ...MINIZINC, id: 'engine-2', ref: MINIZINC, modes: [mode('cp', { time_budget_ms: { type: 'integer', default: 60000 } })] },
 ];
 
+/** The compilation of a version by the installed toolchain: its analysis and the engine modes that can run it. */
 const analysisBody = () => ({
-  valid: true, instanceDigest: digestOf('d'), packageDigest: digestOf('e'), irDigest: digestOf('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],
-  compatibleModes: [
+  id: 'compilation-2', revision_id: 'rev-checkout-2', compilation_digest: digestOf('9'), compiler_digest: digestOf('8'), ir_digest: digestOf('c'), binding_space: '125892',
+  created_at: '2026-08-02T10:00:00Z', current: true, toolchain: {}, resources: {},
+  compatible_modes: [
     { engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true },
     { engine: MINIZINC, registration: MINIZINC_REGISTRATION, mode: 'cp', compatible: true },
     { engine: EDGE, registration: EDGE_REGISTRATION, mode: 'placement', compatible: false, diagnostics: [{ message: 'It cannot read a RoutingOverlay.' }] },
@@ -119,13 +118,7 @@ const analysisBody = () => ({
   analysis: { tasks: 6, candidates: 24, constraints: 2, placement: false, bindingSpace: '125892' },
 });
 
-
-const summaryOf = (row: Job) => ({
-  id: row.id, engine_id: row.engine_id, status: row.status, termination: row.termination ?? null,
-  solutions: row.status === 'completed' ? (row.termination === 'INFEASIBLE' ? 0 : 1) : null, created_at: row.created_at, finished_at: row.finished_at,
-});
-
-type Overridable = 'launch' | 'cancel' | 'retry' | 'validate' | 'projectJobs' | 'history' | 'detail' | 'neighborhood';
+type Overridable = 'launch' | 'cancel' | 'retry' | 'compilation' | 'runs' | 'detail' | 'neighborhood';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
@@ -134,9 +127,6 @@ interface State {
   sent: { launch?: unknown; key?: string; cancel?: string; retry?: string };
   /** The live run has finished: the next time it is asked about it says so. */
   liveDone: boolean;
-  /** How many days the plan keeps finished runs; `null` is the gateway not saying. */
-  retention: number | null;
-  history: Job[];
 }
 
 interface MockOptions {
@@ -148,10 +138,11 @@ const bodyOf = (route: Route) => route.request().postDataJSON() as Record<string
 
 /** Everything these screens read and write, answered; anything else on the API origin is an empty 404. */
 async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
-  const state: State = { refuse: {}, sent: {}, liveDone: false, retention: 180, history: ownRows };
+  const state: State = { refuse: {}, sent: {}, liveDone: false };
   const organizations = [
     org('org-isa-demo', 'isa-demo', 'ISA Demo Group', options.role ?? 'OWNER'),
-    org('org-4', 'read-lab', 'Read Lab', 'VIEWER', 'user-nora'),
+    org('org-4', 'read-lab', 'Read Lab', 'VIEWER'),
+    org('org-5', 'empty-lab', 'Empty Lab', 'MEMBER'),
   ];
   await page.addInitScript(() => {
     localStorage.setItem('openbinding-access-token', 's6a-access');
@@ -166,78 +157,61 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(`${API}/v1/users/me/usage`, json(usageOf({
     plan: 'RESEARCH',
-    capabilities: { maxPayloadBytes: 134_217_728, maxTimeoutSeconds: 60, maxIterations: 1_000_000, maxInstanceComplexityLog10: 20, concurrentJobs: 3 },
+    capabilities: { maxRunMinutes: 1, maxConcurrentRuns: 3 },
   })));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
   await page.route(`${API}/v1/engines`, json({ engines }));
 
-  // The jobs of this account across projects, with how long they are kept.
-  await page.route(new RegExp(`^${API}/v1/users/me/jobs(\\?.*)?$`), (route) => {
-    if (state.refuse.history) return state.refuse.history(route);
-    const limit = Number(new URL(route.request().url()).searchParams.get('limit') ?? 50);
-    return json({ jobs: state.history.slice(0, limit).map(summaryOf), total: state.history.length, retention_days: state.retention })(route);
-  });
-
-  await page.route(`${API}/v1/validate`, (route) => (state.refuse.validate ?? json(analysisBody()))(route));
-  await page.route(`${API}/v1/instances`, json({ id: 'snapshot-made', irDigest: digestOf('c') }, 201));
-
-  await page.route(new RegExp(`^${API}/v1/jobs(/.*)?(\\?.*)?$`), async (route) => {
-    const url = new URL(route.request().url());
-    const [, , , id, action, sub] = url.pathname.split('/');
-    const method = route.request().method();
-    if (!id) {
-      if (method === 'POST') {
-        state.sent.launch = bodyOf(route);
-        state.sent.key = route.request().headers()['idempotency-key'];
-        return (state.refuse.launch ?? json({ id: 'job-new-9', status: 'queued', profile: 'qos-binding/v1', irDigest: digestOf('c') }, 202))(route);
-      }
-      return json(ownRows)(route);
-    }
-    if (action === 'cancel') {
-      state.sent.cancel = id;
-      return (state.refuse.cancel ?? json({ ...rows.running, id, cancellation_requested: true }))(route);
-    }
-    if (action === 'retry') {
-      state.sent.retry = id;
-      return (state.refuse.retry ?? json(jobOf('job-new-9', 'evolutionary', 'queued', null, '2026-10-09T09:00:00Z', null, { ...mine, retry_of_id: id }), 202))(route);
-    }
-    if (action === 'instance') return json(INSTANCE)(route);
-    if (action === 'ir') return json(PROBLEM)(route);
-    if (action === 'report') return json({ ...REPORT, id })(route);
-    if (action === 'analysis' && sub === 'neighborhood') return (state.refuse.neighborhood ?? json({ ...NEIGHBORHOOD, jobId: id }))(route);
-    if (state.refuse.detail) return state.refuse.detail(route);
-    const found = detailTable[id]?.(state) ?? null;
-    return found ? json(found)(route) : detail(404, 'not_found', 'Job not found.')(route);
-  });
-
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
     const url = new URL(route.request().url());
     const parts = url.pathname.split('/').filter(Boolean);
-    const [, , orgSlug, section, projectSlug, sub, subId, action] = parts;
+    const [, , orgSlug, section] = parts;
     const found = organizations.find((item) => item.slug === orgSlug);
 
     if (!orgSlug) return json(organizations)(route);
     if (section === 'members' || section === 'library') return json([])(route);
-    if (section !== 'projects') return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
-
-    const list = projectsOf[orgSlug] ?? [];
-    if (!projectSlug) return json(list)(route);
-    const current = list.find((item) => item.slug === projectSlug);
-    if (!current) return detail(404, 'not_found', 'Project not found.')(route);
-    if (!sub) return json(current)(route);
-
-    if (sub === 'cases') {
-      if (!subId) return json(projectSlug === 'qos-benchmarks' ? [flujo] : [])(route);
-      if (action === 'revisions') return json(subId === flujo.slug ? [caseRevision(1), caseRevision(2)] : [])(route);
-      return json(subId === flujo.slug ? flujo : { detail: 'not found' }, subId === flujo.slug ? 200 : 404)(route);
+    if (section === 'runs') {
+      // The runs of the organization: the list, one run, and what a member does to one.
+      const [, , , , id, action] = parts;
+      const method = route.request().method();
+      if (!found) return detail(404, 'not_found', 'Organization not found.')(route);
+      const own = orgSlug === 'isa-demo' ? orgRows : [];
+      if (!id) {
+        if (method === 'POST') {
+          state.sent.launch = bodyOf(route);
+          state.sent.key = route.request().headers()['idempotency-key'];
+          return (state.refuse.launch ?? json({ id: 'job-new-9', status: 'queued', profile: 'qos-binding/v1', irDigest: digestOf('c') }, 202))(route);
+        }
+        if (state.refuse.runs) return state.refuse.runs(route);
+        const limit = Number(url.searchParams.get('limit') ?? 50);
+        return json({ runs: own.slice(0, limit), total: own.length })(route);
+      }
+      if (action === 'cancel') {
+        state.sent.cancel = id;
+        return (state.refuse.cancel ?? json({ ...rows.running, id, cancellation_requested: true }))(route);
+      }
+      if (action === 'retry') {
+        state.sent.retry = id;
+        return (state.refuse.retry ?? json(jobOf('job-new-9', 'evolutionary', 'queued', null, '2026-10-09T09:00:00Z', null, { ...mine, retry_of_id: id }), 202))(route);
+      }
+      if (action === 'neighborhood') return (state.refuse.neighborhood ?? json({ ...NEIGHBORHOOD, jobId: id }))(route);
+      if (state.refuse.detail) return state.refuse.detail(route);
+      const run = orgSlug === 'isa-demo' ? runOf(id, state) : null;
+      return run ? json(run)(route) : detail(404, 'not_found', 'Run not found.')(route);
     }
-    if (sub === 'jobs') {
-      if (state.refuse.projectJobs) return state.refuse.projectJobs(route);
-      if (projectSlug !== 'qos-benchmarks') return json([])(route);
-      const wanted = url.searchParams.get('job_id');
-      return json(wanted ? projectRows.filter((row) => row.id === wanted) : projectRows)(route);
+    if (section === 'problems') {
+      // The problems of the organization: the list, the versions of one, its compilation and the IR of that.
+      const [, , , , problemSlug, , revisionRef, tail] = parts;
+      const own = orgSlug === 'isa-demo' ? [checkout] : [];
+      if (!problemSlug) return json({ problems: own, total: own.length, limit: 200, offset: 0 })(route);
+      if (problemSlug !== checkout.slug || orgSlug !== 'isa-demo') return detail(404, 'not_found', 'Problem not found.')(route);
+      if (!revisionRef) return json([problemRevision(1), problemRevision(2)])(route);
+      if (tail === 'compilation') return (state.refuse.compilation ?? json(analysisBody()))(route);
+      if (tail === 'compilations') return json({ id: 'compilation-2', ir_digest: digestOf('c'), ir: PROBLEM, source_map: {} })(route);
+      return json({ ...problemRevision(Number(revisionRef)), document: {}, files: [], resource_digests: {}, compilations: [] })(route);
     }
+    if (!section) return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
     return json([])(route);
   });
   return state;
@@ -288,37 +262,35 @@ const viewports = [
   { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 2 },
 ] as const;
 
-const ROOT = '/app/isa-demo/qos-benchmarks';
+const ROOT = '/app/isa-demo';
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S6a execution`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('job-list /app/:org/:project/runs · summaries, owner actions, filters and retry', async ({ page }, testInfo) => {
+    test('job-list /app/:org/runs · every run of the organization, who launched it, filters and retry', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/runs`);
       const main = page.locator('#platform-main');
-      const table = main.getByRole('region', { name: 'Runs of the project' });
+      const table = main.getByRole('region', { name: 'Runs of the organization' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
-      await expect(main.getByText(/Every run in QoS Benchmarks\. Anyone in the project sees the summary/)).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Runs', exact: true })).toHaveAttribute('aria-current', 'page');
+      await expect(main.getByText(/Every run in ISA Demo Group\. Every member opens them/)).toBeVisible();
       await expect(main.getByRole('link', { name: 'New run' })).toHaveAttribute('href', `${ROOT}/runs/new`);
-      await expect(table.getByRole('row')).toHaveCount(8);
-      await expect(table.getByRole('link', { name: /^Open run/ })).toHaveCount(6);
-      await expect(table.getByText('Owner only')).toHaveCount(1);
-      await expect(table.getByText('Another member')).toHaveCount(1);
+      await expect(table.getByRole('row')).toHaveCount(9);
+      await expect(table.getByRole('link', { name: /^Open run/ })).toHaveCount(8);
+      await expect(table.getByText('Owner only')).toHaveCount(0);
+      await expect(table.getByRole('cell', { name: /^ana/ })).toHaveCount(1);
       await expect(table.getByRole('button', { name: 'Retry' })).toHaveCount(2);
-      await expect(main.getByText('Kept for 180 days on your RESEARCH plan')).toBeVisible();
-      await expect(main.getByRole('button', { name: 'All (7)' })).toHaveAttribute('aria-pressed', 'true');
+      await expect(main.getByRole('button', { name: 'All (8)' })).toHaveAttribute('aria-pressed', 'true');
       await capture(page, testInfo, `list-${name}-rows`);
 
       // Narrowing by status and by engine.
       await main.getByRole('button', { name: 'Running (1)' }).click();
       await expect(table.getByRole('row')).toHaveCount(2);
       await capture(page, testInfo, `list-${name}-filtered`);
-      await main.getByRole('button', { name: 'All (7)' }).click();
+      await main.getByRole('button', { name: 'All (8)' }).click();
       await main.getByRole('combobox', { name: 'Engine' }).selectOption('evolutionary');
       await expect(table.getByRole('row')).toHaveCount(3);
       await main.getByRole('combobox', { name: 'Engine' }).selectOption('');
@@ -330,7 +302,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(state.sent.retry).toBe('job-failed-4');
       await capture(page, testInfo, `list-${name}-retry`);
       state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', {
-        quota: { limit_id: 'storageBytes', limit: 50, used: 50 },
+        quota: { limit_id: 'maxRepositoryStorage', limit: 50, used: 50 },
       });
       await table.getByRole('button', { name: 'Retry' }).last().click();
       await expect(main.getByText('Retry refused: Out of storage (402 · quota_exceeded)')).toBeVisible();
@@ -339,41 +311,41 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-list /app/:org/:project/runs · empty, 503, a viewer and a project that is not there', async ({ page }, testInfo) => {
+    test('job-list /app/:org/runs · empty, 503, a viewer and an organization that is not there', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
-      await page.goto('/app/isa-demo/checkout-privado/runs');
+      await page.goto('/app/empty-lab/runs');
       await expect(main.getByText('No runs yet')).toBeVisible();
       await expect(main.getByText('Pick a problem version and an engine to run it.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Start a run' })).toHaveAttribute('href', '/app/isa-demo/checkout-privado/runs/new');
+      await expect(main.getByRole('link', { name: 'Start a run' })).toHaveAttribute('href', '/app/empty-lab/runs/new');
       await capture(page, testInfo, `list-${name}-empty`);
 
-      state.refuse.projectJobs = unavailable;
+      state.refuse.runs = unavailable;
       await page.goto(`${ROOT}/runs`);
       await expect(main.getByRole('alert').filter({ hasText: 'Runs can’t be loaded right now' })).toContainText('(503)');
       await expect(main.getByText('No runs yet')).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-503`);
-      state.refuse.projectJobs = undefined;
+      state.refuse.runs = undefined;
       await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('region', { name: 'Runs of the project' })).toBeVisible();
+      await expect(main.getByRole('region', { name: 'Runs of the organization' })).toBeVisible();
 
-      // A viewer reads the summaries; nothing on the screen starts a run.
-      await page.goto('/app/read-lab/bench/runs');
+      // A viewer reads the runs; nothing on the screen starts one.
+      await page.goto('/app/read-lab/runs');
       await expect(main.getByRole('heading', { level: 1, name: 'Runs' })).toBeVisible();
       await expect(main.getByRole('link', { name: 'New run' })).toHaveCount(0);
       await expect(main.getByText('No runs yet')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Start a run' })).toHaveCount(0);
       await capture(page, testInfo, `list-${name}-viewer`);
 
-      await page.goto('/app/isa-demo/ghost/runs');
-      await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
+      await page.goto('/app/ghost/runs');
+      await expect(main.getByRole('heading', { name: 'Organization not available' })).toBeVisible();
       await capture(page, testInfo, `list-${name}-404`);
       expect(critical).toEqual([]);
     });
 
-    test('job-detail /app/:org/:project/runs/:job · a finished run, its result and what it ran on', async ({ page }, testInfo) => {
+    test('job-detail /app/:org/runs/:job · a finished run, its result and what it ran on', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
       await page.goto(`${ROOT}/runs/job-feasible-1`);
@@ -381,7 +353,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'random-search run' })).toBeVisible();
       await expect(main.getByText('Feasible: meets every must-hold rule')).toBeVisible();
-      await expect(main.getByText(/launched Sep 30, 2026, 09:00 UTC by you · problem Flujo de checkout/)).toBeVisible();
+      await expect(main.getByText(/launched Sep 30, 2026, 09:00 UTC by you · problem Checkout flow · version 2/)).toBeVisible();
       await expect(main.getByRole('link', { name: 'Analyze' })).toHaveCount(0);
       await expect(main.getByRole('region', { name: 'Timeline' }).getByText('Finished · not live')).toBeVisible();
       const settings = main.getByRole('region', { name: 'Settings asked and used' });
@@ -402,9 +374,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // What it ran on.
       const where = main.getByRole('region', { name: 'Where this result comes from' });
-      await expect(where.getByRole('link', { name: 'Compiled snapshot' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/source?version=2`);
+      await expect(where.getByRole('link', { name: 'Source and compiled form' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow/source?version=2');
       await expect(where).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      await expect(where.getByRole('link', { name: 'Flujo de checkout · version 2' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=2`);
+      await expect(where.getByRole('link', { name: 'Checkout flow · version 2' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow?version=2');
       await expect(where.getByRole('link', { name: 'Add to a report' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-provenance`, { area: where });
       const downloaded = page.waitForEvent('download');
@@ -423,7 +395,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-detail /app/:org/:project/runs/:job · a live run follows its state until it finishes', async ({ page }, testInfo) => {
+    test('job-detail /app/:org/runs/:job · a live run follows its state until it finishes', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/runs/job-live-10`);
@@ -444,7 +416,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-detail /app/:org/:project/runs/:job · cancel, retry and the ways a run ends without a result', async ({ page }, testInfo) => {
+    test('job-detail /app/:org/runs/:job · cancel, retry and the ways a run ends without a result', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
@@ -470,7 +442,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/runs/job-new-9`);
       expect(state.sent.retry).toBe('job-failed-4');
       await capture(page, testInfo, `detail-${name}-failed-retry`, { height: 1500 });
-      state.refuse.retry = json({ detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 } } }, 429);
+      state.refuse.retry = json({ detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'maxConcurrentRuns', limit: 3, used: 3 } } }, 429);
       await main.getByRole('button', { name: 'Retry' }).click();
       await expect(main.getByText(/Retry refused: All your run slots are busy \(429/)).toBeVisible();
       await capture(page, testInfo, `detail-${name}-429`, { height: 1500 });
@@ -482,19 +454,24 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto(`${ROOT}/runs/job-infeasible-6`);
       const why = main.getByRole('region', { name: 'Why no combination works' });
       await expect(why).toContainText('Total latency is 742 ms');
-      await expect(why.getByRole('link', { name: 'See the rules' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=2`);
+      await expect(why.getByRole('link', { name: 'See the rules' })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow?version=2');
       await expect(main.getByRole('heading', { name: 'What if one task used another provider?' })).toHaveCount(0);
       await capture(page, testInfo, `detail-${name}-infeasible`, { height: 1700 });
       expect(critical).toEqual([]);
     });
 
-    test('job-detail /app/:org/:project/runs/:job · a run that is not yours and a key without access', async ({ page }, testInfo) => {
+    test('job-detail /app/:org/runs/:job · a teammate’s run, a run that is not there and a key without access', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
-      // A run of another member, or one that does not exist: the same neutral answer, even for an administrator.
+      // A teammate's run opens for every member, with who launched it.
       await page.goto(`${ROOT}/runs/job-theirs-8`);
+      await expect(main.getByRole('heading', { level: 1, name: 'evolutionary run' })).toBeVisible();
+      await expect(main.getByText(/by ana/)).toBeVisible();
+
+      // A run of another organization, or one that does not exist: the same neutral answer, even for an administrator.
+      await page.goto(`${ROOT}/runs/job-ghost-11`);
       await expect(main.getByRole('heading', { name: 'Run not found' })).toBeVisible();
       await expect(main.getByText(/Everyone else, including platform administrators, gets this same answer\./)).toBeVisible();
       await expect(main.getByRole('link', { name: 'All runs' })).toHaveAttribute('href', `${ROOT}/runs`);
@@ -513,17 +490,17 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-launch /app/:org/:project/runs/new · from a revision: four steps, what the plan reduces, accepted', async ({ page }, testInfo) => {
+    test('job-launch /app/:org/runs/new · from a revision: four steps, what the plan reduces, accepted', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/runs/new?case=flujo-checkout&revision=2`);
+      await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
       const main = page.locator('#platform-main');
       const next = main.getByRole('button', { name: 'Continue' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'New run' })).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Runs', exact: true })).toHaveAttribute('aria-current', 'page');
+      await expect(main.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Runs' })).toHaveAttribute('href', `${ROOT}/runs`);
       const source = main.getByRole('radiogroup', { name: 'Source' });
-      await expect(source.getByRole('radio', { name: /Flujo de checkout · version 2/ })).toBeChecked();
+      await expect(source.getByRole('radio', { name: /Checkout flow · version 2/ })).toBeChecked();
       await expect(source.getByRole('radio')).toHaveCount(2);
       await capture(page, testInfo, `launch-${name}-step1`);
 
@@ -546,13 +523,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { name: 'Before you send' })).toBeVisible();
       await expect(main.getByText('Time budget 60 s (reduced) · Iterations 100,000 iterations')).toBeVisible();
       await expect(main.getByText(/used \+ up to/)).toHaveCount(0);
-      await expect(main.getByText('≈ 10^5.1 of up to 10^20 on your RESEARCH plan')).toBeVisible();
+      await expect(main.getByText('≈ 10^5.1 combinations · this deployment sets the ceiling')).toBeVisible();
       await capture(page, testInfo, `launch-${name}-step4`);
 
       await main.getByRole('button', { name: 'Send run' }).click();
       await expect(main.getByRole('heading', { name: 'Run accepted · queued' })).toBeVisible();
       await expect(main.getByText(/Time budget was reduced to 60 s, what your plan allows; the run carries that note\./)).toBeVisible();
-      expect(state.sent.launch).toMatchObject({ snapshot: 'snapshot-2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling', options: { time_budget_ms: 600000, iterations: 100000 } });
+      expect(state.sent.launch).toMatchObject({ revision: 'rev-checkout-2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling', options: { time_budget_ms: 600000, iterations: 100000 } });
       expect(state.sent.key).toMatch(/^[0-9a-f-]{36}$/);
       await capture(page, testInfo, `launch-${name}-accepted`);
 
@@ -565,14 +542,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-launch /app/:org/:project/runs/new · an exact engine from a snapshot and every way the gateway refuses', async ({ page }, testInfo) => {
+    test('job-launch /app/:org/runs/new · an exact engine from the latest version and every way the gateway refuses', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/runs/new?snapshot=snapshot-2`);
+      await page.goto(`${ROOT}/runs/new`);
       const main = page.locator('#platform-main');
       const next = main.getByRole('button', { name: 'Continue' });
 
-      const source = main.getByRole('radio', { name: /Compiled snapshot/ });
+      const source = main.getByRole('radio', { name: /Checkout flow · version 2/ });
       await expect(source).toBeChecked();
       await expect(source).not.toHaveAccessibleName(/sha256-|[0-9a-f]{12}/);
       await next.click();
@@ -582,7 +559,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const send = main.getByRole('button', { name: 'Send run' });
 
       // 402: out of an allowance.
-      state.refuse.launch = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'storageBytes', limit: 50, used: 50 } });
+      state.refuse.launch = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'maxRepositoryStorage', limit: 50, used: 50 } });
       await send.click();
       // An error is an alert; a refusal that is about the plan or the credential is a status. Either way it is the one notice on screen.
       const refusal = main.locator('.ui-notice');
@@ -591,18 +568,21 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(refusal.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
       await expect(send).toBeEnabled();
       await capture(page, testInfo, `launch-${name}-402`);
-      expect(state.sent.launch).toMatchObject({ snapshot: 'snapshot-2', engine: ENGINE, mode: 'sampling' });
+      expect(state.sent.launch).toMatchObject({ revision: 'rev-checkout-2', engine: ENGINE, mode: 'sampling' });
 
-      // 402: too big for the plan.
-      state.refuse.launch = detail(402, 'instance_complexity_too_large', 'instance binding space exceeds the caller plan limit', { quota: { limit_id: 'maxInstanceComplexityLog10', limit: 9 } });
+      // 422: over the deployment's size limit, whatever the plan.
+      state.refuse.launch = detail(422, 'binding_space_over_technical_limit', 'instance binding space exceeds the deployment limit', {
+        quota: { limit_id: 'MAX_BINDING_SPACE_LOG10', state: 'exhausted', source: 'technical', limit: 20, used: 23 },
+      });
       await send.click();
-      await expect(refusal).toContainText('Too big for your plan (402 · instance_complexity_too_large)');
-      await capture(page, testInfo, `launch-${name}-402-size`);
+      await expect(refusal).toContainText('Over this deployment’s size limit (422 · binding_space_over_technical_limit)');
+      await expect(refusal.getByRole('link', { name: 'Compare plans' })).toHaveCount(0);
+      await capture(page, testInfo, `launch-${name}-422-size`);
 
       // 429: job slots busy, with the time to wait.
       state.refuse.launch = (route) => route.fulfill({
         status: 429, headers: { 'Retry-After': '15' },
-        json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'concurrentJobs', limit: 3, used: 3 } } },
+        json: { detail: { code: 'concurrency_limit_exceeded', error: 'Concurrency limit exceeded.', concurrency: { limit_id: 'maxConcurrentRuns', limit: 3, used: 3 } } },
       });
       await send.click();
       await expect(refusal).toContainText('All your run slots are busy (429 · concurrency_limit_exceeded)');
@@ -638,111 +618,31 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-launch /app/:org/:project/runs/new · a viewer, a snapshot that is not there and a problem too big for the plan', async ({ page }, testInfo) => {
+    test('job-launch /app/:org/runs/new · a viewer, a version that is gone and a problem too big for the deployment', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
-      await page.goto('/app/read-lab/bench/runs/new');
+      await page.goto('/app/read-lab/runs/new');
       await expect(main.getByRole('note')).toContainText('You’re a VIEWER of Read Lab. You can look through the steps, but starting a run needs MEMBER.');
       await expect(main.getByText(/Nothing to solve yet\./)).toBeVisible();
       await capture(page, testInfo, `launch-${name}-viewer`);
 
-      state.refuse.validate = detail(404, 'not_found', 'Snapshot not found.');
-      await page.goto(`${ROOT}/runs/new?snapshot=snapshot-ghost`);
+      state.refuse.compilation = detail(404, 'not_found', 'Problem revision not found.');
+      await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
       await main.getByRole('button', { name: 'Continue' }).click();
-      await expect(main.getByText('Snapshot not found (404)')).toBeVisible();
+      await expect(main.getByText('Problem version not found (404)')).toBeVisible();
       await expect(main.getByRole('radiogroup', { name: 'Engine' })).toHaveCount(0);
-      await capture(page, testInfo, `launch-${name}-snapshot-404`);
+      await capture(page, testInfo, `launch-${name}-revision-404`);
 
-      state.refuse.validate = detail(402, 'instance_complexity_too_large', 'instance binding space exceeds the caller plan limit', { quota: { limit_id: 'maxInstanceComplexityLog10', limit: 9 } });
-      await page.goto(`${ROOT}/runs/new?case=flujo-checkout&revision=2`);
+      state.refuse.compilation = detail(422, 'binding_space_over_technical_limit', 'instance binding space exceeds the deployment limit', {
+        quota: { limit_id: 'MAX_BINDING_SPACE_LOG10', state: 'exhausted', source: 'technical', limit: 20, used: 23 },
+      });
+      await page.goto(`${ROOT}/runs/new?problem=checkout-flow&revision=2`);
       await main.getByRole('button', { name: 'Continue' }).click();
-      await expect(main.getByRole('alert')).toContainText('Too big for your plan (402 · instance_complexity_too_large)');
+      await expect(main.getByRole('alert')).toContainText('Over this deployment’s size limit (422 · binding_space_over_technical_limit)');
       await expect(main.getByRole('radiogroup', { name: 'Engine' }).getByRole('radio', { name: /^random-search.*Checked when you send/ })).toBeEnabled();
-      await capture(page, testInfo, `launch-${name}-402-analysis`);
-      expect(critical).toEqual([]);
-    });
-
-    test('job-history /app/runs · my jobs across projects, retention, filters and actions', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto('/app/runs');
-      const main = page.locator('#platform-main');
-      const list = main.getByRole('list', { name: 'Your runs' });
-
-      await expect(main.getByRole('heading', { level: 1, name: 'My runs' })).toBeVisible();
-      await expect(main.getByText('Everything you’ve run, across projects.')).toBeVisible();
-      await expect(list.getByRole('listitem')).toHaveCount(8);
-      await expect(list.getByRole('link', { name: 'random-search on QoS Benchmarks' }).first()).toHaveAttribute('href', `${ROOT}/runs/job-queued-3`);
-      await expect(main.getByText('8 in total')).toBeVisible();
-      const retention = main.getByRole('region', { name: 'How long runs are kept' });
-      await expect(retention.getByText('Finished runs are kept 180 days on your RESEARCH plan')).toBeVisible();
-      await expect(retention.getByText('Longer retention comes with larger plans, arranged by agreement.')).toBeVisible();
-      await expect(retention.getByText('PRO', { exact: true })).toBeVisible();
-      await expect(list.getByRole('button', { name: 'Cancel' })).toHaveCount(3);
-      await expect(list.getByRole('button', { name: 'Retry' })).toHaveCount(2);
-      await expect(list.getByRole('link', { name: 'Analyze' })).toHaveCount(0);
-      await capture(page, testInfo, `history-${name}-list`);
-
-      await main.getByRole('button', { name: 'Completed (3)' }).click();
-      await expect(list.getByRole('listitem')).toHaveCount(3);
-      await main.getByRole('combobox', { name: 'Engine' }).selectOption('minizinc');
-      await expect(list.getByRole('listitem')).toHaveCount(1);
-      await capture(page, testInfo, `history-${name}-filtered`);
-      await main.getByRole('button', { name: 'All (8)' }).click();
-      await main.getByRole('combobox', { name: 'Engine' }).selectOption('');
-
-      // Cancel one that is going, retry one that failed, and one the account cannot afford.
-      await list.getByRole('listitem').filter({ hasText: 'minizinc' }).first().getByRole('button', { name: 'Cancel' }).click();
-      await expect(main.getByText('Cancellation requested.')).toBeVisible();
-      expect(state.sent.cancel).toBe('job-running-2');
-      await capture(page, testInfo, `history-${name}-cancel`);
-      await list.getByRole('listitem').filter({ hasText: 'evolutionary' }).first().getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByText('Retry queued.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/runs/job-new-9`);
-      state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'storageBytes', limit: 10, used: 10 } });
-      await list.getByRole('listitem').filter({ hasText: 'random-search' }).getByRole('button', { name: 'Retry' }).first().click();
-      await expect(main.getByText('Retry refused: Out of storage (402 · quota_exceeded)')).toBeVisible();
-      await capture(page, testInfo, `history-${name}-402`);
-      expect(critical).toEqual([]);
-    });
-
-    test('job-history /app/runs · empty, retention unknown, a key without access and a page that does not load', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      const main = page.locator('#platform-main');
-
-      state.history = [];
-      state.retention = 7;
-      await page.goto('/app/runs');
-      await expect(main.getByText('Nothing within your retention window')).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Start a run' })).toBeVisible();
-      await expect(main.getByText('Finished runs are kept 7 days on your RESEARCH plan')).toBeVisible();
-      await capture(page, testInfo, `history-${name}-empty`);
-
-      state.history = ownRows;
-      state.retention = null;
-      await page.goto('/app/runs');
-      await expect(main.getByText('Retention can’t be confirmed right now')).toBeVisible();
-      await expect(main.getByText('Your list still loads; only the retention figure is missing.')).toBeVisible();
-      await expect(main.getByRole('list', { name: 'Your runs' }).getByRole('listitem')).toHaveCount(8);
-      await capture(page, testInfo, `history-${name}-retention-503`);
-
-      state.refuse.history = detail(403, 'api_key_forbidden', 'The API key does not include jobs:read.');
-      await page.goto('/app/runs');
-      await expect(main.getByText(/This API key doesn’t include “read runs” \(403/)).toBeVisible();
-      await expect(main.getByRole('list', { name: 'Your runs' })).toHaveCount(0);
-      await capture(page, testInfo, `history-${name}-403-key`);
-
-      state.refuse.history = unavailable;
-      await page.goto('/app/runs');
-      await expect(main.getByText(/Your runs can’t be loaded right now \(503/)).toBeVisible();
-      await capture(page, testInfo, `history-${name}-503`);
-      state.refuse.history = undefined;
-      state.retention = 180;
-      await main.getByRole('button', { name: 'Try again' }).click();
-      await expect(main.getByRole('list', { name: 'Your runs' })).toBeVisible();
+      await capture(page, testInfo, `launch-${name}-422-analysis`);
       expect(critical).toEqual([]);
     });
   });

@@ -1,10 +1,7 @@
-"""The gateway works the same whichever implementation of the BIM port it is given.
+"""The gateway's flows that depend on BIM, through the port it is given (the installed ``bim-core``).
 
-``BIM_MODE=inproc`` calls the installed ``bim-core``; ``BIM_MODE=http`` calls a ``bim-service``. These tests run the
-flows that depend on BIM (a snapshot, a job and the re-evaluation of what the engine answered, the refusal of an
-Engine mode, the list of compatible modes) with each implementation; the service is mounted in this process
-(ASGI, no network) when ``bim_service`` can be imported and the http cases are skipped, with a warning, when it
-cannot. The failures of the service (down, busy) are tested with a client that fails, which needs no service.
+A problem upload, a job and the re-evaluation of what the engine answered, the refusal of an Engine mode, the
+list of compatible modes; and the translation of the toolchain's errors into the platform's problems.
 """
 
 from __future__ import annotations
@@ -14,22 +11,20 @@ import json
 import threading
 import time
 import uuid
-import warnings
 
-import httpx
 import pytest
 
+from _problem_helpers import runs_url_for, upload_problem
 from _repo import REPO_ROOT
-from openbinding_gateway.core.settings import Settings, get_settings
+from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.integrations import bim, packages
+from openbinding_gateway.modules.problems.application import ir_analysis
 from openbinding_gateway.services import execution
-from openbinding_gateway.services.snapshots import ir_analysis
-from bim_client import HttpBim, InProcessBim
+from bim_client import InProcessBim
 from bim_core import ContractError, PackageError
 from bim_core.package import load_package
 
 EXAMPLE = REPO_ROOT / "examples" / "demo" / "01_simple_seq"
-TOKEN = "gateway-test-token-" + "0123456789abcdef" * 2
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
 ZIP = {"Content-Type": "application/vnd.bim+zip"}
 BINDING = {
@@ -39,59 +34,10 @@ BINDING = {
 }
 
 
-# ----------------------------------------------------------------------------------------------- the ports
-
-
-def mounted_service(tmp_path):
-    """A ``bim-service`` application and its token file, or a skip (with a warning) if it cannot be imported."""
-    try:
-        import bim_service  # noqa: F401  (the bim-service wheel of the pinned release, a test extra)
-    except ImportError:
-        message = "bim_service is not importable: the BIM_MODE=http cases are skipped"
-        warnings.warn(message, stacklevel=2)
-        pytest.skip(message)
-    from bim_service.app import create_app
-    from bim_service.settings import BimServiceSettings
-
-    tokens = tmp_path / "bim-token"
-    tokens.write_text(TOKEN + "\n", encoding="utf-8")
-    tokens.chmod(0o600)
-    return create_app(BimServiceSettings(tokens_file=str(tokens))), tokens
-
-
-@pytest.fixture(params=["inproc", "http"])
-def bim_port(request, tmp_path):
-    """The port of the gateway: the installed ``bim-core``, or a ``bim-service`` mounted in this process."""
-    if request.param == "inproc":
-        yield bim.get_bim()
-        return
-    from starlette.testclient import TestClient
-
-    application, tokens = mounted_service(tmp_path)
-    client = TestClient(application, base_url="http://bim.test", raise_server_exceptions=False)
-    port = HttpBim(client=client, token_file=tokens)
-    with bim.bim_override(port):
-        yield port
-    port.close()
-
-
-def failing_port(handler) -> HttpBim:
-    """An ``HttpBim`` whose transport is ``handler``: a service that is down or answers badly."""
-    client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://bim.test")
-    return HttpBim(client=client)
-
-
-def refused(request: httpx.Request) -> httpx.Response:
-    raise httpx.ConnectError("connection refused", request=request)
-
-
-def busy(request: httpx.Request) -> httpx.Response:
-    return httpx.Response(
-        503,
-        json={"type": "urn:bim-toolchain:problem:service_busy", "title": "Service busy", "status": 503,
-              "code": "service_busy", "detail": "no slot became free"},
-        headers={"Retry-After": "3", "Content-Type": "application/problem+json"},
-    )
+@pytest.fixture
+def bim_port():
+    """The port of the gateway: the installed ``bim-core``."""
+    yield bim.get_bim()
 
 
 # ---------------------------------------------------------------------------------------------- helpers
@@ -120,10 +66,10 @@ def package_with_latency(latency) -> bytes:
     return package.to_zip()
 
 
-# ----------------------------------------------------------------------------------- flows, both ports
+# ----------------------------------------------------------------------------------------------- flows
 
 
-async def test_a_snapshot_a_job_and_the_reevaluation_of_its_answer(
+async def test_a_problem_a_job_and_the_reevaluation_of_its_answer(
     api_client, db_session, registration, monkeypatch, bim_port
 ) -> None:
     monkeypatch.setattr(get_settings(), "job_dispatch_mode", "inline")
@@ -138,26 +84,25 @@ async def test_a_snapshot_a_job_and_the_reevaluation_of_its_answer(
     monkeypatch.setattr(execution, "solve_remote", solve)
     headers = await sign_in(api_client, registration)
 
-    created = await api_client.post("/v1/instances", headers={**headers, **ZIP}, content=example_zip())
-    assert created.status_code == 201, created.text
-    snapshot = created.json()
-    # The identities are the toolchain's, whichever way it was reached.
+    created = await upload_problem(api_client, headers, archive=example_zip(), slug="port")
+    # The identities are the toolchain's.
     reference = InProcessBim().compile(example_zip())
-    assert snapshot["irDigest"] == reference["irDigest"]
-    assert snapshot["packageDigest"] == reference["packageDigest"]
-    assert snapshot["instanceDigest"] == reference["instanceDigest"]
-    ir = (await api_client.get(f"/v1/instances/{snapshot['id']}/ir", headers=headers)).json()
+    assert created["compilation"]["ir_digest"] == reference["irDigest"]
+    assert created["revision"]["package_digest"] == reference["packageDigest"]
+    assert created["revision"]["instance_digest"] == reference["instanceDigest"]
+    base = f"/v1/organizations/{created['org']}/problems/port/revisions/1"
+    ir = (await api_client.get(f"{base}/compilations/{created['compilation']['id']}/ir", headers=headers)).json()["ir"]
     assert ir == reference["ir"]
 
     submitted = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(created["revision_id"]),
         headers={**headers, "Idempotency-Key": f"port-{uuid.uuid4()}"},
-        json={"snapshot": snapshot["id"], "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION},
+        json={"revision": created["revision_id"], "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION},
     )
     assert submitted.status_code == 202, submitted.text
-    finished = (await api_client.get(f"/v1/jobs/{submitted.json()['id']}", headers=headers)).json()
+    finished = (await api_client.get(f"{runs_url_for(created['revision_id'])}/{submitted.json()['id']}", headers=headers)).json()
     assert finished["status"] == "completed", finished
-    assert finished["provenance"]["irDigest"] == snapshot["irDigest"]
+    assert finished["provenance"]["irDigest"] == reference["irDigest"]
     assert finished["provenance"]["compilerDigest"] == bim.toolchain_digest()
 
     # Re-evaluated by the toolchain: the numbers are its own and the termination is the one the mode backs.
@@ -171,15 +116,12 @@ async def test_an_engine_mode_that_cannot_run_the_instance_is_a_422(
     api_client, registration, bim_port
 ) -> None:
     headers = await sign_in(api_client, registration)
-    created = await api_client.post(
-        "/v1/instances", headers={**headers, **ZIP}, content=package_with_latency({"min": 100, "max": None})
-    )
-    assert created.status_code == 201, created.text
+    created = await upload_problem(api_client, headers, archive=package_with_latency({"min": 100, "max": None}))
 
     refused_job = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(created["revision_id"]),
         headers={**headers, "Idempotency-Key": f"port-{uuid.uuid4()}"},
-        json={"snapshot": created.json()["id"], "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION},
+        json={"revision": created["revision_id"], "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION},
     )
 
     assert refused_job.status_code == 422, refused_job.text
@@ -194,12 +136,12 @@ async def test_an_option_the_mode_does_not_have_is_a_422_with_the_toolchains_cod
     api_client, registration, bim_port
 ) -> None:
     headers = await sign_in(api_client, registration)
-    created = await api_client.post("/v1/instances", headers={**headers, **ZIP}, content=example_zip())
+    created = await upload_problem(api_client, headers, archive=example_zip())
 
     response = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(created["revision_id"]),
         headers={**headers, "Idempotency-Key": f"port-{uuid.uuid4()}"},
-        json={"snapshot": created.json()["id"], "engine": "random-search", "mode": "seeded",
+        json={"revision": created["revision_id"], "engine": "random-search", "mode": "seeded",
               "optimization": OPTIMIZATION, "options": {"bogus": 1}},
     )
 
@@ -210,7 +152,7 @@ async def test_an_option_the_mode_does_not_have_is_a_422_with_the_toolchains_cod
 async def test_validate_lists_the_modes_that_can_run_the_instance(api_client, registration, bim_port) -> None:
     headers = await sign_in(api_client, registration)
 
-    response = await api_client.post("/v1/validate", headers={**headers, **ZIP}, content=example_zip())
+    response = await api_client.post("/v1/bim/validate", headers={**headers, **ZIP}, content=example_zip())
 
     assert response.status_code == 200, response.text
     payload = response.json()
@@ -225,45 +167,12 @@ async def test_the_digests_of_the_files_of_a_package_are_those_of_its_portable_f
     headers = await sign_in(api_client, registration)
     package = load_package(EXAMPLE)
 
-    created = await api_client.post("/v1/instances", headers={**headers, **ZIP}, content=package.to_zip())
+    validated = await api_client.post("/v1/bim/validate", headers={**headers, **ZIP}, content=package.to_zip())
+    created = await upload_problem(api_client, headers, archive=package.to_zip())
 
-    assert created.status_code == 201, created.text
-    assert created.json()["fileDigests"] == load_package(package.to_zip()).resource_digests
-    assert created.json()["packageDigest"] == package.package_digest
-
-
-# ------------------------------------------------------------------------------------ failures of the service
-
-
-async def test_a_service_that_is_down_is_a_clean_503(api_client) -> None:
-    with bim.bim_override(failing_port(refused)):
-        response = await api_client.post("/v1/instances/validate", content=example_zip(), headers=ZIP)
-
-    assert response.status_code == 503, response.text
-    body = response.json()
-    assert body["code"] == "bim_unavailable"
-    assert body["bimCode"] == "service_unavailable"
-    assert "refused" not in response.text and "Traceback" not in response.text
-
-
-async def test_a_busy_service_is_a_503_that_says_when_to_retry(api_client) -> None:
-    with bim.bim_override(failing_port(busy)):
-        response = await api_client.post("/v1/instances/validate", content=example_zip(), headers=ZIP)
-
-    assert response.status_code == 503, response.text
-    assert response.json()["bimCode"] == "service_busy"
-    assert response.headers["Retry-After"] == "3"
-
-
-async def test_a_service_that_answers_nonsense_is_a_502(api_client) -> None:
-    def nonsense(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, content=b"<html>not json</html>")
-
-    with bim.bim_override(failing_port(nonsense)):
-        response = await api_client.post("/v1/instances/validate", content=example_zip(), headers=ZIP)
-
-    assert response.status_code == 502, response.text
-    assert response.json()["code"] == "bim_service_error"
+    assert validated.status_code == 200, validated.text
+    assert validated.json()["fileDigests"] == load_package(package.to_zip()).resource_digests
+    assert validated.json()["packageDigest"] == created["revision"]["package_digest"] == package.package_digest
 
 
 # ------------------------------------------------------------------------------------------- the boundary
@@ -274,76 +183,12 @@ async def test_startup_accepts_the_toolchain_it_was_built_with_and_refuses_anoth
     assert accepted["compilerDigest"] == accepted["expected"] == bim.toolchain_digest()
 
     monkeypatch.setattr(bim, "_local_compiler_digest", lambda: "sha256-" + "0" * 64)
-    with pytest.raises(bim.BimStartupError, match="another toolchain"):
+    with pytest.raises(bim.BimStartupError, match="the installed bim-core is"):
         await bim.startup_check()
 
 
-async def test_startup_fails_when_the_service_cannot_be_reached() -> None:
-    with bim.bim_override(failing_port(refused)), pytest.raises(bim.BimStartupError, match="cannot be reached"):
-        await bim.startup_check()
-
-
-def test_http_mode_needs_the_url_of_the_service() -> None:
-    with pytest.raises(ValueError, match="BIM_SERVICE_URL"):
-        Settings(_env_file=None, bim_mode="http")
-
-    settings = Settings(_env_file=None, bim_mode="http", bim_service_url="https://bim.internal")
-    assert settings.bim_mode == "http" and settings.bim_service_timeout_s == 30.0
-    assert Settings(_env_file=None).bim_mode == "inproc"
-
-
-def test_the_factory_builds_the_port_the_settings_ask_for(monkeypatch) -> None:
-    assert isinstance(bim.build_bim(Settings(_env_file=None)), InProcessBim)
-
-    port = bim.build_bim(Settings(_env_file=None, bim_mode="http", bim_service_url="https://bim.internal"))
-    try:
-        assert isinstance(port, HttpBim)
-    finally:
-        port.close()
-
-
-def _http_settings(url: str, **extra) -> Settings:
-    return Settings(
-        _env_file=None, bim_mode="http", bim_service_url=url, bim_service_token_file="/tmp/bim-token", **extra
-    )
-
-
-def test_insecure_http_to_a_remote_host_needs_the_explicit_option() -> None:
-    assert Settings(_env_file=None).bim_service_allow_insecure_http is False
-    with pytest.raises(ValueError, match="plain http"):
-        bim.build_bim(_http_settings("http://bim-service:8080"))
-
-    port = bim.build_bim(_http_settings("http://bim-service:8080", bim_service_allow_insecure_http=True))
-    try:
-        assert isinstance(port, HttpBim)
-    finally:
-        port.close()
-
-
-def test_loopback_http_is_always_allowed() -> None:
-    port = bim.build_bim(_http_settings("http://127.0.0.1:8080"))
-    port.close()
-
-
-def test_the_insecure_option_warns_once_for_a_remote_host(monkeypatch, caplog) -> None:
-    monkeypatch.setattr(bim, "_INSECURE_WARNED", False)
-    settings = _http_settings("http://bim-service:8080", bim_service_allow_insecure_http=True)
-    with caplog.at_level("WARNING", logger=bim.logger.name):
-        bim.build_bim(settings).close()
-        bim.build_bim(settings).close()
-        bim.build_bim(_http_settings("http://localhost:8080", bim_service_allow_insecure_http=True)).close()
-    warnings = [r for r in caplog.records if "BIM_SERVICE_ALLOW_INSECURE_HTTP" in r.getMessage()]
-    assert len(warnings) == 1
-
-
-async def test_startup_reports_a_refused_insecure_url_readably(monkeypatch) -> None:
-    monkeypatch.setattr(bim, "get_settings", lambda: _http_settings("http://bim-service:8080"))
-    bim.set_bim(None)
-    try:
-        with pytest.raises(bim.BimStartupError, match="BIM_SERVICE_ALLOW_INSECURE_HTTP"):
-            await bim.startup_check()
-    finally:
-        bim.set_bim(None)
+def test_the_factory_builds_the_in_process_port() -> None:
+    assert isinstance(bim.build_bim(), InProcessBim)
 
 
 async def test_a_blocking_port_does_not_stall_the_event_loop() -> None:

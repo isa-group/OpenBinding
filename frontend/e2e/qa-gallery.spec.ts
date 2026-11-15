@@ -40,15 +40,12 @@ const HEADING: Record<string, RegExp> = {
   'app-home': /Hello, alex\.rivera/,
   'org-overview': /ISA Demo Group/,
   'org-settings': /^Settings$/,
-  'proj-overview': /QoS Benchmarks/,
-  'proj-settings': /Project settings/,
   'case-list': /^Problems$/,
   'case-detail': /Checkout flow/,
   'wb-workbench': /Workbench/,
   'job-launch': /New run/,
   'job-list': /^Runs$/,
   'job-detail': /random-search run/,
-  'job-history': /My runs/,
   'study-list': /^Studies$/,
   'study-builder': /New study/,
   'study-detail': /Engines × seeds/,
@@ -81,7 +78,7 @@ interface Measurement extends PageMeasure {
 const NOTHING: PageMeasure = {
   title: '', h1: [], h1Font: null, displayHeadings: [], overflowX: 0, offenders: [], clipped: [], lowContrast: [], darkSurfaces: [], alerts: [], spanish: [], placeholders: [],
   prototypeLeftovers: [], overlays: [], brokenImages: [], emptyControls: [], brand: { header: 0, footer: 0, mobileMenu: 0 },
-  projectTabs: { present: false, scrolls: false, visible: 0, total: 0 }, textLength: 0,
+  textLength: 0,
 };
 
 /** Rebuilds the summary of a viewport from the per-screen files (every worker writes its own, the last one to finish sees them all). */
@@ -131,8 +128,7 @@ function oneLine(m: Measurement): string {
   add('problems', m.problems);
   add('waiting', m.waiting);
   const brand = `brand ${m.brand.header}/${m.brand.footer}/${m.brand.mobileMenu}`;
-  const tabs = m.projectTabs.present ? ` tabs ${m.projectTabs.visible}/${m.projectTabs.total}${m.projectTabs.scrolls ? ' scroll' : ''}` : '';
-  return `${m.id} ${m.url} · h1 "${m.h1.join('" "')}" · ${m.session} · ${brand}${tabs} · text ${m.textLength}${found.length ? `\n    ${found.join('\n    ')}` : ''}`;
+  return `${m.id} ${m.url} · h1 "${m.h1.join('" "')}" · ${m.session} · ${brand} · text ${m.textLength}${found.length ? `\n    ${found.join('\n    ')}` : ''}`;
 }
 
 /** Uncaught exceptions and React error reports are critical; a request the mock did not answer is reported apart. */

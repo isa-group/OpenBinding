@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 import sys
 import time
 from dataclasses import asdict, dataclass, field
@@ -42,7 +44,7 @@ class InstanceMeta:
     all_constraints_hard: bool
     has_soft_constraints: bool
     category: str
-    snapshot_id: str | None = None
+    revision_id: str | None = None
 
 
 @dataclass
@@ -69,13 +71,22 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Run all BIM experimentation packages against advertised engine modes using "
-            "POST /v1/jobs and validate routing expectations."
+            "POST /v1/organizations/{org}/runs and validate routing expectations."
         )
     )
     parser.add_argument(
         "--base-url",
         default="http://localhost:8000",
         help="Gateway base URL (default: http://localhost:8000)",
+    )
+    parser.add_argument(
+        "--org",
+        default=os.environ.get("OPENBINDING_ORG", ""),
+        help=(
+            "Organization (slug) the packages are uploaded to as problems (default: $OPENBINDING_ORG); "
+            "the caller must be a MEMBER. The bearer token is read from OPENBINDING_TOKEN: a session "
+            "token or an API key with problems:write, engines:execute and jobs:read"
+        ),
     )
     parser.add_argument(
         "--instances-dir",
@@ -86,7 +97,7 @@ def parse_args() -> argparse.Namespace:
         "--solve-timeout",
         type=int,
         default=900,
-        help="Read timeout in seconds for /v1/jobs request (default: 900)",
+        help="Read timeout in seconds for the run request (default: 900)",
     )
     parser.add_argument(
         "--max-poll-seconds",
@@ -98,7 +109,7 @@ def parse_args() -> argparse.Namespace:
         "--poll-response-timeout",
         type=int,
         default=30,
-        help="Read timeout in seconds for each /v1/jobs/{job_id} poll (default: 30)",
+        help="Read timeout in seconds for each poll of the run (default: 30)",
     )
     parser.add_argument(
         "--poll-interval",
@@ -283,6 +294,7 @@ def parse_validation_violations(resp_json: dict[str, Any]) -> tuple[bool, list[s
 def poll_job_until_terminal(
     session: requests.Session,
     base_url: str,
+    org: str,
     job_id: str,
     connect_timeout: float,
     poll_response_timeout: int,
@@ -297,7 +309,7 @@ def poll_job_until_terminal(
         polls += 1
         try:
             response = session.get(
-                f"{sanitize_base_url(base_url)}/v1/jobs/{job_id}",
+                f"{sanitize_base_url(base_url)}/v1/organizations/{org}/runs/{job_id}",
                 timeout=(connect_timeout, poll_response_timeout),
             )
             response.raise_for_status()
@@ -515,6 +527,7 @@ def _handle_async_case(
     result: CaseResult,
     session: requests.Session,
     base_url: str,
+    org: str,
     job_id: str,
     connect_timeout: float,
     poll_response_timeout: int,
@@ -526,6 +539,7 @@ def _handle_async_case(
     final_status, poll_payload, poll_count, poll_error = poll_job_until_terminal(
         session=session,
         base_url=base_url,
+        org=org,
         job_id=job_id,
         connect_timeout=connect_timeout,
         poll_response_timeout=poll_response_timeout,
@@ -570,34 +584,45 @@ def _handle_async_case(
     )
 
 
-def _ensure_snapshot(
+def problem_slug(instance_meta: InstanceMeta) -> str:
+    """The problem slug of an instance: ``icws-`` and its directory name, in slug characters."""
+    name = re.sub(r"[^a-z0-9]+", "-", instance_meta.path.parent.name.lower()).strip("-")
+    return f"icws-{name}"[:64].strip("-")
+
+
+def _ensure_revision(
     session: requests.Session,
     base_url: str,
+    org: str,
     instance_meta: InstanceMeta,
     connect_timeout: float,
     read_timeout: int,
 ) -> str:
-    if instance_meta.snapshot_id:
-        return instance_meta.snapshot_id
+    """Upload the instance's package as a problem of ``org`` (or as a revision of it when the slug exists)."""
+    if instance_meta.revision_id:
+        return instance_meta.revision_id
     archive = load_package(instance_meta.path.parent).to_zip()
-    response = session.post(
-        f"{sanitize_base_url(base_url)}/v1/instances",
-        data=archive,
-        headers={"Content-Type": "application/vnd.bim+zip"},
-        timeout=(connect_timeout, read_timeout),
-    )
+    problems = f"{sanitize_base_url(base_url)}/v1/organizations/{org}/problems"
+    slug = problem_slug(instance_meta)
+    headers = {"Content-Type": "application/vnd.bim+zip"}
+    timeout = (connect_timeout, read_timeout)
+    response = session.post(problems, params={"slug": slug}, data=archive, headers=headers, timeout=timeout)
+    if response.status_code == 409:
+        response = session.post(f"{problems}/{slug}/revisions", data=archive, headers=headers, timeout=timeout)
     response.raise_for_status()
     body = response.json()
-    snapshot_id = body.get("id") if isinstance(body, dict) else None
-    if not isinstance(snapshot_id, str) or not snapshot_id:
-        raise ValueError("Snapshot response did not contain an id")
-    instance_meta.snapshot_id = snapshot_id
-    return snapshot_id
+    revision = body.get("revision") if isinstance(body, dict) else None
+    revision_id = revision.get("id") if isinstance(revision, dict) else None
+    if not isinstance(revision_id, str) or not revision_id:
+        raise ValueError("Problem upload response did not contain a revision id")
+    instance_meta.revision_id = revision_id
+    return revision_id
 
 
 def run_single_case(
     session: requests.Session,
     base_url: str,
+    org: str,
     engine_id: str,
     instance_meta: InstanceMeta,
     connect_timeout: float,
@@ -623,21 +648,22 @@ def run_single_case(
     )
 
     try:
-        snapshot_id = _ensure_snapshot(
+        revision_id = _ensure_revision(
             session=session,
             base_url=base_url,
+            org=org,
             instance_meta=instance_meta,
             connect_timeout=connect_timeout,
             read_timeout=solve_timeout,
         )
         request_payload = {
-            "snapshot": snapshot_id,
+            "revision": revision_id,
             "engine": engine_id,
             "mode": engine_mode(engine_id, instance_meta),
             "options": {},
         }
         response = session.post(
-            f"{sanitize_base_url(base_url)}/v1/jobs",
+            f"{sanitize_base_url(base_url)}/v1/organizations/{org}/runs",
             json=request_payload,
             timeout=(connect_timeout, solve_timeout),
         )
@@ -671,6 +697,7 @@ def run_single_case(
                 result=result,
                 session=session,
                 base_url=base_url,
+                org=org,
                 job_id=job_id,
                 connect_timeout=connect_timeout,
                 poll_response_timeout=poll_response_timeout,
@@ -1005,6 +1032,7 @@ def execute_cases(
                 case = run_single_case(
                     session=session,
                     base_url=base_url,
+                    org=args.org,
                     engine_id=engine_id,
                     instance_meta=instance_meta,
                     connect_timeout=float(args.connect_timeout),
@@ -1053,8 +1081,16 @@ def main() -> int:
         print(f"Failed to load instances: {exc}", file=sys.stderr)
         return 2
 
+    if not args.org:
+        print("An organization is required: pass --org or set OPENBINDING_ORG", file=sys.stderr)
+        return 2
+    token = os.environ.get("OPENBINDING_TOKEN", "")
+    if not token:
+        print("A bearer token is required: set OPENBINDING_TOKEN", file=sys.stderr)
+        return 2
+
     session = requests.Session()
-    session.headers.update({"Content-Type": "application/json"})
+    session.headers.update({"Content-Type": "application/json", "Authorization": f"Bearer {token}"})
 
     try:
         engines = resolve_engines(args=args, session=session, base_url=base_url)

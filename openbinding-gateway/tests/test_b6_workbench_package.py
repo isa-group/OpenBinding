@@ -3,7 +3,7 @@
 The frontend keeps the reference files in ``frontend/src/test/fixtures/bim-package``. A Vitest test
 (``frontend/src/pages/Workbench/bimPackageContract.test.tsx``) generates the same files from the
 Workbench's defaults and forms and compares them one by one, so these files always say what the
-Workbench writes. Here they are compiled with the real compiler and through ``POST /v1/validate``:
+Workbench writes. Here they are compiled with the real compiler and through ``POST /v1/bim/validate``:
 the schemas have ``additionalProperties: false`` almost everywhere, so a key the Workbench invents
 (``metrics`` for ``features``, ``metricBindings`` for ``featureBindings``, ``terms`` for ``criteria``)
 is refused, and this is where that shows.
@@ -196,7 +196,7 @@ async def account_headers(client, details):
 @pytest.mark.parametrize(("variant", "candidates"), [(None, 1), ("open-range", 2), ("with-rules", 1)], ids=["default", "open-range", "with-rules"])
 async def test_validate_accepts_the_package_the_workbench_writes(api_client, registration, variant, candidates):
     headers = await account_headers(api_client, registration())
-    response = await api_client.post("/v1/validate", content=zip_of(reference_files(variant)), headers=headers)
+    response = await api_client.post("/v1/bim/validate", content=zip_of(reference_files(variant)), headers=headers)
     assert response.status_code == 200, response.text
     analysis = response.json()["analysis"]
     assert analysis["tasks"] == 1
@@ -207,7 +207,7 @@ async def test_validate_accepts_the_package_the_workbench_writes(api_client, reg
 async def test_validate_refuses_the_older_vocabulary_with_diagnostics(api_client, registration):
     headers = await account_headers(api_client, registration())
     files = with_document(reference_files(), "application.json", old_application)
-    response = await api_client.post("/v1/validate", content=zip_of(files), headers=headers)
+    response = await api_client.post("/v1/bim/validate", content=zip_of(files), headers=headers)
     assert response.status_code == 422, response.text
     body = response.json()
     assert body["diagnostics"]

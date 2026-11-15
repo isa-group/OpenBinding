@@ -1,8 +1,6 @@
 import { lazy } from 'react';
 import { Home } from '../../pages/Home/Home';
 import { live } from '../define';
-import { moved } from '../moved';
-import type { MovedRoute } from '../moved';
 import type { RouteDefinition } from '../types';
 
 // Area: public. The pages anybody can open without an account.
@@ -17,11 +15,3 @@ export const routes: RouteDefinition[] = [
   live('pub-about', '/about', <About />),
   live('pub-pricing', '/pricing', <Pricing />),
 ];
-
-// The status page is gone: About holds a one-line note of the same check.
-const movedAddresses: MovedRoute[] = [
-  moved('status-retired', '/status', '/about', { keepQuery: false }),
-];
-
-// The registry reads `moved` from every area module.
-export { movedAddresses as moved };

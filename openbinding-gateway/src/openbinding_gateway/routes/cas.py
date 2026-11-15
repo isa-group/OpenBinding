@@ -25,7 +25,7 @@ from ..db.models import AuditEvent, AuthIdentity, User
 from ..models.accounts import CasSession, PlanChange
 from ..models.errors import api_error
 from ..security.passwords import hash_password
-from .auth import _issue_session
+from .auth import _issue_session, username_reserved, username_unavailable
 from ..access.contracts import live_pricing_version
 
 logger = logging.getLogger(__name__)
@@ -44,6 +44,7 @@ CAS_ERROR_CODES = (
     "account_inactive",             # the account being signed in or linked is deactivated or gone
     "identity_in_use",              # that UVUS identity is already linked to another account
     "account_collision",            # a local account with the same username or email already exists
+    "username_unavailable",         # the username is reserved: it names engines, or is a deleted account's pseudonym
     "pricing_unavailable",          # the pricing service could not be reached
     "institutional_pricing_invalid",  # the live pricing has no RESEARCH plan
     "cas_error",                    # anything else
@@ -329,6 +330,8 @@ async def _complete_callback(
             # Deliberately never auto-link by email: the existing account must
             # authenticate and start a link flow itself.
             raise api_error(status.HTTP_409_CONFLICT, "account_collision", "Sign in to the existing account and link CAS explicitly.")
+        if await username_reserved(session, username):
+            raise username_unavailable()
         user = User(
             username=username, email=email,
             password_hash=hash_password(secrets.token_urlsafe(48)), password_enabled=False,

@@ -95,15 +95,14 @@ SEED_OMITS = {
 }
 # Every lab manifest at the root of the repository (the process, engines, pricing and pgreset ones included).
 LAB_MANIFESTS = sorted(ROOT.glob("compose.lab*.json"))
-# Variables only the seed gets (tools/remote_probe.py exits without SPACE_ORGANIZATION_ID;
-# tools/seed_lab.py --space-contracts requires the three SPACE_DEV_* ones).
+# Variables only the seed gets (tools/seed_lab.py --space-contracts requires the three SPACE_DEV_* ones).
 SPACE_SERVICE_REFERENCE = "${DEMO_SPACE_DEV_SERVICE}"
 SPACE_DEV_VARIABLES = {
     "SPACE_DEV_SERVICE_NAME": SPACE_SERVICE_REFERENCE,
     "SPACE_DEV_PLAN": "${DEMO_SPACE_DEV_PLAN}",
     "SPACE_DEV_PRICING_VERSION": "${DEMO_SPACE_PRICING_VERSION}",
 }
-SEED_EXTRAS = {"SPACE_ORGANIZATION_ID", "DEMO_SEED_PASSWORD", "SMOKE_BASE_URL", *SPACE_DEV_VARIABLES}
+SEED_EXTRAS = {"DEMO_SEED_PASSWORD", "SMOKE_BASE_URL", *SPACE_DEV_VARIABLES}
 
 
 @pytest.fixture(scope="module")
@@ -521,7 +520,7 @@ def test_a_public_origin_replaces_the_urls_and_is_appended_to_the_local_cors_ori
 
 # What Settings reads; cleared so a variable of the test process cannot change the outcome.
 SETTINGS_ENVIRONMENT = (
-    "BIM_MODE", "GATEWAY_JWT_SECRET", "APP_ENV", "SPACE_ENABLED", "SPHERE_ENABLED",
+    "GATEWAY_JWT_SECRET", "APP_ENV", "SPACE_ENABLED", "SPHERE_ENABLED",
     "CORS_ALLOW_ORIGINS", "PUBLIC_BASE_URL", "FRONTEND_URL",
 )
 
@@ -587,8 +586,8 @@ def test_space_enabled_is_a_variable_in_gateway_worker_and_seed_never_a_literal(
 
 @pytest.mark.parametrize("path", LAB_MANIFESTS, ids=lambda p: p.name)
 def test_the_lab_runs_bim_in_process(path):
-    # The gateway, the worker and the seed run BIM in process (bim_client's InProcessBim, the default of
-    # BIM_MODE); the HTTP bim-service and its toolchain live in their own repository, not in the lab.
+    # The gateway, the worker and the seed run BIM in process (bim_client's InProcessBim, the only port);
+    # the HTTP bim-service and its toolchain live in their own repository, not in the lab.
     services = json.loads(path.read_text(encoding="utf-8"))["services"]
     assert "bim-service" not in services
     for name, service in services.items():
@@ -630,11 +629,12 @@ def test_seed_environment_is_the_gateways_minus_the_documented_omissions(service
         assert seed[key] == gateway[key], key
 
 
-def test_space_organization_id_is_only_in_the_seed_as_a_bare_reference(services):
-    # tools/remote_probe.py requires it; nothing else reads it.
-    holders = [name for name, s in services.items() if "SPACE_ORGANIZATION_ID" in _env(s)]
-    assert holders == ["seed"]
-    assert _env(services["seed"])["SPACE_ORGANIZATION_ID"] == "${SPACE_ORGANIZATION_ID}"
+def test_space_organization_id_is_a_bare_reference_in_the_gateway_services_and_the_seed(services):
+    # The gateway and the worker verify pricing tokens for it; tools/remote_probe.py requires it too.
+    holders = sorted(name for name, s in services.items() if "SPACE_ORGANIZATION_ID" in _env(s))
+    assert holders == ["gateway", "seed", "worker"]
+    for name in holders:
+        assert _env(services[name])["SPACE_ORGANIZATION_ID"] == "${SPACE_ORGANIZATION_ID}", name
 
 
 def test_seed_password_is_a_bare_reference_only_in_the_seed_and_the_e2e_and_the_smoke_targets_web(services):
@@ -727,7 +727,7 @@ def test_gateway_waits_for_what_it_uses(services):
 
 
 def test_named_volumes_back_the_stateful_services(services):
-    assert {"type": "volume", "source": "lab-pg-3", "target": "/var/lib/postgresql/data"} in services["postgres"]["volumes"]
+    assert {"type": "volume", "source": "lab-pg-4", "target": "/var/lib/postgresql/data"} in services["postgres"]["volumes"]
     assert {"type": "volume", "source": "lab-redis", "target": "/data"} in services["redis"]["volumes"]
     assert services["postgres"]["image"] == "postgres:16-alpine"
     assert services["redis"]["image"] == "redis:7-alpine"
@@ -767,7 +767,7 @@ def test_there_is_no_artifacts_init_and_the_app_mounts_the_new_artifact_volume(s
     for name in ("gateway", "worker", "seed"):
         assert {"type": "volume", "source": "lab-artifacts-2", "target": ARTIFACT_DIR} in services[name]["volumes"], name
     volumes = json.loads(COMPOSE.read_text(encoding="utf-8"))["volumes"]
-    assert "lab-artifacts-2" in volumes and "lab-pg-3" in volumes
+    assert "lab-artifacts-2" in volumes and "lab-pg-4" in volumes
     assert "lab-artifacts" not in volumes and "lab-pg" not in volumes
 
 

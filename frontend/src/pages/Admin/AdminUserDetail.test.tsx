@@ -3,7 +3,7 @@ import type { SelectionComparison } from 'pricing-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminSubscriptionView } from '../../api/auth';
 import type { Revised } from '../../api/client';
-import { CURRENT_FIXTURE, catalogFixture } from '../Pricing/pricingFixture';
+import { AGREEMENT_CURRENT_FIXTURE as CURRENT_FIXTURE, agreementCatalogFixture as catalogFixture } from '../../test/fixtures/agreementCatalog';
 import { AdminUserDetail } from './AdminUserDetail';
 import { MARIA, PRIYA, SAM, USERS, subscriptionOf, userPage, usageOf } from '../../test/fixtures/admin';
 import { refusal, renderAdmin } from './adminTestUtils';
@@ -239,9 +239,9 @@ describe('admin-user-detail · one account', () => {
     expect(comparison().features.lost).toEqual([]);
     // Limits under the names the form gives them, in the words of the interface, with the add-on counted in.
     const limits = Object.fromEntries(comparison().usageLimits.changed.map((limit) => [limit.id, limit]));
-    expect(limits.concurrentJobs).toMatchObject({ name: 'Concurrent runs', unit: 'run', before: { kind: 'number', value: 1 }, after: { kind: 'number', value: 2 }, delta: 1 });
-    expect(limits.jobHistoryDays).toMatchObject({ name: 'Run history', before: { value: 7 }, after: { value: 90 } });
-    expect(limits.apiKeys).toMatchObject({ name: 'API keys', after: { kind: 'number', value: 15 } });
+    expect(limits.maxConcurrentRuns).toMatchObject({ name: 'Concurrent runs', unit: 'run', before: { kind: 'number', value: 1 }, after: { kind: 'number', value: 2 }, delta: 1 });
+    expect(limits.jobHistoryDays).toMatchObject({ before: { value: 7 }, after: { value: 90 } });
+    expect(limits.maxApiKeys).toMatchObject({ name: 'API keys', after: { kind: 'number', value: 15 } });
     expect(limits.projects).toMatchObject({ name: 'Projects', after: { kind: 'number', value: 35 } });
     const shownWords = comparison().usageLimits.changed.flatMap((limit) => [limit.name, limit.unit ?? '']);
     expect(shownWords.filter((word) => /\bjobs?\b/i.test(word))).toEqual([]);
@@ -260,7 +260,7 @@ describe('admin-user-detail · one account', () => {
     choose(/^PRO/);
     await reviewOf('Apply agreement');
     const limits = Object.fromEntries(comparison().usageLimits.changed.map((limit) => [limit.id, limit]));
-    expect(limits.apiKeys).toMatchObject({ before: { kind: 'number', value: 1 }, after: { kind: 'unlimited' } });
+    expect(limits.maxApiKeys).toMatchObject({ before: { kind: 'number', value: 1 }, after: { kind: 'unlimited' } });
     expect(limits.maxInstanceComplexityLog10).toMatchObject({ after: { kind: 'unlimited' } });
     expect(comparison().usageLimits.changed.filter((limit) => limit.after.kind === 'none')).toEqual([]);
   });

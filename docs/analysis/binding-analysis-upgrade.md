@@ -110,13 +110,12 @@ The evolutionary checkpoint budget is bounded by approximately 514 small scalar 
 
 ## Development gallery and how to try it
 
-The normal seeder now adds a `binding-analysis-gallery` study to `score-ai/qos-placement`. For an already populated development database, run only the additive gallery step:
-
-```sh
-./tools/seed_dev.sh --analysis-only
-```
-
-Sign in as the existing development user `alice`, open `/app/score-ai/qos-placement/analytics`, choose **Binding Analysis Gallery · evaluated examples**, then select a study cell. The same archives appear in project Jobs and Alice's account results. This step does not call external engines, send notifications, adjust usage or reset users/projects. Repeating it reuses the existing content-identical run. Changed package content creates a new run and immutable case revisions.
+The gallery seed is gone: `./tools/seed_dev.sh --analysis-only` and the `binding-analysis-gallery` study of the
+`score-ai/qos-placement` project were removed with projects (F0b), and the development seeder now writes its studies
+straight into the organization `score-ai` (`exact-vs-heuristic` and `parallel-scaling-study`). Sign in as the
+development user `alice`, open `/app/score-ai/studies`, open a run of a study and select a cell; the run behind the
+cell is listed under `/app/score-ai/runs` (`GET /v1/organizations/score-ai/runs`). The table records what the cells of
+the former gallery exercised.
 
 | Cell | Evidence / things to try |
 |---|---|
@@ -160,7 +159,7 @@ For all five rules, a user-triggered 21-point grid shows co-winners as priority 
 
 ### Backend evaluator and UI
 
-`GET /v1/jobs/{job_id}/analysis/neighborhood?solution_index=0&limit=64&task=...` uses the existing authenticated job-owner and engine-access checks (`jobs:read` for API keys). It loads the pinned BindingProblem from the job request, falling back to the persisted snapshot IR for seeded archives; conflicting recorded identities are refused. The response reports the actual pinned digest. The OpenAPI contract is generated into `docs/openapi.json`.
+`GET /v1/organizations/{org}/runs/{run}/neighborhood?solution_index=0&limit=64&task=...` (`getRunNeighborhood`; it was `GET /v1/jobs/{job_id}/analysis/neighborhood` before F0b) reads the run with the organization's access rules (`jobs:read` for API keys). It loads the IR the run executed from its compilation (`problem_compilations`, through `jobs.compilation_id`); conflicting recorded identities are refused. The response reports the actual pinned digest. The OpenAPI contract is generated into `docs/openapi.json`.
 
 The endpoint re-evaluates the base and distinct eligible **Hamming-distance-one service-task substitutions**, with an optional task scope, using `BindingProblem.evaluate`. It returns evaluated objectives, constraint violations, feasibility, canonical comparison, component/raw-value changes and soft-penalty changes. Weighted, Pareto, lexicographic and satisfy comparisons follow their own canonical semantics. A feasible alternative to an infeasible base is labeled a feasibility repair. No engine, solve job, model edit or stored-result mutation occurs.
 

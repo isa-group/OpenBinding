@@ -1,6 +1,6 @@
 """What the integration tests print when a job does not terminate.
 
-The gateway answers ``GET /v1/jobs/{id}`` with the whole provenance, which is
+The gateway answers ``getRun`` with the whole provenance, which is
 long enough that the failure line was cut before ``status``. The line must say
 where the job stayed, not repeat the request that created it. No gateway is
 needed: the client talks to a canned transport and the clock is fake.
@@ -53,7 +53,7 @@ def _client(*bodies: dict) -> httpx.Client:
 
 def _failure(waiter, *bodies: dict) -> str:
     with _client(*bodies) as client, pytest.raises(pytest.fail.Exception) as raised:
-        waiter(client, "job-1", {})
+        waiter(client, "acme", "job-1", {})
     return str(raised.value)
 
 
@@ -107,7 +107,7 @@ def test_a_job_that_finishes_is_returned_whole(name: str) -> None:
         {"id": "job-1", "status": "running", "provenance": PROVENANCE},
         finished,
     ) as client:
-        assert WAITERS[name](client, "job-1", {}) == finished
+        assert WAITERS[name](client, "acme", "job-1", {}) == finished
 
 
 @pytest.mark.parametrize("name", WAITERS)
@@ -118,5 +118,5 @@ def test_the_waiters_still_report_a_missing_job_as_an_http_error(name: str) -> N
     with httpx.Client(
         base_url="http://gateway", transport=httpx.MockTransport(handler)
     ) as client, pytest.raises(AssertionError) as raised:
-        WAITERS[name](client, "job-1", {})
+        WAITERS[name](client, "acme", "job-1", {})
     assert "Job not found" in str(raised.value)

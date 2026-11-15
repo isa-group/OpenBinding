@@ -11,9 +11,8 @@ from __future__ import annotations
 from collections import Counter
 
 from _repo import REPO_ROOT
-from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.integrations import bim, packages
-from openbinding_gateway.services.snapshots import compile_package
+from openbinding_gateway.modules.problems.application import compile_package
 from bim_client import InProcessBim
 
 DEMO = REPO_ROOT / "examples" / "demo" / "01_simple_seq"
@@ -49,7 +48,6 @@ class CountingPort:
 
 
 def test_the_suite_runs_on_the_in_process_port() -> None:
-    assert get_settings().bim_mode == "inproc"
     assert isinstance(bim.get_bim(), InProcessBim)
 
 
@@ -82,4 +80,6 @@ async def test_compiling_and_reevaluating_the_demo_costs_one_call_each() -> None
 
     assert port.calls["compile"] == ROUNDS
     assert port.calls["reevaluate"] == ROUNDS
-    assert set(port.calls) <= {"compile", "reevaluate"}
+    # Reading the package's instance.json asks for the package limits once (a static descriptor).
+    assert port.calls["capabilities"] <= 1
+    assert set(port.calls) <= {"compile", "reevaluate", "capabilities"}

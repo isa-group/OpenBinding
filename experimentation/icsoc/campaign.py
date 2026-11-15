@@ -19,6 +19,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import os
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -222,6 +223,26 @@ ENGINE_MODES = {
 }
 
 
+def _problem_revision(
+    client: httpx.Client, base_url: str, org: str, instance: LoadedInstance, archive: bytes
+) -> tuple[str | None, str | None]:
+    """Upload the instance as a problem of ``org`` (or a revision of it, when the slug exists): ``(id, error)``."""
+    digest = instance.package.package_digest.removeprefix("sha256-")
+    slug = f"icsoc-{digest[:24]}"
+    problems = f"{base_url}/v1/organizations/{org}/problems"
+    headers = {"Content-Type": "application/vnd.bim+zip"}
+    response = client.post(problems, params={"slug": slug}, content=archive, headers=headers)
+    if response.status_code == 409:
+        response = client.post(f"{problems}/{slug}/revisions", content=archive, headers=headers)
+    if response.status_code not in (200, 201):
+        return None, f"upload HTTP {response.status_code}: {response.text[:300]}"
+    revision = response.json().get("revision") or {}
+    revision_id = revision.get("id")
+    if not isinstance(revision_id, str) or not revision_id:
+        return None, "upload response omitted the revision id"
+    return revision_id, None
+
+
 def solve_via_gateway(
     base_url: str,
     engine_id: str,
@@ -229,6 +250,9 @@ def solve_via_gateway(
     options: dict[str, Any],
     poll_interval: float = 2.0,
     max_poll_s: float = 1800.0,
+    *,
+    org: str,
+    token: str,
 ) -> tuple[dict[str, Any], float]:
     started = time.time()
     archive = instance.package.to_zip()
@@ -239,26 +263,19 @@ def solve_via_gateway(
         f"icsoc-{instance.package.package_digest.removeprefix('sha256-')[:24]}-"
         f"{engine_id}-{options_digest[:24]}"
     )
-    with httpx.Client(timeout=max(960.0, max_poll_s)) as client:
-        snapshot_response = client.post(
-            f"{base_url}/v1/instances",
-            content=archive,
-            headers={"Content-Type": "application/vnd.bim+zip"},
-        )
-        if snapshot_response.status_code != 201:
-            return {
-                "error": f"snapshot HTTP {snapshot_response.status_code}: {snapshot_response.text[:300]}"
-            }, time.time() - started
-        snapshot_id = snapshot_response.json().get("id")
-        if not isinstance(snapshot_id, str) or not snapshot_id:
-            return {"error": "snapshot response omitted id"}, time.time() - started
+    auth = {"Authorization": f"Bearer {token}"}
+    with httpx.Client(timeout=max(960.0, max_poll_s), headers=auth) as client:
+        revision_id, error = _problem_revision(client, base_url, org, instance, archive)
+        if error is not None:
+            return {"error": error}, time.time() - started
+        runs = f"{base_url}/v1/organizations/{org}/runs"
         response = client.post(
-            f"{base_url}/v1/jobs",
+            runs,
             headers={"Idempotency-Key": idempotency_key},
             json={
                 "engine": engine_id,
                 "mode": ENGINE_MODES[engine_id],
-                "snapshot": snapshot_id,
+                "revision": revision_id,
                 "options": options,
             },
         )
@@ -270,7 +287,7 @@ def solve_via_gateway(
             if time.time() - started > max_poll_s:
                 return {"error": f"polling timed out after {max_poll_s}s"}, time.time() - started
             time.sleep(poll_interval)
-            data = client.get(f"{base_url}/v1/jobs/{job_id}").json()
+            data = client.get(f"{runs}/{job_id}").json()
     return data, time.time() - started
 
 
@@ -436,8 +453,15 @@ def run_campaign(
     engines: set[str] | None = None,
     time_budget_ms: int = TIME_BUDGET_MS,
     verbose: bool = True,
+    *,
+    org: str,
+    token: str,
 ) -> None:
-    """Run (or resume) the campaign; skips run ids already recorded as ok."""
+    """Run (or resume) the campaign; skips run ids already recorded as ok.
+
+    Each instance is uploaded as a problem of ``org`` (the caller, authenticated by ``token``, must be a
+    MEMBER of it) and every lane runs its revision.
+    """
     runs_csv = results_dir / "runs.csv"
     done = _completed_run_ids(runs_csv)
     specs = campaign_specs(time_budget_ms)
@@ -458,7 +482,7 @@ def run_campaign(
                 continue
             data, wall_s = solve_via_gateway(
                 base_url, spec.engine, instance, spec.options,
-                max_poll_s=time_budget_ms / 1000 + 900,
+                max_poll_s=time_budget_ms / 1000 + 900, org=org, token=token,
             )
             row = _run_row(run_id, meta, spec, instance, data, wall_s)
             _append_csv(runs_csv, RUN_FIELDS, [row])
@@ -486,6 +510,9 @@ if __name__ == "__main__":
                         help="wall-clock stopping criterion shared by all algorithms")
     parser.add_argument("--status", action="store_true",
                         help="print campaign progress and exit")
+    parser.add_argument("--org", default=os.environ.get("OPENBINDING_ORG", ""),
+                        help="organization (slug) the instances are uploaded to as problems "
+                             "(default: $OPENBINDING_ORG); the bearer token is read from OPENBINDING_TOKEN")
     args = parser.parse_args()
 
     if args.status:
@@ -500,4 +527,6 @@ if __name__ == "__main__":
         sizes={int(s) for s in args.sizes.split(",")} if args.sizes else None,
         engines={e.strip() for e in args.engines.split(",")} if args.engines else None,
         time_budget_ms=args.time_budget_ms,
+        org=args.org or parser.error("--org (or OPENBINDING_ORG) is required"),
+        token=os.environ.get("OPENBINDING_TOKEN") or parser.error("OPENBINDING_TOKEN is required"),
     )

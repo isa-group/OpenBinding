@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from _problem_helpers import ZIP, package_bytes, upload_problem
 # ruff: noqa: E402
 
 import sys
@@ -21,11 +22,8 @@ from _pricing import fake_pricing_gate, largest_plan
 from openbinding_gateway import space_client
 from openbinding_gateway.db.models import (
     ApiKey,
-    Blob,
     AuditEvent,
     BindingCase,
-    Organization,
-    Project,
     User,
     UserRole,
 )
@@ -65,7 +63,7 @@ async def create_account(
 
 
 @pytest.mark.asyncio
-async def test_admin_cannot_access_private_organization_or_projects(
+async def test_admin_cannot_access_private_organization_or_problems(
     api_client, registration, gate, db_session
 ):
     owner, owner_headers = await create_account(api_client, registration, db_session)
@@ -83,21 +81,15 @@ async def test_admin_cannot_access_private_organization_or_projects(
     )
     assert org_res.status_code == 201, org_res.text
 
-    proj_slug = "secret-project"
-    proj_res = await api_client.post(
-        f"/v1/organizations/{org_slug}/projects",
-        headers=owner_headers,
-        json={"slug": proj_slug, "name": "Secret Project", "visibility": "private"},
-    )
-    assert proj_res.status_code == 201, proj_res.text
+    await upload_problem(api_client, owner_headers, org_slug, slug="secret-problem")
 
-    # Owner can access org and project
+    # Owner can access org and problem
     assert (
         await api_client.get(f"/v1/organizations/{org_slug}", headers=owner_headers)
     ).status_code == 200
     assert (
         await api_client.get(
-            f"/v1/organizations/{org_slug}/projects/{proj_slug}", headers=owner_headers
+            f"/v1/organizations/{org_slug}/problems/secret-problem", headers=owner_headers
         )
     ).status_code == 200
 
@@ -108,11 +100,11 @@ async def test_admin_cannot_access_private_organization_or_projects(
     assert refused_org.status_code == 403
     assert refused_org.json()["detail"]["code"] == "organization_forbidden"
 
-    refused_proj = await api_client.get(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}", headers=admin_headers
+    refused_problem = await api_client.get(
+        f"/v1/organizations/{org_slug}/problems/secret-problem", headers=admin_headers
     )
-    assert refused_proj.status_code == 403
-    assert refused_proj.json()["detail"]["code"] == "organization_forbidden"
+    assert refused_problem.status_code == 403
+    assert refused_problem.json()["detail"]["code"] == "organization_forbidden"
 
     # Admin listing organizations does not see this private organization
     org_list = await api_client.get("/v1/organizations", headers=admin_headers)
@@ -121,7 +113,7 @@ async def test_admin_cannot_access_private_organization_or_projects(
 
 
 @pytest.mark.asyncio
-async def test_admin_cannot_download_private_artifacts(
+async def test_admin_cannot_download_private_problem_packages(
     api_client, registration, gate, db_session, tmp_path
 ):
     owner, owner_headers = await create_account(api_client, registration, db_session)
@@ -139,61 +131,22 @@ async def test_admin_cannot_download_private_artifacts(
     )
     assert org_res.status_code == 201
 
-    proj_slug = "confidential-run"
-    proj_res = await api_client.post(
-        f"/v1/organizations/{org_slug}/projects",
-        headers=owner_headers,
-        json={"slug": proj_slug, "name": "Confidential", "visibility": "private"},
-    )
-    assert proj_res.status_code == 201
-
-    org_obj = (
-        await db_session.execute(select(Organization).where(Organization.slug == org_slug))
-    ).scalars().one()
-    proj_obj = (
-        await db_session.execute(
-            select(Project).where(
-                Project.organization_id == org_obj.id, Project.slug == proj_slug
-            )
-        )
-    ).scalars().one()
-
-    fake_digest = "sha256-" + "a" * 64
-    storage_file = tmp_path / "test_artifact.bin"
-    storage_file.write_bytes(b'{"secret": "data"}')
-
-    artifact = Blob(
-        organization_id=org_obj.id,
-        project_id=proj_obj.id,
-        digest=fake_digest,
-        media_type="application/json",
-        size_bytes=18,
-        storage_uri=str(storage_file),
-        public=False,
-        created_by_id=owner_id,
-    )
-    db_session.add(artifact)
-    await db_session.flush()
+    await upload_problem(api_client, owner_headers, org_slug, slug="confidential-run")
+    source = f"/v1/organizations/{org_slug}/problems/confidential-run/revisions/1/source"
 
     # Owner can download
-    owner_get = await api_client.get(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/blobs/{fake_digest}",
-        headers=owner_headers,
-    )
+    owner_get = await api_client.get(source, headers=owner_headers)
     assert owner_get.status_code == 200
-    assert owner_get.content == b'{"secret": "data"}'
+    assert owner_get.content.startswith(b"PK")
 
     # Admin is refused with 403
-    admin_get = await api_client.get(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/blobs/{fake_digest}",
-        headers=admin_headers,
-    )
+    admin_get = await api_client.get(source, headers=admin_headers)
     assert admin_get.status_code == 403
     assert admin_get.json()["detail"]["code"] == "organization_forbidden"
 
 
 @pytest.mark.asyncio
-async def test_account_deletion_reassigns_to_tenant_owner_not_admin(
+async def test_account_deletion_keeps_authorship_on_the_pseudonymised_account_not_an_admin(
     api_client, registration, gate, db_session
 ):
     owner1, owner1_headers = await create_account(api_client, registration, db_session)
@@ -226,22 +179,8 @@ async def test_account_deletion_reassigns_to_tenant_owner_not_admin(
     )
     assert add_owner2.status_code == 200
 
-    # Owner1 creates a project
-    proj_slug = "coop-project"
-    proj_res = await api_client.post(
-        f"/v1/organizations/{org_slug}/projects",
-        headers=owner1_headers,
-        json={"slug": proj_slug, "name": "Coop Project", "visibility": "private"},
-    )
-    assert proj_res.status_code == 201
-
-    # Owner1 creates a binding case
-    case_res = await api_client.post(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/cases",
-        headers=owner1_headers,
-        json={"slug": "case-1", "name": "Case 1"},
-    )
-    assert case_res.status_code == 201
+    # Owner1 uploads a problem of the organization
+    await upload_problem(api_client, owner1_headers, org_slug, slug="case-1")
 
     # Owner1 deletes their own account
     del_res = await api_client.request(
@@ -252,65 +191,22 @@ async def test_account_deletion_reassigns_to_tenant_owner_not_admin(
     )
     assert del_res.status_code == 204
 
-    # Verify Owner1 is deleted
-    assert await db_session.get(User, owner1_id) is None
+    # Owner1's row stays, pseudonymised: nothing that names the person, and no way to sign in.
+    db_session.expire_all()
+    deleted = await db_session.get(User, owner1_id)
+    assert deleted is not None and deleted.deleted_at is not None
+    assert deleted.username == f"deleted-{owner1_id.hex[:12]}" and deleted.is_active is False
 
-    # Verify project and case were reassigned to Owner2, NOT to admin
-    proj = (
-        await db_session.execute(
-            select(Project).where(
-                Project.organization_id == org_id, Project.slug == proj_slug
-            )
-        )
-    ).scalars().one()
-    assert proj.created_by_id == owner2_id
-    assert proj.created_by_id != admin_id
-
+    # What owner1 created still names owner1, never owner2 or the administrator.
     case = (
         await db_session.execute(
             select(BindingCase).where(
-                BindingCase.project_id == proj.id, BindingCase.slug == "case-1"
+                BindingCase.organization_id == org_id, BindingCase.slug == "case-1"
             )
         )
     ).scalars().one()
-    assert case.created_by_id == owner2_id
-    assert case.created_by_id != admin_id
-
-
-@pytest.mark.asyncio
-async def test_admin_cannot_transfer_an_organization_sponsor(
-    api_client, registration, gate, db_session
-):
-    sponsor1, sponsor1_headers = await create_account(api_client, registration, db_session)
-    sponsor2, _ = await create_account(api_client, registration, db_session)
-    admin, admin_headers = await create_account(
-        api_client, registration, db_session, admin=True
-    )
-
-    s1_id = uuid.UUID(sponsor1["id"])
-    s2_id = uuid.UUID(sponsor2["id"])
-    gate.plans[s1_id] = largest_plan()
-    gate.plans[s2_id] = largest_plan()
-
-    org_slug = f"sponsored-{uuid.uuid4().hex[:8]}"
-    org_res = await api_client.post(
-        "/v1/organizations",
-        headers=sponsor1_headers,
-        json={"slug": org_slug, "name": "Sponsored Lab"},
-    )
-    assert org_res.status_code == 201
-    org_id = org_res.json()["id"]
-
-    # The administrator transfer route is gone (M9.6): nobody can make another person pay.
-    for body in ({"billing_sponsor_user_id": str(s2_id)}, {"billing_sponsor_user_id": admin["id"]}):
-        transfer_res = await api_client.post(
-            f"/v1/admin/organizations/{org_id}/sponsor", headers=admin_headers, json=body
-        )
-        assert transfer_res.status_code == 404, transfer_res.text
-
-    db_session.expire_all()
-    org = await db_session.get(Organization, uuid.UUID(org_id))
-    assert org.billing_sponsor_user_id == s1_id
+    assert case.created_by_id == owner1_id
+    assert case.created_by_id not in (owner2_id, admin_id)
 
 
 @pytest.mark.asyncio
@@ -371,6 +267,7 @@ async def test_audit_separation_between_platform_and_tenants(
     # /v1/admin/overview still only contains platform-level events
     overview = await api_client.get("/v1/admin/overview", headers=admin_headers)
     assert overview.status_code == 200
+    assert "projects" not in overview.json()["counts"]
     for item in overview.json()["recentAudit"]:
         assert item["action"] != "organization.created"
 
@@ -507,11 +404,12 @@ async def test_admin_invited_as_viewer_cannot_escalate_privileges(
     assert view_org.status_code == 200
     assert view_org.json()["effective_role"] == "VIEWER"
 
-    # Admin as VIEWER CANNOT create projects (requires MEMBER)
+    # Admin as VIEWER CANNOT upload problems (requires MEMBER)
     refused_create = await api_client.post(
-        f"/v1/organizations/{org_slug}/projects",
-        headers=admin_headers,
-        json={"slug": "escalate-proj", "name": "Escalate"},
+        f"/v1/organizations/{org_slug}/problems",
+        params={"slug": "escalate"},
+        content=package_bytes(),
+        headers={**admin_headers, **ZIP},
     )
     assert refused_create.status_code == 403
     assert refused_create.json()["detail"]["code"] == "organization_forbidden"
@@ -522,58 +420,6 @@ async def test_admin_invited_as_viewer_cannot_escalate_privileges(
     )
     assert refused_audit.status_code == 403
     assert refused_audit.json()["detail"]["code"] == "organization_forbidden"
-
-
-@pytest.mark.asyncio
-async def test_tenant_owner_transfers_sponsor_via_patch_while_admin_role_enforces_owner(
-    api_client, registration, gate, db_session
-):
-    owner, owner_headers = await create_account(api_client, registration, db_session)
-    admin_member, admin_member_headers = await create_account(
-        api_client, registration, db_session
-    )
-    sponsor2, sponsor2_headers = await create_account(api_client, registration, db_session)
-
-    owner_id = uuid.UUID(owner["id"])
-    sponsor2_id = uuid.UUID(sponsor2["id"])
-    gate.plans[owner_id] = largest_plan()
-    gate.plans[sponsor2_id] = largest_plan()
-
-    org_slug = f"transfer-org-{uuid.uuid4().hex[:8]}"
-    org_res = await api_client.post(
-        "/v1/organizations",
-        headers=owner_headers,
-        json={"slug": org_slug, "name": "Transfer Org"},
-    )
-    assert org_res.status_code == 201
-
-    # Add admin_member as ADMIN (not OWNER) of the organization
-    await api_client.put(
-        f"/v1/organizations/{org_slug}/members/{admin_member['id']}",
-        headers=owner_headers,
-        json={"user_id": admin_member["id"], "role": "ADMIN"},
-    )
-
-    # Org ADMIN (non-owner) attempting to transfer sponsorship via PATCH is refused
-    refused_transfer = await api_client.patch(
-        f"/v1/organizations/{org_slug}",
-        headers=admin_member_headers,
-        json={"billing_sponsor_user_id": str(sponsor2_id)},
-    )
-    assert refused_transfer.status_code == 403
-    assert refused_transfer.json()["detail"]["code"] == "organization_forbidden"
-
-    # Org OWNER without platform admin role cannot name somebody else either: only the
-    # caller can become the sponsor (M9.6), and the sponsor is unchanged.
-    refused_other = await api_client.patch(
-        f"/v1/organizations/{org_slug}",
-        headers=owner_headers,
-        json={"billing_sponsor_user_id": str(sponsor2_id)},
-    )
-    assert refused_other.status_code == 422
-    assert refused_other.json()["code"] == "sponsor_must_be_caller"
-    still_owner = await api_client.get(f"/v1/organizations/{org_slug}", headers=owner_headers)
-    assert still_owner.json()["billing_sponsor_user_id"] == str(owner_id)
 
 
 @pytest.mark.asyncio
@@ -595,5 +441,6 @@ async def test_an_administrator_is_deleted_without_any_pricing_authorship_rule(
     )
 
     assert del_res.status_code == 204, del_res.text
-    assert await db_session.get(User, admin_id) is None
+    db_session.expire_all()
+    assert (await db_session.get(User, admin_id)).deleted_at is not None
     assert admin_id not in gate.contracts

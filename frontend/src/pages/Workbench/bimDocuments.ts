@@ -75,8 +75,8 @@ export const DEFAULT_FILES: WorkspaceFiles = {
 
 export type WorkspaceStatus = 'idle' | 'validating' | 'valid' | 'queued' | 'running' | 'completed' | 'failed';
 
+/** The compiled form of the package on screen, as the gateway's validation returned it (nothing is stored). */
 export interface CompiledIr {
-  snapshot: string;
   digest: string;
   document: Record<string, unknown>;
 }

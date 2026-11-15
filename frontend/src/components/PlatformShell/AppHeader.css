@@ -99,7 +99,6 @@
   animation: app-menu-in 160ms var(--ease-out);
 }
 
-.app-lab-panel { left: 0; }
 .app-new-panel, .app-account-panel { right: 0; }
 .app-account-panel { top: calc(100% + var(--tp-spacing-xs)); width: 15rem; }
 

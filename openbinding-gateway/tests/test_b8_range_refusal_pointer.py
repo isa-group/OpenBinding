@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from _problem_helpers import revision_of, runs_url_for
 from dataclasses import replace
 
 import pytest
@@ -103,18 +104,13 @@ async def sign_in(api_client, registration):
 @pytest.mark.asyncio
 async def test_the_422_of_a_job_with_ranges_carries_the_pointer_in_its_diagnostic(api_client, registration):
     headers = await sign_in(api_client, registration)
-    created = await api_client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package_with({"min": 100, "max": None}).to_zip(),
-    )
-    assert created.status_code == 201, created.text
+    created_id = await revision_of(api_client, headers, archive=package_with({"min": 100, "max": None}).to_zip())
 
     job = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(created_id),
         headers={**headers, "Idempotency-Key": f"b8-{uuid.uuid4()}"},
         json={
-            "snapshot": created.json()["id"],
+            "revision": created_id,
             "engine": "random-search",
             "mode": "seeded",
             "optimization": OPTIMIZATION,

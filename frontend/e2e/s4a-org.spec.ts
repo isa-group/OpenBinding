@@ -31,7 +31,7 @@ const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3_600_000).toI
 
 const lucia = {
   id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-03-02T00:00:00Z', cas_verified: true, institutional_branding: true,
+  created_at: '2026-03-02T00:00:00Z', cas_verified: true,
 };
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
@@ -41,20 +41,19 @@ interface Org {
   slug: string;
   name: string;
   parent_id: string | null;
-  billing_sponsor_user_id: string;
   effective_role: Role;
   created_at: string;
 }
 
 const org = (n: number, slug: string, name: string, role: Role, over: Partial<Org> = {}): Org => ({
-  id: `org-${n}`, slug, name, parent_id: null, billing_sponsor_user_id: 'user-1', effective_role: role, created_at: '2026-03-03T00:00:00Z', ...over,
+  id: `org-${n}`, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z', ...over,
 });
 
 const isaDemo = org(1, 'isa-demo', 'ISA Demo Group', 'OWNER');
 const qosLab = org(2, 'qos-lab', 'QoS Lab (sub-organización)', 'OWNER', { parent_id: 'org-1', created_at: '2026-03-10T00:00:00Z' });
-const consultora = org(3, 'consultora-demo', 'Consultora Demo', 'VIEWER', { billing_sponsor_user_id: 'user-nora', created_at: '2026-05-01T00:00:00Z' });
-const researchHub = org(4, 'research-hub', 'Research Hub', 'ADMIN', { billing_sponsor_user_id: 'user-nora', created_at: '2026-06-01T00:00:00Z' });
-const partnerLab = org(5, 'partner-lab', 'Partner Lab', 'OWNER', { billing_sponsor_user_id: 'user-nora', created_at: '2026-07-01T00:00:00Z' });
+const consultora = org(3, 'consultora-demo', 'Consultora Demo', 'VIEWER', { created_at: '2026-05-01T00:00:00Z' });
+const researchHub = org(4, 'research-hub', 'Research Hub', 'ADMIN', { created_at: '2026-06-01T00:00:00Z' });
+const partnerLab = org(5, 'partner-lab', 'Partner Lab', 'OWNER', { created_at: '2026-07-01T00:00:00Z' });
 
 interface Member {
   id: string;
@@ -78,17 +77,15 @@ const membersOf = (): Record<string, Member[]> => ({
   'partner-lab': [person(partnerLab, 'nora', 'user-nora', 'ADMIN'), person(partnerLab, 'lucia.vega', 'user-1', 'OWNER')],
 });
 
-const project = (n: number, orgId: string, slug: string, name: string, description: string, visibility: 'public' | 'private') => ({
-  id: `project-${n}`, organization_id: orgId, slug, name, description, visibility, created_by_id: 'user-1',
-  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z', access: 'member' as const, effective_role: 'OWNER' as Role,
+const problem = (n: number, orgId: string, slug: string, name: string) => ({
+  id: `problem-${n}`, organization_id: orgId, slug, name, description: '', created_by_id: 'user-1',
+  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
+  latest_revision: { id: `revision-${n}`, revision: 2, package_digest: `sha256-${String(n).repeat(64)}`, created_at: '2026-10-08T00:00:00Z' },
 });
 
-const projectsOf = (): Record<string, unknown[]> => ({
-  'isa-demo': [
-    project(1, 'org-1', 'qos-benchmarks', 'QoS Benchmarks', 'Reference binding cases with workflow and placement.', 'public'),
-    project(2, 'org-1', 'checkout-privado', 'Checkout (privado)', 'Internal payments case with proprietary candidates.', 'private'),
-  ],
-  'qos-lab': [project(3, 'org-2', 'placement-edge', 'Placement at the edge', 'Exploration with pools and latencies.', 'private')],
+const problemsOf = (): Record<string, ReturnType<typeof problem>[]> => ({
+  'isa-demo': [problem(1, 'org-1', 'checkout-flow', 'Checkout flow'), problem(2, 'org-1', 'edge-placement', 'Edge placement')],
+  'qos-lab': [problem(3, 'org-2', 'placement-edge', 'Placement at the edge')],
 });
 
 const auditEvents = [
@@ -101,8 +98,8 @@ const auditEvents = [
     targetId: 'org-1', detail: { changes: [{ user_id: 'user-marco', role: 'ADMIN' }, { user_id: 'user-sofia', role: null }] }, createdAt: '2026-09-25T10:00:00Z',
   },
   {
-    id: 'e0000000-0000-0000-0000-0000000000e3', organizationId: 'org-1', actorId: 'user-1', action: 'project.created', targetType: 'Project',
-    targetId: 'project-1', detail: {}, createdAt: '2026-04-01T08:30:00Z',
+    id: 'e0000000-0000-0000-0000-0000000000e3', organizationId: 'org-1', actorId: 'user-1', action: 'problem.created', targetType: 'BindingCase',
+    targetId: 'problem-1', detail: {}, createdAt: '2026-04-01T08:30:00Z',
   },
   {
     id: 'e0000000-0000-0000-0000-0000000000e2', organizationId: 'org-1', actorId: 'user-1', action: 'organization.created', targetType: 'Organization',
@@ -110,38 +107,41 @@ const auditEvents = [
   },
 ];
 
-/** What the gateway reports for the RESEARCH plan of the pricing 0.1.0: the plan and its limits, with no consumption. */
+/** What the gateway reports for the RESEARCH plan of the pricing 0.2.0: the plan and its limits, with no consumption. */
 const researchUsage = () => ({
   plan: 'RESEARCH',
   contract_pending: false,
-  features: { collaboration: true, solve: true },
-  capabilities: {
-    concurrentJobs: 3, organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120,
-  },
+  features: { collaboration: true, runs: true },
+  capabilities: { maxConcurrentRuns: 4, maxPrivateProjects: 10, maxProblems: null, maxRepositoryStorage: null },
 });
 
+const run = (id: string, engine: string, status: string, termination: string | null, createdAt: string, finishedAt: string | null) => ({
+  id, engine_id: engine, status, termination, cancellation_requested: false, retry_of_id: null, organization_id: 'org-isa-demo',
+  created_at: createdAt, finished_at: finishedAt,
+});
+
+/** The recent runs of the organization Home shows (`listRuns`). */
 const jobs = () => ({
-  jobs: [
-    { id: '00000000-0000-0000-0000-0000000000f2', engine_id: 'minizinc', status: 'running', termination: null, solutions: null, created_at: '2026-10-08T08:00:00Z', finished_at: null },
-    { id: '00000000-0000-0000-0000-0000000000f6', engine_id: 'random-search', status: 'completed', termination: 'INFEASIBLE', solutions: 0, created_at: '2026-10-01T09:00:00Z', finished_at: '2026-10-01T09:00:40Z' },
-    { id: '00000000-0000-0000-0000-0000000000f1', engine_id: 'evolutionary', status: 'completed', termination: 'FEASIBLE', solutions: 3, created_at: '2026-09-30T09:00:00Z', finished_at: '2026-09-30T09:01:05Z' },
+  runs: [
+    run('00000000-0000-0000-0000-0000000000f2', 'minizinc', 'running', null, '2026-10-08T08:00:00Z', null),
+    run('00000000-0000-0000-0000-0000000000f6', 'random-search', 'completed', 'INFEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:00:40Z'),
+    run('00000000-0000-0000-0000-0000000000f1', 'evolutionary', 'completed', 'FEASIBLE', '2026-09-30T09:00:00Z', '2026-09-30T09:01:05Z'),
   ],
   total: 3,
-  retention_days: 180,
 });
 
 const notifications = () => [{
-  id: 'n1', kind: 'contract.changed', subject: 'Your OpenBinding agreement changed', body: 'Plan: BASIC → RESEARCH.',
-  payload: { reason: 'institutional_agreement', previous: { plan: 'BASIC', addOns: {} }, current: { plan: 'RESEARCH', addOns: {} }, pricingVersion: '0.1.0' },
+  id: 'n1', kind: 'contract.changed', subject: 'Your OpenBinding agreement changed', body: 'Plan: FREE → RESEARCH.',
+  payload: { reason: 'institutional_agreement', previous: { plan: 'FREE', addOns: {} }, current: { plan: 'RESEARCH', addOns: {} }, pricingVersion: '0.2.0' },
   read_at: null as string | null, created_at: hoursAgo(5),
 }];
 
-type Refusable = 'jobs' | 'create' | 'patch' | 'remove' | 'projects' | 'batch' | 'invite' | 'audit' | 'usage';
+type Refusable = 'jobs' | 'create' | 'patch' | 'remove' | 'problems' | 'batch' | 'invite' | 'audit' | 'usage';
 
 interface State {
   organizations: Org[];
   members: Record<string, Member[]>;
-  projects: Record<string, unknown[]>;
+  problems: Record<string, ReturnType<typeof problem>[]>;
   jobs: ReturnType<typeof jobs>;
   notifications: ReturnType<typeof notifications>;
   /** A refusal for one action; unset means the action succeeds. */
@@ -157,7 +157,7 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
   const state: State = {
     organizations: [isaDemo, qosLab, consultora, researchHub, partnerLab],
     members: membersOf(),
-    projects: projectsOf(),
+    problems: problemsOf(),
     jobs: jobs(),
     notifications: notifications(),
     refuse: {},
@@ -176,7 +176,6 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(`${API}/v1/users/me/usage`, (route) => (state.refuse.usage ? state.refuse.usage(route) : json(researchUsage())(route)));
-  await page.route(new RegExp(`^${API}/v1/users/me/jobs(\\?.*)?$`), (route) => (state.refuse.jobs ? state.refuse.jobs(route) : json(state.jobs)(route)));
 
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), (route) => json(state.notifications)(route));
   await page.route(new RegExp(`^${API}/v1/notifications/([^/]+)/read$`), async (route) => {
@@ -188,9 +187,9 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
   await page.route(`${API}/v1/organizations`, async (route) => {
     if (methodOf(route) === 'POST') {
       if (state.refuse.create) return state.refuse.create(route);
-      const body = route.request().postDataJSON() as { slug: string; name: string; parent_id: string | null; billing_sponsor_user_id: string | null };
+      const body = route.request().postDataJSON() as { slug: string; name: string; parent_id: string | null };
       const created = org(state.organizations.length + 1, body.slug, body.name, 'OWNER', {
-        parent_id: body.parent_id, billing_sponsor_user_id: body.billing_sponsor_user_id ?? 'user-1', created_at: new Date().toISOString(),
+        parent_id: body.parent_id, created_at: new Date().toISOString(),
       });
       state.organizations = [...state.organizations, created];
       state.members[created.slug] = [person(created, 'lucia.vega', 'user-1', 'OWNER')];
@@ -204,16 +203,11 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     const found = state.organizations.find((item) => item.slug === slug);
     if (methodOf(route) === 'PATCH') {
       if (state.refuse.patch) return state.refuse.patch(route);
-      const body = route.request().postDataJSON() as { name?: string; parent_id?: string; move_to_root?: boolean; billing_sponsor_user_id?: string };
-      // A user may only name themselves as the sponsor.
-      if (found && body.billing_sponsor_user_id && body.billing_sponsor_user_id !== 'user-1') {
-        return detail(422, 'sponsor_must_be_caller', 'The billing sponsor must be the caller.')(route);
-      }
+      const body = route.request().postDataJSON() as { name?: string; parent_id?: string; move_to_root?: boolean };
       state.organizations = state.organizations.map((item) => (item.slug === slug ? {
         ...item,
         ...(body.name ? { name: body.name } : {}),
         ...(body.move_to_root ? { parent_id: null } : body.parent_id ? { parent_id: body.parent_id } : {}),
-        ...(body.billing_sponsor_user_id ? { billing_sponsor_user_id: body.billing_sponsor_user_id } : {}),
       } : item));
       return json(state.organizations.find((item) => item.slug === slug))(route);
     }
@@ -225,7 +219,13 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     return found ? json(found)(route) : detail(404, 'not_found', 'Organization not found.')(route);
   });
 
-  await page.route(orgPath('/projects'), (route) => (state.refuse.projects ? state.refuse.projects(route) : json(state.projects[slugOf(route, '/projects')] ?? [])(route)));
+  await page.route(orgPath('/runs'), (route) => (state.refuse.jobs ? state.refuse.jobs(route) : json(state.jobs)(route)));
+  await page.route(orgPath('/problems'), (route) => {
+    if (state.refuse.problems) return state.refuse.problems(route);
+    const rows = state.problems[slugOf(route, '/problems')] ?? [];
+    return json({ problems: rows, total: rows.length, limit: 200, offset: 0 })(route);
+  });
+  await page.route(orgPath('/studies'), json([]));
   await page.route(orgPath('/members'), (route) => json(state.members[slugOf(route, '/members')] ?? [])(route));
   await page.route(orgPath('/members/batch'), async (route) => {
     if (state.refuse.batch) return state.refuse.batch(route);
@@ -309,23 +309,25 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(page.locator('header.app-header')).toBeVisible();
       await expect(main.getByRole('heading', { level: 1, name: 'Hello, lucia.vega' })).toBeVisible();
       await expect(main.getByText('Pick up where you left off.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/app/isa-demo?create=project');
+      await expect(main.getByRole('link', { name: 'New problem' })).toHaveAttribute('href', '/app/isa-demo/problems?create=problem');
+      await expect(main.getByRole('link', { name: 'New project' })).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'New organization' })).toBeVisible();
 
       const tree = main.getByRole('list', { name: 'Organizations' });
       await expect(tree.getByRole('link')).toHaveCount(5);
       await expect(tree.getByRole('link', { name: /Consultora Demo/ }).getByText('VIEWER')).toBeVisible();
-      await expect(tree.getByText('isa-demo · you sponsor it · own role')).toBeVisible();
-      await expect(tree.getByText('qos-lab · you sponsor it · inherited role')).toBeVisible();
+      await expect(tree.getByText('isa-demo · own role')).toBeVisible();
+      await expect(tree.getByText('qos-lab · inherited role')).toBeVisible();
       await expect(tree.getByRole('link', { name: /QoS Lab/ }).getByText('OWNER')).toHaveAttribute('title', 'Inherited from ISA Demo Group');
 
       const activity = main.getByRole('region', { name: 'Recent activity' });
       await expect(activity.getByText('Running')).toBeVisible();
       await expect(activity.getByText('No feasible binding')).toBeVisible();
-      await expect(activity.getByRole('link', { name: 'All runs' })).toHaveAttribute('href', '/app/runs');
+      // The runs of the first organization, each opening in it, and the way to all of them; no account-wide run history.
+      await expect(activity.getByRole('link', { name: /^All runs of / })).toHaveAttribute('href', /^\/app\/[^/]+\/runs$/);
       const plan = main.getByRole('region', { name: 'Your plan' });
       await expect(plan.getByText('RESEARCH', { exact: true })).toBeVisible();
-      await expect(plan.getByText('Up to 3')).toBeVisible();
+      await expect(plan.getByText('Up to 4')).toBeVisible();
       await expect(plan.getByRole('link', { name: 'SPACE' })).toHaveAttribute('href', 'https://space.score.us.es');
       await expect(plan.getByRole('link', { name: 'SPHERE' })).toHaveAttribute('href', 'https://sphere.score.us.es');
       await expect(main.getByRole('meter')).toHaveCount(0);
@@ -362,12 +364,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // No organizations: the first-organization guide, with the way to the wizard and to an invitation.
       state.organizations = [];
-      state.jobs = { jobs: [], total: 0, retention_days: 180 };
+      state.jobs = { runs: [], total: 0 };
       await page.reload();
       await expect(main.getByRole('heading', { name: 'Create your first organization' })).toBeVisible();
       await expect(main.getByRole('link', { name: 'Create organization' })).toHaveAttribute('href', '/app?create=organization');
       await expect(main.getByRole('link', { name: 'I have an invitation' })).toHaveAttribute('href', '/invitations/accept');
-      await expect(main.getByText(/organization limit \(5 on RESEARCH\)/)).toBeVisible();
       await expect(main.getByText('You’re not in any organization yet.')).toBeVisible();
       await expect(main.getByText(/No runs yet/)).toBeVisible();
       await capture(page, testInfo, `home-${name}-first-organization`);
@@ -377,9 +378,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test('org-create dialog /app?create=organization', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      // The old creation address lands on the open dialog.
-      await page.goto('/app/organizations/new');
-      await expect(page).toHaveURL(/\/app\?create=organization$/);
+      await page.goto('/app?create=organization');
       const dialog = page.getByRole('dialog', { name: 'New organization' });
 
       await expect(dialog).toBeVisible();
@@ -398,42 +397,28 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const preview = dialog.getByRole('list', { name: 'Organization tree preview' });
       await expect(preview.getByRole('listitem')).toHaveCount(2);
       await expect(preview.getByText('NEW', { exact: true })).toBeVisible();
-      await expect(dialog.getByText('Up to 5', { exact: true })).toBeVisible();
+      // Quotas are per account: there is no sponsor to choose and no room to show.
+      await expect(dialog.getByRole('group', { name: 'Sponsor' })).toHaveCount(0);
       await expect(dialog.getByRole('meter')).toHaveCount(0);
-      await expect(dialog.getByRole('radio', { name: /You \(lucia\.vega\)/ })).toBeChecked();
-      await expect(dialog.getByText('Counts against your RESEARCH plan')).toBeVisible();
       await capture(page, testInfo, `create-${name}-dialog`);
       if (isMobile) {
         expect(critical).toEqual([]);
         return;
       }
 
-      // The gateway's refusals, one by one: 409, 402, 503.
+      // The gateway's refusal of a taken address.
       const create = dialog.getByRole('button', { name: 'Create organization' });
       state.refuse.create = detail(409, 'slug_conflict', 'That organization slug is in use.');
       await create.click();
       await expect(dialog.getByRole('alert')).toContainText('That address is taken (409 · slug_conflict). Another organization already uses /app/distributed-systems-lab.');
       await capture(page, testInfo, `create-${name}-409`);
 
-      state.refuse.create = detail(402, 'sponsor_quota_exceeded', 'The sponsor contract allows 5 organizations.', { quota: { limit_id: 'organizations', limit: 5, used: 5 } });
-      await create.click();
-      const full = dialog.getByRole('alert');
-      await expect(full).toContainText('The sponsor has no organizations left (402 · sponsor_quota_exceeded). You already sponsor 5 of 5 organizations.');
-      await expect(full.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
-      await expect(full.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
-      await capture(page, testInfo, `create-${name}-402`);
-
-      state.refuse.create = detail(503, 'pricing_unavailable', 'The pricing service is not reachable.');
-      await create.click();
-      await expect(dialog.getByRole('alert')).toContainText('The sponsor’s limits can’t be checked right now (503 · pricing_unavailable), so nothing was created.');
-      await capture(page, testInfo, `create-${name}-503`);
-
-      // Created: the payload carries the parent and the sponsor, the dialog closes and the organization opens.
+      // Created: the payload carries the parent, the dialog closes and the organization opens.
       state.refuse.create = undefined;
       const posted = request(page, 'POST', '/v1/organizations');
-      await dialog.getByRole('alert').getByRole('button', { name: 'Try again' }).click();
+      await create.click();
       expect((await posted).postDataJSON()).toEqual({
-        name: 'Distributed Systems Lab', slug: 'distributed-systems-lab', parent_id: 'org-1', billing_sponsor_user_id: 'user-1',
+        name: 'Distributed Systems Lab', slug: 'distributed-systems-lab', parent_id: 'org-1',
       });
       await expect(dialog).toHaveCount(0);
       await expect(page).toHaveURL(/\/app\/distributed-systems-lab$/);
@@ -452,34 +437,33 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const hero = title.locator('xpath=ancestor::header[1]');
       await expect(hero.getByText('/app/isa-demo')).toBeVisible();
       await expect(hero.getByText('OWNER')).toBeVisible();
-      await expect(hero.getByText('lucia.vega (you)')).toBeVisible();
-      await expect(hero.getByRole('button', { name: 'New project' })).toBeVisible();
+      await expect(hero.getByRole('link', { name: 'Upload BIM package' })).toHaveAttribute('href', '/app/isa-demo/problems?create=problem');
       await expect(hero.getByRole('link', { name: 'Members' })).toHaveAttribute('href', '/app/isa-demo/settings/members');
       await expect(hero.getByRole('link', { name: 'Audit' })).toHaveAttribute('href', '/app/isa-demo/settings/audit');
       await expect(hero.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/app/isa-demo/settings');
 
-      const card = main.getByRole('link', { name: /QoS Benchmarks/ });
-      await expect(card).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks');
-      await expect(card.getByText('Public')).toBeVisible();
-      await expect(main.getByRole('link', { name: /Checkout \(privado\)/ }).getByText('Private', { exact: true })).toBeVisible();
+      // The problems, runs and studies of the organization, each with the way to all of them; no projects.
+      const problems = main.getByRole('heading', { name: /^Problems/ }).locator('xpath=ancestor::section[1]');
+      await expect(problems.getByRole('link', { name: /Checkout flow/ })).toHaveAttribute('href', '/app/isa-demo/problems/checkout-flow');
+      await expect(problems.getByRole('link', { name: 'All problems' })).toHaveAttribute('href', '/app/isa-demo/problems');
+      await expect(main.getByRole('heading', { name: /^Runs/ })).toBeVisible();
+      await expect(main.getByRole('heading', { name: /^Studies/ })).toBeVisible();
+      await expect(main.getByRole('heading', { name: /^Projects/ })).toHaveCount(0);
+      await expect(main.getByRole('searchbox', { name: 'Find a project' })).toHaveCount(0);
       const subs = main.getByRole('heading', { name: 'Sub-organizations' }).locator('xpath=ancestor::section[1]');
       await expect(subs.getByRole('link', { name: /QoS Lab/ })).toHaveAttribute('href', '/app/qos-lab');
       await expect(subs.getByText('Inherited from ISA Demo Group')).toBeVisible();
-      const room = main.getByRole('heading', { name: 'Sponsor’s room' }).locator('xpath=ancestor::section[1]');
-      await expect(room.getByText('Up to 5', { exact: true })).toBeVisible();
-      await expect(room.getByRole('meter')).toHaveCount(0);
-      await expect(room.getByText('Counted across every organization you sponsor.')).toBeVisible();
+      await expect(main.getByRole('heading', { name: 'Sponsor’s room' })).toHaveCount(0);
+      await expect(hero.getByText(/sponsor/i)).toHaveCount(0);
       await capture(page, testInfo, `overview-${name}-success`);
 
-      // A VIEWER sees the organization, has no button to create, and is told why.
+      // A VIEWER sees the organization, has no way to upload or launch, and is told why.
       await page.goto('/app/consultora-demo');
       await expect(main.getByRole('heading', { level: 1, name: 'Consultora Demo' })).toBeVisible();
-      await expect(main.getByText('No projects yet')).toBeVisible();
-      await expect(main.getByText('You’re a VIEWER here, so you can’t create projects. A MEMBER or above can.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'New project' })).toHaveCount(0);
-      await expect(main.getByRole('link', { name: 'Create the first project' })).toHaveCount(0);
+      await expect(main.getByText(/You’re a VIEWER here: you read everything/)).toBeVisible();
+      await expect(main.getByRole('link', { name: 'Upload BIM package' })).toHaveCount(0);
+      await expect(main.getByRole('link', { name: '+ Upload' })).toHaveCount(0);
       await expect(main.getByRole('link', { name: 'Audit' })).toHaveCount(0);
-      await expect(main.getByText(/nora’s plan is visible only to them/)).toBeVisible();
       await capture(page, testInfo, `overview-${name}-viewer-empty`);
 
       // The same neutral message for an organization that does not exist and one the account is not in.
@@ -493,23 +477,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         return;
       }
 
-      // The projects block fails on its own: the rest of the page is there. The workspace shell reads the same list, so its
-      // own banner appears too; that is what a real outage looks like.
-      state.refuse.projects = unavailable;
+      // The problems panel fails on its own: the rest of the page is there.
+      state.refuse.problems = unavailable;
       await page.goto('/app/isa-demo');
-      await expect(main.getByText('Projects couldn’t be loaded (503). Sub-organizations and usage are unaffected.')).toBeVisible();
+      await expect(main.getByText('Problems couldn’t be loaded (503).')).toBeVisible();
       await expect(main.getByRole('heading', { name: 'Sub-organizations' })).toBeVisible();
-      await expect(main.getByText('Up to 5', { exact: true })).toBeVisible();
-      await capture(page, testInfo, `overview-${name}-projects-503`);
-      state.refuse.projects = undefined;
-      await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('link', { name: /QoS Benchmarks/ })).toBeVisible();
+      await expect(main.getByRole('heading', { name: /^Runs/ })).toBeVisible();
+      await capture(page, testInfo, `overview-${name}-problems-503`);
+      state.refuse.problems = undefined;
 
-      // Search, and the selector that moves to another organization.
-      await main.getByRole('searchbox', { name: 'Find a project' }).fill('checkout');
-      await expect(main.getByRole('link', { name: /QoS Benchmarks/ })).toHaveCount(0);
-      await main.getByRole('searchbox', { name: 'Find a project' }).fill('zzz');
-      await expect(main.getByText('No project matches “zzz”.')).toBeVisible();
+      // The selector that moves to another organization.
       await main.getByLabel('Switch organization').selectOption('qos-lab');
       await expect(page).toHaveURL(/\/app\/qos-lab$/);
       await expect(main.getByRole('heading', { level: 1, name: /QoS Lab/ })).toBeVisible();
@@ -527,10 +504,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expectSettingsNav(main, 'isa-demo', 'General');
       await expect(main.getByLabel('Name', { exact: true })).toHaveValue('ISA Demo Group');
       await expect(main.getByText('/app/isa-demo', { exact: true })).toBeVisible();
-      await expect(main.getByText('Current sponsor · RESEARCH plan')).toBeVisible();
+      await expect(main.getByText(/sponsor/i)).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'Save name' })).toBeDisabled();
       const impact = main.getByLabel('What deleting removes');
-      await expect(impact).toContainText('projects2');
+      await expect(impact).toContainText('problems2');
+      await expect(impact).toContainText('studies0');
       await expect(impact).toContainText('sub-organization1');
       await expect(impact).toContainText('direct members3');
       await capture(page, testInfo, `settings-${name}-success`);
@@ -541,7 +519,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByLabel('Name', { exact: true })).toBeDisabled();
       await expect(main.getByRole('button', { name: 'Save name' })).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'Delete organization' })).toHaveCount(0);
-      await expect(main.getByText('Needs OWNER. Your role here is VIEWER.')).toBeVisible();
       await expect(main.getByRole('navigation', { name: 'Organization settings' }).getByText('ADMIN')).toBeVisible();
       await capture(page, testInfo, `settings-${name}-read-only`);
       if (isMobile) {
@@ -583,29 +560,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect((await moved).postDataJSON()).toEqual({ parent_id: 'org-4' });
       await expect(main.getByText('Moved ISA Research Group inside Research Hub.')).toBeVisible();
 
-      // Sponsor: only an OWNER changes it, and only to themselves; the gateway checks the new sponsor's room first.
-      await page.goto('/app/partner-lab/settings');
-      await expect(main.getByText('nora', { exact: true })).toBeVisible();
-      await expect(main.getByLabel('New sponsor')).toHaveCount(0);
-      state.refuse.patch = detail(402, 'sponsor_quota_exceeded', 'The sponsor contract allows 15 members.', { quota: { limit_id: 'members', limit: 15, used: 16 } });
-      await main.getByRole('button', { name: 'Make me the sponsor' }).click();
-      await expect(main.getByRole('alert')).toContainText('The new sponsor’s plan has no room for this organization and everything under it (402 · sponsor_quota_exceeded). members: 16 of 15 used. Nothing changed.');
-      await capture(page, testInfo, `settings-${name}-sponsor-402`);
-      state.refuse.patch = detail(422, 'sponsor_must_be_caller', 'The billing sponsor must be the caller.');
-      await main.getByRole('button', { name: 'Make me the sponsor' }).click();
-      await expect(main.getByRole('alert')).toContainText('Only you can make yourself the sponsor (422 · sponsor_must_be_caller). Nothing changed.');
-      state.refuse.patch = detail(503, 'pricing_unavailable', 'Limits cannot be checked.');
-      await main.getByRole('button', { name: 'Make me the sponsor' }).click();
-      await expect(main.getByRole('alert')).toContainText('Limits can’t be checked right now (503 · pricing_unavailable). Nothing changed. Try again in a moment.');
-      state.refuse.patch = undefined;
-      const sponsored = request(page, 'PATCH', '/v1/organizations/partner-lab');
-      await main.getByRole('button', { name: 'Make me the sponsor' }).click();
-      expect((await sponsored).postDataJSON()).toEqual({ billing_sponsor_user_id: 'user-1' });
-      await expect(main.getByText('Sponsor changed. Size limits now come from the new sponsor’s plan.')).toBeVisible();
-
-      // An ADMIN can edit, but the sponsor stays locked.
+      // There is no sponsor to change: quotas are per account. An ADMIN can edit.
       await page.goto('/app/research-hub/settings');
-      await expect(main.getByText('Needs OWNER. Your role here is ADMIN.')).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Make me the sponsor' })).toHaveCount(0);
       await expect(main.getByRole('button', { name: 'Save name' })).toBeVisible();
       expect(critical).toEqual([]);
     });
@@ -615,7 +572,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
 
-      // Deleting asks for the address and the gateway refuses sealed history.
+      // Deleting asks for the address and the gateway refuses an organization with runs or study runs.
       await page.goto('/app/isa-demo/settings');
       await main.getByRole('button', { name: 'Delete organization' }).click();
       const dialog = page.getByRole('dialog', { name: 'Delete ISA Demo Group?' });
@@ -625,9 +582,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(confirm).toBeDisabled();
       await dialog.getByLabel('Type isa-demo to confirm').fill('isa-demo');
       await expect(confirm).toBeEnabled();
-      state.refuse.remove = detail(409, 'historical_references', 'Organizations with sealed library history cannot be deleted.');
+      state.refuse.remove = detail(409, 'historical_references', 'Organizations with runs or study runs cannot be deleted; their history is kept.');
       await confirm.click();
-      await expect(dialog.getByRole('alert')).toContainText('It has sealed history, so it can’t be deleted (409 · historical_references).');
+      await expect(dialog.getByRole('alert')).toContainText('It has runs or study runs, so it can’t be deleted (409 · historical_references).');
       await capture(page, testInfo, `settings-${name}-delete-409`);
       state.refuse.remove = undefined;
       const deleted = request(page, 'DELETE', '/v1/organizations/isa-demo');
@@ -652,9 +609,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(table.getByRole('row', { name: /lucia\.vega@example\.org/ }).getByText('(you)')).toBeVisible();
       await expect(main.getByLabel('Role for marco')).toHaveValue('MEMBER');
       await expect(table.getByRole('row', { name: /marco@example\.org/ }).getByText('Apr 12, 2026')).toBeVisible();
-      // The gateway reports the plan's ceiling and no consumption, so the screen says what the plan allows and no "n of 15".
-      await expect(main.getByText(/unique members across everything you sponsor/)).toContainText('Your plan allows up to 15 unique members');
-      await expect(main.getByText(/\b\d+ of 15\b/)).toHaveCount(0);
+      // Members are not a plan limit: the screen states no allowance.
+      await expect(main.getByText(/unique members/)).toHaveCount(0);
       await expect(main.getByText('To confirm')).toHaveCount(0);
       await capture(page, testInfo, `members-${name}-success`);
 
@@ -688,25 +644,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await queue.getByRole('button', { name: 'Undo change for sofia' }).click();
       await expect(queue.getByRole('button', { name: 'Apply 1 change' })).toBeEnabled();
 
-      // The gateway's refusals, one by one: 409 last owner, 402 seats, 422 mismatch, 503 pricing.
+      // The gateway's refusals, one by one: 409 last owner, 422 mismatch.
       await main.getByLabel('Role for lucia.vega').selectOption('VIEWER');
       state.refuse.batch = detail(409, 'last_owner', 'The last owner cannot be removed.');
       await queue.getByRole('button', { name: 'Apply 2 changes' }).click();
       await expect(main.getByRole('alert')).toContainText('At least one OWNER must remain (409 · last_owner). Keep someone as OWNER, or make another person OWNER in the same batch.');
       await capture(page, testInfo, `members-${name}-409`);
-      state.refuse.batch = detail(402, 'sponsor_quota_exceeded', 'The sponsor contract allows 15 members.', { quota: { limit_id: 'members', limit: 15, used: 15 } });
-      await queue.getByRole('button', { name: 'Apply 2 changes' }).click();
-      const seats = main.getByRole('alert');
-      await expect(seats).toContainText('The sponsor has no member seats left (402 · sponsor_quota_exceeded): 15 of 15 used. Nothing changed.');
-      await expect(seats.getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
-      await expect(seats.getByRole('link', { name: 'Change sponsor' })).toHaveAttribute('href', '/app/isa-demo/settings');
-      await capture(page, testInfo, `members-${name}-402`);
       state.refuse.batch = detail(422, 'member_mismatch', 'Path and payload user differ.');
       await queue.getByRole('button', { name: 'Apply 2 changes' }).click();
       await expect(main.getByRole('alert')).toContainText('One of these people isn’t a member of this organization (422 · member_mismatch).');
-      state.refuse.batch = detail(503, 'pricing_unavailable', 'Limits cannot be checked.');
-      await queue.getByRole('button', { name: 'Apply 2 changes' }).click();
-      await expect(main.getByRole('alert')).toContainText('Limits can’t be checked right now (503 · pricing_unavailable). Nothing changed; try again in a moment.');
       // Granting OWNER is for owners: if the gateway still refuses, the row it names is marked and the whole queue stays.
       state.refuse.batch = detail(403, 'owner_role_requires_owner', 'Only an owner can grant the owner role.', { index: 0, user_id: 'user-marco' });
       await queue.getByRole('button', { name: 'Apply 2 changes' }).click();
@@ -810,11 +756,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The action filter is the server's: the request carries it.
       await page.goto('/app/isa-demo/settings/audit');
-      const filtered = page.waitForRequest((candidate) => candidate.url().startsWith(`${API}/v1/organizations/isa-demo/audit`) && candidate.url().includes('action=project.created'));
-      await main.getByLabel('Action').selectOption('project.created');
+      const filtered = page.waitForRequest((candidate) => candidate.url().startsWith(`${API}/v1/organizations/isa-demo/audit`) && candidate.url().includes('action=problem.created'));
+      await main.getByLabel('Action').selectOption('problem.created');
       await filtered;
       await expect(timeline.getByRole('listitem')).toHaveCount(1);
-      await expect(timeline.getByRole('listitem').first()).toContainText('Project created');
+      await expect(timeline.getByRole('listitem').first()).toContainText('Problem created');
       await capture(page, testInfo, `audit-${name}-filtered`);
 
       // Actor in the view; and a filter nothing matches.
@@ -823,7 +769,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByLabel('Actor').selectOption('__none');
       await expect(timeline.getByRole('listitem')).toHaveCount(1);
       await main.getByLabel('Actor').selectOption('');
-      await main.getByLabel('Action').selectOption('project.deleted');
+      await main.getByLabel('Action').selectOption('problem.deleted');
       await expect(main.getByText(/No events match these filters\./)).toBeVisible();
       await capture(page, testInfo, `audit-${name}-empty`);
       await main.getByRole('button', { name: 'Clear filters' }).click();

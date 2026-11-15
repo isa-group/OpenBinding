@@ -2,16 +2,14 @@ import json
 import uuid
 
 import jsonschema
-import pytest
-from sqlalchemy import select
 
+from _problem_helpers import make_org, runs_url_for, upload_problem
 from _repo import REPO_ROOT
 
-from openbinding_gateway.db.models import InstanceResource
+from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.main import app
-from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.modules.execution.adapters import routes as runs_routes
 from openbinding_gateway.services import execution
-from openbinding_gateway.services.engines import engine_ref
 from bim_core.canonical import digest_bytes
 from bim_core.package import InstancePackage, load_package, strict_json_loads
 
@@ -45,7 +43,7 @@ async def _register_and_login(client, details):
     return {"Authorization": f"Bearer {logged.json()['access_token']}"}
 
 
-async def test_v1_snapshot_and_job_are_owner_scoped_and_persisted(
+async def test_v1_revision_and_job_are_persisted(
     api_client, db_session, registration, monkeypatch
 ):
     async def solve(*args, **kwargs):
@@ -67,56 +65,53 @@ async def test_v1_snapshot_and_job_are_owner_scoped_and_persisted(
 
     monkeypatch.setattr(execution, "solve_remote", solve)
     headers = await _register_and_login(api_client, registration())
-    package = load_package(EXAMPLE)
 
-    created = await api_client.post(
-        "/v1/instances", headers=_zip_headers(headers), content=package.to_zip()
-    )
-    assert created.status_code == 201, created.text
-    _assert_component("SnapshotCreated", created.json())
-    snapshot_id = created.json()["id"]
+    created = await upload_problem(api_client, headers, slug="persisted")
+    revision_id = created["revision_id"]
+    base = f"/v1/organizations/{created['org']}/problems/persisted/revisions/1"
 
-    fetched = await api_client.get(f"/v1/instances/{snapshot_id}", headers=headers)
+    fetched = await api_client.get(base, headers=headers)
     assert fetched.status_code == 200
-    _assert_component("SnapshotView", fetched.json())
-    assert fetched.json()["instanceDigest"] == created.json()["instanceDigest"]
-    stored_resources = (await db_session.execute(select(InstanceResource))).scalars().all()
-    assert stored_resources
-    assert all(resource.api_version and resource.dialect_id for resource in stored_resources)
+    _assert_component("RevisionDetail", fetched.json())
+    assert fetched.json()["instance_digest"] == created["revision"]["instance_digest"]
+    compilation = await api_client.get(f"{base}/compilation", headers=headers)
+    assert compilation.status_code == 200, compilation.text
+    assert compilation.json()["resources"]
+    assert all(item["apiVersion"] and item["kind"] for item in compilation.json()["resources"].values())
 
     unknown_field = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers=headers,
-        json={"snapshot": snapshot_id, "unexpected": True},
+        json={"revision": revision_id, "unexpected": True},
     )
     assert unknown_field.status_code == 422
     assert unknown_field.json()["title"] == "invalid_request_fields"
     oversized_key = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers={**headers, "Idempotency-Key": "x" * 256},
-        json={"snapshot": snapshot_id},
+        json={"revision": revision_id},
     )
     assert oversized_key.status_code == 422
     assert oversized_key.json()["title"] == "invalid_idempotency_key"
 
     job = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers={**headers, "Idempotency-Key": "persisted-v1-job"},
-        json={"snapshot": snapshot_id, "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION},
+        json={"revision": revision_id, "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION},
     )
     assert job.status_code == 202, job.text
     _assert_component("JobAccepted", job.json())
     job_id = job.json()["id"]
-    result = await api_client.get(f"/v1/jobs/{job_id}", headers=headers)
+    result = await api_client.get(f"{runs_url_for(revision_id)}/{job_id}", headers=headers)
     assert result.status_code == 200
-    _assert_component("JobView", result.json())
+    _assert_component("RunView", result.json())
     assert result.json()["status"] == "completed"
     assert result.json()["result"]["termination"] in {"FEASIBLE", "INFEASIBLE", "UNKNOWN"}
 
     replay = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers={**headers, "Idempotency-Key": "persisted-v1-job"},
-        json={"snapshot": snapshot_id, "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION},
+        json={"revision": revision_id, "engine": "random-search", "mode": "seeded", "optimization": OPTIMIZATION},
     )
     assert replay.status_code == 202
     _assert_component("JobAccepted", replay.json())
@@ -167,11 +162,7 @@ async def test_persisted_job_is_committed_before_the_background_session(
             transport=ASGITransport(app=app), base_url="http://gateway"
         ) as client:
             headers = await _register_and_login(client, registration())
-            package = load_package(EXAMPLE)
-            snapshot = await client.post(
-                "/v1/instances", headers=_zip_headers(headers), content=package.to_zip()
-            )
-            assert snapshot.status_code == 201, snapshot.text
+            revision_id = (await upload_problem(client, headers))["revision_id"]
 
             request_sessions = []
             scheduled_after_commit = []
@@ -189,12 +180,12 @@ async def test_persisted_job_is_committed_before_the_background_session(
                 await dispatch_persisted_job(job_id, request_session)
 
             monkeypatch.setattr(db_base, "get_session", observed_get_session)
-            monkeypatch.setattr(routes, "dispatch_persisted_job", observed_dispatch)
+            monkeypatch.setattr(runs_routes, "dispatch_persisted_job", observed_dispatch)
             response = await client.post(
-                "/v1/jobs",
+                runs_url_for(revision_id),
                 headers=headers,
                 json={
-                    "snapshot": snapshot.json()["id"],
+                    "revision": revision_id,
                     "engine": "random-search",
                     "mode": "seeded",
                     "optimization": OPTIMIZATION,
@@ -238,18 +229,15 @@ async def test_v1_plan_limits_are_persisted_in_options_and_provenance(
         }
 
     monkeypatch.setattr(execution, "solve_remote", solve)
+    monkeypatch.setattr(get_settings(), "max_iterations", 10_000)
     headers = await _register_and_login(api_client, registration())
-    package = load_package(EXAMPLE)
-    created = await api_client.post(
-        "/v1/instances", headers=_zip_headers(headers), content=package.to_zip()
-    )
-    assert created.status_code == 201, created.text
+    revision_id = (await upload_problem(api_client, headers))["revision_id"]
 
     response = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers=headers,
         json={
-            "snapshot": created.json()["id"],
+            "revision": revision_id,
             "engine": "evolutionary-heuristics",
             "mode": "elitist-genetic",
             "options": {"max_evaluations": 50_000, "population_size": 100},
@@ -258,7 +246,7 @@ async def test_v1_plan_limits_are_persisted_in_options_and_provenance(
     )
     assert response.status_code == 202, response.text
 
-    job =await api_client.get(f"/v1/jobs/{response.json()['id']}", headers=headers)
+    job = await api_client.get(f"{runs_url_for(revision_id)}/{response.json()['id']}", headers=headers)
     assert job.status_code == 200, job.text
     provenance = job.json()["provenance"]
     assert provenance["options"]["max_evaluations"] == 10_000
@@ -268,7 +256,7 @@ async def test_v1_plan_limits_are_persisted_in_options_and_provenance(
             "code": "OPTION_CLAMPED",
             "message": (
                 "'max_evaluations' was reduced from 50000 to 10000 iterations, "
-                "which is what this plan allows."
+                "which is what this deployment allows."
             ),
             "details": {
                 "option": "max_evaluations",
@@ -284,12 +272,9 @@ async def test_v1_plan_limits_are_persisted_in_options_and_provenance(
 
 async def test_v1_private_resources_require_authentication(api_client, registration):
     headers = await _register_and_login(api_client, registration())
-    package = load_package(EXAMPLE)
-    created = await api_client.post(
-        "/v1/instances", headers=_zip_headers(headers), content=package.to_zip()
-    )
-    snapshot_id = created.json()["id"]
-    assert (await api_client.get(f"/v1/instances/{snapshot_id}")).status_code == 401
+    created = await upload_problem(api_client, headers, slug="private")
+    source = f"/v1/organizations/{created['org']}/problems/private/revisions/1/source"
+    assert (await api_client.get(source)).status_code == 401
 
 
 async def test_a_registry_reference_is_not_resolved(api_client, registration):
@@ -307,70 +292,8 @@ async def test_a_registry_reference_is_not_resolved(api_client, registration):
         "digest": digest_bytes(optimization),
     }
     files["instance.json"] = json.dumps(instance).encode()
+    org = await make_org(api_client, headers)
     refused = await api_client.post(
-        "/v1/instances", headers=_zip_headers(headers), content=InstancePackage(files).to_zip()
+        f"/v1/organizations/{org}/problems", headers=_zip_headers(headers), content=InstancePackage(files).to_zip()
     )
     assert refused.status_code == 422, refused.text
-
-
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "product gap: create_job requires an execution `optimization` (routes/v1.py "
-        "_resolve_execution_optimization) but a job selecting an ExecutionConfiguration "
-        "cannot send one (v1.py rejects optimization alongside `configuration` as ambiguous "
-        "and artifacts.validate_content rejects it inside the configuration)"
-    ),
-)
-async def test_jobs_pin_reusable_execution_configuration_without_mutating_it(
-    api_client, db_session, registration, monkeypatch
-):
-    from openbinding_gateway.db.models import Job, ArtifactVersion
-    from sqlalchemy import update
-    from sqlalchemy.exc import DBAPIError
-    import pytest
-
-    async def queued(*args, **kwargs):
-        return None
-
-    monkeypatch.setattr(routes, 'dispatch_persisted_job', queued)
-    headers = await _register_and_login(api_client, registration())
-    organization = await api_client.post('/v1/organizations', headers=headers,
-        json={'slug': 'configured-jobs', 'name': 'Configured jobs'})
-    assert organization.status_code == 201, organization.text
-    # The library write routes are removed since M9.6: the configuration is sealed by the internal service.
-    import _m96_seed as seed
-    from openbinding_gateway.artifacts import version_view
-    from openbinding_gateway.models.artifacts import ArtifactVersionView
-
-    user_id = (await api_client.get('/v1/users/me', headers=headers)).json()['id']
-    identity = await seed.library_artifact(db_session, organization.json()['id'], user_id, name='search-settings',
-                                           display_name='Search settings', kind='ExecutionConfiguration')
-    artifact_id = str(identity.id)
-    engine = engine_ref(routes._manifest('random-search'))
-    content = {'engine': engine, 'mode': 'seeded', 'options': {'iterations': 100, 'seed': 7}}
-    sealed = await seed.seal(db_session, identity, user_id, content)
-    config = ArtifactVersionView.model_validate(version_view(identity, sealed)).model_dump(mode='json')
-    snapshot = await api_client.post('/v1/instances', headers=_zip_headers(headers), content=load_package(EXAMPLE).to_zip())
-    request = {'snapshot': snapshot.json()['id'], 'configuration': config['ref']}
-    _assert_component('JobRequest', request)
-    ambiguous = await api_client.post('/v1/jobs', headers=headers, json={**request, 'options': {}})
-    assert ambiguous.status_code == 422, ambiguous.text
-    response = await api_client.post('/v1/jobs', headers={**headers, 'Idempotency-Key': 'configuration-v1'}, json=request)
-    assert response.status_code == 202, response.text
-    job = await db_session.get(Job, uuid.UUID(response.json()['id']))
-    assert job.configuration_version_id == uuid.UUID(config['id'])
-    assert job.provenance['configuration'] == config['ref']
-    assert job.provenance['requestedOptions'] == content['options']
-    assert job.provenance['options'] == job.options
-    pinned = job.configuration_version_id
-    sealed2 = await seed.seal(db_session, identity, user_id, {**content, 'options': {'iterations': 200, 'seed': 9}},
-                              based_on_id=sealed.id)
-    repeated = await api_client.post('/v1/jobs', headers={**headers, 'Idempotency-Key': 'configuration-v1'}, json=request)
-    assert repeated.json()['id'] == str(job.id)
-    assert (await db_session.get(ArtifactVersion, pinned)).version_digest == config['ref']['versionDigest']
-    with pytest.raises(DBAPIError):
-        async with db_session.begin_nested():
-            await db_session.execute(update(Job).where(Job.id == job.id).values(configuration_version_id=sealed2.id))
-    still_original = await api_client.get(f"/v1/artifacts/{artifact_id}/versions/{config['id']}/content", headers=headers)
-    assert still_original.json() == content

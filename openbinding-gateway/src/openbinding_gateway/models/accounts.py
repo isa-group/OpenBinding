@@ -88,14 +88,14 @@ class UserProfile(BaseModel):
         ...,
         max_length=128,
         description=(
-            "Plan last seen on the SPACE contract. The contract itself decides what a "
-            "request is allowed to do; this is what the interface displays. Empty when "
-            "the account has no plan (the stateless open gate, or SPACE has not assigned one)."
+            "Plan last recorded for the SPACE contract (read from the database, so reading the "
+            "profile never needs SPACE). The contract itself decides what a request is allowed "
+            "to do; this is what the interface displays. Empty when the account has no plan "
+            "(the stateless open gate, or SPACE has not assigned one)."
         ),
     )
     created_at: datetime
     cas_verified: bool = False
-    institutional_branding: bool = False
 
 
 class PasswordResetRequest(BaseModel):
@@ -166,13 +166,12 @@ class ApiKeyBoundary(BaseModel):
 
     methods: Optional[List[Literal["GET", "POST", "PUT", "PATCH", "DELETE"]]] = None
     organizations: Optional[List[str]] = Field(default=None, max_length=1000)
-    projects: Optional[List[str]] = Field(default=None, max_length=1000)
     resource_kinds: Optional[List[str]] = Field(default=None, max_length=100)
     slugs: Optional[List[str]] = Field(default=None, max_length=1000)
 
     @model_validator(mode="after")
     def unique_values(self):
-        for name in ("methods", "organizations", "projects", "resource_kinds", "slugs"):
+        for name in ("methods", "organizations", "resource_kinds", "slugs"):
             values = getattr(self, name)
             if values is not None and (not values or len(values) != len(set(values))):
                 raise ValueError(f"{name} must be a non-empty list without duplicates")
@@ -182,7 +181,6 @@ class ApiKeyBoundary(BaseModel):
         fields = {
             "methods": self.methods,
             "organizations": self.organizations,
-            "projects": self.projects,
             "resourceKinds": self.resource_kinds,
             "slugs": self.slugs,
         }
@@ -251,41 +249,6 @@ class CreatedApiKey(ApiKeySummary):
 
 class ApiKeyList(BaseModel):
     api_keys: List[ApiKeySummary]
-
-
-class JobSummary(BaseModel):
-    """One solve this account asked for.
-
-    Deliberately a summary: the result of a job can be hundreds of megabytes,
-    and a history is for finding the one you want rather than for reading them
-    all. ``GET /v1/jobs/{id}`` is where the answer itself lives.
-    """
-
-    id: uuid.UUID
-    engine_id: str
-    status: str = Field(..., description="queued, running, completed or failed.")
-    termination: Optional[Literal["OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"]] = Field(
-        default=None, description="Canonical BIM v1 termination, once the result is available."
-    )
-    solutions: Optional[int] = Field(
-        default=None, description="How many solutions came back."
-    )
-    created_at: datetime
-    finished_at: Optional[datetime] = None
-
-
-class JobHistory(BaseModel):
-    """A page of an account's own solves."""
-
-    jobs: List[JobSummary]
-    total: int = Field(..., description="How many are visible in total.")
-    retention_days: Optional[float] = Field(
-        ...,
-        description=(
-            "How far back this plan keeps them. Jobs older than this are not "
-            "returned, as reported by SPACE for the canonical jobHistoryDays limit."
-        ),
-    )
 
 
 class UsageView(BaseModel):

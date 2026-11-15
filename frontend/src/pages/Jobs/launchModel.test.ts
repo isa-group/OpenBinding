@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { UsageView } from '../../api/auth';
 import type { EngineCatalogEntry, EngineMode } from '../../api/client';
-import type { CaseRevision } from '../../api/platform';
+import type { ProblemRevision } from '../../api/problems';
 import { RANGE_REFUSAL } from '../../utils/featureRange';
 import {
   acceptsIntervals, buildRequest, ceilingOf, criteriaCountOf, forecastOf, initialChoice, modeChoices, modeOfCatalog, optimizationFor, optionInputs, parseAmount,
@@ -12,14 +12,18 @@ const ENGINE = { namespace: 'bim.builtin', name: 'random-search', version: '1.0.
 const REGISTRATION = { namespace: 'bim.builtin', name: 'random-search-deployment', version: '1', digest: 'sha256-r' };
 const EDGE = { namespace: 'lucia-vega', name: 'edge-solver', version: '0.3.1', digest: 'sha256-e' };
 
-const revision = (n: number, over: Partial<CaseRevision> = {}): CaseRevision => ({
-  id: `rev-${n}`, binding_case_id: 'case-1', revision: n, digest: `sha256-${String(n).repeat(64)}`, document: {}, source_snapshot_id: `snap-${n}`, created_at: `2026-08-0${n}T00:00:00Z`, ...over,
+const revision = (n: number, over: Partial<ProblemRevision> = {}): ProblemRevision => ({
+  id: `rev-${n}`, problem_id: 'case-1', revision: n, package_digest: `sha256-${String(n).repeat(64)}`, package_size: 1024, created_by_id: 'u',
+  created_at: `2026-08-0${n}T00:00:00Z`, ...over,
 });
 
-const cases = [{ item: { id: 'case-1', project_id: 'p', slug: 'flujo', name: 'Flujo de checkout', description: '', created_by_id: 'u', created_at: '2026-08-01T00:00:00Z' }, revisions: [revision(1), revision(2)] }];
+const cases = [{
+  item: { id: 'case-1', organization_id: 'o', slug: 'flujo', name: 'Flujo de checkout', description: '', created_by_id: 'u', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
+  revisions: [revision(1), revision(2)],
+}];
 
 const usage = (over: Partial<UsageView> = {}): UsageView => ({
-  plan: 'BASIC', contract_pending: false, features: {}, capabilities: { maxTimeoutSeconds: 60, maxIterations: 10_000, maxInstanceComplexityLog10: 9 }, ...over,
+  plan: 'FREE', contract_pending: false, features: {}, capabilities: { maxRunMinutes: 1 }, ...over,
 });
 
 const mode = (id: string, properties: Record<string, Record<string, unknown>>): EngineMode => ({
@@ -34,25 +38,25 @@ const catalog: EngineCatalogEntry[] = [{
 }];
 
 describe('what to solve', () => {
-  it('offers the snapshot or revision the person came from first, then the latest revisions', () => {
-    const choices = sourceChoices({ cases, caseSlug: null, revision: null, snapshot: 'snap-9' });
-    expect(choices.map((choice) => choice.id)).toEqual(['snapshot:snap-9', 'revision:rev-2']);
-    expect(choices[1]).toMatchObject({ label: 'Flujo de checkout · version 2', latest: true, snapshotId: 'snap-2' });
-    expect(choices[0].label).toBe('Compiled snapshot');
-    expect(choices[1].detail).toBe('Latest · Sealed Aug 2, 2026');
+  it('offers the latest version of each problem', () => {
+    const choices = sourceChoices({ cases, problem: null, revision: null });
+    expect(choices.map((choice) => choice.id)).toEqual(['revision:rev-2']);
+    expect(choices[0]).toMatchObject({ label: 'Flujo de checkout · version 2', latest: true, caseSlug: 'flujo' });
+    expect(choices[0].detail).toBe('Latest · Sealed Aug 2, 2026');
     expect(choices.map((choice) => `${choice.label} ${choice.detail}`).join(' ')).not.toMatch(/sha256-|[0-9a-f]{12}/);
   });
 
-  it('lists every revision of the case named by the address', () => {
-    const choices = sourceChoices({ cases, caseSlug: 'flujo', revision: '1', snapshot: null });
+  it('lists every version of the problem named by the address', () => {
+    const choices = sourceChoices({ cases, problem: 'flujo', revision: '1' });
     expect(choices.map((choice) => choice.label)).toEqual(['Flujo de checkout · version 2', 'Flujo de checkout · version 1']);
-    expect(initialChoice(choices, '1', null)).toBe('revision:rev-1');
-    expect(initialChoice(choices, null, null)).toBe('revision:rev-2');
-    expect(initialChoice([], null, null)).toBe('');
+    expect(initialChoice(choices, '1')).toBe('revision:rev-1');
+    expect(initialChoice(choices, 'rev-1')).toBe('revision:rev-1');
+    expect(initialChoice(choices, null)).toBe('revision:rev-2');
+    expect(initialChoice([], null)).toBe('');
   });
 
-  it('keeps the revision asked for even when it is not the latest and no case is named', () => {
-    const choices = sourceChoices({ cases, caseSlug: null, revision: '1', snapshot: null });
+  it('keeps the version asked for even when it is not the latest and no problem is named', () => {
+    const choices = sourceChoices({ cases, problem: null, revision: '1' });
     expect(choices.map((choice) => choice.id)).toEqual(['revision:rev-1', 'revision:rev-2']);
   });
 });
@@ -120,7 +124,7 @@ describe('engines', () => {
 
     it('does not offer a mode it turned down to be sent', () => {
       const [off] = modeChoices(null, catalog, true);
-      expect(buildRequest({ snapshot: 'snap-1', settings: 'inline', configuration: null, mode: off, options: {} })).toBeNull();
+      expect(buildRequest({ revision: 'rev-1', mode: off, options: {} })).toBeNull();
     });
   });
 
@@ -139,22 +143,23 @@ describe('engines', () => {
 
 describe('settings against the plan', () => {
   it('prefers what the account reports, then the pricing document', () => {
-    expect(ceilingOf(usage(), null, 'BASIC', 'maxTimeoutSeconds')).toBe(60);
-    expect(ceilingOf(null, { plans: { BASIC: { usageLimits: { maxTimeoutSeconds: { value: 45 } } } } }, 'BASIC', 'maxTimeoutSeconds')).toBe(45);
-    expect(ceilingOf(null, null, 'BASIC', 'maxTimeoutSeconds')).toBeNull();
-    expect(planCeilingsOf(usage(), null, 'BASIC')).toEqual({ seconds: 60, iterations: 10_000, complexity: 9 });
+    expect(ceilingOf(usage(), null, 'FREE', 'maxRunMinutes')).toBe(1);
+    expect(ceilingOf(null, { plans: { FREE: { usageLimits: { maxRunMinutes: { value: 5 } } } } }, 'FREE', 'maxRunMinutes')).toBe(5);
+    expect(ceilingOf(null, null, 'FREE', 'maxRunMinutes')).toBeNull();
+    // The plan sets the time of a run; the iterations and the problem size are the deployment's, which the interface does not know.
+    expect(planCeilingsOf(usage(), null, 'FREE')).toEqual({ seconds: 60, iterations: null, complexity: null });
   });
 
   it('asks for the numbers a mode declares, with seconds for time', () => {
-    const inputs = optionInputs(modeOfCatalog(catalog, modeChoices(null, catalog)[0]), planCeilingsOf(usage(), null, 'BASIC'));
+    const inputs = optionInputs(modeOfCatalog(catalog, modeChoices(null, catalog)[0]), planCeilingsOf(usage(), null, 'FREE'));
     expect(inputs.map((input) => [input.name, input.unit, input.default, input.ceiling])).toEqual([
       ['time_budget_ms', 's', 30, 60],
-      ['iterations', 'iterations', 100000, 10_000],
+      ['iterations', 'iterations', 100000, null],
     ]);
   });
 
   it('reduces what is above the ceiling and says so, without calling it an error', () => {
-    const inputs = optionInputs(modeOfCatalog(catalog, modeChoices(null, catalog)[0]), planCeilingsOf(usage(), null, 'BASIC'));
+    const inputs = optionInputs(modeOfCatalog(catalog, modeChoices(null, catalog)[0]), planCeilingsOf(usage(), null, 'FREE'));
     const plans = planOptions(inputs, { time_budget_ms: '600', iterations: '5,000' });
     expect(plans.map((plan) => [plan.asked, plan.effective, plan.reduced, plan.invalid])).toEqual([[600, 60, true, false], [5000, 5000, false, false]]);
     // The request carries what was asked, in milliseconds; the gateway reduces it and records that.
@@ -162,7 +167,7 @@ describe('settings against the plan', () => {
   });
 
   it('marks a field that is not a positive number, and leaves an empty one to the engine', () => {
-    const inputs = optionInputs(modeOfCatalog(catalog, modeChoices(null, catalog)[0]), planCeilingsOf(usage(), null, 'BASIC'));
+    const inputs = optionInputs(modeOfCatalog(catalog, modeChoices(null, catalog)[0]), planCeilingsOf(usage(), null, 'FREE'));
     const plans = planOptions(inputs, { time_budget_ms: 'soon', iterations: '' });
     expect(plans.map((plan) => [plan.invalid, plan.asked])).toEqual([[true, null], [false, null]]);
     expect(requestOptions(plans)).toEqual({});
@@ -174,7 +179,7 @@ describe('settings against the plan', () => {
   it('accepts 0 for an option that is not a budget, such as a seed, and keeps refusing it for a budget', () => {
     const seeded = optionInputs(
       modeOfCatalog([{ ...catalog[0], modes: [mode('sampling', { seed: { type: 'integer', default: 0 }, iterations: { type: 'integer', default: 100 }, temperature: { type: 'number', default: 0.5 } })] }], modeChoices(null, catalog)[0]),
-      planCeilingsOf(usage(), null, 'BASIC'),
+      planCeilingsOf(usage(), null, 'FREE'),
     );
     // The defaults the manifest declares are sendable as they are.
     const defaults = planOptions(seeded, {});
@@ -194,33 +199,27 @@ describe('settings against the plan', () => {
 
 describe('the request', () => {
   const [yes] = modeChoices([{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }], catalog);
-  const base = { snapshot: 'snap-2', settings: 'inline' as const, configuration: null, mode: yes, options: { iterations: 100 } };
+  const base = { revision: 'rev-2', mode: yes, options: { iterations: 100 } };
 
   it('names the exact engine, deployment and mode', () => {
-    expect(buildRequest(base)).toEqual({ snapshot: 'snap-2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling', options: { iterations: 100 } });
+    expect(buildRequest(base)).toEqual({ revision: 'rev-2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling', options: { iterations: 100 } });
   });
 
   it('leaves the deployment out when the catalog did not name one', () => {
     const [unchecked] = modeChoices(null, catalog);
-    expect(buildRequest({ ...base, mode: unchecked })).toEqual({ snapshot: 'snap-2', engine: ENGINE, mode: 'sampling', options: { iterations: 100 } });
+    expect(buildRequest({ ...base, mode: unchecked })).toEqual({ revision: 'rev-2', engine: ENGINE, mode: 'sampling', options: { iterations: 100 } });
   });
 
   it('carries the optimization the gateway requires when one is known', () => {
     const optimization = { type: 'SINGLE' as const, scalarization: 'weighted-sum' };
     expect(buildRequest({ ...base, optimization })).toEqual({
-      snapshot: 'snap-2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling', options: { iterations: 100 }, optimization,
+      revision: 'rev-2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling', options: { iterations: 100 }, optimization,
     });
     expect(buildRequest({ ...base, optimization: null })).not.toHaveProperty('optimization');
   });
 
-  it('sends sealed settings alone: they carry their own engine, mode and options', () => {
-    const configuration = { namespace: 'isa-demo', name: 'rs-60s', version: '1', versionDigest: 'sha256-v' };
-    expect(buildRequest({ ...base, settings: 'saved', configuration, optimization: { type: 'SINGLE', scalarization: 'weighted-sum' } })).toEqual({ snapshot: 'snap-2', configuration });
-    expect(buildRequest({ ...base, settings: 'saved' })).toBeNull();
-  });
-
-  it('does not build a request without a snapshot or with a mode that cannot run it', () => {
-    expect(buildRequest({ ...base, snapshot: '' })).toBeNull();
+  it('does not build a request without a version or with a mode that cannot run it', () => {
+    expect(buildRequest({ ...base, revision: '' })).toBeNull();
     expect(buildRequest({ ...base, mode: null })).toBeNull();
     expect(buildRequest({ ...base, mode: { ...yes, compat: 'no' } })).toBeNull();
   });

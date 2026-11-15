@@ -1,16 +1,17 @@
 import { screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { auditFixture } from './auditFixture';
-import { member, org, project, renderScreen } from './testKit';
+import { member, org, renderScreen } from './testKit';
 import { OrgSettings } from './OrgSettings';
 
 const api = vi.hoisted(() => ({ adminListUsers: vi.fn() }));
 const platform = vi.hoisted(() => ({
-  members: vi.fn(), projects: vi.fn(), organizationAudit: vi.fn(), invitations: vi.fn(), organizationInvitations: vi.fn(),
+  members: vi.fn(), studies: vi.fn(), organizationAudit: vi.fn(), invitations: vi.fn(), organizationInvitations: vi.fn(),
 }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/problems', () => ({ problemsApi: { list: vi.fn().mockResolvedValue({ problems: [], total: 0, limit: 1, offset: 0 }) } }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const readOnly = org('read-only', { name: 'Read Only Lab', effective_role: 'MEMBER' });
@@ -29,7 +30,7 @@ describe('org-settings sections', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platform.members.mockResolvedValue([member('lucia', 'OWNER'), member('marco', 'MEMBER')]);
-    platform.projects.mockResolvedValue([project('qos-benchmarks')]);
+    platform.studies.mockResolvedValue([]);
     platform.invitations.mockResolvedValue([]);
     platform.organizationInvitations.mockResolvedValue([]);
     platform.organizationAudit.mockResolvedValue({ events: auditFixture, total: auditFixture.length, offset: 0, limit: 50 });

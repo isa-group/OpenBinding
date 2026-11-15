@@ -3,24 +3,33 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import type { StudyCell } from '../../api/platform';
-import { org, project, renderProjectScreen } from '../Project/testKit';
+import { org, renderOrgScreen } from '../../features/workspace/testKit';
 import { CHECKOUT, EVOLUTIONARY, REVISION_1, REVISION_2, RUN_ID, cellFixture, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
-  project: vi.fn(), studies: vi.fn(), studyRuns: vi.fn(), studyCells: vi.fn(), cancelStudyRun: vi.fn(), retryStudyCell: vi.fn(),
-  cases: vi.fn(), revisions: vi.fn(),
+  study: vi.fn(), studyRuns: vi.fn(), studyRun: vi.fn(), studyCells: vi.fn(), cancelStudyRun: vi.fn(), retryStudyCell: vi.fn(),
+ 
 }));
 
-const library = vi.hoisted(() => ({ libraryApi: { versions: vi.fn().mockResolvedValue([]) } }));
 
+const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
-vi.mock('../../api/library', () => library);
+vi.mock('../../api/problems', () => ({ problemsApi: problems }));
+
+/** The one-run read answers from what the study's run list answers. */
+function oneRunFromList() {
+  platform.studyRun.mockImplementation(async (_org: string, _study: string, id: string) => {
+    const runs = (await platform.studyRuns()) as Array<{ id: string }>;
+    const found = runs.find((run) => run.id === id);
+    if (!found) throw Object.assign(new HttpError(404, 'Study run not found.'), { code: 'not_found' });
+    return found;
+  });
+}
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewing = org('read-lab', { name: 'Read Lab', effective_role: 'VIEWER' });
-const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
-const ROOT = '/app/isa-demo/qos-benchmarks';
+const ROOT = '/app/isa-demo';
 const STUDY = `${ROOT}/studies/engines-vs-seeds`;
 const RESULTS = `${STUDY}/results?run=${RUN_ID}`;
 
@@ -29,8 +38,8 @@ const running = (cells: StudyCell[]) => cells.map((cell) => (cell.state === 'can
 
 /** The Progress tab of the study page, on the study run named by `?run=`. */
 function renderRun(options: { slug?: string; run?: string } = {}) {
-  return renderProjectScreen(<StudyDetail />, {
-    path: '/app/:org/:project/studies/:study/:tab?', url: `/app/${options.slug ?? 'isa-demo'}/qos-benchmarks/studies/engines-vs-seeds/progress?run=${options.run ?? RUN_ID}`, organizations: [group, viewing],
+  return renderOrgScreen(<StudyDetail />, {
+    path: '/app/:org/studies/:study/:tab?', url: `/app/${options.slug ?? 'isa-demo'}/studies/engines-vs-seeds/progress?run=${options.run ?? RUN_ID}`, organizations: [group, viewing],
   });
 }
 
@@ -38,12 +47,12 @@ function renderRun(options: { slug?: string; run?: string } = {}) {
 describe('One run of a study, in the Progress tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    platform.project.mockResolvedValue(qos);
-    platform.studies.mockResolvedValue([studyFixture()]);
+    platform.study.mockResolvedValue({ value: studyFixture(), etag: null });
+    oneRunFromList();
     platform.studyRuns.mockResolvedValue([runFixture()]);
     platform.studyCells.mockResolvedValue(cellsFixture());
-    platform.cases.mockResolvedValue([CHECKOUT]);
-    platform.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
+    problems.list.mockResolvedValue({ problems: [CHECKOUT], total: 1, limit: 200, offset: 0 });
+    problems.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
   });
 
   afterEach(() => {
@@ -73,8 +82,8 @@ describe('One run of a study, in the Progress tab', () => {
     expect(within(heat).getByRole('link', { name: /Cell 2, .* completed, Cost 0\.121/ })).toHaveClass('is-level-3');
     expect(within(heat).getByRole('link', { name: /Cell 1, .* failed$/ })).toHaveTextContent('engine_unreachable');
     expect(within(heat).getByRole('link', { name: /Cell 5, .* cancelled$/ })).toHaveClass('is-cancelled');
-    const tabs = screen.getByRole('navigation', { name: 'Project sections' });
-    expect(within(tabs).getByRole('link', { name: 'Studies' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('navigation', { name: 'Project sections' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/studies');
   });
 
   it('colours the matrix by another measure on request', async () => {
@@ -107,7 +116,7 @@ describe('One run of a study, in the Progress tab', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Retry cell 1' }));
 
     expect(await screen.findByText('Cell 1 queued again.')).toBeInTheDocument();
-    expect(platform.retryStudyCell).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds', RUN_ID, '00000000-0000-4000-8000-000000000201');
+    expect(platform.retryStudyCell).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', RUN_ID, '00000000-0000-4000-8000-000000000201');
   });
 
   it('retries every failed or cancelled cell, and says when it stopped', async () => {
@@ -157,7 +166,7 @@ describe('One run of a study, in the Progress tab', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Cancel run' }));
     expect(await screen.findByText('Run cancelled. Cells that hadn’t finished are cancelled; you can retry them.')).toBeInTheDocument();
-    expect(platform.cancelStudyRun).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds', RUN_ID);
+    expect(platform.cancelStudyRun).toHaveBeenCalledWith('isa-demo', 'engines-vs-seeds', RUN_ID);
     view.unmount();
 
     platform.studyRuns.mockResolvedValue([runFixture()]);
@@ -234,7 +243,7 @@ describe('One run of a study, in the Progress tab', () => {
   });
 
   it('keeps the quota in the words of a retry that is refused for a plan limit', async () => {
-    platform.retryStudyCell.mockRejectedValue(new QuotaError('quota_exceeded', 'full', { limit_id: 'storageBytes', limit: 50, used: 50 }));
+    platform.retryStudyCell.mockRejectedValue(new QuotaError('quota_exceeded', 'full', { limit_id: 'maxRepositoryStorage', limit: 50, used: 50 }));
     renderRun();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Retry cell 1' }));

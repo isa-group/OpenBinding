@@ -91,14 +91,11 @@ os.environ["GATEWAY_JWT_SECRET"] = "test-secret-not-used-anywhere-real"
 # Jobs run in the request that creates them; there is no worker to claim a queued one.
 os.environ["JOB_DISPATCH_MODE"] = "inline"
 os.environ["SPHERE_ENABLED"] = "false"
-# The fake gate installed below is built from tests/fixtures/pricing_test.yml
-# (version 0.1.0, default plan BASIC); the gateway names that version and plan
-# when it creates contracts.
-os.environ["SPACE_PRICING_VERSION"] = "0.1.0"
-os.environ["SPACE_DEFAULT_PLAN"] = "BASIC"
-# The suite always uses the toolchain installed beside the gateway: a ``BIM_MODE=http`` left in the environment
-# would point every test at a service that is not there.
-os.environ["BIM_MODE"] = "inproc"
+# The fake gate installed below is built from tests/fixtures/pricing/openbinding-0.2.0.yml
+# (the published pricing 0.2.0: plans FREE, RESEARCH and LAB, default FREE); the gateway names
+# that version and plan when it creates contracts.
+os.environ["SPACE_PRICING_VERSION"] = "0.2.0"
+os.environ["SPACE_DEFAULT_PLAN"] = "FREE"
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -192,11 +189,11 @@ def isolated_auth_rate_limiter():
 
 @pytest.fixture(autouse=True)
 def isolated_work_rate_limiter(monkeypatch):
-    """The per-client work budgets switched off, and counted in this test's own memory.
+    """The per-client work budget switched off, and counted in this test's own memory.
 
-    The defaults are sized for one person at a keyboard and the suite is not one: a test
-    that walks a corpus through ``/v1/compositions/import`` would be refused at the
-    eleventh package. ``tests/test_work_limits.py`` switches them on again.
+    The default is sized for one person at a keyboard and the suite is not one: a test
+    that validates more than ten packages would be refused at the eleventh.
+    ``tests/test_work_limits.py`` switches it on again.
     """
     if not GATEWAY_INSTALLED:
         yield
@@ -204,11 +201,23 @@ def isolated_work_rate_limiter(monkeypatch):
     from openbinding_gateway.access.work_limits import WorkRateLimiter, set_work_limiter
     from openbinding_gateway.core.settings import get_settings
 
-    monkeypatch.setattr(get_settings(), "work_rate_limit_read_requests", 0)
     monkeypatch.setattr(get_settings(), "work_rate_limit_compile_requests", 0)
     set_work_limiter(WorkRateLimiter(primary=None))
     yield
     set_work_limiter(None)
+
+
+@pytest.fixture(autouse=True)
+def artifact_root(tmp_path, monkeypatch):
+    """Every test stores blobs (problem packages, library content) in a directory of its own."""
+    if not GATEWAY_INSTALLED:
+        yield None
+        return
+    from openbinding_gateway.core.settings import get_settings
+
+    root = tmp_path / "artifacts"
+    monkeypatch.setattr(get_settings(), "artifact_root", str(root))
+    yield root
 
 
 @pytest.fixture(autouse=True)
@@ -226,7 +235,7 @@ def fresh_bim_port():
 
 @pytest.fixture(autouse=True)
 def pricing_catalog_gate():
-    """Every test gets a SPACE substitute built from the synthetic pricing fixture."""
+    """Every test gets a SPACE substitute built from the pricing 0.2.0 fixture."""
     if not GATEWAY_INSTALLED:
         yield
         return
@@ -259,6 +268,21 @@ async def db_session(tmp_path, monkeypatch):
     monkeypatch.setattr(get_settings(), "artifact_root", str(tmp_path / "blobs"))
     url = os.environ.get("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
     engine = create_async_engine(url)
+    if engine.dialect.name == "sqlite":
+        # pysqlite starts a transaction only at the first write, so a SAVEPOINT taken before any write opens one
+        # that its RELEASE commits; ``begin_nested`` (the job insert, a compilation's) then commits for good.
+        # Transactions begin explicitly instead, as they do on PostgreSQL (the SQLAlchemy recipe for pysqlite).
+        from sqlalchemy import event
+
+        @event.listens_for(engine.sync_engine, "connect")
+        def _no_implicit_transactions(dbapi_connection, _record):
+            dbapi_connection.isolation_level = None
+
+        @event.listens_for(engine.sync_engine, "begin")
+        def _begin_explicitly(connection):
+            if connection.get_execution_options().get("isolation_level") != "AUTOCOMMIT":
+                connection.exec_driver_sql("BEGIN")
+
     async with engine.begin() as connection:
         # A shared server keeps whatever the last test left behind; an
         # in-memory database never has anything to drop.

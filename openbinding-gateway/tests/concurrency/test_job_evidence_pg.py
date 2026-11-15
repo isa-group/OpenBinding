@@ -3,7 +3,7 @@
 Needs PostgreSQL (``TEST_DATABASE_URL``): the ``two_sessions`` fixture skips
 anywhere else, because SQLite ignores row locks. What these pin:
 
-* two simultaneous ``POST /v1/jobs/{id}/reevaluate`` complete the job once;
+* two simultaneous ``POST /v1/organizations/{org}/runs/{run}/reevaluate`` complete the job once;
 * BIM is called with no row lock held, so a cancellation does not wait for it;
 * a cancellation that arrives while BIM works ends the job CANCELLED, never
   COMPLETED, both for the worker and for the retry of a failed job;
@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
+from _problem_helpers import compiled_run_refs
 from datetime import timedelta
 
 import pytest
@@ -27,7 +28,7 @@ from openbinding_gateway.core.public_errors import JOB_FAILURES
 from openbinding_gateway.db.models import AuditEvent, Job, JobEngineEvidence, JobState, User, UserRole, utcnow
 from openbinding_gateway.jobs import leases
 from openbinding_gateway.models.platform import JobView
-from openbinding_gateway.routes import jobs as jobs_routes
+from openbinding_gateway.modules.execution.adapters import routes as jobs_routes
 from openbinding_gateway.services import execution
 
 TIMEOUT_S = 30
@@ -54,11 +55,8 @@ async def a_failed_job_with_evidence(session) -> tuple[User, Job, JobEngineEvide
     job = Job(
         owner_id=owner.id, engine_id="random-search", engine_job_id="engine-1", service_url="http://engine",
         state=JobState.FAILED, attempt=1,
-        original_request={
-            "bindingProblem": {"kind": "BindingProblem"},
-            "mode": {"id": "seeded", "terminationGuarantees": ["FEASIBLE"]},
-        },
-        provenance={},
+        original_request={"mode": {"id": "seeded", "terminationGuarantees": ["FEASIBLE"]}},
+        provenance={}, **await compiled_run_refs(session, owner.id),
     )
     session.add(job)
     await session.flush()
@@ -81,7 +79,7 @@ async def a_running_job(session) -> tuple[User, Job]:
     owner = await an_owner(session)
     job = Job(
         owner_id=owner.id, engine_id="random-search", engine_job_id="engine-1", service_url="http://engine",
-        state=JobState.QUEUED, requested_budget_s=600.0, provenance={},
+        state=JobState.QUEUED, requested_budget_s=600.0, provenance={}, **await compiled_run_refs(session, owner.id),
     )
     session.add(job)
     await session.commit()
@@ -137,8 +135,8 @@ async def test_of_two_simultaneous_retries_only_one_completes_the_job(two_sessio
 
     outcomes = await asyncio.wait_for(
         asyncio.gather(
-            jobs_routes.reevaluate_job(job.id, owner, first),
-            jobs_routes.reevaluate_job(job.id, owner, second),
+            jobs_routes.reevaluate_run(str(job.organization_id), job.id, owner, first),
+            jobs_routes.reevaluate_run(str(job.organization_id), job.id, owner, second),
             return_exceptions=True,
         ),
         TIMEOUT_S,
@@ -172,7 +170,7 @@ async def test_bim_is_called_with_no_lock_on_the_job_row(two_sessions, monkeypat
 
     monkeypatch.setattr(jobs_routes, "evaluate_engine_result", watching)
 
-    view = await asyncio.wait_for(jobs_routes.reevaluate_job(job.id, owner, first), TIMEOUT_S)
+    view = await asyncio.wait_for(jobs_routes.reevaluate_run(str(job.organization_id), job.id, owner, first), TIMEOUT_S)
 
     assert seen == {"free": True} and view.status == "completed"
 
@@ -192,7 +190,7 @@ async def test_a_cancellation_during_the_retry_never_completes_the_job(two_sessi
     monkeypatch.setattr(jobs_routes, "evaluate_engine_result", cancelled_meanwhile)
 
     with pytest.raises(HTTPException) as refused:
-        await asyncio.wait_for(jobs_routes.reevaluate_job(job.id, owner, first), TIMEOUT_S)
+        await asyncio.wait_for(jobs_routes.reevaluate_run(str(job.organization_id), job.id, owner, first), TIMEOUT_S)
     await first.rollback()
 
     assert refused.value.status_code == 409 and code_of(refused.value) == "cancellation_requested"
@@ -222,7 +220,7 @@ async def test_the_row_is_free_while_bim_works_and_a_cancellation_ends_the_job_c
     # The answer is durable and visible to others, and the cancellation does not wait for BIM.
     assert await evidence_count(second) == 1
     await second.rollback()
-    await asyncio.wait_for(jobs_routes.cancel_job(job.id, owner, second), TIMEOUT_S)
+    await asyncio.wait_for(jobs_routes.cancel_run(str(job.organization_id), job.id, owner, second), TIMEOUT_S)
     await second.commit()
     release.set()
     await asyncio.wait_for(worker, TIMEOUT_S)

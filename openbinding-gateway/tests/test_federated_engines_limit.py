@@ -1,8 +1,8 @@
-"""The plan's numeric ``federatedEngines``: how many registrations one owner may have active.
+"""The plan's ``maxFederatedEngines``: how many registrations one owner may have active.
 
 Only the *feature* of that name was applied before. The number is held where it can be
 measured without keeping any count of its own: activating a registration counts the owner's
-registrations that are active now, like the ``apiKeys`` and structure limits count rows. A
+registrations that are active now, like the ``maxApiKeys`` limit counts rows. A
 deactivated one stops counting, so nothing accumulates. An absent limit is zero (the
 convention for plan allowances: unknown is never room); an unlimited one sets none.
 
@@ -59,7 +59,7 @@ async def test_activating_past_the_limit_is_a_402_with_a_quota_and_verifies_noth
     assert (problem.status, problem.code) == (402, "quota_exceeded")
     assert problem.extra == {
         "quota": {
-            "limit_id": "federatedEngines", "state": "exhausted", "unit": "engine", "source": "plan",
+            "limit_id": "maxFederatedEngines", "state": "exhausted", "unit": "engine", "source": "plan",
             "limit": 1, "used": 1,
         }
     }
@@ -166,12 +166,12 @@ async def test_the_route_applies_the_plan_limit_and_states_the_quota(api_client,
     assert over.status_code == 402, over.text
     assert over.json()["code"] == "quota_exceeded"
     assert over.json()["quota"] == {
-        "limit_id": "federatedEngines", "state": "exhausted", "unit": "engine", "source": "plan",
+        "limit_id": "maxFederatedEngines", "state": "exhausted", "unit": "engine", "source": "plan",
         "limit": 1, "used": 1,
     }
 
     # A plan with more room lets the second one in.
-    set_plan(federatedEngines=3)
+    set_plan(maxFederatedEngines=3)
     assert (await api_client.post(
         f"/v1/engine-registrations/{second}/activate", params=second_ref, headers=headers
     )).status_code == 200

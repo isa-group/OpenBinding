@@ -39,8 +39,8 @@ Volumes: `pgdata`, `redisdata`, `artifacts`, `frontend_dist`. One network, `open
 `172.29.40.0/24`; the gateway believes `X-Forwarded-For` only from that subnet (`FORWARDED_ALLOW_IPS`).
 
 Site variables, required by `compose.yaml` with `${VAR:?}` (no default): `PUBLIC_ORIGIN`, `OPENBINDING_SECRETS_DIR`,
-`OPENBINDING_BACKUP_DIR`, `BACKUP_RETENTION_DAYS`, `NGINX_SSL_DIR` and `SPACE_URL`. `ci.env` holds placeholders for
-them. Image variables, also required: the nine `*_IMAGE` names of the table.
+`OPENBINDING_BACKUP_DIR`, `BACKUP_RETENTION_DAYS`, `NGINX_SSL_DIR`, `SPACE_URL` and `SPACE_ORGANIZATION_ID`. `ci.env`
+holds placeholders for them. Image variables, also required: the nine `*_IMAGE` names of the table.
 
 Every service has `mem_limit`, `cpus`, `no-new-privileges` and rotated `json-file` logs; every service except
 `migrate` has a health check and `restart: unless-stopped`.
@@ -106,6 +106,8 @@ OPENBINDING_BACKUP_DIR=/srv/openbinding/backups
 BACKUP_RETENTION_DAYS=14
 NGINX_SSL_DIR=/srv/openbinding/tls
 SPACE_URL=https://space.score.us.es
+# the SPACE organization that issues the pricing tokens (see "Remote SPACE"):
+SPACE_ORGANIZATION_ID=
 # the first administrator, see "First install":
 BOOTSTRAP_ADMIN_USERNAME=
 BOOTSTRAP_ADMIN_EMAIL=
@@ -396,17 +398,17 @@ of the release. Use the `server_name` of the first `listen 443 ssl` server of `n
    curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/x%2Fy?a=1&b=%20"
    ```
 
-5. `/%61pi/x` answers `400`; `/api/v1/jobs?limit=5` arrives as `GET /v1/jobs?limit=5`; `/static/a%20b.css` and
+5. `/%61pi/x` answers `400`; `/api/v1/organizations?limit=5` arrives as `GET /v1/organizations?limit=5`; `/static/a%20b.css` and
    `/avatars/u1.png?v=2` arrive unchanged, as `GET /static/a%20b.css` and `GET /avatars/u1.png?v=2`; and with
-   `--path-as-is`, `/api//v1/jobs` and `/api/v1/x/../jobs` arrive as `//v1/jobs` and `/v1/x/../jobs`:
+   `--path-as-is`, `/api//v1/organizations` and `/api/v1/x/../organizations` arrive as `//v1/organizations` and `/v1/x/../organizations`:
 
    ```bash
    curl -sk -o /dev/null -w '%{http_code}\n' --resolve <name>:8443:127.0.0.1 "https://<name>:8443/%61pi/x"
-   curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/jobs?limit=5"
+   curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/organizations?limit=5"
    curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/static/a%20b.css"
    curl -sk --resolve <name>:8443:127.0.0.1 "https://<name>:8443/avatars/u1.png?v=2"
-   curl -sk --path-as-is --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api//v1/jobs"
-   curl -sk --path-as-is --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/x/../jobs"
+   curl -sk --path-as-is --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api//v1/organizations"
+   curl -sk --path-as-is --resolve <name>:8443:127.0.0.1 "https://<name>:8443/api/v1/x/../organizations"
    docker logs gw1
    ```
 
@@ -449,29 +451,30 @@ rm -r <tls dir>
 
 8. After the first deployment of the release, when the real gateway runs, check what the stand-in could not show. Use
    the public origin for `<origin>` and the Compose network of the stack (see `docker network ls`) for `<network>`.
-   - Request `/api/v1/examples/library/manifest.json` and `/api/v1/examples/library%2FREADME.md` through the origin,
-     and the same two paths directly to the gateway from a container on the Compose network. The `nginx` image of this
-     repository is not relied on as a client; a Python image makes the request and does not normalise the path.
-     Compare the status and the body of each pair; they must be equal:
+   - Request `/api/v1/bim/templates/demo/01_simple_seq` and `/api/v1/bim/templates/demo%2F01_simple_seq` through the
+     origin, and the same two paths directly to the gateway from a container on the Compose network. The `nginx` image
+     of this repository is not relied on as a client; a Python image makes the request and does not normalise the path.
+     The answers are `.bim.zip` packages, so compare the status and the SHA-256 of the body of each pair; they must be
+     equal:
 
      ```bash
-     curl -sS -w '\n%{http_code}\n' "<origin>/api/v1/examples/library/manifest.json"
-     curl -sS -w '\n%{http_code}\n' "<origin>/api/v1/examples/library%2FREADME.md"
+     curl -sS -o >(sha256sum) -w '%{http_code}\n' "<origin>/api/v1/bim/templates/demo/01_simple_seq"
+     curl -sS -o >(sha256sum) -w '%{http_code}\n' "<origin>/api/v1/bim/templates/demo%2F01_simple_seq"
      docker run --rm --network <network> <python image> python -c \
-       "import http.client,sys; c=http.client.HTTPConnection('gateway',8000); c.request('GET',sys.argv[1]); r=c.getresponse(); print(r.read().decode()); print(r.status)" \
-       /v1/examples/library/manifest.json
+       "import hashlib,http.client,sys; c=http.client.HTTPConnection('gateway',8000); c.request('GET',sys.argv[1]); r=c.getresponse(); print(hashlib.sha256(r.read()).hexdigest()); print(r.status)" \
+       /v1/bim/templates/demo/01_simple_seq
      docker run --rm --network <network> <python image> python -c \
-       "import http.client,sys; c=http.client.HTTPConnection('gateway',8000); c.request('GET',sys.argv[1]); r=c.getresponse(); print(r.read().decode()); print(r.status)" \
-       /v1/examples/library%2FREADME.md
+       "import hashlib,http.client,sys; c=http.client.HTTPConnection('gateway',8000); c.request('GET',sys.argv[1]); r=c.getresponse(); print(hashlib.sha256(r.read()).hexdigest()); print(r.status)" \
+       /v1/bim/templates/demo%2F01_simple_seq
      ```
 
-   - Through the origin, with `curl --path-as-is`, request `/api//v1/jobs` and `/api/v1/x/../jobs`, which reach the
-     gateway as `//v1/jobs` and `/v1/x/../jobs`. Record the status and body of both in the deployment notes; they
+   - Through the origin, with `curl --path-as-is`, request `/api//v1/organizations` and `/api/v1/x/../organizations`, which
+     reach the gateway as `//v1/organizations` and `/v1/x/../organizations`. Record the status and body of both in the deployment notes; they
      document how the real gateway answers the raw form:
 
      ```bash
-     curl -sS --path-as-is -w '\n%{http_code}\n' "<origin>/api//v1/jobs"
-     curl -sS --path-as-is -w '\n%{http_code}\n' "<origin>/api/v1/x/../jobs"
+     curl -sS --path-as-is -w '\n%{http_code}\n' "<origin>/api//v1/organizations"
+     curl -sS --path-as-is -w '\n%{http_code}\n' "<origin>/api/v1/x/../organizations"
      ```
 
    - Restart only the gateway container, as the daemon does in the case of the section
@@ -903,6 +906,13 @@ Production and the laboratory use the remote SPACE, `https://space.score.us.es`.
 through `SPACE_URL` (required, set in `site.env`; the value is `https://space.score.us.es`) and the secret file `space_api_key`. The key never goes into
 the repository, an image, the logs or the browser. `SPACE_ENABLED` switches the integration, and `APP_ENV=prod` refuses
 the open gate (`SPACE_ENABLED=false`). Plans stay blocked only until the key and the URL are supplied.
+
+The gateway and the workers read pricing `0.2.0` (`SPACE_PRICING_VERSION`, `0.2.0` unless `site.env` sets another
+version that declares the same ids): at startup the gateway refuses a published pricing that lacks one of the ids it
+enforces. It verifies every pricing token against the keys SPACE publishes (JWKS) for the organization in
+`SPACE_ORGANIZATION_ID` (required, set in `site.env`; the gateway refuses to start in production without it, or when
+SPACE does not publish its keys). `SPACE_TOKEN_ISSUER` (`space`) and `SPACE_TOKEN_LEEWAY_S` (`30`) only need setting
+when SPACE issues its tokens differently. With `SPACE_DEFAULT_PLAN` unset, SPACE assigns the plan of a new contract.
 
 Production runs no local SPACE: this stack deploys and backs up no SPACE, and `compose.yaml` has no SPACE or SPHERE
 service, network or volume, so there is nothing of SPACE to restore. `tests/test_no_local_space.py` in

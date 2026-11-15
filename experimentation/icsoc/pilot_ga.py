@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 from pathlib import Path
 from typing import Any
 
@@ -75,6 +76,9 @@ def run_pilot(
     results_dir: Path,
     base_url: str,
     time_budget_ms: int,
+    *,
+    org: str,
+    token: str,
 ) -> None:
     pilot_csv = results_dir / "pilot_ga.csv"
     done = _completed(pilot_csv)
@@ -95,7 +99,7 @@ def run_pilot(
                 spec = RunSpec("evolutionary-heuristics", seed, options)
                 data, wall_s = solve_via_gateway(
                     base_url, spec.engine, instance, options,
-                    max_poll_s=time_budget_ms / 1000 + 900,
+                    max_poll_s=time_budget_ms / 1000 + 900, org=org, token=token,
                 )
                 row = _run_row(run_id, meta, spec, instance, data, wall_s)
                 row["config"] = config_name
@@ -139,10 +143,17 @@ if __name__ == "__main__":
     parser.add_argument("--gateway", default=DEFAULT_GATEWAY)
     parser.add_argument("--time-budget-ms", type=int, default=300_000)
     parser.add_argument("--summary", action="store_true", help="print the comparison and exit")
+    parser.add_argument("--org", default=os.environ.get("OPENBINDING_ORG", ""),
+                        help="organization (slug) the instances are uploaded to (default: $OPENBINDING_ORG); "
+                             "the bearer token is read from OPENBINDING_TOKEN")
     args = parser.parse_args()
 
     if args.summary:
         print_summary(Path(args.results))
     else:
-        run_pilot(Path(args.corpus), Path(args.results), args.gateway, args.time_budget_ms)
+        run_pilot(
+            Path(args.corpus), Path(args.results), args.gateway, args.time_budget_ms,
+            org=args.org or parser.error("--org (or OPENBINDING_ORG) is required"),
+            token=os.environ.get("OPENBINDING_TOKEN") or parser.error("OPENBINDING_TOKEN is required"),
+        )
         print_summary(Path(args.results))

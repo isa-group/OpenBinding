@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import uuid
+import io
+import zipfile
 from datetime import timedelta
 
 import jwt
@@ -19,7 +21,24 @@ from _b1_helpers import gate, make_account  # noqa: F401
 from openbinding_gateway import telemetry
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import ApiErrorEvent, utcnow
-from openbinding_gateway.routes import compositions
+from openbinding_gateway.models.errors import api_error
+from openbinding_gateway.modules.problems.application import validate as validate_module
+
+#: An anonymous route that does real work: the compile class of access/work_limits.py.
+PROBE = "/v1/bim/validate"
+#: An empty package, which the toolchain refuses with a 422.
+EMPTY_PACKAGE = {"content": b"", "headers": {"content-type": "application/vnd.bim+zip"}}
+
+
+def _instance_package(profile: str) -> dict:
+    """A package whose instance names ``profile``, which the schema refuses and quotes back."""
+    instance = json.dumps(
+        {"apiVersion": "bim/v1", "kind": "Instance", "metadata": {"name": "probe"}, "spec": {"profile": profile}}
+    )
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as package:
+        package.writestr("instance.json", instance)
+    return {"content": archive.getvalue(), "headers": {"content-type": "application/vnd.bim+zip"}}
 
 
 @pytest.fixture(autouse=True)
@@ -56,16 +75,19 @@ async def test_request_state_is_the_scope_state_the_middleware_reads():
     assert seen["user_id"] == uuid.UUID(int=7)
 
 
+#: Runs of an organization nobody here belongs to: an authenticated read of one is a 404, an anonymous one a 401.
+RUNS = "/v1/organizations/acme/runs"
+
 async def test_a_forged_bearer_with_a_foreign_sub_is_not_attributed(
     api_client, registration, db_session, gate  # noqa: F811
 ):
     victim, _ = await make_account(api_client, registration, db_session, gate)
     forged = jwt.encode({"sub": victim["id"]}, "not-the-signing-secret-0123456789", algorithm="HS256")
 
-    response = await api_client.get("/v1/jobs", headers={"Authorization": f"Bearer {forged}"})
+    response = await api_client.get(RUNS, headers={"Authorization": f"Bearer {forged}"})
 
     assert response.status_code == 401
-    events = await _events(db_session, "/v1/jobs")
+    events = await _events(db_session, RUNS)
     assert len(events) == 1
     assert events[0].user_id is None
 
@@ -76,10 +98,10 @@ async def test_a_valid_credential_is_attributed_to_its_user(
     user, headers = await make_account(api_client, registration, db_session, gate)
     missing = uuid.uuid4()
 
-    response = await api_client.get(f"/v1/jobs/{missing}", headers=headers)
+    response = await api_client.get(f"{RUNS}/{missing}", headers=headers)
 
     assert response.status_code == 404
-    events = await _events(db_session, f"/v1/jobs/{missing}")
+    events = await _events(db_session, f"{RUNS}/{missing}")
     assert len(events) == 1
     assert events[0].user_id == uuid.UUID(user["id"])
 
@@ -88,18 +110,18 @@ async def test_anonymous_401_events_are_limited_per_client(api_client, db_sessio
     monkeypatch.setattr(get_settings(), "anonymous_error_events_per_minute", 3)
 
     for _ in range(5):
-        assert (await api_client.get("/v1/jobs")).status_code == 401
+        assert (await api_client.get(RUNS)).status_code == 401
 
-    assert len(await _events(db_session, "/v1/jobs")) == 3
+    assert len(await _events(db_session, RUNS)) == 3
 
 
 async def test_anonymous_events_are_unlimited_when_the_limit_is_zero(api_client, db_session, monkeypatch):
     monkeypatch.setattr(get_settings(), "anonymous_error_events_per_minute", 0)
 
     for _ in range(5):
-        assert (await api_client.get("/v1/jobs")).status_code == 401
+        assert (await api_client.get(RUNS)).status_code == 401
 
-    assert len(await _events(db_session, "/v1/jobs")) == 5
+    assert len(await _events(db_session, RUNS)) == 5
 
 
 async def test_the_limit_does_not_apply_to_authenticated_users(
@@ -110,9 +132,9 @@ async def test_the_limit_does_not_apply_to_authenticated_users(
     missing = uuid.uuid4()
 
     for _ in range(3):
-        assert (await api_client.get(f"/v1/jobs/{missing}", headers=headers)).status_code == 404
+        assert (await api_client.get(f"{RUNS}/{missing}", headers=headers)).status_code == 404
 
-    assert len(await _events(db_session, f"/v1/jobs/{missing}")) == 3
+    assert len(await _events(db_session, f"{RUNS}/{missing}")) == 3
 
 
 def test_the_client_table_stays_bounded(monkeypatch):
@@ -152,20 +174,20 @@ async def test_anonymous_422_events_are_limited_per_client(api_client, db_sessio
     monkeypatch.setattr(get_settings(), "anonymous_error_events_per_minute", 3)
 
     for _ in range(5):
-        assert (await api_client.post("/v1/compositions/validate", json={})).status_code == 422
+        assert (await api_client.post(PROBE, **EMPTY_PACKAGE)).status_code == 422
 
-    assert len(await _events(db_session, "/v1/compositions/validate")) == 3
+    assert len(await _events(db_session, PROBE)) == 3
 
 
 async def test_anonymous_429_events_are_limited_per_client(api_client, db_session, monkeypatch):
     settings = get_settings()
     monkeypatch.setattr(settings, "anonymous_error_events_per_minute", 2)
-    monkeypatch.setattr(settings, "work_rate_limit_read_requests", 1)
+    monkeypatch.setattr(settings, "work_rate_limit_compile_requests", 1)
 
-    statuses = [(await api_client.post("/v1/compositions/parse", json={})).status_code for _ in range(6)]
+    statuses = [(await api_client.post(PROBE, **EMPTY_PACKAGE)).status_code for _ in range(6)]
 
     assert statuses == [422] + [429] * 5
-    rows = await _events(db_session, "/v1/compositions/parse")
+    rows = await _events(db_session, PROBE)
     assert len(rows) == 2
     assert {row.status_code for row in rows} == {422, 429}
 
@@ -174,19 +196,21 @@ async def test_anonymous_503_events_are_limited_per_client(api_client, db_sessio
     monkeypatch.setattr(get_settings(), "anonymous_error_events_per_minute", 2)
 
     async def busy(*_: object, **__: object):
-        raise compositions._readers_busy()
+        raise api_error(
+            503, "bim_unavailable", "The BIM toolchain is busy; retry shortly.", headers={"Retry-After": "5"}
+        )
 
-    monkeypatch.setattr(compositions, "_on", busy)
+    monkeypatch.setattr(validate_module, "compile_package", busy)
 
     answers = []
     for _ in range(4):
-        response = await api_client.post("/v1/compositions/validate", json={"source": "a: 1\n"})
+        response = await api_client.post(PROBE, **EMPTY_PACKAGE)
         assert response.status_code == 503
         answers.append(response.json()["correlationId"])
 
-    rows = await _events(db_session, "/v1/compositions/validate")
+    rows = await _events(db_session, PROBE)
     assert len(rows) == 2
-    assert {row.error_code for row in rows} == {"composition_busy"}
+    assert {row.error_code for row in rows} == {"bim_unavailable"}
     # A 5xx keeps the one thing that leads from the row to its cause in the log.
     assert {row.detail["correlationId"] for row in rows} == set(answers[:2])
 
@@ -194,18 +218,16 @@ async def test_anonymous_503_events_are_limited_per_client(api_client, db_sessio
 async def test_an_anonymous_event_holds_counts_and_no_message(api_client, db_session):
     secret = "A VALUE THE CALLER CHOSE"
 
-    response = await api_client.post(
-        "/v1/compositions/package", json={"source": f"composition: {secret}\n"}
-    )
+    response = await api_client.post(PROBE, **_instance_package(secret))
 
     assert response.status_code == 422
     assert secret in response.text  # the caller is told; the table is not
-    [event] = await _events(db_session, "/v1/compositions/package")
+    [event] = await _events(db_session, PROBE)
     assert event.user_id is None
     assert event.detail == {
-        "code": "invalid_composition",
+        "code": "invalid_instance",
         "status": 422,
-        "endpoint": "/v1/compositions/package",
+        "endpoint": PROBE,
         "counts": {"diagnostics": len(response.json()["diagnostics"]), "suppressed": 0},
     }
     assert secret not in json.dumps(event.detail)
@@ -227,13 +249,13 @@ async def test_the_next_event_says_how_many_went_unrecorded(api_client, db_sessi
     monkeypatch.setattr(get_settings(), "anonymous_error_events_per_minute", 1)
 
     for _ in range(4):
-        await api_client.post("/v1/compositions/validate", json={})
-    assert len(await _events(db_session, "/v1/compositions/validate")) == 1
+        await api_client.post(PROBE, **EMPTY_PACKAGE)
+    assert len(await _events(db_session, PROBE)) == 1
 
     telemetry._anonymous_hits["127.0.0.1"].clear()  # the minute has passed
-    await api_client.post("/v1/compositions/validate", json={})
+    await api_client.post(PROBE, **EMPTY_PACKAGE)
 
-    rows = await _events(db_session, "/v1/compositions/validate")
+    rows = await _events(db_session, PROBE)
     assert sorted(row.detail["counts"]["suppressed"] for row in rows) == [0, 3]
     assert telemetry._anonymous_suppressed == {}
 
@@ -246,9 +268,9 @@ async def test_the_addresses_of_one_ipv6_network_share_their_events(api_client, 
     for host in ("2001:db8:1:2::1", "2001:db8:1:2::2"):
         transport = ASGITransport(app=app, client=(host, 51000))
         async with AsyncClient(transport=transport, base_url="http://gateway") as client:
-            await client.post("/v1/compositions/validate", json={})
+            await client.post(PROBE, **EMPTY_PACKAGE)
 
-    assert len(await _events(db_session, "/v1/compositions/validate")) == 1
+    assert len(await _events(db_session, PROBE)) == 1
 
 
 async def test_a_signed_in_failure_is_kept_whole_and_not_limited(
@@ -259,11 +281,11 @@ async def test_a_signed_in_failure_is_kept_whole_and_not_limited(
 
     for _ in range(3):
         response = await api_client.post(
-            "/v1/compositions/package", json={"source": "composition: [\n"}, headers=headers
+            PROBE, content=EMPTY_PACKAGE["content"], headers={**headers, **EMPTY_PACKAGE["headers"]}
         )
         assert response.status_code == 422
 
-    rows = await _events(db_session, "/v1/compositions/package")
+    rows = await _events(db_session, PROBE)
     assert len(rows) == 3
     assert all(row.user_id == uuid.UUID(user["id"]) for row in rows)
     assert all(row.detail["diagnostics"] and "counts" not in row.detail for row in rows)
@@ -275,11 +297,11 @@ async def test_a_signed_in_failure_of_a_package_validation_is_attributed(
     user, headers = await make_account(api_client, registration, db_session, gate)
 
     response = await api_client.post(
-        "/v1/instances/validate", content=b"not a zip", headers={**headers, "content-type": "application/zip"}
+        PROBE, content=b"not a zip", headers={**headers, "content-type": "application/zip"}
     )
 
     assert response.status_code >= 400
-    [event] = await _events(db_session, "/v1/instances/validate")
+    [event] = await _events(db_session, PROBE)
     assert event.user_id == uuid.UUID(user["id"])
 
 

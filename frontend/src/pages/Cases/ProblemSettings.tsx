@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { TriangleAlert } from 'lucide-react';
-import { casesApi } from '../../api/cases';
-import type { BindingCase, Organization, Project } from '../../api/platform';
+import type { Organization } from '../../api/platform';
+import { problemsApi, type Problem } from '../../api/problems';
 import { Action } from '../../components/ui/Action';
 import { FormField } from '../../components/ui/FormField';
 import { updateRefusal } from './caseErrors';
@@ -9,8 +9,8 @@ import { DESCRIPTION_MAX, NAME_MAX } from './casesModel';
 import { DeleteCaseDialog } from './dialogs';
 
 /** The Settings tab of the problem page: the name and the description, and deleting the problem. */
-export function ProblemSettings({ organization, project, item, sealed, canEdit, canAdminister, onSaved, onDeleted }: {
-  organization: Organization; project: Project; item: BindingCase; sealed: number;
+export function ProblemSettings({ organization, item, canEdit, canAdminister, onSaved, onDeleted }: {
+  organization: Organization; item: Problem;
   /** MEMBER or above: the name and the description change; the page already says what a role below it can do. */
   canEdit: boolean; canAdminister: boolean; onSaved: () => void; onDeleted: (name: string) => void;
 }) {
@@ -29,7 +29,7 @@ export function ProblemSettings({ organization, project, item, sealed, canEdit, 
     setError(undefined);
     setSaved(false);
     try {
-      await casesApi.updateCase(organization.slug, project.slug, item.slug, { name: name.trim(), description: description.trim() });
+      await problemsApi.update(organization.slug, item.slug, { name: name.trim(), description: description.trim() });
       setSaved(true);
       onSaved();
     } catch (caught) {
@@ -62,13 +62,13 @@ export function ProblemSettings({ organization, project, item, sealed, canEdit, 
       {canAdminister && (
         <section className="org-section" aria-labelledby="ps-delete">
           <h2 id="ps-delete">Delete</h2>
-          <p className="org-muted">A problem with sealed versions can’t be deleted, because versions are history.</p>
+          <p className="org-muted">Deleting removes the problem and its versions. A problem that runs or studies used can’t be deleted: it stays as their evidence.</p>
           <div className="proj-actions"><Action variant="danger-outline" onClick={() => setDeleting(true)}>Delete problem</Action></div>
         </section>
       )}
 
       {deleting && (
-        <DeleteCaseDialog organization={organization} project={project} item={item} sealed={sealed} onClose={() => setDeleting(false)} onDeleted={onDeleted} />
+        <DeleteCaseDialog organization={organization} item={item} onClose={() => setDeleting(false)} onDeleted={onDeleted} />
       )}
     </>
   );

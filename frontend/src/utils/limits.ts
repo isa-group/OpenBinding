@@ -8,8 +8,8 @@
 
 import { formatByteSize, formatNumber } from './format';
 
-export type LimitGroup = 'monthly' | 'capacity' | 'ceiling' | 'sponsored';
-export type LimitKind = 'count' | 'seconds' | 'bytes' | 'log10' | 'days';
+export type LimitGroup = 'monthly' | 'capacity' | 'ceiling';
+export type LimitKind = 'count' | 'seconds' | 'minutes' | 'hours' | 'bytes' | 'megabytes' | 'log10' | 'days';
 
 export interface LimitInfo {
   label: string;
@@ -19,24 +19,42 @@ export interface LimitInfo {
   kind: LimitKind;
 }
 
+/**
+ * The entitlement ids of pricing 0.2.0 the interface reads, mirroring the gateway's
+ * `modules/plans/domain/entitlement_map.py`. Every other module names a limit or a feature through these.
+ */
+export const LIMIT = {
+  solverHours: 'solverHours',
+  maxRunMinutes: 'maxRunMinutes',
+  maxConcurrentRuns: 'maxConcurrentRuns',
+  maxStudyCells: 'maxStudyCells',
+  maxFederatedEngines: 'maxFederatedEngines',
+  maxApiKeys: 'maxApiKeys',
+  maxProblems: 'maxProblems',
+  maxRepositoryStorage: 'maxRepositoryStorage',
+} as const;
+
+export const FEATURE = {
+  runs: 'runs',
+  federatedEngines: 'federatedEngines',
+  studies: 'studies',
+  repository: 'repository',
+  apiAccess: 'apiAccess',
+} as const;
+
+/** One MB of `maxRepositoryStorage`, as the pricing's unit says (decimal). */
+export const BYTES_PER_MB = 1_000_000;
+
 const KNOWN: Record<string, LimitInfo> = {
-  // Only a label for the published pricing document, which the Pricing page renders as it is; the gateway counts none of it.
-  studyRuns: { label: 'Study runs', short: 'study runs', group: 'monthly', kind: 'count' },
-  concurrentJobs: { label: 'Concurrent runs', short: 'runs', group: 'capacity', kind: 'count' },
-  federatedEngines: { label: 'Federated engines', short: 'federated engines', group: 'capacity', kind: 'count' },
-  apiKeys: { label: 'API keys', short: 'API keys', group: 'capacity', kind: 'count' },
-  maxTimeoutSeconds: { label: 'Max time per run', short: 'runs', group: 'ceiling', kind: 'seconds' },
-  maxIterations: { label: 'Max iterations', short: 'runs', group: 'ceiling', kind: 'count' },
-  maxPayloadBytes: { label: 'Max package size', short: 'requests', group: 'ceiling', kind: 'bytes' },
-  maxInstanceComplexityLog10: { label: 'Max problem size', short: 'problems', group: 'ceiling', kind: 'log10' },
-  jobHistoryDays: { label: 'Run history', short: 'history', group: 'ceiling', kind: 'days' },
-  organizations: { label: 'Organizations', short: 'organizations', group: 'sponsored', kind: 'count' },
-  members: { label: 'Members', short: 'members', group: 'sponsored', kind: 'count' },
-  projects: { label: 'Projects', short: 'projects', group: 'sponsored', kind: 'count' },
-  privateProjects: { label: 'Private projects', short: 'private projects', group: 'sponsored', kind: 'count' },
-  collections: { label: 'Collections', short: 'collections', group: 'sponsored', kind: 'count' },
-  studies: { label: 'Studies', short: 'studies', group: 'sponsored', kind: 'count' },
-  storageBytes: { label: 'Storage', short: 'storage', group: 'sponsored', kind: 'bytes' },
+  // The gateway meters no solver time yet (F3/F8); the Pricing page shows the published allowance.
+  [LIMIT.solverHours]: { label: 'Solver hours', short: 'runs', group: 'monthly', kind: 'hours' },
+  [LIMIT.maxConcurrentRuns]: { label: 'Concurrent runs', short: 'runs', group: 'capacity', kind: 'count' },
+  [LIMIT.maxFederatedEngines]: { label: 'Federated engines', short: 'federated engines', group: 'capacity', kind: 'count' },
+  [LIMIT.maxApiKeys]: { label: 'API keys', short: 'API keys', group: 'capacity', kind: 'count' },
+  [LIMIT.maxProblems]: { label: 'Problems', short: 'problems', group: 'capacity', kind: 'count' },
+  [LIMIT.maxRepositoryStorage]: { label: 'Repository storage', short: 'storage', group: 'capacity', kind: 'megabytes' },
+  [LIMIT.maxRunMinutes]: { label: 'Max time per run', short: 'runs', group: 'ceiling', kind: 'minutes' },
+  [LIMIT.maxStudyCells]: { label: 'Cells per study run', short: 'study runs', group: 'ceiling', kind: 'count' },
 };
 
 /** The order the known limits are listed in; any other limit follows them. */
@@ -60,9 +78,12 @@ export function limitInfo(id: string, definition?: LimitDefinition): LimitInfo {
   if (known) return known;
   const unit = typeof definition?.unit === 'string' ? definition.unit : '';
   const kind: LimitKind = unit === 'second' || unit === 'second/month' ? 'seconds'
-    : unit === 'byte' ? 'bytes'
-      : unit === 'day' ? 'days'
-        : unit.startsWith('log10') ? 'log10' : 'count';
+    : unit === 'minute' ? 'minutes'
+      : unit === 'hour' || unit === 'hour/month' ? 'hours'
+        : unit === 'byte' ? 'bytes'
+          : unit === 'MB' ? 'megabytes'
+            : unit === 'day' ? 'days'
+              : unit.startsWith('log10') ? 'log10' : 'count';
   const group: LimitGroup = definition?.type === 'RENEWABLE' ? 'monthly' : definition?.trackable === true ? 'capacity' : 'ceiling';
   return { label: humanize(id), short: humanize(id).toLowerCase(), group, kind };
 }
@@ -71,7 +92,6 @@ export const LIMIT_GROUPS: ReadonlyArray<{ id: LimitGroup; title: string; note: 
   { id: 'monthly', title: 'Monthly', note: 'Renew each month' },
   { id: 'capacity', title: 'Capacity', note: 'Freed when work ends' },
   { id: 'ceiling', title: 'Per request', note: 'Ceilings for each run' },
-  { id: 'sponsored', title: 'Sponsored', note: 'Counted across a sponsor’s organizations' },
 ];
 
 const SUPERSCRIPT: Record<string, string> = {
@@ -116,6 +136,14 @@ export function describeLimit(kind: LimitKind, value: number | null | undefined)
       const exact = `${formatCount(value)} s`;
       return text === exact ? { text } : { text, exact };
     }
+    case 'minutes':
+      // The exact figure keeps its unit even when it reads the same: a bare "5" would not say what it counts.
+      return { text: formatDuration(value * 60), exact: `${formatCount(value)} min` };
+    case 'hours':
+      return { text: `${formatCount(value)} h`, exact: `${formatCount(value)} h` };
+    case 'megabytes':
+      // Decimal, as the pricing writes it: 500 MB is 500,000,000 bytes.
+      return { text: value >= 1000 ? `${trimmed(value / 1000)} GB` : `${formatCount(value)} MB`, exact: `${formatCount(value)} MB` };
     case 'bytes': {
       const text = formatByteSize(value);
       const exact = `${formatCount(value)} bytes`;

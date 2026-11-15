@@ -30,6 +30,7 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..modules.plans.application import entitlement_map as ids
 from ..core import revision as core_revision
 from ..core.settings import Settings
 from ..models.problem import split_detail
@@ -963,6 +964,39 @@ def _event_payload(registration: EngineRegistrationRevision, caller: User) -> di
     }
 
 
+async def _deactivate(session: AsyncSession, registration: EngineRegistrationRevision, caller: User) -> None:
+    """Take a registration out of service: no new run selects it. Administrators hear of a published one."""
+    was_published = registration.publication_status == "published"
+    registration.is_active = False
+    if was_published:
+        await _notify_admins(
+            session,
+            kind="engine.deactivated",
+            subject=f"Published engine paused: {registration.namespace}/{registration.name}",
+            body=f"The published federated engine {registration.namespace}/{registration.name}@{registration.version} has been paused by {caller.username}.",
+            payload=_event_payload(registration, caller),
+        )
+
+
+async def deactivate_owned_registrations(session: AsyncSession, owner: User) -> int:
+    """Deactivate every active registration of ``owner``, as the ``deactivate`` route does; returns how many.
+
+    Used when an account is deleted: its engine and registration revisions stay
+    (past runs name them in their provenance), but nobody answers for them any more.
+    """
+    registrations = (
+        await session.execute(
+            select(EngineRegistrationRevision).where(
+                EngineRegistrationRevision.owner_id == owner.id,
+                EngineRegistrationRevision.is_active.is_(True),
+            )
+        )
+    ).scalars().all()
+    for registration in registrations:
+        await _deactivate(session, registration, owner)
+    return len(registrations)
+
+
 async def change_registration(
     key: RegistrationKey,
     caller: User,
@@ -978,7 +1012,7 @@ async def change_registration(
     Activating, requesting publication and approving verify the deployment first (``verify``, by default
     ``verify_registration`` with the process transport); a failed check leaves the registration inactive.
 
-    ``max_active`` is the plan's ``federatedEngines``: activating an inactive registration of an owner who
+    ``max_active`` is the plan's ``maxFederatedEngines``: activating an inactive registration of an owner who
     already has that many active ones is refused with 402 before anything is verified. It counts rows (the
     registrations that exist and are active now), like the other structure limits; ``None`` sets no limit,
     and activating a registration that is active already is not a second one.
@@ -1008,7 +1042,7 @@ async def change_registration(
     if action == "activate":
         if max_active is not None and not registration.is_active:
             # Serialise this owner's count-and-activate, as the API-key limit does.
-            await session.execute(select(User.id).where(User.id == registration.owner_id).with_for_update())
+            await session.execute(select(User.id).where(User.id == registration.owner_id).with_for_update(key_share=True))
             # The row was read before the lock was got, and a request that held the lock may have activated this
             # very registration meanwhile: that is a repeated activation, not a second place, so it is answered
             # with the active registration instead of being counted against the limit.
@@ -1032,7 +1066,7 @@ async def change_registration(
                     f"{'' if int(max_active) == 1 else 's'}, and you have {active}. Deactivate one first.",
                     extra={
                         "quota": {
-                            "limit_id": "federatedEngines", "state": "exhausted", "unit": "engine",
+                            "limit_id": ids.MAX_FEDERATED_ENGINES, "state": "exhausted", "unit": "engine",
                             "source": "plan", "limit": int(max_active), "used": active,
                         }
                     },
@@ -1040,16 +1074,7 @@ async def change_registration(
         await _verify_registration_row(registration, session, settings=settings, verify=verifier)
         registration.is_active = True
     elif action == "deactivate":
-        was_published = registration.publication_status == "published"
-        registration.is_active = False
-        if was_published:
-            await _notify_admins(
-                session,
-                kind="engine.deactivated",
-                subject=f"Published engine paused: {registration.namespace}/{registration.name}",
-                body=f"The published federated engine {registration.namespace}/{registration.name}@{registration.version} has been paused by {caller.username}.",
-                payload=_event_payload(registration, caller),
-            )
+        await _deactivate(session, registration, caller)
     elif action == "request_publication":
         if registration.publication_status == "published":
             return registration_summary(registration)

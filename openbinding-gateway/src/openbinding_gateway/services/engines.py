@@ -15,7 +15,7 @@ import os
 import re
 import uuid
 from pathlib import Path
-from typing import Any, Mapping, NamedTuple
+from typing import Any, Callable, Mapping, NamedTuple
 
 import jsonschema
 from bim_core import ContractError
@@ -25,7 +25,8 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.settings import get_settings
-from ..db.models import EngineRegistrationRevision, EngineRevision, Job, User
+from ..db.models import EngineRegistrationRevision, EngineRevision, Job, User, utcnow
+from ..repositories import jobs as job_repository
 from ..integrations import bim
 from ..integrations.bim_host import engine_contract_diagnostics  # noqa: F401 - the platform's name for it
 from ..security.apikeys import allows_engine
@@ -691,20 +692,20 @@ async def compatible_modes(
     )
 
 
-async def owned_job(job_id: str, caller: User | None, session: AsyncSession | None):
-    if session is None:
-        return None
-    try:
-        parsed = uuid.UUID(job_id)
-    except ValueError:
-        return None
-    if caller is None:
-        return None
-    job = (
-        await session.execute(
-            select(Job).where(Job.id == parsed, Job.owner_id == caller.id)
-        )
-    ).scalars().first()
+async def run_in_org(
+    session: AsyncSession,
+    organization_id: uuid.UUID,
+    run_id: uuid.UUID,
+    caller: User,
+    *,
+    lock: bool = False,
+) -> Job | None:
+    """A run of this organization the caller may see, or ``None``.
+
+    Membership is the route's to check. An API key sees only the runs of the Engine revisions it
+    may use (``allows_engine``); any other run reads as absent.
+    """
+    job = await job_repository.get_in_org(session, organization_id, run_id, lock=lock)
     if job is None:
         return None
     provenance = job.provenance if isinstance(job.provenance, dict) else {}
@@ -906,3 +907,170 @@ async def persisted_engine_contract(
     if selected is None or mode_execution_contract(selected) != mode:
         return None
     return engine_document
+
+
+# -- Read-only documents: the engine protocol profile and the visible Engines -------------------------
+
+
+class EngineDocumentProblem(Exception):
+    """A refusal the HTTP layer renders as ``application/problem+json``."""
+
+    def __init__(self, status: int, code: str, detail: str) -> None:
+        super().__init__(detail)
+        self.status = status
+        self.code = code
+        self.detail = detail
+
+
+def profiles_document() -> dict[str, Any]:
+    """The installed Profiles with the engine protocol each one targets (``GET /v1/engines/protocol``).
+
+    Federated registration reads the ``protocolDigest`` and the capability vocabulary from here, anonymously.
+    """
+    return {
+        "profiles": [
+            {
+                **entry["manifest"],
+                "id": entry["descriptor"]["id"],
+                "digest": entry["descriptor"]["digest"],
+                "output": entry["manifest"]["spec"]["output"],
+                "protocol": entry["manifest"]["spec"]["output"]["engineProtocol"],
+                "protocolDigest": protocol_digest(),
+            }
+            for entry in bim.profile_entries()
+        ]
+    }
+
+
+async def engines_document(session: AsyncSession | None, caller: User | None) -> dict[str, Any]:
+    """The Engines the caller may use."""
+    engines = []
+    for document, namespace in await available_engine_documents(session, caller):
+        reference = engine_ref(document, namespace)
+        if not allows_engine(caller, reference):
+            continue
+        engines.append(
+            {
+                "id": reference["name"],
+                "name": reference["name"],
+                "namespace": reference["namespace"],
+                "version": reference["version"],
+                "digest": reference["digest"],
+                "ref": reference,
+                "modes": document.get("spec", {}).get("modes", []),
+            }
+        )
+    return {"engines": engines}
+
+
+async def engine_revisions_document(session: AsyncSession | None, caller: User | None) -> dict[str, Any]:
+    """Every stored Engine revision with its registration; the built-in Engines when nothing is stored."""
+    revisions: list[dict[str, Any]] = []
+    if session is not None:
+        db_revs = (await session.execute(
+            select(EngineRevision).order_by(EngineRevision.namespace, EngineRevision.name, EngineRevision.version.desc())
+        )).scalars().all()
+        reg_rows = (await session.execute(
+            select(EngineRegistrationRevision)
+        )).scalars().all()
+        reg_by_engine_digest = {r.engine_digest: r for r in reg_rows}
+        reg_by_name = {(r.namespace, r.name, r.version): r for r in reg_rows}
+
+        for rev in db_revs:
+            reg = reg_by_engine_digest.get(rev.digest) or reg_by_name.get((rev.namespace, rev.name, rev.version))
+            revisions.append({
+                "id": str(rev.id),
+                "namespace": rev.namespace,
+                "name": rev.name,
+                "version": rev.version,
+                "digest": rev.digest,
+                "state": rev.state,
+                "createdAt": rev.created_at.isoformat() if rev.created_at else None,
+                "document": rev.document,
+                "registration": registration_summary(reg) if reg else None,
+            })
+
+    if not revisions:
+        for doc, ns in await available_engine_documents(session, caller):
+            ref = engine_ref(doc, ns)
+            revisions.append({
+                "id": f"{ref['namespace']}:{ref['name']}:{ref['version']}",
+                "namespace": ref["namespace"],
+                "name": ref["name"],
+                "version": ref["version"],
+                "digest": ref["digest"],
+                "state": "published",
+                "createdAt": utcnow().isoformat(),
+                "document": doc,
+                "registration": None,
+            })
+
+    return {"revisions": revisions}
+
+
+async def engine_revision_document(
+    namespace: str,
+    name: str,
+    version: str,
+    session: AsyncSession | None,
+    *,
+    manifest: Callable[..., dict[str, Any]],
+) -> dict[str, Any]:
+    """One Engine revision; ``manifest`` reads a built-in one when nothing is stored."""
+    rev = None
+    reg = None
+    if session is not None:
+        rev = (await session.execute(
+            select(EngineRevision).where(
+                EngineRevision.namespace == namespace,
+                EngineRevision.name == name,
+                EngineRevision.version == version,
+            )
+        )).scalars().first()
+
+        reg = (await session.execute(
+            select(EngineRegistrationRevision).where(
+                EngineRegistrationRevision.namespace == namespace,
+                EngineRegistrationRevision.name == name,
+                EngineRegistrationRevision.version == version,
+            )
+        )).scalars().first()
+
+    if rev is None:
+        try:
+            doc = manifest(name, namespace=namespace, version=version)
+            rev_digest = digest(doc)
+            return {
+                "namespace": namespace,
+                "name": name,
+                "version": version,
+                "digest": rev_digest,
+                "document": doc,
+                "state": "published",
+                "registration": None,
+            }
+        except HTTPException as exc:
+            raise EngineDocumentProblem(404, "not_found", "Engine revision not found") from exc
+
+    return {
+        "id": str(rev.id),
+        "namespace": rev.namespace,
+        "name": rev.name,
+        "version": rev.version,
+        "digest": rev.digest,
+        "state": rev.state,
+        "createdAt": rev.created_at.isoformat() if rev.created_at else None,
+        "document": rev.document,
+        "registration": {
+            "id": str(reg.id),
+            "manifestDigest": reg.manifest_digest,
+            "endpoint": reg.endpoint,
+            "protocolDigest": reg.protocol_digest,
+            "openapiDigest": reg.openapi_digest,
+            "openapiDocument": reg.openapi_document,
+            "verificationReport": reg.verification_report,
+            "verifiedAt": reg.verified_at.isoformat() if reg.verified_at else None,
+            "publicationStatus": reg.publication_status,
+            "isActive": reg.is_active,
+        } if reg else None,
+    }

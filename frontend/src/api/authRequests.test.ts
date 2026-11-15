@@ -128,15 +128,15 @@ describe('invitation acceptance', () => {
     expect(member.role).toBe('MEMBER');
   });
 
-  it('turns the sponsor’s full quota into a QuotaError with its limit', async () => {
+  it('turns a full quota into a QuotaError with its limit', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({
-      detail: { code: 'sponsor_quota_exceeded', error: 'The sponsor contract allows 15 members.', quota: { limit_id: 'members', limit: 15, used: 16 } },
+      detail: { code: 'quota_exceeded', error: 'The plan allows 15 problems.', quota: { limit_id: 'maxProblems', limit: 15, used: 16 } },
     }, 402));
 
     const error = await platformApi.acceptInvitation('obi_secret_value').catch((caught: unknown) => caught);
 
     expect(error).toBeInstanceOf(QuotaError);
-    expect(error).toMatchObject({ code: 'sponsor_quota_exceeded', quota: { limit: 15, used: 16 } });
+    expect(error).toMatchObject({ code: 'quota_exceeded', quota: { limit: 15, used: 16 } });
   });
 
   it('throws the 404 the gateway gives every unusable token, and the 422 of a short one', async () => {

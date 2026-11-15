@@ -7,7 +7,7 @@ import { AuthContext } from '../../contexts/auth';
 import { AccountKeyNew } from './AccountKeyNew';
 
 const api = vi.hoisted(() => ({ getEngines: vi.fn(), createApiKey: vi.fn() }));
-const platform = vi.hoisted(() => ({ organizations: vi.fn(), projects: vi.fn() }));
+const platform = vi.hoisted(() => ({ organizations: vi.fn() }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
@@ -55,7 +55,6 @@ describe('New API key', () => {
     api.getEngines.mockResolvedValue([engine]);
     api.createApiKey.mockResolvedValue(created);
     platform.organizations.mockResolvedValue([{ id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group' }]);
-    platform.projects.mockResolvedValue([{ id: 'p1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks' }]);
   });
 
   it('starts with the name and expiry, in a five-step wizard inside the dialog New API key', async () => {
@@ -99,7 +98,7 @@ describe('New API key', () => {
       renderWizard();
       await nameIt();
 
-      expect(screen.getAllByRole('checkbox')).toHaveLength(25);
+      expect(screen.getAllByRole('checkbox')).toHaveLength(20);
       for (const id of ['engines:moderate', 'admin:accounts:read', 'admin:accounts:write']) {
         expect(permission(id)).toBeDisabled();
       }
@@ -123,12 +122,12 @@ describe('New API key', () => {
       await nameIt();
 
       fireEvent.click(screen.getByRole('button', { name: 'Preset: read results' }));
-      for (const id of ['jobs:read', 'studies:read', 'projects:read']) expect(permission(id)).toBeChecked();
+      for (const id of ['jobs:read', 'studies:read', 'problems:read']) expect(permission(id)).toBeChecked();
       expect(permission('engines:execute')).not.toBeChecked();
 
       fireEvent.click(screen.getByRole('button', { name: 'Preset: run an engine' }));
       expect(permission('engines:execute')).toBeChecked();
-      expect(permission('projects:read')).not.toBeChecked();
+      expect(permission('studies:read')).not.toBeChecked();
 
       fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
       expect(screen.getAllByRole('checkbox').some((box) => (box as HTMLInputElement).checked)).toBe(false);
@@ -200,13 +199,13 @@ describe('New API key', () => {
       await heading(/^Limits/);
     }
 
-    it('offers the methods, the organizations and projects of the account, and kinds', async () => {
+    it('offers the methods, the organizations of the account, and kinds, and no projects', async () => {
       await toLimits();
 
       const methods = within(screen.getByRole('group', { name: 'HTTP methods' }));
       expect(methods.getAllByRole('button')).toHaveLength(5);
       expect(await within(screen.getByRole('group', { name: 'Organizations' })).findByRole('button', { name: 'isa-demo' })).toBeInTheDocument();
-      expect(await within(screen.getByRole('group', { name: 'Projects' })).findByRole('button', { name: 'qos-benchmarks' })).toBeInTheDocument();
+      expect(screen.queryByRole('group', { name: 'Projects' })).not.toBeInTheDocument();
       expect(within(screen.getByRole('group', { name: 'Resource kinds' })).getByRole('button', { name: 'studies' })).toHaveAttribute('aria-pressed', 'false');
     });
 

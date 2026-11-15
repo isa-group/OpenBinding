@@ -16,6 +16,7 @@ import asyncio
 import inspect
 import logging
 import uuid
+from _problem_helpers import placeholder_refs
 from datetime import timedelta
 from types import SimpleNamespace
 
@@ -81,7 +82,7 @@ async def a_job(session, owner, *, state=JobState.RUNNING, age_s=None, budget_s=
         state=state,
         requested_budget_s=budget_s,
         created_at=utcnow() - timedelta(seconds=age_s),
-        **extra,
+        **{**placeholder_refs(), **extra},
     )
     session.add(job)
     await session.commit()
@@ -348,10 +349,12 @@ def sqlite_only(db_session):
 async def a_cell(session, owner, job_id, state=RunState.RUNNING) -> uuid.UUID:
     run = StudyRun(
         study_id=uuid.uuid4(),
-        definition_version_id=uuid.uuid4(),
         run_number=1,
         state=RunState.RUNNING,
         matrix_digest="sha256-" + "0" * 64,
+        definition={"apiVersion": "openbinding/study-run/v1", "problems": [], "engines": [],
+                    "parameterSets": [{}], "seeds": [0]},
+        definition_digest="sha256-" + "1" * 64,
         created_by_id=owner.id,
     )
     session.add(run)
@@ -360,6 +363,7 @@ async def a_cell(session, owner, job_id, state=RunState.RUNNING) -> uuid.UUID:
         study_run_id=run.id,
         ordinal=0,
         binding_case_revision_id=uuid.uuid4(),
+        compilation_id=uuid.uuid4(),
         engine_ref={"namespace": "bim.builtin", "name": "random-search", "version": "1.0.0"},
         parameters={},
         seed=0,
@@ -472,10 +476,7 @@ def one_pass(db_session, monkeypatch):
 
 
 async def test_a_cycle_needs_no_analysis_tasks_or_sponsor_proposals(one_pass, db_session, owner, logs):
-    from openbinding_gateway.db.base import Base
-
-    assert "analysis_tasks" not in Base.metadata.tables
-    assert "sponsor_proposals" not in Base.metadata.tables
+    # Both tables are in RETIRED_TABLES (tools/check_retired_surface.py).
     source = inspect.getsource(reconciler)
     assert "sweep_expired" not in source
     assert "redeliver_analysis" not in source and "analysis_jobs" not in source

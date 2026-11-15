@@ -58,7 +58,7 @@
 .engine-detail-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--tp-spacing-xs); }
 .engine-detail-login { display: inline-flex; align-items: center; height: 40px; padding: 0 var(--tp-spacing-md); border-radius: var(--tp-radius-md); background: var(--tp-primary); color: var(--tp-on-primary); font-weight: 500; text-decoration: none; }
 .engine-detail-login:hover { background: var(--tp-primary-deep); color: var(--tp-on-primary); }
-.engine-detail-actions .ui-project-picker-button { height: 40px; padding: 0 var(--tp-spacing-md); font-size: 0.875rem; }
+.engine-detail-actions .ui-org-picker-button { height: 40px; padding: 0 var(--tp-spacing-md); font-size: 0.875rem; }
 
 .engine-detail-layout { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--tp-spacing-xl); }
 .engine-detail-layout > .ui-tabpanel { display: flex; flex: 999 1 560px; flex-direction: column; gap: var(--tp-spacing-md); min-width: 0; }

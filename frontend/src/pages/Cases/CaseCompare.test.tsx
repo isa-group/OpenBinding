@@ -1,46 +1,44 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { caseOf, org, project, renderProjectScreen, revisionOf } from '../Project/testKit';
+import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseDetail } from './CaseDetail';
-import { digestOf, irDocument, refOf, revisionDocument } from './fixtures';
+import { digestOf, irDocument } from './fixtures';
 
-const platform = vi.hoisted(() => ({ project: vi.fn(), case: vi.fn(), revisions: vi.fn(), snapshot: vi.fn() }));
+const problems = vi.hoisted(() => ({ get: vi.fn(), revisions: vi.fn(), revision: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
 
-vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
+vi.mock('../../api/problems', () => ({ problemsApi: problems }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'VIEWER' });
-const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const checkout = caseOf('flujo-checkout', 'Flujo de checkout');
-const base: Array<[string, string, ReturnType<typeof refOf>]> = [
-  ['application', 'checkout', refOf('checkout-app', '3', '1')],
-  ['constraintSet', 'sla', refOf('sla-hard', '1', '4')],
-  ['optimization', 'goal', refOf('weighted-cost-latency', '1', '5')],
-];
-const r1 = revisionOf(checkout, 1, { document: revisionDocument([...base, ['candidateCatalog', 'providers', refOf('providers-eu', '2', '2')]]), source_snapshot_id: 'snap-1' });
-const r2 = revisionOf(checkout, 2, { document: revisionDocument([...base, ['candidateCatalog', 'providers', refOf('providers-eu', '3', '3')]]), source_snapshot_id: 'snap-2' });
-const root = '/app/isa-demo/qos-benchmarks';
+const r1 = revisionOf(checkout, 1);
+const r2 = revisionOf(checkout, 2);
+const root = '/app/isa-demo';
 
 const refusal = (status: number, code = 'refused') => Object.assign(new HttpError(status, 'refused'), { code });
-const snapshotOf = (id: string, pay: number) => ({
-  id, ownerId: null, instanceDigest: digestOf('a'), packageDigest: digestOf('b'), archiveSize: 1, createdAt: null,
-  ir: { id: `ir-${id}`, digest: digestOf('c'), document: irDocument(pay), sourceMap: null, compilerVersion: '1', createdAt: null },
+const compilationOf = (revision: string) => ({
+  id: `compilation-${revision}`, revision_id: `rev-${revision}`, compilation_digest: digestOf('9'), compiler_digest: digestOf('8'), ir_digest: digestOf('c'),
+  binding_space: '1', created_at: '2026-08-20T10:05:00Z', current: true, toolchain: {},
+  analysis: { tasks: 1, candidates: 1, constraints: 0, placement: false, bindingSpace: '1' }, resources: {}, compatible_modes: [],
 });
 
 /** The Versions tab of the problem page, which compares the pair named by `from` and `to`. */
-function renderCompare(query = '') {
-  return renderProjectScreen(<CaseDetail />, {
-    path: '/app/:org/:project/problems/:case/:tab?', url: `${root}/problems/flujo-checkout/versions${query}`, organizations: [group],
+function renderCompare(query = '', organization = group) {
+  return renderOrgScreen(<CaseDetail />, {
+    path: '/app/:org/problems/:case/:tab?', url: `${root}/problems/flujo-checkout/versions${query}`, organizations: [organization],
   });
 }
 
 describe('Versions tab of the problem page: compare', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    platform.project.mockResolvedValue(qos);
-    platform.case.mockResolvedValue(checkout);
-    platform.revisions.mockResolvedValue([r1, r2]);
-    platform.snapshot.mockImplementation(async (id: string) => snapshotOf(id, id === 'snap-1' ? 5 : 8));
+    problems.get.mockResolvedValue(checkout);
+    problems.revisions.mockResolvedValue([r1, r2]);
+    problems.compilation.mockImplementation(async (_org: string, _problem: string, revision: string) => compilationOf(String(revision)));
+    problems.ir.mockImplementation(async (_org: string, _problem: string, revision: string) => ({ id: `compilation-${revision}`, ir_digest: digestOf('c'), ir: irDocument(String(revision) === '1' ? 5 : 8), source_map: {} }));
+    problems.revision.mockImplementation(async (_org: string, _problem: string, revision: string) => ({
+      ...(String(revision) === '1' ? r1 : r2), document: { apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: `checkout-${revision}` } }, files: [], resource_digests: {}, compilations: [],
+    }));
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockResolvedValue(undefined) }, configurable: true });
   });
 
@@ -58,12 +56,12 @@ describe('Versions tab of the problem page: compare', () => {
     expect(screen.getByRole('link', { name: 'Open version 2' })).toHaveAttribute('href', `${root}/problems/flujo-checkout?version=2`);
   });
 
-  it('shows the sealed document of each side of the pair', async () => {
+  it('shows the root document of each side of the pair', async () => {
     renderCompare('?from=1&to=2');
 
     await screen.findByRole('table');
-    expect(screen.getByRole('region', { name: 'Version 1 document' })).toHaveTextContent('"kind": "Instance"');
-    expect(screen.getByRole('region', { name: 'Version 2 document' })).toHaveTextContent('providers-eu');
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Version 1 document' })).toHaveTextContent('checkout-1'));
+    expect(screen.getByRole('region', { name: 'Version 2 document' })).toHaveTextContent('checkout-2');
   });
 
   it('counts the changes per category and narrows the table to one of them', async () => {
@@ -73,7 +71,7 @@ describe('Versions tab of the problem page: compare', () => {
     const summary = screen.getByRole('region', { name: 'Summary' });
     const counts = within(summary).getAllByRole('button').map((button) => button.textContent);
     expect(counts).toEqual([
-      'All changes4changed', 'Resources1changed', 'Providers3changed', 'Tasks0no change', 'Rules0no change', 'Goal0no change',
+      'All changes3changed', 'Providers3changed', 'Tasks0no change', 'Rules0no change', 'Goal0no change',
     ]);
     expect(within(summary).getByRole('button', { name: /^All changes/ })).toHaveAttribute('aria-pressed', 'true');
 
@@ -131,7 +129,7 @@ describe('Versions tab of the problem page: compare', () => {
   });
 
   it('asks a viewer for a second version without offering a new one', async () => {
-    platform.revisions.mockResolvedValue([r1]);
+    problems.revisions.mockResolvedValue([r1]);
     renderCompare();
 
     expect(await screen.findByRole('heading', { name: 'Comparing needs two versions' })).toBeInTheDocument();
@@ -139,33 +137,28 @@ describe('Versions tab of the problem page: compare', () => {
   });
 
   it('asks a member for a second version when the problem has only one', async () => {
-    platform.revisions.mockResolvedValue([r1]);
-    renderProjectScreen(<CaseDetail />, {
-      path: '/app/:org/:project/problems/:case/:tab?', url: `${root}/problems/flujo-checkout/versions`, organizations: [org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' })],
-    });
+    problems.revisions.mockResolvedValue([r1]);
+    renderCompare('', org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' }));
 
     const guide = (await screen.findByRole('heading', { name: 'Comparing needs two versions' })).closest('div') as HTMLElement;
-    expect(within(guide).getByRole('link', { name: 'New version' })).toHaveAttribute('href', `${root}/workbench?case=flujo-checkout`);
+    expect(within(guide).getByRole('link', { name: 'New version' })).toHaveAttribute('href', `${root}/workbench?problem=flujo-checkout`);
   });
 
-  it('compares only the library versions when a compiled form cannot be read', async () => {
-    platform.snapshot.mockImplementation(async (id: string) => {
-      if (id === 'snap-1') throw refusal(404, 'not_found');
-      return snapshotOf(id, 8);
+  it('says what it cannot compare when a compiled form cannot be read', async () => {
+    problems.compilation.mockImplementation(async (_org: string, _problem: string, revision: string) => {
+      if (String(revision) === '1') throw refusal(422, 'revision_not_recompilable');
+      return compilationOf(String(revision));
     });
     renderCompare();
 
-    expect(await screen.findByText(/Providers, tasks, rules and goal are compared from the compiled snapshot of each version, and version 1 has none that can be read/)).toBeInTheDocument();
-    const table = screen.getByRole('table');
-    expect(within(table).getAllByRole('row').slice(1)).toHaveLength(4);
-    expect(within(table).getByRole('row', { name: /Candidate catalog · providers/ })).toHaveTextContent('Changed');
+    expect(await screen.findByText(/Providers, tasks, rules and goal are compared from the compilation of each version, and version 1 has none that can be read\. The two packages differ\./)).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Possible combinations' })).not.toBeInTheDocument();
   });
 
   it('answers a missing problem, and a failing gateway, in their own words', async () => {
-    platform.case.mockRejectedValueOnce(refusal(404, 'not_found'));
+    problems.get.mockRejectedValueOnce(refusal(404, 'not_found'));
     renderCompare();
-    expect(await screen.findByRole('heading', { name: 'No problem with this address in QoS Benchmarks (404)' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'No problem with this address in ISA Demo Group (404)' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByRole('heading', { level: 2, name: 'Compare versions' })).toBeInTheDocument();

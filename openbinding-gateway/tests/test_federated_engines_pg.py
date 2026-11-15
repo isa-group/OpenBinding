@@ -1,7 +1,7 @@
-"""The plan's ``federatedEngines`` limit on a real PostgreSQL 16: owners, races, replays and rollbacks.
+"""The plan's ``maxFederatedEngines`` limit on a real PostgreSQL 16: owners, races, replays and rollbacks.
 
 ``test_federated_engines_limit.py`` pins the rule on SQLite, with one session. The rule there is "count the owner's
-active registrations and activate", serialised by a ``SELECT ... FOR UPDATE`` on the owner's row: a promise only a
+active registrations and activate", serialised by a ``SELECT ... FOR NO KEY UPDATE`` on the owner's row: a promise only a
 server with row locks can keep, and one SQLite cannot even state. Here several sessions on distinct connections
 (``pg_backend_pid`` says so) run the real service and the real route against the migrated schema.
 
@@ -58,7 +58,7 @@ from openbinding_gateway.services.engine_registry import (
     read_registration,
 )
 
-EXHAUSTED = {"limit_id": "federatedEngines", "state": "exhausted", "unit": "engine", "source": "plan"}
+EXHAUSTED = {"limit_id": "maxFederatedEngines", "state": "exhausted", "unit": "engine", "source": "plan"}
 
 
 # -- helpers ------------------------------------------------------------------------------------------
@@ -490,6 +490,6 @@ async def test_over_http_the_limit_is_per_owner_and_a_refusal_changes_nothing(pg
         assert owners == {alice_details["username"]: 1, bob_details["username"]: 1}
 
         # A plan with more room lets the second one in; the committed state agrees.
-        set_plan(federatedEngines=3)
+        set_plan(maxFederatedEngines=3)
         assert (await activate(a2, a2_ref, alice)).status_code == 200
         assert await active_count(pg) == 3

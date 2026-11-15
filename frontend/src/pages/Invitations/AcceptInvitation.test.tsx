@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { QuotaError } from '../../api/auth';
 import type { UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import type { Organization, OrganizationMember } from '../../api/platform';
@@ -22,7 +21,7 @@ const user: UserProfile = {
 };
 
 const isaDemo: Organization = {
-  id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, billing_sponsor_user_id: 'sponsor', effective_role: 'MEMBER',
+  id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'MEMBER',
   created_at: '2026-01-01T00:00:00Z',
 };
 
@@ -144,7 +143,7 @@ describe('AcceptInvitation', () => {
     expect(api.acceptInvitation).toHaveBeenCalledWith(TOKEN);
     expect(screen.getByText('@isa-demo')).toBeInTheDocument();
     expect(screen.getByText('MEMBER')).toBeInTheDocument();
-    expect(screen.getByText(/As a member you can create projects and problems/)).toBeInTheDocument();
+    expect(screen.getByText(/As a member you can upload problems and launch runs and studies/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open the organization' })).toHaveAttribute('href', '/app/isa-demo');
     expect(screen.queryByLabelText('Invitation token')).not.toBeInTheDocument();
   });
@@ -183,18 +182,6 @@ describe('AcceptInvitation', () => {
     expect(alert).toHaveTextContent('different email address than sofia@example.org');
     expect(screen.getByLabelText('Invitation token')).toHaveValue(TOKEN);
     expect(screen.getByRole('button', { name: 'Accept invitation' })).toBeEnabled();
-  });
-
-  it('names the sponsor limit on a 402 and keeps the invitation valid', async () => {
-    api.acceptInvitation.mockRejectedValue(new QuotaError('sponsor_quota_exceeded', 'full', { limit_id: 'members', limit: 15, used: 16 }));
-    renderPage({ pathname: '/invitations/accept', state: { token: TOKEN } });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Accept invitation' }));
-
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('402 · sponsor_quota_exceeded');
-    expect(alert).toHaveTextContent('unique-member limit of their plan (15)');
-    expect(alert).toHaveTextContent('your invitation stays valid until it expires');
   });
 
   it('puts a 422 on the token field', async () => {

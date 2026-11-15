@@ -63,7 +63,7 @@ export function hasRecentSignIn(): boolean {
 
 const PLAN_CHANGE_KEY = 'openbinding-plan-changed';
 
-/** The plan change that signing in caused, kept for the screen the person lands on: linking CAS raises BASIC to RESEARCH at no extra cost. */
+/** The plan change that signing in caused, kept for the screen the person lands on: linking CAS raises FREE to RESEARCH at no extra cost. */
 export interface PlanChangeNote {
   from: string | null;
   to: string;

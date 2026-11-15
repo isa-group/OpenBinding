@@ -19,8 +19,8 @@ vi.mock('../../api/client', async () => ({
 
 configure({ asyncUtilTimeout: 5000 });
 
-const PREVIEW = { expiredArtifacts: 2, expiredApiKeys: 1, terminalJobs: 14, abandonedJobs: 1, terminalJobCutoff: '2025-10-09T00:00:00Z' };
-const NOTHING = { expiredArtifacts: 0, expiredApiKeys: 0, terminalJobs: 0, abandonedJobs: 0, terminalJobCutoff: '2025-10-09T00:00:00Z' };
+const PREVIEW = { expiredApiKeys: 3, terminalJobs: 14, abandonedJobs: 1, terminalJobCutoff: '2025-10-09T00:00:00Z' };
+const NOTHING = { expiredApiKeys: 0, terminalJobs: 0, abandonedJobs: 0, terminalJobCutoff: '2025-10-09T00:00:00Z' };
 
 const retention = () => screen.getByLabelText('Keep finished runs for (days)');
 const tile = async (label: string) => {
@@ -36,7 +36,7 @@ describe('admin-overview, maintenance section · preview, purge and reconcile jo
     vi.clearAllMocks();
     api.adminMaintenancePreview.mockResolvedValue(PREVIEW);
     api.adminReconcileJobs.mockResolvedValue({ settled: 1 });
-    api.adminPurgeExpired.mockResolvedValue({ artifacts: 2, apiKeys: 1, jobs: 14 });
+    api.adminPurgeExpired.mockResolvedValue({ apiKeys: 1, jobs: 14 });
     api.getCurrentPricing.mockResolvedValue({ version: '0.1.0', digest: 'sha256-x', url: 'https://sphere.example.test/0.1.0' });
   });
 
@@ -47,8 +47,7 @@ describe('admin-overview, maintenance section · preview, purge and reconcile jo
   it('previews what the default retention would touch, as counted by the server', async () => {
     renderMaintenance();
     expect(screen.getByRole('heading', { level: 1, name: 'Maintenance' })).toBeInTheDocument();
-    expect((await tile('Expired artifacts')).getByText('2')).toBeInTheDocument();
-    expect((await tile('Expired API keys')).getByText('1')).toBeInTheDocument();
+    expect((await tile('Expired API keys')).getByText('3')).toBeInTheDocument();
     const jobs = await tile('Finished runs to purge');
     expect(jobs.getByText('14')).toBeInTheDocument();
     expect(jobs.getByText('Finished before Oct 9, 2025, more than 365 days ago.')).toBeInTheDocument();
@@ -59,7 +58,7 @@ describe('admin-overview, maintenance section · preview, purge and reconcile jo
 
   it('previews another retention, and refuses one the API would refuse', async () => {
     renderMaintenance();
-    await tile('Expired artifacts');
+    await tile('Expired API keys');
     fireEvent.change(retention(), { target: { value: '30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
     await waitFor(() => expect(api.adminMaintenancePreview).toHaveBeenCalledWith(30));
@@ -82,7 +81,7 @@ describe('admin-overview, maintenance section · preview, purge and reconcile jo
 
   it('purges only after the exact phrase is typed, with the retention of jobs and of errors', async () => {
     renderMaintenance();
-    await tile('Expired artifacts');
+    await tile('Expired API keys');
     const purge = screen.getByRole('button', { name: 'Purge…' });
     await waitFor(() => expect(purge).toBeEnabled());
     expect(screen.getByRole('list', { name: 'What a purge would remove' })).toHaveTextContent('14 finished runs older than 365 days');
@@ -109,7 +108,7 @@ describe('admin-overview, maintenance section · preview, purge and reconcile jo
 
   it('asks again before purging when the retention changed after the preview', async () => {
     renderMaintenance();
-    await tile('Expired artifacts');
+    await tile('Expired API keys');
     fireEvent.change(retention(), { target: { value: '30' } });
     expect(screen.getByRole('button', { name: 'Purge…' })).toBeDisabled();
     expect(screen.getByText('Preview first.')).toBeInTheDocument();
@@ -122,7 +121,7 @@ describe('admin-overview, maintenance section · preview, purge and reconcile jo
   it('says what a refused purge did, and that nothing was removed', async () => {
     api.adminPurgeExpired.mockRejectedValue(refusal(409, 'maintenance_running', 'Another run holds the lock.'));
     renderMaintenance();
-    await tile('Expired artifacts');
+    await tile('Expired API keys');
     fireEvent.click(screen.getByRole('button', { name: 'Purge…' }));
     const dialog = screen.getByRole('dialog', { name: 'Purge expired data?' });
     fireEvent.change(within(dialog).getByLabelText(/Type PURGE EXPIRED to confirm/), { target: { value: 'PURGE EXPIRED' } });
@@ -162,7 +161,7 @@ describe('admin-overview, maintenance section · preview, purge and reconcile jo
     expect(await screen.findByText('A dependency is down (503 · database_unavailable)')).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Maintenance preview' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect((await tile('Expired artifacts')).getByText('2')).toBeInTheDocument();
+    expect((await tile('Expired API keys')).getByText('3')).toBeInTheDocument();
   });
 
   it('tells a key without the permission so, with no retry', async () => {

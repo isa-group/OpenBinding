@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { CaseContent } from '../Project/projectModel';
-import { CHECKOUT, REVISION_1, REVISION_2, cellsFixture, studyFixture, revisionFixture } from '../../test/fixtures/studies';
+import type { CaseContent } from '../../features/workspace/model';
+import { CHECKOUT, REVISION_1, REVISION_2, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import {
   MAX_SEEDS, defaultSelection, definitionGrid, definitionSize, describeParameters, emptyVariant, engineChoices, enginesOf, explainFailure,
   formatMeasure, formatSeconds, formulaOf, heatLevel, matrixView, measureValue, measuresOf, metricsOf, parametersKey, readSeeds, readVariant, revisionIndex,
-  revisionLabel, rivalsOf, seedsOf, studyContentSize, breakdownText, slot, definitionEngines, studyCriteriaCount, studyOptimization,
+  revisionLabel, rivalsOf, seedsOf, definitionOfRun, sameDefinition, breakdownText, slot, definitionEngines, studyCriteriaCount, studyOptimization,
 } from './studiesModel';
 
-const cases: CaseContent[] = [{ item: CHECKOUT, revisions: [REVISION_1, REVISION_2, revisionFixture(3, { source_snapshot_id: null })] }];
+const cases: CaseContent[] = [{ item: CHECKOUT, revisions: [REVISION_1, REVISION_2] }];
 
 describe('the matrix of a study', () => {
   it('multiplies cases, engines, settings and seeds, and says so in words', () => {
@@ -90,7 +90,7 @@ describe('the optimization of each engine of a study', () => {
     { id: 'nsga', objectiveTypes: ['MULTI', 'MANY'] },
     { id: 'feasibility', objectiveTypes: ['SINGLE'] },
   ]);
-  const goal = (criteria: number) => ({ document: { spec: { optimization: { criteria: Array.from({ length: criteria }, () => ({})) } } } });
+  const goal = (criteria: number) => ({ spec: { optimization: { criteria: Array.from({ length: criteria }, () => ({})) } } });
   const choice = (declared: never) => ({ ...engineChoices([{
     id: 'e1', namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-x', ref: { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-x' },
     modes: [{ id: 'sampling', ...(declared as object) } as never],
@@ -116,10 +116,10 @@ describe('the optimization of each engine of a study', () => {
     expect(studyOptimization(undefined, null)).toEqual({ type: 'SINGLE', scalarization: 'weighted-sum' });
   });
 
-  it('counts the criteria of the most demanding chosen revision', () => {
+  it('counts the criteria of the most demanding chosen version, from its compiled form', () => {
     expect(studyCriteriaCount([goal(1), goal(3), goal(2)])).toBe(3);
-    expect(studyCriteriaCount([{ document: {} }, goal(0)])).toBe(0);
-    expect(studyCriteriaCount([{ document: {} }])).toBeNull();
+    expect(studyCriteriaCount([{}, goal(0)])).toBe(0);
+    expect(studyCriteriaCount([{}])).toBeNull();
     expect(studyCriteriaCount([])).toBeNull();
   });
 
@@ -138,7 +138,7 @@ describe('case revisions', () => {
     const index = revisionIndex(cases);
     expect(revisionLabel(index, REVISION_2.id)).toBe('Checkout flow · version 2');
     expect(revisionLabel(index, REVISION_2.id, true)).toBe('Checkout flow r2');
-    expect(revisionLabel(index, 'abcdef0123456789')).toBe('Version from another project');
+    expect(revisionLabel(index, 'abcdef0123456789')).toBe('Version of another organization');
   });
 
   it('starts the builder from the case or revision another screen named', () => {
@@ -149,9 +149,12 @@ describe('case revisions', () => {
     expect(defaultSelection({ cases, caseSlug: 'ghost', revision: null })).toEqual([]);
   });
 
-  it('reads what a sealed study says about its size', () => {
-    expect(studyContentSize(JSON.stringify({ cases: [1, 2], engines: [1], parameter_sets: [{}, {}], seeds: [1, 2, 3] }))).toMatchObject({ cells: 12 });
-    expect(studyContentSize('{}')).toBeNull();
+  it('reads the definition a run froze back as the study definition it came from', () => {
+    expect(definitionOfRun(runFixture())).toEqual(studyFixture().definition);
+    const definition = studyFixture().definition;
+    const reordered = { seeds: definition.seeds, parameter_sets: definition.parameter_sets, engines: definition.engines, revision_ids: [...definition.revision_ids].reverse() };
+    expect(sameDefinition(definitionOfRun(runFixture()), reordered)).toBe(true);
+    expect(sameDefinition(definition, { ...definition, seeds: [9] })).toBe(false);
   });
 });
 

@@ -5,6 +5,13 @@ source parser nor a Dialect adapter: the gateway resolves and validates the
 package, runs the installed Profile/Dialect adapters, and sends only the
 declared output IR.
 
+The engine sees runs, not the API that creates them. Since F0b a run belongs to
+an organization and is launched with `POST /v1/organizations/{org}/runs`
+(`createRun`); nothing an engine receives changed with that move: the
+`bim-engine/v1` wire contract, the request it is sent, the
+`X-Openbinding-Job-Id` header (the run's id) and the asynchronous-job mappings
+of a registration are the same as before.
+
 ## Declare an exact mode contract
 
 An Engine publishes an immutable `bim/v1` `Engine` document. For the bundled

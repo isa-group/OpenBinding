@@ -22,9 +22,9 @@ test('/password-reset with a token shows the new-password form and submits the t
     && request.body.includes('abc123') && request.body.includes('Correct-horse-9'))).toBe(true);
 });
 
-test('the link of a reset e-mail lands on /password-reset with its token', async ({ page }) => {
+test('a reset link opens /password-reset with its token, ready for the new password', async ({ page }) => {
   await mockApi(page, { role: null });
-  await page.goto('/password-reset/complete?token=abc123');
+  await page.goto('/password-reset?token=abc123');
   await expect.poll(() => pathAndSearch(page)).toBe('/password-reset?token=abc123');
   await expect(page.getByLabel('New password', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Confirm password', { exact: true })).toBeVisible();

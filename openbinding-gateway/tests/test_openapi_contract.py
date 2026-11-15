@@ -130,37 +130,17 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/auth/cas/start", "get"),
         ("/v1/auth/cas/callback", "get"),
         ("/v1/auth/cas/exchange", "post"),
-        ("/v1/profiles", "get"),
-        ("/v1/dialects", "get"),
+        ("/v1/engines/protocol", "get"),
         ("/v1/artifacts/{artifact_id}/versions", "get"),
         ("/v1/artifacts/{artifact_id}/versions/{version_id}/content", "get"),
         ("/v1/artifacts/resolve", "post"),
-        ("/v1/examples", "get"),
-        ("/v1/examples/{example_path}", "get"),
+        ("/v1/bim/templates", "get"),
+        ("/v1/bim/templates/{template}", "get"),
         ("/v1/pricing/catalog", "get"),
         ("/v1/pricing/current", "get"),
         # The public engine catalogue: a visitor gets the built-in and published Engines.
         ("/v1/engines", "get"),
-        ("/v1/instances/validate", "post"),
-        # Like /v1/instances/validate: the response is a pure function of the request, so
-        # there is nothing an account would protect. An API key still needs
-        # instances:read.
-        ("/v1/compositions/diff", "post"),
-        # The same shape: a validation derives its answer from the document in the request
-        # and stores nothing, so an account would protect nothing either.
-        ("/v1/compositions/validate", "post"),
-        # The rest of the authoring surface has that shape too: each reads the document or
-        # the package in the request and stores nothing. Compiling and importing run the
-        # container's compiler, as /v1/instances/validate does for anyone.
-        ("/v1/compositions/parse", "post"),
-        ("/v1/compositions/serialise", "post"),
-        ("/v1/compositions/compile", "post"),
-        ("/v1/compositions/package", "post"),
-        ("/v1/compositions/import", "post"),
-        # What the language is, not anyone's data: open even to an API key without
-        # permissions, like /v1/profiles.
-        ("/v1/compositions/language", "get"),
-        ("/v1/compositions/schema", "get"),
+        ("/v1/bim/validate", "post"),
     }
     for path, method, operation in operations(document):
         if (path, method) in public:
@@ -280,25 +260,29 @@ def test_engine_registration_contract_describes_private_lifecycle_and_openapi(do
 
 def test_binary_yaml_and_job_inputs_have_their_real_media_types(document):
     paths = document["paths"]
-    example = paths["/v1/examples/{example_path}"]["get"]["responses"]["200"]["content"]
-    source = paths["/v1/instances/{snapshot_id}/source"]["get"]["responses"]["200"]["content"]
-    assert set(example) == set(source) == {"application/vnd.bim+zip"}
+    template = paths["/v1/bim/templates/{template}"]["get"]["responses"]["200"]["content"]
+    source = paths["/v1/organizations/{org}/problems/{problem}/revisions/{revision}/source"]["get"]["responses"]["200"]["content"]
+    assert set(template) == set(source) == {"application/vnd.bim+zip"}
 
-    validate = paths["/v1/validate"]["post"]["requestBody"]["content"]
-    assert {"application/vnd.bim+zip", "application/json"} <= set(validate)
-    jobs = paths["/v1/jobs"]["post"]
-    assert {"application/vnd.bim+zip", "application/json", "multipart/form-data"} <= set(
-        jobs["requestBody"]["content"]
-    )
-    assert any(parameter["name"] == "Idempotency-Key" for parameter in jobs["parameters"])
+    validate = paths["/v1/bim/validate"]["post"]["requestBody"]["content"]
+    assert {"application/vnd.bim+zip", "application/zip"} <= set(validate)
+    assert "application/json" not in validate
+    for upload in (
+        paths["/v1/organizations/{org}/problems"]["post"],
+        paths["/v1/organizations/{org}/problems/{problem}/revisions"]["post"],
+    ):
+        assert set(upload["requestBody"]["content"]) == {"application/vnd.bim+zip", "application/zip"}
+    runs = paths["/v1/organizations/{org}/runs"]["post"]
+    assert set(runs["requestBody"]["content"]) == {"application/json"}
+    assert runs["requestBody"]["content"]["application/json"]["schema"] == {"$ref": "#/components/schemas/JobRequest"}
+    assert any(parameter["name"] == "Idempotency-Key" for parameter in runs["parameters"])
 
 
 @pytest.mark.parametrize(
     ("path", "component"),
     [
-        ("/v1/profiles", "ProfileList"),
-        ("/v1/dialects", "DialectList"),
-        ("/v1/examples", "ExampleList"),
+        ("/v1/engines/protocol", "ProfileList"),
+        ("/v1/bim/templates", "TemplateList"),
     ],
 )
 def test_public_catalogue_responses_satisfy_the_published_schema(document, path, component):
@@ -340,8 +324,8 @@ def test_a_quota_refusal_says_which_limit_and_where_it_stands(document):
 @pytest.mark.parametrize(
     "path,method,statuses",
     [
-        ("/v1/jobs", "post", {"202"}),
-        ("/v1/jobs/{job_id}", "get", {"200", "422"}),
+        ("/v1/organizations/{org}/runs", "post", {"202", "403", "404", "409", "422", "429"}),
+        ("/v1/organizations/{org}/runs/{run}", "get", {"200", "404", "422"}),
         ("/v1/auth/login", "post", {"401", "503"}),
         ("/v1/auth/register", "post", {"409", "503"}),
         ("/v1/users/me", "get", {"401", "503"}),
@@ -349,6 +333,8 @@ def test_a_quota_refusal_says_which_limit_and_where_it_stands(document):
         # Conditional writes of the subscription: 400/412 for If-Match, 409 also `contract_changed`.
         ("/v1/admin/users/{user_id}/plan", "post", {"400", "404", "409", "412", "503"}),
         ("/v1/admin/users/{user_id}/subscription", "post", {"400", "404", "409", "412", "503"}),
+        ("/v1/organizations", "post", {"201", "409", "422"}),
+        ("/v1/organizations/{org}", "delete", {"204", "403", "409"}),
     ],
 )
 def test_the_failures_an_endpoint_can_produce_are_declared(document, path, method, statuses):
@@ -356,8 +342,8 @@ def test_the_failures_an_endpoint_can_produce_are_declared(document, path, metho
     assert statuses <= declared, f"{method.upper()} {path} is missing {statuses - declared}"
 
 
-def test_v1_jobs_are_always_accepted_asynchronously(document):
-    responses = document["paths"]["/v1/jobs"]["post"]["responses"]
+def test_runs_are_always_accepted_asynchronously(document):
+    responses = document["paths"]["/v1/organizations/{org}/runs"]["post"]["responses"]
     assert {code for code in responses if code.startswith("2")} == {"202"}
     assert {"401", "503"} <= set(responses)
 
@@ -383,6 +369,13 @@ def test_the_instance_structure_is_in_the_document(document):
         {"$ref": "#/$defs/registeredRef"},
         {"$ref": "#/$defs/artifactRef"},
     ]
+
+
+def test_projects_and_public_read_are_gone(document):
+    assert not [path for path in document["paths"] if "project" in path]
+    assert "Projects" not in {tag["name"] for tag in document.get("tags", [])}
+    assert "x-public-read" not in json.dumps(document)
+    assert not [name for name in document["components"]["schemas"] if name.startswith("Project")]
 
 
 def test_v1_surface_has_no_replaced_routes(document):

@@ -3,9 +3,9 @@ import { HttpError } from '../../api/client';
 import { diagnosticLines, problemField } from '../../api/problem';
 import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import {
-  CELLS_CODE, COMPLEXITY_CODE, USAGE_UNKNOWN_CODE, complexityText, limitProblemOf, noticeOf, slotsText, usageUnknownText,
+  CELLS_CODE, USAGE_UNKNOWN_CODE, limitProblemOf, noticeOf, slotsText, usageUnknownText,
 } from '../../utils/limitRefusals';
-import { limitInfo } from '../../utils/limits';
+import { LIMIT, limitInfo } from '../../utils/limits';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import type { Refusal } from '../Jobs/jobErrors';
 
@@ -78,27 +78,11 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
   if (limited) return { ...base, ...limited };
 
   if (failure.status === 402) {
-    const limitId = quota?.limit_id ?? notice?.limit_id ?? 'studies';
+    const limitId = quota?.limit_id ?? notice?.limit_id ?? '';
     const info = limitInfo(limitId);
     const noun = inInterfaceWords(info.short);
     const limit = quota?.limit ?? notice?.limit;
     const spentCount = quota?.used ?? notice?.used;
-    const used = limit !== undefined ? ` ${(spentCount ?? limit).toLocaleString('en-US')} of ${limit.toLocaleString('en-US')} used.` : '';
-    if (failure.code === COMPLEXITY_CODE || limitId === 'maxInstanceComplexityLog10') {
-      // A run is refused whole, before any cell exists, when one of its cases is over the plan's size limit.
-      return {
-        ...base, kind: 'too-big', limitId, source: notice?.source,
-        title: `A problem is too big for your plan${at}`,
-        text: complexityText(caught, nothing),
-      };
-    }
-    if (limitId === 'studies') {
-      return {
-        ...base, kind: 'quota', limitId,
-        title: `The sponsor has no study definitions left${at}`,
-        text: `Studies are counted across the sponsor’s organizations and don’t renew.${used} Archive or delete one you no longer need, or ask about a larger plan. ${nothing}`,
-      };
-    }
     return {
       ...base, kind: 'quota', limitId, source: notice?.source,
       title: `Out of ${noun}${at}`,
@@ -109,7 +93,7 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
   if (failure.status === 429) {
     const concurrency = caught instanceof HttpError ? caught.concurrency : undefined;
     return {
-      ...base, kind: 'busy', limitId: concurrency?.limit_id ?? 'concurrentJobs', source: concurrency?.source, retryAfter: failure.retryAfter ?? 15,
+      ...base, kind: 'busy', limitId: concurrency?.limit_id ?? LIMIT.maxConcurrentRuns, source: concurrency?.source, retryAfter: failure.retryAfter ?? 15,
       title: `All your run slots are busy${at}`,
       text: `${slotsText(concurrency)} Try again in about ${failure.retryAfter ?? 15} s. ${nothing}`,
     };
@@ -136,19 +120,24 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
     return {
       ...base, kind: 'not-found', title: `Not found${at}`,
       text: action === 'attach'
-        ? `The cell, or the run, doesn’t exist or isn’t yours: only a finished run you launched can be attached. ${nothing}`
+        ? `The cell, or the run, doesn’t exist or belongs to another organization: only a finished run of this organization can be attached. ${nothing}`
         : `It no longer exists, or you’re not in the organization it belongs to. ${nothing}`,
+    };
+  }
+
+  if (failure.status === 412) {
+    return {
+      ...base, kind: 'conflict', title: `The study changed since you opened it${at}`,
+      text: `Someone else saved it in the meantime. Reload the study to see their version, then make your change again. ${nothing}`,
     };
   }
 
   if (failure.status === 409) {
     switch (failure.code) {
       case 'slug_conflict':
-        return { ...base, kind: 'conflict', title: `That address is already used${at}`, text: `Another study of this project has it. Change the address. ${nothing}` };
+        return { ...base, kind: 'conflict', title: `That address is already used${at}`, text: `Another study of this organization has it. Change the address. ${nothing}` };
       case 'study_archived':
         return { ...base, kind: 'conflict', title: `This study is archived${at}`, text: `Restore it to run again. ${nothing}` };
-      case 'evidence_only_study':
-        return { ...base, kind: 'conflict', title: `This study only holds stored evidence${at}`, text: `It isn’t an executable definition, so it can’t run engines. ${nothing}` };
       case 'terminal_run':
         return { ...base, kind: 'terminal', title: `This run already finished${at}`, text: `There’s nothing left to cancel. ${nothing}` };
       case 'cell_not_retryable':
@@ -193,8 +182,8 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
           text: `This deployment limits a study run to ${cap !== undefined ? `${cap.toLocaleString('en-US')} cells` : 'a number of cells'}${cells !== undefined ? `; this one expands to ${cells.toLocaleString('en-US')}` : ''}, whatever the plan. Remove an engine, a setting or some seeds. ${nothing}`,
         };
       }
-      case 'empty_study_cases':
-        return { ...base, kind: 'other', title: `The study needs a problem${at}`, text: `Choose at least one problem version. ${nothing}` };
+      case 'revision_not_recompilable':
+        return { ...base, kind: 'incompatible', title: `A problem version can’t be compiled by the installed toolchain${at}`, text: `${gateway}Remove that problem version from the study, or upload a new version of it. ${nothing}` };
       case 'foreign_case_revision':
         return { ...base, kind: 'other', title: `A problem version isn’t in this organization${at}`, text: `Every problem version of a study must belong to this organization. ${nothing}` };
       case 'engine_mode_incompatible':

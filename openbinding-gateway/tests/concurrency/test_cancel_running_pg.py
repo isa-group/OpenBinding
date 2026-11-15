@@ -54,7 +54,7 @@ async def _running_job(session, owner, **extra) -> Job:
 
 
 async def _cancel_route(session, job_id: uuid.UUID) -> int:
-    """What ``POST /v1/jobs/{id}/cancel`` does to the row: lock it, refuse a terminal job, else request the stop."""
+    """What ``POST /v1/organizations/{org}/runs/{run}/cancel`` does to the row: lock it, refuse a terminal job, else request the stop."""
     job = (
         await session.execute(
             select(Job).where(Job.id == job_id).with_for_update().execution_options(populate_existing=True)

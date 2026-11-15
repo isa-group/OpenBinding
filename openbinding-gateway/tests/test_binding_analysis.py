@@ -1,12 +1,12 @@
 """Real canonical counterfactuals, bounded coverage and owner-scoped access."""
 import copy
-import uuid
 
 import pytest
+from _problem_helpers import run_refs, run_url, seed_problem_run
 from _repo import REPO_ROOT
 from sqlalchemy import select
 
-from openbinding_gateway.db.models import Job, JobState, User
+from openbinding_gateway.db.models import Job, JobState, OrganizationMembership, OrganizationRole, User
 from bim_core.neighborhood import analyze_neighborhood
 from bim_core.compiler import BindingProblem, compile_instance
 from bim_core.package import load_package
@@ -123,12 +123,17 @@ async def test_endpoint_requires_owner_and_validates_budget(api_client, db_sessi
     owner = (await db_session.execute(select(User).where(User.username == details["username"]))).scalar_one()
     problem, binding = problem_and_binding()
     solution = {"decision": {"kind": "binding", "binding": binding}, **problem.evaluate(binding)}
+    seeded = await seed_problem_run(db_session, owner_id=owner.id, ir=problem.document, ir_digest=problem.digest)
+    # Runs are read by the members of their organization.
+    db_session.add(OrganizationMembership(
+        organization_id=seeded["organization_id"], user_id=owner.id, role=OrganizationRole.OWNER,
+    ))
     job = Job(owner_id=owner.id, engine_id="analysis-test", engine_job_id="analysis-test", service_url="https://example.invalid", state=JobState.COMPLETED,
-              original_request={"bindingProblem": problem.document, "optimization": {"type": "MULTI", "scalarization": "pareto", "weights": []}},
-              provenance={"irDigest": problem.digest}, result={"solutions": [solution]})
+              original_request={"optimization": {"type": "MULTI", "scalarization": "pareto", "weights": []}},
+              provenance={"irDigest": problem.digest}, result={"solutions": [solution]}, **run_refs(seeded))
     db_session.add(job)
     await db_session.commit()
-    url = f"/v1/jobs/{job.id}/analysis/neighborhood"
+    url = run_url(job, "/neighborhood")
     assert (await api_client.get(url)).status_code == 401
     response = await api_client.get(url, headers=headers)
     assert response.status_code == 200, response.text
@@ -140,21 +145,13 @@ async def test_endpoint_requires_owner_and_validates_budget(api_client, db_sessi
     assert (await api_client.get(url + "?limit=129", headers=headers)).status_code == 422
     assert (await api_client.get(url + "?solution_index=99", headers=headers)).status_code == 422
     assert (await api_client.get(url + "?task=unknown", headers=headers)).status_code == 422
-    # Seed archives store the pinned IR via a snapshot rather than original_request.
-    snapshot = await api_client.post("/v1/instances", headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-                                     content=load_package(EXAMPLES / "17_analysis_tradeoffs").to_zip())
-    assert snapshot.status_code == 201, snapshot.text
-    job.instance_snapshot_id = uuid.UUID(snapshot.json()["id"])
-    job.original_request = None
-    job.provenance = {"irDigest": snapshot.json()["irDigest"]}
+    # The run and its compilation must agree on the IR they name.
+    job.provenance = {"irDigest": "sha256-" + "0" * 64}
     await db_session.commit()
-    fallback = await api_client.get(url, headers=headers)
-    assert fallback.status_code == 200, fallback.text
-    assert fallback.json()["irDigest"] == snapshot.json()["irDigest"]
-    ir_response = await api_client.get(f"/v1/jobs/{job.id}/ir", headers=headers)
-    assert ir_response.status_code == 200
-    assert ir_response.json()["kind"] == "BindingProblem"
-    assert ir_response.json()["spec"]["constraints"] == problem.document["spec"]["constraints"]
+    disagreeing = await api_client.get(url, headers=headers)
+    assert disagreeing.status_code == 409, disagreeing.text
+    job.provenance = {"irDigest": problem.digest}
+    await db_session.commit()
     other = registration()
     await api_client.post("/v1/auth/register", json=other)
     login = await api_client.post("/v1/auth/login", json={"username_or_email": other["username"], "password": other["password"]})

@@ -2,37 +2,29 @@
 
 Only two kinds live here: a plan that does not include a feature (403) and the
 simultaneous-jobs limit (429, retryable), which is the lower of the plan's
-``concurrentJobs`` and the deployment's cap. Complexity, payload and timeout
-ceilings are decided by ``access.policy``.
+``maxConcurrentRuns`` and the deployment's cap. Payload and timeout ceilings are
+decided by ``access.policy``, the binding-space size by ``domain.binding_space``.
 """
 
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+from ..modules.plans.application import Refusal  # re-exported: every refusal of the gateway is this one
+from ..modules.plans.application import entitlement_map as ids
 
 if TYPE_CHECKING:
     from ..space_client import PlanCaps
 
 CONCURRENCY_RETRY_AFTER = "15"
 
-#: The identifier SPACE's pricing gives the plan's simultaneous-jobs limit; the technical cap reports under it.
-CONCURRENCY_LIMIT_ID = "concurrentJobs"
+#: The plan's simultaneous-runs limit; the technical cap reports under the same id.
+CONCURRENCY_LIMIT_ID = ids.MAX_CONCURRENT_RUNS
 
 DEFAULT_CONCURRENCY_DETAIL = "Concurrency limit exceeded."
 DEFAULT_NOT_ENTITLED_DETAIL = "The current plan does not entitle this feature."
-
-
-@dataclass(frozen=True)
-class Refusal:
-    """A transport-neutral rejection: callers render it as a response or an exception."""
-
-    status: int
-    code: str
-    detail: str
-    extra: dict[str, Any] = field(default_factory=dict)
-    headers: dict[str, str] = field(default_factory=dict)
 
 
 def feature_refusal(
@@ -52,17 +44,17 @@ class ConcurrencyLimit:
     """How many jobs one account may have in flight, and which limit set the number."""
 
     limit: int
-    #: ``plan`` when the plan's ``concurrentJobs`` is lower than the deployment's cap; ``technical`` otherwise
+    #: ``plan`` when the plan's ``maxConcurrentRuns`` is lower than the deployment's cap; ``technical`` otherwise
     #: (the cap holds whatever the plan says, so it is the one reached when both are equal).
     source: str
 
 
 def concurrency_limit(caps: PlanCaps | None, technical: int) -> ConcurrencyLimit:
-    """The simultaneous-jobs limit of an account: the lower of its plan's ``concurrentJobs`` and ``technical``.
+    """The simultaneous-jobs limit of an account: the lower of its plan's ``maxConcurrentRuns`` and ``technical``.
 
     ``technical`` is ``MAX_CONCURRENT_JOBS_PER_USER`` and always applies. The
     plan lowers it only with a usable finite value; a fraction is rounded down.
-    A plan that does not declare ``concurrentJobs``, or declares it unlimited
+    A plan that does not declare ``maxConcurrentRuns``, or declares it unlimited
     (SPACE's ``null``), or declares something that is not a non-negative number,
     leaves the technical cap in force: an unknown limit is never read as
     unlimited and never as slots that happen to be free. A declared ``0`` is a

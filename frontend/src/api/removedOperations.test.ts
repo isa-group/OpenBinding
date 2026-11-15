@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { apiClient } from './client';
-import { libraryApi } from './library';
+import { runsApi } from './runs';
 import { platformApi } from './platform';
 
 // M9.6 removed these operations from the gateway: no source of the application may bind them again.
@@ -31,31 +31,75 @@ const REMOVED_BINDINGS = [
   'libraryItemsApi.associate',
   'libraryItemsApi.projectItems',
   'libraryItemsApi.dissociate',
-  'libraryApi.drafts',
   'adminTransferSponsor',
   'listMySponsorProposals',
   'listOrganizationSponsorProposals',
   'acceptSponsorProposal',
   'declineSponsorProposal',
   'cancelSponsorProposal',
+  // F0b B4 removed `jobsApi.history` (the account's run history screen); B5 `jobsApi.ir` and `jobsApi.instance`; B6 the whole object.
+  'jobsApi',
+  // F0b B5: problems belong to the organization; snapshots, instances, profiles, dialects, examples and the project package are gone.
+  'workbenchApi',
+  'casesApi',
+  'platformApi.cases',
+  'platformApi.case',
+  'platformApi.revisions',
+  'platformApi.caseRevisions',
+  'platformApi.deleteCase',
+  'platformApi.artifacts',
+  'platformApi.uploadArtifact',
+  'platformApi.downloadArtifact',
+  'platformApi.deleteArtifact',
+  'platformApi.snapshot',
+  'platformApi.snapshotArchive',
+  'platformApi.exportPackage',
+  'platformApi.importPackage',
+  'getProfiles',
+  'getDialects',
+  'validatePackage',
+  'getBimExamples',
+  'getBimExamplePackage',
+  'getBimSnapshotIr',
+  'createBimJob',
+  'createConfiguredBimJob',
+  // F0b B6: runs belong to the organization (`runsApi`); the account's and the project's run lists are gone.
+  'platformApi.projectJobs',
+  'listOwnJobs',
+  'getBindingNeighborhood',
+  'getJobStatus',
+  'getV1Job',
+  'pollJob',
+  // F0b B7: study runs freeze their definitions; the artifact library and the project resources are gone.
+  'libraryApi',
+  'platformApi.resources',
+  'platformApi.resourceRevisions',
 ];
 
 const REMOVED_PATHS: [string, RegExp][] = [
   ['/v1/analysis/', /\/v1\/analysis\//],
   ['sponsor-proposals', /sponsor-proposals/],
   ['/v1/admin/organizations/…/sponsor', /\/v1\/admin\/organizations\/.*\/sponsor/],
+  ['/v1/instances', /\/v1\/instances\b/],
+  ['/v1/snapshots', /\/v1\/snapshots\b/],
+  ['/v1/profiles', /\/v1\/profiles\b/],
+  ['/v1/dialects', /\/v1\/dialects\b/],
+  ['/v1/examples', /\/v1\/examples\b/],
+  ['/v1/validate', /\/v1\/validate\b/],
+  // F0b B6. An engine's own `/internal/v1/jobs/{id}` is the engine protocol, not the gateway's runs.
+  ['/v1/jobs', /(?<!\/internal)\/v1\/jobs\b/],
+  ['/v1/users/me/jobs', /\/v1\/users\/me\/jobs\b/],
+  // F0b B7.
+  ['/v1/artifacts', /\/v1\/artifacts\b/],
 ];
 
 const KEPT_BINDINGS = [
-  'platformApi.resources',
-  'platformApi.resourceRevisions',
   'libraryItemsApi.list',
   'libraryItemsApi.versions',
   'libraryItemsApi.content',
   'libraryItemsApi.resolve',
-  'libraryApi.list',
-  'libraryApi.versions',
-  'libraryApi.content',
+  'platformApi.studies',
+  'platformApi.studyRuns',
 ];
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -73,11 +117,11 @@ function findings(files: Record<string, string>): string[] {
 
 const sources = import.meta.glob(['/src/**/*.{ts,tsx}', '!/src/**/*.test.*', '!/src/test/**'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
-describe('removed operations (M9.6)', () => {
-  it('lists the 32 bindings and 3 paths of the specification', () => {
-    expect(REMOVED_BINDINGS).toHaveLength(32);
-    expect(new Set(REMOVED_BINDINGS).size).toBe(32);
-    expect(REMOVED_PATHS).toHaveLength(3);
+describe('removed operations (M9.6, F0b)', () => {
+  it('lists the bindings and paths of M9.6 and F0b (B4, B5, B6 and B7)', () => {
+    expect(REMOVED_BINDINGS).toHaveLength(64);
+    expect(new Set(REMOVED_BINDINGS).size).toBe(64);
+    expect(REMOVED_PATHS).toHaveLength(12);
   });
 
   it('finds no binding or path of a removed operation in the application sources', () => {
@@ -102,13 +146,13 @@ describe('removed operations (M9.6)', () => {
   });
 
   it('leaves none of the removed members on the client objects', () => {
-    const objects = new Map<string, object>([['platformApi', platformApi], ['libraryApi', libraryApi], ['apiClient', apiClient]]);
+    const objects = new Map<string, object>([['platformApi', platformApi], ['apiClient', apiClient], ['runsApi', runsApi]]);
     for (const binding of REMOVED_BINDINGS) {
       const dot = binding.indexOf('.');
       const owner = binding.slice(0, Math.max(dot, 0));
       const member = binding.slice(dot + 1);
       if (owner === 'libraryItemsApi') continue; // its module is gone, see below
-      // A dotted binding is looked for on its object; a bare name on all three.
+      // A dotted binding is looked for on its object; a bare name on every one of them.
       const targets = owner ? [objects.get(owner)] : [...objects.values()];
       for (const target of targets) {
         expect(target, binding).toBeDefined();
@@ -117,7 +161,7 @@ describe('removed operations (M9.6)', () => {
     }
   });
 
-  it('has no analysis archive module and no library item editor module', () => {
-    expect(Object.keys(import.meta.glob(['/src/analysis/archive.ts', '/src/api/analysis/**', '/src/api/libraryItems.ts']))).toEqual([]);
+  it('has no analysis archive module, no library item editor module and no library module', () => {
+    expect(Object.keys(import.meta.glob(['/src/analysis/archive.ts', '/src/api/analysis/**', '/src/api/libraryItems.ts', '/src/api/library.ts', '/src/components/Artifacts/**']))).toEqual([]);
   });
 });

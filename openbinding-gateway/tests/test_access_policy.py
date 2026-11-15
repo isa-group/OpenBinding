@@ -2,8 +2,9 @@
 
 The distinction under test is not a preference. A time budget is a request for
 effort, so asking for more than the plan allows is answered by doing the allowed
-amount. Instance complexity is a fact about the submitted resources, so there
-is nothing to reduce and the only honest answer is no.
+amount. The plan sets the time budget (``maxRunMinutes``); the effort budget
+(``MAX_ITERATIONS``) and the package size (``MAX_PACKAGE_BYTES``) are settings of
+the deployment.
 """
 
 from __future__ import annotations
@@ -24,10 +25,14 @@ BASE = caps_for(CATALOG.default_plan)
 LARGE = caps_for(largest_plan())
 
 
-def above(caps: PlanCaps, role: str) -> int:
-    ceiling = caps.limit(role)
-    assert ceiling is not None
-    return int(ceiling) + 1
+def plan_ms(caps: PlanCaps) -> int:
+    minutes = caps.limit("maxRunMinutes")
+    assert minutes is not None
+    return int(minutes * 60_000)
+
+
+def max_iterations() -> int:
+    return get_settings().max_iterations
 
 
 def test_options_within_the_plan_are_left_alone():
@@ -38,29 +43,29 @@ def test_options_within_the_plan_are_left_alone():
 
 
 def test_a_time_budget_beyond_the_plan_is_reduced():
-    result = policy.clamp_options({"time_budget_ms": above(BASE, "maxTimeoutSeconds") * 1000}, BASE)
+    result = policy.clamp_options({"time_budget_ms": plan_ms(BASE) + 1}, BASE)
 
-    assert result.options["time_budget_ms"] == BASE.limit("maxTimeoutSeconds") * 1000
+    assert result.options["time_budget_ms"] == plan_ms(BASE)
     assert result.warnings[0].code == policy.OPTION_CLAMPED
 
 
 @pytest.mark.parametrize("option", ["iterations", "max_evaluations"])
-def test_search_effort_beyond_the_plan_is_reduced(option):
-    result = policy.clamp_options({option: above(BASE, "maxIterations")}, BASE)
+def test_search_effort_beyond_the_deployment_is_reduced(option):
+    result = policy.clamp_options({option: max_iterations() + 1}, BASE)
 
-    assert result.options[option] == BASE.limit("maxIterations")
+    assert result.options[option] == max_iterations()
     assert result.warnings[0].details["option"] == option
 
 
 def test_a_reduction_says_what_was_asked_and_what_was_done():
     # A solve that quietly did a tenth of the work asked for would produce a
     # worse answer with no explanation - the kind of result that gets published.
-    requested = above(BASE, "maxTimeoutSeconds") * 1000
+    requested = plan_ms(BASE) + 1
     result = policy.clamp_options({"time_budget_ms": requested}, BASE)
 
     details = result.warnings[0].details
     assert details["requested"] == requested
-    assert details["applied"] == BASE.limit("maxTimeoutSeconds") * 1000
+    assert details["applied"] == plan_ms(BASE)
     assert str(int(details["applied"])) in result.warnings[0].message
 
 
@@ -74,8 +79,8 @@ def test_the_same_request_is_untouched_on_a_larger_plan():
 def test_several_options_over_the_line_are_each_reported():
     result = policy.clamp_options(
         {
-            "time_budget_ms": above(BASE, "maxTimeoutSeconds") * 1000,
-            "max_evaluations": above(BASE, "maxIterations"),
+            "time_budget_ms": plan_ms(BASE) + 1,
+            "max_evaluations": max_iterations() + 1,
         },
         BASE,
     )
@@ -125,10 +130,10 @@ def test_clamping_does_not_mutate_what_the_caller_sent():
 
 def test_the_engine_defaults_a_free_account_sees_are_ones_it_can_run():
     defaults = policy.plan_aware_defaults(
-        {"solver": "gecode", "time_budget_ms": above(BASE, "maxTimeoutSeconds") * 1000}, BASE
+        {"solver": "gecode", "time_budget_ms": plan_ms(BASE) + 1}, BASE
     )
 
-    assert defaults["time_budget_ms"] == BASE.limit("maxTimeoutSeconds") * 1000
+    assert defaults["time_budget_ms"] == plan_ms(BASE)
     assert defaults["solver"] == "gecode"
 
 
@@ -139,55 +144,36 @@ def test_population_size_is_left_to_the_mode_contract():
     assert policy.clamp_options(asked, BASE).warnings == []
 
 
-def test_the_engine_wait_uses_the_space_entitlement_when_technically_supported():
-    assert policy.solve_timeout_s(LARGE, 1800.0) == LARGE.limit("maxTimeoutSeconds")
+def test_the_engine_wait_is_the_plan_within_the_gateways_ceiling():
+    assert policy.solve_timeout_s(BASE, 1800.0) == BASE.limit("maxRunMinutes") * 60
+    # LAB grants more than the gateway waits: the gateway's ceiling decides, and the budget is brought to it.
+    assert LARGE.limit("maxRunMinutes") * 60 > 1800.0
+    assert policy.solve_timeout_s(LARGE, 1800.0) == 1800.0
+    clamped = policy.clamp_options({"time_budget_ms": plan_ms(LARGE)}, LARGE)
+    assert clamped.options["time_budget_ms"] == get_settings().engine_solve_timeout_s * 1000
 
 
-def assert_pricing_misconfigured(error: pytest.ExceptionInfo) -> None:
+def test_a_plan_that_does_not_declare_its_run_minutes_fails_closed_with_a_controlled_problem():
+    with pytest.raises(HTTPException) as error:
+        policy.solve_timeout_s(PlanCaps(plan="REAL"), 1800.0)
     assert error.value.status_code == 503
     assert error.value.detail["code"] == policy.PRICING_MISCONFIGURED
-    assert "exceeds" in error.value.detail["error"]
 
 
-def test_the_engine_wait_refuses_to_silently_clip_a_space_entitlement():
-    with pytest.raises(HTTPException) as error:
-        policy.solve_timeout_s(LARGE, 60.0)
-    assert_pricing_misconfigured(error)
-
-
-def test_the_payload_ceiling_is_the_space_entitlement_when_technically_supported():
-    gateway_ceiling = 512 * 1024 * 1024
-    assert policy.payload_ceiling_bytes(BASE, gateway_ceiling) == int(
-        BASE.limit("maxPayloadBytes") or 0
-    )
-    with pytest.raises(HTTPException) as error:
-        policy.payload_ceiling_bytes(LARGE, 16 * 1024 * 1024)
-    assert_pricing_misconfigured(error)
-
-
-@pytest.mark.parametrize("function, limit, ceiling", [
-    (policy.solve_timeout_s, "maxTimeoutSeconds", 1800.0),
-    (policy.payload_ceiling_bytes, "maxPayloadBytes", 512 * 1024 * 1024),
-])
-def test_an_unbounded_entitlement_fails_closed_with_a_controlled_problem(function, limit, ceiling):
-    unbounded = PlanCaps(plan="REAL", limits={limit: float("inf")})
-
-    with pytest.raises(HTTPException) as error:
-        function(unbounded, ceiling)
-    assert_pricing_misconfigured(error)
+def test_the_payload_ceiling_is_the_setting_within_the_gateways_ceiling(monkeypatch):
+    monkeypatch.setattr(get_settings(), "max_package_bytes", 8 * 1024 * 1024)
+    assert policy.payload_ceiling_bytes(512 * 1024 * 1024) == 8 * 1024 * 1024
+    assert policy.payload_ceiling_bytes(1024) == 1024
 
 
 def test_the_open_gate_never_exceeds_a_technical_ceiling():
     settings = get_settings()
     caps = asyncio.run(OpenGate().caps(uuid.uuid4()))
-    payload_ceiling = min(settings.max_request_body_bytes, 512 * 1024 * 1024)
 
     assert policy.solve_timeout_s(caps, settings.engine_solve_timeout_s) == settings.engine_solve_timeout_s
-    assert policy.payload_ceiling_bytes(caps, payload_ceiling) == payload_ceiling
-    assert policy.instance_complexity_too_large(10**6, caps) is False
 
 
-def test_the_open_gate_clamps_effort_only_at_the_technical_timeout():
+def test_the_open_gate_clamps_only_at_the_technical_ceilings():
     settings = get_settings()
     caps = asyncio.run(OpenGate().caps(uuid.uuid4()))
     beyond = int(settings.engine_solve_timeout_s * 1000) + 1
@@ -195,42 +181,9 @@ def test_the_open_gate_clamps_effort_only_at_the_technical_timeout():
     result = policy.clamp_options({"time_budget_ms": beyond, "iterations": 10**12, "max_evaluations": 10**12}, caps)
 
     assert result.options["time_budget_ms"] == int(settings.engine_solve_timeout_s * 1000)
-    assert result.options["iterations"] == result.options["max_evaluations"] == 10**12
-    assert [w.details["option"] for w in result.warnings] == ["time_budget_ms"]
+    assert result.options["iterations"] == result.options["max_evaluations"] == settings.max_iterations
+    assert [w.details["option"] for w in result.warnings] == ["time_budget_ms", "iterations", "max_evaluations"]
     assert policy.plan_aware_defaults({"time_budget_ms": 1000}, caps) == {"time_budget_ms": 1000}
-
-
-def test_an_instance_within_the_plan_is_solvable():
-    ceiling = BASE.limit("maxInstanceComplexityLog10")
-    assert ceiling is not None
-    assert policy.instance_complexity_too_large(ceiling - 1, BASE) is False
-
-
-def test_an_instance_beyond_the_plan_is_refused():
-    assert policy.instance_complexity_too_large(
-        above(BASE, "maxInstanceComplexityLog10"), BASE
-    ) is True
-
-
-def test_the_same_instance_is_solvable_on_the_larger_plan():
-    base_ceiling = BASE.limit("maxInstanceComplexityLog10")
-    large_ceiling = LARGE.limit("maxInstanceComplexityLog10")
-    # The largest plan may have no ceiling at all (unbounded entitlement is None).
-    assert base_ceiling is not None
-    assert large_ceiling is None or large_ceiling > base_ceiling
-    assert policy.instance_complexity_too_large(base_ceiling + 1, LARGE) is False
-
-
-def test_an_instance_exactly_at_the_ceiling_is_allowed():
-    ceiling = BASE.limit("maxInstanceComplexityLog10")
-    assert ceiling is not None
-    assert policy.instance_complexity_too_large(ceiling, BASE) is False
-
-
-def test_an_unmeasured_instance_complexity_is_not_refused():
-    # Analysis always reports a size; refusing when it somehow did not would
-    # turn a missing measurement into a billing decision.
-    assert policy.instance_complexity_too_large(None, BASE) is False
 
 
 def test_a_plan_with_no_ceilings_configured_still_bounds_a_request():
@@ -238,5 +191,5 @@ def test_a_plan_with_no_ceilings_configured_still_bounds_a_request():
     # commercial configuration from application code.
     bare = PlanCaps(plan="unknown")
 
-    assert bare.limit("maxTimeoutSeconds") == 0
+    assert bare.limit("maxRunMinutes") == 0
     assert policy.clamp_options({"time_budget_ms": 10**9}, bare).warnings != []

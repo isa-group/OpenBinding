@@ -1,6 +1,6 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { movedRoutes, routeDefinitions, routesByArea } from '../registry';
+import { routeDefinitions, routesByArea } from '../registry';
 import { routes } from './account';
 
 // One pair per line: screenBudget.test.ts counts them.
@@ -42,21 +42,6 @@ describe('area account', () => {
       ['/app/account/keys/new', null],
     ])('%s -> %s', (path, id) => {
       expect(matchRoutes(config, path)?.at(-1)?.route.id ?? null).toBe(id);
-    });
-  });
-
-  describe('the moved address of the new API key', () => {
-    const entry = movedRoutes.find((route) => route.path === '/app/account/keys/new');
-
-    it('leads to the API keys section with the creation dialog open, and drops the query', () => {
-      expect(entry?.id).toBe('acct-key-new');
-      expect(entry?.permanent).toBeFalsy();
-      expect(entry?.target(new URLSearchParams(), {})).toBe('/app/account/keys?create=key');
-      expect(entry?.target(new URLSearchParams('x=1'), {})).toBe('/app/account/keys?create=key');
-    });
-
-    it('is a moved entry, not a screen', () => {
-      expect(routeDefinitions.map((definition) => definition.path)).not.toContain('/app/account/keys/new');
     });
   });
 });

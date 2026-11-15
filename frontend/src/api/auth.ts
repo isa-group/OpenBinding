@@ -14,9 +14,8 @@ export type ApiKeyPermission =
   | 'account:write'
   | 'keys:read'
   | 'keys:write'
-  | 'instances:read'
-  | 'instances:write'
-  | 'instances:validate'
+  | 'problems:read'
+  | 'problems:write'
   | 'jobs:read'
   | 'engines:read'
   | 'engines:execute'
@@ -25,12 +24,8 @@ export type ApiKeyPermission =
   | 'engines:moderate'
   | 'organizations:read'
   | 'organizations:write'
-  | 'projects:read'
-  | 'projects:write'
   | 'studies:read'
   | 'studies:write'
-  | 'artifacts:read'
-  | 'artifacts:write'
   | 'notifications:read'
   | 'pricing:read'
   | 'admin:accounts:read'
@@ -55,7 +50,6 @@ export interface CreateApiKeyRequest {
   boundary?: {
     methods?: Array<'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'>;
     organizations?: string[];
-    projects?: string[];
     resource_kinds?: string[];
     slugs?: string[];
   };
@@ -72,7 +66,6 @@ export interface UserProfile {
   created_at: string;
   /** Added by the collaborative platform; optional keeps older API fixtures compatible. */
   cas_verified?: boolean;
-  institutional_branding?: boolean;
 }
 
 export interface TokenPair {
@@ -82,7 +75,7 @@ export interface TokenPair {
   expires_in: number;
 }
 
-/** A plan the gateway changed as a side effect of signing in: linking CAS raises BASIC to RESEARCH at no extra cost. */
+/** A plan the gateway changed as a side effect of signing in: linking CAS raises FREE to RESEARCH at no extra cost. */
 export interface PlanChange {
   from: string;
   to: string;
@@ -252,7 +245,6 @@ export interface AdminQueueStatus {
 }
 
 export interface MaintenancePreview {
-  expiredArtifacts: number;
   expiredApiKeys: number;
   terminalJobs: number;
   abandonedJobs: number;

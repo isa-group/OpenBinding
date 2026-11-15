@@ -1,35 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { readBindingProblem } from './bindingModel';
-import {
-  changesBetween, describeChange, diffRevisions, diffSummary, exactReference, newestFirst, refLabel, resourceUses, sizeChange, type RevisionView,
-} from './casesModel';
-import { irDocument, refOf, revisionDocument } from './fixtures';
-
-const app3 = refOf('checkout-app', '3', '1');
-const catalog2 = refOf('providers-eu', '2', '2');
-const catalog3 = refOf('providers-eu', '3', '3');
-const rules1 = refOf('sla-hard', '1', '4');
-const goal1 = refOf('weighted-cost-latency', '1', '5');
-
-const doc = (catalog = catalog3) => revisionDocument([['optimization', 'goal', goal1], ['candidateCatalog', 'providers', catalog], ['application', 'checkout', app3], ['constraintSet', 'sla', rules1]]);
-
-describe('resourceUses', () => {
-  it('lists the library versions a revision names in the order of the four parts', () => {
-    expect(resourceUses(doc()).map((use) => `${use.role}/${use.alias}`)).toEqual(['application/checkout', 'candidateCatalog/providers', 'constraintSet/sla', 'optimization/goal']);
-  });
-
-  it('skips what is not an exact reference', () => {
-    expect(resourceUses({ spec: { resources: { application: { app: 'app.json' }, other: 3 } } })).toEqual([]);
-    expect(resourceUses({})).toEqual([]);
-    expect(resourceUses(undefined)).toEqual([]);
-  });
-});
+import { diffRevisions, diffSummary, exactReference, newestFirst, sizeChange, type RevisionView } from './casesModel';
+import { irDocument } from './fixtures';
 
 describe('labels', () => {
-  it('writes a reference, a citation and a name for a library item', () => {
-    expect(refLabel(catalog3)).toBe('providers-eu v3');
-    expect(refLabel({ name: 'x', version: 'beta' })).toBe('x beta');
-    expect(exactReference('checkout-flow', { revision: 2, digest: 'sha256-ab' })).toBe('checkout-flow@2 sha256-ab');
+  it('writes the exact reference of a version: problem, number and package digest', () => {
+    expect(exactReference('checkout-flow', { revision: 2, package_digest: 'sha256-ab' })).toBe('checkout-flow@2 sha256-ab');
   });
 
   it('orders revisions newest first without touching the original', () => {
@@ -39,35 +15,16 @@ describe('labels', () => {
   });
 });
 
-describe('changesBetween', () => {
-  it('names what moved to another version, what was added and what was removed', () => {
-    const before = resourceUses(doc(catalog2));
-    const after = resourceUses(revisionDocument([['application', 'checkout', app3], ['candidateCatalog', 'providers', catalog3], ['optimization', 'goal', refOf('other-goal', '1', '6')]]));
-    expect(changesBetween(before, after).map(describeChange)).toEqual([
-      'Candidate catalog · providers: providers-eu v2 → providers-eu v3',
-      'Goal · goal: weighted-cost-latency v1 → other-goal v1',
-      'Rules · sla removed (was sla-hard v1)',
-    ]);
-  });
-
-  it('finds nothing when the versions are the same', () => {
-    expect(changesBetween(resourceUses(doc()), resourceUses(doc()))).toEqual([]);
-  });
-});
-
 describe('diffRevisions', () => {
-  const view = (revision: number, catalog: typeof catalog3, pay: number): RevisionView => ({
-    revision, uses: resourceUses(doc(catalog)), model: readBindingProblem(irDocument(pay)),
+  const view = (revision: number, pay: number): RevisionView => ({
+    revision, digest: `sha256-${String(revision).repeat(64)}`, model: readBindingProblem(irDocument(pay)),
   });
-  const from = view(1, catalog2, 5);
-  const to = view(2, catalog3, 8);
+  const from = view(1, 5);
+  const to = view(2, 8);
   const rows = diffRevisions(from, to);
 
-  it('marks the resources that changed and the ones that did not', () => {
-    const resources = rows.filter((row) => row.category === 'Resources');
-    expect(resources.find((row) => row.what === 'Candidate catalog · providers')).toMatchObject({ a: expect.stringContaining('providers-eu v2'), b: expect.stringContaining('providers-eu v3'), changed: true });
-    expect(resources.find((row) => row.what === 'Rules · sla')?.changed).toBe(false);
-    expect(JSON.stringify(resources)).not.toMatch(/sha256-|[0-9a-f]{12}/);
+  it('shows no digest in the rows', () => {
+    expect(JSON.stringify(rows)).not.toMatch(/sha256-/);
   });
 
   it('compares the providers of each task', () => {
@@ -87,9 +44,9 @@ describe('diffRevisions', () => {
     const edited = (changes: Array<[string, string, unknown]>): RevisionView => {
       const document = irDocument(8) as { spec: { candidates: { providers: { candidates: Record<string, { features: Record<string, unknown> }> } } } };
       for (const [id, name, value] of changes) document.spec.candidates.providers.candidates[id].features[name] = value;
-      return { revision: 2, uses: resourceUses(doc(catalog3)), model: readBindingProblem(document) };
+      return { revision: 2, digest: 'sha256-2', model: readBindingProblem(document) };
     };
-    const base = view(1, catalog3, 8);
+    const base = view(1, 8);
     const feature = (changes: Array<[string, string, unknown]>, what: string) => diffRevisions(base, edited(changes)).find((row) => row.what === what);
 
     it('shows a number that became a range, before and after', () => {
@@ -117,9 +74,8 @@ describe('diffRevisions', () => {
     });
   });
 
-  it('compares only the library versions when a compiled form is missing', () => {
-    const partial = diffRevisions({ ...from, model: null }, to);
-    expect([...new Set(partial.map((row) => row.category))]).toEqual(['Resources']);
+  it('compares nothing when a compiled form is missing', () => {
+    expect(diffRevisions({ ...from, model: null }, to)).toEqual([]);
   });
 
   it('summarizes the change in one line', () => {

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from httpx import ASGITransport, AsyncClient
 
+from _problem_helpers import run_url
 from openbinding_gateway import space_client
 from openbinding_gateway.db.models import JobState
 from openbinding_gateway.security.redaction import GENERIC_ERROR, redact_result
@@ -23,7 +24,7 @@ from openbinding_gateway.space_client import PricingUnavailable
 from openbinding_gateway.v1 import remote
 from openbinding_gateway.v1.remote import RemoteEngineError, RemoteRegistration
 
-from ._helpers import account_headers, account_with_snapshot, only_job, precondition, submit
+from ._helpers import account_headers, account_with_revision, only_job, precondition, submit
 
 #: ``.invalid`` never resolves (RFC 2606), so the real transport fails offline and says why.
 PRIVATE_HOST = "private-engine.invalid"
@@ -32,8 +33,8 @@ PRIVATE_HOST = "private-engine.invalid"
 async def _public_view_of_the_only_job(client, db_session, headers) -> str:
     job = await only_job(db_session)
     precondition(job.state is JobState.FAILED, f"the job ended {job.state.value}, not failed")
-    response = await client.get(f"/v1/jobs/{job.id}", headers=headers)
-    precondition(response.status_code == 200, f"GET /v1/jobs/<id> answered {response.status_code}")
+    response = await client.get(run_url(job), headers=headers)
+    precondition(response.status_code == 200, f"GET /v1/organizations/{{org}}/runs/<id> answered {response.status_code}")
     return response.text
 
 
@@ -63,8 +64,8 @@ async def test_the_transport_does_not_name_the_engine_host_in_the_jobs_error(
         return await real_solve(unreachable, {}, {}, {}, timeout_s=2.0)
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
-    await submit(api_client, headers, snapshot_id)
+    headers, revision_id = await account_with_revision(api_client, registration)
+    await submit(api_client, headers, revision_id)
 
     body = await _public_view_of_the_only_job(api_client, db_session, headers)
 
@@ -80,8 +81,8 @@ async def test_an_unexpected_exception_text_does_not_reach_the_jobs_error(
         raise RuntimeError("connection to server at db-internal.corp (10.1.2.3), port 5432 failed")
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
-    await submit(api_client, headers, snapshot_id)
+    headers, revision_id = await account_with_revision(api_client, registration)
+    await submit(api_client, headers, revision_id)
 
     body = await _public_view_of_the_only_job(api_client, db_session, headers)
 
@@ -96,8 +97,8 @@ async def test_the_error_text_an_engine_writes_is_bounded(api_client, db_session
         raise RemoteEngineError("x" * 100_000)
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
-    await submit(api_client, headers, snapshot_id)
+    headers, revision_id = await account_with_revision(api_client, registration)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     precondition(job.state is JobState.FAILED, "the job failed")
@@ -151,11 +152,13 @@ async def _unhandled_500(api_client, registration, monkeypatch):
     async def boom(*_args, **_kwargs):
         raise RuntimeError("secret-internal-host.corp exploded")
 
-    monkeypatch.setattr("openbinding_gateway.repositories.jobs.list_owned", boom)
+    monkeypatch.setattr("openbinding_gateway.repositories.jobs.list_in_org", boom)
+    organization = await api_client.post("/v1/organizations", headers=headers, json={"slug": "leaky", "name": "Leaky"})
+    precondition(organization.status_code == 201, f"creating the organization answered {organization.status_code}")
     # The shared client re-raises application errors; a real client sees the 500.
     transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://gateway") as client:
-        response = await client.get("/v1/jobs", headers=headers)
+        response = await client.get("/v1/organizations/leaky/runs", headers=headers)
     precondition(response.status_code == 500, f"answered {response.status_code}")
     return response
 

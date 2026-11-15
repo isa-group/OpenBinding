@@ -20,7 +20,7 @@ vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof impor
 vi.mock('../../api/platform', () => ({ platformApi: platform }));
 
 const DIGEST = `sha256-${'b2c3d4e5'.repeat(8)}`;
-// What GET /v1/pricing/catalog serves: the active document as JSON (a synthetic one, see pricingFixture).
+// What GET /v1/pricing/catalog serves: the active document as JSON (pricing 0.2.0, see pricingFixture).
 const catalog = JSON.parse(JSON.stringify(catalogFixture)) as Record<string, unknown>;
 
 const lucia: UserProfile = {
@@ -95,21 +95,21 @@ describe('engine revision detail', () => {
 
     const options = await screen.findByRole('region', { name: 'Options of mode sampling' });
     // A visitor previews the smallest plan.
-    expect(await screen.findByLabelText('Plan to preview')).toHaveValue('BASIC');
+    expect(await screen.findByLabelText('Plan to preview')).toHaveValue('FREE');
     const iterations = within(options).getByRole('row', { name: /iterations/ });
-    expect(within(iterations).getByText('OPTION_CLAMPED → 10,000')).toBeInTheDocument();
-    expect(within(iterations).getByText('10,000 iterations')).toBeInTheDocument();
+    expect(within(iterations).getByText('Set by the deployment')).toBeInTheDocument();
+    expect(within(iterations).getByText('Not reduced by plan')).toBeInTheDocument();
     const time = within(options).getByRole('row', { name: /time_budget_ms/ });
-    expect(within(time).getByText('60,000 ms (60 s)')).toBeInTheDocument();
+    expect(within(time).getByText('300,000 ms (5 min)')).toBeInTheDocument();
     expect(within(time).getByText('Within the ceiling')).toBeInTheDocument();
     const population = within(options).getByRole('row', { name: /population/ });
     expect(within(population).getByText('Not reduced by plan')).toBeInTheDocument();
     expect(within(population).getByText('Applies as requested')).toBeInTheDocument();
-    expect(screen.getByText(/Ceilings depend on your plan\. BASIC allows 60 s and 10,000 iterations per request\./)).toBeInTheDocument();
+    expect(screen.getByText(/Ceilings depend on your plan\. FREE allows 5 min per run\./)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Plan to preview'), { target: { value: 'RESEARCH' } });
     expect(within(options).queryByText(/OPTION_CLAMPED/)).not.toBeInTheDocument();
-    expect(within(iterations).getByText('1,000,000 iterations')).toBeInTheDocument();
+    expect(within(time).getByText('1,800,000 ms (30 min)')).toBeInTheDocument();
   });
 
   it('describes the mode contract and which endings it declares', async () => {
@@ -215,7 +215,7 @@ describe('engine revision detail', () => {
     expect(screen.getByRole('button', { name: 'Add to a study' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Log in to run' })).not.toBeInTheDocument();
     expect(await screen.findByLabelText('Plan to preview')).toHaveValue('RESEARCH');
-    expect(screen.getByText(/RESEARCH: max timeout 900 s, max 1,000,000 iterations per request\./)).toBeInTheDocument();
+    expect(screen.getByText(/RESEARCH: max 30 min per run\./)).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Your plan’s ceiling' })).toBeInTheDocument();
     // The header and the exact-reference panel both say so.
     expect(screen.getAllByText('Private', { selector: '.ui-chip' })).toHaveLength(2);

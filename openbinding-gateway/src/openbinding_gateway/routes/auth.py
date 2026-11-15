@@ -16,15 +16,16 @@ import uuid
 import hashlib
 import secrets
 from datetime import timedelta
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Request, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_user_by_identifier, session_dependency
 from ..core.ratelimit import enforce_auth_rate_limit
 from ..core.settings import Settings, get_settings
-from ..db.models import ApiKey, Notification, PasswordResetToken, RefreshToken, User, UserRole, utcnow
+from ..db.models import ApiKey, EngineRegistrationRevision, EngineRevision, Notification, PasswordResetToken, RefreshToken, User, UserRole, utcnow
 from ..mailer import send_mail
 from ..models.accounts import (
     LoginRequest,
@@ -51,6 +52,7 @@ from ..security.tokens import (
     read_refresh_token,
 )
 from .. import space_client
+from .users import PSEUDONYM_PREFIX, profile_of
 from ..space_client import PricingUnavailable
 
 router = APIRouter(prefix="/v1/auth", tags=["Authentication"])
@@ -81,15 +83,30 @@ def _read_refresh(settings: Settings, token: str):
     )
 
 
-def _profile(user: User) -> UserProfile:
-    return UserProfile(
-        id=user.id,
-        username=user.username,
-        email=user.email,
-        role=user.role.value,
-        is_active=user.is_active,
-        plan=user.plan_cache,
-        created_at=user.created_at,
+async def username_reserved(session: AsyncSession, username: str) -> bool:
+    """Whether ``username`` is kept from new accounts.
+
+    Engine namespaces are the username of whoever registered them, baked into
+    immutable manifests (engines and engine registrations alike), and they
+    outlive the account (a deleted account keeps them, under a pseudonymised
+    username). A new account with that name would inherit them and could publish
+    further versions under a namespace that consumers already trust, so the name
+    stays taken. Names in the pseudonym space of deleted accounts are kept too.
+    """
+    name = username.casefold()
+    if name.startswith(PSEUDONYM_PREFIX):
+        return True
+    for column in (EngineRevision.namespace, EngineRegistrationRevision.namespace):
+        if await session.scalar(select(column).where(func.lower(column) == name).limit(1)):
+            return True
+    return False
+
+
+def username_unavailable() -> Exception:
+    return api_error(
+        status.HTTP_409_CONFLICT,
+        "username_unavailable",
+        "That username is reserved: it names published engines, or belongs to a deleted account.",
     )
 
 
@@ -160,6 +177,8 @@ async def register(
             "already_registered",
             "That username or email is already in use.",
         )
+    if await username_reserved(session, request.username):
+        raise username_unavailable()
 
     # The plan a sign-up starts on is configuration (SPACE_DEFAULT_PLAN). Unset,
     # the account is created without one and SPACE assigns the contract's plan.
@@ -186,19 +205,21 @@ async def register(
     # time this user turns up. Losing the sign-up because a pricing service was
     # restarting would be a worse failure than a delayed contract.
     try:
-        from ..access.contracts import live_pricing_version
+        from ..access.contracts import live_pricing_version, record_assigned_plan
 
-        await space_client.get_gate().create_contract(
+        gate = space_client.get_gate()
+        await gate.create_contract(
             user.id,
             default_plan,
             user.email,
             live_pricing_version(settings),
         )
         user.contract_pending = False
+        await record_assigned_plan(user, gate)
     except PricingUnavailable:
         user.contract_pending = True
 
-    return _profile(user)
+    return await profile_of(session, user)
 
 
 @router.post(
@@ -362,7 +383,8 @@ async def request_password_reset(
         user_id=user.id, kind="password_reset", subject="Password reset requested",
         body="A password reset was requested. It expires in 30 minutes.", payload={},
     ))
-    reset_url = f"{settings.frontend_url.rstrip('/')}/reset-password?token={token}"
+    # The frontend's one reset screen (frontend/src/routes/areas/auth.tsx) reads `token` from its query.
+    reset_url = f"{settings.frontend_url.rstrip('/')}/password-reset?{urlencode({'token': token})}"
     await send_mail(
         settings, user.email, "Reset your OpenBinding password",
         f"Use this single-use link within 30 minutes:\n\n{reset_url}\n",

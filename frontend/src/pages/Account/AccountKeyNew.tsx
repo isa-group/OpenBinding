@@ -20,12 +20,12 @@ import './AccountKeyNew.css';
 
 const STEPS = ['Name', 'Permissions', 'Engines', 'Limits', 'Review'] as const;
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
-const KIND_SUGGESTIONS = ['jobs', 'studies', 'cases', 'artifacts'];
+const KIND_SUGGESTIONS = ['runs', 'studies', 'problems'];
 
-type BoundaryKey = 'methods' | 'organizations' | 'projects' | 'resource_kinds' | 'slugs';
+type BoundaryKey = 'methods' | 'organizations' | 'resource_kinds' | 'slugs';
 type BoundaryState = Record<BoundaryKey, string[]>;
 
-const NO_BOUNDARY: BoundaryState = { methods: [], organizations: [], projects: [], resource_kinds: [], slugs: [] };
+const NO_BOUNDARY: BoundaryState = { methods: [], organizations: [], resource_kinds: [], slugs: [] };
 
 const ENGINE_MESSAGE = 'The permissions you chose need all engines or at least one exact engine.';
 
@@ -100,15 +100,9 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
   // What the key could be narrowed to comes from what the account can reach; each source may fail without blocking the rest.
   const engines = useResource('keynew-engines', () => apiClient.getEngines().catch(() => [] as EngineCatalogEntry[]));
   const organizations = useResource('keynew-orgs', () => platformApi.organizations().catch(() => []));
-  const projects = useResource('keynew-projects', async () => {
-    const orgs = await platformApi.organizations().catch(() => []);
-    const lists = await Promise.all(orgs.map((org) => platformApi.projects(org.slug).catch(() => [])));
-    return lists.flat();
-  });
 
   const catalog = engines.data ?? [];
   const orgSlugs = (organizations.data ?? []).map((org) => org.slug);
-  const projectSlugs = [...new Set((projects.data ?? []).map((project) => project.slug))];
   const needsEngine = needsEngines(permissions);
   const selectedEngines = catalog.filter((engine) => engineKeys.includes(bimResourceKey(engine.ref)));
 
@@ -311,7 +305,7 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
         {step === 3 && (
           <>
             <h2>Engine access</h2>
-            <p>Permissions that run or read engine work (<code>engines:*</code>, <code>jobs:read</code>, <code>instances:validate</code>, <code>studies:*</code>) need all engines or at least one exact engine.</p>
+            <p>Permissions that run or read engine work (<code>engines:*</code>, <code>jobs:read</code>, <code>studies:*</code>) need all engines or at least one exact engine.</p>
             <div role="radiogroup" aria-label="Engine access" className="keynew-radios">
               <label className={allEngines ? 'is-on' : undefined}>
                 <input type="radio" name="engine-access" checked={allEngines} onChange={() => { setAllEngines(true); setError(null); }} />
@@ -350,7 +344,6 @@ export function AccountKeyNew({ onClose, onCreated }: AccountKeyNewProps) {
             <p>Narrow where the key works. Requests outside these limits get 403 api_key_boundary.</p>
             <BoundaryPicker label="HTTP methods" options={METHODS} selected={boundary.methods} onChange={setBoundaryValues('methods')} freeText={false} />
             <BoundaryPicker label="Organizations" options={orgSlugs} selected={boundary.organizations} onChange={setBoundaryValues('organizations')} hint="You don’t belong to an organization yet." />
-            <BoundaryPicker label="Projects" options={projectSlugs} selected={boundary.projects} onChange={setBoundaryValues('projects')} hint="No projects to pick from." />
             <BoundaryPicker label="Resource kinds" options={KIND_SUGGESTIONS} selected={boundary.resource_kinds} onChange={setBoundaryValues('resource_kinds')} />
             <BoundaryPicker label="Slugs" options={[]} selected={boundary.slugs} onChange={setBoundaryValues('slugs')} hint="Exact resource slugs, such as a problem or study." />
           </>

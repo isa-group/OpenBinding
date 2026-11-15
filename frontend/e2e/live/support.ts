@@ -18,12 +18,14 @@ export const LAB_USERS = {
 
 export type LabRole = keyof typeof LAB_USERS;
 
-/** The data the lab seeds: `lab-main` (sponsor `lab-owner`) with the private project `bim-demo` and its case `simple-seq`. */
+/** The data the lab seeds: `lab-main` (owner `lab-owner`) with its problem `simple-seq`. */
 export const ORG = 'lab-main';
 export const OTHER_ORG = 'lab-other';
-export const PROJECT = 'bim-demo';
 export const CASE = 'simple-seq';
-export const PROJECT_PATH = `/app/${ORG}/${PROJECT}`;
+/** The organization's own screens: its overview, and its problems below `${ORG_PATH}/problems`. */
+export const ORG_PATH = `/app/${ORG}`;
+/** The runs of the lab organization (`job-list`); a run is `${RUNS_PATH}/<id>` and the launcher `${RUNS_PATH}/new`. */
+export const RUNS_PATH = `/app/${ORG}/runs`;
 
 /** The addresses of the native consoles the interface links to; the lab build does not override the defaults. */
 export const SPACE_URL = process.env.PLAYWRIGHT_SPACE_URL ?? 'https://space.score.us.es';

@@ -31,7 +31,7 @@ extended with a stable `code` and a list of `diagnostics`. OpenAPI names it
 | Field | Type | Meaning |
 |---|---|---|
 | `type` | string | `https://openbinding.dev/problems/<code>` |
-| `title` | string | **Same value as `code`.** `/v1/validate` and the other BIM routes always did this and clients read `title` as the code; it is kept. |
+| `title` | string | **Same value as `code`.** `/v1/bim/validate` and the other BIM routes always did this and clients read `title` as the code; it is kept. |
 | `status` | integer | the HTTP status (`422`) |
 | `code` | string | stable, machine-readable. `validation_error` when the request itself is malformed (types, required fields, ranges, JSON syntax); a specific code (`weak_password`, `invalid_instance`, `checksum_mismatch`, …) when a route refuses a value it understood. |
 | `detail` | string | one-line, human-readable summary. For request validation: `Request validation failed: <pointer or parameter>: <message>` plus `(+N more)`. |
@@ -129,37 +129,60 @@ Routes keep raising `api_error(422, code, message)`; they need not know the shap
 
 ### Media type
 
-BIM routes (`/v1/validate`, `/v1/instances`, `/v1/jobs`, `/v1/engines`,
-`/v1/profiles`, … — the prefixes in `_BIM_PATH_PREFIXES`) answer
-`application/problem+json`, as they always did. `POST /v1/compositions/import`
-is among them, because it is a package upload and answers like the others; the
-rest of `/v1/compositions` does not. The platform routes
-(accounts, organizations, projects, studies, artifacts, pricing, …)
-keep `application/json`. The body is identical; only the media type differs, and
+BIM routes (`/v1/bim/…`, `/v1/engines`,
+`/v1/engine-registrations` — the prefixes in `_BIM_PATH_PREFIXES`) answer
+`application/problem+json`, as they always did. The platform routes
+(accounts, organizations and their problems, runs and studies, pricing, …)
+keep `application/json`. The runs moved to `/v1/organizations/{org}/runs` in F0b and
+answer the platform envelope since: a refusal other than a 422 carries `code` beside
+`detail: {code, error, …}`, with the extras of a limit (`quota`, `concurrency`,
+`binding_space`) inside `detail`; a 422 keeps the problem document (`diagnostics`, extras
+at the top level) as `application/json`. The body is identical; only the media type differs, and
 the OpenAPI document declares the right one per path. Nothing was changed here
 on purpose: switching the platform routes would be harmless to a JSON client but
 is not needed.
 
-## Sponsorship
-
-`PATCH /v1/organizations/{org}` with `billing_sponsor_user_id`:
+## Problems
 
 | `code` | Status | Meaning |
 |---|---|---|
-| `sponsor_must_be_caller` | 422 | an OWNER named somebody other than themselves (and other than the current sponsor) as billing sponsor. Only the caller can become sponsor; the check runs before the person is looked up, so existence and activity are not revealed, and nothing in the request is applied |
+| `unsupported_media_type` | 415 | an upload (`POST …/problems`, `POST …/problems/{problem}/revisions`, `POST /v1/bim/validate`) whose body is not `application/vnd.bim+zip` (or `application/zip`) |
+| `payload_too_large` | 413 | the package is larger than the toolchain's compressed limit or the plan's upload limit |
+| `invalid_request` | 422 | the body is not a readable `.bim.zip` package |
+| `invalid_instance` | 422 | the compiler refuses the package; `diagnostics` locate the refusal |
+| `slug_conflict` | 409 | the problem slug is in use in the organization |
+| `problem_has_runs` | 409 | `DELETE …/problems/{problem}`: a run, a study cell or a sealed study names one of its revisions, which are kept as their evidence |
+| `revision_not_recompilable` | 422 | the installed toolchain refuses a stored revision (or reads it as another package); `reason` carries the refusal |
+| `content_unavailable` | 409 | the stored package of a revision cannot be read |
+| `revision_required` | 422 | `createRun` (`POST /v1/organizations/{org}/runs`) without `revision` |
+| `revision_not_in_organization` | 409 | `createRun` names a revision of another organization the caller can see: launch it from that organization |
+| `contract_not_installed` | 422 | a retry of a run whose compilation needs a contract the installed toolchain does not have |
 
-The sponsor-proposal codes (`sponsor_proposal_pending`, `sponsor_proposal_expired`,
-`sponsor_proposal_not_pending`, `sponsor_proposal_forbidden`) no longer exist:
-M9.6 removed the proposal routes. A request that still sends
-`replace_pending_proposal` is refused with `validation_error`.
+## Organizations
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `slug_reserved` | 422 | `createOrganization` with a slug that names a page of the application (`admin`, `account`, `engines`, `organizations`, `invitations`, `runs`, `problems`, `studies`, `settings`, `workbench`, `new`) |
+| `slug_conflict` | 409 | the organization slug is in use |
+| `historical_references` | 409 | `deleteOrganization`: the organization, or one below it, has runs or study runs, which are kept as history |
+
+## Accounts and plans
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `quota_exceeded` | 402 | a per-account limit of the plan would be passed: `maxApiKeys`, `maxFederatedEngines`, `maxProblems`, `maxRepositoryStorage`. `quota` names `limit_id`, `limit` and `used` |
+| `username_unavailable` | 409 | registration or a first CAS sign-in asked for a reserved username: one that names engines or engine registrations already (engine namespaces are usernames baked into immutable manifests, and they outlive a deleted account), or one starting with `deleted-`, the pseudonyms of deleted accounts |
+| `last_owner` | 409 | `DELETE /v1/users/me`: the account is the last OWNER of an organization |
+
+Quotas are per account: there are no billing sponsors. Deleting an account pseudonymises it
+([ACCOUNTS_AND_PLANS.md](ACCOUNTS_AND_PLANS.md)).
 
 ## Conditional writes (`If-Match`)
 
 These operations take an optional `If-Match` header:
 
 - `PATCH /v1/organizations/{org}`
-- `PATCH …/projects/{project}`
-- `PATCH …/cases/{case}`
+- `PATCH …/problems/{problem}`
 - `PATCH …/studies/{study}`
 - `PATCH /v1/users/me`
 - `PUT /v1/notifications/preferences`
@@ -181,14 +204,14 @@ revision, `409 contract_changed` otherwise. Nothing was written either way
 
 | `code` | Status | Meaning |
 |---|---|---|
-| `precondition_failed` | 412 | `If-Match` did not match the resource's current `ETag`: somebody changed it since you read it, or (for `*` or a tag) it has no current state yet, such as an engine credential never set. The response carries the **current** `ETag` header (none when the resource has no current state). **Nothing in the request was applied**: no field, no audit event, no side effect (no sponsorship transfer, no registration reset). Re-read the resource, merge, and retry with the new tag |
+| `precondition_failed` | 412 | `If-Match` did not match the resource's current `ETag`: somebody changed it since you read it, or (for `*` or a tag) it has no current state yet, such as an engine credential never set. The response carries the **current** `ETag` header (none when the resource has no current state). **Nothing in the request was applied**: no field, no audit event, no side effect (no registration reset). Re-read the resource, merge, and retry with the new tag |
 | `invalid_if_match` | 400 | `If-Match` is present but is neither `*` nor a comma-separated list of quoted entity tags (`"abc"`, `W/"abc"`), or it is longer than 2048 characters. Examples: an unquoted value, `*` mixed with tags, a missing comma, an empty value. Nothing was applied. Of repeated `If-Match` header fields only the first is read |
 
 Weak tags (`W/"…"`) are well-formed but never match, because `If-Match` uses strong comparison (RFC 9110 §13.1.1).
 `*` matches whenever the resource exists. Authentication (`401`), not-found (`404`) and permission (`403`) refusals
-(for an organization update, also the OWNER check when naming a sponsor and the authorisation on a new parent)
+(for an organization update, also the authorisation on a new parent)
 come first, so a caller who may not read the resource never sees its `ETag`. `412` comes before the refusals that
-depend on stored state or on the stored tree (`402`, `409` and `422` such as `sponsor_must_be_caller`,
+depend on stored state or on the stored tree (`402`, `409` and `422` such as
 `ambiguous_parent` or `already_registered`). A request
 body the framework refuses is still `422 validation_error`.
 

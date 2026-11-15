@@ -1,8 +1,9 @@
-import type { CaseRevision, Study, StudyCell, StudyRun } from '../../api/platform';
+import type { Study, StudyCell, StudyRun } from '../../api/platform';
+import type { ProblemRevision } from '../../api/problems';
 import type { BimResourceRef, EngineCatalogEntry, EngineMode } from '../../api/client';
 import { bimResourceKey } from '../../api/client';
-import type { ExecutionOptimization } from '../../api/jobs';
-import type { CaseContent } from '../Project/projectModel';
+import type { ExecutionOptimization } from '../../api/runs';
+import type { CaseContent } from '../../features/workspace/model';
 import { criteriaCountOf, optimizationFor, optimizationTypeOf } from '../Jobs/launchModel';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -31,10 +32,10 @@ export function matrixSize(parts: { cases: number; engines: number; settings: nu
   return { ...parts, cells: parts.cases * parts.engines * parts.settings * parts.seeds };
 }
 
-/** The matrix a sealed definition spells out: every combination of case revision × engine × setting × seed is one cell. */
+/** The matrix a definition spells out: every combination of problem revision × engine × setting × seed is one cell. */
 export function definitionSize(definition: Study['definition']): MatrixSize {
   return matrixSize({
-    cases: definition.case_revision_ids?.length ?? 0,
+    cases: definition.revision_ids?.length ?? 0,
     engines: definition.engines?.length ?? 0,
     settings: definition.parameter_sets?.length ?? 0,
     seeds: definition.seeds?.length ?? 0,
@@ -172,11 +173,11 @@ export function engineChoices(engines: readonly EngineCatalogEntry[]): EngineCho
 }
 
 /**
- * How many criteria the goal of the chosen case revisions has: the most any of them optimizes. `null` when none of the documents can be
- * read, which {@link studyOptimization} treats as a single criterion.
+ * How many criteria the goal of the chosen problem versions has: the most any of their compiled forms optimizes. `null` when none of them
+ * can be read, which {@link studyOptimization} treats as a single criterion.
  */
-export function studyCriteriaCount(revisions: readonly Pick<CaseRevision, 'document'>[]): number | null {
-  const counts = revisions.map((revision) => criteriaCountOf(revision.document)).filter((count): count is number => count !== null);
+export function studyCriteriaCount(compiled: readonly unknown[]): number | null {
+  const counts = compiled.map((document) => criteriaCountOf(document)).filter((count): count is number => count !== null);
   return counts.length > 0 ? Math.max(...counts) : null;
 }
 
@@ -203,8 +204,8 @@ export interface RevisionInfo {
   caseSlug: string;
   caseName: string;
   revision: number;
+  /** The package digest of the version. */
   digest: string;
-  snapshotId: string | null;
   createdAt: string;
 }
 
@@ -213,50 +214,47 @@ export function revisionIndex(cases: readonly CaseContent[]): Map<string, Revisi
   for (const entry of cases) {
     for (const revision of entry.revisions) {
       index.set(revision.id, {
-        id: revision.id, caseSlug: entry.item.slug, caseName: entry.item.name, revision: revision.revision, digest: revision.digest,
-        snapshotId: revision.source_snapshot_id, createdAt: revision.created_at,
+        id: revision.id, caseSlug: entry.item.slug, caseName: entry.item.name, revision: revision.revision, digest: revision.package_digest,
+        createdAt: revision.created_at,
       });
     }
   }
   return index;
 }
 
-/** The revisions of the project's cases that have one of the given ids; ids the project doesn't hold (another project's) are skipped. */
-export function revisionsOf(cases: readonly CaseContent[], ids: readonly string[]): CaseRevision[] {
+/** The revisions of the organization's problems that have one of the given ids; ids it doesn't hold are skipped. */
+export function revisionsOf(cases: readonly CaseContent[], ids: readonly string[]): ProblemRevision[] {
   const wanted = new Set(ids);
   return cases.flatMap((entry) => entry.revisions.filter((revision) => wanted.has(revision.id)));
 }
 
-/** `Flujo de checkout · version 2`; a version this project doesn't hold reads as another project's version. */
+/** `Flujo de checkout · version 2`; a version the organization doesn't hold (any more) reads as such. */
 export function revisionLabel(index: ReadonlyMap<string, RevisionInfo>, id: string, short = false): string {
   const found = index.get(id);
-  if (!found) return 'Version from another project';
+  if (!found) return 'Version of another organization';
   return short ? `${found.caseName} r${found.revision}` : `${found.caseName} · version ${found.revision}`;
 }
 
-/** A revision can be in a study only when a BIM snapshot backs it: that is what the engines receive. */
-export const isExecutable = (revision: Pick<CaseRevision, 'source_snapshot_id'>): boolean => Boolean(revision.source_snapshot_id);
-
-/** Every executable revision of every case, case by case and newest first: the list the builder offers. */
-export function offeredRevisions(cases: readonly CaseContent[]): Array<{ caseName: string; caseSlug: string; revision: CaseRevision }> {
+/** Every revision of every problem, problem by problem and newest first: the list the builder offers (each one is a sealed package). */
+export function offeredRevisions(cases: readonly CaseContent[]): Array<{ caseName: string; caseSlug: string; revision: ProblemRevision }> {
   return cases.flatMap((entry) => [...entry.revisions]
     .sort((a, b) => b.revision - a.revision)
     .map((revision) => ({ caseName: entry.item.name, caseSlug: entry.item.slug, revision })));
 }
 
-/** The newest executable revision of each case. */
+/** The newest revision of each problem. */
 export function latestExecutable(cases: readonly CaseContent[]): string[] {
   return cases.flatMap((entry) => {
-    const newest = [...entry.revisions].filter(isExecutable).sort((a, b) => b.revision - a.revision)[0];
+    const newest = [...entry.revisions].sort((a, b) => b.revision - a.revision)[0];
     return newest ? [newest.id] : [];
   });
 }
 
 interface SelectionInput {
   cases: readonly CaseContent[];
-  /** `?case=` : a case of this project, by its address. */
+  /** `?case=` : a problem of the organization, by its address. */
   caseSlug: string | null;
-  /** `?revision=` : a revision number or id of that case. */
+  /** `?revision=` : a version number or id of that problem. */
   revision: string | null;
 }
 
@@ -265,27 +263,33 @@ export function defaultSelection({ cases, caseSlug, revision }: SelectionInput):
   const picked = new Set<string>();
   const entry = caseSlug ? cases.find((item) => item.item.slug === caseSlug) : undefined;
   if (entry) {
-    const wanted = revision ? entry.revisions.find((item) => String(item.revision) === revision || item.id === revision) : undefined;
-    const chosen = wanted ?? [...entry.revisions].filter(isExecutable).sort((a, b) => b.revision - a.revision)[0];
-    if (chosen && isExecutable(chosen)) picked.add(chosen.id);
+    // A version the address names that the problem doesn't have selects nothing rather than another version.
+    const chosen = revision
+      ? entry.revisions.find((item) => String(item.revision) === revision || item.id === revision)
+      : [...entry.revisions].sort((a, b) => b.revision - a.revision)[0];
+    if (chosen) picked.add(chosen.id);
   }
   return [...picked];
 }
 
-/** The cells a sealed Study version spells out (`StudyArtifactContent`); `null` when its content doesn't read as one. */
-export function studyContentSize(content: string): MatrixSize | null {
-  try {
-    const parsed: unknown = JSON.parse(content);
-    if (!isRecord(parsed) || !Array.isArray(parsed.cases) || !Array.isArray(parsed.engines)) return null;
-    return matrixSize({
-      cases: parsed.cases.length,
-      engines: parsed.engines.length,
-      settings: Array.isArray(parsed.parameter_sets) ? parsed.parameter_sets.length : 1,
-      seeds: Array.isArray(parsed.seeds) ? parsed.seeds.length : 1,
-    });
-  } catch {
-    return null;
-  }
+/**
+ * The definition a study run froze, read back as an editable study definition: the same revisions, engines, settings and seeds.
+ * PATCHing a study with it runs the old matrix again (the compilations are pinned anew by the next run).
+ */
+export function definitionOfRun(run: Pick<StudyRun, 'definition'>): Study['definition'] {
+  const frozen = run.definition;
+  return {
+    revision_ids: (frozen.problems ?? []).map((problem) => problem.revisionId),
+    engines: frozen.engines ?? [],
+    parameter_sets: frozen.parameterSets ?? [],
+    seeds: frozen.seeds ?? [],
+  };
+}
+
+/** Whether two definitions say the same thing, in any key order (the gateway sorts the revisions of a stored one). */
+export function sameDefinition(a: Study['definition'], b: Study['definition']): boolean {
+  const sorted = (definition: Study['definition']) => ({ ...definition, revision_ids: [...(definition.revision_ids ?? [])].sort() });
+  return stable(sorted(a)) === stable(sorted(b));
 }
 
 // --- runs and cells
@@ -345,12 +349,10 @@ export function metricsOf(cell: Pick<StudyCell, 'metrics'>): CellMetrics {
 const FAILURES: Record<string, string> = {
   engine_unreachable: 'The engine deployment didn’t answer in time.',
   invalid_engine: 'The engine or mode this cell pins was refused.',
-  executable_snapshot_required: 'The problem version has no compiled snapshot for the engines to run.',
-  snapshot_not_found: 'The snapshot behind the problem version no longer exists.',
+  revision_not_recompilable: 'The installed toolchain refuses the package of this problem version.',
   invalid_case_revision: 'The problem version could not be read as a problem.',
   job_rejected: 'The run pipeline refused to start this cell.',
   job_not_persisted: 'The run for this cell could not be stored.',
-  snapshot_persistence_failed: 'The snapshot could not be prepared for this account.',
 };
 
 /** What a failed cell says about itself: the code the gateway recorded, in words, and its own detail. */
@@ -488,7 +490,7 @@ export interface DefinitionGrid {
 
 /** The matrix a definition spells out, in the order the gateway expands it: case revisions by id, engines by identity, settings, seeds ascending. */
 export function definitionGrid(definition: Study['definition']): DefinitionGrid {
-  const rows = [...(definition.case_revision_ids ?? [])].sort();
+  const rows = [...(definition.revision_ids ?? [])].sort();
   const engines = [...(definition.engines ?? [])].sort((a, b) => (
     [a.namespace, a.name, a.version, a.digest, a.mode ?? ''].join('\u0000').localeCompare([b.namespace, b.name, b.version, b.digest, b.mode ?? ''].join('\u0000'))
   ));

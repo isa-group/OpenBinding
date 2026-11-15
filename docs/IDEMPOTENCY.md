@@ -1,7 +1,8 @@
-# Idempotency and execution guarantees of `POST /v1/jobs`
+# Idempotency and execution guarantees of `createRun`
 
 This document states what the gateway guarantees about submitting and running
-a job, what it does not, how it can fail, and which of these claims have been
+a run (`POST /v1/organizations/{org}/runs`, `createRun`; a run is a row of the
+`jobs` table), what it does not, how it can fail, and which of these claims have been
 checked and where. Distributed exactly-once execution is **not** claimed.
 
 ## Guarantees
@@ -17,13 +18,16 @@ checked and where. Distributed exactly-once execution is **not** claimed.
 ## Where the flow lives
 
 The submission flow is `services/job_submission.py` (`JobSubmission.submit`); the
-route (`create_job` and `_create_job_core` in `routes/v1.py`) only reads the
-request into a `JobSubmissionInput`, calls the service, dispatches a job it
-reports as `created` (after the commit, so a crash still never loses the job) and
-translates the `JobSubmissionResult` (`created`, `replay` or `problem`) into a
-response. The service does the lookup of the key, the account lock, the
+route (`create_run` in `modules/execution/adapters/routes.py`) only reads the
+request into a `RunRequest` (`modules/execution/domain/run_request.py`), calls the
+service, dispatches a job it reports as `created` (after the commit, so a crash
+still never loses the job) and translates the `JobSubmissionResult` (`created`,
+`replay` or `problem`) into a response; a refusal is the platform JSON envelope.
+A study cell builds its own `RunRequest` and calls the same service
+(`study_jobs.launch_study_cell`), with no HTTP request in between. The service does the lookup of the key, the account lock, the
 fingerprint comparison (current and legacy), the concurrency check, the
-`IntegrityError` race handling and the persistence of the snapshot and the job.
+`IntegrityError` race handling, the compilation of the revision (compile-or-get: the stored one, or compiled
+once for the installed toolchain) and the persistence of the job, which names that compilation and never copies the IR.
 Moving the code changed none of G1-G4 or of the wire contract; the unit tests of
 the service are `tests/test_job_submission_service.py`, and the HTTP-level ones
 are `tests/test_idempotency_jobs.py` and `tests/concurrency/test_jobs_idempotency_pg.py`.
@@ -31,19 +35,23 @@ are `tests/test_idempotency_jobs.py` and `tests/concurrency/test_jobs_idempotenc
 ## Scope of the key
 
 An `Idempotency-Key` (1–255 characters) is scoped to the **account**: two
-accounts may use the same key and get independent jobs. A job is never visible
-across accounts. Submitting a job requires an account (`401 unauthorized`
-otherwise); every accepted job is persisted.
+accounts may use the same key and get independent runs, even in one
+organization. A run is visible to every member of its organization and to
+nobody else. Submitting a run requires an account (`401 unauthorized`
+otherwise) with MEMBER in the organization of the address, and the revision must
+belong to that organization (`409 revision_not_in_organization` otherwise); every
+accepted run is persisted.
 
 ## What the key identifies
 
 The key is bound to the **canonical request**, not to what the gateway resolved
 from it. The fingerprint is `v2:` + the canonical digest of
-`{source, body, configuration}` (`domain/idempotency.py`):
+`{source, body}` (`domain/idempotency.py`):
 
-- `source`: digest of the package (uploaded, or the snapshot's archive);
-- `body`: the JSON body exactly as the client sent it;
-- `configuration`: the pinned ExecutionConfiguration reference, if any.
+- `source`: the package digest of the revision the run names;
+- `body`: the request as a document (`RunRequest.body()`): `revision`, `engine`
+  and `options`, plus `registration`, `mode` and `optimization` when given, so a
+  field left out and one sent as `null` read the same.
 
 It is 74 characters long and is stored in `jobs.idempotency_fingerprint`
 (`String(80)`). Because it describes what the client **sent**, it does not change
@@ -57,7 +65,7 @@ example options trimmed by the caller's plan.
   is created and nothing is dispatched.
 - Same key, different request: `409 idempotency_conflict`.
 - Concurrent requests with one key: the account row is locked
-  (`jobs/limits.lock_owner`, `FOR UPDATE`) before the check, so a request that
+  (`jobs/limits.lock_owner`, `FOR NO KEY UPDATE`) before the check, so a request that
   waited behind the one that created the job sees it and replays. The unique
   constraint is the last line of defence: the loser of an `IntegrityError`
   re-reads the winner and replays (`_raced_idempotent_outcome` in
@@ -133,13 +141,12 @@ early on PostgreSQL; this is only checked by the PG tests listed below.
 `JOB_DISPATCH_MODE=inline` (tests, single-process development) runs the runner
 inside the request. With `JOB_DISPATCH_MODE=dramatiq`:
 
-- **Immediate publication.** `POST /v1/jobs` and retry commit the `queued` row
+- **Immediate publication.** `createRun` and retry commit the `queued` row
   and then send the message. This is unchanged and is the normal path. It is
   *after* the commit, so a crash or a Redis outage can lose the message but never
   the job.
 - **The row is the outbox.** `jobs.publish_attempts` (default 0) and
-  `jobs.next_publish_at` (null until the first republication; migration
-  `f2a3b4c5d6e7`). The reconciler's safety net (`jobs/publisher.py`,
+  `jobs.next_publish_at` (null until the first republication). The reconciler's safety net (`jobs/publisher.py`,
   `redeliver_queued_jobs`) claims a batch with one statement:
 
   ```sql
@@ -198,13 +205,10 @@ change does not alter the protocol (its digest is pinned). What the gateway does
 - The id is also written to `job_engine_attempts`, one row per attempt
   (`job_id`, `attempt`, `engine_job_id`, `endpoint`, `registered_at`,
   `cancel_state`, `cancel_attempts`, `next_cancel_at`; unique on `(job_id, attempt)`,
-  `ON DELETE CASCADE`; migration `b6c7d8e9f0a1`, hanging from `a5b6c7d8e9f0`), in the
+  `ON DELETE CASCADE`), in the
   same transaction. `jobs.engine_job_id` keeps only the latest id, because the next
   attempt overwrites it; the table keeps the id and the endpoint of **every** attempt,
-  so the first attempt is still known when the second is lost too. The downgrade drops
-  the table: the ids and the pending cancellations in it are destroyed, and the
-  remote jobs of lost attempts that were not yet cancelled can no longer be asked to
-  stop. An id that arrives after the worker already lost its lease is still
+  so the first attempt is still known when the second is lost too. An id that arrives after the worker already lost its lease is still
   recorded, as pending cancellation, and writes nothing on the job.
 - **Cancelling a remote job is best effort and conditioned on a declared
   capability.** `bim-engine/v1` has no cancellation operation and no Engine in the
@@ -283,9 +287,7 @@ minute, so the raw answer is no longer lost when BIM fails.
   `attempt` (the `jobs.attempt` of the claim that received the answer),
   `raw_result` (JSON, at most 4 MiB, the bound of `v1.remote.MAX_REMOTE_RESPONSE`;
   an answer over it is not kept), `digest`, `created_at`, `expires_at`; unique on
-  `(job_id, attempt)`. Migration `a5b6c7d8e9f0`, hanging from `f2a3b4c5d6e7`. Its
-  downgrade drops the table, so the answers still kept are destroyed and those
-  jobs can only be retried (which runs the Engine again).
+  `(job_id, attempt)`.
 - **BIM fails.** The job is `FAILED`, `termination = UNKNOWN`, `solutions = []`,
   with `result.code = "bim_evaluation_failed"`, the fixed sentence of the catalog,
   `correlationId` and `result.evidence = {id, digest, expiresAt}`: a reference,
@@ -298,11 +300,11 @@ minute, so the raw answer is no longer lost when BIM fails.
 - **Retention.** `EVIDENCE_RETENTION_DAYS` (default 14, from 1 to 90). The
   reconciler's cycle deletes expired rows in a bounded batch (500 per cycle,
   `FOR UPDATE SKIP LOCKED`), comparing with the database clock like the leases.
-- **Re-evaluating: `POST /v1/jobs/{id}/reevaluate`.** Only the owner of the job,
-  with MEMBER in its organization when it has one (`require_work_role`); an API key
-  needs `engines:execute`, so a read-only key is refused, and a key inherits the
-  role of its user (a VIEWER's key is refused). A job that is not the caller's is
-  `404`. It does not run the Engine again; it uses only the row whose `attempt`
+- **Re-evaluating: `POST /v1/organizations/{org}/runs/{run}/reevaluate`.** Any
+  member with MEMBER or above in the organization of the run (`require_work_role`),
+  not only who launched it; an API key needs `engines:execute`, so a read-only key
+  is refused, and a key inherits the role of its user (a VIEWER's key is refused).
+  A run of an organization the caller is not in is `404`. It does not run the Engine again; it uses only the row whose `attempt`
   equals `jobs.attempt`. Refusals, all `409` unless said: `job_in_study` (the job
   has a `study_cell_id`: `study_jobs.py` protects only `FAILED`, and a cell of a
   cancelled run must not become `COMPLETED`), `job_already_retried` (a `retry`
@@ -337,7 +339,7 @@ for B4.
 | Gateway restarts between the Engine's answer and the database commit | The result is lost for that attempt; the job is requeued or failed by the reconciler |
 | Replica with a skewed clock | No effect on PostgreSQL (all comparisons use the database clock); on SQLite there is only one process |
 | Database connection holding the reconciler lock drops | Two replicas may run a cycle at once; harmless, every step is conditioned |
-| Lease lost (B3) | The late result is discarded (fencing, unchanged). The remote job of the lost attempt is asked to stop only for an Engine that declares the capability, never the one that runs the job and never an id a newer attempt also holds; the slow holder still waits for its Engine (limit above). Execution on the Engine stays at-least-once. See [qa/SECURITY_REVIEW.md](qa/SECURITY_REVIEW.md) |
+| Lease lost (B3) | The late result is discarded (fencing, unchanged). The remote job of the lost attempt is asked to stop only for an Engine that declares the capability, never the one that runs the job and never an id a newer attempt also holds; the slow holder still waits for its Engine (limit above). Execution on the Engine stays at-least-once. See `docs/qa/SECURITY_REVIEW.md` (removed with the factory artifacts in `e47da50d5`; in git history) |
 | BIM fails during re-evaluation (B4) | The job becomes `FAILED` (`bim_evaluation_failed`) but the engine's raw answer is **kept** in `job_engine_evidence` and can be evaluated again without solving (see *Engine answers kept for re-evaluation*) |
 | Analysis task whose worker keeps dying | Requeued twice, failed as `analysis_abandoned` on the third lost lease |
 | Client retries after a timeout with the same key | Replay of the original job |
@@ -355,8 +357,7 @@ Removed by M9.6. `analysis_jobs.py` followed the same scheme as jobs (a lease
 renewed from a background beat, every 20 s with a 60 s lease by the database
 clock, and a cap of three claims in `analysis_tasks.attempts`), and
 `routes/analysis.py` re-submitted failed tasks. The analysis queue, the worker,
-the routes and the `analysis_tasks` table no longer exist; the rows were exported
-and dropped (see [`runbooks/retired-data-export.md`](runbooks/retired-data-export.md)).
+the routes and the `analysis_tasks` table no longer exist.
 
 ## What has been certified
 
@@ -372,7 +373,7 @@ that existed before this change (`test_job_leases_pg.py` first four tests,
 The 26 compose-shape tests now live in the normal suite
 (`tests/test_pg_harness.py`) and are no longer skipped; the studies fixture
 creates the owner's membership; each test has a 60 s watchdog. An earlier run
-(SHA `5aebc7c8`) gave 45 passed, 26 skipped. See [qa/PG_HARNESS.md](qa/PG_HARNESS.md).
+(SHA `5aebc7c8`) gave 45 passed, 26 skipped. See `docs/qa/PG_HARNESS.md` (removed with the factory artifacts in `e47da50d5`; in git history).
 The tests listed below were written in an earlier change; they skip without
 `TEST_DATABASE_URL`. This page does not break the 58 down per file, so treat the
 list as scope, not as a per-test result:
@@ -389,8 +390,8 @@ list as scope, not as a per-test result:
 - The SQL itself (`make_interval`, `power`, `LEAST`, the `IN (... FOR UPDATE SKIP
   LOCKED)` subquery, a `BIGINT` advisory key) is exercised by those tests on
   PostgreSQL; the SQLite suite only compiles and string-compares it.
-- The migration `f2a3b4c5d6e7`: the PG run applies `alembic upgrade head`; it was
-  not tested separately.
+- The schema: the PG run applies `alembic upgrade head` (the one-revision baseline),
+  and `tests/test_schema_baseline_pg.py` compares it with the models.
 
 **Covered by SQLite only:** the controlled-clock lease tests, the publisher's
 claim / backoff / commit-before-send ordering, the queue limit, analysis-task
@@ -401,10 +402,15 @@ claim race there is decided by the single `UPDATE`. Two replicas claiming the sa
 cancellation at once is `tests/concurrency/test_remote_cancel_pg.py`, written to run on
 PostgreSQL in the lab and not executed in the SQLite runs.
 
+**The F0b walk** (`tests/test_f0b_walk.py`, SQLite and a fake engine) takes one run and a study's cells from
+`queued` to `completed` through the worker's runner (`dispatch_persisted_job`, which the Dramatiq actor awaits), and
+checks that every run and cell names the one compilation of its revision and that no IR is stored outside
+`problem_compilations`.
+
 **Not exercised anywhere:** a real Redis / Dramatiq broker failing mid-batch,
 real remote Engines under crash injection, the cancel call against an Engine that
 implements it.
 
 Related: [ACCOUNTS_AND_PLANS.md](ACCOUNTS_AND_PLANS.md) (the concurrency cap),
-[gateway-as-is.md](architecture/gateway-as-is.md) (where `jobs/` sits), and
-[qa/JOINT_STATUS.md](qa/JOINT_STATUS.md).
+[ARCHITECTURE.md](ARCHITECTURE.md) (where `jobs/` sits), and
+`docs/qa/JOINT_STATUS.md` (removed with the factory artifacts in `e47da50d5`; in git history).

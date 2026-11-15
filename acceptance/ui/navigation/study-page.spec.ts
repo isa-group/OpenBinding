@@ -4,8 +4,9 @@ import { choose, mockStudies, selectedTab, selectorOf, shownBy, tabGroup, tabLab
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
-const STUDY = '/app/acme/demo/studies/s1';
-const TABS = ['Setup', 'Progress', 'Results', 'Publish'];
+// Studies belong to the organization (F0b B7).
+const STUDY = '/app/acme/studies/s1';
+const TABS = ['Setup', 'Progress', 'Results'];
 
 test('a study with runs opens Progress and the run selector shows the latest run r2', async ({ page }) => {
   await mockStudies(page);
@@ -20,7 +21,7 @@ test('a study with runs opens Progress and the run selector shows the latest run
 
 test('a study without runs opens Setup', async ({ page }) => {
   await mockStudies(page);
-  await page.goto('/app/acme/demo/studies/s0');
+  await page.goto('/app/acme/studies/s0');
   const group = tabGroup(page, TABS);
   await expect.poll(() => tabLabels(group)).toEqual(TABS);
   await expect(selectedTab(group, 'Setup')).toBeVisible();
@@ -39,26 +40,27 @@ test('choosing r1 in the run selector sets ?run=r1 and shows the results of r1',
   expect(analytics[analytics.length - 1]).toContain('/runs/r1/analytics');
 });
 
-test('the three old study run addresses redirect into the study page', async ({ page }) => {
-  test.slow(); // three full page loads in one test
-  await mockStudies(page);
-  const cases: Array<[string, string]> = [
-    [`${STUDY}/runs/r1`, `${STUDY}/progress?run=r1`],
-    [`${STUDY}/runs/r1/analytics`, `${STUDY}/results?run=r1`],
-    [`${STUDY}/runs/r1/cells/c7`, `${STUDY}/results?run=r1&cell=c7`],
-  ];
-  for (const [old, target] of cases) {
-    await page.goto(old);
-    await expect.poll(() => pathAndSearch(page), old).toBe(target);
-  }
-});
-
 test('a cell inside Results links Open run to the run it ran as', async ({ page }) => {
   await mockStudies(page);
   await page.goto(`${STUDY}/results?run=r1&cell=c7`);
   const open = page.getByRole('link', { name: 'Open run', exact: true }).first();
   await expect(open).toBeVisible();
-  await expect(open).toHaveAttribute('href', `/app/acme/demo/${RUNS_SEGMENT}/j9`);
+  // Runs belong to the organization: the run of a cell opens under it.
+  await expect(open).toHaveAttribute('href', `/app/acme/${RUNS_SEGMENT}/j9`);
+});
+
+test('the Progress tab shows the definition the selected run froze', async ({ page }) => {
+  await mockStudies(page);
+  await page.goto(`${STUDY}/progress?run=r1`);
+  const frozen = page.getByRole('region', { name: 'Frozen definition' });
+  await expect(frozen).toBeVisible();
+  await expect(frozen.getByRole('listitem')).toHaveCount(1);
+});
+
+test('a study has no address below another segment of the organization', async ({ page }) => {
+  await mockStudies(page);
+  await page.goto('/app/acme/demo/studies/s1');
+  await expect(page.getByRole('heading', { level: 1, name: 'Study one' })).toHaveCount(0);
 });
 
 test('an unknown study tab shows Page not found', async ({ page }) => {

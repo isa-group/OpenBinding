@@ -1,30 +1,25 @@
+import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
 import type { Page, Route } from '@playwright/test';
 import type { AdminUserView } from '../../src/api/auth';
-import type { Job } from '../../src/api/platform';
-import { digestOf as caseDigest, irDocument, refOf, revisionDocument, sourceContents } from '../../src/pages/Cases/fixtures';
+import type { Job, Study, StudyCell, StudyRun } from '../../src/api/platform';
+import type { Problem, ProblemRevision } from '../../src/api/problems';
+import { digestOf as caseDigest, irDocument } from '../../src/pages/Cases/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../../src/pages/Pricing/pricingFixture';
 import {
   AUDIT, ERROR_EVENTS, ERROR_OVERVIEW, MODERATION, OVERVIEW, USERS, queuesAt, subscriptionOf, usageOf as adminUsageOf, userPage,
 } from '../../src/test/fixtures/admin';
 import {
-  EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, PLACEMENT_DIALECT, QOS_PROFILE,
+  EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, QOS_PROFILE,
   REPORT_FAILED, REPORT_PENDING, REPORT_VERIFIED, SHARED_SOLVER, SOLVER_IN_REVIEW, reportOf as registrationReport,
 } from '../../src/test/fixtures/engines';
-import { INSTANCE, NEIGHBORHOOD, REGISTRATION, REPORT as JOB_REPORT, SOLUTION, detailOf as jobDetailOf, jobOf } from '../../src/test/fixtures/jobs';
+import { NEIGHBORHOOD, REGISTRATION, RESULT, RUN_REFS, SOLUTION, detailOf as jobDetailOf, jobOf } from '../../src/test/fixtures/jobs';
 import {
-  blobOf, resourceOf, resourceRevisionOf,
-} from '../../src/test/fixtures/resources';
-import {
-  RANDOM_SEARCH, REVISION_2, VERSION_ID, analyticsFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
+  RANDOM_SEARCH, REVISION_2, analyticsFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
 } from '../../src/test/fixtures/studies';
-import { EXAMPLE } from './galleryRoutes';
-import {
-  bpmnContent, catalogContent, catalogRangesContent, goalContent, itemOf, rulesContent, versionOf,
-} from './libraryFixtures';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
-// with a project that has cases, runs, studies and a library behind it, and everything the public screens read.
+// with problems, runs and studies, and everything the public screens read.
 // Every date is fixed, so two runs of the gallery draw the same pictures. A request nobody answers is a 404 and is recorded.
 
 export const API = 'http://localhost:8000';
@@ -40,26 +35,12 @@ export interface MockHandle {
   unmocked: string[];
 }
 
-// -- The shared fixtures are already English and name neutral people (src/test/fixtures); the gallery only places the resource
-// fixtures, which belong to a project of their own in the unit tests, in the project it shows.
-
-const RENAMES: Array<[string, string]> = [
-  ['"project-qos"', '"project-qos-benchmarks"'],
-];
-
-/** The fixture placed in the gallery's project. */
-function localize<T>(value: T): T {
-  let text = JSON.stringify(value);
-  for (const [from, to] of RENAMES) text = text.split(from).join(to);
-  return JSON.parse(text) as T;
-}
-
 // -- People and organizations
 
 const ME_ID = '00000000-0000-4000-8000-000000000005';
 const ME = {
   id: ME_ID, username: 'alex.rivera', email: 'alex.rivera@example.org', role: 'admin', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-01-10T00:00:00Z', cas_verified: true, institutional_branding: true,
+  created_at: '2026-01-10T00:00:00Z', cas_verified: true,
 };
 
 /** The accounts of the administration screens: the ids the audit and overview fixtures point at, on example.org like the rest of the gallery. */
@@ -69,30 +50,14 @@ const ACCOUNTS: AdminUserView[] = USERS.map((user) => ({
 const accountOf = (id: string) => ACCOUNTS.find((account) => account.id === id);
 
 const org = (id: string, slug: string, name: string, role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER', over: Record<string, unknown> = {}) => ({
-  id, slug, name, parent_id: null, billing_sponsor_user_id: ME_ID, effective_role: role, created_at: '2026-03-03T00:00:00Z', ...over,
+  id, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z', ...over,
 });
 const ORGANIZATIONS = [
   org('org-isa-demo', 'isa-demo', 'ISA Demo Group', 'OWNER'),
   org('org-qos-lab', 'qos-lab', 'QoS Lab', 'OWNER', { parent_id: 'org-isa-demo', created_at: '2026-03-10T00:00:00Z' }),
-  org('org-partner-lab', 'partner-lab', 'Partner Lab', 'ADMIN', { billing_sponsor_user_id: '00000000-0000-4000-8000-000000000004', created_at: '2026-07-01T00:00:00Z' }),
-  org('org-read-lab', 'read-lab', 'Read Lab', 'VIEWER', { billing_sponsor_user_id: '00000000-0000-4000-8000-000000000004', created_at: '2026-05-01T00:00:00Z' }),
+  org('org-partner-lab', 'partner-lab', 'Partner Lab', 'ADMIN', { created_at: '2026-07-01T00:00:00Z' }),
+  org('org-read-lab', 'read-lab', 'Read Lab', 'VIEWER', { created_at: '2026-05-01T00:00:00Z' }),
 ];
-
-/** A `ProjectView`: the caller reaches every project of the gallery as a member (`access`), with the role of the organization. */
-const project = (slug: string, orgId: string, name: string, description: string, visibility: 'public' | 'private', role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' = 'OWNER') => ({
-  id: `project-${slug}`, organization_id: orgId, slug, name, description, visibility, created_by_id: ME_ID,
-  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
-  access: 'member' as const, effective_role: role,
-});
-const PROJECTS: Record<string, ReturnType<typeof project>[]> = {
-  'isa-demo': [
-    project('qos-benchmarks', 'org-isa-demo', 'QoS Benchmarks', 'Reference binding cases with workflow and placement.', 'public'),
-    project('payments-checkout', 'org-isa-demo', 'Payments checkout', 'Internal payments case with proprietary candidates.', 'private'),
-  ],
-  'qos-lab': [project('edge-placement', 'org-qos-lab', 'Edge placement', 'Exploration with pools and latencies.', 'private')],
-  'partner-lab': [project('shared-corpus', 'org-partner-lab', 'Shared corpus', 'Cases the partner lab contributes.', 'private', 'ADMIN')],
-  'read-lab': [],
-};
 
 const member = (orgId: string, key: string, userId: string, role: string, created = '2026-03-04T00:00:00Z') => ({
   id: `${orgId}-${key}`, organization_id: orgId, user_id: userId, username: key, email: `${key.replace('.', '-')}@example.org`, role, created_at: created,
@@ -109,7 +74,7 @@ const MEMBERS: Record<string, ReturnType<typeof member>[]> = {
 const ORG_AUDIT = [
   { id: 'e0000000-0000-0000-0000-0000000000e5', organizationId: 'org-isa-demo', actorId: ME_ID, action: 'organization.invitation.created', targetType: 'OrganizationInvitation', targetId: 'inv-1', detail: {}, createdAt: '2026-10-08T09:15:00Z' },
   { id: 'e0000000-0000-0000-0000-0000000000e4', organizationId: 'org-isa-demo', actorId: ME_ID, action: 'organization.members.batch_updated', targetType: 'Organization', targetId: 'org-isa-demo', detail: { changes: [{ user_id: '00000000-0000-4000-8000-000000000002', role: 'ADMIN' }] }, createdAt: '2026-09-25T10:00:00Z' },
-  { id: 'e0000000-0000-0000-0000-0000000000e3', organizationId: 'org-isa-demo', actorId: ME_ID, action: 'project.created', targetType: 'Project', targetId: 'project-qos-benchmarks', detail: {}, createdAt: '2026-04-01T08:30:00Z' },
+  { id: 'e0000000-0000-0000-0000-0000000000e3', organizationId: 'org-isa-demo', actorId: ME_ID, action: 'problem.created', targetType: 'BindingCase', targetId: 'case-flujo-checkout', detail: {}, createdAt: '2026-04-01T08:30:00Z' },
   { id: 'e0000000-0000-0000-0000-0000000000e2', organizationId: 'org-isa-demo', actorId: ME_ID, action: 'organization.created', targetType: 'Organization', targetId: 'org-isa-demo', detail: {}, createdAt: '2026-03-03T08:00:00Z' },
 ];
 
@@ -118,18 +83,17 @@ const ORG_AUDIT = [
 const USAGE = {
   plan: 'RESEARCH',
   contract_pending: false,
-  features: { authoring: true, solve: true, federatedEngines: true, apiAccess: true, collaboration: true, studies: true, advancedAnalytics: true, reproducibleExport: true, publishing: true, reproducibilityArchive: false, institutionalBranding: true },
+  features: { repository: true, runs: true, studies: true, generator: true, federatedEngines: true, collaboration: true, apiAccess: true },
   capabilities: {
-    concurrentJobs: 3, federatedEngines: 5, apiKeys: 25,
-    maxTimeoutSeconds: 900, maxIterations: 1_000_000, maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: 20, jobHistoryDays: 180,
-    organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120,
+    maxProblems: null, maxCollections: null, maxRepositoryStorage: null, solverHours: 100, maxRunMinutes: 30, maxConcurrentRuns: 4,
+    maxStudyCells: 5000, generatedInstances: 100_000, maxInstancesPerGeneration: 10_000, maxFederatedEngines: 3, maxPrivateProjects: 10, maxApiKeys: 10,
   },
 };
 
 const NOTIFICATIONS = [
   {
-    id: 'n1', kind: 'contract.changed', subject: 'Your OpenBinding agreement changed', body: 'Plan: BASIC → RESEARCH. Add-ons: {} → {}. Reason: institutional_agreement.',
-    payload: { reason: 'institutional_agreement', previous: { plan: 'BASIC', addOns: {} }, current: { plan: 'RESEARCH', addOns: {} }, pricingVersion: '0.1.0' },
+    id: 'n1', kind: 'contract.changed', subject: 'Your OpenBinding agreement changed', body: 'Plan: FREE → RESEARCH. Add-ons: {} → {}. Reason: institutional_agreement.',
+    payload: { reason: 'institutional_agreement', previous: { plan: 'FREE', addOns: {} }, current: { plan: 'RESEARCH', addOns: {} }, pricingVersion: '0.2.0' },
     read_at: null as string | null, created_at: hoursAgo(5),
   },
   { id: 'n2', kind: 'job.finished', subject: 'Job completed', body: 'Job 0000…a1 finished with FEASIBLE.', payload: {}, read_at: hoursAgo(20), created_at: hoursAgo(26) },
@@ -143,12 +107,12 @@ const ENGINE_DIGEST = `sha256-${'b2c3d4e5'.repeat(8)}`;
 const API_KEYS = [
   {
     id: 'k1', name: 'ci-read-results', prefix: 'obk_demo0001', created_at: '2026-09-01T00:00:00Z', last_used_at: '2026-10-08T00:00:00Z', expires_at: '2099-12-31T00:00:00Z',
-    permissions: ['jobs:read', 'projects:read', 'studies:read'], engine_access: { all: true, engines: [] },
-    boundary: { methods: ['GET'], organizations: ['isa-demo'], projects: ['qos-benchmarks'], resource_kinds: ['jobs', 'studies'], slugs: null },
+    permissions: ['jobs:read', 'problems:read', 'studies:read'], engine_access: { all: true, engines: [] },
+    boundary: { methods: ['GET'], organizations: ['isa-demo'], resource_kinds: ['runs', 'studies'], slugs: null },
   },
   {
     id: 'k2', name: 'run-fixed-engine', prefix: 'obk_demo0002', created_at: '2026-09-10T00:00:00Z', last_used_at: null, expires_at: null,
-    permissions: ['engines:execute', 'engines:read', 'instances:validate', 'jobs:read'],
+    permissions: ['engines:execute', 'engines:read', 'problems:read', 'jobs:read'],
     engine_access: { all: false, engines: [{ namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: ENGINE_DIGEST }] }, boundary: {},
   },
 ];
@@ -158,7 +122,7 @@ const API_KEYS = [
 const roleOf = (kind: string, minimum: number, maximum?: number, extensionTypes: 'none' | 'installed' = 'none') => ({
   resourceTypes: [{ apiVersion: 'qos-binding/v1', kind, minimum, ...(maximum === undefined ? {} : { maximum }) }], extensionTypes,
 });
-const PROFILE = localize({
+const PROFILE = {
   ...QOS_PROFILE,
   spec: {
     ...QOS_PROFILE.spec,
@@ -169,8 +133,7 @@ const PROFILE = localize({
       optimization: roleOf('Optimization', 0, 1),
     },
   },
-});
-const DIALECTS = localize([PLACEMENT_DIALECT]);
+};
 
 // -- Engines
 
@@ -199,72 +162,51 @@ export const PUBLIC_ENGINES = [
 const EDGE_ENGINE = engineEntry('edge-solver', 'alex.rivera', '0.3.1', `sha256-${'f1f2f3f4'.repeat(8)}`, [engineMode('tabu', 'tabu-search', false)]);
 const OWN_ENGINES = [...PUBLIC_ENGINES, EDGE_ENGINE];
 
-// -- The library behind the cases
+// -- Problems, their versions and compilations
 
-const LIB_ORG = { organization_id: 'org-isa-demo', namespace: 'isa-demo' };
-const app = itemOf('checkout-app', 'Application', 'Checkout app', { ...LIB_ORG, description: 'The checkout workflow: authenticate, reserve stock, ship, pay and notify.' });
-const catalog = itemOf('providers-eu', 'CandidateCatalog', 'EU providers', { ...LIB_ORG, description: 'Payment, stock and shipping providers in the EU, with their measured latency, cost and availability.' });
-const rules = itemOf('sla-hard', 'ConstraintSet', 'Hard SLA', { ...LIB_ORG, description: 'Latency and availability limits every binding must respect.' });
-const goal = itemOf('weighted-cost-latency', 'Optimization', 'Weighted cost and latency', { ...LIB_ORG });
-const workflow = itemOf('checkout-bpmn', 'Workflow', 'Checkout workflow (BPMN)', { ...LIB_ORG });
-const external = itemOf('external-catalog', 'CandidateCatalog', 'External catalog', { organization_id: 'org-partner-lab', namespace: 'partner-lab', description: 'Published by Partner Lab.' });
-const LIBRARY = [catalog, rules, goal, app, workflow];
-
-const rulesV1 = versionOf(rules, '1');
-const catalogV2 = versionOf(catalog, '2', { public: true });
-const catalogV3 = versionOf(catalog, '3', { manifest: { mediaType: 'application/json', contracts: [], dependencies: [rulesV1.ref], kind: 'CandidateCatalog' }, based_on_id: catalogV2.id });
-const VERSIONS: Record<string, ReturnType<typeof versionOf>[]> = {
-  [catalog.id]: [catalogV3, catalogV2],
-  [rules.id]: [rulesV1],
-  [goal.id]: [versionOf(goal, '1')],
-  [app.id]: [versionOf(app, '3')],
-  [workflow.id]: [versionOf(workflow, '1', { manifest: { mediaType: 'application/vnd.omg.bpmn+xml', contracts: [], dependencies: [], kind: 'Workflow' } })],
-  [external.id]: [versionOf(external, '1', { public: true })],
+const PROBLEM = {
+  id: 'case-checkout-flow', organization_id: 'org-isa-demo', slug: 'checkout-flow', name: 'Checkout flow', description: 'Payments with authentication, stock and shipping in parallel.',
+  created_by_id: ME_ID, created_at: '2026-04-02T00:00:00Z', updated_at: '2026-08-20T10:05:00Z',
 };
-const CONTENT: Record<string, unknown> = {
-  [catalog.id]: catalogRangesContent(), [rules.id]: rulesContent(), [goal.id]: goalContent(), [app.id]: sourceContents.application, [external.id]: catalogContent(), [workflow.id]: bpmnContent,
+const DRAFT_PROBLEM = {
+  ...PROBLEM, id: 'case-placement-draft', slug: 'placement-draft', name: 'Placement draft', description: 'Where the services may run: no version yet.',
+  created_at: '2026-09-28T00:00:00Z', updated_at: '2026-09-28T00:00:00Z',
 };
-
-// -- Cases, revisions and snapshots
-
-const REF_APP = refOf('checkout-app', '3', '4');
-const REF_CATALOG_2 = refOf('providers-eu', '2', '3');
-const REF_CATALOG_3 = refOf('providers-eu', '3', '4');
-const REF_RULES = refOf('sla-hard', '1', '2');
-const REF_GOAL = refOf('weighted-cost-latency', '1', '2');
-const documentWith = (catalogRef: typeof REF_CATALOG_2) => revisionDocument([
-  ['application', 'checkout', REF_APP], ['candidateCatalog', 'providers', catalogRef], ['constraintSet', 'sla', REF_RULES], ['optimization', 'goal', REF_GOAL],
-]);
-const S1 = '00000000-0000-4000-8000-0000000000e0';
-const S2 = EXAMPLE.snapshot;
-const S3 = '00000000-0000-4000-8000-0000000000e2';
-const SNAPSHOT_PAY: Record<string, number> = { [S1]: 5, [S2]: 8, [S3]: 8 };
-
-const CASE = localize({
-  id: 'case-checkout-flow', project_id: 'project-qos-benchmarks', slug: 'checkout-flow', name: 'Checkout flow', description: 'Payments with authentication, stock and shipping in parallel.',
-  created_by_id: ME_ID, created_at: '2026-04-02T00:00:00Z',
+const PROBLEM_REVISIONS = [revisionFixture(2, { package_size: 48_213 }), revisionFixture(1, { package_size: 46_100 })];
+const latestOf = (problem: typeof PROBLEM) => (problem.id === PROBLEM.id
+  ? { id: PROBLEM_REVISIONS[0].id, revision: 2, package_digest: PROBLEM_REVISIONS[0].package_digest, created_at: PROBLEM_REVISIONS[0].created_at }
+  : null);
+/** How many candidates the payment task has in each version: what their compiled forms differ in. */
+const PAY_OF: Record<string, number> = { 1: 5, 2: 8 };
+const revisionDetail = (revision: typeof PROBLEM_REVISIONS[number]) => ({
+  ...revision, document: { apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: 'checkout' } }, compilations: [],
+  files: [
+    { path: 'instance.json', role: 'root', digest: caseDigest('1'), media_type: 'application/json' },
+    { path: 'application.json', role: 'application', resource_id: 'application', digest: caseDigest('2'), media_type: 'application/json' },
+  ],
+  resource_digests: { application: caseDigest('2') },
 });
-const DRAFT_CASE = { ...CASE, id: 'case-placement-draft', slug: 'placement-draft', name: 'Placement draft', description: 'Where the services may run: not sealed yet.', created_at: '2026-09-28T00:00:00Z' };
-const revision = (n: number, catalogRef: typeof REF_CATALOG_2, snapshot: string) => localize(revisionFixture(n, {
-  binding_case_id: CASE.id, document: documentWith(catalogRef), source_snapshot_id: snapshot,
-}));
-const CASE_REVISIONS = [revision(2, REF_CATALOG_3, S2), revision(1, REF_CATALOG_2, S1)];
-
-const snapshotView = (id: string) => ({
-  id, ownerId: ME_ID, instanceDigest: caseDigest('a'), packageDigest: caseDigest('b'), archiveSize: 48_213, createdAt: '2026-08-20T10:05:00Z',
-  ir: { id: `ir-${id}`, digest: caseDigest('c'), document: localize(irDocument(SNAPSHOT_PAY[id] ?? 8)), sourceMap: null, compilerVersion: '1.0.0', createdAt: '2026-08-20T10:05:00Z' },
+const COMPATIBLE_MODES = () => [
+  { engine: PUBLIC_ENGINES[0].ref, registration: REGISTRATION, mode: 'sampling', compatible: true },
+  { engine: PUBLIC_ENGINES[2].ref, registration: { ...REGISTRATION, name: 'minizinc-deployment' }, mode: 'cp', compatible: true },
+  { engine: EDGE_ENGINE.ref, registration: { ...REGISTRATION, name: 'edge-solver-eu' }, mode: 'placement', compatible: false, diagnostics: [{ message: 'It cannot read a RoutingOverlay.' }] },
+];
+const ANALYSIS = { tasks: 6, candidates: 24, constraints: 2, placement: false, bindingSpace: '125892' };
+const compilationOf = (revision: string) => ({
+  id: `compilation-${revision}`, revision_id: `rev-checkout-${revision}`, compilation_digest: caseDigest('9'), compiler_digest: caseDigest('8'), ir_digest: caseDigest('c'),
+  binding_space: ANALYSIS.bindingSpace, created_at: '2026-08-20T10:05:00Z', current: true, toolchain: {}, analysis: ANALYSIS,
+  resources: { application: { role: 'application', path: 'application.json', apiVersion: 'qos-binding/v1', kind: 'Application' } },
+  compatible_modes: COMPATIBLE_MODES(),
 });
-const snapshotPins = (id: string) => ({
-  id, kind: 'InstanceSnapshot', instanceDigest: caseDigest('a'), packageDigest: caseDigest('b'), irDigest: caseDigest('c'),
-  fileDigests: { 'instance.json': caseDigest('1'), 'application.json': caseDigest('2'), 'candidates.json': caseDigest('3'), 'constraints.json': caseDigest('4') },
-  resourceDigests: { application: caseDigest('2'), candidateCatalog: caseDigest('3'), constraintSet: caseDigest('4') },
-  instance: { apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: 'checkout' } }, createdAt: '2026-08-20T10:05:00Z',
+const uploadOf = (problem: typeof PROBLEM, revision: number, created: boolean) => ({
+  problem: { ...problem, latest_revision: latestOf(problem) }, revision: revisionFixture(revision), created,
+  compilation: { ...compilationOf(String(revision)), compatible_modes: undefined },
 });
 
 // -- Jobs
 
 const JOB_ID = (n: number) => `00000000-0000-4000-8000-0000000000a${n}`;
-const mine = { project_id: 'project-qos-benchmarks', organization_id: 'org-isa-demo' };
+const mine = { organization_id: 'org-isa-demo', ...RUN_REFS };
 const JOBS = {
   feasible: jobOf(JOB_ID(1), 'random-search', 'completed', 'FEASIBLE', '2026-09-30T09:00:00Z', '2026-09-30T09:01:05Z', mine),
   running: jobOf(JOB_ID(2), 'minizinc', 'running', null, '2026-10-09T08:00:00Z', null, mine),
@@ -273,17 +215,19 @@ const JOBS = {
   cancelled: jobOf(JOB_ID(5), 'random-search', 'cancelled', null, '2026-10-06T12:00:00Z', '2026-10-06T12:00:03Z', mine),
   infeasible: jobOf(JOB_ID(6), 'minizinc', 'completed', 'INFEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:00:40Z', mine),
   routed: jobOf(JOB_ID(7), 'evolutionary-heuristics', 'completed', 'OPTIMAL', '2026-10-03T11:00:00Z', '2026-10-03T11:00:12Z', mine),
-  theirs: jobOf(JOB_ID(8), 'evolutionary', 'completed', 'OPTIMAL', '2026-10-02T10:00:00Z', '2026-10-02T10:02:00Z', mine),
+  theirs: jobOf(JOB_ID(8), 'evolutionary', 'completed', 'OPTIMAL', '2026-10-02T10:00:00Z', '2026-10-02T10:02:00Z', { ...mine, created_by: { id: 'user-ana', username: 'ana' } }),
 };
-const OWN_JOBS: Job[] = [JOBS.running, JOBS.queued, JOBS.failed, JOBS.cancelled, JOBS.feasible, JOBS.infeasible, JOBS.routed];
-const PROJECT_JOBS: Job[] = [JOBS.running, JOBS.queued, JOBS.failed, JOBS.cancelled, JOBS.feasible, JOBS.infeasible, JOBS.theirs];
-const summaryOf = (row: Job) => ({
-  id: row.id, engine_id: row.engine_id, status: row.status, termination: row.termination ?? null,
-  solutions: row.status === 'completed' ? (row.termination === 'INFEASIBLE' ? 0 : 1) : null, created_at: row.created_at, finished_at: row.finished_at,
-});
+/** The runs of the organization `isa-demo`, newest first: every member reads them. */
+const ORG_JOBS: Job[] = [JOBS.queued, JOBS.running, JOBS.failed, JOBS.cancelled, JOBS.routed, JOBS.theirs, JOBS.infeasible, JOBS.feasible];
 
-const SOLUTION_EN = localize(SOLUTION);
+const SOLUTION_EN = SOLUTION;
 function jobDetail(id: string): Record<string, unknown> | null {
+  const summary = ORG_JOBS.find((row) => row.id === id);
+  const detail = jobDetailOnly(id);
+  return summary && detail ? { ...summary, ...detail } : null;
+}
+
+function jobDetailOnly(id: string): Record<string, unknown> | null {
   const completed = { termination: 'FEASIBLE', solutions: [SOLUTION_EN] };
   switch (id) {
     case JOB_ID(1): return { ...jobDetailOf(id, 'completed'), result: completed };
@@ -300,37 +244,37 @@ function jobDetail(id: string): Record<string, unknown> | null {
 
 // -- Studies and the analysis
 
-const STUDY = localize(studyFixture());
-const OTHER_STUDY = localize(studyFixture({
-  id: 'study-placement', slug: 'placement-sweep', name: 'Placement sweep', description: 'Pools and latencies on the edge.', definition_artifact_id: 'artifact-placement',
-  definition: { case_revision_ids: [REVISION_2.id], engines: [RANDOM_SEARCH], parameter_sets: [{}], seeds: [1, 2, 3] },
-}));
+const STUDY = studyFixture();
+const OTHER_STUDY = studyFixture({
+  id: 'study-placement', slug: 'placement-sweep', name: 'Placement sweep', description: 'Pools and latencies on the edge.',
+  definition: { revision_ids: [REVISION_2.id], engines: [RANDOM_SEARCH], parameter_sets: [{}], seeds: [1, 2, 3] },
+});
 const STUDIES = [STUDY, OTHER_STUDY];
 const RUN = runFixture();
-const CELLS = localize(cellsFixture());
-const ANALYTICS = localize(analyticsFixture({
+const CELLS = cellsFixture();
+const ANALYTICS = analyticsFixture({
   binding_space: {
     cardinality: '125892', log10: 5.1, tasks: 6, breakdown: { authenticate: 4, inventory: 5, shipping: 3, 'pay-card': 8, 'pay-transfer': 4, notify: 1 },
     case_slug: 'checkout-flow', case_name: 'Checkout flow', revision: 2,
     cases: [
-      { id: CASE.id, slug: 'checkout-flow', name: 'Checkout flow', revision: 1, cardinality: '15849', log10: 4.2, tasks: 6, breakdown: { authenticate: 4 } },
-      { id: CASE.id, slug: 'checkout-flow', name: 'Checkout flow', revision: 2, cardinality: '125892', log10: 5.1, tasks: 6, breakdown: { authenticate: 4 } },
+      { id: PROBLEM.id, slug: 'checkout-flow', name: 'Checkout flow', revision: 1, cardinality: '15849', log10: 4.2, tasks: 6, breakdown: { authenticate: 4 } },
+      { id: PROBLEM.id, slug: 'checkout-flow', name: 'Checkout flow', revision: 2, cardinality: '125892', log10: 5.1, tasks: 6, breakdown: { authenticate: 4 } },
     ],
   },
-}));
+});
 
 // -- Public screens
 
-/** The example packages the gateway serves (GET /v1/examples). */
-const EXAMPLE_PATHS = ['demo/01_simple_seq', 'demo/02_parallel', 'demo/03_xor_choice', 'demo/05_multi_obj', 'demo/15_bpmn_complete', 'placement/01_small_placement'];
+/** The template packages the gateway serves (GET /v1/bim/templates). */
+const TEMPLATE_PATHS = ['demo/01_simple_seq', 'demo/02_parallel', 'demo/03_xor_choice', 'demo/05_multi_obj', 'demo/15_bpmn_complete', 'placement/01_small_placement'];
 
 // -- Administration
 
-/** The platform in numbers, counted from the same accounts, organizations and projects the other screens list. */
+/** The platform in numbers, counted from the same accounts, organizations and problems the other screens list. */
 const ADMIN_OVERVIEW = {
   ...OVERVIEW,
-  counts: { users: ACCOUNTS.length, apiKeys: 9, identities: 3, organizations: ORGANIZATIONS.length, projects: 4, cases: 2, studies: 2, studyRuns: 1, artifacts: 12 },
-  contracts: { BASIC: 3, ADVANCED: 1, RESEARCH: 2 },
+  counts: { users: ACCOUNTS.length, apiKeys: 9, identities: 3, organizations: ORGANIZATIONS.length, problems: 2, problemRevisions: 2, runs: 3, studies: 2, studyRuns: 1 },
+  contracts: { FREE: 3, RESEARCH: 2, LAB: 1 },
 };
 const PENDING_REGISTRATION = { ...SOLVER_IN_REVIEW, namespace: 'sam.okafor' };
 const emailOfAccount = (id: string | null | undefined) => (id ? `${(accountOf(id)?.username ?? 'sam.okafor').replace('.', '-')}@example.org` : null);
@@ -359,75 +303,61 @@ interface Request {
   archive: Buffer;
 }
 
-function projectRoutes(request: Request, orgSlug: string, projectSlug: string): Reply {
-  const { parts, query } = request;
-  const [, , , , , sub, subId, action, actionId, tail, tailId] = parts;
-  const current = (PROJECTS[orgSlug] ?? []).find((item) => item.slug === projectSlug);
-  if (!current) return notFound('Project not found.');
-  if (!sub) return ok(current);
-  const filled = projectSlug === 'qos-benchmarks';
-
-  switch (sub) {
-    case 'cases': {
-      if (!filled) return ok([]);
-      if (!subId) return ok([CASE, DRAFT_CASE]);
-      if (subId === DRAFT_CASE.slug) return action === 'revisions' ? ok([]) : ok(DRAFT_CASE);
-      if (subId !== CASE.slug) return notFound('Binding case not found.');
-      if (!action) return ok(CASE);
-      if (actionId) {
-        const found = CASE_REVISIONS.find((item) => String(item.revision) === actionId || item.id === actionId || item.digest === actionId);
-        return found ? ok(found) : notFound('Binding case revision not found.');
-      }
-      return ok(CASE_REVISIONS);
+/** `/v1/organizations/{org}/studies/…`: the studies of `isa-demo`, the one run of the first and its cells; another organization has none. */
+function studyRoutes(request: Request, orgSlug: string): Reply {
+  const { parts } = request;
+  const [, , , , subId, action, actionId, tail, tailId] = parts;
+  const studies = orgSlug === 'isa-demo' ? STUDIES : [];
+  if (!subId) return ok(studies);
+  const study = studies.find((item) => item.slug === subId);
+  if (!study) return notFound('Study not found.');
+  if (action === 'runs') {
+    if (subId !== STUDY.slug) return actionId ? notFound('Study run not found.') : ok([]);
+    if (!actionId) return ok([RUN]);
+    if (actionId !== RUN.id) return notFound('Study run not found.');
+    if (tail === 'cells' && tailId) {
+      const cell = CELLS.find((item) => item.id === tailId);
+      return cell ? ok(cell) : notFound('Study cell not found.');
     }
-    case 'jobs':
-      if (!filled) return ok([]);
-      return ok(query.get('job_id') ? PROJECT_JOBS.filter((row) => row.id === query.get('job_id')) : PROJECT_JOBS);
-    case 'studies': {
-      if (!filled) return ok([]);
-      if (!subId) return ok(STUDIES);
-      if (!STUDIES.some((item) => item.slug === subId)) return notFound('Study not found.');
-      if (action === 'runs') {
-        if (subId !== STUDY.slug) return ok([]);
-        if (!actionId) return ok([RUN]);
-        if (tail === 'cells' && tailId) {
-          const cell = CELLS.find((item) => item.id === tailId);
-          return cell ? ok(cell) : notFound('Study cell not found.');
-        }
-        if (tail === 'cells') return ok(CELLS);
-        if (tail === 'analytics') return ok(ANALYTICS);
-        return ok(RUN);
-      }
-      return ok(STUDIES.find((item) => item.slug === subId));
-    }
-    case 'blobs':
-      return ok(filled ? localize([blobOf('a'), blobOf('b', { media_type: 'text/csv', size_bytes: 18_432, public: true, created_at: '2026-09-30T09:00:00Z' })]) : []);
-    case 'resources': {
-      if (!filled) return ok([]);
-      const resources = localize([
-        resourceOf('latency-probes', 'Latency probes', { kind: 'Dataset', description: 'Latency probe results used by the checkout benchmarks.' }),
-        resourceOf('weighted-goal', 'Weighted goal', { kind: 'Optimization' }),
-        resourceOf('notes', 'Notes'),
-      ]);
-      if (!subId) return ok(resources);
-      const found = resources.find((item) => item.slug === subId);
-      if (!found) return notFound('Resource not found.');
-      if (action !== 'revisions') return notFound('Not mocked.');
-      return ok(localize(subId === 'notes' ? [] : [
-        resourceRevisionOf(found, 2, { title: 'Latency probes', samples: 5 }),
-        resourceRevisionOf(found, 1, { title: 'Latency probes', samples: 3 }),
-      ]));
-    }
-    case 'package':
-      return { status: 200, bytes: request.archive, type: 'application/zip' };
-    default:
-      return notFound('Not mocked.');
+    if (tail === 'cells') return ok(CELLS);
+    if (tail === 'analytics') return ok(ANALYTICS);
+    return ok(RUN);
   }
+  return ok(study);
+}
+
+/** `/v1/organizations/{org}/problems/…`: the problems of `isa-demo`, their versions, sources and compilations. */
+function problemRoutes(request: Request, orgSlug: string): Reply {
+  const { method, parts } = request;
+  const [, , , , problemSlug, sub, revisionRef, tail, compilationId, last] = parts;
+  const problems = orgSlug === 'isa-demo' ? [PROBLEM, DRAFT_PROBLEM] : [];
+  if (!problemSlug) {
+    if (method === 'POST') return ok(uploadOf({ ...DRAFT_PROBLEM, id: 'case-uploaded', slug: 'uploaded', name: 'Uploaded problem' }, 1, true), 201);
+    return ok({ problems: problems.map((item) => ({ ...item, latest_revision: latestOf(item) })), total: problems.length, limit: 200, offset: 0 });
+  }
+  const problem = problems.find((item) => item.slug === problemSlug || item.id === problemSlug);
+  if (!problem) return notFound('Problem not found.');
+  if (!sub) return ok({ ...problem, latest_revision: latestOf(problem) });
+  if (sub !== 'revisions') return notFound('Not mocked.');
+  const revisions = problem.id === PROBLEM.id ? PROBLEM_REVISIONS : [];
+  if (!revisionRef) {
+    if (method === 'POST') return ok(uploadOf(problem, revisions.length + 1, true), 201);
+    return ok(revisions);
+  }
+  const revision = revisions.find((item) => String(item.revision) === revisionRef || item.id === revisionRef || item.package_digest === revisionRef);
+  if (!revision) return notFound('Problem revision not found.');
+  if (!tail) return ok(revisionDetail(revision));
+  if (tail === 'source') return { status: 200, bytes: request.archive, type: 'application/vnd.bim+zip' };
+  if (tail === 'compilation') return ok(compilationOf(String(revision.revision)));
+  if (tail === 'compilations' && compilationId && last === 'ir') {
+    return ok({ id: compilationId, ir_digest: caseDigest('c'), ir: irDocument(PAY_OF[revision.revision] ?? 8), source_map: {} });
+  }
+  return notFound('Not mocked.');
 }
 
 function organizationRoutes(request: Request): Reply {
-  const { parts, query } = request;
-  const [, , orgSlug, section, projectSlug] = parts;
+  const { parts } = request;
+  const [, , orgSlug, section] = parts;
   if (!orgSlug) return ok(ORGANIZATIONS);
   const found = ORGANIZATIONS.find((item) => item.slug === orgSlug || item.id === orgSlug);
   if (!found) return { status: 403, json: { detail: { code: 'organization_forbidden', error: 'This action requires viewer access to the organization.' } } };
@@ -435,44 +365,27 @@ function organizationRoutes(request: Request): Reply {
   switch (section) {
     case 'members': return ok(MEMBERS[found.slug] ?? []);
     case 'audit': return ok({ events: ORG_AUDIT, total: ORG_AUDIT.length, offset: 0, limit: 50 });
-    case 'library': {
-      const own = found.slug === 'isa-demo' ? LIBRARY : [];
-      return ok(query.get('include_public') === 'true' ? [...own, external] : own);
-    }
-    case 'projects':
-      if (!projectSlug) return ok(PROJECTS[found.slug] ?? []);
-      return projectRoutes(request, found.slug, projectSlug);
+    case 'problems': return problemRoutes(request, found.slug);
+    case 'runs': return runRoutes(request, found.slug);
+    case 'studies': return studyRoutes(request, found.slug);
     default: return notFound('Not mocked.');
   }
 }
 
-function artifactRoutes(request: Request): Reply {
-  const { parts } = request;
-  const [, , id, sub, subId, action] = parts;
-  if (id === 'resolve') {
-    const wanted = request.body() as { name?: string; version?: string };
-    const hit = Object.values(VERSIONS).flat().find((version) => version.ref.name === wanted.name && version.ref.version === wanted.version);
-    return hit ? ok(hit) : notFound('Artifact version not found.');
+/** `/v1/organizations/{org}/runs*`: the runs of `isa-demo`; another organization has none. */
+function runRoutes(request: Request, orgSlug: string): Reply {
+  const { method, parts, query } = request;
+  const [, , , , runId, action] = parts;
+  const rows = orgSlug === 'isa-demo' ? ORG_JOBS : [];
+  if (!runId) {
+    if (method === 'POST') return ok({ id: JOB_ID(9), status: 'queued', irDigest: caseDigest('c') }, 202);
+    const filtered = rows.filter((row) => (!query.get('revision') || row.revision?.id === query.get('revision')) && (!query.get('problem') || row.problem?.slug === query.get('problem')));
+    const limit = Number(query.get('limit') ?? 50);
+    return ok({ runs: filtered.slice(0, limit), total: filtered.length });
   }
-  // The artifact behind a study's definition: one sealed version, the one the study points at.
-  if (id.startsWith('artifact-') && sub === 'versions') {
-    if (action === 'content') return { status: 200, type: 'text/plain', text: JSON.stringify(STUDY.definition) };
-    return ok([{
-      id: VERSION_ID, artifact_id: id, ordinal: 1, ref: { namespace: 'isa-demo', name: id, version: '1', versionDigest: caseDigest('9') }, contentDigest: caseDigest('8'),
-      manifest: { mediaType: 'application/json', contracts: [], dependencies: [], kind: 'Study' }, based_on_id: null, public: false, withdrawn: false, created_at: '2026-09-20T08:00:00Z',
-    }]);
-  }
-  const item = [...LIBRARY, external].find((candidate) => candidate.id === id || candidate.name === id);
-  if (!item) return notFound('Artifact not found.');
-  if (sub === 'versions') {
-    const versions = VERSIONS[item.id] ?? [];
-    if (!subId) return ok(versions);
-    if (action === 'content') {
-      const content = CONTENT[item.id];
-      return { status: 200, type: 'text/plain', text: typeof content === 'string' ? content : JSON.stringify(content) };
-    }
-  }
-  return notFound('Not mocked.');
+  if (action === 'neighborhood') return ok({ ...NEIGHBORHOOD, jobId: runId });
+  const detail = orgSlug === 'isa-demo' ? jobDetail(runId) : null;
+  return detail ? ok(detail) : notFound('Run not found.');
 }
 
 function userRoutes(request: Request): Reply {
@@ -482,7 +395,6 @@ function userRoutes(request: Request): Reply {
   switch (sub) {
     case 'pricing-token': return ok({ pricing_token: PRICING_TOKEN });
     case 'usage': return ok(USAGE);
-    case 'jobs': return ok({ jobs: OWN_JOBS.map(summaryOf), total: OWN_JOBS.length, retention_days: 180 });
     case 'api-keys': return subId ? { status: 204 } : ok({ api_keys: API_KEYS });
     case 'identities': return ok([{ id: 'i1', provider: 'us-cas', subject: 'arivera1', verifiedAt: '2026-09-01T00:00:00Z' }]);
     default: return method === 'GET' ? notFound() : { status: 204 };
@@ -492,7 +404,7 @@ function userRoutes(request: Request): Reply {
 function engineRegistrationRoutes(request: Request): Reply {
   const { method, parts, query } = request;
   const [, , rawName, action] = parts;
-  const all = [EDGE_SOLVER, PAUSED_SOLVER, PENDING_REGISTRATION, SHARED_SOLVER, EDGE_SOLVER_OLD].map((registration) => localize(registration));
+  const all = [EDGE_SOLVER, PAUSED_SOLVER, PENDING_REGISTRATION, SHARED_SOLVER, EDGE_SOLVER_OLD].map((registration) => registration);
   if (!rawName) return ok({ registrations: query.get('review') === 'true' ? all.filter((item) => item.status === 'pending_review') : all });
   const name = decodeURIComponent(rawName);
   const found = all.find((item) => item.name === name && item.version === query.get('version') && item.namespace === query.get('namespace'))
@@ -500,17 +412,17 @@ function engineRegistrationRoutes(request: Request): Reply {
   if (!found) return notFound('Engine registration not found');
   if (action === 'report') {
     const probe = name === 'paused-solver' ? REPORT_FAILED : name === 'region-solver' ? REPORT_PENDING : REPORT_VERIFIED;
-    return ok(localize(registrationReport(found, probe)));
+    return ok(registrationReport(found, probe));
   }
   if (!action && method === 'GET') {
-    return ok(localize({
+    return ok({
       apiVersion: 'bim/v1', kind: 'EngineRegistration', metadata: { namespace: found.namespace, name: found.name, version: found.version },
       spec: {
         engine: { namespace: found.namespace, name: found.name, version: found.version, digest: found.digest }, endpoint: 'https://edge.example.org',
         protocol: { id: 'bim-engine/v1', mediaType: 'application/json', digest: QOS_PROFILE.protocolDigest },
         mappings: { request: '/internal/v1/binding-problems', health: '/health', openapi: '/openapi.json' }, auth: { scheme: 'bearer' }, openapi: OPENAPI_DOCUMENT,
       },
-    }));
+    });
   }
   return ok(found);
 }
@@ -523,8 +435,8 @@ function adminRoutes(request: Request): Reply {
     case 'overview': return ok(ADMIN_OVERVIEW);
     case 'queues': return ok(queuesAt(Date.parse(NOW)));
     case 'moderation': return ok(MODERATION);
-    case 'errors/overview': return ok(localize(ERROR_OVERVIEW));
-    case 'maintenance/preview': return ok({ expiredArtifacts: 2, expiredApiKeys: 1, terminalJobs: 14, abandonedJobs: 1, terminalJobCutoff: '2025-10-09T00:00:00Z' });
+    case 'errors/overview': return ok(ERROR_OVERVIEW);
+    case 'maintenance/preview': return ok({ expiredApiKeys: 1, terminalJobs: 14, abandonedJobs: 1, terminalJobCutoff: '2025-10-09T00:00:00Z' });
     case 'errors': return ok({ items: ERRORS, total: ERRORS.length, limit: 50, offset: 0 });
     case 'audit': return ok({ ...AUDIT, total: AUDIT.events.length });
     case 'users': {
@@ -546,10 +458,10 @@ function adminRoutes(request: Request): Reply {
 }
 
 /** The first path segments the gateway only answers to a session. */
-const SESSION_ONLY = new Set(['users', 'admin', 'notifications', 'organizations', 'jobs', 'engines', 'engine-registrations', 'artifacts', 'snapshots', 'instances']);
+const SESSION_ONLY = new Set(['users', 'admin', 'notifications', 'organizations', 'engines', 'engine-registrations']);
 
 function route(request: Request): Reply | null {
-  const { method, parts } = request;
+  const { parts } = request;
   const [first, area, second, third] = parts;
 
   if (first === 'health') return parts[1] === 'ready'
@@ -569,43 +481,23 @@ function route(request: Request): Reply | null {
       if (second === 'current') return ok(CURRENT_FIXTURE);
       return null;
     case 'organizations': return organizationRoutes(request);
-    case 'artifacts': return artifactRoutes(request);
     case 'engine-registrations': return engineRegistrationRoutes(request);
     case 'admin': return adminRoutes(request);
     case 'engines':
       if (!second) return ok({ engines: OWN_ENGINES });
       if (second === 'revisions') return ok({ revisions: [] });
+      if (second === 'protocol') return ok({ profiles: [PROFILE] });
       return null;
-    case 'profiles': return ok({ profiles: [PROFILE] });
-    case 'dialects': return ok({ dialects: DIALECTS });
-    case 'examples': return second ? { status: 200, type: 'application/zip', bytes: request.archive } : ok({ examples: EXAMPLE_PATHS });
-    case 'validate':
-      return ok({
-        valid: true, instanceDigest: caseDigest('a'), packageDigest: caseDigest('b'), irDigest: caseDigest('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],
-        compatibleModes: [
-          { engine: PUBLIC_ENGINES[0].ref, registration: REGISTRATION, mode: 'sampling', compatible: true },
-          { engine: PUBLIC_ENGINES[2].ref, registration: { ...REGISTRATION, name: 'minizinc-deployment' }, mode: 'cp', compatible: true },
-          { engine: EDGE_ENGINE.ref, registration: { ...REGISTRATION, name: 'edge-solver-eu' }, mode: 'placement', compatible: false, diagnostics: [{ message: 'It cannot read a RoutingOverlay.' }] },
-        ],
-        analysis: { tasks: 6, candidates: 24, constraints: 2, placement: false, bindingSpace: '125892' },
-      });
-    case 'snapshots':
-      if (third === 'archive') return { status: 200, type: 'application/zip', bytes: request.archive };
-      return SNAPSHOT_PAY[second] ? ok(snapshotView(second)) : notFound('Snapshot not found');
-    case 'instances':
-      if (!second) return ok({ id: S3, irDigest: caseDigest('c') }, 201);
-      if (third === 'ir') return ok(localize(irDocument(SNAPSHOT_PAY[second] ?? 8)));
-      if (third === 'source') return { status: 200, type: 'application/zip', bytes: request.archive };
-      return SNAPSHOT_PAY[second] ? ok(snapshotPins(second)) : notFound('Snapshot not found');
-    case 'jobs': {
-      if (!second) return method === 'POST' ? ok({ id: JOB_ID(9), status: 'queued', irDigest: caseDigest('c') }, 202) : ok(OWN_JOBS);
-      if (third === 'instance') return ok(INSTANCE);
-      if (third === 'ir') return ok(localize(irDocument(8)));
-      if (third === 'report') return ok(localize({ ...JOB_REPORT, id: second }));
-      if (third === 'analysis') return ok(localize({ ...NEIGHBORHOOD, jobId: second }));
-      const detail = jobDetail(second);
-      return detail ? ok(localize(detail)) : notFound('Job not found.');
-    }
+    case 'bim':
+      if (second === 'templates') return third ? { status: 200, type: 'application/vnd.bim+zip', bytes: request.archive } : ok({ templates: TEMPLATE_PATHS });
+      if (second === 'validate') {
+        return ok({
+          valid: true, instanceDigest: caseDigest('a'), packageDigest: caseDigest('b'), irDigest: caseDigest('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],
+          compatibleModes: COMPATIBLE_MODES(), analysis: ANALYSIS,
+          ...(request.query.get('include') === 'ir' ? { ir: irDocument(8), sourceMap: {} } : {}),
+        });
+      }
+      return null;
     default: return null;
   }
 }
@@ -658,6 +550,340 @@ export async function installMockApi(page: Page, session: Session): Promise<Mock
       await call.fulfill({ status: reply.status ?? 200, contentType: reply.type ?? 'application/octet-stream', body: reply.bytes });
     } else if (reply.text !== undefined) {
       await call.fulfill({ status: reply.status ?? 200, contentType: reply.type ?? 'text/plain', body: reply.text });
+    } else {
+      await call.fulfill({ status: reply.status ?? 200, json: reply.json });
+    }
+  });
+  return handle;
+}
+
+// -- The F0b walk: one organization that starts with nothing and keeps what the walk writes
+
+/** The organization of the walk (`isa-demo` of the gallery, with no problem, run or study until the walk makes them). */
+export const WALK_ORG = 'isa-demo';
+
+export interface WalkHandle extends MockHandle {
+  /** What the walk wrote, in order. */
+  sent: {
+    /** Every package `POST /v1/bim/validate` was asked to check. */
+    validated: Buffer[];
+    /** The problems created (`createProblem`) and the versions added (`createProblemRevision`), with the package each carried. */
+    uploads: Array<{ problem: string; revision: number; id: string; bytes: Buffer }>;
+    /** The bodies of `createRun`. */
+    runs: Array<Record<string, unknown>>;
+    /** The bodies of `createStudy`. */
+    studies: Array<Record<string, unknown>>;
+  };
+}
+
+interface WalkProblem {
+  item: Problem;
+  revisions: Array<{ row: ProblemRevision; bytes: Buffer }>;
+}
+
+interface WalkRun {
+  summary: Job;
+  reads: number;
+}
+
+interface WalkStudyRun {
+  run: StudyRun;
+  cells: StudyCell[];
+  reads: number;
+}
+
+const sha256 = (bytes: Buffer | string) => `sha256-${createHash('sha256').update(bytes).digest('hex')}`;
+
+/** How many times a run, or a study run's cells, is read before it moves on: the screens poll, so this is a few seconds. */
+const READS_TO_START = 1;
+const READS_TO_FINISH = 2;
+
+/**
+ * The gateway for the F0b walk (`e2e/f0b-walk.spec.ts`): nobody is signed in until `POST /v1/auth/login`; then the organization
+ * `isa-demo` holds the problems, versions, runs and studies the walk creates, read back as the gateway would answer them. A version's
+ * source is the package that was uploaded, byte for byte. A run is queued, then running, then completed with the fixture result; a study
+ * run's cells go from queued to completed the same way. Everything else (the account, the plan, the engines, the templates list) is the
+ * gallery's. A request neither answers is a 404 recorded in `unmocked`, which the walk expects to stay empty.
+ */
+export async function installWalkApi(page: Page, template: Buffer): Promise<WalkHandle> {
+  const handle: WalkHandle = { unmocked: [], sent: { validated: [], uploads: [], runs: [], studies: [] } };
+  const problems: WalkProblem[] = [];
+  const runs = new Map<string, WalkRun>();
+  const studies: Study[] = [];
+  const studyRuns = new Map<string, WalkStudyRun[]>();
+  let serial = 0;
+  const nextId = (prefix: string) => {
+    serial += 1;
+    return `${prefix}-${String(serial).padStart(4, '0')}`;
+  };
+  await page.clock.setFixedTime(new Date(NOW));
+
+  const latestOfRow = (problem: WalkProblem) => {
+    const newest = problem.revisions[problem.revisions.length - 1]?.row;
+    return newest ? { id: newest.id, revision: newest.revision, package_digest: newest.package_digest, created_at: newest.created_at } : null;
+  };
+  const shown = (problem: WalkProblem) => ({ ...problem.item, latest_revision: latestOfRow(problem) });
+  const compilationFor = (row: ProblemRevision) => ({
+    id: `compilation-${row.id}`, revision_id: row.id, compilation_digest: sha256(`compilation:${row.package_digest}`), compiler_digest: caseDigest('8'),
+    ir_digest: sha256(`ir:${row.package_digest}`), binding_space: ANALYSIS.bindingSpace, created_at: NOW, current: true, toolchain: {}, analysis: ANALYSIS,
+    resources: { application: { role: 'application', path: 'application.json', apiVersion: 'qos-binding/v1', kind: 'Application' } },
+    compatible_modes: COMPATIBLE_MODES(),
+  });
+  const addRevision = (problem: WalkProblem, bytes: Buffer) => {
+    const row: ProblemRevision = {
+      id: nextId(`rev-${problem.item.slug}`), problem_id: problem.item.id, revision: problem.revisions.length + 1, package_digest: sha256(bytes),
+      package_size: bytes.length, created_by_id: ME_ID, created_at: NOW,
+    };
+    problem.revisions.push({ row, bytes });
+    problem.item = { ...problem.item, updated_at: NOW };
+    handle.sent.uploads.push({ problem: problem.item.slug, revision: row.revision, id: row.id, bytes });
+    return row;
+  };
+  const upload = (problem: WalkProblem, row: ProblemRevision, created: boolean) => {
+    return { problem: shown(problem), revision: row, created, compilation: { ...compilationFor(row), compatible_modes: undefined } };
+  };
+  const revisionOf = (problem: WalkProblem, ref: string) => problem.revisions.find(({ row }) => String(row.revision) === ref || row.id === ref || row.package_digest === ref);
+  const refsOf = (revisionId: string) => {
+    for (const problem of problems) {
+      const found = problem.revisions.find(({ row }) => row.id === revisionId);
+      if (found) {
+        const compilation = compilationFor(found.row);
+        return {
+          problem, row: found.row,
+          refs: {
+            organization: { id: 'org-isa-demo', slug: WALK_ORG },
+            problem: { id: problem.item.id, slug: problem.item.slug, name: problem.item.name },
+            revision: { id: found.row.id, revision: found.row.revision },
+            compilation: { id: compilation.id, compilation_digest: compilation.compilation_digest, ir_digest: compilation.ir_digest },
+          },
+        };
+      }
+    }
+    return null;
+  };
+
+  const problemRoute = (request: Request, body: Buffer | null): Reply => {
+    const { method, parts, query } = request;
+    const [, , , , slug, sub, ref, tail, , last] = parts;
+    if (!slug) {
+      if (method === 'POST') {
+        const bytes = body ?? Buffer.alloc(0);
+        const wanted = query.get('slug') ?? 'uploaded';
+        if (problems.some((problem) => problem.item.slug === wanted)) {
+          return { status: 409, json: { detail: { code: 'slug_conflict', error: 'That problem slug is in use in this organization.' } } };
+        }
+        const problem: WalkProblem = {
+          item: {
+            id: nextId('problem'), organization_id: 'org-isa-demo', slug: wanted, name: query.get('name') ?? wanted, description: query.get('description') ?? '',
+            created_by_id: ME_ID, created_at: NOW, updated_at: NOW,
+          },
+          revisions: [],
+        };
+        problems.push(problem);
+        return ok(upload(problem, addRevision(problem, bytes), true), 201);
+      }
+      return ok({ problems: problems.map(shown), total: problems.length, limit: Number(query.get('limit') ?? 50), offset: 0 });
+    }
+    const problem = problems.find((item) => item.item.slug === slug || item.item.id === slug);
+    if (!problem) return notFound('Problem not found.');
+    if (!sub) return ok(shown(problem));
+    if (sub !== 'revisions') return notFound('Not mocked.');
+    if (!ref) {
+      if (method === 'POST') {
+        const bytes = body ?? Buffer.alloc(0);
+        const same = problem.revisions.find(({ row }) => row.package_digest === sha256(bytes));
+        return same ? ok(upload(problem, same.row, false), 200) : ok(upload(problem, addRevision(problem, bytes), true), 201);
+      }
+      return ok([...problem.revisions].reverse().map(({ row }) => row));
+    }
+    const found = revisionOf(problem, ref);
+    if (!found) return notFound('Problem revision not found.');
+    if (!tail) return ok({ ...revisionDetail(found.row as typeof PROBLEM_REVISIONS[number]), compilations: [] });
+    if (tail === 'source') return { status: 200, bytes: found.bytes, type: 'application/vnd.bim+zip' };
+    if (tail === 'compilation') return ok(compilationFor(found.row));
+    if (tail === 'compilations' && last === 'ir') {
+      return ok({ id: compilationFor(found.row).id, ir_digest: compilationFor(found.row).ir_digest, ir: irDocument(8), source_map: {} });
+    }
+    return notFound('Not mocked.');
+  };
+
+  const runRoute = (request: Request): Reply => {
+    const { method, parts, query } = request;
+    const [, , , , runId, action] = parts;
+    if (!runId) {
+      if (method === 'POST') {
+        const sent = request.body();
+        handle.sent.runs.push(sent);
+        const found = refsOf(String(sent.revision ?? ''));
+        if (!found) return notFound('Problem revision not found.');
+        const id = `00000000-0000-4000-8000-${String(1000 + runs.size).padStart(12, '0')}`;
+        runs.set(id, { summary: jobOf(id, 'random-search', 'queued', null, NOW, null, { organization_id: 'org-isa-demo', ...found.refs, created_by: { id: ME_ID, username: ME.username } }), reads: 0 });
+        return ok({ id, status: 'queued', irDigest: found.refs.compilation.ir_digest }, 202);
+      }
+      const rows = [...runs.values()].map(({ summary }) => summary)
+        .filter((row) => (!query.get('problem') || row.problem?.slug === query.get('problem')) && (!query.get('revision') || row.revision?.id === query.get('revision')));
+      return ok({ runs: rows.slice(0, Number(query.get('limit') ?? 50)), total: rows.length });
+    }
+    const run = runs.get(runId);
+    if (!run) return notFound('Run not found.');
+    if (action === 'neighborhood') return ok({ ...NEIGHBORHOOD, jobId: runId });
+    if (action) return notFound('Not mocked.');
+    run.reads += 1;
+    const status = run.reads > READS_TO_FINISH ? 'completed' : run.reads > READS_TO_START ? 'running' : 'queued';
+    run.summary = { ...run.summary, status, termination: status === 'completed' ? 'FEASIBLE' : null, finished_at: status === 'completed' ? NOW : null };
+    const { organization, problem, revision, compilation } = run.summary as Job & typeof RUN_REFS;
+    return ok({ ...run.summary, ...jobDetailOf(runId, status, { organization, problem, revision, compilation }), ...(status === 'completed' ? { result: RESULT } : {}) });
+  };
+
+  const studyRoute = (request: Request): Reply => {
+    const { method, parts } = request;
+    const [, , , , slug, action, runId, tail, cellId] = parts;
+    if (!slug) {
+      if (method === 'POST') {
+        const sent = request.body() as { slug: string; name: string; description?: string; definition: Study['definition'] };
+        handle.sent.studies.push(sent);
+        const study: Study = {
+          archived: false, id: nextId('study'), organization_id: 'org-isa-demo', slug: sent.slug, name: sent.name, description: sent.description ?? '',
+          definition: sent.definition, definition_digest: sha256(JSON.stringify(sent.definition)), state: 'ready', created_by_id: ME_ID, created_at: NOW,
+        };
+        studies.push(study);
+        return ok(study, 201);
+      }
+      return ok(studies);
+    }
+    const study = studies.find((item) => item.slug === slug);
+    if (!study) return notFound('Study not found.');
+    if (!action) return { status: 200, json: study };
+    if (action !== 'runs') return notFound('Not mocked.');
+    const own = studyRuns.get(study.slug) ?? [];
+    if (!runId) {
+      if (method === 'POST') {
+        const id = `00000000-0000-4000-8000-${String(2000 + own.length).padStart(12, '0')}`;
+        const definition = study.definition;
+        const frozen = {
+          apiVersion: 'openbinding/study-run/v1',
+          problems: definition.revision_ids.map((revisionId) => {
+            const found = refsOf(revisionId);
+            return {
+              revisionId, problemId: found?.problem.item.id ?? '', revision: found?.row.revision ?? 0, packageDigest: found?.row.package_digest ?? '',
+              compilationId: found?.refs.compilation.id ?? '', compilationDigest: found?.refs.compilation.compilation_digest ?? '', irDigest: found?.refs.compilation.ir_digest ?? '',
+            };
+          }),
+          engines: definition.engines, parameterSets: definition.parameter_sets, seeds: definition.seeds,
+        };
+        const cells: StudyCell[] = [];
+        for (const revisionId of definition.revision_ids) {
+          for (const engine of definition.engines) {
+            for (const parameters of definition.parameter_sets) {
+              for (const seed of definition.seeds) {
+                const ordinal = cells.length;
+                cells.push({
+                  id: `00000000-0000-4000-8000-${String(3000 + ordinal).padStart(12, '0')}`, study_run_id: id, ordinal, binding_case_revision_id: revisionId,
+                  compilation_id: refsOf(revisionId)?.refs.compilation.id ?? '', engine_ref: { ...engine } as unknown as StudyCell['engine_ref'], parameters, seed,
+                  fingerprint: sha256(`${id}:${ordinal}`), job_id: null, state: 'queued', metrics: {},
+                });
+              }
+            }
+          }
+        }
+        const run: StudyRun = {
+          id, study_id: study.id, run_number: own.length + 1, state: 'running', matrix_digest: sha256(`matrix:${id}`), cells: cells.length, summary: {},
+          definition: frozen, definition_digest: sha256(JSON.stringify(frozen)), created_at: NOW, finished_at: null,
+        };
+        studyRuns.set(study.slug, [{ run, cells, reads: 0 }, ...own]);
+        return ok(run, 202);
+      }
+      return ok(own.map((item) => item.run));
+    }
+    const entry = own.find((item) => item.run.id === runId);
+    if (!entry) return notFound('Study run not found.');
+    if (!tail) return ok(entry.run);
+    if (tail === 'cells') {
+      if (!cellId) {
+        entry.reads += 1;
+        const done = entry.reads > READS_TO_FINISH;
+        entry.cells = entry.cells.map((cell) => {
+          const engine = cell.engine_ref as { namespace: string; name: string; version: string };
+          const finished = done ? {
+            state: 'completed' as const, job_id: `00000000-0000-4000-8000-${String(4000 + cell.ordinal).padStart(12, '0')}`,
+            metrics: {
+              status: 'completed', feasible: true, termination: 'FEASIBLE', objectives: { cost: 0.1 + cell.ordinal / 100, latency: 400 + cell.ordinal },
+              runtimeSeconds: 30 + cell.ordinal, engine: `${engine.namespace}/${engine.name}@${engine.version}`, seed: cell.seed,
+            },
+          } : { state: (entry.reads > READS_TO_START ? 'running' : 'queued') as StudyCell['state'] };
+          return { ...cell, ...finished };
+        });
+        if (done) entry.run = { ...entry.run, state: 'completed', finished_at: NOW };
+        return ok(entry.cells);
+      }
+      const cell = entry.cells.find((item) => item.id === cellId);
+      return cell ? ok(cell) : notFound('Study cell not found.');
+    }
+    if (tail === 'analytics') {
+      const completed = entry.cells.filter((cell) => cell.state === 'completed');
+      const objective = (name: string) => completed.map((cell) => Number((cell.metrics.objectives as Record<string, number> | undefined)?.[name] ?? 0));
+      return ok(analyticsFixture({
+        cells: entry.cells.length, completed: completed.length, failed: 0, feasible: completed.length, infeasible: 0,
+        objective_distributions: { cost: objective('cost'), latency: objective('latency') },
+        runtimes_s: completed.map((cell) => Number(cell.metrics.runtimeSeconds ?? 0)),
+        stability: Object.fromEntries([...new Set(completed.map((cell) => String(cell.metrics.engine)))].map((engine) => [engine, { samples: 2, distinct: 2, repeatability: 0.5 }])),
+      }));
+    }
+    return notFound('Not mocked.');
+  };
+
+  const walkRoute = (request: Request, body: Buffer | null, signedIn: boolean): Reply | null => {
+    const { method, parts } = request;
+    const [first, area, second, third] = parts;
+    if (first !== 'v1') return null;
+    if (area === 'auth' && second === 'login' && method === 'POST') {
+      return ok({ access_token: 'walk-access', refresh_token: 'walk-refresh', token_type: 'bearer', expires_in: 900 });
+    }
+    if (!signedIn && SESSION_ONLY.has(area)) return { status: 401, json: { detail: { code: 'not_authenticated', error: 'Authentication required.' } } };
+    if (area === 'bim' && second === 'validate' && method === 'POST') {
+      handle.sent.validated.push(body ?? Buffer.alloc(0));
+      return ok({
+        valid: true, instanceDigest: sha256(`instance:${sha256(body ?? '')}`), packageDigest: sha256(body ?? Buffer.alloc(0)), irDigest: sha256(`ir:${sha256(body ?? '')}`),
+        fileDigests: {}, resourceDigests: {}, diagnostics: [], compatibleModes: COMPATIBLE_MODES(), analysis: ANALYSIS,
+        ...(request.query.get('include') === 'ir' ? { ir: irDocument(8), sourceMap: {} } : {}),
+      });
+    }
+    if (area === 'bim' && second === 'templates' && third) return { status: 200, type: 'application/vnd.bim+zip', bytes: template };
+    if (area === 'organizations' && second === WALK_ORG) {
+      switch (parts[3]) {
+        case 'problems': return problemRoute(request, body);
+        case 'runs': return runRoute(request);
+        case 'studies': return studyRoute(request);
+        default: return null;
+      }
+    }
+    return null;
+  };
+
+  await page.route(`${API}/**`, async (call: Route) => {
+    const request = call.request();
+    const url = new URL(request.url());
+    const parts = url.pathname.split('/').filter(Boolean);
+    const body = request.postDataBuffer();
+    const known: Request = {
+      method: request.method(), parts, query: url.searchParams, archive: template,
+      body: () => {
+        try {
+          return (request.postDataJSON() ?? {}) as Record<string, unknown>;
+        } catch {
+          return {};
+        }
+      },
+    };
+    const signedIn = Boolean(request.headers().authorization);
+    const reply = walkRoute(known, body, signedIn) ?? route(known);
+    if (!reply) {
+      handle.unmocked.push(`${known.method} ${url.pathname}`);
+      await call.fulfill({ status: 404, json: { detail: 'not mocked' } });
+    } else if (reply.status === 204) {
+      await call.fulfill({ status: 204 });
+    } else if (reply.bytes) {
+      await call.fulfill({ status: reply.status ?? 200, contentType: reply.type ?? 'application/octet-stream', body: reply.bytes });
     } else {
       await call.fulfill({ status: reply.status ?? 200, json: reply.json });
     }

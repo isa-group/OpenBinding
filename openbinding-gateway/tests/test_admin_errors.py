@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import uuid
+from _problem_helpers import revision_of, runs_url_for
+from _problem_helpers import placeholder_refs
 from datetime import timedelta
 
 import pytest_asyncio
 from sqlalchemy import select
 
-from _pricing import fake_pricing_gate, pricing_catalog
+from _pricing import caps_for, fake_pricing_gate, pricing_catalog
 from _repo import REPO_ROOT
 from test_api_keys import key_payload
 from openbinding_gateway import space_client
@@ -51,20 +53,15 @@ async def _register(client, details, db_session=None, *, admin=False) -> tuple[d
     return headers, user_id
 
 
-async def _create_snapshot(client, headers):
-    """Jobs are launched by JSON from a snapshot: ZIP uploads cannot carry `optimization`."""
-    snapshot = await client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=load_package(EXAMPLE).to_zip(),
-    )
-    assert snapshot.status_code == 201, snapshot.text
-    return snapshot.json()["id"]
+async def _create_revision(client, headers):
+    """Jobs are launched by JSON naming a problem revision."""
+    revision_id = await revision_of(client, headers, archive=load_package(EXAMPLE).to_zip())
+    return revision_id
 
 
-def _job_request(snapshot_id):
+def _job_request(revision_id):
     return {
-        "snapshot": snapshot_id,
+        "revision": revision_id,
         "engine": "random-search",
         "mode": "seeded",
         "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
@@ -72,10 +69,12 @@ def _job_request(snapshot_id):
 
 
 async def _exceed_the_api_key_allowance(client, headers):
-    """A 402 ``quota_exceeded``: the plan's structural allowance of API keys is spent."""
-    first = await client.post("/v1/users/me/api-keys", headers=headers, json=key_payload("first"))
-    assert first.status_code == 201, first.text
-    return await client.post("/v1/users/me/api-keys", headers=headers, json=key_payload("second"))
+    """A 402 ``quota_exceeded``: the plan's allowance of API keys (``maxApiKeys``) is spent."""
+    allowance = int(caps_for(pricing_catalog().default_plan).limit("maxApiKeys"))
+    for n in range(allowance):
+        minted = await client.post("/v1/users/me/api-keys", headers=headers, json=key_payload(f"key {n}"))
+        assert minted.status_code == 201, minted.text
+    return await client.post("/v1/users/me/api-keys", headers=headers, json=key_payload("one too many"))
 
 
 async def test_the_api_key_allowance_returns_402_quota_exceeded(api_client, db_session, registration, gate):
@@ -87,29 +86,29 @@ async def test_the_api_key_allowance_returns_402_quota_exceeded(api_client, db_s
     assert response.status_code == 402, response.text
     detail = response.json()["detail"]
     assert detail["code"] == "quota_exceeded"
-    assert detail["quota"]["limit_id"] == "apiKeys"
+    assert detail["quota"]["limit_id"] == "maxApiKeys"
     assert "Retry-After" not in response.headers
 
 
 async def test_solve_returns_429_on_concurrency_exceeded(api_client, db_session, registration, gate, monkeypatch):
     details = registration()
     headers, user_id = await _register(api_client, details, db_session)
-    snapshot_id = await _create_snapshot(api_client, headers)
+    revision_id = await _create_revision(api_client, headers)
 
     # The account's only slot is taken by a job that is still queued.
     monkeypatch.setattr(get_settings(), "max_concurrent_jobs_per_user", 1)
     db_session.add(Job(
         owner_id=user_id, engine_id="random-search", engine_job_id="busy",
-        service_url="http://engine", state=JobState.QUEUED,
+        service_url="http://engine", state=JobState.QUEUED, **placeholder_refs(),
     ))
     await db_session.commit()
 
-    response = await api_client.post("/v1/jobs", headers=headers, json=_job_request(snapshot_id))
+    response = await api_client.post(runs_url_for(revision_id), headers=headers, json=_job_request(revision_id))
 
     assert response.status_code == 429, response.text
     body = response.json()
     assert body["title"] == "concurrency_limit_exceeded"
-    assert body["concurrency"]["limit"] == body["concurrency"]["active"] == 1
+    assert body["detail"]["concurrency"]["limit"] == body["detail"]["concurrency"]["active"] == 1
     assert response.headers.get("Retry-After") == "15"
 
 
@@ -123,7 +122,7 @@ async def test_telemetry_captures_errors_and_sanitizes(api_client, db_session, r
 
     # Send a validation failure
     bad_req = await api_client.post(
-        "/v1/jobs",
+        "/v1/organizations/acme/runs",
         headers={"Content-Type": "application/json"},
         json={"invalid": "payload"},
     )

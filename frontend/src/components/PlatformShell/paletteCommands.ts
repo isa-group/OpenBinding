@@ -1,11 +1,9 @@
-import type { Organization, Project } from '../../api/platform';
-import { accountLinks, createItems, labEntries, labLinks, mainLinks, problemsEntry, projectRoot } from './appNavigation';
+import type { Organization } from '../../api/platform';
+import { accountLinks, createItems, mainLinks, organizationEntries } from './appNavigation';
 
 export interface PaletteContext {
   organizations?: Organization[];
-  projects?: Project[];
   organization?: Organization;
-  project?: Project;
   isAdmin: boolean;
 }
 
@@ -26,13 +24,11 @@ const glyphOf = (label: string) => label
   .join('') || '·';
 
 /** Everything the palette can reach comes from the screen map and from data the workspace already loaded. */
-export function buildCommands({ organizations = [], projects = [], organization, project, isAdmin }: PaletteContext): Command[] {
+export function buildCommands({ organizations = [], organization, isAdmin }: PaletteContext): Command[] {
   const command = (group: string, label: string, desc: string, href: string, glyph = glyphOf(label)): Command => ({ group, label, desc, href, glyph });
-  const root = projectRoot(organization, project);
 
   const commands: Command[] = [
     command('Go to', 'Home', 'Organizations and recent activity', mainLinks.home.to),
-    command('Go to', 'Runs', 'Every run you can see', labLinks.runs.to),
     command('Go to', 'Engines', 'Engines by exact identity', mainLinks.engines.to),
     command('Go to', 'Pricing', 'Plans, limits and add-ons', '/pricing'),
   ];
@@ -40,29 +36,22 @@ export function buildCommands({ organizations = [], projects = [], organization,
   for (const item of organizations) {
     commands.push(command('Organization', item.name, 'Organization', `/app/${item.slug}`));
   }
-  for (const item of projects) {
-    const owner = organizations.find((entry) => entry.id === item.organization_id);
-    if (owner) commands.push(command('Project', item.name, `Project in ${owner.name}`, `/app/${owner.slug}/${item.slug}`));
-  }
-  if (root && project) {
-    const problems = problemsEntry(organization, project);
-    const studies = labEntries(organization, project).find((entry) => entry.id === 'studies');
-    const sections: Array<[string, string, string | undefined]> = [
-      ['Problems', 'Binding problems and their versions', problems.to],
-      ['Studies', 'Problems × engines × parameters × seeds', studies?.to],
-      ['Project settings', 'Name, visibility, members and package', `${root}/settings`],
-    ];
-    for (const [label, desc, href] of sections) {
-      if (href) commands.push(command('Project', label, `${desc} · ${project.name}`, href));
+  if (organization) {
+    const entries = Object.fromEntries(organizationEntries(organization).map((entry) => [entry.id, entry.to]));
+    if (entries.problems) {
+      commands.push(command('Organization', 'Problems', `Binding problems and their versions · ${organization.name}`, entries.problems));
+      commands.push(command('Create', 'New problem', `Upload a BIM package in ${organization.name}`, `${entries.problems}?create=problem`, '+'));
     }
-    const where = `in ${project.name}`;
-    const created = createItems(organization, project);
-    const describe: Record<string, string> = {
-      Problem: 'Add a binding problem', Study: 'Compare engines on problems', Run: 'Launch an engine run',
-    };
-    for (const item of created) {
-      if (item.to) commands.push(command('Create', `New ${item.label.toLowerCase()}`, `${describe[item.label]} ${where}`, item.to, '+'));
+    if (entries.runs) {
+      commands.push(command('Organization', 'Runs', `Every run of the organization · ${organization.name}`, entries.runs));
+      commands.push(command('Create', 'New run', `Launch an engine run in ${organization.name}`, `${entries.runs}/new`, '+'));
     }
+    if (entries.studies) {
+      commands.push(command('Organization', 'Studies', `Problems × engines × parameters × seeds · ${organization.name}`, entries.studies));
+    }
+    const study = createItems(organization).find((entry) => entry.label === 'Study');
+    if (study?.to) commands.push(command('Create', 'New study', `Compare engines on problems in ${organization.name}`, study.to, '+'));
+    commands.push(command('Organization', 'Organization settings', `Name, members and audit · ${organization.name}`, `/app/${organization.slug}/settings`));
   }
 
   const accountDesc: Record<string, string> = {
@@ -70,7 +59,7 @@ export function buildCommands({ organizations = [], projects = [], organization,
     Identities: 'Accounts you sign in with', Notifications: 'Everything sent to your account',
   };
   commands.push(
-    command('Create', 'New organization', 'Group projects and members', '/app?create=organization', '+'),
+    command('Create', 'New organization', 'Problems, runs and studies with their members', '/app?create=organization', '+'),
     command('Create', 'New API key', 'Scoped key for scripts and CI', '/app/account/keys?create=key', '+'),
     command('Create', 'Register an engine', 'Publish an engine you operate', '/app/engines/new', '+'),
     ...accountLinks.map((link) => command('Account', link.label, accountDesc[link.label] ?? link.label, link.to)),

@@ -19,25 +19,30 @@ Environment (the ``seed`` compose service passes the gateway's, so nothing is sp
     DEMO_SEED_PASSWORD   required; the password the seed gave every synthetic user.
     SMOKE_BASE_URL       optional; default http://web:8080 (the proxy inside the lab network).
 
-Steps (a failure never aborts the next one; 6-9 can be dropped with ``--skip``):
+Steps (a failure never aborts the next one; 8-11 can be dropped with ``--skip``):
     1 proxy_and_spa     /healthz, SPA index, SPA fallback on a made-up deep route, /api/health/ready
     2 login             admin, owner, member, viewer and outsider sign in (Bearer tokens)
-    3 owner_job         owner: profile, projects, a random-search job on the seeded package, result shape
-    4 idempotency       same key + body -> same job; same key + other body -> 409; other account -> other job
-    5 authorization     401 without token, the viewer/outsider/admin matrix (the viewer launches a personal job but cannot start a study run), redacted options for the viewer
-    6 concurrency_limit 5 simultaneous launches -> a 429 with Retry-After, and the slot is freed afterwards
-    7 cors              preflight allowed from the lab origin, refused from another origin
-    8 body_limit        a JSON body over 16 MiB -> 413 problem+json
-    9 login_throttle    12 failed logins of a made-up user -> 429 with Retry-After
-   10 plan_usage        (--with-space) the owner's plan and capabilities, without usage counters
+    3 upload            owner: the template validates, is uploaded as a new problem of lab-main, and its revision is that package
+    4 owner_job         owner: profile, problems, a random-search run of the uploaded revision, result shape
+    5 study             owner: a study of the revision x random-search x 2 seeds, run, every cell completed, the definition frozen
+    6 idempotency       same key + body -> same run; same key + other body -> 409; other account -> other run, readable by both
+    7 authorization     401 without token, the viewer/outsider/admin matrix (the viewer reads the problem and the owner's run, redacted, but launches no run and starts no study run)
+    8 concurrency_limit 5 simultaneous launches -> a 429 with Retry-After, and the slot is freed afterwards
+    9 cors              preflight allowed from the lab origin, refused from another origin
+   10 body_limit        a JSON body over 16 MiB -> 413 problem+json
+   11 login_throttle    12 failed logins of a made-up user -> 429 with Retry-After
+   12 plan_usage        (--with-space) the owner's plan and capabilities, without usage counters
+
+Steps 3 to 5 are the F0b walk (upload, run, study) on the organization's paths. Every smoke uploads one problem
+(``smoke-<run id>``) and creates one study of it in lab-main; nothing is deleted, since runs keep their problem.
 
 The login throttle counts per client address AND identifier (``authrl:login:id:<ip>:<hash>``) and, with a
-10x larger budget, per address alone. Step 9 therefore uses an identifier no other step uses and runs last,
+10x larger budget, per address alone. Step 11 therefore uses an identifier no other step uses and runs last,
 so the logins of the other steps are not the ones that get blocked; it still consumes part of the per-address
 budget for the length of the window (300 s by default).
 
 Usage:
-    python tools/smoke_lab.py [--base-url URL] [--skip 6,7,8,9] [--with-space] [--job-timeout 120]
+    python tools/smoke_lab.py [--base-url URL] [--skip 8,9,10,11] [--with-space] [--job-timeout 120]
 """
 
 from __future__ import annotations
@@ -71,11 +76,20 @@ ADMIN_ROLE = "admin"
 #: Never seeded, so the throttle step blocks nobody real.
 THROTTLE_USER = "lab-throttle-probe"
 THROTTLE_ATTEMPTS = 12
-ORG, PROJECT, CASE = "lab-main", "bim-demo", "simple-seq"
+ORG, CASE = "lab-main", "simple-seq"
+#: The seeded problem (``/v1/organizations/{org}/problems/{problem}``).
+PROBLEM = f"/v1/organizations/{ORG}/problems/{CASE}"
+#: The problems, runs and studies of the lab organization.
+PROBLEMS = f"/v1/organizations/{ORG}/problems"
+RUNS = f"/v1/organizations/{ORG}/runs"
+STUDIES = f"/v1/organizations/{ORG}/studies"
 EXAMPLE_PATH = "demo/01_simple_seq"
-STUDY_SLUG = "smoke-lab"
+#: The seeds of the study step: one cell each.
+STUDY_SEEDS = (1, 2)
 
 TERMINAL = frozenset({"completed", "failed", "cancelled"})
+#: A study run that is over (``partial``: some cells failed or were cancelled).
+STUDY_TERMINAL = frozenset({"completed", "partial", "failed", "cancelled"})
 TERMINATIONS = frozenset({"OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"})
 #: random-search has one mode; a job and every study engine must name it explicitly.
 MODE = "seeded"
@@ -98,9 +112,9 @@ BLOCKED_HINT = (
 )
 
 #: Step number -> optional via --skip.
-SKIPPABLE = (6, 7, 8, 9)
-#: 9 last: it burns the per-address login budget.
-RUN_ORDER = (1, 2, 3, 4, 5, 6, 7, 8, 10, 9)
+SKIPPABLE = (8, 9, 10, 11)
+#: 11 last: it burns the per-address login budget.
+RUN_ORDER = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 11)
 
 #: Key words that make a name look like a credential or an address (as security/redaction.py).
 SENSITIVE_WORDS = frozenset(
@@ -108,7 +122,7 @@ SENSITIVE_WORDS = frozenset(
      "password", "passwd", "token", "tokens", "bearer", "cookie", "cookies", "header", "headers",
      "private", "certificate", "endpoint", "url", "uri", "host", "signature", "session"}
 )
-REQUEST_KEYS = frozenset({"bindingProblem", "timeout", "mode", "optimization", "registration"})
+REQUEST_KEYS = frozenset({"timeout", "mode", "optimization", "registration"})
 REFERENCE_KEYS = frozenset({"namespace", "name", "version", "digest"})
 USAGE_COUNTER_WORDS = ("used", "usage", "consumed", "consumption", "counter", "remaining", "spent")
 
@@ -330,11 +344,11 @@ class Lab:
         self.run_id = uuid.uuid4().hex[:10]
         self.tokens: dict[str, str] = {}
         self.login_failures: dict[str, str] = {}
-        self.snapshots: dict[str, str] = {}
-        self.seeded_snapshot = False
+        self.revision_id: str | None = None
+        self.problem_slug = f"smoke-{self.run_id}"
+        self.study_slug = f"smoke-{self.run_id}"
         self.example_zip: bytes | None = None
         self.owner_job_id: str | None = None
-        self.project_job_id: str | None = None
         self.checks = Checks()
 
     def begin(self) -> Checks:
@@ -399,60 +413,57 @@ class Lab:
 
     def example_package(self) -> bytes:
         if self.example_zip is None:
-            response = self.call("GET", f"/v1/examples/{EXAMPLE_PATH}")
+            response = self.call("GET", f"/v1/bim/templates/{EXAMPLE_PATH}")
             if response.status_code != 200 or not response.content:
-                raise StepError(f"example package {EXAMPLE_PATH}: {describe(response)}")
+                raise StepError(f"template package {EXAMPLE_PATH}: {describe(response)}")
             self.example_zip = response.content
         return self.example_zip
 
-    def upload_snapshot(self, user: str) -> str:
+    def upload_problem(self) -> Mapping[str, Any]:
+        """The template package uploaded by the owner as the new problem ``problem_slug`` of ``ORG``; the answer."""
         response = self.call(
-            "POST", "/v1/instances", user, headers={"Content-Type": BIM_ZIP}, content=self.example_package()
+            "POST", PROBLEMS, "owner",
+            params={"slug": self.problem_slug}, headers={"Content-Type": BIM_ZIP}, content=self.example_package(),
         )
-        snapshot = mapping(body_of(response)).get("id")
-        if response.status_code != 201 or not isinstance(snapshot, str):
-            raise StepError(f"snapshot upload as {user}: {describe(response)}")
-        return snapshot
+        body = mapping(body_of(response))
+        revision = mapping(body.get("revision")).get("id")
+        if response.status_code != 201 or not isinstance(revision, str):
+            raise StepError(f"problem upload as owner: {describe(response)}")
+        self.revision_id = revision
+        return body
 
-    def case_revision(self) -> Mapping[str, Any]:
-        response = self.call("GET", f"/v1/organizations/{ORG}/projects/{PROJECT}/cases/{CASE}/revisions", "owner")
-        listing = body_of(response) if response.status_code == 200 else None
+    def seeded_revision(self, user: str) -> str | None:
+        """The latest revision of the seeded problem ``ORG/CASE`` as ``user`` reads it, or ``None``."""
+        listing = body_of(self.call("GET", f"{PROBLEM}/revisions", user))
         revisions = [item for item in listing if isinstance(item, Mapping)] if isinstance(listing, list) else []
-        if not revisions:
-            raise StepError(f"case {ORG}/{PROJECT}/{CASE} has no revision: {describe(response)}")
-        return max(revisions, key=lambda item: item.get("revision", 0))
+        latest = max(revisions, key=lambda item: item.get("revision", 0), default={})
+        return latest.get("id") if isinstance(latest.get("id"), str) else None
 
-    def snapshot(self, user: str) -> str:
-        """A snapshot the user owns: the seeded one for the owner, an upload of the same package otherwise."""
-        if user not in self.snapshots:
-            seeded = None
-            if user == "owner":
-                candidate = self.case_revision().get("source_snapshot_id")
-                if isinstance(candidate, str):
-                    found = self.call("GET", f"/v1/instances/{candidate}", user)
-                    seeded = candidate if found.status_code == 200 else None
-            self.snapshots[user] = seeded or self.upload_snapshot(user)
-            self.seeded_snapshot = seeded is not None and user == "owner"
-        return self.snapshots[user]
+    def revision(self) -> str:
+        """The revision runs and the study are of: the one the upload step made (made now when that step did not run)."""
+        if self.revision_id is None:
+            self.upload_problem()
+        assert self.revision_id is not None
+        return self.revision_id
 
     # -- jobs --------------------------------------------------------------
 
     def launch(
-        self, user: str, *, key: str | None = None, options: Mapping[str, Any] | None = None, snapshot: str | None = None
+        self, user: str, *, key: str | None = None, options: Mapping[str, Any] | None = None, revision: str | None = None
     ) -> httpx.Response:
         body = {
-            "snapshot": snapshot or self.snapshot(user), "engine": "random-search", "mode": MODE,
+            "revision": revision or self.revision(), "engine": "random-search", "mode": MODE,
             "optimization": dict(OPTIMIZATION), "options": dict(options or MIN_OPTIONS),
         }
         headers = {"Idempotency-Key": key} if key else {}
-        return self.call("POST", "/v1/jobs", user, headers=headers, json=body)
+        return self.call("POST", RUNS, user, headers=headers, json=body)
 
     def wait_for_job(self, user: str, job_id: str) -> tuple[str, Mapping[str, Any]]:
         """Poll until the job is terminal; ``("timeout", last body)`` after ``job_timeout_s``."""
         deadline = self.clock() + self.config.job_timeout_s
         last: Mapping[str, Any] = {}
         while True:
-            response = self.call("GET", f"/v1/jobs/{job_id}", user)
+            response = self.call("GET", f"{RUNS}/{job_id}", user)
             if response.status_code == 200:
                 last = mapping(body_of(response))
                 if last.get("status") in TERMINAL:
@@ -468,7 +479,7 @@ class Lab:
         stuck = []
         for job_id in job_ids:
             if cancel:
-                self.call("POST", f"/v1/jobs/{job_id}/cancel", user)
+                self.call("POST", f"{RUNS}/{job_id}/cancel", user)
             state, _ = self.wait_for_job(user, job_id)
             if state not in TERMINAL:
                 stuck.append(job_id)
@@ -560,6 +571,35 @@ def inspect_result(checks: Checks, job: Mapping[str, Any]) -> None:
         checks.note("no toolchain field in the provenance")
 
 
+def step_upload(lab: Lab) -> Checks:
+    checks = lab.begin()
+    archive = lab.example_package()
+    checked = lab.call("POST", "/v1/bim/validate", "owner", headers={"Content-Type": BIM_ZIP}, content=archive)
+    report = mapping(body_of(checked))
+    checks.expect(checked.status_code == 200 and report.get("valid") is True, f"the template validates ({describe(checked)})")
+
+    uploaded = lab.upload_problem()
+    revision = mapping(uploaded.get("revision"))
+    checks.expect(revision.get("revision") == 1, "the upload is revision 1 of a new problem")
+    checks.expect(
+        bool(revision.get("package_digest")) and revision.get("package_digest") == report.get("packageDigest"),
+        "the revision is the package that was validated (same packageDigest)",
+    )
+    base = f"{PROBLEMS}/{lab.problem_slug}/revisions/1"
+    source = lab.call("GET", f"{base}/source", "owner")
+    checks.expect(source.status_code == 200 and source.content == archive, f"its source is the uploaded package, byte for byte ({source.status_code})")
+    compilation = lab.call("GET", f"{base}/compilation", "owner")
+    modes = mapping(body_of(compilation)).get("compatible_modes")
+    runnable = [item for item in modes if isinstance(item, Mapping) and item.get("compatible")] if isinstance(modes, list) else []
+    checks.expect(
+        compilation.status_code == 200 and any(mapping(item.get("engine")).get("name") == "random-search" for item in runnable),
+        f"its compilation says random-search can run it ({describe(compilation)})",
+    )
+    listed = mapping(body_of(lab.call("GET", PROBLEMS, "owner"))).get("problems") or []
+    checks.expect(any(mapping(item).get("slug") == lab.problem_slug for item in listed), f"problem {lab.problem_slug} is listed in {ORG}")
+    return checks
+
+
 def step_owner_job(lab: Lab) -> Checks:
     checks = lab.begin()
     try:
@@ -571,10 +611,10 @@ def step_owner_job(lab: Lab) -> Checks:
     organizations = body_of(lab.call("GET", "/v1/organizations", "owner")) or []
     main = next((item for item in organizations if mapping(item).get("slug") == ORG), None)
     checks.expect(main is not None and mapping(main).get("effective_role") == "OWNER", f"owner is OWNER of {ORG}")
-    projects = body_of(lab.call("GET", f"/v1/organizations/{ORG}/projects", "owner")) or []
-    checks.expect(any(mapping(item).get("slug") == PROJECT for item in projects), f"project {ORG}/{PROJECT} is visible")
+    problems = mapping(body_of(lab.call("GET", f"/v1/organizations/{ORG}/problems", "owner"))).get("problems") or []
+    checks.expect(any(mapping(item).get("slug") == CASE for item in problems), f"problem {ORG}/{CASE} is visible")
 
-    lab.snapshot("owner")
+    lab.revision()
     created = lab.launch("owner", key=f"smoke-{lab.run_id}-job")
     accepted = mapping(body_of(created))
     job_id = accepted.get("id")
@@ -588,7 +628,70 @@ def step_owner_job(lab: Lab) -> Checks:
         checks.note(str(mapping(job.get("result")).get("error", ""))[:120])
         return checks
     inspect_result(checks, job)
-    checks.note(f"snapshot {'seeded' if lab.seeded_snapshot else 'uploaded'}")
+    revision = mapping(job.get("revision"))
+    checks.expect(revision.get("id") == lab.revision_id, "the run names the uploaded revision")
+    return checks
+
+
+def engine_reference(lab: Lab, name: str) -> Mapping[str, Any]:
+    """The full reference (namespace, name, version, digest) of an engine the owner can use."""
+    listing = mapping(body_of(lab.call("GET", "/v1/engines", "owner"))).get("engines")
+    for item in listing if isinstance(listing, list) else []:
+        reference = mapping(mapping(item).get("ref")) or mapping(item)
+        if reference.get("name") == name and all(reference.get(key) for key in REFERENCE_KEYS):
+            return {key: reference[key] for key in sorted(REFERENCE_KEYS)}
+    raise StepError(f"engine {name} is not in /v1/engines")
+
+
+def wait_for_study_run(lab: Lab, path: str) -> tuple[str, Mapping[str, Any]]:
+    """Poll a study run until it is over; ``("timeout", last body)`` after ``job_timeout_s``."""
+    deadline = lab.clock() + lab.config.job_timeout_s
+    last: Mapping[str, Any] = {}
+    while True:
+        response = lab.call("GET", path, "owner")
+        if response.status_code == 200:
+            last = mapping(body_of(response))
+            if last.get("state") in STUDY_TERMINAL:
+                return str(last["state"]), last
+        elif response.status_code >= 400 and response.status_code != 429:
+            return f"http-{response.status_code}", last
+        if lab.clock() >= deadline:
+            return "timeout", last
+        lab.sleep(lab.config.poll_interval_s)
+
+
+def step_study(lab: Lab) -> Checks:
+    checks = lab.begin()
+    revision = lab.revision()
+    engine = {**engine_reference(lab, "random-search"), "mode": MODE, "optimization": dict(OPTIMIZATION)}
+    definition = {
+        "revision_ids": [revision], "engines": [engine],
+        "parameter_sets": [{"iterations": MIN_OPTIONS["iterations"]}], "seeds": list(STUDY_SEEDS),
+    }
+    created = lab.call("POST", STUDIES, "owner", json={"slug": lab.study_slug, "name": f"Smoke {lab.run_id}", "definition": definition})
+    if not checks.expect(created.status_code == 201, f"study {lab.study_slug} created ({describe(created)})"):
+        return checks
+    started = lab.call("POST", f"{STUDIES}/{lab.study_slug}/runs", "owner")
+    run = mapping(body_of(started))
+    run_id = run.get("id")
+    if not checks.expect(started.status_code == 202 and isinstance(run_id, str), f"study run accepted ({describe(started)})"):
+        return checks
+    frozen = mapping(run.get("definition"))
+    problems = [mapping(item) for item in frozen.get("problems") or [] if isinstance(item, Mapping)]
+    checks.expect(bool(run.get("definition_digest")), "the run carries the digest of its frozen definition")
+    checks.expect(
+        [item.get("revisionId") for item in problems] == [revision] and all(item.get("compilationId") for item in problems),
+        "the frozen definition names the revision and the compilation it runs",
+    )
+
+    path = f"{STUDIES}/{lab.study_slug}/runs/{run_id}"
+    state, last = wait_for_study_run(lab, path)
+    checks.expect(state == "completed", f"the study run completes (got {state})")
+    cells = body_of(lab.call("GET", f"{path}/cells", "owner"))
+    rows = [mapping(item) for item in cells] if isinstance(cells, list) else []
+    checks.expect(len(rows) == len(STUDY_SEEDS), f"one cell per seed ({len(rows)})")
+    checks.expect(bool(rows) and all(item.get("state") == "completed" for item in rows), "every cell completed")
+    checks.expect(last.get("definition_digest") == run.get("definition_digest"), "the frozen definition did not change while it ran")
     return checks
 
 
@@ -619,67 +722,13 @@ def step_idempotency(lab: Lab) -> Checks:
         foreign.status_code == 202 and isinstance(foreign_id, str) and foreign_id != first_id and not foreign_body.get("idempotent"),
         f"the same key of another account creates another job ({describe(foreign)})",
     )
-    leak = lab.call("GET", f"/v1/jobs/{first_id}", "member")
-    checks.expect(leak.status_code in {403, 404}, f"the other account cannot read the first job ({leak.status_code})")
+    # A run is the organization's: the member reads the owner's run.
+    shared = lab.call("GET", f"{RUNS}/{first_id}", "member")
+    checks.expect(shared.status_code == 200, f"a member of the organization reads the owner's run ({shared.status_code})")
 
     stuck = lab.drain("owner", [first_id]) + (lab.drain("member", [foreign_id]) if isinstance(foreign_id, str) else [])
     checks.expect(not stuck, "the jobs of this step ended (slots free for the next steps)")
     return checks
-
-
-def ensure_project_job(lab: Lab) -> str:
-    """A completed job of the seeded project (they only come from study runs); runs a one-cell study if none exists."""
-    jobs_path = f"/v1/organizations/{ORG}/projects/{PROJECT}/jobs"
-
-    def completed() -> str | None:
-        response = lab.call("GET", jobs_path, "owner")
-        listing = body_of(response) if response.status_code == 200 else None
-        for job in listing if isinstance(listing, list) else []:
-            if mapping(job).get("status") == "completed" and mapping(job).get("project_id"):
-                return str(job["id"])
-        return None
-
-    if lab.project_job_id is None:
-        lab.project_job_id = completed()
-    if lab.project_job_id is not None:
-        return lab.project_job_id
-
-    # A study run is accepted (202) even when the plan cannot be read, and then just stays queued.
-    lab.require_entitlements("owner")
-    revision = lab.case_revision().get("id")
-    engines = mapping(body_of(lab.call("GET", "/v1/engines", "owner"))).get("engines") or []
-    engine = next((item for item in engines if mapping(item).get("name") == "random-search"), None)
-    if not isinstance(revision, str) or engine is None:
-        raise StepError("cannot build a study: no case revision or no random-search engine")
-    study_path = f"/v1/organizations/{ORG}/projects/{PROJECT}/studies"
-    created = lab.call(
-        "POST", study_path, "owner",
-        json={
-            "slug": STUDY_SLUG, "name": "Smoke lab study", "description": "Created by tools/smoke_lab.py.",
-            "definition": {
-                "case_revision_ids": [revision],
-                "engines": [{
-                    **{key: engine[key] for key in ("namespace", "name", "version", "digest")},
-                    "mode": MODE, "optimization": dict(OPTIMIZATION),
-                }],
-                "parameter_sets": [{"iterations": MIN_OPTIONS["iterations"]}],
-                "seeds": [MIN_OPTIONS["seed"]],
-            },
-        },
-    )
-    if created.status_code not in {201, 409}:
-        raise StepError(f"study creation: {describe(created)}")
-    run = lab.call("POST", f"{study_path}/{STUDY_SLUG}/runs", "owner")
-    if run.status_code != 202:
-        raise StepError(f"study run: {describe(run)}")
-    deadline = lab.clock() + lab.config.job_timeout_s
-    while lab.project_job_id is None:
-        lab.project_job_id = completed()
-        if lab.project_job_id is None:
-            if lab.clock() >= deadline:
-                raise StepError("the study job did not complete in time")
-            lab.sleep(lab.config.poll_interval_s)
-    return lab.project_job_id
 
 
 def check_viewer_redaction(checks: Checks, job: Mapping[str, Any]) -> None:
@@ -696,7 +745,7 @@ def check_viewer_redaction(checks: Checks, job: Mapping[str, Any]) -> None:
         "requestedOptions": provenance.get("requestedOptions"),
         "registration": registration,
         "engineReported": provenance.get("engineReported"),
-        "request": {key: value for key, value in request.items() if key != "bindingProblem"},
+        "request": dict(request),
     }
     leaks = sensitive_keys(exposed)
     checks.expect(not leaks, f"no credential- or address-like keys in what the viewer reads ({leaks[:3]})")
@@ -705,49 +754,44 @@ def check_viewer_redaction(checks: Checks, job: Mapping[str, Any]) -> None:
 def step_authorization(lab: Lab) -> Checks:
     checks = lab.begin()
     job_id = lab.owner_job_id or str(uuid.uuid4())
-    base = f"/v1/organizations/{ORG}/projects/{PROJECT}"
 
-    for method, path in (("GET", "/v1/users/me"), ("GET", "/v1/organizations"), ("GET", f"/v1/jobs/{job_id}"),
-                         ("POST", "/v1/jobs"), ("GET", f"{base}/jobs"), ("GET", "/v1/admin/overview")):
+    for method, path in (("GET", "/v1/users/me"), ("GET", "/v1/organizations"), ("GET", f"{RUNS}/{job_id}"),
+                         ("POST", RUNS), ("GET", RUNS), ("GET", "/v1/admin/overview")):
         response = lab.call(method, path)
         checks.expect(response.status_code == 401, f"anonymous {method} {path[:40]} -> 401 ({response.status_code})")
 
-    # POST /v1/jobs is personal work on snapshots the caller owns and stores no project, so an
-    # organization role does not gate it; the role gates the organization's resources (study runs).
-    try:
-        viewer_launch = lab.launch("viewer")
-    except RemoteBlocked as blocked:
-        checks.block(blocked.label, blocked.cause)
-    else:
-        checks.expect(viewer_launch.status_code == 202, f"viewer CAN launch a personal job on their own snapshot ({describe(viewer_launch)})")
-        if viewer_launch.status_code == 202:
-            viewer_job = mapping(body_of(viewer_launch)).get("id")
-            if isinstance(viewer_job, str):
-                stuck = lab.drain("viewer", [viewer_job], cancel=True)
-                checks.expect(not stuck, "the viewer's personal job ended or was cancelled within the timeout")
+    problem = lab.call("GET", PROBLEM, "viewer")
+    checks.expect(problem.status_code == 200, f"viewer reads the organization's problem ({describe(problem)})")
+    # A run belongs to the organization of its problem: a VIEWER of that organization reads it, and is refused
+    # a launch before anything is compiled, reserved or charged to a plan.
+    # Of the uploaded revision, or of the seeded problem when nothing was uploaded: no upload is attempted for it.
+    viewer_launch = lab.launch("viewer", revision=lab.revision_id or lab.seeded_revision("viewer") or str(uuid.uuid4()))
+    checks.expect(
+        viewer_launch.status_code == 403 and code_of(viewer_launch) == "insufficient_role",
+        f"viewer CANNOT launch a run of the organization's problem ({describe(viewer_launch)})",
+    )
 
-    try:
-        project_job = ensure_project_job(lab)
-    except RemoteBlocked as blocked:
-        checks.block(blocked.label, blocked.cause)
-    except StepError as error:
-        checks.expect(False, f"no project job to read as viewer: {error}")
+    if lab.owner_job_id is None:
+        try:
+            lab.require_entitlements("owner")
+        except RemoteBlocked as blocked:
+            checks.block(blocked.label, blocked.cause)
+        else:
+            checks.expect(False, "no run of the owner to read as viewer (the owner_job step launched none)")
     else:
-        seen = lab.call("GET", f"{base}/jobs", "viewer", params={"job_id": project_job})
-        listing = body_of(seen) if seen.status_code == 200 else []
-        visible = next((item for item in listing if mapping(item).get("id") == project_job), None) if isinstance(listing, list) else None
-        if checks.expect(visible is not None, f"viewer reads the project's job ({seen.status_code})"):
-            job = mapping(visible)
+        seen = lab.call("GET", f"{RUNS}/{lab.owner_job_id}", "viewer")
+        if checks.expect(seen.status_code == 200, f"viewer reads the owner's run ({seen.status_code})"):
+            job = mapping(body_of(seen))
             checks.expect(job.get("status") == "completed" and job.get("result") is not None, "viewer sees the state and the result")
             check_viewer_redaction(checks, job)
-    run = lab.call("POST", f"{base}/studies/{STUDY_SLUG}/runs", "viewer")
-    checks.expect(run.status_code in {403, 404}, f"viewer CANNOT start a study run in the org project ({describe(run)})")
+    run = lab.call("POST", f"{STUDIES}/{lab.study_slug}/runs", "viewer")
+    checks.expect(run.status_code in {403, 404}, f"viewer CANNOT start a study run in the organization ({describe(run)})")
 
-    for label, path in (("project", base), ("project jobs", f"{base}/jobs"), ("organization", f"/v1/organizations/{ORG}")):
+    for label, path in (("problem", PROBLEM), ("runs", RUNS), ("organization", f"/v1/organizations/{ORG}")):
         denied = lab.call("GET", path, "outsider")
         checks.expect(denied.status_code in {403, 404}, f"outsider cannot read the {label} ({describe(denied)})")
-    foreign = lab.call("GET", f"/v1/jobs/{job_id}", "outsider")
-    checks.expect(foreign.status_code == 404, f"outsider cannot read the owner's job ({foreign.status_code})")
+    foreign = lab.call("GET", f"{RUNS}/{job_id}", "outsider")
+    checks.expect(foreign.status_code == 404, f"outsider cannot read the owner's run ({foreign.status_code})")
 
     for user in ("owner", "member", "viewer", "outsider"):
         refused = lab.call("GET", "/v1/admin/overview", user)
@@ -759,17 +803,17 @@ def step_authorization(lab: Lab) -> Checks:
 
 def step_concurrency_limit(lab: Lab) -> Checks:
     checks = lab.begin()
-    snapshot = lab.snapshot("owner")
+    revision = lab.revision()
     token = lab.login("owner")
     tag = f"smoke-{lab.run_id}-race"
 
     def attempt(index: int) -> httpx.Response:
         body = {
-            "snapshot": snapshot, "engine": "random-search", "mode": MODE,
+            "revision": revision, "engine": "random-search", "mode": MODE,
             "optimization": dict(OPTIMIZATION), "options": SLOW_OPTIONS,
         }
         return lab.client.post(
-            "/api/v1/jobs", json=body, headers={"Authorization": f"Bearer {token}", "Idempotency-Key": f"{tag}-{index}"},
+            f"/api{RUNS}", json=body, headers={"Authorization": f"Bearer {token}", "Idempotency-Key": f"{tag}-{index}"},
             timeout=lab.config.request_timeout_s,
         )
 
@@ -780,7 +824,7 @@ def step_concurrency_limit(lab: Lab) -> Checks:
     accepted_ids = [item for item in accepted if isinstance(item, str)]
     blocks = [cause for cause in map(pricing_block, responses) if cause]
     if blocks and not accepted_ids:
-        raise RemoteBlocked(f"{USERS['owner']} POST /v1/jobs x{len(blocks)}", blocks[0])
+        raise RemoteBlocked(f"{USERS['owner']} POST {RUNS} x{len(blocks)}", blocks[0])
     checks.expect(
         len(accepted_ids) + len(refused) == len(responses),
         f"every launch is 202 or 429 ({sorted(item.status_code for item in responses)})",
@@ -886,14 +930,16 @@ def step_plan_usage(lab: Lab) -> Checks:
 STEPS: dict[int, tuple[str, Callable[[Lab], Checks]]] = {
     1: ("proxy_and_spa", step_proxy_and_spa),
     2: ("login", step_login),
-    3: ("owner_job", step_owner_job),
-    4: ("idempotency", step_idempotency),
-    5: ("authorization", step_authorization),
-    6: ("concurrency_limit", step_concurrency_limit),
-    7: ("cors", step_cors),
-    8: ("body_limit", step_body_limit),
-    9: ("login_throttle", step_login_throttle),
-    10: ("plan_usage", step_plan_usage),
+    3: ("upload", step_upload),
+    4: ("owner_job", step_owner_job),
+    5: ("study", step_study),
+    6: ("idempotency", step_idempotency),
+    7: ("authorization", step_authorization),
+    8: ("concurrency_limit", step_concurrency_limit),
+    9: ("cors", step_cors),
+    10: ("body_limit", step_body_limit),
+    11: ("login_throttle", step_login_throttle),
+    12: ("plan_usage", step_plan_usage),
 }
 
 
@@ -933,7 +979,7 @@ def run_smoke(
     skipped: list[str] = []
     for number in RUN_ORDER:
         name = STEPS[number][0]
-        if number in config.skip or (number == 10 and not config.with_space):
+        if number in config.skip or (number == 12 and not config.with_space):
             skipped.append(name)
             continue
         steps.append(run_step(lab, number))
@@ -966,7 +1012,7 @@ def parse_skip(value: str) -> frozenset[int]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="API smoke test of the lab demo through the nginx proxy.")
     parser.add_argument("--base-url", default=None, help=f"proxy origin (default $SMOKE_BASE_URL or {DEFAULT_BASE_URL})")
-    parser.add_argument("--skip", type=parse_skip, default=frozenset(), help="optional steps to leave out: numbers or names among 6-9")
+    parser.add_argument("--skip", type=parse_skip, default=frozenset(), help="optional steps to leave out: numbers or names among 8-11")
     parser.add_argument("--with-space", action="store_true", help="also check the owner's plan and capabilities (needs SPACE contracts)")
     parser.add_argument("--origin", default="http://localhost:18100", help="origin that must pass CORS")
     parser.add_argument("--evil-origin", default="http://evil.example", help="origin that must not pass CORS")

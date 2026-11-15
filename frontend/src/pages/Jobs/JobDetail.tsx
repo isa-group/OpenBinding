@@ -1,22 +1,25 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { jobsApi, type JobInstanceView } from '../../api/jobs';
-import type { Job, Organization, Project } from '../../api/platform';
+import { runsApi } from '../../api/runs';
+import { problemsApi } from '../../api/problems';
+import type { Job, Organization } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
+import { useAuth } from '../../contexts/auth';
+import { runPath, runsPath } from '../../routes/paths/runs';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
-import { saveBytes } from '../Project/download';
-import { canOpenSection } from '../Project/accessLevel';
-import { MembersOnlyGate, ProjectGate, ProjectSkeleton } from '../Project/parts';
-import { useRouteProject } from '../Project/useRouteProject';
+import { saveBytes } from '../../features/workspace/download';
+import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
+import { problemAccess } from '../Cases/useRouteProblem';
+import { useRouteOrganization } from '../Organization/useRouteOrganization';
 import { Provenance, Settings, Timeline } from './JobFacts';
-import { ResultSection, type Origin } from './JobResult';
+import { ResultSection } from './JobResult';
 import { rangeFailureOf, refusalOf, type Refusal } from './jobErrors';
-import { findOrigin } from './jobsData';
+import { originOf } from './jobsData';
 import { canRetryState, isActive, normalizeStatus, readPins } from './jobsModel';
 import { runLabel } from '../../shared/lib/identity';
 import { JobFrame, JobMissing, OutcomeChip, RefusalNotice, StatusChip } from './parts';
@@ -31,35 +34,32 @@ const DOWNLOADS: ReadonlyArray<{ kind: DownloadKind; label: string; file: string
   { kind: 'result', label: 'Download result', file: 'result' },
 ];
 
-function JobDetailBody({ organization, project, jobId }: { organization: Organization; project: Project; jobId: string }) {
+function JobDetailBody({ organization, jobId, canWork }: { organization: Organization; jobId: string; canWork: boolean }) {
   const navigate = useNavigate();
   const { copy, status } = useCopy();
+  const { user } = useAuth();
   const org = organization.slug;
-  const slug = project.slug;
-  const root = `/app/${org}/${slug}`;
-  const live = useJobLive(jobId);
+  const root = `/app/${org}`;
+  const live = useJobLive(org, jobId);
   const detail = live.detail;
   const proven = detail !== undefined;
 
-  // Everything below is read only once the gateway has shown the run to this account: a run that is not yours reads as missing.
-  const inProject = useResource<Job | null>(`job-in-project:${org}/${slug}/${jobId}:${proven}`, async () => (proven ? jobsApi.inProject(org, slug, jobId).catch(() => null) : null));
-  const own = useResource<Job[]>(`job-own:${proven}`, async () => (proven ? jobsApi.mine().catch(() => []) : []));
-  const instance = useResource<JobInstanceView | null>(`job-instance:${jobId}:${proven}`, async () => (proven ? jobsApi.instance(jobId).catch(() => null) : null));
-  const snapshotId = instance.data?.id ?? null;
-  const origin = useResource<Origin | null>(`job-origin:${org}/${slug}:${snapshotId ?? 'none'}`, async () => (snapshotId ? findOrigin(org, slug, snapshotId) : null));
+  // The other runs of the organization are read only once the gateway has shown this one: a run of another organization reads as missing.
+  const others = useResource<Job[]>(`runs-around:${org}:${proven}`, async () => (proven ? runsApi.list(org, { limit: 26 }).then((page) => page.runs, () => []) : []));
+  const origin = originOf(detail);
 
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [busy, setBusy] = useState<'cancel' | 'retry' | null>(null);
   const [asked, setAsked] = useState(false);
   const [downloads, setDownloads] = useState<Partial<Record<DownloadKind, string>>>({});
 
-  const meta: Job | null = inProject.data ?? own.data?.find((row) => row.id === jobId) ?? null;
+  const meta = detail ?? null;
   const failure = live.phase === 'error' ? classifyAuthError(live.error) : null;
-  const trail = [{ label: 'Runs', to: `${root}/runs` }, { label: runLabel({ engine: { name: meta?.engine_id }, createdAt: meta?.created_at }) }];
+  const trail = [{ label: 'Runs', to: runsPath(org) }, { label: runLabel({ engine: { name: meta?.engine_id }, createdAt: meta?.created_at }) }];
 
   if (live.phase === 'loading') {
     return (
-      <JobFrame organization={organization} project={project} trail={trail}>
+      <JobFrame organization={organization} trail={trail}>
         <div role="status" aria-busy="true" className="job-connecting">
           <span><span className="job-spinner" aria-hidden="true" />Connecting to live updates…</span>
           <Skeleton variant="card" />
@@ -71,14 +71,14 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
 
   if (live.phase === 'error' || !detail) {
     return (
-      <JobFrame organization={organization} project={project} trail={trail}>
+      <JobFrame organization={organization} trail={trail}>
         {failure?.status === 403 && (
           <Notice tone="warning">This API key can’t read runs or doesn’t include this engine{marker(failure)}. Engines outside a key’s list answer as if they didn’t exist.</Notice>
         )}
         {failure?.status === 401 && <Notice tone="warning">Your session ended{marker(failure)}. Log in again to see this run.</Notice>}
         {(!failure || failure.kind === 'not-found') && (
-          <JobMissing title="Run not found" actions={<Action to={`${root}/runs`} variant="primary">All runs</Action>}>
-            Runs open only for whoever launched them. Everyone else, including platform administrators, gets this same answer.
+          <JobMissing title="Run not found" actions={<Action to={runsPath(org)} variant="primary">All runs</Action>}>
+            Runs open for the members of their organization. Everyone else, including platform administrators, gets this same answer.
           </JobMissing>
         )}
         {failure && failure.status !== 403 && failure.status !== 401 && failure.kind !== 'not-found' && (
@@ -94,18 +94,19 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
   const rangeFailure = rangeFailureOf(detail);
   const pins = readPins(detail.provenance);
   const engineName = meta?.engine_id ?? pins.engine?.name ?? 'Run';
+  const launcher = meta?.created_by ? (user && meta.created_by.id === user.id ? 'you' : meta.created_by.username) : null;
   const engineVersion = pins.engine?.version ? ` ${pins.engine.version}` : '';
   const created = meta?.created_at ?? null;
   const finished = meta?.finished_at ?? null;
   const cancelRequested = asked || Boolean(meta?.cancellation_requested);
-  const siblings = (own.data ?? []).filter((row) => row.id !== jobId).slice(0, 25);
-  const caseLine = origin.data ? `problem ${origin.data.caseName}` : instance.data ? 'uploaded package' : null;
+  const siblings = (others.data ?? []).filter((row) => row.id !== jobId).slice(0, 25);
+  const caseLine = origin ? `problem ${origin.caseName} · version ${origin.revision}` : null;
 
   const cancel = async () => {
     setBusy('cancel');
     setOutcome(null);
     try {
-      const view = await jobsApi.cancel(jobId);
+      const view = await runsApi.cancel(org, jobId);
       setAsked(true);
       if (normalizeStatus(view.status) === 'cancelled') live.adopt('cancelled');
       setOutcome({ tone: 'success', text: 'Cancellation requested. The engine stops at its next check.' });
@@ -122,8 +123,8 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
     setBusy('retry');
     setOutcome(null);
     try {
-      const made = await jobsApi.retry(jobId);
-      setOutcome({ tone: 'success', text: 'Retry queued as a new attempt.', follow: `${root}/runs/${made.id}` });
+      const made = await runsApi.retry(org, jobId);
+      setOutcome({ tone: 'success', text: 'Retry queued as a new attempt.', follow: runPath(org, made.id) });
     } catch (caught) {
       setOutcome({ tone: 'error', refusal: refusalOf(caught, 'retry') });
     } finally {
@@ -134,7 +135,10 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
   const download = async (kind: DownloadKind, file: string) => {
     setDownloads((current) => ({ ...current, [kind]: 'busy' }));
     try {
-      const body = kind === 'ir' ? await jobsApi.ir(jobId) : kind === 'instance' ? await jobsApi.instance(jobId) : (detail.result ?? {});
+      if (kind !== 'result' && !origin?.compilationId) throw new Error('The run names no problem version.');
+      const body = kind === 'ir' && origin?.compilationId
+        ? (await problemsApi.ir(origin.org, origin.caseSlug, origin.revision, origin.compilationId)).ir
+        : kind === 'instance' && origin ? (await problemsApi.revision(origin.org, origin.caseSlug, origin.revision)).document : (detail.result ?? {});
       saveBytes(new TextEncoder().encode(JSON.stringify(body, null, 2)).buffer as ArrayBuffer, `run-${file}.json`, 'application/json');
       setDownloads((current) => ({ ...current, [kind]: 'done' }));
     } catch (caught) {
@@ -143,7 +147,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
   };
 
   return (
-    <JobFrame organization={organization} project={project} trail={trail}>
+    <JobFrame organization={organization} trail={trail}>
       <header className="proj-title-row">
         <div className="proj-title">
           <span className="proj-title-line">
@@ -153,13 +157,13 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
           </span>
           <p>
             {engineName}{engineVersion}{pins.mode ? ` · mode ${pins.mode}` : ''}
-            {created ? ` · launched ${formatDateTime(created)} by you` : ' · launched by you'}
+            {created ? ` · launched ${formatDateTime(created)}` : ' · launched'}{launcher ? ` by ${launcher}` : ''}
             {caseLine ? ` · ${caseLine}` : ''}
           </p>
           {siblings.length > 0 && (
             <label className="job-select">
-              <span>Another of your runs</span>
-              <select aria-label="Another of your runs" value={jobId} onChange={(event) => navigate(`${root}/runs/${event.target.value}`, { viewTransition: true })}>
+              <span>Another run</span>
+              <select aria-label="Another run of the organization" value={jobId} onChange={(event) => navigate(runPath(org, event.target.value), { viewTransition: true })}>
                 <option value={jobId}>This run</option>
                 {siblings.map((row) => <option key={row.id} value={row.id}>{row.engine_id} · {formatDateTime(row.created_at) ?? 'earlier run'}</option>)}
               </select>
@@ -167,12 +171,12 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
           )}
         </div>
         <div className="proj-actions">
-          {isActive(state) && !cancelRequested && <Action variant="danger-outline" busy={busy === 'cancel'} onClick={() => void cancel()}>Cancel run</Action>}
-          {canRetryState(state) && <Action variant="primary" busy={busy === 'retry'} onClick={() => void retry()}>Retry</Action>}
+          {canWork && isActive(state) && !cancelRequested && <Action variant="danger-outline" busy={busy === 'cancel'} onClick={() => void cancel()}>Cancel run</Action>}
+          {canWork && canRetryState(state) && <Action variant="primary" busy={busy === 'retry'} onClick={() => void retry()}>Retry</Action>}
           <Action variant="secondary" onClick={() => void copy(`run ${jobId}`, 'ref')}>
             {status('ref') === 'copied' ? 'Copied' : status('ref') === 'failed' ? 'Copy failed' : 'Copy reference'}
           </Action>
-          <Action variant="ghost" onClick={() => void copy(`${window.location.origin}${root}/runs/${jobId}`, 'link')}>
+          <Action variant="ghost" onClick={() => void copy(`${window.location.origin}${runPath(org, jobId)}`, 'link')}>
             {status('link') === 'copied' ? 'Link copied' : status('link') === 'failed' ? 'Copy failed' : 'Copy link'}
           </Action>
         </div>
@@ -192,11 +196,11 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
 
       <Timeline status={state} created={created} finished={finished} feed={live.feed} />
       <Settings provenance={detail.provenance} />
-      <ResultSection detail={detail} jobId={jobId} root={root} origin={origin.data ?? null} />
+      <ResultSection detail={detail} org={org} jobId={jobId} origin={origin} />
       <Provenance
         provenance={detail.provenance}
-        instance={instance.data ?? null}
-        origin={origin.data ?? null}
+        compilation={detail.compilation ?? null}
+        origin={origin}
         root={root}
         created={created}
         retryOf={meta?.retry_of_id ?? null}
@@ -214,14 +218,11 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
   );
 }
 
-/** One run (`job-detail`, `/app/:org/:project/runs/:job`): live state, the authoritative result, the settings and what it ran on. */
+/** One run (`job-detail`, `/app/:org/runs/:job`): live state, the authoritative result, the settings and what it ran on. */
 export function JobDetail() {
   const { job: jobId = '' } = useParams();
-  const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
-  if (waiting) return <ProjectSkeleton />;
-  if (!organization || !project) {
-    return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
-  }
-  if (!canOpenSection(access.level, 'jobs')) return <MembersOnlyGate root={`/app/${organization.slug}/${project.slug}`} />;
-  return <JobDetailBody key={jobId} organization={organization} project={project} jobId={jobId} />;
+  const { organization, waiting } = useRouteOrganization();
+  if (waiting) return <OrgSkeleton label="Loading organization…" />;
+  if (!organization) return <OrgGate failure={null} />;
+  return <JobDetailBody key={jobId} organization={organization} jobId={jobId} canWork={problemAccess(organization).canCreate} />;
 }

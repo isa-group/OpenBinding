@@ -151,18 +151,20 @@ class Settings(BaseSettings):
     #: that protects the engines, independent of the plan
     #: (``MAX_CONCURRENT_JOBS_PER_USER``).
     max_concurrent_jobs_per_user: int = Field(default=8, ge=1)
-    #: Technical ceiling, in log10 units, on the binding space (the estimated number
-    #: of candidate combinations) of one job or study cell; ``None`` sets none
-    #: (``MAX_BINDING_SPACE_LOG10``). It applies on top of the plan's
-    #: ``maxInstanceComplexityLog10`` and stands in for it when the plan declares no
-    #: usable value; with neither, the instance is refused. See
-    #: ``domain/binding_space.py``.
-    max_binding_space_log10: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
+    #: Ceiling, in log10 units, on the binding space (the estimated number of
+    #: candidate combinations) of one job or study cell (``MAX_BINDING_SPACE_LOG10``).
+    #: A setting of the deployment, not a plan entitlement: pricing 0.2.0 has no
+    #: size limit. See ``domain/binding_space.py``.
+    max_binding_space_log10: float = Field(default=20.0, ge=0, allow_inf_nan=False)
     #: Technical ceiling on the cells (jobs) one study run expands to; ``None``
-    #: sets none (``MAX_CELLS_PER_STUDY_RUN``). A run over it is refused whole
-    #: with 422 ``study_run_too_large`` before anything is written. A safeguard
-    #: of the deployment, not a plan entitlement: no plan raises it.
+    #: sets none (``MAX_CELLS_PER_STUDY_RUN``). The plan's ``maxStudyCells``
+    #: applies too, and the lower of the two decides; a run over it is refused
+    #: whole with 422 ``study_run_too_large`` before anything is written.
     max_cells_per_study_run: Optional[int] = Field(default=None, ge=1)
+    #: Ceiling on the effort options of one job (``iterations``,
+    #: ``max_evaluations``): a request above it is brought down to it and told so
+    #: (``MAX_ITERATIONS``). A setting of the deployment, not a plan entitlement.
+    max_iterations: int = Field(default=1_000_000, ge=1)
     #: How long a job may wait in the queue without a worker claiming it before
     #: the reconciler fails it with ``queue_timeout``. Counts from the moment the
     #: job was queued, whatever budget it was given to run
@@ -188,25 +190,6 @@ class Settings(BaseSettings):
     # -- v1 schemas ------------------------------------------------------
     #: Directory holding the BIM v1 schemas and manifests.
     schemas_dir: str = "/app/schemas"
-
-    # -- BIM toolchain ---------------------------------------------------
-    #: Where the BIM language runs: ``inproc`` calls the installed ``bim-core``
-    #: in this process (development, tests, workers that carry it); ``http``
-    #: calls a ``bim-service`` (``BIM_SERVICE_URL``). Everything else in the
-    #: gateway talks to ``integrations.bim.get_bim()`` and does not care.
-    bim_mode: Literal["inproc", "http"] = "inproc"
-    #: Root of the service (``https://bim.internal``); required when ``BIM_MODE=http``.
-    bim_service_url: Optional[str] = None
-    #: File whose first line is the bearer token of the service. Never the token itself.
-    bim_service_token_file: Optional[str] = None
-    #: Seconds the gateway waits for one answer of the service.
-    bim_service_timeout_s: float = Field(default=30.0, gt=0)
-    #: Opaque tenant label sent as ``X-BIM-Tenant`` (logs and fair sharing of the
-    #: service; it never changes a result).
-    bim_tenant: Optional[str] = None
-    #: Allow the bearer token to travel over plain ``http`` to a host that is not the loopback
-    #: (``BIM_SERVICE_ALLOW_INSECURE_HTTP``). Off by default: only for a trusted private network.
-    bim_service_allow_insecure_http: bool = False
 
     # -- CORS ------------------------------------------------------------
     #: Comma-separated browser origins allowed to call the API: a closed list.
@@ -253,6 +236,11 @@ class Settings(BaseSettings):
     #: Ceiling for every other route (JSON documents, registrations, options).
     #: Never above ``max_request_body_bytes``.
     max_json_body_bytes: int = Field(default=16 * 1024 * 1024, ge=1)
+    #: Largest BIM package one request may carry, for a solve or an upload
+    #: (``MAX_PACKAGE_BYTES``); a larger one is refused with 413
+    #: ``payload_too_large``. Never more than ``max_request_body_bytes`` in
+    #: effect. A setting of the deployment, not a plan entitlement.
+    max_package_bytes: int = Field(default=128 * 1024 * 1024, ge=1)
 
     # -- Throttling of authentication ------------------------------------
     #: Fixed-window limits for login, registration and refresh
@@ -274,14 +262,12 @@ class Settings(BaseSettings):
     #: Requests per window that one client may send to the routes open to
     #: anybody that do real CPU work (``access/work_limits.py`` names them and
     #: docs/ACCESS_POLICY.md explains them). A client is its address (its /64
-    #: for IPv6) or, signed in, its account. ``read`` reads and writes YAML;
-    #: ``compile`` runs the container's compiler, so it is much
-    #: stricter. ``0`` switches a class off for everybody. Counted like
+    #: for IPv6) or, signed in, its account. The one class, ``compile``, runs
+    #: the container's compiler. ``0`` switches it off for everybody. Counted like
     #: authentication: in Redis, or per process while Redis does not answer.
     work_rate_limit_window_s: int = Field(default=60, ge=1)
-    work_rate_limit_read_requests: int = Field(default=60, ge=0)
     work_rate_limit_compile_requests: int = Field(default=10, ge=0)
-    #: How many times those budgets a signed-in caller gets.
+    #: How many times that budget a signed-in caller gets.
     work_rate_limit_signed_in_multiplier: int = Field(default=5, ge=1)
 
     # -- The first administrator -----------------------------------------
@@ -336,6 +322,18 @@ class Settings(BaseSettings):
     #: it never touches production contracts. The one source of this name:
     #: ``space_client`` takes it from here.
     space_service_name: str = DEFAULT_SPACE_SERVICE_NAME
+    #: The SPACE organization pricing tokens are issued for
+    #: (``SPACE_ORGANIZATION_ID``): their ``aud`` and ``organizationId``.
+    #: Required when SPACE is enabled (refused at startup in production), because
+    #: every token is verified against SPACE's published keys (JWKS) before it is
+    #: believed.
+    space_organization_id: Optional[str] = None
+    #: The ``iss`` of SPACE's pricing tokens (``SPACE_TOKEN_ISSUER``; SPACE's
+    #: ``JWT_ISSUER``, ``space`` by default).
+    space_token_issuer: str = "space"
+    #: Tolerance, in seconds, for the ``exp`` of a pricing token
+    #: (``SPACE_TOKEN_LEEWAY_S``).
+    space_token_leeway_s: float = Field(default=30.0, ge=0)
 
     # -- Durable jobs and artifacts -------------------------------------
     redis_url: str = "redis://redis:6379/0"
@@ -366,13 +364,6 @@ class Settings(BaseSettings):
     sphere_organization_id: Optional[str] = None
     sphere_pricing_slug: Literal["openbinding"] = "openbinding"
     sphere_timeout_s: float = 10.0
-
-    # -- Collaboration ----------------------------------------------------
-    #: Reads of public projects by people who are not members are limited per
-    #: caller (the account, or the client address when anonymous) and per
-    #: minute; they are never charged to the project's sponsor
-    #: (``PUBLIC_READ_RATE_PER_MINUTE``; 0 switches the limit off).
-    public_read_rate_per_minute: int = Field(default=240, ge=0)
 
     # -- Diagnostics ------------------------------------------------------
     #: Failures of anonymous callers persisted as error events per client
@@ -481,12 +472,6 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def bim_service_url_for_http(self) -> "Settings":
-        if self.bim_mode == "http" and not self.bim_service_url:
-            raise ValueError("BIM_SERVICE_URL is not set while BIM_MODE=http: name the root of the bim-service.")
-        return self
-
-    @model_validator(mode="after")
     def valid_space_service_name(self) -> "Settings":
         """Refuse a service name SPACE could not hold, before any call uses it."""
         if not SPACE_SERVICE_NAME_PATTERN.fullmatch(self.space_service_name):
@@ -513,21 +498,29 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def space_organization_required_in_production(self) -> "Settings":
+        """Refuse a production SPACE without the organization its pricing tokens are verified for.
+
+        Elsewhere the startup check (``main.py``) warns instead, and every plan
+        read answers 503 ``pricing_unavailable`` until it is set.
+        """
+        if self.app_env == "prod" and self.space_enabled and not (self.space_organization_id or "").strip():
+            raise ValueError(
+                "SPACE_ENABLED is true but SPACE_ORGANIZATION_ID is not set: pricing tokens are "
+                "verified against SPACE's keys for that organization (their aud and organizationId)."
+            )
+        return self
+
+    @model_validator(mode="after")
     def no_insecure_transport_in_production(self) -> "Settings":
         """Refuse plain-http switches in production.
 
-        ``BIM_SERVICE_ALLOW_INSECURE_HTTP`` sends the bim-service bearer token in
-        clear text and ``FEDERATION_REQUIRE_HTTPS=false`` lets federated engines
-        be registered and called over http. Both are for a trusted development or
-        lab network only.
+        ``FEDERATION_REQUIRE_HTTPS=false`` lets federated engines be registered
+        and called over http, which is for a trusted development or lab network
+        only.
         """
         if self.app_env != "prod":
             return self
-        if self.bim_service_allow_insecure_http:
-            raise ValueError(
-                "BIM_SERVICE_ALLOW_INSECURE_HTTP is true while APP_ENV=prod: production must reach "
-                "the bim-service over https. Unset it, or use APP_ENV=dev for a trusted private network."
-            )
         if not self.federation_require_https:
             raise ValueError(
                 "FEDERATION_REQUIRE_HTTPS is false while APP_ENV=prod: production must call federated "

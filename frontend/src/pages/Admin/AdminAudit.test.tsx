@@ -16,14 +16,14 @@ const event = (n: number, action: string, detail: Record<string, unknown>, over:
 /** What B2 added to the log: account actions, the CAS link and the events recorded inside an organization. */
 const RECENT: AdminAuditPage = {
   events: [
-    event(1, 'organization.sponsor.proposed', { proposal_id: 'prop-1', proposed_user_id: PRIYA.id, proposed_by_user_id: ALEX.id, expires_at: '2026-10-24T09:00:00Z' },
+    event(1, 'organization.updated', { name: 'ISA Demo' },
       { organizationId: ORG.id, organizationSlug: 'isa-demo', targetType: 'Organization', targetId: ORG.id }),
     event(2, 'admin.user.updated', { username: 'sam.okafor', changes: { role: { from: 'user', to: 'admin' }, is_active: { from: true, to: false } } }),
     event(3, 'admin.api_key.revoked', { user_id: SAM.id, key: { id: 'key-1', name: 'ci pipeline', prefix: 'obk_ab12' } }, { targetType: 'ApiKey', targetId: 'key-1' }),
     event(4, 'admin.usage.resynced', { username: 'sam.okafor', plan: 'BASIC', before: { concurrent_jobs_recorded: 2 }, after: { concurrent_jobs_recorded: 1 }, slots_in_flight: 1, corrected_by: -1 }),
     event(5, 'account.cas.linked', { provider: 'us-cas', plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false } }),
-    event(6, 'organization.updated', { previous_sponsor_user_id: MARIA.id, new_sponsor_user_id: ALEX.id }, { organizationId: ORG.id, organizationSlug: 'isa-demo', targetType: 'Organization', targetId: ORG.id }),
-    event(7, 'organization.sponsor.accepted', { proposal_id: 'prop-1', previous_sponsor_user_id: MARIA.id, new_sponsor_user_id: PRIYA.id }, { organizationId: ORG.id, organizationSlug: 'isa-demo' }),
+    event(6, 'organization.member.upserted', { role: 'MEMBER', user_id: MARIA.id }, { organizationId: ORG.id, organizationSlug: 'isa-demo', targetType: 'OrganizationMembership', targetId: ORG.id }),
+    event(7, 'organization.invitation.created', { role: 'MEMBER', invited: PRIYA.id }, { organizationId: ORG.id, organizationSlug: 'isa-demo' }),
   ],
   total: 7, offset: 0, limit: 100,
 };
@@ -57,7 +57,7 @@ describe('admin-overview, audit section · the platform audit log', () => {
     const timeline = screen.getByRole('list', { name: 'Events, newest first' });
     expect(within(timeline).getAllByRole('listitem')).toHaveLength(3);
     expect(api.adminAudit).toHaveBeenCalledWith({ action: undefined, offset: 0, limit: 100 });
-    expect(screen.getByText(/Events recorded inside an organization, such as a change of sponsor, appear here too with the organization named/)).toBeInTheDocument();
+    expect(screen.getByText(/Events recorded inside an organization, such as a member change, appear here too with the organization named/)).toBeInTheDocument();
     expect(screen.queryByText(/are in that organization’s own audit log/)).not.toBeInTheDocument();
   });
 
@@ -69,18 +69,18 @@ describe('admin-overview, audit section · the platform audit log', () => {
     it('words each new kind of event for a person', async () => {
       renderAudit();
 
-      expect(await screen.findByText('A request to become the billing sponsor was sent.')).toBeInTheDocument();
+      expect(await screen.findByText('The organization’s settings were updated.')).toBeInTheDocument();
       expect(screen.getByText('Account sam.okafor was updated: role user → admin; status active → inactive.')).toBeInTheDocument();
       expect(screen.getByText('API key “ci pipeline” (obk_ab12…) was revoked.')).toBeInTheDocument();
       expect(screen.getByText('Run slots of sam.okafor were recounted (corrected by -1).')).toBeInTheDocument();
       expect(screen.getByText('An institutional identity was linked and the plan went from BASIC to RESEARCH at no extra cost.')).toBeInTheDocument();
-      expect(screen.getByText('The organization’s billing sponsor was changed.')).toBeInTheDocument();
-      expect(screen.getByText('A request to become the billing sponsor was accepted.')).toBeInTheDocument();
+      expect(screen.getByText('Organization member upserted.')).toBeInTheDocument();
+      expect(screen.getByText('Organization invitation created.')).toBeInTheDocument();
     });
 
     it('shows the facts of an account action in the detail, never a secret', async () => {
       renderAudit();
-      await screen.findByText('A request to become the billing sponsor was sent.');
+      await screen.findByText('The organization’s settings were updated.');
       fireEvent.click(screen.getByRole('button', { name: /admin\.api_key\.revoked/ }));
 
       const aside = screen.getByRole('complementary', { name: 'Event detail' });
@@ -96,7 +96,7 @@ describe('admin-overview, audit section · the platform audit log', () => {
 
     it('names the organization of an event with a chip, and not for a platform event', async () => {
       renderAudit();
-      await screen.findByText('A request to become the billing sponsor was sent.');
+      await screen.findByText('The organization’s settings were updated.');
       const timeline = screen.getByRole('list', { name: 'Events, newest first' });
       const items = within(timeline).getAllByRole('listitem');
 
@@ -109,7 +109,7 @@ describe('admin-overview, audit section · the platform audit log', () => {
 
     it('keeps only one organization’s events on request, and drops the filter again', async () => {
       renderAudit();
-      await screen.findByText('A request to become the billing sponsor was sent.');
+      await screen.findByText('The organization’s settings were updated.');
 
       fireEvent.click(screen.getByRole('button', { name: 'Only this organization' }));
       await waitFor(() => expect(api.adminAudit).toHaveBeenLastCalledWith({ action: undefined, organizationId: ORG.id, offset: 0, limit: 100 }));
@@ -121,7 +121,7 @@ describe('admin-overview, audit section · the platform audit log', () => {
 
     it('asks for an organization by id and refuses what is not one', async () => {
       renderAudit();
-      await screen.findByText('A request to become the billing sponsor was sent.');
+      await screen.findByText('The organization’s settings were updated.');
       const calls = api.adminAudit.mock.calls.length;
 
       fireEvent.change(screen.getByLabelText('Organization id (optional)'), { target: { value: 'isa-demo' } });
@@ -137,7 +137,7 @@ describe('admin-overview, audit section · the platform audit log', () => {
 
     it('narrows the page to account events or to organization events', async () => {
       renderAudit();
-      await screen.findByText('A request to become the billing sponsor was sent.');
+      await screen.findByText('The organization’s settings were updated.');
       const kinds = screen.getByRole('group', { name: 'Kind of event' });
 
       fireEvent.click(within(kinds).getByRole('button', { name: 'Accounts' }));

@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { casesApi } from '../../api/cases';
-import type { ArtifactVersion } from '../../api/library';
-import type { CaseRevision as Revision, Organization, Project } from '../../api/platform';
+import type { Organization } from '../../api/platform';
+import type { ProblemRevision as Revision } from '../../api/problems';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -12,12 +11,11 @@ import { formatBytes, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { formatFeature } from '../../utils/featureRange';
 import type { BindingModel, FeatureValue, TaskInfo } from './bindingModel';
-import { classifyAuthError, isMissing, marker } from './caseErrors';
-import { plural, refLabel, resourceUses, roleLabel, type ResourceUse } from './casesModel';
-import { loadModel, type ModelState } from './modelLoader';
+import { marker } from './caseErrors';
+import { plural } from './casesModel';
+import { loadModel, modelKey, type ModelState } from './modelLoader';
 import { DigestLine, FlowDrawing, Power } from './parts';
-import { useLoadedMap, type Loaded } from './useLoadedMap';
-import type { RouteCaseContent } from './useRouteCase';
+import type { RouteProblemContent } from './useRouteProblem';
 
 /** The finite ends of a value, which the bars of a column are drawn against. */
 const finiteEnds = (value: FeatureValue | undefined): number[] => {
@@ -188,85 +186,42 @@ function PlacementCard({ model }: { model: BindingModel }) {
   );
 }
 
-function ResourceCards({ uses, resolved }: {
-  uses: ResourceUse[]; resolved: Record<string, Loaded<ArtifactVersion>>;
-}) {
-  if (uses.length === 0) {
-    return <p className="org-muted">This version doesn’t record its inputs as library versions, so there is nothing to link to. Its compiled form is still exact.</p>;
-  }
-  return (
-    <ul className="case-resources">
-      {uses.map((use) => {
-        const answer = resolved[`${use.role}/${use.alias}`];
-        const version = answer?.status === 'ready' ? answer.value : undefined;
-        const failure = answer?.status === 'error' ? classifyAuthError(answer.error) : null;
-        const note = !answer ? 'Looking it up…' : failure ? (isMissing(failure) ? `Can’t be reached${marker(failure)}` : `Couldn’t be loaded${marker(failure)}`)
-          : version?.withdrawn ? 'Withdrawn' : version?.public ? 'Published' : 'Not published';
-        const body = (
-          <>
-            <span className="case-resource-role">{roleLabel(use.role)}</span>
-            <strong>{refLabel(use.ref)}</strong>
-            <small>{note}</small>
-          </>
-        );
-        return (
-          <li key={`${use.role}/${use.alias}`}>
-            <div className={`case-resource${failure ? ' is-unresolved' : ''}`}>{body}</div>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
 /** The Overview tab of the problem page: the model of the problem version on show, in plain language. */
-export function VersionOverview({ organization, project, content, revision }: {
-  organization: Organization; project: Project; content: RouteCaseContent; revision: Revision;
+export function VersionOverview({ organization, content, revision }: {
+  organization: Organization; content: RouteProblemContent; revision: Revision;
 }) {
   const { copy, status } = useCopy();
   const { item } = content;
-  const root = `/app/${organization.slug}/${project.slug}`;
-  const uses = resourceUses(revision.document);
-  const modelState = useResource<ModelState>(`model:${revision.source_snapshot_id ?? 'none'}`, () => loadModel(revision.source_snapshot_id));
-  const resolved = useLoadedMap(uses.map((use) => `${use.role}/${use.alias}`), (key) => {
-    const use = uses.find((candidate) => `${candidate.role}/${candidate.alias}` === key);
-    return use ? casesApi.resolveVersion(use.ref) : Promise.reject(new Error('Unknown resource'));
-  });
+  const org = organization.slug;
+  const modelState = useResource<ModelState>(modelKey(org, item.slug, revision), () => loadModel(org, item.slug, revision.revision));
 
   const model = modelState.data?.state === 'ready' ? modelState.data.model : null;
-  const snapshot = modelState.data?.state === 'ready' ? modelState.data.snapshot : null;
-  const unresolved = modelState.data?.state === 'failed' || Object.values(resolved).some((answer) => answer.status === 'error');
-  const profile = model?.profile ?? (typeof (revision.document.spec as { profile?: unknown } | undefined)?.profile === 'string' ? String((revision.document.spec as { profile: string }).profile) : null);
+  const compilation = modelState.data?.state === 'ready' ? modelState.data.compilation : null;
+  const profile = model?.profile ?? null;
 
   return (
     <>
-      {unresolved && (
-        <Notice tone="warning">
-          Some resources of this version couldn’t be loaded right now, so the model below may be incomplete. The fingerprint and identity are still exact.
-        </Notice>
-      )}
 
       <section aria-labelledby="rv-identity">
         <h2 id="rv-identity" className="sr-only">Identity</h2>
         <dl className="case-identity">
-          <div><dt>Fingerprint</dt><dd><DigestLine digest={revision.digest} label={`version ${revision.revision}`} copyKey="digest" /></dd></div>
+          <div><dt>Package fingerprint</dt><dd><DigestLine digest={revision.package_digest} label={`version ${revision.revision}`} copyKey="digest" /></dd></div>
           <div><dt>Sealed</dt><dd>{formatDateTime(revision.created_at) ?? '—'}</dd></div>
           <div>
             <dt>Language profile</dt>
             <dd>{profile ?? 'not stated'}{model && model.dialects.length === 0 ? ' · no dialects' : ''}</dd>
           </div>
           <div>
-            <dt>Compiled snapshot</dt>
+            <dt>Package</dt>
             <dd>
-              {revision.source_snapshot_id
-                ? <>{snapshot ? `${formatDateTime(snapshot.createdAt) ?? ''} · ${formatBytes(snapshot.archiveSize)?.split(' (')[0] ?? ''}` : 'Sealed with this version'} <Link to={problemPath(root, item.slug, 'source', { version: revision.revision })} viewTransition>Open snapshot</Link></>
-                : 'None: this version was sealed without one'}
+              {formatBytes(revision.package_size)?.split(' (')[0] ?? '—'}{compilation ? ` · compiled ${formatDateTime(compilation.created_at) ?? ''}` : ''}
+              {' '}<Link to={problemPath(org, item.slug, 'source', { version: revision.revision })} viewTransition>Open source</Link>
             </dd>
           </div>
         </dl>
       </section>
       <div className="case-copyline">
-        <Action variant="secondary" onClick={() => void copy(`${item.slug}@${revision.revision} ${revision.digest}`, 'reference')}>
+        <Action variant="secondary" onClick={() => void copy(`${item.slug}@${revision.revision} ${revision.package_digest}`, 'reference')}>
           {status('reference') === 'copied' ? 'Reference copied' : status('reference') === 'failed' ? 'Copy failed' : 'Copy exact reference'}
         </Action>
         <span className="org-muted">The reference points at exactly this content, forever.</span>
@@ -275,10 +230,9 @@ export function VersionOverview({ organization, project, content, revision }: {
       <section className="org-section" aria-labelledby="rv-workflow">
         <h2 id="rv-workflow">How the service works</h2>
         {modelState.status === 'loading' && <div role="status" aria-busy="true"><span className="sr-only">Reading the compiled form…</span><Skeleton variant="panel" /></div>}
-        {modelState.data?.state === 'none' && <p className="org-muted">This version has no compiled snapshot, so there is no workflow to draw.</p>}
         {modelState.data?.state === 'failed' && (
           <Notice tone="warning" action={<Action variant="secondary" size="sm" onClick={modelState.reload}>Retry</Action>}>
-            The compiled form couldn’t be read{marker(modelState.data.failure)}.
+            The compiled form couldn’t be read{marker(modelState.data.failure)}.{modelState.data.failure.code === 'revision_not_recompilable' ? ' The installed toolchain refuses this package; it stays as evidence.' : ''}
           </Notice>
         )}
         {modelState.data?.state === 'ready' && !model && <p className="org-muted">The compiled form isn’t a binding problem this page can draw.</p>}
@@ -304,10 +258,6 @@ export function VersionOverview({ organization, project, content, revision }: {
         </section>
       )}
 
-      <section className="org-section" aria-labelledby="rv-resources">
-        <h2 id="rv-resources">Resources it’s built from</h2>
-        <ResourceCards uses={uses} resolved={resolved} />
-      </section>
     </>
   );
 }

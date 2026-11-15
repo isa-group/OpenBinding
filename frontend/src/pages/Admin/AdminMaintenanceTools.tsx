@@ -62,7 +62,7 @@ export function AdminMaintenanceTools() {
   const data = preview.data ?? preview.stale;
   const failure = preview.status === 'error' ? maintenanceFailure(preview.error, 'The maintenance preview couldn’t be calculated') : null;
   const calculating = preview.status === 'loading';
-  const nothing = data !== undefined && !calculating && !failure && data.expiredArtifacts + data.expiredApiKeys + data.terminalJobs + data.abandonedJobs === 0;
+  const nothing = data !== undefined && !calculating && !failure && data.expiredApiKeys + data.terminalJobs + data.abandonedJobs === 0;
   // A purge is limited to what its preview counted, so the period typed must be the one previewed.
   const ready = Boolean(preview.data) && retentionValid && Number(retention) === days;
 
@@ -108,7 +108,6 @@ export function AdminMaintenanceTools() {
   };
 
   const impact: Array<[string, number | undefined, string]> = [
-    ['Expired artifacts', data?.expiredArtifacts, 'Past their expiry; their stored files go with them.'],
     ['Expired API keys', data?.expiredApiKeys, 'Past their expiry date.'],
     ['Finished runs to purge', data?.terminalJobs, `Finished before ${data ? formatDate(data.terminalJobCutoff) ?? '—' : '—'}, more than ${days} days ago.`],
     ['Abandoned runs', data?.abandonedJobs, 'Running or queued far past their time budget.'],
@@ -155,7 +154,7 @@ export function AdminMaintenanceTools() {
           <p>Removes what the preview counts, plus the error events older than the period below. Audit records stay. This can’t be undone.</p>
           {data && (
             <ul className="adm-bullets" aria-label="What a purge would remove">
-              <li>{count(data.expiredArtifacts)} expired artifacts and {count(data.expiredApiKeys)} expired API keys</li>
+              <li>{count(data.expiredApiKeys)} expired API keys</li>
               <li>{count(data.terminalJobs)} finished runs older than {days} days</li>
               <li>Error events older than {errorValid ? errorRetention : '—'} days (their count isn’t in the preview)</li>
             </ul>
@@ -189,7 +188,7 @@ export function AdminMaintenanceTools() {
         <Modal title="Purge expired data?" tone="danger" onClose={() => { if (busy !== 'purge') { setAsking(null); setTyped(''); } }}>
           <form className="adm-confirm" onSubmit={(event) => void purge(event)}>
             <p>
-              {data ? `${count(data.expiredArtifacts)} expired artifacts, ${count(data.expiredApiKeys)} expired API keys and ${count(data.terminalJobs)} finished runs older than ${days} days` : 'The expired data'}
+              {data ? `${count(data.expiredApiKeys)} expired API keys and ${count(data.terminalJobs)} finished runs older than ${days} days` : 'The expired data'}
               {' '}and the error events older than {errorRetention} days will be deleted permanently. Audit records remain. This can’t be undone.
             </p>
             <label htmlFor={typedId}>Type <strong className="is-mono">{CONFIRMATION}</strong> to confirm</label>

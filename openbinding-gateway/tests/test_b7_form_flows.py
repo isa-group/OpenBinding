@@ -4,7 +4,7 @@
 catalog with a declared provider and two candidates, a ConstraintSet with a hard and a soft rule, and an Optimization with two normalized
 criteria and the penalty of the soft rule. A Vitest test (``frontend/src/pages/Workbench/bimPackageContract.test.tsx``) generates those files by
 driving the real Workbench forms and compares them one by one. Here they are compiled with the real compiler and through
-``POST /v1/validate``, and the same package without each of the pieces the forms now create is refused with the diagnostic that names it, so
+``POST /v1/bim/validate``, and the same package without each of the pieces the forms now create is refused with the diagnostic that names it, so
 this file documents what each piece is for:
 
 =========================  ==============================================================================================
@@ -178,7 +178,7 @@ async def account_headers(client, details):
 
 async def test_validate_accepts_the_package_built_with_the_forms(api_client, registration):
     headers = await account_headers(api_client, registration())
-    response = await api_client.post("/v1/validate", content=InstancePackage(flow_files()).to_zip(), headers=headers)
+    response = await api_client.post("/v1/bim/validate", content=InstancePackage(flow_files()).to_zip(), headers=headers)
     assert response.status_code == 200, response.text
     analysis = response.json()["analysis"]
     assert analysis["tasks"] == 1
@@ -189,6 +189,6 @@ async def test_validate_accepts_the_package_built_with_the_forms(api_client, reg
 async def test_validate_names_the_missing_piece_of_each_package_without_one(api_client, registration):
     headers = await account_headers(api_client, registration())
     for path, change, code, _alone in WITHOUT_THE_PIECE:
-        response = await api_client.post("/v1/validate", content=InstancePackage(edited(path, change)).to_zip(), headers=headers)
+        response = await api_client.post("/v1/bim/validate", content=InstancePackage(edited(path, change)).to_zip(), headers=headers)
         assert response.status_code == 422, f"{change.__name__}: {response.text}"
         assert code in {diagnostic["code"] for diagnostic in response.json()["diagnostics"]}, change.__name__

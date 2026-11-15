@@ -10,7 +10,6 @@ vi.mock('../api/platform', async () => ({
   ...await vi.importActual<typeof import('../api/platform')>('../api/platform'),
   platformApi: {
     organizations: vi.fn().mockResolvedValue([]),
-    projects: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -42,19 +41,18 @@ const screenAt = (address: string) => matchRoutes(config, address)?.at(-1)?.rout
 const shown = () => document.querySelector('[data-screen]')?.getAttribute('data-screen') ?? null;
 const showing = (id: string | null | undefined) => waitFor(() => expect(shown()).toBe(id ?? null));
 
-/** An address the path leads to: the example organization and project, an optional segment dropped, any other parameter filled. */
+/** An address the path leads to: the example organization, an optional segment dropped, any other parameter filled. */
 const exampleOf = (path: string) => path
   .replace(/\/:[A-Za-z]+\?/g, '')
   .replace(':org', 'isa-demo')
-  .replace(':project', 'atlas')
   .replace(/:[A-Za-z]+/g, 'sample') || '/';
 
 // Screens picked by their shape, so the tests name no screen of any area.
 const fixedApp = routeDefinitions.find((definition) => definition.layout === 'app' && !definition.requireAdmin && definition.path !== '/app' && !definition.path.includes(':'));
-const inProject = routeDefinitions.find((definition) => definition.layout === 'app' && definition.path.includes(':project'));
+const inOrganization = routeDefinitions.find((definition) => definition.layout === 'app' && definition.path.includes(':org'));
 const adminOnly = routeDefinitions.find((definition) => definition.requireAdmin && !definition.path.includes(':'));
 const invitation = routeDefinitions.find((definition) => definition.sessionHeader);
-if (!fixedApp || !inProject || !adminOnly || !invitation) throw new Error('the registry lacks a screen of a shape these tests need');
+if (!fixedApp || !inOrganization || !adminOnly || !invitation) throw new Error('the registry lacks a screen of a shape these tests need');
 
 const person: UserProfile = {
   id: 'user-1', username: 'alice', email: 'alice@example.com', role: 'user', plan: 'FREE',
@@ -106,7 +104,7 @@ describe('AppRoutes', () => {
 
   it.each([
     ['without parameters', () => exampleOf(fixedApp.path)],
-    ['in a project', () => exampleOf(inProject.path)],
+    ['in an organization', () => exampleOf(inOrganization.path)],
   ])('sends visitors without a session from any app route (%s) to sign in', async (_name, address) => {
     renderAt(address(), null);
 

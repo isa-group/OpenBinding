@@ -1,8 +1,8 @@
 import copy
 import json
 import math
+from _problem_helpers import revision_of, runs_url_for
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
@@ -10,14 +10,12 @@ from sqlalchemy import select
 
 from _repo import REPO_ROOT
 
-from openbinding_gateway import space_client
-from openbinding_gateway.db.base import Base
+from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import EngineRegistrationRevision, User, UserRole
 from openbinding_gateway.integrations import bim, packages
 from openbinding_gateway.main import app
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services import engines as engine_service
-from openbinding_gateway.space_client import PlanCaps
 import bim_core
 from bim_core import ir_features, mode_compatibility
 from bim_core.canonical import digest
@@ -389,10 +387,6 @@ async def test_registration_conformance_rejects_false_protocol_or_schema(monkeyp
     assert served_digest == digest(deployment)
 
 
-def test_retired_federated_engine_model_is_absent() -> None:
-    assert "federated_engines" not in Base.metadata.tables
-
-
 def test_secret_detection_is_recursive() -> None:
     assert engine_service.embedded_secret_paths({"spec": {"extensions": {"nested": [{"apiToken": "x"}]}}}) == [
         "/spec/extensions/nested/0/apiToken"
@@ -409,9 +403,16 @@ def test_the_registry_and_catalogue_routes_are_gone() -> None:
         "/v1/resources/{name}",
         "/v1/resources/{name}/approve",
         "/v1/dialects/{name}/approve",
+        "/v1/dialects",
+        "/v1/profiles",
+        "/v1/examples",
+        "/v1/validate",
+        "/v1/instances",
+        "/v1/instances/validate",
+        "/v1/snapshots/{snapshot_id}",
     ):
         assert path not in paths
-    assert set(paths["/v1/dialects"]) == {"get"}
+    assert set(paths["/v1/engines/protocol"]) == {"get"}
 
 
 def test_structured_http_errors_preserve_their_problem_code() -> None:
@@ -446,7 +447,7 @@ async def test_validate_counts_candidates_and_reports_immutable_compatible_modes
     headers = await _account_headers(api_client, registration())
     package = load_package(EXAMPLE)
     response = await api_client.post(
-        "/v1/validate",
+        "/v1/bim/validate",
         content=package.to_zip(),
         headers={**headers, "Content-Type": "application/vnd.bim+zip"},
     )
@@ -552,7 +553,7 @@ async def test_validate_enumerates_exact_visible_active_registrations_without_am
 
     package = load_package(EXAMPLE).to_zip()
     owner_analysis = await api_client.post(
-        "/v1/validate",
+        "/v1/bim/validate",
         headers={**headers, "Content-Type": "application/vnd.bim+zip"},
         content=package,
     )
@@ -571,7 +572,7 @@ async def test_validate_enumerates_exact_visible_active_registrations_without_am
     assert any(reference[0] == "bim.builtin" for reference in owner_refs)
 
     public_analysis = await api_client.post(
-        "/v1/validate",
+        "/v1/bim/validate",
         headers={**viewer_headers, "Content-Type": "application/vnd.bim+zip"},
         content=package,
     )
@@ -602,29 +603,32 @@ async def test_validate_enumerates_exact_visible_active_registrations_without_am
 
 
 @pytest.mark.asyncio
-async def test_validate_rejects_the_removed_inline_instance_convenience_form(
+async def test_validate_rejects_a_json_body(
     api_client,
     registration,
 ) -> None:
     headers = await _account_headers(api_client, registration())
     response = await api_client.post(
-        "/v1/validate",
+        "/v1/bim/validate",
         headers=headers,
         json={"instance": load_package(EXAMPLE).instance()},
     )
-    assert response.status_code == 422
+    assert response.status_code == 415
     assert response.headers["content-type"].startswith("application/problem+json")
-    assert response.json()["title"] == "snapshot_or_package_required"
+    assert response.json()["title"] == "unsupported_media_type"
 
 
 @pytest.mark.parametrize("body_kind", ["inline", "vfs"])
 @pytest.mark.asyncio
-async def test_jobs_reject_json_packages_in_favour_of_snapshots_or_zip(
+async def test_jobs_name_a_revision_and_never_take_a_package(
     body_kind: str,
     api_client,
     registration,
 ) -> None:
     headers = await _account_headers(api_client, registration())
+    created = await api_client.post("/v1/organizations", headers=headers, json={"slug": "runs-here", "name": "Runs"})
+    assert created.status_code == 201, created.text
+    runs = "/v1/organizations/runs-here/runs"
     package = load_package(EXAMPLE)
     body = (
         {"instance": package.instance()}
@@ -638,13 +642,18 @@ async def test_jobs_reject_json_packages_in_favour_of_snapshots_or_zip(
     )
     body.update({"engine": "random-search", "mode": "seeded"})
     response = await api_client.post(
-        "/v1/jobs",
+        runs,
         headers=headers,
         json=body,
     )
     assert response.status_code == 422
-    assert response.headers["content-type"].startswith("application/problem+json")
-    assert response.json()["title"] == "snapshot_or_package_required"
+    # Runs answer the platform envelope (D9): a 422 keeps the problem document, as JSON.
+    assert response.headers["content-type"].startswith("application/json")
+    assert response.json()["title"] == "revision_required"
+    uploaded = await api_client.post(
+        runs, headers={**headers, "Content-Type": "application/vnd.bim+zip"}, content=package.to_zip(),
+    )
+    assert uploaded.status_code == 415, uploaded.text
 
 
 @pytest.mark.asyncio
@@ -777,7 +786,7 @@ async def test_registration_lifecycle_targets_one_exact_immutable_revision(
 
 
 def test_builtin_dialects_satisfy_the_public_schema() -> None:
-    for dialect in routes._builtin_dialects():
+    for dialect in bim.dialect_manifests():
         assert engine_service.schema_diagnostics(dialect, "Dialect") == []
 
 
@@ -894,7 +903,7 @@ def test_feature_values_all_accepts_intervals_and_none_rejects_every_value() -> 
 
 def test_compiled_ir_pins_complete_dialect_and_adapter_revisions() -> None:
     problem = compile_instance(load_package(EXAMPLE))
-    installed = routes._builtin_dialects()[0]
+    installed = bim.dialect_manifests()[0]
     descriptor = problem.document["spec"]["dialects"][0]
     assert descriptor["id"] == "qos-binding/v1"
     assert descriptor["digest"] == digest(installed)
@@ -942,41 +951,33 @@ def test_binding_space_properties_on_binding_problem() -> None:
 
 
 @pytest.mark.asyncio
-async def test_validate_and_solve_refuse_instance_exceeding_plan_complexity(
+async def test_validate_and_solve_refuse_instance_exceeding_the_size_limit(
     api_client,
     registration,
     monkeypatch,
 ) -> None:
     headers = await _account_headers(api_client, registration())
     package = load_package(EXAMPLE)
-    low_caps = PlanCaps(plan="micro", features={}, limits={"maxPayloadBytes": 10_000_000, "maxInstanceComplexityLog10": 0.1})
-    gate = space_client.get_gate()
-    monkeypatch.setattr(gate, "caps", AsyncMock(return_value=low_caps))
+    revision_id = await revision_of(api_client, headers, archive=package.to_zip())
+    monkeypatch.setattr(get_settings(), "max_binding_space_log10", 0.1)
 
     validate_resp = await api_client.post(
-        "/v1/validate",
+        "/v1/bim/validate",
         content=package.to_zip(),
         headers={**headers, "Content-Type": "application/vnd.bim+zip"},
     )
-    assert validate_resp.status_code == 402, validate_resp.text
-    assert validate_resp.json()["title"] == "instance_complexity_too_large"
+    assert validate_resp.status_code == 422, validate_resp.text
+    assert validate_resp.json()["title"] == "binding_space_over_technical_limit"
 
-    # Jobs run from a snapshot: multipart/ZIP uploads cannot carry the execution `optimization`.
-    snapshot = await api_client.post(
-        "/v1/instances",
-        content=package.to_zip(),
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-    )
-    assert snapshot.status_code == 201, snapshot.text
     job_resp = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         json={
-            "snapshot": snapshot.json()["id"],
+            "revision": revision_id,
             "engine": "random-search",
             "mode": "seeded",
             "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
         },
         headers=headers,
     )
-    assert job_resp.status_code == 402, job_resp.text
-    assert job_resp.json()["title"] == "instance_complexity_too_large"
+    assert job_resp.status_code == 422, job_resp.text
+    assert job_resp.json()["title"] == "binding_space_over_technical_limit"

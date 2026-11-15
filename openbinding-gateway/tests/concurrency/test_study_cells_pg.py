@@ -12,21 +12,15 @@ import uuid
 import pytest
 from sqlalchemy import func, select
 
-from _repo import REPO_ROOT
-
 from openbinding_gateway import study_jobs
-from openbinding_gateway.db.artifact_models import Artifact, ArtifactVersion
 from openbinding_gateway.db.models import (
     AuditEvent,
-    BindingCase,
-    BindingCaseRevision,
-    Blob,
     Job,
     JobState,
     Organization,
     OrganizationMembership,
     OrganizationRole,
-    Project,
+    ProblemCompilation,
     RunState,
     Study,
     StudyCell,
@@ -35,10 +29,16 @@ from openbinding_gateway.db.models import (
 )
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services.engines import engine_ref
-from openbinding_gateway.services.snapshots import compile_resolved, persist_snapshot
-from bim_core.package import load_package
+from openbinding_gateway.services.job_submission import JobSubmission
+from _problem_helpers import problem_for, run_refs, seed_problem_run
 
-EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
+
+async def cell_refs(session, cell) -> dict:
+    """The revision and compilation a job of ``cell`` names (the cell's revision and its only compilation)."""
+    compilation = await session.scalar(
+        select(ProblemCompilation.id).where(ProblemCompilation.revision_id == cell.binding_case_revision_id)
+    )
+    return {"revision_id": cell.binding_case_revision_id, "compilation_id": compilation}
 
 
 async def _seed(session, prepare=None, owner_role=OrganizationRole.OWNER):
@@ -46,65 +46,49 @@ async def _seed(session, prepare=None, owner_role=OrganizationRole.OWNER):
 
     The run's owner is also a member of the organization, with ``owner_role``.
 
-    ``prepare(session, user)`` may return ``(source_snapshot_id, engine_ref)``. They are
-    written at INSERT time because PostgreSQL's triggers reject updating either
-    column of a binding case revision or a study cell afterwards.
+    ``prepare(session, user, organization)`` may return ``(run references, engine_ref)``: the
+    revision of a real problem and the engine of the cells. The cells' columns are written at
+    INSERT time because PostgreSQL's triggers reject updating them afterwards. Without it the
+    revision is a seeded one (``seed_problem_run``).
     """
     suffix = uuid.uuid4().hex[:8]
     user = User(username=f"u{suffix}", email=f"u{suffix}@example.com", password_hash="x", plan_cache="free")
     session.add(user)
     await session.flush()
-    organization = Organization(slug=f"o{suffix}", name="Org", billing_sponsor_user_id=user.id, created_by_id=user.id)
+    organization = Organization(slug=f"o{suffix}", name="Org", created_by_id=user.id)
     session.add(organization)
     await session.flush()
     # The creator of an organization is always a member; ``study_jobs._sync`` stops launching
     # cells for a run whose owner no longer has MEMBER access.
     session.add(OrganizationMembership(organization_id=organization.id, user_id=user.id, role=owner_role))
-    project = Project(organization_id=organization.id, slug="p", name="P", created_by_id=user.id)
-    session.add(project)
     await session.flush()
-    case = BindingCase(project_id=project.id, slug="c", name="C", created_by_id=user.id)
-    blob = Blob(
-        organization_id=organization.id, project_id=project.id, digest="sha256-" + "0" * 64,
-        media_type="application/json", size_bytes=2, storage_uri="memory://blob", created_by_id=user.id,
-    )
-    artifact = Artifact(
-        organization_id=organization.id, namespace="ns", name="study", display_name="Study", kind="Study",
-        created_by_id=user.id,
-    )
-    session.add_all([case, blob, artifact])
-    await session.flush()
-    version = ArtifactVersion(
-        artifact_id=artifact.id, ordinal=1, version="1.0.0", blob_id=blob.id,
-        content_digest="sha256-" + "1" * 64, version_digest="sha256-" + "2" * 64,
-        manifest={"kind": "Study"}, created_by_id=user.id,
-    )
-    source_snapshot_id, engine_ref = None, None
+    engine_ref = None
     if prepare is not None:
-        source_snapshot_id, engine_ref = await prepare(session, user)
-    revision = BindingCaseRevision(
-        binding_case_id=case.id, revision=1, digest="sha256-" + "3" * 64, document={}, created_by_id=user.id,
-        source_snapshot_id=source_snapshot_id,
-    )
-    session.add_all([version, revision])
-    await session.flush()
+        refs, engine_ref = await prepare(session, user, organization)
+    else:
+        refs = run_refs(await seed_problem_run(session, owner_id=user.id, organization_id=organization.id))
+    engine = engine_ref or {
+        "namespace": "bim.builtin", "name": "random-search", "version": "1.0.0", "digest": "sha256-" + "5" * 64,
+    }
+    definition = {"revision_ids": [str(refs["revision_id"])], "engines": [engine], "parameter_sets": [{}], "seeds": [0, 1]}
     study = Study(
-        project_id=project.id, slug="s", name="S", definition_version_id=version.id, created_by_id=user.id,
+        organization_id=organization.id, slug="s", name="S", definition=definition,
+        definition_digest="sha256-" + "3" * 64, created_by_id=user.id,
     )
     session.add(study)
     await session.flush()
     run = StudyRun(
-        study_id=study.id, definition_version_id=version.id, run_number=1, state=RunState.RUNNING,
-        matrix_digest="sha256-" + "4" * 64, summary={}, created_by_id=user.id,
+        study_id=study.id, run_number=1, state=RunState.RUNNING, matrix_digest="sha256-" + "4" * 64,
+        definition={"apiVersion": "openbinding/study-run/v1", "problems": [], "engines": [engine],
+                    "parameterSets": [{}], "seeds": [0, 1]},
+        definition_digest="sha256-" + "7" * 64, summary={}, created_by_id=user.id,
     )
     session.add(run)
     await session.flush()
-    engine = engine_ref or {
-        "namespace": "bim.builtin", "name": "random-search", "version": "1.0.0", "digest": "sha256-" + "5" * 64,
-    }
     cells = [
         StudyCell(
-            study_run_id=run.id, ordinal=ordinal, binding_case_revision_id=revision.id, engine_ref=engine,
+            study_run_id=run.id, ordinal=ordinal, binding_case_revision_id=refs["revision_id"],
+            compilation_id=refs["compilation_id"], engine_ref=engine,
             parameters={}, seed=ordinal, fingerprint=f"sha256-{ordinal}" + "6" * 63, state=RunState.QUEUED,
         )
         for ordinal in (0, 1)
@@ -113,8 +97,8 @@ async def _seed(session, prepare=None, owner_role=OrganizationRole.OWNER):
     await session.flush()
     finished = Job(
         owner_id=user.id, engine_id="random-search", engine_job_id="engine-1", service_url="http://engine",
-        state=JobState.COMPLETED, organization_id=organization.id, project_id=project.id,
-        study_cell_id=cells[0].id,
+        state=JobState.COMPLETED, organization_id=organization.id,
+        study_cell_id=cells[0].id, revision_id=refs["revision_id"], compilation_id=refs["compilation_id"],
     )
     session.add(finished)
     await session.flush()
@@ -130,13 +114,13 @@ async def test_two_concurrent_syncs_launch_the_next_cell_once(two_sessions, monk
     finished_id, waiting_id = await _seed(first)
     launched: list[uuid.UUID] = []
 
-    async def launch(session, cell, user, organization, project_id):
+    async def launch(session, cell, user, organization):
         launched.append(cell.id)
         await asyncio.sleep(0.2)  # long enough for the other worker to arrive
         job = Job(
             owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
             service_url="http://engine", state=JobState.QUEUED, study_cell_id=cell.id,
-            organization_id=organization.id, project_id=project_id,
+            organization_id=organization.id, **await cell_refs(session, cell),
         )
         session.add(job)
         await session.flush()
@@ -172,7 +156,7 @@ async def test_two_concurrent_syncs_of_a_demoted_owner_launch_nothing_and_fail_t
     await first.commit()
     launched: list[uuid.UUID] = []
 
-    async def launch(session, cell, user, organization, project_id):
+    async def launch(session, cell, user, organization):
         launched.append(cell.id)
         raise AssertionError("a VIEWER's run must not launch a cell")
 
@@ -207,11 +191,9 @@ async def test_two_sessions_launching_one_cell_create_one_job_and_one_reservatio
     """
     first, second = two_sessions
 
-    async def prepare(session, owner):
-        compilation = await compile_resolved(load_package(EXAMPLE).to_zip(), session, owner)
-        snapshot_id = await persist_snapshot(compilation, owner, session)
-        await session.flush()
-        return uuid.UUID(snapshot_id), {
+    async def prepare(session, owner, organization):
+        upload = await problem_for(session, owner, organization=organization)
+        return {"revision_id": upload.revision.id, "compilation_id": upload.compilation.id}, {
             **engine_ref(routes._manifest("random-search"), "bim.builtin"),
             "mode": "seeded",
             "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
@@ -222,22 +204,21 @@ async def test_two_sessions_launching_one_cell_create_one_job_and_one_reservatio
     user_id = user.id
     organization = (await first.execute(select(Organization))).scalars().one()
     organization_id = organization.id
-    project_id = (await first.execute(select(Project.id))).scalar_one()
 
     dispatched: list[str] = []
 
     async def dispatch(job_id, request_session=None):
         dispatched.append(job_id)
 
-    monkeypatch.setattr(routes, "dispatch_persisted_job", dispatch)
-    real_core = routes._create_job_core
+    monkeypatch.setattr(study_jobs, "dispatch_persisted_job", dispatch)
 
-    async def paused_core(*args, **kwargs):
-        outcome = await real_core(*args, **kwargs)
-        await asyncio.sleep(0.5)  # long enough for the other session to arrive
-        return outcome
+    class PausedSubmission(JobSubmission):
+        async def submit(self, request):
+            outcome = await super().submit(request)
+            await asyncio.sleep(0.5)  # long enough for the other session to arrive
+            return outcome
 
-    monkeypatch.setattr(routes, "_create_job_core", paused_core)
+    monkeypatch.setattr(study_jobs, "JobSubmission", PausedSubmission)
 
     async def launch(session):
         mine = await session.get(StudyCell, waiting_id)
@@ -246,7 +227,6 @@ async def test_two_sessions_launching_one_cell_create_one_job_and_one_reservatio
             mine,
             await session.get(User, user_id),
             await session.get(Organization, organization_id),
-            project_id,
         )
         await study_jobs.commit_launched(session)
         return job.id
@@ -257,3 +237,56 @@ async def test_two_sessions_launching_one_cell_create_one_job_and_one_reservatio
     jobs = await first.scalar(select(func.count()).select_from(Job).where(Job.study_cell_id == waiting_id))
     assert jobs == 1
     assert dispatched == [str(job_ids[0])]
+
+
+# -- The compilation a cell pins (F0b B7, D7) ------------------------------------------------------------
+
+
+async def _another_cell(session, waiting_id, *, refs) -> StudyCell:
+    """A new cell of the waiting cell's run, on the revision and compilation of ``refs``."""
+    waiting = await session.get(StudyCell, waiting_id)
+    cell = StudyCell(
+        study_run_id=waiting.study_run_id, ordinal=7, binding_case_revision_id=refs["revision_id"],
+        compilation_id=refs["compilation_id"], engine_ref=dict(waiting.engine_ref), parameters={}, seed=7,
+        fingerprint="sha256-" + "8" * 64, state=RunState.QUEUED,
+    )
+    session.add(cell)
+    return cell
+
+
+@pytest.mark.asyncio
+async def test_a_cell_cannot_pin_the_compilation_of_another_revision(two_sessions):
+    from sqlalchemy.exc import IntegrityError
+
+    session, _ = two_sessions
+    finished_id, waiting_id = await _seed(session)
+    owner = (await session.get(Job, finished_id)).owner_id
+    waiting = await session.get(StudyCell, waiting_id)
+    other = run_refs(await seed_problem_run(session, owner_id=owner))
+    await session.commit()
+
+    await _another_cell(session, waiting_id, refs={
+        "revision_id": waiting.binding_case_revision_id, "compilation_id": other["compilation_id"],
+    })
+    with pytest.raises(IntegrityError, match="fk_study_cells_compilation_revision"):
+        await session.flush()
+    await session.rollback()
+
+
+@pytest.mark.asyncio
+async def test_a_compilation_a_cell_pinned_cannot_be_deleted(two_sessions):
+    from sqlalchemy import delete
+    from sqlalchemy.exc import IntegrityError
+
+    session, _ = two_sessions
+    finished_id, waiting_id = await _seed(session)
+    owner = (await session.get(Job, finished_id)).owner_id
+    organization_id = (await session.get(Job, finished_id)).organization_id
+    pinned = run_refs(await seed_problem_run(session, owner_id=owner, organization_id=organization_id))
+    await _another_cell(session, waiting_id, refs=pinned)
+    await session.commit()
+
+    with pytest.raises(IntegrityError, match="fk_study_cells_compilation_revision"):
+        await session.execute(delete(ProblemCompilation).where(ProblemCompilation.id == pinned["compilation_id"]))
+    await session.rollback()
+    assert await session.get(ProblemCompilation, pinned["compilation_id"]) is not None

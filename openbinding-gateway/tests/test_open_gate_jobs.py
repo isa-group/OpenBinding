@@ -1,21 +1,20 @@
-"""POST /v1/jobs under ``SPACE_ENABLED=false`` (the open gate) and under a plan that exceeds a technical ceiling.
+"""POST /v1/organizations/{org}/runs under ``SPACE_ENABLED=false`` (the open gate) and under a plan that misses a limit.
 
-The open gate used to grant unbounded timeout and payload allowances, which
-``access.policy`` refuses on purpose (a real plan above the technical ceiling
-fails closed), so every job launch answered an unhandled 500. The open gate now
-grants the ceilings themselves; a real plan above them still fails closed, now
-as a 503 ``pricing_misconfigured`` problem.
+The open gate grants every limit unbounded, so only the deployment's technical
+ceilings apply. A real plan that does not declare ``maxRunMinutes`` fails
+closed, as a 503 ``pricing_misconfigured`` problem rather than a zero-second run.
 """
 
 from __future__ import annotations
 
 import pytest
 
+from _problem_helpers import revision_of, runs_url_for
 from _repo import REPO_ROOT
 
 from openbinding_gateway import space_client
 from openbinding_gateway.core.settings import get_settings
-from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.modules.execution.adapters import routes as runs_routes
 from openbinding_gateway.space_client import OpenCaps, OpenGate, PlanCaps
 from bim_core.package import load_package
 
@@ -23,13 +22,13 @@ EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
 
 
-class UnboundedPlanGate(OpenGate):
-    """A real-looking plan whose payload allowance is unlimited, above any technical ceiling."""
+class NoRunMinutesGate(OpenGate):
+    """A real-looking plan that does not declare ``maxRunMinutes``."""
 
     async def caps(self, user_id):
         limits = dict(OpenCaps().limits)
-        limits["maxPayloadBytes"] = float("inf")
-        return PlanCaps(plan="REAL", features={"solve": True}, limits=limits)
+        del limits["maxRunMinutes"]
+        return PlanCaps(plan="REAL", features={"runs": True, "repository": True}, limits=limits)
 
 
 @pytest.fixture
@@ -37,10 +36,10 @@ def no_dispatch(monkeypatch):
     async def queued(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(routes, "dispatch_persisted_job", queued)
+    monkeypatch.setattr(runs_routes, "dispatch_persisted_job", queued)
 
 
-async def _account_and_snapshot(client, registration):
+async def _account_and_revision(client, registration):
     details = registration()
     created = await client.post("/v1/auth/register", json=details)
     assert created.status_code == 201, created.text
@@ -50,18 +49,13 @@ async def _account_and_snapshot(client, registration):
     )
     assert logged.status_code == 200, logged.text
     headers = {"Authorization": f"Bearer {logged.json()['access_token']}"}
-    snapshot = await client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=load_package(EXAMPLE).to_zip(),
-    )
-    assert snapshot.status_code == 201, snapshot.text
-    return headers, snapshot.json()["id"]
+    revision_id = await revision_of(client, headers, archive=load_package(EXAMPLE).to_zip())
+    return headers, revision_id
 
 
-def _job(snapshot, **extra):
+def _job(revision, **extra):
     return {
-        "snapshot": snapshot,
+        "revision": revision,
         "engine": "random-search",
         "mode": "seeded",
         "optimization": OPTIMIZATION,
@@ -71,9 +65,9 @@ def _job(snapshot, **extra):
 
 async def test_a_job_launches_through_the_open_gate(api_client, registration, no_dispatch):
     space_client.set_gate(OpenGate())
-    headers, snapshot = await _account_and_snapshot(api_client, registration)
+    headers, revision = await _account_and_revision(api_client, registration)
 
-    launched = await api_client.post("/v1/jobs", headers=headers, json=_job(snapshot))
+    launched = await api_client.post(runs_url_for(revision), headers=headers, json=_job(revision))
 
     assert launched.status_code == 202, launched.text
 
@@ -82,23 +76,23 @@ async def test_the_open_gate_still_clamps_a_time_budget_beyond_the_technical_tim
     api_client, registration, no_dispatch
 ):
     space_client.set_gate(OpenGate())
-    headers, snapshot = await _account_and_snapshot(api_client, registration)
+    headers, revision = await _account_and_revision(api_client, registration)
     beyond = int(get_settings().engine_solve_timeout_s * 1000) + 1
 
     launched = await api_client.post(
-        "/v1/jobs", headers=headers, json=_job(snapshot, options={"time_budget_ms": beyond})
+        runs_url_for(revision), headers=headers, json=_job(revision, options={"time_budget_ms": beyond})
     )
 
     assert launched.status_code == 202, launched.text
 
 
-async def test_a_real_plan_above_the_technical_ceiling_fails_closed_with_a_controlled_problem(
+async def test_a_real_plan_without_run_minutes_fails_closed_with_a_controlled_problem(
     api_client, registration, no_dispatch
 ):
-    space_client.set_gate(UnboundedPlanGate())
-    headers, snapshot = await _account_and_snapshot(api_client, registration)
+    space_client.set_gate(NoRunMinutesGate())
+    headers, revision = await _account_and_revision(api_client, registration)
 
-    launched = await api_client.post("/v1/jobs", headers=headers, json=_job(snapshot))
+    launched = await api_client.post(runs_url_for(revision), headers=headers, json=_job(revision))
 
     assert launched.status_code == 503, launched.text
     assert "pricing_misconfigured" in launched.text

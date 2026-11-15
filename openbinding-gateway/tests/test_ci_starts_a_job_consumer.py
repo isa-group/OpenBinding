@@ -1,6 +1,6 @@
 """The CI stack must run something that consumes the jobs the gateway queues.
 
-``gateway-dev`` runs with ``JOB_DISPATCH_MODE=dramatiq``: ``POST /v1/jobs``
+``gateway-dev`` runs with ``JOB_DISPATCH_MODE=dramatiq``: ``POST /v1/organizations/{org}/runs``
 commits a QUEUED row, publishes it to Redis and answers 202. Only a Dramatiq
 worker moves it on. ``docker compose up <services>`` starts the named services
 and what they depend on, never what depends on them, and ``worker-dev`` depends

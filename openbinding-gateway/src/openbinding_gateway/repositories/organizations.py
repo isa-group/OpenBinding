@@ -1,4 +1,4 @@
-"""Organization, membership, project and invitation queries; callers decide who may see or change what."""
+"""Organization, membership and invitation queries; callers decide who may see or change what."""
 
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ from ..db.models import (
     OrganizationInvitation,
     OrganizationMembership,
     OrganizationRole,
-    Project,
 )
 
 
@@ -65,23 +64,6 @@ async def count_owners(session: AsyncSession, organization_id: uuid.UUID) -> int
         )
     )
     return int(owners or 0)
-
-
-async def list_projects(
-    session: AsyncSession, organization_id: uuid.UUID, *, ordered: bool = True
-) -> list[Project]:
-    """Every project of one organization, whatever its visibility; the caller has checked access."""
-    query = select(Project).where(Project.organization_id == organization_id)
-    if ordered:
-        query = query.order_by(Project.name)
-    return list((await session.execute(query)).scalars().all())
-
-
-async def project_slug_in_use(session: AsyncSession, organization_id: uuid.UUID, slug: str) -> bool:
-    count = await session.scalar(
-        select(func.count(Project.id)).where(Project.organization_id == organization_id, Project.slug == slug)
-    )
-    return bool(count)
 
 
 async def find_invitation_by_prefix(session: AsyncSession, token_prefix: str) -> OrganizationInvitation | None:

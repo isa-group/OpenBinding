@@ -1,7 +1,6 @@
 # OpenBinding architecture (target)
 
-This document describes the architecture OpenBinding is moving to and the rules that get it there. The gateway as it is at 912648c,
-with file-level evidence, is in [`docs/architecture/gateway-as-is.md`](architecture/gateway-as-is.md); the BIM
+This document describes the architecture OpenBinding is moving to and the rules that get it there. The BIM
 language is in [`BIM_V1.md`](BIM_V1.md) and [`BIM_CORE.md`](BIM_CORE.md).
 
 Contents: 1 Principles · 2 System context · 3 Containers · 4 Backend · 5 Frontend · 6 Domain model · 7 Key flows ·
@@ -94,7 +93,7 @@ flowchart TB
 | PostgreSQL | operational source of truth | PostgreSQL 16 |
 | Redis | queues, leases, caches (including the SPACE client cache) | Redis 7 |
 | Blob store | content-addressed bytes (packages, uploads, logs, exports) | filesystem volume; S3-compatible later |
-| BIM toolchain | compile, evaluate and re-evaluate BIM, in process in the gateway, the workers and the seed (`bim_client.InProcessBim` behind `BimPort`); not a container of OpenBinding | wheels of a release of `javiercavlop/bim-toolchain` (private; to the SCORELabUS organization when public). Its `bim-service` (HTTP, `BIM_MODE=http`) is a separate deployable of that repository; neither the lab nor the default deployment runs it |
+| BIM toolchain | compile, evaluate and re-evaluate BIM, in process in the gateway, the workers and the seed (`bim_client.InProcessBim` behind `BimPort`); not a container of OpenBinding | wheels of a release of `javiercavlop/bim-toolchain` (private; to the SCORELabUS organization when public). Its `bim-service` (HTTP) is a separate deployable of that repository; the gateway has no setting to use it |
 | Engines | solvers behind `bim-engine/v1`; built-in ones run beside the gateway, federated ones anywhere | Node/TypeScript (MiniZinc), Java |
 
 Every container is a Docker Compose service (§12), except SPACE, which is remote (`space.score.us.es`). The lab only
@@ -107,16 +106,15 @@ has the one-shot `pricing-bootstrap`, a separate compose project that prepares t
 | Module | Owns | Main ports used | Code today (to move) |
 |---|---|---|---|
 | `identity` | accounts, sessions, passwords, API keys, external identities (CAS) | `IdentityProvider` (CAS), `Mailer` | `routes/auth.py`, `routes/users.py`, `routes/cas.py`, `cas.py`, `security/*` |
-| `collaboration` | organizations (nested), projects, memberships, roles, invitations, audit, notifications, public read | — | `collaboration.py`, `routes/organizations.py` (org/project/member parts), `repositories/organizations.py`, `access/public_read.py` |
-| `repository` | problems and versions, package import and export, blobs, permanent links of problems, problem metrics, and the versioned-artifact store as internal storage of sealed parts (resources of problem versions, study definitions, execution configurations) | `BimPort`, `BlobStore` | case/blob routes, `services/snapshots.py`, `services/instances.py`, `artifacts.py`; the library as a catalogue (`routes/library.py`, the library and project-resource parts of `routes/artifacts.py`) retires (§4.3) |
-| `language` | profiles, dialects, adapters, schemas, examples, compilation | `BimPort` | `integrations/bim*.py`, `services/discovery.py`, the profile and dialect lists |
+| `collaboration` | organizations (nested, the only container), memberships, roles, invitations, audit, notifications | — | `collaboration.py`, `routes/organizations.py`, `repositories/organizations.py` |
+| `problems` | problems of an organization, their sealed revisions (the uploaded `.bim.zip` and its digests) and compilations (one per revision and toolchain, insert-only), the stateless BIM services (`/v1/bim/validate`, `/v1/bim/templates`) | `BimPort`, `BlobStore` | `modules/problems` (domain, application, adapters; F0b); `integrations/bim*.py`, the engine protocol document in `services/engines.py` |
 | `engines` | engine revisions, modes and manifests, federated deployments, conformance, capability matching | `EngineTransport` | `services/engines.py`, `services/engine_registry.py`, `services/probe.py`, `v1/remote.py` |
-| `execution` | runs: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood | `EngineTransport`, `BimPort`, `PlanPort` | `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py`, job routes |
-| `laboratory` | studies, study runs, cells, protocol metrics, trade-offs across engines | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py`; the generator moved to QACOForge; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
-| `publishing` | published results (a frozen study run), citations, Zenodo-ready export | application APIs of `repository` and `laboratory` | none: the reports, their publications and Explore were removed in F0a |
-| `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH through CAS) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`; local metering (`domain/usage_counters.py`) retires; sponsor proposals (`sponsor_proposals.py`) were removed by M9.6, and only the caller can become billing sponsor |
+| `execution` | runs of an organization: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood | `EngineTransport`, `BimPort`, `PlanPort` | `modules/execution` (the run request and the runs API `/v1/organizations/{org}/runs`; F0b); `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py` |
+| `laboratory` | studies of an organization (the editable matrix inline), study runs that freeze their definition and pin each revision's compilation, cells, protocol metrics, trade-offs across engines | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py` (`/v1/organizations/{org}/studies`; F0b); the generator moved to QACOForge; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
+| `publishing` | published results (a frozen study run), citations, Zenodo-ready export | application APIs of `problems` and `laboratory` | none: the reports, their publications and Explore were removed in F0a |
+| `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH through CAS) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `modules/plans` (entitlement map, per-account quotas, the package copy of the pricing; F0b); `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`. Local metering and billing sponsorship were removed in F0b |
 | `administration` | users, queues and engine health, storage and retention, audit, moderation of public content | application APIs of the other modules | `routes/admin.py`, `telemetry.py` |
-| `shared` (kernel) | settings, logging, problem+json errors, pagination, digests, clock, ids, mail | — | `core/*`, `mailer.py`, `security/bodylimit.py` |
+| `shared` (kernel) | settings, logging, problem+json errors, pagination, digests, clock, ids, mail, content-addressed blobs | — | `modules/shared` (blobs; F0b), `core/*`, `mailer.py`, `security/bodylimit.py` |
 
 ### 4.2 Layout and dependency rules
 
@@ -137,8 +135,8 @@ openbinding-gateway/src/openbinding_gateway/
 - Inside a module: `adapters → application → domain`. `domain` imports nothing from frameworks or adapters.
 - Between modules: only through the other module's `application` public API, or through in-process domain events
   (audit, notifications, cache invalidation). No cross-module ORM joins; each table has one owning module.
-- Modules form layers, and a module imports only modules below it: `administration` → `publishing` → `laboratory`
-  → `execution` → `engines` | `repository` → `language` → `collaboration` → `identity` → `plans` → `shared`
+- Modules form layers, and a module imports only modules below it: `administration` → `laboratory`
+  → `execution` → `engines` | `problems` → `language` → `collaboration` → `identity` → `plans` → `shared`
   (`|` marks independent siblings).
 - External systems only through ports: `BimPort` (exists), `PlanPort`, `PricingSource`, `EngineTransport`,
   `BlobStore`, `IdentityProvider`, `Mailer`, `Clock`.
@@ -156,29 +154,25 @@ openbinding-gateway/src/openbinding_gateway/
   `openbinding-gateway/tests/test_modules_cross_import.py` (AST, in the gateway pytest suite) enforces it;
   `tests/test_modules_skeleton.py` checks the structure of the contract file and also runs `lint-imports` against
   planted violations (the teeth test); it is skipped where `lint-imports` is not installed (the CI `test` job syncs
-  only `--extra test`) until the blocking CI step, pending, runs it with the `lint` group.
-  The legacy `.importlinter` stays report-only and unchanged, next to the existing `tests/test_architecture_layers.py` ratchets. Pending (owner/CI
-  follow-up): running the new contracts as a blocking CI step; until then they are not
-  enforced in CI.
+  only `--extra test`); the CI `lab` job runs the contracts as a blocking step, with the `lint` group.
+  The legacy `.importlinter` stays report-only and unchanged, next to the existing `tests/test_architecture_layers.py` ratchets.
 
 ### 4.3 Migration: strangler, one module at a time
 
 0. Retire first. The decision-space workspace, the report editor, the library as a catalogue (organization
    library, project resources, project library), the composer and sponsorship lose their screens, then their
    endpoints, then their code, so nothing retired is ever moved. Done by M9.6 (2026-10-27): the owner skipped the
-   `Deprecation`/`Sunset` period because nothing ran in production, and the 41 operations are removed
-   ([`API_DEPRECATIONS.md`](API_DEPRECATIONS.md)). The versioned-artifact store itself stays as the repository's internal storage of sealed parts:
-   problems are edited and versioned as a whole, and sealed problem versions keep referencing their parts by exact
-   digest, so nothing sealed changes. Existing publications keep their
-   permanent links as read-only published results; report drafts, decision-space workspaces and sponsorship
-   proposals are exported for the owner and dropped (the export tool and the guarded migration are in M9.6; see
-   [`runbooks/retired-data-export.md`](runbooks/retired-data-export.md)).
+   `Deprecation`/`Sunset` period because nothing ran in production, and the 41 operations are removed. The data of
+   the retired features was dropped with them, and the tables they left behind (reports, publications, collections,
+   report evidence) went with the one-revision baseline of F0b. The versioned-artifact store itself, the read-only
+   library and the project resources went in F0b too, once study runs froze their own definitions (D7), and so did
+   projects and public read, once nothing pointed at a project: the organization is the only container (F0b B8).
 1. Create `app/`, `shared/` and `modules/` with import-linter contracts; move nothing. Packages and contracts exist
    (§4.2); the blocking CI step is pending.
 2. New capabilities land directly in modules: `plans` (M4) and the language registry (M5) are the first.
 3. Move existing code one module per `refactor/<id>` change, behind characterization tests, keeping
-   `docs/openapi.json` byte-identical. Order: plans → language → engines → execution → laboratory → publishing →
-   repository → collaboration → identity → administration.
+   `docs/openapi.json` byte-identical. Order: plans → problems → engines → execution → laboratory → publishing →
+   collaboration → identity → administration.
 4. Each move deletes the old path, shrinks `ALLOWED_LEGACY`, `GATE_LIFECYCLE_LEGACY` and `MAX_LINES`, and ends
    with `routes/v1.py` and `main.py` reduced to composition.
 
@@ -206,10 +200,11 @@ types. Enforced with `eslint-plugin-boundaries`.
 
 - **Public:** Home · Explore (Problems · Published results) · Engines · Language · Pricing · Verify ·
   About · Log in / Sign up.
-- **Signed in:** header with organization/project switcher; Home · Problems · Lab (Runs · Studies) ·
-  Engines · Language · Admin (administrators); "+ New" (problem, study, run); search; notifications;
-  account menu (Profile · Plan · API keys · Identities · Notifications).
-- **Project:** Overview · Problems · Runs · Studies · Published · Settings (General · Members).
+- **Signed in:** header with organization switcher; Home · Problems · Runs · Studies · Engines · Admin
+  (administrators); "+ New" (problem, study, run); search; notifications; account menu (Profile · Plan · API keys ·
+  Identities · Notifications). The Workbench is reached from Problems and "+ New → Problem".
+- **Organization:** overview (its problems, runs and studies, and its sub-organizations) · Settings (General ·
+  Members · Audit). There are no projects: an organization's screens are `/app/:org/{problems,runs,studies,workbench,settings}`.
 - **Problem page (the SPHERE "pricing page" analogue):** header with metrics and version selector; tabs Overview ·
   Runs · Versions · Source · Settings.
 - **Run page:** verdict, engine mode and budget first; then the binding table, QoS against bounds, the objective
@@ -273,8 +268,8 @@ characters) or a UUID rendered anywhere else.
 classDiagram
   direction LR
   Organization "1" --> "*" Organization : parent of
-  Organization "1" --> "*" Project
-  Project "1" --> "*" Problem
+  Organization "1" --> "*" Problem
+  Organization "1" --> "*" Study
   Problem "1" --> "*" ProblemVersion
   ProblemVersion "1" --> "1" CompiledForm
   Engine "1" --> "*" EngineRevision
@@ -292,13 +287,26 @@ classDiagram
   Account "1" --> "1" Plan : SPACE contract
 ```
 
-Mapping to `v1` names: Problem = `BindingCase`, ProblemVersion = case revision, CompiledForm = snapshot (`InstanceSnapshot`
-and its IR), Run = `Job`, Result = job result plus re-evaluation, PublishedResult = a simplified `publications`
-record (no report, no editions). A problem version's resources are sealed parts in the internal versioned-artifact
-store, addressed by digest; there is no component catalogue. Every sealed entity has a content digest
+Mapping to `v1` names: Problem = `BindingCase` (owned by an organization), ProblemVersion = `BindingCaseRevision` (the
+uploaded package and its digests), CompiledForm = `ProblemCompilation` (its IR, per toolchain), Run = `Job` (it names a
+revision and its compilation and never copies the IR), Result = job result plus re-evaluation, PublishedResult = not built
+yet (F1/F9; the old `publications` table is retired). A problem version is its uploaded package, addressed by digest; there is no
+component catalogue. A study run freezes its definition, with the compilation of each revision it runs. Every sealed entity has a content digest
 that the API returns and Verify checks;
 screens name it as §5.4 says. Permanent links address problems and published results independently of
 slugs.
+
+**As built after F0b.** The organization is the only container; the schema has 25 tables. An organization owns its
+problems (`binding_cases`), their revisions (`binding_case_revisions`: the uploaded package, held by a `blobs` row of
+that organization, with its digests) and their compilations (`problem_compilations`: the IR of a revision by one
+toolchain, insert-only and unique by `(revision_id, compiler_digest)` and by `(revision_id, compilation_digest)`). A run
+(`jobs`) belongs to the organization and names a revision and a compilation through a composite foreign key, so it cannot
+run another revision's IR. A study (`studies`) holds the editable definition; a study run (`study_runs`) holds the frozen
+copy and its digest, and each cell (`study_cells`) pins the compilation it runs. There are no projects, no artifact store,
+no snapshots and no public read. Sealed rows reject UPDATE through triggers declared once in `db/triggers.py`
+(`immutable`, `protect`, `retain`); history is kept by `RESTRICT` foreign keys rather than by refusing every DELETE, so
+a problem nobody ran can be deleted ([ADR 0023](adr/0023-trigger-ddl-single-source.md),
+[ADR 0024](adr/0024-immutable-means-no-update.md)).
 
 ## 7. Key flows
 
@@ -307,19 +315,19 @@ slugs.
 ```mermaid
 sequenceDiagram
   actor U as Researcher
-  participant W as Web (problem editor)
-  participant G as Gateway (repository, language)
+  participant W as Web (Workbench)
+  participant G as Gateway (problems)
   participant B as BIM toolchain
   U->>W: edit resources or upload a package
-  W->>G: POST /v1/language/compile (package)
+  W->>G: POST /v1/bim/validate (package)
   G->>B: resolve contracts, lower dialects, compile profile chain
   B-->>G: IR, diagnostics, digests
   G-->>W: diagnostics, summary metrics, compatible engine modes
-  U->>W: save as a new version
-  W->>G: POST .../problems/{p}/versions
+  U->>W: save as a new revision
+  W->>G: POST /v1/organizations/{org}/problems/{p}/revisions (package)
   G->>B: compile (exact contracts)
-  G->>G: seal version and compiled form, compute problem metrics
-  G-->>W: sealed version (number, digest), metrics, permanent link
+  G->>G: seal the revision and its compilation
+  G-->>W: sealed revision (number, package digest), compilation
 ```
 
 ### 7.2 Run a problem
@@ -331,7 +339,7 @@ sequenceDiagram
   participant P as Plans (SPACE)
   participant Q as Worker
   participant E as Engine
-  U->>G: POST /v1/jobs (version, engine mode, configuration)
+  U->>G: POST /v1/organizations/{org}/runs (revision, engine mode, options)
   G->>G: capability check (profile chain, IR features)
   alt not covered
     G-->>U: INCOMPATIBLE with the missing capabilities
@@ -344,6 +352,14 @@ sequenceDiagram
     Q-->>U: SSE status, then the rendered result (trade-off set if several objectives)
   end
 ```
+
+A run never copies the IR. `createRun` resolves the revision's compilation by compile-or-get: it is looked up by
+`(revision, compilerDigest)` and compiled and stored only on a miss, once per revision and toolchain
+([ADR 0027](adr/0027-compile-or-get.md)). The run records the compilation's id and IR digest; the worker loads the IR
+from `problem_compilations` when it claims the job and refuses to run one whose digest differs
+([ADR 0026](adr/0026-engine-ir-from-problem-compilations.md)). Re-evaluation, the neighbourhood and the IR view read the
+same row, and a study run pins one compilation per revision for all its cells
+([ADR 0028](adr/0028-frozen-study-definitions.md)).
 
 ### 7.3 Study
 
@@ -421,9 +437,11 @@ resources and takes no submissions: what it compiles is what the installed `bim-
 | `GET /v1/language/schemas/{kind}` | schemas (download) |
 | `POST /v1/language/compile` | compile a package or an exact problem version: diagnostics, summary metrics, compatible engine modes |
 
-Today the gateway serves `GET /v1/profiles` and `GET /v1/dialects` (the installed contracts, read by the home page
-and the engine registration form), `/v1/examples` and `/v1/validate`, without `Deprecation` or `Sunset` headers (the
-deprecation middleware was removed in M9.6). The registry routes (`POST /v1/dialects`, `/v1/resources`, their
+Today the gateway serves `GET /v1/engines/protocol` (the installed Profiles with the engine protocol digest, read by
+the engine registration form), `GET /v1/bim/templates` and `POST /v1/bim/validate` (the Workbench validates there and
+saves through the problems API, `POST /v1/organizations/{org}/problems` and `…/revisions`). `GET /v1/profiles`,
+`GET /v1/dialects`, `/v1/examples`, `/v1/validate`, `/v1/instances` and `/v1/snapshots` were removed in F0b, with
+no deprecation period. The registry routes (`POST /v1/dialects`, `/v1/resources`, their
 approvals), `/v1/schemas/{kind}`, `/v1/catalog` and the deprecated pricing YAML proxy `GET /v1/pricing` were removed in
 F0a.
 
@@ -477,16 +495,22 @@ flowchart LR
 - `modules/plans` implements `PlanPort` with `space-python-client` 1.x (asynchronous transport, Redis cache provider)
   and a MANAGEMENT-scoped key; `OpenGate` remains for development and tests and is refused with `APP_ENV=prod`.
 - The **entitlement map** (operation → SPACE feature id `openbinding-<name>` and limits) lives in
-  `modules/plans/domain`. At start-up and on `pricing_activated`, the gateway checks that every feature and limit it
-  references exists in the active pricing and fails closed otherwise.
+  `modules/plans/domain/entitlement_map.py`, the only place the ids are spelled. **Delivered (F0b):** at start-up
+  (`main.check_pricing`) the gateway reads the published pricing (from SPACE, or a package-data byte copy under the
+  open gate), refuses to start when a feature or limit it references is missing or not `NUMERIC`, and, with SPACE
+  enabled, requires `SPACE_ORGANIZATION_ID` and the `pricing-token-jwks` capability (fatal under `APP_ENV=prod`, a
+  warning elsewhere). Pricing tokens are verified against SPACE's JWKS and matched to the account with
+  `pricing_token_user_id`; there is no unverified fallback. The same check on `pricing_activated` moves to F3/F8,
+  with the `PricingSource` port and the SPACE ledger.
+- Quotas are per account (`modules/plans/domain/quotas.py`); organizations carry no billing sponsor.
 - Pricing 0.2.0 (`docs/pricing/`) declares seven features and twelve limits. SPACE tracks two usage levels, both
   renewable and monthly: `solverHours` and `generatedInstances`. A run on a built-in engine, a study cell or the
   solver part of a solver-aware generation is admitted while the month's hours are not exhausted and then consumes
   its time budget; a run that stops early is not refunded, so the count can be checked against the budgets. A
   generation is admitted while the month's instances are not exhausted and consumes the instances it writes. The
   other limits are plan values that the gateway compares with its own counts (running runs, cells of a study run, a
-  run's budget, instances per generation request, problems and collections owned, repository storage, private
-  projects, federated engines, API keys), so no counter can drift. The repository limits apply to FREE only; the
+  run's budget, instances per generation request, problems and collections owned, repository storage, federated
+  engines, API keys), so no counter can drift. The repository limits apply to FREE only; the
   other plans declare them as `.inf`.
 - Gated operations call `evaluate(user, feature, expected_consumption)`; an operation that fails after consuming
   calls `revert_evaluation` (SPACE honours it within two minutes).
@@ -524,7 +548,7 @@ flowchart LR
 No SPACE and no SPHERE run in any stack. OpenBinding uses the remote SPACE at `https://space.score.us.es`, which
 follows the SPHERE permanent link. The lab has one optional compose project, `compose.lab-pricing.json`, with a
 one-shot `pricing-bootstrap` (`mem_limit` 96 MiB, no database, no volume, no published port; see
-[qa/PRICING_PROFILE.md](qa/PRICING_PROFILE.md)). It takes a MANAGEMENT key of the remote SPACE from
+`docs/qa/PRICING_PROFILE.md` (removed with the factory artifacts in `e47da50d5`; in git history)). It takes a MANAGEMENT key of the remote SPACE from
 `DEMO_SPACE_MANAGEMENT_KEY`, supplied by the lab supervisor from a root-only secret file outside the repository, and
 in two steps:
 
@@ -542,11 +566,10 @@ remote SPACE and its routes are unverified until the first live run of the one-s
 | Data | Where | Retention |
 |---|---|---|
 | Sealed problem versions, compiled forms, published results | PostgreSQL + blob store | permanent; withdrawal hides, never deletes |
-| Sealed parts in the versioned-artifact store (resources, study definitions, execution configurations) | PostgreSQL + blob store | permanent while a sealed version, a study run or a run references them |
+| Frozen study-run definitions (with the compilation each revision runs) | PostgreSQL | permanent, with their study run |
 | Drafts | PostgreSQL | until deleted; owner notified after 180 idle days |
 | Runs and results | PostgreSQL + blob store | permanent while part of a study run or a published result; otherwise 365 days |
 | Raw engine logs | blob store | 90 days unless the run belongs to a published result |
-| Data of retired features (report drafts, decision-space workspaces, sponsorship proposals) | export for the owner | dropped after the export, by a guarded migration that refuses to drop non-empty tables without an export manifest (M9.6, §4.3) |
 | Uploads not referenced by any version | blob store | 30 days |
 | Notifications | PostgreSQL | 180 days |
 | Audit events | PostgreSQL | permanent |
@@ -554,6 +577,19 @@ remote SPACE and its routes are unverified until the first live run of the one-s
 | Datasets, raw campaign results | Zenodo | never in Git or the platform database |
 
 Purges run through `/v1/admin/maintenance/preview|purge` and scheduled workers.
+
+Package files are content addressed and shared across organizations, so no request handler ever unlinks one: a request
+that did could race with another organization's uncommitted upload of the same bytes, and a rolled-back delete would
+still lose the file. A blob row is unique per organization and digest and is only file storage (no public route, no
+quota meaning). Deleting a problem deletes rows and leaves the blob rows; deleting an organization deletes its blob
+rows; a later sweeper reclaims files no committed row references ([ADR 0032](adr/0032-blobs-are-file-storage.md)).
+Storage is charged per revision, to the account that created it ([ADR 0035](adr/0035-storage-charged-per-revision.md)).
+
+The schema is one Alembic revision, the baseline that `openbinding-gateway/tools/rebaseline.py` generates from the
+models and from the trigger declarations of `db/triggers.py` (the only source of trigger DDL). A schema change edits
+the models and regenerates the baseline under a new revision id; nothing is in production, so there are no
+incremental migrations, and a database built from an older baseline is refused and rebuilt (README, "Reset the dev
+database"). `tests/test_schema_baseline.py` keeps the baseline, the models and the triggers equal.
 
 ## 11. Quality architecture
 
@@ -604,12 +640,28 @@ Each move is one `refactor/<id>` change that updates CI, Dockerfiles, documentat
 
 | ADR | Decision |
 |---|---|
-| [0001](adr/0001-record-architecture-decisions.md)–[0013](adr/0013-committed-openapi-snapshot.md) | baseline decisions (BIM as canonical language behind a port, engines as services, durable jobs, pinned MiniZinc, datasets outside Git, frontend stack, problem+json, layered gateway, OpenAPI snapshot) |
-| [0014](adr/0014-render-never-dump.md) | render, never dump |
-| [0015](adr/0015-plans-through-space-and-sphere-clients.md) | plans through SPACE and SPHERE with their real clients (supersedes 0010); SPHERE at `sphere.score.us.es`, the remote SPACE at `space.score.us.es` |
-| [0016](adr/0016-extensible-language-profiles-and-dialects.md) | profiles that extend profiles, adapter tiers, language API |
-| [0017](adr/0017-modular-monolith-and-feature-sliced-frontend.md) | modular monolith and feature-sliced frontend (evolves 0012) |
-| [0018](adr/0018-problem-centred-vocabulary.md) | problem-centred vocabulary in the UI, API `v1` unchanged |
-| [0019](adr/0019-previews-and-retention.md) | previews before merge and storage retention |
-| [0020](adr/0020-smaller-platform.md) | a smaller platform: journeys decide what exists; five features retire; people read names, machines read digests |
-| [0021](adr/0021-docker-compose-only.md) | Docker Compose deploys every environment; Kubernetes manifests removed |
+| [0022](adr/0022-one-schema-baseline.md) | one schema baseline, regenerated by script (D1) |
+| [0023](adr/0023-trigger-ddl-single-source.md) | trigger DDL has one source, `db/triggers.py` (D2) |
+| [0024](adr/0024-immutable-means-no-update.md) | immutable rows reject UPDATE; history is kept by `RESTRICT` foreign keys (D3) |
+| [0025](adr/0025-workbench-stays-bim-editor.md) | the Workbench stays as the BIM problem editor (D4) |
+| [0026](adr/0026-engine-ir-from-problem-compilations.md) | a run executes the IR of its compilation and never copies it (D5) |
+| [0027](adr/0027-compile-or-get.md) | compile-or-get, keyed by the compiler digest (D6) |
+| [0028](adr/0028-frozen-study-definitions.md) | study runs freeze their definitions and pin compilations (D7) |
+| [0029](adr/0029-no-run-presets-in-f0b.md) | no run presets or execution configurations in F0b (D8) |
+| [0030](adr/0030-run-columns.md) | the columns of a run (D9) |
+| [0031](adr/0031-engine-protocol-endpoint.md) | `GET /v1/engines/protocol` replaces `/v1/profiles` (D12) |
+| [0032](adr/0032-blobs-are-file-storage.md) | blobs are file storage; requests never unlink files (D14) |
+| [0033](adr/0033-pricing-entitlement-map.md) | pricing 0.2.0 through one entitlement map (D15) |
+| [0034](adr/0034-no-public-read-in-f0b.md) | no public read in F0b (D17) |
+| [0035](adr/0035-storage-charged-per-revision.md) | storage is charged per revision (D23) |
+| [0036](adr/0036-bim-services-under-v1-bim.md) | the BIM language services live under `/v1/bim` (D25) |
+| [0037](adr/0037-anonymous-workbench-stays.md) | anonymous validation at `/workbench` stays (D26) |
+| [0038](adr/0038-old-composition2yaml-removed.md) | the problem-authoring Composition2Yaml is removed (D27) |
+| [0039](adr/0039-drop-v1-job-provenance.md) | `v1_job_provenance` is dropped (D28) |
+| [0040](adr/0040-deleted-accounts-deactivate-engines.md) | a deleted account's federated engines are deactivated (D29) |
+
+The earlier records, 0001 to 0021 (BIM behind a port, engines as services, durable jobs, the frontend stack,
+problem+json, the layered gateway, the OpenAPI snapshot, plans through SPACE and SPHERE, extensible profiles, the
+modular monolith, the problem-centred vocabulary, previews and retention, the smaller platform, Docker Compose only),
+were removed with the factory process artifacts in `e47da50d5` and remain in git history; [`adr/`](adr/README.md) lists
+the current ones.

@@ -1,15 +1,15 @@
 """Where each element of a composition sits in its source text.
 
 ``diagnostics.Diagnostic`` carries a ``Span`` so an editor can underline the element at
-fault, and until now nothing could produce one: ``text.parse`` reads values, which discard
-positions, and the refusals it raises name a path in prose.
+fault, and nothing else can produce one: ``syntax.load`` reads values, which discard
+positions, and a reader's refusals name a path in prose.
 
 This is the missing half. ``locate`` composes the document a second time -- composing
 returns the same tree as nodes carrying ``start_mark`` and ``end_mark``, by the rules of
 :mod:`.syntax` so that an alias is refused rather than walked once per use -- and maps a dotted
-path to the region of source that produced it. The parse itself is untouched: it still reads
-values, and a span is looked up only when something is about to be refused, so a valid
-document pays nothing but one extra compose.
+path to the region of source that produced it. Reading is untouched: it still reads values,
+and a span is looked up only when something is about to be refused, so a valid document pays
+nothing but one extra compose.
 
 **The span of a mapping entry runs from its key to the end of its value**, which is what an
 editor should underline for "this property is wrong": the name is the part the author

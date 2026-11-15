@@ -22,6 +22,7 @@ from openbinding_gateway.db.models import Job, JobState, RunState, StudyCell
 from openbinding_gateway.jobs import leases, reconciler
 
 from .test_study_cancel_pg import _states, _world
+from .test_study_cells_pg import cell_refs
 
 TIMEOUT_S = 30
 
@@ -30,8 +31,9 @@ async def _abandoned_live_job(session, world) -> Job:
     """A running job of the waiting cell whose worker is gone for the last time: the sweep fails it."""
     job = Job(
         owner_id=world.user_id, engine_id="random-search", engine_job_id="engine-2", service_url="http://engine",
-        state=JobState.RUNNING, organization_id=world.organization_id, project_id=world.project_id,
+        state=JobState.RUNNING, organization_id=world.organization_id,
         study_cell_id=world.waiting_id, lease_token="lost", attempt=leases.MAX_ATTEMPTS, requested_budget_s=60.0,
+        **await cell_refs(session, await session.get(StudyCell, world.waiting_id)),
     )
     session.add(job)
     await session.flush()

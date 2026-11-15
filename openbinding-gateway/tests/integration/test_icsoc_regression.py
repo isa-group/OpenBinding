@@ -16,6 +16,7 @@ from _repo import REPO_ROOT
 from bim_core.compiler import compile_instance
 from bim_core.package import InstancePackage, load_package
 from job_polling import wait_for_job
+from problem_upload import compatible_modes, upload_problem
 
 from experimentation.icsoc.generator.config import load_config
 from experimentation.icsoc.generator.generator import generate_dataset
@@ -192,25 +193,21 @@ def _admin_headers(client: httpx.Client, credentials: tuple[str, str]) -> dict[s
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
-def _wait(client: httpx.Client, job_id: str, headers: dict[str, str]) -> dict:
-    return wait_for_job(client, job_id, headers, timeout_s=120, label="ICSOC job")
+def _wait(client: httpx.Client, org: str, job_id: str, headers: dict[str, str]) -> dict:
+    return wait_for_job(client, org, job_id, headers, timeout_s=120, label="ICSOC job")
 
 
 def _solve(
     client: httpx.Client,
     headers: dict[str, str],
-    snapshot: dict,
+    upload: dict,
     engine: str,
     mode: str,
     options: dict,
 ) -> dict:
-    analysis = client.post(
-        "/v1/validate", headers=headers, json={"snapshot": snapshot["id"]}
-    )
-    assert analysis.status_code == 200, analysis.text
     matches = [
         item
-        for item in analysis.json()["compatibleModes"]
+        for item in compatible_modes(client, headers, upload)
         if item["compatible"]
         and item["engine"]["name"] == engine
         and item["mode"] == mode
@@ -218,10 +215,10 @@ def _solve(
     assert len(matches) == 1, json.dumps(matches, sort_keys=True)
     selection = matches[0]
     accepted = client.post(
-        "/v1/jobs",
+        f"/v1/organizations/{upload['org']}/runs",
         headers={**headers, "Idempotency-Key": f"icsoc-regression-{uuid.uuid4()}"},
         json={
-            "snapshot": snapshot["id"],
+            "revision": upload["revision"]["id"],
             "engine": selection["engine"],
             "registration": selection["registration"],
             "mode": mode,
@@ -230,7 +227,7 @@ def _solve(
         },
     )
     assert accepted.status_code == 202, accepted.text
-    job = _wait(client, accepted.json()["id"], headers)
+    job = _wait(client, upload["org"], accepted.json()["id"], headers)
     assert job["status"] == "completed", json.dumps(job, sort_keys=True)
     result = job["result"]
     assert result["solutions"], json.dumps(result, sort_keys=True)
@@ -424,18 +421,12 @@ def test_reduced_campaign_matches_or_remains_statistically_sensible(
     lanes = LANES
     with httpx.Client(base_url=GATEWAY_URL, timeout=45.0) as client:
         headers = _admin_headers(client, bootstrap_admin_credentials)
-        response = client.post(
-            "/v1/instances",
-            headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-            content=reduced_package.to_zip(),
-        )
-        assert response.status_code == 201, response.text
-        snapshot = response.json()
+        upload = upload_problem(client, headers, reduced_package.to_zip())
         results: dict[str, dict] = {}
         summaries: dict[str, str] = {}
         for engine, (mode, options) in lanes.items():
             started = time.monotonic()
-            results[engine] = _solve(client, headers, snapshot, engine, mode, options)
+            results[engine] = _solve(client, headers, upload, engine, mode, options)
             summaries[engine] = _lane_summary(
                 engine, results[engine], time.monotonic() - started
             )

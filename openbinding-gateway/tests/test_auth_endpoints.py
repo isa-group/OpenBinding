@@ -303,3 +303,45 @@ async def test_the_password_can_be_changed_and_the_new_one_works(api_client, reg
 
     assert changed.status_code == 200
     assert signed_in.status_code == 200
+
+
+async def test_the_reset_email_links_to_the_frontend_reset_screen(api_client, registration, monkeypatch):
+    """The e-mailed link opens the one reset screen of the frontend, which reads `token` from its query."""
+    import re
+    from urllib.parse import parse_qs, urlsplit
+
+    from _repo import REPO_ROOT
+    from openbinding_gateway.core.settings import get_settings
+    from openbinding_gateway.routes import auth as auth_routes
+
+    details = registration()
+    await register(api_client, details)
+    monkeypatch.setattr(get_settings(), "frontend_url", "https://app.example.org/")
+    sent: list[str] = []
+
+    async def capture(settings, recipient, subject, body):
+        sent.append(body)
+        return True
+
+    monkeypatch.setattr(auth_routes, "send_mail", capture)
+
+    requested = await api_client.post("/v1/auth/password-reset/request", json={"email": details["email"]})
+
+    assert requested.status_code == 202, requested.text
+    [body] = sent
+    link = urlsplit(re.search(r"https?://\S+", body).group(0))
+    assert (link.scheme, link.netloc, link.path) == ("https", "app.example.org", "/password-reset")
+    route_table = (REPO_ROOT / "frontend/src/routes/areas/auth.tsx").read_text(encoding="utf-8")
+    assert f"'{link.path}', <PasswordResetPage />" in route_table
+    [token] = parse_qs(link.query)["token"]
+
+    completed = await api_client.post(
+        "/v1/auth/password-reset/complete", json={"token": token, "new_password": "a-brand-new-passphrase"},
+    )
+    signed_in = await api_client.post(
+        "/v1/auth/login",
+        json={"username_or_email": details["username"], "password": "a-brand-new-passphrase"},
+    )
+
+    assert completed.status_code == 204, completed.text
+    assert signed_in.status_code == 200

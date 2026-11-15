@@ -155,7 +155,7 @@ describe('engine catalog for a visitor', () => {
     api.getPublicEngines.mockResolvedValue([]);
     renderPage(null);
     expect(await screen.findByText('No engines visible to you')).toBeInTheDocument();
-    expect(screen.getByText(/BASIC: 1 engine/)).toBeInTheDocument();
+    expect(screen.getByText(/FREE: 1 engine/)).toBeInTheDocument();
   });
 
   it('reports a failed load and recovers on Retry', async () => {

@@ -2,13 +2,13 @@ import JSZip from 'jszip';
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
-import { digestOf, irDocument, refOf, revisionDocument, sourceContents } from '../src/pages/Cases/fixtures';
+import { digestOf, irDocument } from '../src/pages/Cases/fixtures';
 
-// S5a · authoring and cases, part 1: case-list and the problem page case-detail, whose tabs Overview, Versions and Source hold what the
-// version, compare and snapshot screens showed (the old addresses move to it).
+// S5a · the problems of an organization: case-list (/app/:org/problems) and the problem page case-detail with its tabs Overview,
+// Runs, Versions, Source and Settings. A problem is uploaded as a .bim.zip, a new version is another upload (or a save in the
+// Workbench), and every version is the package exactly as it was uploaded with its compilation by the installed toolchain.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath()
 // (test-results/, ignored by git) so they can be looked at after a run.
-// One test per screen and viewport: the desktop walks the states of the screen, the phone gets its layout and its dialogs.
 
 const API = 'http://localhost:8000';
 
@@ -19,8 +19,6 @@ type Handler = (route: Route) => Promise<void> | void;
 const json = (body: unknown, status = 200): Handler => (route) => route.fulfill({ status, json: body });
 const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json(failureBody(status, code, error, extra), status);
 const noContent: Handler = (route) => route.fulfill({ status: 204 });
-/** A service that does not answer: a 503 with no machine code, as a proxy in front of the gateway would send it. */
-const unavailable: Handler = json({ detail: 'The service is not reachable.' }, 503);
 
 const token = (expiresInSeconds: number) => [
   'header',
@@ -30,123 +28,75 @@ const token = (expiresInSeconds: number) => [
 
 const lucia = {
   id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-03-02T00:00:00Z', cas_verified: true, institutional_branding: true,
+  created_at: '2026-03-02T00:00:00Z', cas_verified: true,
 };
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 
-const org = (n: number, slug: string, name: string, role: Role, sponsor = 'user-1') => ({
-  id: `org-${n}`, slug, name, parent_id: null, billing_sponsor_user_id: sponsor, effective_role: role, created_at: '2026-03-03T00:00:00Z',
+const org = (n: number, slug: string, name: string, role: Role) => ({
+  id: `org-${n}`, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z',
 });
 
 const organizations = [
   org(1, 'isa-demo', 'ISA Demo Group', 'ADMIN'),
-  org(3, 'consultora-demo', 'Consultora Demo', 'VIEWER', 'user-nora'),
-  org(4, 'member-lab', 'Member Lab', 'MEMBER', 'user-nora'),
+  org(3, 'consultora-demo', 'Consultora Demo', 'VIEWER'),
 ];
 
-const project = (n: number, orgId: string, slug: string, name: string, visibility: 'public' | 'private' = 'private') => ({
-  id: `project-${n}`, organization_id: orgId, slug, name, description: '', visibility, created_by_id: 'user-1',
-  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
-  // The contract's `ProjectView.access`: these specs reach every project as a member.
-  access: 'member' as const, effective_role: 'OWNER' as Role,
-});
-
-const projectsOf: Record<string, ReturnType<typeof project>[]> = {
-  'isa-demo': [project(1, 'org-1', 'qos-benchmarks', 'QoS Benchmarks', 'public'), project(2, 'org-1', 'checkout-privado', 'Checkout (privado)')],
-  'consultora-demo': [project(3, 'org-3', 'client-case', 'Client case')],
-  'member-lab': [project(4, 'org-4', 'bench', 'Bench')],
-};
-
-// --- cases, revisions, library and snapshots
-
-const S1 = '00000000-0000-4000-8000-0000000000e0';
-const S2 = '00000000-0000-4000-8000-0000000000e1';
-const S3 = '00000000-0000-4000-8000-0000000000e2';
-
-const app3 = refOf('checkout-app', '3', '1');
-const catalog2 = refOf('providers-eu', '2', '2');
-const catalog3 = refOf('providers-eu', '3', '3');
-const rules1 = refOf('sla-hard', '1', '4');
-const goal1 = refOf('weighted-cost-latency', '1', '5');
-const documentWith = (catalog: typeof catalog2) => revisionDocument([
-  ['application', 'checkout', app3], ['candidateCatalog', 'providers', catalog], ['constraintSet', 'sla', rules1], ['optimization', 'goal', goal1],
-]);
+// --- problems, versions and compilations
 
 interface Revision {
-  id: string; binding_case_id: string; revision: number; digest: string; document: Record<string, unknown>; source_snapshot_id: string | null; created_at: string;
+  id: string; problem_id: string; revision: number; package_digest: string; package_size: number; created_by_id: string; created_at: string;
 }
-interface CaseRow {
-  item: { id: string; project_id: string; slug: string; name: string; description: string; created_by_id: string; created_at: string };
+interface ProblemRow {
+  item: { id: string; organization_id: string; slug: string; name: string; description: string; created_by_id: string; created_at: string; updated_at: string };
   revisions: Revision[];
 }
 
-const caseRow = (projectId: string, slug: string, name: string, description: string, revisions: Array<[number, string, ReturnType<typeof documentWith>, string | null, string]>): CaseRow => ({
-  item: { id: `case-${slug}`, project_id: projectId, slug, name, description, created_by_id: 'user-1', created_at: '2026-08-01T00:00:00Z' },
-  revisions: revisions.map(([revision, char, document, snapshot, createdAt]) => ({
-    id: `rev-${slug}-${revision}`, binding_case_id: `case-${slug}`, revision, digest: digestOf(char), document, source_snapshot_id: snapshot, created_at: createdAt,
+const problemRow = (orgId: string, slug: string, name: string, description: string, revisions: Array<[number, string, string]>): ProblemRow => ({
+  item: { id: `case-${slug}`, organization_id: orgId, slug, name, description, created_by_id: 'user-1', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
+  revisions: revisions.map(([revision, char, createdAt]) => ({
+    id: `rev-${slug}-${revision}`, problem_id: `case-${slug}`, revision, package_digest: digestOf(char), package_size: 48_213, created_by_id: 'user-1', created_at: createdAt,
   })),
 });
 
-const checkoutRevisions = (projectId: string, slug = 'flujo-checkout') => caseRow(projectId, slug, 'Flujo de checkout', 'Payments with parallel stock and shipping.', [
-  [1, '1', documentWith(catalog2), S1, '2026-08-01T09:00:00Z'], [2, '2', documentWith(catalog3), S2, '2026-08-20T10:05:00Z'],
+const checkout = (orgId: string) => problemRow(orgId, 'flujo-checkout', 'Flujo de checkout', 'Payments with parallel stock and shipping.', [
+  [1, '1', '2026-08-01T09:00:00Z'], [2, '2', '2026-08-20T10:05:00Z'],
 ]);
 
-const seedCases = (): Record<string, CaseRow[]> => ({
-  'isa-demo/qos-benchmarks': [checkoutRevisions('project-1'), caseRow('project-1', 'borrador', 'Borrador', '', [])],
-  'isa-demo/checkout-privado': [],
-  'consultora-demo/client-case': [checkoutRevisions('project-3')],
-  'member-lab/bench': [checkoutRevisions('project-4')],
+const seedProblems = (): Record<string, ProblemRow[]> => ({
+  'isa-demo': [checkout('org-1'), problemRow('org-1', 'borrador', 'Borrador', '', [])],
+  'consultora-demo': [checkout('org-3')],
 });
 
-const artifact = (id: string, name: string, kind: string, display: string) => ({
-  id, organization_id: 'org-1', namespace: 'isa-demo', name, display_name: display, kind, description: '', labels: {}, archived: false,
-});
-const libraryItems = [
-  artifact('art-app', 'checkout-app', 'Application', 'Checkout app'), artifact('art-cat', 'providers-eu', 'CandidateCatalog', 'Proveedores UE'),
-  artifact('art-rules', 'sla-hard', 'ConstraintSet', 'SLA hard'), artifact('art-goal', 'weighted-cost-latency', 'Optimization', 'Weighted cost and latency'),
-];
-const ARTIFACT_OF: Record<string, string> = { 'checkout-app': 'art-app', 'providers-eu': 'art-cat', 'sla-hard': 'art-rules', 'weighted-cost-latency': 'art-goal' };
-const CONTENT_OF: Record<string, unknown> = { 'art-app': sourceContents.application, 'art-cat': sourceContents.catalog, 'art-rules': sourceContents.rules, 'art-goal': sourceContents.goal };
+/** How many candidates the payment task has in each version: what their compiled forms differ in. */
+const PAY_OF: Record<number, number> = { 1: 5, 2: 8 };
 
-const versionView = (ref: { namespace: string; name: string; version: string; versionDigest: string }) => ({
-  id: `version-${ARTIFACT_OF[ref.name]}-${ref.version}`, artifact_id: ARTIFACT_OF[ref.name], ordinal: Number(ref.version), ref, contentDigest: digestOf('c'),
-  manifest: { mediaType: 'application/json', contracts: [], dependencies: [] }, based_on_id: null, public: ref.name === 'providers-eu' && ref.version === '3', withdrawn: false,
-  created_at: '2026-08-01T00:00:00Z',
-});
-const versionsOf = (id: string) => (id === 'art-cat' ? [catalog3, catalog2] : [{ 'art-app': app3, 'art-rules': rules1, 'art-goal': goal1 }[id]!]).map(versionView);
-const refMatching = (body: { name: string; version: string }) => [app3, catalog2, catalog3, rules1, goal1].find((ref) => ref.name === body.name && ref.version === body.version);
-
-const snapshotView = (id: string, pay: number) => ({
-  id, ownerId: 'user-1', instanceDigest: digestOf('a'), packageDigest: digestOf('b'), archiveSize: 48_213, createdAt: '2026-08-20T10:05:00Z',
-  ir: { id: `ir-${id}`, digest: digestOf('c'), document: irDocument(pay), sourceMap: null, compilerVersion: '1.0.0', createdAt: '2026-08-20T10:05:00Z' },
-});
-const SNAPSHOTS: Record<string, number> = { [S1]: 5, [S2]: 8, [S3]: 8 };
-
-const researchUsage = (ceiling: number | null = 20) => ({
-  plan: 'RESEARCH',
-  contract_pending: false,
-  features: { collaboration: true, solve: true },
-  capabilities: { concurrentJobs: 3, projects: 50, privateProjects: 30, maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: ceiling },
+const compilationOf = (revision: number) => ({
+  id: `compilation-${revision}`, revision_id: `rev-${revision}`, compilation_digest: digestOf('9'), compiler_digest: digestOf('8'), ir_digest: digestOf('c'),
+  binding_space: '125892', created_at: '2026-08-20T10:05:00Z', current: true, toolchain: {},
+  analysis: { tasks: 6, candidates: 24, constraints: 2, placement: false, bindingSpace: '125892' },
+  resources: { application: { role: 'application', path: 'application.json', apiVersion: 'qos-binding/v1', kind: 'Application' } },
+  compatible_modes: [{ compatible: true }, { compatible: true }],
 });
 
-type Refusable = 'cases' | 'createCase' | 'patchCase' | 'deleteCase' | 'revision' | 'snapshot' | 'resolve' | 'validate' | 'archive';
+const researchUsage = () => ({
+  plan: 'RESEARCH', contract_pending: false, features: { collaboration: true, runs: true },
+  capabilities: { maxConcurrentRuns: 4, maxPrivateProjects: 10, maxProblems: null, maxRepositoryStorage: null },
+});
+
+type Refusable = 'list' | 'create' | 'revision' | 'remove' | 'compilation';
 
 interface State {
-  cases: Record<string, CaseRow[]>;
-  ceiling: number | null;
+  problems: Record<string, ProblemRow[]>;
   /** A refusal for one call; unset means it succeeds. */
   refuse: Partial<Record<Refusable, Handler>>;
-  /** The last body each write carried, to check what was sent. */
+  /** What the writes carried, to check what was sent. */
   sent: Record<string, unknown>;
 }
 
-const methodOf = (route: Route) => route.request().method();
-const bodyOf = (route: Route) => route.request().postDataJSON() as Record<string, unknown>;
-
 /** Everything these screens read and write, answered; anything else on the API origin is an empty 404. */
-async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<State> {
-  const state: State = { cases: seedCases(), ceiling: 20, refuse: {}, sent: {}, ...overrides };
+async function mockApi(page: Page): Promise<State> {
+  const state: State = { problems: seedProblems(), refuse: {}, sent: {} };
   const zip = await new JSZip().file('instance.json', '{"apiVersion":"bim/v1","kind":"Instance"}').file('application.json', '{"kind":"Application"}').generateAsync({ type: 'nodebuffer' });
   await page.addInitScript(() => {
     localStorage.setItem('openbinding-access-token', 's5a-access');
@@ -160,120 +110,86 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
   await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(lucia));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
-  await page.route(`${API}/v1/users/me/usage`, (route) => route.fulfill({ json: researchUsage(state.ceiling) }));
+  await page.route(`${API}/v1/users/me/usage`, json(researchUsage()));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
-  await page.route(`${API}/v1/profiles`, json({ profiles: [{ id: 'qos-binding/v1', digest: digestOf('a'), metadata: { name: 'qos-binding', version: '1.0.0' } }] }));
 
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
-    const parts = new URL(route.request().url()).pathname.split('/').filter(Boolean);
-    // /v1/organizations/{org}/projects/{project}/{sub}/{subId}/{subSub}/{subSubId}
-    const [, , orgSlug, section, projectSlug, sub, subId, subSub, subSubId] = parts;
-    const method = methodOf(route);
+    const url = new URL(route.request().url());
+    const parts = url.pathname.split('/').filter(Boolean);
+    // /v1/organizations/{org}/problems/{problem}/revisions/{revision}/{tail}/{compilation}/ir
+    const [, , orgSlug, section, problemSlug, sub, revisionRef, tail] = parts;
+    const method = route.request().method();
     const found = organizations.find((item) => item.slug === orgSlug);
 
     if (!orgSlug) return json(organizations)(route);
-    if (section === 'members') return json([])(route);
-    if (section !== 'projects') return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
+    if (!found) return detail(403, 'organization_forbidden', 'Not a member.')(route);
+    if (section === 'members' || section === 'library') return json([])(route);
+    if (section === 'runs') return json({ runs: [], total: 0 })(route);
+    if (section !== 'problems') return json(found)(route);
 
-    const list = projectsOf[orgSlug] ?? [];
-    if (!projectSlug) return json(list)(route);
-    const current = list.find((item) => item.slug === projectSlug);
-    if (!current) return detail(404, 'not_found', 'Project not found.')(route);
-    if (!sub) return json(current)(route);
+    const rows = state.problems[orgSlug] ?? [];
+    const latest = (row: ProblemRow) => {
+      const newest = [...row.revisions].sort((a, b) => b.revision - a.revision)[0];
+      return newest ? { id: newest.id, revision: newest.revision, package_digest: newest.package_digest, created_at: newest.created_at } : null;
+    };
+    const upload = (row: ProblemRow, revision: Revision, created: boolean) => ({
+      problem: { ...row.item, latest_revision: latest(row) }, revision, created, compilation: { ...compilationOf(revision.revision), compatible_modes: undefined },
+    });
 
-    const key = `${orgSlug}/${projectSlug}`;
-    const rows = state.cases[key] ?? [];
-    if (sub !== 'cases') return json([])(route);
-
-    if (!subId) {
+    if (!problemSlug) {
       if (method === 'POST') {
-        if (state.refuse.createCase) return state.refuse.createCase(route);
-        const body = bodyOf(route) as { slug: string; name: string; description: string };
-        const created = { id: `case-${body.slug}`, project_id: current.id, slug: body.slug, name: body.name, description: body.description, created_by_id: 'user-1', created_at: '2026-10-09T08:00:00Z' };
-        state.cases[key] = [...rows, { item: created, revisions: [] }];
-        return json(created, 201)(route);
+        if (state.refuse.create) return state.refuse.create(route);
+        state.sent.create = url.searchParams.toString();
+        const slug = url.searchParams.get('slug') || 'uploaded';
+        const row = problemRow(found.id, slug, url.searchParams.get('name') || slug, url.searchParams.get('description') ?? '', [[1, '7', '2026-10-09T08:00:00Z']]);
+        state.problems[orgSlug] = [...rows, row];
+        return json(upload(row, row.revisions[0], true), 201)(route);
       }
-      return state.refuse.cases ? state.refuse.cases(route) : json(rows.map((row) => row.item))(route);
+      if (state.refuse.list) return state.refuse.list(route);
+      return json({ problems: rows.map((row) => ({ ...row.item, latest_revision: latest(row) })), total: rows.length, limit: 200, offset: 0 })(route);
     }
 
-    const row = rows.find((candidate) => candidate.item.slug === subId);
-    if (!row) return detail(404, 'not_found', 'Binding case not found.')(route);
-    if (!subSub) {
+    const row = rows.find((candidate) => candidate.item.slug === problemSlug);
+    if (!row) return detail(404, 'not_found', 'Problem not found.')(route);
+    if (!sub) {
       if (method === 'PATCH') {
-        if (state.refuse.patchCase) return state.refuse.patchCase(route);
-        state.sent.patch = bodyOf(route);
-        row.item = { ...row.item, ...(bodyOf(route) as object) };
+        state.sent.patch = route.request().postDataJSON();
+        row.item = { ...row.item, ...(route.request().postDataJSON() as object) };
         return json(row.item)(route);
       }
       if (method === 'DELETE') {
-        if (state.refuse.deleteCase) return state.refuse.deleteCase(route);
-        if (row.revisions.length > 0) return detail(409, 'historical_references', 'A case with sealed revisions cannot be deleted.')(route);
-        state.cases[key] = rows.filter((candidate) => candidate !== row);
+        if (state.refuse.remove) return state.refuse.remove(route);
+        state.problems[orgSlug] = rows.filter((candidate) => candidate !== row);
         return noContent(route);
       }
-      return json(row.item)(route);
+      return json({ ...row.item, latest_revision: latest(row) })(route);
     }
-
-    if (subSub !== 'revisions') return detail(404, 'not_found', 'Not mocked.')(route);
-    if (subSubId) {
-      const revision = row.revisions.find((candidate) => String(candidate.revision) === subSubId);
-      return revision ? json(revision)(route) : detail(404, 'not_found', 'Binding case revision not found.')(route);
+    if (sub !== 'revisions') return detail(404, 'not_found', 'Not mocked.')(route);
+    if (!revisionRef) {
+      if (method === 'POST') {
+        if (state.refuse.revision) return state.refuse.revision(route);
+        const next: Revision = {
+          id: `rev-${row.item.slug}-${row.revisions.length + 1}`, problem_id: row.item.id, revision: row.revisions.length + 1, package_digest: digestOf('8'),
+          package_size: 49_000, created_by_id: 'user-1', created_at: '2026-10-09T09:00:00Z',
+        };
+        row.revisions = [...row.revisions, next];
+        return json(upload(row, next, true), 201)(route);
+      }
+      return json([...row.revisions].reverse())(route);
     }
-    if (method === 'POST') {
-      if (state.refuse.revision) return state.refuse.revision(route);
-      state.sent.revision = bodyOf(route);
-      const next = row.revisions.length + 1;
-      // The gateway stores the Instance with the exact library versions it was built from.
-      const uses = (bodyOf(route) as { resources: Array<{ role: string; alias: string; artifact: typeof app3 }> }).resources;
-      const created: Revision = {
-        id: `rev-${row.item.slug}-${next}`, binding_case_id: row.item.id, revision: next, digest: digestOf(String(next + 2)),
-        document: revisionDocument(uses.map((use): [string, string, typeof app3] => [use.role, use.alias, use.artifact])),
-        source_snapshot_id: S3, created_at: '2026-10-09T09:00:00Z',
-      };
-      row.revisions = [...row.revisions, created];
-      return json(created, 201)(route);
+    const revision = row.revisions.find((candidate) => String(candidate.revision) === revisionRef || candidate.id === revisionRef || candidate.package_digest === revisionRef);
+    if (!revision) return detail(404, 'not_found', 'Problem revision not found.')(route);
+    if (!tail) {
+      return json({
+        ...revision, document: { apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: `checkout-${revision.revision}` } }, compilations: [],
+        files: [{ path: 'instance.json', role: 'root', digest: digestOf('1'), media_type: 'application/json' }, { path: 'application.json', role: 'application', digest: digestOf('2'), media_type: 'application/json' }],
+        resource_digests: { application: digestOf('2') },
+      })(route);
     }
-    return json(row.revisions)(route);
-  });
-
-  // The library of an organization and the versions behind it.
-  await page.route(new RegExp(`^${API}/v1/organizations/[^/]+/library(\\?.*)?$`), json(libraryItems));
-  await page.route(new RegExp(`^${API}/v1/artifacts/[^/]+/versions(\\?.*)?$`), (route) => {
-    const id = new URL(route.request().url()).pathname.split('/')[3];
-    return json(versionsOf(id))(route);
-  });
-  await page.route(new RegExp(`^${API}/v1/artifacts/[^/]+/versions/[^/]+/content(\\?.*)?$`), (route) => {
-    const id = new URL(route.request().url()).pathname.split('/')[3];
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CONTENT_OF[id]) });
-  });
-  await page.route(`${API}/v1/artifacts/resolve`, (route) => {
-    if (state.refuse.resolve) return state.refuse.resolve(route);
-    const ref = refMatching(bodyOf(route) as { name: string; version: string });
-    return ref ? json(versionView(ref))(route) : detail(404, 'not_found', 'Artifact version not found.')(route);
-  });
-
-  // Snapshots.
-  await page.route(new RegExp(`^${API}/v1/snapshots/[^/]+$`), (route) => {
-    if (state.refuse.snapshot) return state.refuse.snapshot(route);
-    const id = new URL(route.request().url()).pathname.split('/')[3];
-    return SNAPSHOTS[id] ? json(snapshotView(id, SNAPSHOTS[id]))(route) : detail(404, 'not_found', 'Snapshot not found')(route);
-  });
-  await page.route(new RegExp(`^${API}/v1/snapshots/[^/]+/archive$`), (route) => (state.refuse.archive ? state.refuse.archive(route) : route.fulfill({ status: 200, contentType: 'application/zip', body: zip })));
-  await page.route(new RegExp(`^${API}/v1/instances/[^/]+$`), (route) => {
-    const id = new URL(route.request().url()).pathname.split('/')[3];
-    return json({
-      id, kind: 'InstanceSnapshot', instanceDigest: digestOf('a'), packageDigest: digestOf('b'), irDigest: digestOf('c'),
-      fileDigests: { 'instance.json': digestOf('1'), 'application.json': digestOf('2') }, resourceDigests: { app: digestOf('3') }, instance: {}, createdAt: '2026-08-20T10:05:00Z',
-    })(route);
-  });
-  await page.route(new RegExp(`^${API}/v1/instances/[^/]+/source$`), (route) => route.fulfill({ status: 200, contentType: 'application/vnd.bim+zip', body: zip }));
-  await page.route(new RegExp(`^${API}/v1/instances/[^/]+/ir$`), json(irDocument(8)));
-  await page.route(`${API}/v1/validate`, (route) => {
-    if (state.refuse.validate) return state.refuse.validate(route);
-    return json({
-      valid: true, instanceDigest: digestOf('a'), packageDigest: digestOf('b'), irDigest: digestOf('c'),
-      analysis: { tasks: 6, candidates: 24, constraints: 2, placement: false, bindingSpace: '1920' }, compatibleModes: [{}, {}, {}],
-    })(route);
+    if (tail === 'source') return route.fulfill({ status: 200, contentType: 'application/vnd.bim+zip', body: zip });
+    if (tail === 'compilation') return state.refuse.compilation ? state.refuse.compilation(route) : json(compilationOf(revision.revision))(route);
+    if (tail === 'compilations') return json({ id: `compilation-${revision.revision}`, ir_digest: digestOf('c'), ir: irDocument(PAY_OF[revision.revision] ?? 8), source_map: {} })(route);
+    return detail(404, 'not_found', 'Not mocked.')(route);
   });
   return state;
 }
@@ -296,385 +212,142 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
     window.scrollTo(0, 0);
   });
   if (process.env.E2E_SCREENSHOTS) await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' });
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  const width = page.viewportSize()?.width ?? 0;
+  const overflow = await page.evaluate((expected) => document.documentElement.scrollWidth - expected, width);
   expect(overflow, `${name} should not scroll sideways`).toBeLessThanOrEqual(1);
 }
 
-const request = (page: Page, method: string, path: string) => page.waitForRequest((candidate) => candidate.method() === method && candidate.url().startsWith(`${API}${path}`));
+const packageFile = async () => ({
+  name: 'analisis-de-latencia.bim.zip', mimeType: 'application/vnd.bim+zip',
+  buffer: await new JSZip().file('instance.json', '{"apiVersion":"bim/v1","kind":"Instance"}').generateAsync({ type: 'nodebuffer' }),
+});
 
-// Each test walks a screen through its states while the dev server compiles on demand.
 test.setTimeout(120_000);
-// One worker for the whole file: with every test in parallel the browsers starve each other and the same walk takes twice as long.
 test.describe.configure({ mode: 'default' });
+
 const viewports = [
   { name: 'desktop', viewport: { width: 1440, height: 900 }, isMobile: false, deviceScaleFactor: 1 },
   { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 2 },
 ] as const;
 
-const ROOT = '/app/isa-demo/qos-benchmarks';
-const CASE = `${ROOT}/problems/flujo-checkout`;
-// The address of the problem before the segment became `problems`: the two tests of the old version and compare addresses visit it on purpose.
-const OLD_CASE = `${ROOT}/cases/flujo-checkout`;
+const PROBLEMS = '/app/isa-demo/problems';
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
-  test.describe(`${name} · S5a cases`, () => {
+  test.describe(`${name} · S5a problems`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('case-list /app/:org/:project/problems', async ({ page }, testInfo) => {
+    test('case-list /app/:org/problems · the problems of the organization, an upload and a delete', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/problems`);
+      await page.goto(PROBLEMS);
       const main = page.locator('#platform-main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Problems' })).toBeVisible();
       const list = main.getByRole('list', { name: 'Problems' });
       await expect(list.getByRole('listitem')).toHaveCount(2);
-      await expect(list.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', CASE);
-      await expect(list.getByText('Ready to run')).toBeVisible();
-      await expect(list.getByText('No version yet')).toBeVisible();
+      await expect(list.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', `${PROBLEMS}/flujo-checkout`);
       await expect(list.getByText('2 versions')).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Problems' })).toHaveAttribute('aria-current', 'page');
-      await capture(page, testInfo, `list-${name}-success`);
+      await expect(list.getByRole('link', { name: 'Run latest' })).toHaveAttribute('href', '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2');
+      await expect(main.getByRole('link', { name: 'Write one in the Workbench' })).toHaveAttribute('href', '/app/isa-demo/workbench');
+      await expect(main.getByRole('link', { name: 'Start from a template' })).toHaveAttribute('href', '/app/isa-demo/workbench?template=demo%2F01_simple_seq');
+      await expect(main).not.toContainText(/sha256-|[0-9a-f]{12}/);
+      await capture(page, testInfo, `list-${name}`);
 
-      // The dialog of a new problem, open in the address, with the address suggested from the name and the gateway's 409.
-      await main.getByRole('button', { name: 'New problem' }).click();
-      await expect(page).toHaveURL(`${ROOT}/problems?create=problem`);
-      const dialog = page.getByRole('dialog', { name: 'New problem' });
-      await dialog.getByLabel('Name', { exact: true }).fill('Análisis de latencia');
-      await expect(dialog.getByLabel('Address')).toHaveValue('analisis-de-latencia');
-      state.refuse.createCase = detail(409, 'slug_conflict', 'That problem slug is in use.');
-      await dialog.getByRole('button', { name: 'Create problem' }).click();
-      await expect(dialog.getByRole('alert')).toContainText('That address is already used by another problem in this project (409 · slug_conflict).');
-      await capture(page, testInfo, `list-${name}-dialog-409`);
+      // Upload a package as a new problem: a refused one lists where it is wrong, an accepted one opens the new problem.
+      await main.getByRole('button', { name: 'Upload BIM package' }).click();
+      await expect(page).toHaveURL(new RegExp(`${PROBLEMS}\\?create=problem$`));
+      const dialog = page.getByRole('dialog', { name: 'Upload a BIM package' });
+      await dialog.getByLabel('BIM package').setInputFiles(await packageFile());
+      await expect(dialog.getByLabel('Name')).toHaveValue('analisis-de-latencia');
+      state.refuse.create = detail(422, 'invalid_instance', 'The BIM package did not compile.', { diagnostics: [{ code: 'missing_role', message: 'The application is missing.', resource: 'instance.json' }] });
+      await dialog.getByRole('button', { name: 'Upload problem' }).click();
+      await expect(dialog.getByRole('alert')).toContainText('The package was read and refused (422 · invalid_instance)');
+      await expect(dialog.getByRole('list', { name: 'What the compiler found' })).toContainText('The application is missing.');
+      await capture(page, testInfo, `upload-${name}-422`);
+      state.refuse.create = undefined;
+      await dialog.getByRole('button', { name: 'Upload problem' }).click();
+      await expect(page).toHaveURL(new RegExp(`${PROBLEMS}/analisis-de-latencia$`));
+      await expect(main.getByRole('heading', { level: 1, name: 'analisis-de-latencia' })).toBeVisible();
+      await expect(main.getByText('Problem “analisis-de-latencia” created with version 1.')).toBeVisible();
+      expect(state.sent.create).toContain('slug=analisis-de-latencia');
+      await capture(page, testInfo, `upload-${name}-created`);
       if (isMobile) {
         expect(critical).toEqual([]);
         return;
       }
 
-      state.refuse.createCase = undefined;
-      const posted = request(page, 'POST', '/v1/organizations/isa-demo/projects/qos-benchmarks/cases');
-      await dialog.getByRole('button', { name: 'Create problem' }).click();
-      expect((await posted).postDataJSON()).toEqual({ slug: 'analisis-de-latencia', name: 'Análisis de latencia', description: '' });
-      await expect(main.getByText('Problem “Análisis de latencia” created. Compose its first version when you’re ready.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Compose its first version' })).toHaveAttribute('href', `${ROOT}/workbench?case=analisis-de-latencia`);
-      await expect(page).toHaveURL(`${ROOT}/problems`);
-      await expect(list.getByRole('listitem')).toHaveCount(3);
-      await capture(page, testInfo, `list-${name}-created`);
-
-      // Search narrows the list.
-      await main.getByLabel('Search problems').fill('borra');
-      await expect(list.getByRole('listitem')).toHaveCount(1);
-      await main.getByLabel('Search problems').fill('');
-
-      // An ADMIN deletes: a problem with sealed versions is refused up front, an empty one goes after typing its address.
-      await list.getByRole('button', { name: 'Delete Flujo de checkout' }).click();
-      const sealed = page.getByRole('dialog', { name: 'Delete Flujo de checkout?' });
-      await expect(sealed.getByText(/2 sealed versions, so it can’t be deleted/)).toBeVisible();
-      await expect(sealed.getByRole('button', { name: 'Delete problem' })).toBeDisabled();
-      await capture(page, testInfo, `list-${name}-delete-sealed`);
-      await sealed.getByRole('button', { name: 'Cancel' }).click();
-      await list.getByRole('button', { name: 'Delete Borrador' }).click();
-      const empty = page.getByRole('dialog', { name: 'Delete Borrador?' });
-      await empty.getByLabel('Type borrador to confirm').fill('borrador');
-      const deleted = request(page, 'DELETE', '/v1/organizations/isa-demo/projects/qos-benchmarks/cases/borrador');
-      await empty.getByRole('button', { name: 'Delete problem' }).click();
-      await deleted;
-      await expect(main.getByText('Problem “Borrador” deleted.')).toBeVisible();
-      await expect(list.getByRole('listitem')).toHaveCount(2);
-
-      // A VIEWER reads and compares, and has no buttons that write; the address cannot open the dialog for them.
-      await page.goto('/app/consultora-demo/client-case/problems?create=problem');
-      await expect(main.getByRole('note')).toContainText('You’re a VIEWER. You can open and compare problems here; creating and editing need MEMBER.');
-      await expect(page.getByRole('dialog')).toHaveCount(0);
-      await expect(main.getByRole('button', { name: 'New problem' })).toHaveCount(0);
-      await expect(main.getByRole('button', { name: /^Delete/ })).toHaveCount(0);
-      await expect(main.getByRole('link', { name: 'New version' })).toHaveCount(0);
-      await capture(page, testInfo, `list-${name}-viewer`);
-
-      // A project with no problem explains how to start.
-      await page.goto('/app/isa-demo/checkout-privado/problems');
-      const guide = main.getByRole('region', { name: 'No problems yet' });
-      await expect(guide.getByRole('link', { name: 'Import an example' })).toHaveAttribute('href', '/app/isa-demo/checkout-privado/workbench');
-      await expect(guide.getByRole('link', { name: 'Open the library' })).toHaveCount(0);
-      await capture(page, testInfo, `list-${name}-empty`);
-
-      // The list fails and comes back.
-      state.refuse.cases = unavailable;
-      await page.goto(`${ROOT}/problems`);
-      await expect(main.getByRole('alert')).toContainText('Problems couldn’t be loaded (503)');
-      await capture(page, testInfo, `list-${name}-error`);
-      state.refuse.cases = undefined;
-      await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(list.getByRole('listitem')).toHaveCount(2);
-
-      // A project the account is not in reads like one that is missing.
-      await page.goto('/app/isa-demo/ghost/problems');
-      await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
+      // Deleting a problem that runs used is refused, and says why.
+      await page.goto(PROBLEMS);
+      state.refuse.remove = detail(409, 'problem_has_runs', 'Runs or studies name a revision of this problem, so it is kept as their evidence.');
+      await main.getByRole('list', { name: 'Problems' }).getByRole('button', { name: 'Delete Flujo de checkout' }).click();
+      const remove = page.getByRole('dialog', { name: 'Delete Flujo de checkout?' });
+      await remove.getByLabel('Type flujo-checkout to confirm').fill('flujo-checkout');
+      await remove.getByRole('button', { name: 'Delete problem' }).click();
+      await expect(remove.getByRole('alert')).toContainText('Runs or studies name a version of this problem, so it can’t be deleted (409 · problem_has_runs).');
+      await capture(page, testInfo, `delete-${name}-409`);
       expect(critical).toEqual([]);
     });
 
-    test('case-detail /app/:org/:project/problems/:case/:tab? · header, tabs, Versions and Settings', async ({ page }, testInfo) => {
+    test('case-detail /app/:org/problems/:case · overview, versions, source, settings and a new version', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto(CASE);
+      await page.goto(`${PROBLEMS}/flujo-checkout`);
       const main = page.locator('#platform-main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Flujo de checkout' })).toBeVisible();
-      await expect(main.getByText('Payments with parallel stock and shipping.')).toBeVisible();
-      const tabs = main.getByRole('tablist', { name: 'Problem sections' });
-      await expect(tabs.getByRole('tab')).toHaveText(['Overview', 'Runs', 'Versions', 'Source', 'Settings']);
-      await expect(tabs.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
-      await expect(main.getByRole('combobox', { name: 'Version', exact: true })).toHaveValue('2');
-      await expect(main.getByRole('link', { name: 'New version' })).toHaveAttribute('href', `${ROOT}/workbench?case=flujo-checkout`);
-      await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', `${ROOT}/runs/new?case=flujo-checkout&revision=2`);
-
-      // The history of the versions is its own tab.
-      await tabs.getByRole('tab', { name: 'Versions' }).click();
-      await expect(page).toHaveURL(`${CASE}/versions`);
-      const timeline = main.getByRole('region', { name: 'Versions' });
-      await expect(timeline.getByRole('link', { name: /^Version \d$/ })).toHaveText(['Version 2', 'Version 1']);
-      await expect(timeline.getByText('Candidate catalog · providers: providers-eu v2 → providers-eu v3')).toBeVisible();
-      await expect(timeline.getByText('First version.')).toBeVisible();
-      await capture(page, testInfo, `detail-${name}-success`);
-
-      // The runs of the problem: none started from it in this project.
-      await tabs.getByRole('tab', { name: 'Runs' }).click();
-      await expect(main.getByText('No runs of this problem yet')).toBeVisible();
-
-      // An address that is not a tab of the page.
-      await page.goto(`${CASE}/history`);
-      await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
-
-      // A problem without versions points to the workbench.
-      await page.goto(`${ROOT}/problems/borrador`);
-      const guide = main.getByRole('region', { name: 'No versions yet' });
-      await expect(guide.getByRole('link', { name: 'Compose the first version' })).toHaveAttribute('href', `${ROOT}/workbench?case=borrador`);
-      await capture(page, testInfo, `detail-${name}-empty`);
-      expect(critical).toEqual([]);
-    });
-
-    test('case-detail Settings /app/:org/:project/problems/:case/settings', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      const main = page.locator('#platform-main');
-      await page.goto(`${CASE}/settings`);
-      await expect(main.getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true');
-      await expect(main.getByLabel('Name', { exact: true })).toHaveValue('Flujo de checkout');
-      await capture(page, testInfo, `settings-${name}-success`);
-      if (isMobile) {
-        expect(critical).toEqual([]);
-        return;
-      }
-
-      // The name and the description are edited in Settings and saved.
-      await main.getByLabel('Description', { exact: true }).fill('Catalog grown from 5 to 8 candidates.');
-      await capture(page, testInfo, `detail-${name}-editing`);
-      await main.getByRole('button', { name: 'Save' }).click();
-      await expect(main.getByText('Saved.')).toBeVisible();
-      expect(state.sent.patch).toEqual({ name: 'Flujo de checkout', description: 'Catalog grown from 5 to 8 candidates.' });
-      await page.goto(CASE);
-      await expect(main.getByText('Catalog grown from 5 to 8 candidates.')).toBeVisible();
-
-      // Deleting is for an ADMIN, and a problem that holds sealed versions says why it can't go.
-      await page.goto(`${CASE}/settings`);
-      await main.getByRole('button', { name: 'Delete problem' }).click();
-      const sealed = page.getByRole('dialog', { name: 'Delete Flujo de checkout?' });
-      await expect(sealed.getByText(/2 sealed versions, so it can’t be deleted/)).toBeVisible();
-      await expect(sealed.getByRole('button', { name: 'Delete problem' })).toBeDisabled();
-      await capture(page, testInfo, `detail-${name}-delete-sealed`);
-      await sealed.getByRole('button', { name: 'Cancel' }).click();
-
-      // An empty problem is deleted and the list takes its place.
-      await page.goto(`${ROOT}/problems/borrador/settings`);
-      await main.getByRole('button', { name: 'Delete problem' }).click();
-      const dialog = page.getByRole('dialog', { name: 'Delete Borrador?' });
-      await dialog.getByLabel('Type borrador to confirm').fill('borrador');
-      await dialog.getByRole('button', { name: 'Delete problem' }).click();
-      await expect(page).toHaveURL(`${ROOT}/problems`);
-      await expect(main.getByText('Problem “Borrador” deleted.')).toBeVisible();
-
-      // A VIEWER reads: no new version, no editing.
-      await page.goto('/app/consultora-demo/client-case/problems/flujo-checkout');
-      await expect(main.getByRole('note')).toContainText('You can read and compare versions. New versions need MEMBER; deleting needs ADMIN.');
-      await expect(main.getByRole('link', { name: 'New version' })).toHaveCount(0);
-      await page.goto('/app/consultora-demo/client-case/problems/flujo-checkout/settings');
-      await expect(main.getByLabel('Description', { exact: true })).toBeDisabled();
-      await expect(main.getByRole('button', { name: 'Save' })).toHaveCount(0);
-      await capture(page, testInfo, `detail-${name}-viewer`);
-
-      // A problem that isn't there.
-      await page.goto(`${ROOT}/problems/ghost`);
-      await expect(main.getByRole('heading', { name: 'No problem with this address in QoS Benchmarks (404)' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'All problems' })).toHaveAttribute('href', `${ROOT}/problems`);
-      await capture(page, testInfo, `detail-${name}-404`);
-      expect(critical).toEqual([]);
-    });
-
-    test('case-detail Overview ?version= (the old revision address moves to it)', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto(`${OLD_CASE}/revisions/2`);
-      const main = page.locator('#platform-main');
-
-      await expect(page).toHaveURL(`${CASE}?version=2`);
-      await expect(main.getByRole('heading', { level: 1, name: 'Flujo de checkout' })).toBeVisible();
-      await expect(main.getByRole('combobox', { name: 'Version', exact: true })).toHaveValue('2');
-      await expect(main.getByText('Sealed', { exact: true }).first()).toBeVisible();
+      await expect(main.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
+      await expect(main.getByRole('link', { name: 'Edit in the Workbench' })).toHaveAttribute('href', '/app/isa-demo/workbench?problem=flujo-checkout&revision=2');
+      await expect(main.getByRole('link', { name: 'Run this version' })).toHaveAttribute('href', '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2');
       const workflow = main.getByRole('region', { name: 'How the service works' });
-      const drawing = workflow.getByRole('img', { name: /^Workflow: authenticate, then inventory and shipping in parallel/ });
-      await expect(drawing).toBeVisible();
-      await expect(drawing.getByText('70%')).toBeVisible();
-      await expect(drawing.getByText('local task · not bound')).toBeVisible();
-      const providers = main.getByRole('region', { name: 'Candidates' });
-      await expect(providers.getByRole('row')).toHaveCount(1 + 4);
-      await expect(main.getByRole('region', { name: 'Rules' }).getByText('MUST')).toBeVisible();
-      await expect(main.getByRole('region', { name: 'Goal' }).getByText('lower is better').first()).toBeVisible();
-      await expect(main.getByText(/not declared in this version \(no pools, network or events\)/)).toBeVisible();
-      const resources = main.getByRole('region', { name: 'Resources it’s built from' });
-      const catalogCard = resources.getByRole('listitem').filter({ hasText: /Candidate catalog.*providers-eu v3/ });
-      await expect(catalogCard).toContainText('Published');
-      await expect(catalogCard).not.toContainText(/open in library/i);
-      await expect(resources.getByRole('link')).toHaveCount(0);
-      await expect(main.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${CASE}/source?version=2`);
-      await capture(page, testInfo, `revision-${name}-success`);
-      if (isMobile) {
-        expect(critical).toEqual([]);
-        return;
-      }
+      await expect(workflow.getByRole('img', { name: /^Workflow: authenticate, then inventory and shipping in parallel/ })).toBeVisible();
+      await expect(main.getByRole('region', { name: 'Candidates' }).getByRole('table')).toBeVisible();
+      await expect(main.getByRole('region', { name: 'Resources it’s built from' })).toHaveCount(0);
+      await capture(page, testInfo, `overview-${name}`);
 
-      // The task whose providers are listed can be changed.
-      await providers.getByLabel('Task').selectOption('pay-card');
-      await expect(providers.getByRole('row')).toHaveCount(1 + 8);
+      // The versions as a timeline, and what changed between two of them.
+      await main.getByRole('tab', { name: 'Versions' }).click();
+      const versions = main.getByRole('region', { name: 'Versions' });
+      await expect(versions.getByRole('link', { name: /^Version \d$/ })).toHaveText(['Version 2', 'Version 1']);
+      await expect(main.getByRole('heading', { level: 2, name: 'Compare versions' })).toBeVisible();
+      await expect(main.getByRole('row', { name: /Candidates for pay-card/ })).toContainText('Changed');
+      await capture(page, testInfo, `versions-${name}`);
 
-      // Another version of the same problem.
-      await main.getByRole('combobox', { name: 'Version', exact: true }).selectOption('1');
-      await expect(page).toHaveURL(`${CASE}?version=1`);
-      await expect(main.getByRole('combobox', { name: 'Version', exact: true })).toHaveValue('1');
+      // The source: the files of the package as uploaded, and the compiled form.
+      await main.getByRole('tab', { name: 'Source' }).click();
+      await expect(main.getByRole('list', { name: 'Files in the package' })).toBeVisible();
+      await expect(main.getByRole('region', { name: 'What the engines receive' })).toContainText('2 engine modes can run it.');
+      await capture(page, testInfo, `source-${name}`);
 
-      // The compiled form and the resources can't be loaded: the identity stays, the model says it may be incomplete.
-      state.refuse.snapshot = unavailable;
-      state.refuse.resolve = detail(404, 'not_found', 'Artifact version not found.');
-      await page.goto(`${CASE}?version=2`);
-      await expect(main.getByText(/Some resources of this version couldn’t be loaded right now, so the model below may be incomplete/)).toBeVisible();
-      await expect(main.getByText('The fingerprint and identity are still exact.')).toBeVisible();
-      await expect(main.getByText(/The compiled form couldn’t be read \(503\)/)).toBeVisible();
-      await capture(page, testInfo, `revision-${name}-unresolved`);
+      // A new version: another upload of a package.
+      await main.getByRole('button', { name: 'Upload new version' }).click();
+      const dialog = page.getByRole('dialog', { name: 'New version of Flujo de checkout' });
+      await dialog.getByLabel('BIM package').setInputFiles(await packageFile());
+      await dialog.getByRole('button', { name: 'Upload version' }).click();
+      await expect(main.getByText('Saved as version 3.')).toBeVisible();
+      await expect(main.getByRole('combobox', { name: 'Version' })).toHaveValue('3');
+      await capture(page, testInfo, `new-version-${name}`);
 
-      // A version that doesn't exist.
-      await page.goto(`${CASE}?version=9`);
-      await expect(main.getByRole('heading', { name: 'This version doesn’t exist (404)' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'See all versions' })).toHaveAttribute('href', `${CASE}/versions`);
-      await capture(page, testInfo, `revision-${name}-404`);
+      await main.getByRole('tab', { name: 'Settings' }).click();
+      await expect(main.getByLabel('Name', { exact: true })).toHaveValue('Flujo de checkout');
+      await expect(main.getByRole('button', { name: 'Delete problem' })).toBeVisible();
+      await capture(page, testInfo, `settings-${name}`);
       expect(critical).toEqual([]);
     });
 
-    test('case-detail Versions · compare (the old compare address moves to it)', async ({ page }, testInfo) => {
+    test('case-detail /app/:org/problems/:case · a VIEWER reads, and a missing problem answers 404', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto(`${OLD_CASE}/compare`);
       const main = page.locator('#platform-main');
+      await page.goto('/app/consultora-demo/problems/flujo-checkout');
+      await expect(main.getByRole('heading', { level: 1, name: 'Flujo de checkout' })).toBeVisible();
+      await expect(main.getByRole('note')).toContainText('You can read and compare versions. New versions need MEMBER; deleting needs ADMIN.');
+      await expect(main.getByRole('button', { name: 'Upload new version' })).toHaveCount(0);
+      await capture(page, testInfo, `viewer-${name}`);
 
-      await expect(page).toHaveURL(`${CASE}/versions`);
-      await expect(main.getByRole('heading', { level: 2, name: 'Compare versions' })).toBeVisible();
-      await expect(main.getByRole('combobox', { name: 'From', exact: true })).toHaveValue('1');
-      await expect(main.getByRole('combobox', { name: 'To', exact: true })).toHaveValue('2');
-      const table = main.getByRole('table');
-      await expect(table.getByRole('row', { name: /Candidates for pay-card/ }).getByRole('cell')).toHaveText(['5', '8', 'Changed']);
-      const summary = main.getByRole('region', { name: 'Summary' });
-      await expect(summary.getByRole('button', { name: /^All changes/ })).toContainText('4');
-      await expect(summary.getByRole('button', { name: /^Providers/ })).toContainText('3');
-      await expect(main.getByText('≈ 3.2× more combinations (10^0.5)')).toBeVisible();
-      await capture(page, testInfo, `compare-${name}-success`);
-
-      // A category narrows the table.
-      await summary.getByRole('button', { name: /^Providers/ }).click();
-      await expect(summary.getByRole('button', { name: /^Providers/ })).toHaveAttribute('aria-pressed', 'true');
-      await expect(table.getByRole('row', { name: /Workflow/ })).toHaveCount(0);
-      await capture(page, testInfo, `compare-${name}-filtered`);
-      if (isMobile) {
-        expect(critical).toEqual([]);
-        return;
-      }
-
-      // Swapped, the second version is the smaller one.
-      await main.getByRole('button', { name: 'Swap versions' }).click();
-      await expect(main.getByRole('combobox', { name: 'From', exact: true })).toHaveValue('2');
-      await expect(main.getByText('≈ 3.2× fewer combinations (10^0.5)')).toBeVisible();
-
-      // The same version on both sides has nothing to compare.
-      await page.goto(`${OLD_CASE}/compare?from=2&to=2`);
-      await expect(page).toHaveURL(`${CASE}/versions?from=2&to=2`);
-      await expect(main.getByText('Both sides are the same version, so there’s nothing to compare. Choose two different versions.')).toBeVisible();
-      await capture(page, testInfo, `compare-${name}-same`);
-
-      // A version that doesn't exist.
-      await page.goto(`${CASE}/versions?from=1&to=7`);
-      await expect(main.getByRole('alert')).toContainText('One of these versions doesn’t exist (404). Pick another pair.');
-      await capture(page, testInfo, `compare-${name}-404`);
-
-      // A problem that isn't there.
-      await page.goto(`${ROOT}/problems/ghost/versions`);
-      await expect(main.getByRole('heading', { name: 'No problem with this address in QoS Benchmarks (404)' })).toBeVisible();
-      expect(critical).toEqual([]);
-    });
-
-    test('case-detail Source ?version= (the old snapshot address moves to the list of problems)', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto(`${ROOT}/snapshots/${S2}`);
-      await expect(page).toHaveURL(`${ROOT}/problems`);
-      await page.goto(`${CASE}/source?version=2`);
-      const main = page.locator('#platform-main');
-
-      await expect(main.getByRole('tab', { name: 'Source' })).toHaveAttribute('aria-selected', 'true');
-      await expect(main.getByRole('region', { name: 'Compiled form (JSON)' })).toBeVisible();
-      const fingerprints = main.getByRole('region', { name: 'Fingerprints' });
-      await expect(fingerprints.locator('.snap-digest')).toHaveCount(3);
-      await expect(fingerprints).not.toContainText(/sha256-|[0-9a-f]{12}/);
-      const language = main.getByRole('region', { name: 'Exact language used' });
-      await expect(language.getByText('Profile · qos-binding/v1')).toBeVisible();
-      const engines = main.getByRole('region', { name: 'What the engines receive' });
-      await expect(engines.getByRole('list', { name: 'What the engines receive' }).getByRole('listitem')).toHaveText(['6tasks', '24candidates', '2rules', '2goal terms', '10^3.3combinations']);
-      await capture(page, testInfo, `snapshot-${name}-success`);
-      if (isMobile) {
-        expect(critical).toEqual([]);
-        return;
-      }
-
-      // The files, as the browser receives them.
-      const download = page.waitForEvent('download');
-      await main.getByRole('button', { name: /^Package archive/ }).click();
-      expect((await download).suggestedFilename()).toBe('snapshot.bim.zip');
-      const compiled = page.waitForEvent('download');
-      await main.getByRole('button', { name: /^Compiled form\s*For tools/ }).click();
-      expect((await compiled).suggestedFilename()).toBe('snapshot-compiled.json');
-
-      // The files of the package, next to the compiled form.
-      await main.getByRole('button', { name: 'Files in the package' }).click();
-      await expect(main.getByRole('list', { name: 'Files in the package' }).getByRole('button')).toHaveCount(2);
-      await capture(page, testInfo, `snapshot-${name}-source`);
-
-      // The pinned files and resources are with the fingerprints.
-      await main.getByText('Per-file and per-resource fingerprints').click();
-      await expect(main.getByRole('table', { name: 'Files (2)' })).toBeVisible();
-
-      // The analysis is not available (409): the summary hides, the fingerprints and downloads stay.
-      state.refuse.validate = detail(409, 'analysis_unavailable', 'The compiled form does not match.');
-      await page.goto(`${CASE}/source?version=2`);
-      await expect(engines.getByRole('alert')).toContainText('The compiled form doesn’t match this snapshot any more (409 · analysis unavailable), so its summary is hidden.');
-      await expect(main.getByRole('region', { name: 'Downloads' })).toBeVisible();
-      await capture(page, testInfo, `snapshot-${name}-409`);
-      state.refuse.validate = undefined;
-
-      // A snapshot that isn't the account's reads like one that doesn't exist; an API key without the permission is told so.
-      state.refuse.snapshot = detail(404, 'not_found', 'Snapshot not found');
-      await page.goto(`${CASE}/source?version=2`);
-      await expect(main.getByRole('heading', { name: 'Snapshot not found' })).toBeVisible();
-      await capture(page, testInfo, `snapshot-${name}-404`);
-      state.refuse.snapshot = detail(403, 'forbidden', 'The API key does not include instances:read.');
-      await page.goto(`${CASE}/source?version=2`);
-      await expect(main.getByText('This API key doesn’t include “read instances” (403).')).toBeVisible();
-      await capture(page, testInfo, `snapshot-${name}-403`);
+      await page.goto(`${PROBLEMS}/ghost`);
+      await expect(main.getByRole('heading', { name: 'No problem with this address in ISA Demo Group (404)' })).toBeVisible();
+      await expect(main.getByRole('link', { name: 'All problems' })).toHaveAttribute('href', PROBLEMS);
+      await capture(page, testInfo, `missing-${name}`);
       expect(critical).toEqual([]);
     });
   });

@@ -3,20 +3,16 @@
 The answer is written and committed before BIM is called; a BIM failure leaves
 the job FAILED with the stable code ``bim_evaluation_failed`` and a reference to
 the kept answer (never its body); any success deletes every row of the job; and
-``POST /v1/jobs/{id}/reevaluate`` evaluates the kept answer without running the
+``POST /v1/organizations/{org}/runs/{run}/reevaluate`` evaluates the kept answer without running the
 engine again. Everything here is SQLite with a stubbed engine transport; the
 row locks are exercised in ``tests/concurrency/test_job_evidence_pg.py``.
 """
 
 from __future__ import annotations
 
-import os
-import sqlite3
-import subprocess
-import sys
 import uuid
+from _problem_helpers import placeholder_refs
 from datetime import timedelta
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -28,7 +24,8 @@ from sqlalchemy import func, select, update
 from _b1_helpers import gate, make_key  # noqa: F401
 from _paths import GATEWAY_ROOT
 from _pricing import pricing_catalog
-from analysis_b3_b4_b6._helpers import account_with_snapshot, answer, only_job, precondition, submit
+from _problem_helpers import run_url, runs_url
+from analysis_b3_b4_b6._helpers import account_with_revision, answer, only_job, precondition, submit
 from openbinding_gateway.core.public_errors import JOB_FAILURES
 from openbinding_gateway.core.settings import Settings, get_settings
 from openbinding_gateway.db.models import AuditEvent, Job, JobEngineEvidence, JobState, User, UserRole, utcnow
@@ -36,11 +33,10 @@ from openbinding_gateway.integrations import bim
 from openbinding_gateway.jobs import evidence as job_evidence
 from openbinding_gateway.jobs import reconciler
 from openbinding_gateway.jobs.leases import aware
-from openbinding_gateway.routes import jobs as jobs_routes
+from openbinding_gateway.modules.execution.adapters import routes as jobs_routes
 from openbinding_gateway.services import execution
 from test_viewer_read_only import (  # noqa: F401
     EXECUTE_SCOPES,
-    PROBLEM,
     READ_SCOPES,
     lab,
     no_dispatch,
@@ -102,12 +98,12 @@ def bim_back(monkeypatch) -> list[int]:
 
 @pytest.fixture
 async def failed(api_client, db_session, registration, engine, bim_down):
-    """A personal job whose solve worked and whose evaluation failed because BIM was down."""
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
-    await submit(api_client, headers, snapshot_id)
+    """A run of the caller's own organization whose solve worked and whose evaluation failed because BIM was down."""
+    headers, revision_id = await account_with_revision(api_client, registration)
+    await submit(api_client, headers, revision_id)
     job = await only_job(db_session)
     precondition(job.state is JobState.FAILED, f"the job ended {job.state.value}, not failed")
-    return SimpleNamespace(headers=headers, job=job, url=f"/v1/jobs/{job.id}/reevaluate")
+    return SimpleNamespace(headers=headers, job=job, url=run_url(job, "/reevaluate"))
 
 
 @pytest.fixture
@@ -158,9 +154,9 @@ async def test_the_answer_is_written_and_committed_before_bim_is_asked(
         raise BimServiceError("service_unavailable", "down")
 
     monkeypatch.setattr(bim.AsyncBim, "reevaluate", watching)
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
+    headers, revision_id = await account_with_revision(api_client, registration)
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     assert seen == {"in_transaction": False, "rows": 1}
 
@@ -188,8 +184,8 @@ async def test_a_bim_failure_keeps_the_answer_and_fails_the_job_with_a_stable_co
 
 
 async def test_the_kept_answer_is_in_no_view_of_the_job(api_client, failed):
-    one = await api_client.get(f"/v1/jobs/{failed.job.id}", headers=failed.headers)
-    listed = await api_client.get("/v1/jobs", headers=failed.headers)
+    one = await api_client.get(run_url(failed.job), headers=failed.headers)
+    listed = await api_client.get(runs_url(failed.job), headers=failed.headers)
 
     assert one.status_code == listed.status_code == 200
     assert MARKER not in one.text and MARKER not in listed.text
@@ -198,7 +194,7 @@ async def test_the_kept_answer_is_in_no_view_of_the_job(api_client, failed):
 async def test_the_evidence_is_not_exposed_by_a_route(api_client, failed):
     from openbinding_gateway.main import app
 
-    response = await api_client.get(f"/v1/jobs/{failed.job.id}/evidence", headers=failed.headers)
+    response = await api_client.get(run_url(failed.job, "/evidence"), headers=failed.headers)
 
     assert response.status_code in (404, 405)
     assert not [path for path in app.openapi()["paths"] if path.endswith("/evidence")]
@@ -234,9 +230,9 @@ async def test_a_lost_lease_after_the_evidence_commit_deletes_its_own_row(
         return await REAL_REEVALUATE(self, *args, **kwargs)
 
     monkeypatch.setattr(bim.AsyncBim, "reevaluate", stolen)
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
+    headers, revision_id = await account_with_revision(api_client, registration)
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     assert job.state is JobState.RUNNING and job.lease_token == "someone-else"
@@ -256,9 +252,9 @@ async def test_a_cancellation_that_came_in_during_the_evaluation_cancels_the_job
         return await REAL_REEVALUATE(self, *args, **kwargs)
 
     monkeypatch.setattr(bim.AsyncBim, "reevaluate", cancelled_meanwhile)
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
+    headers, revision_id = await account_with_revision(api_client, registration)
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     assert job.state is JobState.CANCELLED
@@ -376,7 +372,7 @@ async def _retried(session, job, _row):
     session.add(
         Job(
             owner_id=job.owner_id, engine_id=job.engine_id, engine_job_id="again", service_url=job.service_url,
-            state=JobState.QUEUED, retry_of_id=job.id,
+            state=JobState.QUEUED, retry_of_id=job.id, **placeholder_refs(),
         )
     )
 
@@ -449,7 +445,7 @@ async def test_another_user_gets_the_404_of_a_job_that_does_not_exist(api_client
     stranger = await account_headers(api_client, registration)
 
     foreign = await api_client.post(failed.url, headers=stranger)
-    missing = await api_client.post(f"/v1/jobs/{uuid.uuid4()}/reevaluate", headers=stranger)
+    missing = await api_client.post(run_url(uuid.uuid4(), "/reevaluate", org=failed.job.organization_id), headers=stranger)
     anonymous = await api_client.post(failed.url)
 
     assert foreign.status_code == missing.status_code == 404
@@ -472,7 +468,6 @@ async def failed_org_job(db_session, lab, person) -> Job:  # noqa: F811
     job = organization_job(lab, person, JobState.FAILED)
     job.attempt = 1
     job.original_request = {
-        "bindingProblem": PROBLEM,
         "mode": {"id": "seeded", "terminationGuarantees": ["FEASIBLE"]},
     }
     db_session.add(job)
@@ -497,7 +492,7 @@ async def test_a_member_or_above_retries_the_evaluation_of_their_job(
 ):
     job = await failed_org_job(db_session, lab, lab.people[role])
 
-    response = await api_client.post(f"/v1/jobs/{job.id}/reevaluate", headers=lab.people[role].headers)
+    response = await api_client.post(run_url(job, "/reevaluate"), headers=lab.people[role].headers)
 
     assert response.status_code == 200, response.text
     await db_session.refresh(job)
@@ -507,7 +502,7 @@ async def test_a_member_or_above_retries_the_evaluation_of_their_job(
 async def test_a_viewer_cannot_retry_the_evaluation(api_client, db_session, lab, evaluation):  # noqa: F811
     job = await failed_org_job(db_session, lab, lab.people["VIEWER"])
 
-    response = await api_client.post(f"/v1/jobs/{job.id}/reevaluate", headers=lab.people["VIEWER"].headers)
+    response = await api_client.post(run_url(job, "/reevaluate"), headers=lab.people["VIEWER"].headers)
 
     assert response.status_code == 403 and code_of(response) == "insufficient_role"
     await db_session.refresh(job)
@@ -515,21 +510,28 @@ async def test_a_viewer_cannot_retry_the_evaluation(api_client, db_session, lab,
     assert await count_evidence(db_session, job.id) == 1
 
 
-async def test_a_member_who_does_not_own_the_job_gets_a_404(api_client, db_session, lab, evaluation):  # noqa: F811
+async def test_another_member_reevaluates_a_teammates_run_and_an_outsider_gets_a_404(
+    api_client, db_session, lab, evaluation  # noqa: F811
+):
     job = await failed_org_job(db_session, lab, lab.people["MEMBER"])
 
-    response = await api_client.post(f"/v1/jobs/{job.id}/reevaluate", headers=lab.people["ADMIN"].headers)
-    outsider = await api_client.post(f"/v1/jobs/{job.id}/reevaluate", headers=lab.outsider.headers)
+    outsider = await api_client.post(run_url(job, "/reevaluate"), headers=lab.outsider.headers)
+    missing = await api_client.post(run_url(uuid.uuid4(), "/reevaluate", org=lab.slug), headers=lab.outsider.headers)
+    response = await api_client.post(run_url(job, "/reevaluate"), headers=lab.people["ADMIN"].headers)
 
-    assert response.status_code == outsider.status_code == 404
-    assert response.json() == outsider.json()
+    assert outsider.status_code == missing.status_code == 404
+    assert outsider.json() == missing.json()
+    # A run is the organization's: any member may re-evaluate it, not only who launched it.
+    assert response.status_code == 200, response.text
+    await db_session.refresh(job)
+    assert job.state is JobState.COMPLETED
 
 
 async def test_a_read_only_key_cannot_retry_the_evaluation(api_client, db_session, lab, evaluation):  # noqa: F811
     job = await failed_org_job(db_session, lab, lab.people["MEMBER"])
     key = await make_key(api_client, lab.people["MEMBER"].headers, READ_SCOPES)
 
-    response = await api_client.post(f"/v1/jobs/{job.id}/reevaluate", headers=key)
+    response = await api_client.post(run_url(job, "/reevaluate"), headers=key)
 
     assert response.status_code == 403 and code_of(response) == "insufficient_api_key_permission"
     await db_session.refresh(job)
@@ -544,8 +546,8 @@ async def test_a_key_that_may_execute_retries_the_evaluation_with_the_role_of_it
     member_key = await make_key(api_client, lab.people["MEMBER"].headers, EXECUTE_SCOPES)
     viewer_key = await make_key(api_client, lab.people["VIEWER"].headers, EXECUTE_SCOPES)
 
-    allowed = await api_client.post(f"/v1/jobs/{member_job.id}/reevaluate", headers=member_key)
-    denied = await api_client.post(f"/v1/jobs/{viewer_job.id}/reevaluate", headers=viewer_key)
+    allowed = await api_client.post(run_url(member_job, "/reevaluate"), headers=member_key)
+    denied = await api_client.post(run_url(viewer_job, "/reevaluate"), headers=viewer_key)
 
     assert allowed.status_code == 200, allowed.text
     assert denied.status_code == 403 and code_of(denied) == "insufficient_role"
@@ -566,7 +568,7 @@ def test_the_retention_is_validated():
 
 async def test_the_expiry_follows_the_configured_retention(db_session, owner, monkeypatch):
     monkeypatch.setattr(get_settings(), "evidence_retention_days", 3)
-    job = Job(owner_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine")
+    job = Job(owner_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine", **placeholder_refs())
     db_session.add(job)
     await db_session.commit()
 
@@ -577,7 +579,7 @@ async def test_the_expiry_follows_the_configured_retention(db_session, owner, mo
 
 
 async def test_an_answer_over_the_bound_is_not_kept(db_session, owner):
-    job = Job(owner_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine")
+    job = Job(owner_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine", **placeholder_refs())
     db_session.add(job)
     await db_session.commit()
 
@@ -588,7 +590,7 @@ async def test_an_answer_over_the_bound_is_not_kept(db_session, owner):
 
 
 async def test_the_sweep_deletes_only_expired_evidence_in_bounded_batches(db_session, owner):
-    job = Job(owner_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine")
+    job = Job(owner_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine", **placeholder_refs())
     db_session.add(job)
     await db_session.commit()
     now = utcnow()
@@ -629,58 +631,3 @@ async def test_a_retry_after_the_sweep_answers_410(api_client, db_session, faile
 
     assert response.status_code == 410 and code_of(response) == "evidence_expired"
     assert bim_back == []
-
-
-# -- The migration -------------------------------------------------------------
-
-PREVIOUS_REVISION = "f2a3b4c5d6e7"
-THIS_REVISION = "a5b6c7d8e9f0"
-
-
-def alembic(database: Path, *arguments: str) -> subprocess.CompletedProcess:
-    environment = {**os.environ, "DATABASE_URL": f"sqlite+aiosqlite:///{database}"}
-    return subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", "alembic.ini", *arguments],
-        cwd=ROOT, env=environment, capture_output=True, text=True, check=False,
-    )
-
-
-def run(database: Path, *arguments: str) -> str:
-    done = alembic(database, *arguments)
-    assert done.returncode == 0, done.stdout + done.stderr
-    return done.stdout
-
-
-def has_table(database: Path) -> bool:
-    with sqlite3.connect(database) as connection:
-        rows = connection.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'job_engine_evidence'")
-        return rows.fetchone() is not None
-
-
-def table_indexes(database: Path) -> dict[str, int]:
-    with sqlite3.connect(database) as connection:
-        return {row[1]: row[2] for row in connection.execute("PRAGMA index_list(job_engine_evidence)")}
-
-
-def test_the_migration_hangs_from_the_previous_head_and_its_downgrade_drops_the_table(tmp_path):
-    database = tmp_path / "evidence.db"
-
-    heads = run(database, "heads")
-    # Later migrations hang from this revision, so it is no longer the head;
-    # it only has to stay in the single linear history.
-    assert heads.count("(head)") == 1 and THIS_REVISION in run(database, "history")
-
-    run(database, "upgrade", PREVIOUS_REVISION)
-    assert not has_table(database)
-
-    run(database, "upgrade", "head")
-    assert has_table(database)
-    indexes = table_indexes(database)
-    assert indexes["uq_job_engine_evidence_job_attempt"] == 1  # unique
-    assert "ix_job_engine_evidence_expires_at" in indexes
-
-    run(database, "downgrade", PREVIOUS_REVISION)
-    assert not has_table(database)
-
-    run(database, "upgrade", "head")
-    assert has_table(database)

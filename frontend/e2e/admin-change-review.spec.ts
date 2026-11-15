@@ -1,7 +1,7 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import type { AdminUserView } from '../src/api/auth';
-import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
+import { AGREEMENT_CURRENT_FIXTURE as CURRENT_FIXTURE, agreementCatalogFixture as catalogFixture } from '../src/test/fixtures/agreementCatalog';
 import { ALEX, SAM, USERS, subscriptionOf, usageOf } from '../src/test/fixtures/admin';
 
 // admin-user-detail /app/admin/users/:user · the review of a subscription change, drawn by pricing-renderer's <pricing-change-review>.
@@ -60,7 +60,7 @@ async function mockApi(page: Page): Promise<{ sent: Sent; changeElsewhere: (id: 
   await page.route(`${API}/v1/auth/refresh`, json({ access_token: 'review-access-2', refresh_token: 'review-refresh-2', token_type: 'bearer', expires_in: 900 }));
   await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
   await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
-  await page.route(`${API}/v1/users/me`, json({ ...ALEX, institutional_branding: false }));
+  await page.route(`${API}/v1/users/me`, json(ALEX));
   await page.route(`${API}/v1/users/me/usage`, json(usageOf('PRO')));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
@@ -242,7 +242,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Apply agreement', exact: true }).click();
       const limits = review.locator('[data-pr-part="review-limits"]');
       await expect(row(limits, 'API keys')).toContainText('1 key → Unlimited');
-      await expect(row(limits, 'Max problem size')).toContainText('Unlimited');
+      await expect(row(limits, 'Max instance complexity log10')).toContainText('Unlimited');
       await expect(limits).not.toContainText('—');
       await review.locator('[data-pr-part="review-back"]').click();
 

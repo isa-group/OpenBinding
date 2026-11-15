@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { catalogFixture } from '../Pricing/pricingFixture';
+import { agreementCatalogFixture } from '../../test/fixtures/agreementCatalog';
 import {
   ageLabel, agreementIssues, auditFamily, compareLimits, contractSelection, describeAdminFailure, describeAuditEvent, errorMeaning, groupErrors, humanize,
   isOutdatedChange, limitsOf, planTone, readContractCatalog, readErrorEvent, shortId, statusTone, type ContractCatalog,
@@ -9,7 +9,7 @@ import {
 import { AUDIT, ERROR_EVENTS, SAM } from '../../test/fixtures/admin';
 
 function catalog(): ContractCatalog {
-  const read = readContractCatalog(catalogFixture);
+  const read = readContractCatalog(agreementCatalogFixture);
   if (!read) throw new Error('the fixture has plans');
   return read;
 }
@@ -32,10 +32,10 @@ describe('describeAdminFailure', () => {
   });
 
   it('reads a quota refusal as a 402 with the quota that was named', () => {
-    const failure = describeAdminFailure(new QuotaError('sponsor_quota_exceeded', 'over', { limit_id: 'members', limit: 15, used: 18 }), 'ignored');
+    const failure = describeAdminFailure(new QuotaError('quota_exceeded', 'over', { limit_id: 'maxProblems', limit: 15, used: 18 }), 'ignored');
     expect(failure.status).toBe(402);
-    expect(failure.quota).toEqual({ limit_id: 'members', limit: 15, used: 18 });
-    expect(failure.title).toBe('Over a limit (402 · sponsor_quota_exceeded)');
+    expect(failure.quota).toEqual({ limit_id: 'maxProblems', limit: 15, used: 18 });
+    expect(failure.title).toBe('Over a limit (402 · quota_exceeded)');
   });
 
   it('reads an unreachable pricing service as a 503 that is only a warning', () => {
@@ -92,12 +92,12 @@ describe('the pricing catalog, read for contracts', () => {
     expect(read.plans.map((plan) => plan.id)).toEqual(['BASIC', 'ADVANCED', 'RESEARCH', 'PRO']);
     expect(read.plans.find((plan) => plan.id === 'BASIC')?.byAgreement).toBe(false);
     expect(read.plans.find((plan) => plan.id === 'PRO')?.byAgreement).toBe(true);
-    expect(read.plans.find((plan) => plan.id === 'BASIC')?.limits.apiKeys).toBe(1);
-    expect(read.plans.find((plan) => plan.id === 'PRO')?.limits.apiKeys).toBeNull();
+    expect(read.plans.find((plan) => plan.id === 'BASIC')?.limits.maxApiKeys).toBe(1);
+    expect(read.plans.find((plan) => plan.id === 'PRO')?.limits.maxApiKeys).toBeNull();
     const pack = read.addOns.find((addOn) => addOn.id === 'COLLABORATION_PACK');
     expect(pack).toMatchObject({ name: 'Collaboration pack', plans: ['ADVANCED', 'PRO'], min: 1, max: 10, step: 1 });
     expect(pack?.extensions.projects).toBe(10);
-    expect(read.limitIds[0]).toBe('studyRuns');
+    expect(read.limitIds[0]).toBe('maxConcurrentRuns');
   });
 
   it('is nothing when the document has no plans', () => {
@@ -109,7 +109,7 @@ describe('the pricing catalog, read for contracts', () => {
     expect(limitsOf(read, 'ADVANCED', {}).projects).toBe(25);
     expect(limitsOf(read, 'ADVANCED', { COLLABORATION_PACK: 2 }).projects).toBe(45);
     expect(limitsOf(read, 'ADVANCED', { COLLABORATION_PACK: 2 }).members).toBe(10 + 2 * 5);
-    expect(limitsOf(read, 'PRO', { COLLABORATION_PACK: 2 }).apiKeys).toBeNull();
+    expect(limitsOf(read, 'PRO', { COLLABORATION_PACK: 2 }).maxApiKeys).toBeNull();
   });
 
   it('finds what is wrong with an agreement before the gateway does', () => {
@@ -124,12 +124,12 @@ describe('the pricing catalog, read for contracts', () => {
   it('compares limits before and after, with the direction each one moves', () => {
     const read = catalog();
     const up = compareLimits(read, limitsOf(read, 'BASIC', {}), limitsOf(read, 'PRO', {}));
-    const keys = up.find((row) => row.id === 'apiKeys');
+    const keys = up.find((row) => row.id === 'maxApiKeys');
     expect(keys).toMatchObject({ label: 'API keys', direction: 'up' });
     expect(keys?.before.text).toBe('1');
     expect(keys?.after.text).toBe('Unlimited');
     const down = compareLimits(read, limitsOf(read, 'ADVANCED', {}), limitsOf(read, 'BASIC', {}));
-    expect(down.find((row) => row.id === 'apiKeys')?.direction).toBe('down');
+    expect(down.find((row) => row.id === 'maxApiKeys')?.direction).toBe('down');
     expect(compareLimits(read, limitsOf(read, 'BASIC', {}), limitsOf(read, 'BASIC', {})).every((row) => row.direction === 'same')).toBe(true);
   });
 
@@ -169,15 +169,9 @@ describe('audit events in words', () => {
     expect(describeAuditEvent({ ...base, action: 'account.cas.linked', detail: {} }).text).toBe('An institutional identity was linked.');
   });
 
-  it('describes the sponsor events of an organization', () => {
+  it('describes an organization event', () => {
     const base = { ...AUDIT.events[0], organizationId: 'org-1', organizationSlug: 'isa-demo' };
-    const view = describeAuditEvent({ ...base, action: 'organization.sponsor.proposed', detail: { proposed_user_id: 'user-priya-0001', expires_at: '2026-10-24T09:00:00Z' } });
-    expect(view.text).toBe('A request to become the billing sponsor was sent.');
-    expect(view.facts).toEqual([['Asked to sponsor', 'user-pri…'], ['Expires', 'Oct 24, 2026']]);
-    expect(describeAuditEvent({ ...base, action: 'organization.sponsor.expired', detail: { reason: 'expired' } }).text).toBe('A request to become the billing sponsor expired.');
     expect(describeAuditEvent({ ...base, action: 'organization.updated', detail: { name: 'New' } }).text).toBe('The organization’s settings were updated.');
-    expect(describeAuditEvent({ ...base, action: 'organization.updated', detail: { new_sponsor_user_id: 'user-nora-00001' } }).facts).toEqual([['New sponsor', 'user-nor…']]);
-    expect(describeAuditEvent({ ...base, action: 'organization.sponsor_transferred', detail: {} }).text).toBe('The organization’s billing sponsor was changed.');
   });
 
   it('describes a contract change with its before and after', () => {
@@ -221,7 +215,7 @@ describe('audit events in words', () => {
 describe('error events', () => {
   it('reads either spelling of every field', () => {
     const row = readErrorEvent(ERROR_EVENTS[0]);
-    expect(row).toMatchObject({ status: 402, code: 'quota_exceeded', endpoint: '/v1/jobs', method: 'POST', userId: SAM.id, userEmail: SAM.email });
+    expect(row).toMatchObject({ status: 402, code: 'quota_exceeded', endpoint: '/v1/organizations/score-ai/runs', method: 'POST', userId: SAM.id, userEmail: SAM.email });
     const snake = readErrorEvent({ ...ERROR_EVENTS[0], statusCode: undefined as never, errorCode: undefined as never, httpMethod: undefined as never, userId: undefined, userEmail: undefined, createdAt: undefined as never });
     expect(snake).toMatchObject({ status: 402, code: 'quota_exceeded', method: 'POST', userId: SAM.id, userEmail: SAM.email });
   });
@@ -269,8 +263,8 @@ describe('small formatters', () => {
   });
 
   it('picks a tone for a plan', () => {
-    expect(planTone('PRO')).toBe('dark');
+    expect(planTone('LAB')).toBe('dark');
     expect(planTone('RESEARCH')).toBe('info');
-    expect(planTone('BASIC')).toBe('plain');
+    expect(planTone('FREE')).toBe('plain');
   });
 });

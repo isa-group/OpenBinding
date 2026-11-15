@@ -1,6 +1,6 @@
 """G2: cancelling a job that is RUNNING reaches the solver while the worker waits for the engine.
 
-``POST /v1/jobs/{id}/cancel`` on a running job only sets ``cancellation_requested``. The worker used to read it
+``cancelRun`` on a running job only sets ``cancellation_requested``. The worker used to read it
 after ``solve_remote`` returned, so the ``DELETE`` left when the solver was already over. Now the worker looks at the
 flag between two polls (``execution.CancelWatch``) and, when the registration declares cancellation, claims the
 attempt and sends the ``DELETE`` through the same guarded door as every other cancellation.
@@ -24,7 +24,8 @@ import httpx
 import pytest
 from sqlalchemy import select
 
-from analysis_b3_b4_b6._helpers import a_job, account_headers, account_with_snapshot, answer, only_job, submit
+from _problem_helpers import run_url, runs_url_for
+from analysis_b3_b4_b6._helpers import a_job, account_headers, account_with_revision, answer, only_job, submit
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import Job, JobState
 from openbinding_gateway.jobs import leases, reconciler, remote_attempts
@@ -134,18 +135,20 @@ def at_poll(engine: AsyncEngine, number: int, action) -> None:
     engine.before_poll = hook
 
 
-def cancelling(api_client, headers, engine: AsyncEngine, *, times: int = 1, expect: int = 200):
+def cancelling(api_client, headers, engine: AsyncEngine, revision_id, *, times: int = 1, expect: int = 200):
     async def cancel() -> None:
         for _ in range(times):
-            response = await api_client.post(f"/v1/jobs/{engine.gateway_job_id}/cancel", headers=headers)
+            response = await api_client.post(
+                f"{runs_url_for(revision_id)}/{engine.gateway_job_id}/cancel", headers=headers,
+            )
             assert response.status_code == expect, response.text
 
     return cancel
 
 
 async def launched(api_client, registration):
-    headers, snapshot_id = await account_with_snapshot(api_client, registration)
-    return headers, snapshot_id
+    headers, revision_id = await account_with_revision(api_client, registration)
+    return headers, revision_id
 
 
 async def state_seen_by_the_engine(db_session) -> JobState:
@@ -160,16 +163,16 @@ async def state_seen_by_the_engine(db_session) -> JobState:
 async def test_a_cancel_during_the_wait_sends_one_delete_and_the_job_is_cancelled_after_the_confirmation(
     api_client, db_session, registration, engine, declared
 ):
-    headers, snapshot_id = await launched(api_client, registration)
+    headers, revision_id = await launched(api_client, registration)
     seen: list[JobState] = []
 
     async def note_state() -> None:
         seen.append(await state_seen_by_the_engine(db_session))
 
     engine.on_delete = note_state
-    at_poll(engine, 2, cancelling(api_client, headers, engine, times=2))  # cancelling twice is one cancellation
+    at_poll(engine, 2, cancelling(api_client, headers, engine, revision_id, times=2))  # cancelling twice is one cancellation
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     assert engine.deletes == [ENGINE_ID]
@@ -178,18 +181,18 @@ async def test_a_cancel_during_the_wait_sends_one_delete_and_the_job_is_cancelle
     assert job.result is None and job.termination is None and job.lease_token is None
     assert engine.state == "cancelled" and engine.polls == 2  # the wait ended at the confirmation
     assert await cancel_rows(db_session, job) == {1: ("sent", 1)}
-    again = await api_client.post(f"/v1/jobs/{job.id}/cancel", headers=headers)
+    again = await api_client.post(run_url(job, "/cancel"), headers=headers)
     assert again.status_code == 409 and engine.deletes == [ENGINE_ID]
 
 
 async def test_a_202_is_followed_by_the_engine_reporting_the_stop_and_the_job_is_cancelled(
     api_client, db_session, registration, engine, declared
 ):
-    headers, snapshot_id = await launched(api_client, registration)
+    headers, revision_id = await launched(api_client, registration)
     engine.delete_answers, engine.stops_after = [202], 2
-    at_poll(engine, 2, cancelling(api_client, headers, engine))
+    at_poll(engine, 2, cancelling(api_client, headers, engine, revision_id))
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     assert engine.deletes == [ENGINE_ID]  # the stop was seen on the poll; no second DELETE
@@ -201,9 +204,9 @@ async def test_a_202_is_followed_by_the_engine_reporting_the_stop_and_the_job_is
 async def test_a_202_is_retried_and_the_second_delete_confirms(
     api_client, db_session, registration, engine, declared, frozen  # noqa: F811
 ):
-    headers, snapshot_id = await launched(api_client, registration)
+    headers, revision_id = await launched(api_client, registration)
     engine.delete_answers = [202, 200]
-    at_poll(engine, 2, cancelling(api_client, headers, engine))
+    at_poll(engine, 2, cancelling(api_client, headers, engine, revision_id))
     advance = engine.before_poll
 
     async def later(polls: int) -> None:
@@ -213,7 +216,7 @@ async def test_a_202_is_retried_and_the_second_delete_confirms(
 
     engine.before_poll = later
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     assert engine.deletes == [ENGINE_ID, ENGINE_ID]
@@ -225,11 +228,11 @@ async def test_an_engine_that_never_confirms_leaves_an_honest_state_that_the_swe
     api_client, db_session, registration, engine, declared, frozen, monkeypatch  # noqa: F811
 ):
     monkeypatch.setenv("REMOTE_CANCEL_CONFIRM_TIMEOUT_S", "0.3")
-    headers, snapshot_id = await launched(api_client, registration)
+    headers, revision_id = await launched(api_client, registration)
     engine.delete_answers = [202, 200]  # stopping, and the retry of the sweep finally finds it stopped
-    at_poll(engine, 2, cancelling(api_client, headers, engine))
+    at_poll(engine, 2, cancelling(api_client, headers, engine, revision_id))
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     assert engine.deletes == [ENGINE_ID] and engine.state == "cancelling"  # the solver is not known to be gone
@@ -255,11 +258,11 @@ async def test_an_engine_that_never_confirms_leaves_an_honest_state_that_the_swe
 async def test_without_the_capability_nothing_is_sent_and_the_worker_waits_for_the_engine_as_before(
     api_client, db_session, registration, engine
 ):
-    headers, snapshot_id = await launched(api_client, registration)
+    headers, revision_id = await launched(api_client, registration)
     engine.complete_at = 5
-    at_poll(engine, 2, cancelling(api_client, headers, engine))
+    at_poll(engine, 2, cancelling(api_client, headers, engine, revision_id))
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     assert engine.deletes == [] and engine.polls == 5  # it waited for the engine to finish
@@ -274,11 +277,11 @@ async def test_without_the_capability_nothing_is_sent_and_the_worker_waits_for_t
 async def test_a_cancel_that_arrives_with_the_result_wins_and_the_result_is_discarded(
     api_client, db_session, registration, engine, declared
 ):
-    headers, snapshot_id = await launched(api_client, registration)
+    headers, revision_id = await launched(api_client, registration)
     engine.complete_at = 2  # the engine finishes on the very poll the cancel arrives
-    at_poll(engine, 2, cancelling(api_client, headers, engine))
+    at_poll(engine, 2, cancelling(api_client, headers, engine, revision_id))
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     assert job.state is JobState.CANCELLED and job.result is None and job.termination is None
@@ -289,15 +292,15 @@ async def test_a_cancel_that_arrives_with_the_result_wins_and_the_result_is_disc
 async def test_a_job_that_finished_first_cannot_be_cancelled_and_stays_as_it_ended(
     api_client, db_session, registration, engine, declared
 ):
-    headers, snapshot_id = await launched(api_client, registration)
+    headers, revision_id = await launched(api_client, registration)
     engine.complete_at = 2
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     ended = job.state
     assert ended in (JobState.COMPLETED, JobState.FAILED)
-    response = await api_client.post(f"/v1/jobs/{job.id}/cancel", headers=headers)
+    response = await api_client.post(run_url(job, "/cancel"), headers=headers)
     assert response.status_code == 409
     after = await only_job(db_session)
     assert after.state is ended and after.cancellation_requested is False
@@ -307,12 +310,12 @@ async def test_a_job_that_finished_first_cannot_be_cancelled_and_stays_as_it_end
 async def test_another_account_cannot_cancel_the_job_and_nothing_reaches_the_engine(
     api_client, db_session, registration, engine, declared
 ):
-    headers, snapshot_id = await launched(api_client, registration)
+    headers, revision_id = await launched(api_client, registration)
     stranger = await account_headers(api_client, registration)
     engine.complete_at = 4
-    at_poll(engine, 2, cancelling(api_client, stranger, engine, expect=404))
+    at_poll(engine, 2, cancelling(api_client, stranger, engine, revision_id, expect=404))
 
-    await submit(api_client, headers, snapshot_id)
+    await submit(api_client, headers, revision_id)
 
     job = await only_job(db_session)
     assert engine.deletes == []
@@ -323,9 +326,9 @@ async def test_another_account_cannot_cancel_the_job_and_nothing_reaches_the_eng
 async def test_a_result_that_arrives_late_never_reopens_a_cancelled_job(
     api_client, db_session, registration, engine, declared
 ):
-    headers, snapshot_id = await launched(api_client, registration)
-    at_poll(engine, 2, cancelling(api_client, headers, engine))
-    await submit(api_client, headers, snapshot_id)
+    headers, revision_id = await launched(api_client, registration)
+    at_poll(engine, 2, cancelling(api_client, headers, engine, revision_id))
+    await submit(api_client, headers, revision_id)
     job = await only_job(db_session)
     assert job.state is JobState.CANCELLED
 
@@ -344,9 +347,9 @@ async def test_a_result_that_arrives_late_never_reopens_a_cancelled_job(
 async def test_the_sweep_resolves_the_context_of_a_bundled_registration_from_the_gateways_own_endpoint(
     api_client, db_session, registration, engine, declared
 ):
-    headers, snapshot_id = await launched(api_client, registration)
-    at_poll(engine, 2, cancelling(api_client, headers, engine))
-    await submit(api_client, headers, snapshot_id)
+    headers, revision_id = await launched(api_client, registration)
+    at_poll(engine, 2, cancelling(api_client, headers, engine, revision_id))
+    await submit(api_client, headers, revision_id)
     job = await only_job(db_session)
     job.service_url = "http://attacker.example"  # nothing stored on the job decides where the DELETE goes
     await db_session.commit()

@@ -1,4 +1,4 @@
-/* The workbench. The project frame (proj-*) gives the band, the tabs and the column; everything inside the column is drawn here with the
+/* The workbench. The organization frame (proj-*) gives the band and the column; everything inside the column is drawn here with the
    same tokens. The editor forms keep the class names they always had (form-*, rename-field…) and are drawn the new way. */
 
 .wb { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-xl); }
@@ -134,20 +134,6 @@
 }
 
 .wb-gate svg { width: 18px; height: 18px; flex: none; margin-top: 2px; color: var(--color-warning); }
-
-.wb-too-big {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  border: 1px solid var(--tp-severity-error-border);
-  border-radius: var(--tp-radius-lg);
-  background: var(--tp-severity-error-bg);
-}
-
-.wb-limit-bar { position: relative; height: 12px; border-radius: 9999px; background: var(--tp-hairline-soft); }
-.wb-limit-bar i { display: block; height: 100%; border-radius: 9999px; background: repeating-linear-gradient(45deg, var(--tp-severity-error) 0 6px, var(--tp-severity-error-border) 6px 12px); }
-.wb-limit-bar b { position: absolute; top: -4px; width: 2px; height: 20px; background: var(--tp-ink); }
 
 .wb-diags { display: flex; flex-direction: column; gap: var(--tp-spacing-xs); margin: 0; padding: 0; list-style: none; }
 .wb-diag { overflow: hidden; border: 1px solid var(--tp-severity-error-border); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); }
@@ -323,28 +309,6 @@
 .wb-ir-facts dt { color: var(--tp-steel); font-size: 0.75rem; }
 .wb-ir-facts dd { margin: 0; overflow-wrap: anywhere; }
 
-/* The run */
-.wb-run-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--tp-spacing-md); align-items: start; }
-.wb-fieldset { min-width: 0; margin: 0; padding: var(--tp-spacing-sm) var(--tp-spacing-md) var(--tp-spacing-md); border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-lg); }
-.wb-fieldset legend { display: inline-flex; align-items: center; gap: 6px; padding: 0 6px; font-size: 0.8125rem; font-weight: 600; }
-.wb-fieldset legend svg { width: 14px; height: 14px; color: var(--tp-primary); }
-.wb-config-note { margin: 8px 0 0; font-size: 0.8125rem; }
-
-/* The picker of sealed versions brings its own fieldset: here it is a plain pair of fields inside this one */
-.wb-fieldset fieldset { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-xs); margin: 0; padding: 0; border: 0; }
-.wb-fieldset fieldset legend { margin-bottom: 4px; padding: 0; color: var(--tp-steel); font-size: 0.75rem; font-weight: 500; }
-.wb-fieldset fieldset label { display: flex; min-width: 0; flex-direction: column; gap: 6px; color: var(--tp-steel); font-size: 0.75rem; font-weight: 500; }
-.wb-fieldset fieldset p[role='alert'] { margin: 0; color: var(--color-error); font-size: 0.75rem; overflow-wrap: anywhere; }
-
-/* The summary of the binding analysis belongs to another component; here it takes this page's card look */
-.wb .binding-analysis { margin-block: 0; padding: var(--tp-spacing-sm) var(--tp-spacing-md); border: 1px solid var(--tp-beige-deep); border-radius: var(--tp-radius-lg); background: var(--tp-surface-cream); }
-.wb .binding-analysis > header { align-items: center; }
-.wb .binding-analysis h3 { margin: 0; font-family: var(--font-body); font-size: 0.9375rem; font-weight: 600; }
-.wb .binding-analysis p { margin: 2px 0 0; color: var(--tp-slate); font-size: 0.8125rem; line-height: 1.5; }
-
-.wb-result { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); padding-top: var(--tp-spacing-sm); border-top: 1px solid var(--tp-hairline-soft); }
-.wb-result .wb-pane-head h3 { font-size: 1.125rem; }
-
 /* What a valid package can become */
 /* The dock keeps what a valid package can become, and what just happened to it, in view while the page scrolls */
 .wb-dock { position: sticky; bottom: 0; z-index: 5; display: flex; flex-direction: column; gap: var(--tp-spacing-xs); }
@@ -409,7 +373,6 @@
 .qos-field { display: flex; min-width: 0; flex-direction: column; gap: 6px; color: var(--tp-steel); font-size: 0.75rem; font-weight: 500; }
 .qos-field .qos-name { overflow-wrap: anywhere; }
 .qos-field input[type='number'] { max-width: 100%; color: var(--tp-ink); }
-.wb-range-note { font-size: 0.8125rem; }
 .rename-field small[role='alert'], .constraint-expression small[role='alert'], .advanced-editor small[role='alert'] { color: var(--color-error); font-size: 0.75rem; }
 .form-empty { margin: 0; padding: 12px 14px; border: 1px dashed var(--tp-hairline-strong); border-radius: var(--tp-radius-md); color: var(--tp-slate); font-size: 0.8125rem; }
 

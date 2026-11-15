@@ -1,5 +1,5 @@
 /** The pricing version these figures were copied from. The live pricings are administered in the SPACE and SPHERE consoles. */
-export const PRICING_VERSION = '0.1.0';
+export const PRICING_VERSION = '0.2.0';
 
 export interface PlanSummary {
   name: string;
@@ -14,8 +14,7 @@ export interface PlanSummary {
  * truth, so this list must be revisited whenever the pricing version changes.
  */
 export const planSummaries: readonly PlanSummary[] = [
-  { name: 'Basic', price: 'Free', how: 'Default plan when you sign up.', chips: ['1 API key', '1 concurrent run'] },
-  { name: 'Research', price: 'Free with verified CAS', how: 'For Universidad de Sevilla accounts with a verified CAS identity.', chips: ['25 API keys', '3 concurrent runs'] },
-  { name: 'Advanced', price: 'Contact us', how: 'Institutional agreement. Adds advanced analytics.', chips: ['10 API keys', '2 concurrent runs'] },
-  { name: 'Pro', price: 'Contact us', how: 'Institutional agreement. Adds the reproducibility archive.', chips: ['Unlimited API keys', '8 concurrent runs'] },
+  { name: 'Free', price: 'Free', how: 'Default plan when you sign up.', chips: ['2 API keys', '1 concurrent run'] },
+  { name: 'Research', price: 'Free with verified CAS', how: 'For Universidad de Sevilla accounts with a verified CAS identity.', chips: ['10 API keys', '4 concurrent runs'] },
+  { name: 'Lab', price: 'Contact us', how: 'By agreement, for groups that run benchmark campaigns or operate engines.', chips: ['200 API keys', '32 concurrent runs'] },
 ];

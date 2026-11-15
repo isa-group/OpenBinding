@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { jobsApi } from '../../api/jobs';
+import { runsApi } from '../../api/runs';
 import { platformApi, type Job, type StudyCell as StudyCellView } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { CopyDigest } from './CopyDigest';
@@ -10,6 +10,7 @@ import { SourceView } from '../../components/rendering/SourceView';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { problemPath } from '../../routes/paths/problems';
+import { runPath } from '../../routes/paths/runs';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
@@ -35,16 +36,16 @@ type Outcome =
 
 const TERMINAL_JOB = new Set(['completed', 'failed', 'cancelled']);
 
-/** The finished jobs of the account in this project, newest first: the ones whose result can stand in for a cell's. */
-async function loadAttachable(org: string, project: string): Promise<{ jobs: Job[]; narrowed: boolean }> {
-  const [rows, mine] = await Promise.all([platformApi.projectJobs(org, project), jobsApi.mine().then((own) => new Set(own.map((job) => job.id)), () => null)]);
-  const finished = rows.filter((job) => TERMINAL_JOB.has(normalizeStatus(job.status)) && (mine === null || mine.has(job.id)));
-  return { jobs: finished.sort((a, b) => b.created_at.localeCompare(a.created_at)), narrowed: mine !== null };
+/** The finished runs of this organization, whoever launched them, newest first: the ones whose result can stand in for a cell's. */
+async function loadAttachable(org: string): Promise<{ jobs: Job[] }> {
+  const { runs } = await runsApi.list(org, { limit: 200 });
+  const finished = runs.filter((job) => TERMINAL_JOB.has(normalizeStatus(job.status)));
+  return { jobs: finished.sort((a, b) => b.created_at.localeCompare(a.created_at)) };
 }
 
 function AttachDialog({ scope, runId, cell, onClose, onAttached }: { scope: StudyScopeValue; runId: string; cell: StudyCellView; onClose: () => void; onAttached: () => void }) {
-  const { organization, project, study } = scope;
-  const jobs = useResource(`attachable:${organization.slug}/${project.slug}`, () => loadAttachable(organization.slug, project.slug));
+  const { organization, study } = scope;
+  const jobs = useResource(`attachable:${organization.slug}`, () => loadAttachable(organization.slug));
   const [chosen, setChosen] = useState('');
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
@@ -54,7 +55,7 @@ function AttachDialog({ scope, runId, cell, onClose, onAttached }: { scope: Stud
     setBusy(true);
     setRefusal(null);
     try {
-      await platformApi.attachStudyCellResult(organization.slug, project.slug, study.slug, runId, cell.id, chosen);
+      await platformApi.attachStudyCellResult(organization.slug, study.slug, runId, cell.id, chosen);
       onAttached();
     } catch (caught) {
       setRefusal(studyRefusal(caught, 'attach'));
@@ -63,10 +64,10 @@ function AttachDialog({ scope, runId, cell, onClose, onAttached }: { scope: Stud
   };
   return (
     <Modal title="Use an existing run’s result" size="lg" onClose={() => !busy && onClose()}>
-      <p>A run you already did becomes this cell’s result as it is. It has to be a run of this cell: the same problem version, engine, mode and seed. The gateway checks, and names what differs if it isn’t.</p>
-      {jobs.status === 'loading' && <div role="status" aria-busy="true"><span className="sr-only">Loading your runs…</span><Skeleton variant="tile" /></div>}
-      {jobs.status === 'error' && <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={jobs.reload}>Retry</Action>}>Your runs couldn’t be loaded{marker(classifyAuthError(jobs.error))}.</Notice>}
-      {jobs.status === 'ready' && list.length === 0 && <p className="org-muted">You have no finished run in this project to attach.</p>}
+      <p>A finished run of this organization becomes this cell’s result as it is. It has to be a run of this cell: the same problem version, engine, mode and seed. The gateway checks, and names what differs if it isn’t.</p>
+      {jobs.status === 'loading' && <div role="status" aria-busy="true"><span className="sr-only">Loading the organization’s runs…</span><Skeleton variant="tile" /></div>}
+      {jobs.status === 'error' && <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={jobs.reload}>Retry</Action>}>The organization’s runs couldn’t be loaded{marker(classifyAuthError(jobs.error))}.</Notice>}
+      {jobs.status === 'ready' && list.length === 0 && <p className="org-muted">This organization has no finished run to attach.</p>}
       {list.length > 0 && (
         <div className="st-choices" role="radiogroup" aria-label="Finished runs">
           {list.map((job) => (
@@ -76,7 +77,7 @@ function AttachDialog({ scope, runId, cell, onClose, onAttached }: { scope: Stud
               value={job.id}
               checked={chosen === job.id}
               onChange={setChosen}
-              label={`${job.engine_id} · ${normalizeStatus(job.status)}`}
+              label={`${job.engine_id} · ${normalizeStatus(job.status)}${job.created_by ? ` · by ${job.created_by.username}` : ''}`}
               sub={`${formatDateTime(job.created_at) ?? 'unknown date'}${job.termination ? ` · ${job.termination.toLowerCase()}` : ''}`}
             />
           ))}
@@ -146,16 +147,14 @@ function RivalsCard({ cell, cells, measure, onMeasure, measures, cellHref }: {
 
 /** One cell of the study run `runId`, shown inside the Results tab: what it ran on, how it ended, and how the engines compare on it. */
 export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; runId: string; cellId: string }) {
-  const { study, organization, project, access, root } = scope;
+  const { study, organization, access, studyPath } = scope;
   const org = organization.slug;
-  const slug = project.slug;
   const navigate = useNavigate();
-  const studyPath = `${root}/studies/${encodeURIComponent(study.slug)}`;
   const resultsHref = studyPageHref(studyPath, 'results', { run: runId });
   const cellHref = (id: string) => studyPageHref(studyPath, 'results', { run: runId, cell: id });
-  const { index } = useRevisionIndex(org, slug);
-  const siblings = useResource(`cell-run:${study.id}/${runId}`, () => loadRun(org, slug, study.slug, runId));
-  const one = useResource(`cell:${runId}/${cellId}`, () => platformApi.studyCell(org, slug, study.slug, runId, cellId));
+  const { index } = useRevisionIndex(org);
+  const siblings = useResource(`cell-run:${study.id}/${runId}`, () => loadRun(org, study.slug, runId));
+  const one = useResource(`cell:${runId}/${cellId}`, () => platformApi.studyCell(org, study.slug, runId, cellId));
   const [measureChoice, setMeasureChoice] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [retrying, setRetrying] = useState(false);
@@ -197,7 +196,7 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
     setRetrying(true);
     setOutcome(null);
     try {
-      await platformApi.retryStudyCell(org, slug, study.slug, runId, cell.id);
+      await platformApi.retryStudyCell(org, study.slug, runId, cell.id);
       setOutcome({ tone: 'success', text: 'Cell queued again.' });
       reloadAll();
     } catch (caught) {
@@ -208,12 +207,12 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
   };
 
   const inputs: Array<[string, ReactNode]> = [
-    ['Problem', info ? <Link to={problemPath(root, info.caseSlug, undefined, { version: info.revision })} viewTransition>{revisionLabel(index, cell.binding_case_revision_id)}</Link> : revisionLabel(index, cell.binding_case_revision_id)],
+    ['Problem', info ? <Link to={problemPath(org, info.caseSlug, undefined, { version: info.revision })} viewTransition>{revisionLabel(index, cell.binding_case_revision_id)}</Link> : revisionLabel(index, cell.binding_case_revision_id)],
     ['Engine', engineTitle(ref)],
     ['Mode', ref.mode ?? '—'],
     ['Settings', describeParameters(cell.parameters)],
     ['Seed', String(cell.seed)],
-    ['Snapshot', info?.snapshotId ? <Link to={problemPath(root, info.caseSlug, 'source', { version: info.revision })} viewTransition>Compiled snapshot</Link> : '—'],
+    ['Source', info ? <Link to={problemPath(org, info.caseSlug, 'source', { version: info.revision })} viewTransition>Package and compiled form</Link> : '—'],
   ];
 
   return (
@@ -288,7 +287,7 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
           {metrics.code ? `Code ${metrics.code}${failure.detail ? ` · ${failure.detail}` : ''}. ` : ''}Retrying usually helps.
         </Notice>
       )}
-      {cell.state === 'cancelled' && <Notice tone="info">Cancelled before it ran. Retry it, or attach the result of a run you already did with the same inputs.</Notice>}
+      {cell.state === 'cancelled' && <Notice tone="info">Cancelled before it ran. Retry it, or attach the result of a run of the organization with the same inputs.</Notice>}
       {isActiveState(cell.state) && <Notice tone="info">{cell.state === 'queued' ? 'Waiting for a run slot.' : 'The engine is solving it.'} This page updates by itself.</Notice>}
 
       {cell.state === 'completed' && <RivalsCard cell={cell} cells={cells} measure={measure} onMeasure={setMeasureChoice} measures={measures} cellHref={cellHref} />}
@@ -296,7 +295,7 @@ export function CellPanel({ scope, runId, cellId }: { scope: StudyScopeValue; ru
       <p className="st-job-line">
         <span className="org-muted">Ran as:</span>{' '}
         {cell.job_id
-          ? <><Link to={`${root}/runs/${cell.job_id}`} viewTransition title="A run opens for whoever launched it">Open run</Link></>
+          ? <><Link to={runPath(organization.slug, cell.job_id)} viewTransition>Open run</Link></>
           : <span>none yet</span>}
         {' · '}<Link to={resultsHref} viewTransition>Back to the results</Link>
         {' · '}<Link to={studyPageHref(studyPath, 'progress', { run: runId })} viewTransition>Back to the progress</Link>

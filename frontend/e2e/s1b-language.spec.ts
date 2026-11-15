@@ -193,7 +193,7 @@ const invalidProblem = {
 
 interface Mocks {
   signedIn?: boolean;
-  /** Answers POST /v1/instances/validate. */
+  /** Answers POST /v1/bim/validate. */
   validate?: (route: Route) => Promise<void> | void;
   engines?: (route: Route) => Promise<void> | void;
 }
@@ -224,18 +224,17 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
     }));
     await page.route(`${API}/v1/engine-registrations`, json({ registrations: [registration] }));
     await page.route(`${API}/v1/engine-registrations/edge-solver/report**`, json(edgeReport));
-    await page.route(`${API}/v1/organizations`, json([{ id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, billing_sponsor_user_id: lucia.id, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z' }]));
-    await page.route(`${API}/v1/organizations/isa-demo/projects`, json([{ id: 'p1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: '', visibility: 'private', created_by_id: lucia.id, created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z', access: 'member', effective_role: 'OWNER' }]));
+    await page.route(`${API}/v1/organizations`, json([{ id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z' }]));
   }
   // EngineDetail reads the live catalog (the deprecated YAML at /v1/pricing is no longer requested).
   await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
   await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
-  await page.route(`${API}/v1/profiles`, json({ profiles: [profile] }));
-  await page.route(`${API}/v1/examples`, json({ examples: EXAMPLES }));
-  await page.route(`${API}/v1/examples/**`, (route) => route.fulfill({
+  await page.route(`${API}/v1/engines/protocol`, json({ profiles: [profile] }));
+  await page.route(`${API}/v1/bim/templates`, json({ templates: EXAMPLES }));
+  await page.route(`${API}/v1/bim/templates/**`, (route) => route.fulfill({
     status: 200, contentType: 'application/vnd.bim+zip', body: packageZip(), headers: { 'Content-Disposition': 'attachment; filename="01_simple_seq.bim.zip"' },
   }));
-  await page.route(`${API}/v1/instances/validate`, mocks.validate ?? json(validResult));
+  await page.route(`${API}/v1/bim/validate`, mocks.validate ?? json(validResult));
 }
 
 function watchCriticalErrors(page: Page) {
@@ -351,11 +350,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main).not.toContainText(/sha256-|[0-9a-f]{12}/);
       await expect(main.getByRole('link', { name: 'Log in to run' })).toHaveAttribute('href', '/login');
       const options = main.getByRole('region', { name: 'Options of mode sampling' });
-      await expect(main.getByLabel('Plan to preview')).toHaveValue('BASIC');
-      await expect(options.getByRole('row', { name: /iterations/ })).toContainText('OPTION_CLAMPED → 10,000');
-      await expect(options.getByRole('row', { name: /time_budget_ms/ })).toContainText('60,000 ms (60 s)');
+      await expect(main.getByLabel('Plan to preview')).toHaveValue('FREE');
+      await expect(options.getByRole('row', { name: /iterations/ })).toContainText('Set by the deployment');
+      await expect(options.getByRole('row', { name: /time_budget_ms/ })).toContainText('300,000 ms (5 min)');
       await expect(options.getByRole('row', { name: /time_budget_ms/ })).toContainText('Within the ceiling');
-      await expect(main.getByText(/BASIC allows 60 s and 10,000 iterations per request\. Figures from pricing 0\.1\.0\./)).toBeVisible();
+      await expect(main.getByText(/FREE allows 5 min per run\. Figures from pricing 0\.2\.0\./)).toBeVisible();
       await expect(main.getByRole('region', { name: 'Mode contract' })).toContainText('Heuristic mode');
       await expect(main.getByRole('region', { name: 'How a run can end' })).toContainText('Declared by this mode');
       await ready(page);
@@ -364,7 +363,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // The same engine under a larger plan: nothing is reduced.
       await main.getByLabel('Plan to preview').selectOption('RESEARCH');
       await expect(options.getByText(/OPTION_CLAMPED/)).toHaveCount(0);
-      await expect(options.getByRole('row', { name: /iterations/ })).toContainText('1,000,000 iterations');
+      await expect(options.getByRole('row', { name: /iterations/ })).toContainText('Not reduced by plan');
 
       await main.getByRole('tab', { name: /Capabilities/ }).click();
       await expect(page).toHaveURL(/\/engines\/bim\.builtin\/random-search\/1\.0\.0\?tab=caps$/);
@@ -399,10 +398,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await ready(page);
       await shot(page, testInfo, 'engine-detail-registrations-owner');
 
-      // The run action asks which project.
+      // The run action asks which organization.
       await main.getByRole('button', { name: 'Run with this engine' }).click();
-      await expect(main.getByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' }))
-        .toHaveAttribute('href', `/app/isa-demo/qos-benchmarks/runs/new?engine=${encodeURIComponent(`lucia/edge-solver@0.3.1#${EDGE_DIGEST}`)}`);
+      await expect(main.getByRole('link', { name: 'ISA Demo Group' }))
+        .toHaveAttribute('href', `/app/isa-demo/runs/new?engine=${encodeURIComponent(`lucia/edge-solver@0.3.1#${EDGE_DIGEST}`)}`);
 
       await main.getByRole('tab', { name: /Modes/ }).click();
       await expect(main.getByLabel('Plan to preview')).toHaveValue('RESEARCH');
@@ -552,17 +551,17 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(calls).toBe(3);
     });
 
-    test('pub-workbench opens an example from the address, and a signed-in account can save it to a project', async ({ page }, testInfo) => {
+    test('pub-workbench opens a template from the address, and a signed-in account can save it to an organization', async ({ page }, testInfo) => {
       await mockApi(page, { signedIn: true });
-      await page.goto('/workbench?example=demo%2F01_simple_seq');
+      await page.goto('/workbench?template=demo%2F01_simple_seq');
       const main = page.locator('main');
 
       await expect(main.getByText('Valid package')).toBeVisible();
       await expect(main.getByText('Signed in as lucia')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Log in to run' })).toHaveCount(0);
-      await main.getByRole('button', { name: 'Save to a project' }).click();
-      await expect(main.getByRole('link', { name: 'ISA Demo Group / QoS Benchmarks' }))
-        .toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/workbench?example=demo%2F01_simple_seq');
+      await main.getByRole('button', { name: 'Save to an organization' }).click();
+      await expect(main.getByRole('link', { name: 'ISA Demo Group' }))
+        .toHaveAttribute('href', '/app/isa-demo/workbench?template=demo%2F01_simple_seq');
       await ready(page);
       await shot(page, testInfo, 'workbench-signed-in');
       await expectNoHorizontalOverflow(page);

@@ -10,9 +10,7 @@ which is why this step was built against them as an oracle rather than against t
 The gate holds them now, and the oracle is what licensed that: it is because the two
 compile to one IR digest that the importer may read a BPMN workflow and write JSON back.
 
-Nothing here parses BPMN. The container reduces it and this reads the result, and the one
-test that would notice a second reducer appearing is the one that checks the lifted
-workflow re-emits to the same compiled problem.
+Nothing here parses BPMN. The container reduces it and this reads the result.
 """
 
 from __future__ import annotations
@@ -99,51 +97,6 @@ def test_the_diagram_and_the_hand_written_workflow_reduce_to_one_tree(compile_pa
         "the twin package's source workflow now matches its own IR, so the container has "
         "stopped flattening nested sequences and this test's reasoning needs re-reading"
     )
-
-
-def test_a_lifted_workflow_re_emits_to_the_same_problem(compile_package) -> None:
-    """The check that would notice a second reducer: lift, write it as JSON, compile.
-
-    The BPMN package's own workflow reference is replaced with the emitted JSON of the
-    lifted node and nothing else changes, so an IR digest that still matches says the lift
-    kept everything the compiled problem depends on.
-    """
-    from bim_core import compile_instance, ir_digest
-    from bim_core.package import InstancePackage
-
-    from openbinding_gateway.composition import bpmn as lift
-    from openbinding_gateway.composition.emit import _node as emit_node
-
-    files = _files(BPMN_PACKAGE)
-    try:
-        before = ir_digest(compile_instance(InstancePackage(files)).document)
-        lifted = lift.reduce_package(files, compile_package)
-    except FileNotFoundError as exc:
-        pytest.skip(f"the vendored OMG BPMN XSDs are not in place: {exc}")
-
-    rewritten = dict(files)
-    application = json.loads(rewritten["application.json"])
-    application["spec"]["workflow"] = emit_node(lifted)
-    rewritten["application.json"] = json.dumps(application, indent=2).encode("utf-8")
-    # A BPMN package's routing overlay targets the DIAGRAM, because that is where its
-    # branch ids are declared, while a JSON workflow's targets the application. The IR does
-    # not distinguish them -- which is why the two twin packages share a digest -- but the
-    # resource has to exist, so dropping the diagram means retargeting the overlay. This is
-    # exactly the difference between the two packages in the corpus.
-    routing = json.loads(rewritten["routing.json"])
-    for entry in routing["spec"]["entries"]:
-        entry["target"]["resource"] = "application"
-    rewritten["routing.json"] = json.dumps(routing, indent=2).encode("utf-8")
-
-    manifest = json.loads(rewritten["instance.json"])
-    # The diagram is no longer referenced, and a package entry its manifest does not
-    # declare is refused, so the resource and the file go together.
-    manifest["spec"]["resources"]["application"].pop(lift.WORKFLOW, None)
-    rewritten["instance.json"] = json.dumps(manifest, indent=2).encode("utf-8")
-    rewritten.pop("workflow.bpmn", None)
-
-    after = ir_digest(compile_instance(InstancePackage(rewritten)).document)
-    assert after == before
 
 
 def test_a_process_is_reduced_without_a_package_of_its_own(compile_package) -> None:

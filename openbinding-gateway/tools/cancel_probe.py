@@ -5,7 +5,7 @@ It does what a user does and then looks where only the laboratory can look. As t
 ``tools/seed_lab.py`` it signs in through the proxy, uploads a deliberately hard package (the one of
 ``tools/engine_e2e.py``: 150 tasks x 30 candidates) and launches a LONG ``minizinc-csp`` job over the gateway's
 HTTP API, exactly as ``tools/smoke_lab.py`` does. When the job is running and the engine id of its attempt has been
-recorded (``job_engine_attempts``) it cancels the job (``POST /v1/jobs/{id}/cancel``) and checks, in this order:
+recorded (``job_engine_attempts``) it cancels the job (``POST /v1/organizations/{org}/runs/{run}/cancel``) and checks, in this order:
 
 1. the job ends ``cancelled``, and the cancellation reached the solver while it was still working (an engine
    that finished by itself before the gateway sent the ``DELETE`` is a failure, not a pass);
@@ -68,6 +68,9 @@ EXIT_PASSED, EXIT_FAILED, EXIT_CONFIG, EXIT_INCONCLUSIVE = 0, 1, 2, 3
 ENGINE = "minizinc-csp"
 MODE = "exact-weighted"
 USER = "lab-owner"
+ORG = "lab-main"
+#: The slug of the problem the hard package is uploaded as (reused by every run).
+PROBLEM_SLUG = "cancel-probe"
 DEFAULT_BASE_URL = "http://web:8080"
 DEFAULT_ENGINE_URL = "http://engine-minizinc:3000"
 JOB_PATH = "/internal/v1/jobs/{id}"
@@ -159,6 +162,8 @@ class Config:
     base_url: str = DEFAULT_BASE_URL
     password: str = ""
     user: str = USER
+    #: The organization the hard package is uploaded to (``user`` must be a MEMBER of it).
+    org: str = ORG
     engine_url: str = DEFAULT_ENGINE_URL
     engine_token: str | None = None
     tasks: int = 150
@@ -232,6 +237,11 @@ class Probe:
         self.reason = ""
         self.started = clock()
 
+    @property
+    def runs(self) -> str:
+        """The runs of the organization the package is uploaded to."""
+        return f"/v1/organizations/{self.config.org}/runs"
+
     # -- bookkeeping --------------------------------------------------------
 
     def check(self, name: str, ok: bool, detail: str = "") -> bool:
@@ -266,9 +276,9 @@ class Probe:
         return reply
 
     def gateway_job(self) -> Mapping[str, Any]:
-        reply = self.api("GET", f"/v1/jobs/{self.job_id}")
+        reply = self.api("GET", f"{self.runs}/{self.job_id}")
         if reply.status_code != 200:
-            raise Inconclusive(f"GET /v1/jobs/{{id}} answered {describe(reply)}")
+            raise Inconclusive(f"GET .../runs/{{run}} answered {describe(reply)}")
         return mapping(body_of(reply))
 
     def engine_job(self) -> httpx.Response:
@@ -320,17 +330,25 @@ class Probe:
         self.token = token
         self.redact.add(token)
 
-        upload = self.api("POST", "/v1/instances", headers={"Content-Type": BIM_ZIP}, content=self.package())
-        snapshot = mapping(body_of(upload)).get("id")
-        if upload.status_code not in (200, 201) or not isinstance(snapshot, str):
-            raise Inconclusive(f"the hard package was not accepted as a snapshot ({describe(upload)})")
+        problems = f"/v1/organizations/{self.config.org}/problems"
+        upload = self.api(
+            "POST", problems, params={"slug": PROBLEM_SLUG}, headers={"Content-Type": BIM_ZIP}, content=self.package()
+        )
+        if upload.status_code == 409:
+            # A problem left by an earlier run: the package is the next revision of it (or already is one).
+            upload = self.api(
+                "POST", f"{problems}/{PROBLEM_SLUG}/revisions", headers={"Content-Type": BIM_ZIP}, content=self.package()
+            )
+        revision = mapping(mapping(body_of(upload)).get("revision")).get("id")
+        if upload.status_code not in (200, 201) or not isinstance(revision, str):
+            raise Inconclusive(f"the hard package was not accepted as a problem ({describe(upload)})")
 
         launch = self.api(
             "POST",
-            "/v1/jobs",
+            self.runs,
             headers={"Idempotency-Key": f"cancel-probe-{uuid.uuid4().hex[:12]}"},
             json={
-                "snapshot": snapshot,
+                "revision": revision,
                 "engine": ENGINE,
                 "mode": MODE,
                 "optimization": dict(OPTIMIZATION),
@@ -397,11 +415,11 @@ class Probe:
         self.check("the engine job is running when it is cancelled", True, f"id {self.engine_id}")
 
     def cancel(self) -> None:
-        reply = self.api("POST", f"/v1/jobs/{self.job_id}/cancel")
+        reply = self.api("POST", f"{self.runs}/{self.job_id}/cancel")
         if reply.status_code == 409:
             raise Inconclusive(f"the job was already terminal when it was cancelled ({describe(reply)})")
         self.cancel_requested = reply.status_code == 200
-        self.check("the gateway accepts the cancellation (POST /v1/jobs/{id}/cancel)", reply.status_code == 200, describe(reply))
+        self.check("the gateway accepts the cancellation (POST .../runs/{run}/cancel)", reply.status_code == 200, describe(reply))
         self.mark("cancel-requested")
         if reply.status_code != 200:
             raise Inconclusive("the cancellation was refused; nothing more can be said")
@@ -525,7 +543,7 @@ class Probe:
         if self.job_id is not None and self.token is not None:
             try:
                 if not self.cancel_requested:
-                    reply = self.api("POST", f"/v1/jobs/{self.job_id}/cancel")
+                    reply = self.api("POST", f"{self.runs}/{self.job_id}/cancel")
                     self.cleanup["jobCancel"] = reply.status_code
             except (Inconclusive, httpx.HTTPError) as exc:
                 self.cleanup["jobCancel"] = f"{type(exc).__name__}"

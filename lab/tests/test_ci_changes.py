@@ -229,11 +229,7 @@ _REPO_NAME = re.compile(r"\b(?:REPO_ROOT|ROOT|REPO)\b")
 # test_no_kubernetes is the only repository-wide one and has its own rule in tools/ci_changes.py; the others stay in
 # directories the area rules classify. A new entry needs its paths justified next to those rules.
 WALKING_TESTS = {
-    "composition/test_goldens_unchanged.py": "the pinned golden (tests/golden/bim_baseline), the corpus walk over examples/, tools/check_bim_*.py",
-    "composition/test_the_gate_is_a_set.py": "the pinned golden (tests/golden/bim_baseline), the corpus walk over examples/ and engines/*/tests/fixtures, tools/check_bim_corpus.py",
-    "composition/test_the_roundtrip_gate.py": "the pinned golden (tests/golden/bim_baseline) and every gate package, through tools/check_composition_roundtrip.py",
-    "composition/test_the_text_layer.py": "the pinned golden (tests/golden/bim_baseline) and every gate package, through tools/check_composition_roundtrip.py",
-    "composition/test_the_model_diff.py": "the pinned golden (tests/golden/bim_baseline) and every gate package, through tools/check_composition_roundtrip.py",
+    "composition/test_the_model_diff.py": "every corpus package, through the corpus walk of tools/check_bim_corpus.py",
     "integration/test_engine_representation_regression.py": "schemas/bim/v1/manifests, examples/federation",
     "test_b5_corpus.py": "engine manifests",
     "test_b5_open_ranges.py": "engine manifests, examples/federation",
@@ -242,6 +238,7 @@ WALKING_TESTS = {
     "test_bim_schema_parity.py": "schemas/bim/v1",
     "test_compose_production.py": "a temporary secrets directory, not the repository",
     "test_docker_context.py": "the sources of the Dockerfile COPY lines",
+    "test_entitlement_map.py": "the gateway sources (and docs/pricing/openbinding-0.2.0.yml, read by name)",
     "test_no_file_relative_repo_paths.py": "the tests directory itself",
     "test_no_kubernetes.py": "the whole repository: the kustomization rule of ci_changes.changed_paths",
     "test_no_local_pricing.py": "space/, pricings/, experimentation/",

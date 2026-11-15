@@ -1,6 +1,6 @@
 import type { UsageView } from '../../api/auth';
 import type {
-  BimDialect, BimProfile, EngineManifest, EngineRegistrationManifest, EngineRegistrationReport, EngineRegistrationRevision,
+  BimProfile, EngineManifest, EngineRegistrationManifest, EngineRegistrationReport, EngineRegistrationRevision,
 } from '../../api/client';
 
 // Shared by the engine screens' tests and by the end-to-end spec: types only, so it loads in Node as well.
@@ -150,7 +150,7 @@ export function usageOf(plan = 'RESEARCH', limit: number | null = 5): UsageView 
     plan,
     contract_pending: false,
     features: { federatedEngines: true },
-    capabilities: { federatedEngines: limit },
+    capabilities: { maxFederatedEngines: limit },
   };
 }
 
@@ -182,19 +182,5 @@ export const QOS_PROFILE: BimProfile = {
   output: { apiVersion: 'bim/v1', kind: 'BindingProblem', schemaDigest: digestOf('b1'), engineProtocol: 'bim-engine/v1' },
   protocol: 'bim-engine/v1',
   protocolDigest: PROTOCOL_DIGEST,
-};
-
-export const PLACEMENT_DIALECT: BimDialect = {
-  apiVersion: 'bim/v1',
-  kind: 'Dialect',
-  metadata: { namespace: 'bim.builtin', name: 'placement', version: '1.0.0', description: 'Where the tasks of a workflow may run' },
-  spec: {
-    compatibleProfiles: ['qos-binding/v1'],
-    resourceTypes: [{ apiVersion: 'qos-binding-placement/v1', kind: 'Placement', roles: ['candidateCatalog'], mediaType: 'application/json', schemaDigest: SCHEMA_DIGEST }],
-    extensionPoints: [],
-    irFeatures: [{ dimension: 'placement', value: 'placement' }],
-    adapter: { id: 'qos-binding-placement-dialect', version: '1.0.0', binaryDigest: digestOf('ad02') },
-  },
-  digest: digestOf('d1'),
 };
 

@@ -8,8 +8,6 @@ test.use({ viewport: { width: 1280, height: 800 } });
 
 const PROBLEM = `${PROBLEMS}/${PROBLEM_SLUG}`;
 const TABS = ['Overview', 'Runs', 'Versions', 'Source', 'Settings'];
-// The old address keeps its literal `cases` segment: it is a redirect input.
-const OLD_PROBLEM = `/app/acme/demo/cases/${PROBLEM_SLUG}`;
 
 test('a member sees the tabs Overview, Runs, Versions, Source, Settings with Overview selected and version 3', async ({ page }) => {
   await mockProblems(page);
@@ -34,30 +32,21 @@ test('choosing version 2 in the header sets ?version=2 and the Source tab shows 
   await expect(page.getByText(versionMarker(3))).toHaveCount(0);
 });
 
-test('the old version and compare addresses redirect into the problem page and Versions compares 1 with 3', async ({ page }) => {
-  test.slow(); // several full page loads in one test
+test('the Versions tab compares the pair in its address, 1 with 3', async ({ page }) => {
   await mockProblems(page);
-  await page.goto(`${OLD_PROBLEM}/revisions/2`);
-  await expect.poll(() => pathAndSearch(page)).toBe(`${PROBLEM}?version=2`);
-  await page.goto(`${OLD_PROBLEM}/compare?from=1&to=3`);
-  await expect.poll(() => pathAndSearch(page)).toBe(`${PROBLEM}/versions?from=1&to=3`);
+  await page.goto(`${PROBLEM}/versions?from=1&to=3`);
   await expect(selectedTab(tabGroup(page, TABS), 'Versions')).toBeVisible();
   await expect(page.getByText(versionMarker(1)).first()).toBeVisible();
   await expect(page.getByText(versionMarker(3)).first()).toBeVisible();
   await expect(page.getByText(versionMarker(2))).toHaveCount(0);
 });
 
-test('the old snapshot address redirects to the Problems tab of the project', async ({ page }) => {
-  await mockProblems(page);
-  await page.goto('/app/acme/demo/snapshots/0b6c2f');
-  await expect.poll(() => pathAndSearch(page)).toBe(PROBLEMS);
-});
-
-test('a public visitor sees only the tabs Overview, Versions and Source', async ({ page }) => {
-  await mockProblems(page, { visitor: true });
+test('a VIEWER of the organization sees the same tabs and reads the latest version', async ({ page }) => {
+  await mockProblems(page, { viewer: true });
   await page.goto(PROBLEM);
-  const group = tabGroup(page, ['Overview', 'Versions', 'Source']);
-  await expect.poll(() => tabLabels(group)).toEqual(['Overview', 'Versions', 'Source']);
+  const group = tabGroup(page, TABS);
+  await expect.poll(() => tabLabels(group)).toEqual(TABS);
+  await expect.poll(() => shownBy(selectorOf(page, /version/i))).toMatch(/\b3\b/);
 });
 
 test('an unknown problem tab shows Page not found', async ({ page }) => {

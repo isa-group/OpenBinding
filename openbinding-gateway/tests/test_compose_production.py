@@ -502,6 +502,7 @@ SITE_VARIABLES = (
     "BACKUP_RETENTION_DAYS",
     "NGINX_SSL_DIR",
     "SPACE_URL",
+    "SPACE_ORGANIZATION_ID",
 )
 
 SECRET_NAMES = (
@@ -536,6 +537,12 @@ WORKER_ENVIRONMENT = {
     "SPHERE_API_KEY_FILE": "/run/secrets/sphere_api_key",
     "SECRETS_FERNET_KEYS_FILE": "/run/secrets/secrets_fernet_keys",
 }
+# Both read pricing 0.2.0 (the startup check refuses a document without its ids) and verify pricing tokens for the
+# deployment's SPACE organization, which production requires (core/settings.py).
+SPACE_PRICING_ENVIRONMENT = {
+    "SPACE_PRICING_VERSION": "${SPACE_PRICING_VERSION:-0.2.0}",
+    "SPACE_ORGANIZATION_ID": "${SPACE_ORGANIZATION_ID:?set SPACE_ORGANIZATION_ID in site.env}",
+}
 # What each service's environment must contain, value for value.
 REQUIRED_ENVIRONMENT = {
     "postgres": {"POSTGRES_PASSWORD_FILE": "/run/secrets/postgres_password"},
@@ -543,7 +550,6 @@ REQUIRED_ENVIRONMENT = {
     "gateway": {
         "APP_ENV": "prod",
         "OPENBINDING_MIGRATE": "skip",
-        "BIM_MODE": "inproc",
         "SPACE_ENABLED": "true",
         "DATABASE_URL_FILE": "/run/secrets/database_url",
         "GATEWAY_JWT_SECRET_FILE": "/run/secrets/gateway_jwt_secret",
@@ -551,8 +557,9 @@ REQUIRED_ENVIRONMENT = {
         "SPHERE_API_KEY_FILE": "/run/secrets/sphere_api_key",
         "SECRETS_FERNET_KEYS_FILE": "/run/secrets/secrets_fernet_keys",
         "BOOTSTRAP_ADMIN_PASSWORD_FILE": "/run/secrets/bootstrap_admin_password",
+        **SPACE_PRICING_ENVIRONMENT,
     },
-    "worker": WORKER_ENVIRONMENT,
+    "worker": {**WORKER_ENVIRONMENT, **SPACE_PRICING_ENVIRONMENT},
 }
 # depends_on of each service: dependency -> condition.
 HEALTHY = "service_healthy"
@@ -577,7 +584,8 @@ EXPECTED_RESTART_ON_DEPENDENCY = {
 APP_ENV_DEFAULT = "dev"
 
 # Environment names that carry a secret: they may only be <NAME>_FILE variables.
-SECRET_ENVIRONMENT_NAME = re.compile(r"PASSWORD|SECRET|TOKEN|API_KEY|FERNET|DATABASE_URL|PRIVATE_KEY|CREDENTIAL")
+# SPACE_TOKEN_ISSUER and SPACE_TOKEN_LEEWAY_S describe SPACE's pricing tokens; they hold no secret.
+SECRET_ENVIRONMENT_NAME = re.compile(r"PASSWORD|SECRET|TOKEN(?!_ISSUER$|_LEEWAY_S$)|API_KEY|FERNET|DATABASE_URL|PRIVATE_KEY|CREDENTIAL")
 IMAGE_REFERENCE = re.compile(r"\$\{([A-Z][A-Z0-9_]*_IMAGE):\?[^}]+\}")
 PINNED_IMAGE = re.compile(r"[a-z0-9][a-z0-9./_-]*:[A-Za-z0-9_][A-Za-z0-9_.-]*@sha256:[0-9a-f]{64}")
 GAP_IMAGE = re.compile(r"gap\.invalid/[a-z0-9][a-z0-9./_-]*:0\.0\.0@sha256:0{64}")
@@ -593,6 +601,7 @@ CI_VALUES = {
     "OPENBINDING_BACKUP_DIR": r"/srv/openbinding/[a-z/]+",
     "NGINX_SSL_DIR": r"/srv/openbinding/[a-z/]+",
     "BACKUP_RETENTION_DAYS": r"[1-9][0-9]*",
+    "SPACE_ORGANIZATION_ID": r"0{24}",
 }
 
 

@@ -1,27 +1,20 @@
 /**
- * First segment after /app that belongs to a fixed screen instead of an organization slug,
- * so `/app/:org` never claims `/app/runs`, `/app/engines/new` and friends.
+ * First segments after /app that an organization slug may not take: the fixed places of the application and the sections
+ * under an organization, so `/app/:org` never claims `/app/engines/new`, `/app/account` and friends. The gateway refuses
+ * the same slugs (422 `slug_reserved`, `RESERVED_ORGANIZATION_SLUGS` in `models/platform.py`); keep the two lists equal.
  */
-export const RESERVED_SLUGS = new Set([
-  // Fixed screens of the prototype
-  'language', 'organizations', 'invitations', 'jobs', 'runs', 'analysis',
-  'account', 'admin', 'engines', 'workbench',
-  // Section names that earlier layouts and links used at this level
-  'cases', 'resources', 'collections', 'studies', 'analytics', 'reports', 'artifacts', 'settings',
-  'snapshots', 'library', 'files', 'package', 'publications', 'system',
+export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
+  'admin', 'account', 'engines', 'organizations', 'invitations',
+  'runs', 'problems', 'studies', 'settings', 'workbench', 'new',
 ]);
-
-/** Second segment of an organization screen that is not a project (`/app/:org/settings`, `/app/:org/new-project`). */
-const ORGANIZATION_SECTIONS = new Set(['settings', 'new-project']);
 
 export interface WorkspaceSlugs {
   org?: string;
-  project?: string;
 }
 
-/** Organization and project slugs named by the URL, when it names any. */
+/** The organization slug named by the URL, when it names one. */
 export function workspaceSlugs(pathname: string): WorkspaceSlugs {
-  const [root, org, project] = pathname.split('/').filter(Boolean);
+  const [root, org] = pathname.split('/').filter(Boolean);
   if (root !== 'app' || !org || RESERVED_SLUGS.has(org)) return {};
-  return { org, project: project && !ORGANIZATION_SECTIONS.has(project) ? project : undefined };
+  return { org };
 }

@@ -4,33 +4,56 @@ from __future__ import annotations
 
 import itertools
 from collections import defaultdict
+from collections.abc import Mapping
 from typing import Any
 
 from .models.platform import StudyDefinition
 from bim_core.canonical import digest
 
 
-def expand_study(definition: StudyDefinition) -> list[dict[str, Any]]:
+#: The ``apiVersion`` of the definition a study run freezes.
+STUDY_RUN_API_VERSION = "openbinding/study-run/v1"
+
+
+def expand_study(definition: StudyDefinition, compilations: Mapping[str, str]) -> list[dict[str, Any]]:
+    """The cells of ``definition``, in a fixed order; ``compilations`` maps each revision id to the
+    compilation id its cells run, which is part of every cell's fingerprint (D7)."""
     cells = []
     engines = sorted(
         definition.engines,
         key=lambda item: tuple(item[key] for key in ("namespace", "name", "version", "digest"))
         + (item.get("mode", ""), item.get("optimization", {}).get("scalarization", "")),
     )
-    cases = sorted(definition.case_revision_ids, key=str)
+    revisions = sorted(definition.revision_ids, key=str)
     parameters = sorted(definition.parameter_sets, key=digest)
     seeds = sorted(definition.seeds)
-    for ordinal, (case_id, engine, parameter_set, seed) in enumerate(
-        itertools.product(cases, engines, parameters, seeds)
+    for ordinal, (revision_id, engine, parameter_set, seed) in enumerate(
+        itertools.product(revisions, engines, parameters, seeds)
     ):
         frozen = {
-            "caseRevisionId": str(case_id),
+            "caseRevisionId": str(revision_id),
+            "compilationId": compilations[str(revision_id)],
             "engine": engine,
             "parameters": parameter_set,
             "seed": seed,
         }
         cells.append({"ordinal": ordinal, "fingerprint": digest(frozen), **frozen})
     return cells
+
+
+def frozen_definition(definition: StudyDefinition, problems: list[dict[str, Any]]) -> dict[str, Any]:
+    """The ``openbinding/study-run/v1`` document a study run freezes (D7).
+
+    ``problems`` holds one entry per revision: ``revisionId``, ``problemId``, ``revision``,
+    ``packageDigest`` and the pinned ``compilationId``, ``compilationDigest`` and ``irDigest``.
+    """
+    return {
+        "apiVersion": STUDY_RUN_API_VERSION,
+        "problems": sorted(problems, key=lambda item: item["revisionId"]),
+        "engines": definition.model_dump(mode="json")["engines"],
+        "parameterSets": definition.parameter_sets,
+        "seeds": definition.seeds,
+    }
 
 
 def nondominated(points: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -98,62 +121,3 @@ def aggregate_metrics(metrics: list[dict[str, Any]]) -> dict[str, Any]:
         "paretoStatus": "unavailable: study cells may use incompatible models; open a compatible binding archive",
         "stability": stability,
     }
-
-
-async def seal_study_definition(session, project, user, name, definition, *, current=None, analysis_fixture=False):
-    """Persist the sole authoritative definition in the organization library."""
-    import uuid
-    from .artifacts import seal_draft
-    from .db.models import Artifact, ArtifactDraft, BindingCaseRevision, ProjectArtifact
-    from .models.artifacts import DraftContent
-    from .services.engines import engine_mode
-    from bim_core.canonical import digest
-
-    definition = StudyDefinition.model_validate(definition)
-    dependencies = []
-    if analysis_fixture:
-        content = {'apiVersion': 'openbinding/analysis-gallery/v1', 'definition': definition.model_dump(mode='json')}
-        kind = 'Dataset'
-    else:
-        cases = []
-        for case_id in definition.case_revision_ids:
-            case = await session.get(BindingCaseRevision, case_id)
-            if case is None:
-                from .models.errors import api_error
-                raise api_error(422, 'missing_case_revision', 'The study case revision is unavailable.')
-            cases.append({'caseRevisionId': str(case.id), 'compositionDigest': case.digest})
-        engines = []
-        for engine in definition.engines:
-            _, mode, _ = await engine_mode(engine['name'], engine.get('mode'), definition.parameter_sets[0], session, caller=user,
-                namespace=engine['namespace'], version=engine['version'], manifest_digest=engine['digest'])
-            engines.append({**engine, 'mode': mode['id']})
-        content = {'apiVersion': 'openbinding/study/v1', 'cases': cases, 'engines': engines,
-                   'parameter_sets': definition.parameter_sets, 'seeds': definition.seeds}
-        kind = 'Study'
-    if current and current.content_digest == digest(content):
-        return current
-    artifact = await session.get(Artifact, current.artifact_id) if current else None
-    if artifact is None:
-        artifact = Artifact(organization_id=project.organization_id, namespace=str(project.organization_id),
-            name='study-' + uuid.uuid4().hex, display_name=name, kind=kind, created_by_id=user.id)
-        session.add(artifact)
-        await session.flush()
-    draft = ArtifactDraft(artifact_id=artifact.id, based_on_id=current.id if current else None,
-        payload=DraftContent(content=content, dependencies=dependencies).model_dump(mode='json'), created_by_id=user.id)
-    session.add(draft)
-    await session.flush()
-    version = await seal_draft(session, artifact, draft, 1, None, user)
-    if await session.get(ProjectArtifact, (project.id, artifact.id)) is None:
-        session.add(ProjectArtifact(project_id=project.id, artifact_id=artifact.id))
-        await session.flush()
-    return version
-
-
-def definition_from_version(version) -> dict:
-    from .artifacts import verified_version_content
-    from .models.artifacts import StudyArtifactContent
-    from .core.jsonio import strict_json_loads
-    document = strict_json_loads(verified_version_content(version, version.blob)[0])
-    if document.get('apiVersion') == 'openbinding/analysis-gallery/v1':
-        return document['definition']
-    return StudyArtifactContent.model_validate(document).definition().model_dump(mode='json')

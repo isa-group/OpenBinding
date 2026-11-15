@@ -4,8 +4,8 @@ Two uses:
 
 * the deterministic conformance probe an Engine registration has to solve
   (``routes.v1._verify_registration``), whose IR has as many criteria as the mode asks for;
-* resolving the options of an Engine mode when there is no IR to run (sealing a library version,
-  defining a study): the toolchain's ``compatibility`` takes an IR, and the answer about options does
+* resolving the options of an Engine mode when there is no IR to run (defining or editing a study):
+  the toolchain's ``compatibility`` takes an IR, and the answer about options does
   not depend on which.
 """
 

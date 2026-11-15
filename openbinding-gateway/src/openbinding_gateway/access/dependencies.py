@@ -37,7 +37,6 @@ from ..security.apikeys import (
     required_permissions,
 )
 from ..security.tokens import TokenError, bearer_token, read_access_token
-from . import public_read
 from .contracts import settle_pending_contract
 
 #: What an unauthenticated caller is told to send.
@@ -255,6 +254,16 @@ def _authorize_api_key(request: Request, user: User) -> None:
         )
 
 
+def authorize_counted_key(request: Request, user: Optional[User]) -> None:
+    """On a ``counted_caller`` route, an API key must still carry the route's permissions.
+
+    Visitors, sessions and credentials that name nobody pass as ``counted_caller`` left them; a valid key
+    that lacks the permission ``required_permissions`` names is refused (403), as on any other route.
+    """
+    if user is not None and authenticated_api_key(user) is not None:
+        _authorize_api_key(request, user)
+
+
 async def get_optional_user(
     request: Request,
     session: Optional[AsyncSession] = Depends(optional_session, scope="function"),
@@ -330,12 +339,6 @@ async def get_current_user(
     _record_caller(request, None)
     credential = _credential(request, bearer, api_key)
     if not credential:
-        if public_read.allows_anonymous(request):
-            # Only GET routes of the public-read matrix: the project handler
-            # still refuses (401) unless the project is public.
-            request.state.api_key = None
-            public_read.bind(session, request, public_read.ANONYMOUS)
-            return public_read.ANONYMOUS  # type: ignore[return-value]
         raise api_error(
             status.HTTP_401_UNAUTHORIZED,
             "unauthorized",
@@ -358,7 +361,6 @@ async def get_current_user(
     # An account registered while SPACE was unreachable owes a contract, and
     # nothing else ever settles it. Doing it here is what the flag was for.
     await settle_pending_contract(user, session)
-    public_read.bind(session, request, user)
     return user
 
 

@@ -6,7 +6,7 @@ SPACE operates whatever is published.
 
 | File | What |
 |---|---|
-| [`openbinding-0.2.0.yml`](openbinding-0.2.0.yml) | the proposal: Pricing2Yaml 3.1, the result of the cycle below |
+| [`openbinding-0.2.0.yml`](openbinding-0.2.0.yml) | the published version (Pricing2Yaml 3.1), the result of the cycle below; the gateway enforces it and ships a byte copy |
 
 Summary:
 
@@ -60,13 +60,18 @@ The cycle also applies one rule: what no user journey needs does not enter the p
 
 | Feature | Pillar and journey | Essential | Depends on |
 |---|---|---|---|
-| `repository`: author, version and publish problems and collections; permanent links, citations, Verify | P1; journeys 1, 2 | yes | — |
+| `repository`: upload and version problems | P1; journeys 1, 2 | yes | — |
 | `runs`: run problem versions on the built-in engines | P2, P3; journey 2 | yes | `repository` |
-| `studies`: compare engines over problems or a collection; protocol metrics; published results | P2; journey 3 | yes | `runs`, `repository` |
-| `generator`: solver-aware generation of collections | P2; curators | no; in every plan, made key by its limits | `runs` for the solver-aware option |
+| `studies`: compare engines over problems, with the protocol metrics | P2; journey 3 | yes | `runs`, `repository` |
+| `generator`: solver-aware generation of problem suites (unenforced until 0.3.0: the generator moved to QACOForge) | P2; curators | no; in every plan, made key by its limits | `runs` for the solver-aware option |
 | `federatedEngines`: register remote engines that pass conformance | P3; journey 4 | yes, with a limit | `runs` |
-| `collaboration`: organizations, projects, members, roles; public or private projects | E1; journey 6 | yes | — |
+| `collaboration`: organizations, members and roles (unenforced until 0.3.0) | E1; journey 6 | yes | — |
 | `apiAccess`: API keys for scripts, QACOBench and MCP clients | E1; journey 6 | yes | — |
+
+The descriptions above are what OpenBinding offers today. The published 0.2.0 YAML still words `repository`,
+`studies` and `collaboration` with publishing, collections, permanent links, citations, Verify and project
+visibility; those parts no longer exist, and the YAML text is not edited (it is the published SPHERE version,
+pinned byte for byte). Its next version, 0.3.0, is the owner's.
 
 Some things stay outside the pricing, because no plan gates them:
 
@@ -104,16 +109,16 @@ does not already give.
 | Limit | Makes key | FREE | RESEARCH | LAB | Why these values |
 |---|---|---|---|---|---|
 | `maxProblems` | `repository` | 25 | `.inf` | `.inf` | FREE: one author's working set; RESEARCH and LAB: unlimited, the repository is the open-science core |
-| `maxCollections` | `repository` | 5 | `.inf` | `.inf` | FREE: a few suites of one author |
+| `maxCollections` (unenforced until 0.3.0) | `repository` | 5 | `.inf` | `.inf` | FREE: a few suites of one author |
 | `maxRepositoryStorage` (MB, every version) | `repository` | 500 | `.inf` | `.inf` | FREE: hundreds of versions of typical BIM packages (kilobytes to a few megabytes each); the limit only stops a free account from becoming a bulk mirror |
 | `solverHours` (renewable, per month) | `runs`, `studies` | 5 | 100 | 10,000 | FREE: about 300 one-minute runs. RESEARCH: the whole QACOBench 1.1.1 reference campaign (46,350 executions × 5 s ≈ 64 h of budget) fits in a month, in study runs of at most 5,000 cells. LAB: many reference campaigns a month, in parallel |
 | `maxRunMinutes` | `runs`, `studies` | 5 | 30 | 1,440 | interactive runs; exact solvers on research instances; day-long exact runs |
 | `maxConcurrentRuns` | all execution | 1 | 4 | 32 | fair sharing for FREE and RESEARCH; LAB runs campaigns in parallel and its agreement includes the capacity (see the capacity check) |
 | `maxStudyCells` (per study run) | `studies` | 500 | 5,000 | 500,000 | a small collection × 3 engines; a QACOBench suite; several reference campaigns as one study run |
-| `generatedInstances` (renewable, per month) | `generator` | 1,000 | 100,000 | 1,000,000 | FREE: try the generator on small suites; RESEARCH: the generated suites of a paper; LAB: benchmark-scale suites |
-| `maxInstancesPerGeneration` | `generator` | 100 | 10,000 | 100,000 | one request stays well inside the month's allowance and the gateway's generator ceilings |
+| `generatedInstances` (renewable, per month; unenforced until 0.3.0) | `generator` | 1,000 | 100,000 | 1,000,000 | FREE: try the generator on small suites; RESEARCH: the generated suites of a paper; LAB: benchmark-scale suites |
+| `maxInstancesPerGeneration` (unenforced until 0.3.0) | `generator` | 100 | 10,000 | 100,000 | one request stays well inside the month's allowance and the gateway's generator ceilings |
 | `maxFederatedEngines` | `federatedEngines` | 1 | 3 | 50 | an author tries one engine; a group maintains a few; a lab hosts a portfolio |
-| `maxPrivateProjects` | `collaboration` | 1 | 10 | 500 | public by default (open science); private work before a paper; a lab's internal projects |
+| `maxPrivateProjects` (unenforced until 0.3.0) | `collaboration` | 1 | 10 | 500 | written for project visibility, which no longer exists |
 | `maxApiKeys` | `apiAccess` | 2 | 10 | 200 | one script and one MCP client; a group's automation; campaign infrastructure |
 
 **Distribution heuristic.** FREE ⊂ RESEARCH ⊂ LAB. Every plan has the same seven features; the plans differ in their
@@ -132,11 +137,12 @@ with `pricing4ts` 0.12.1, the library SPACE 1.7.1 uses (3 plans, 0 add-ons, 7 fe
 
 **Moved out of the pricing.** These rules are the same for every account:
 
-- **Technical ceilings** become gateway settings, using today's RESEARCH values: 128 MiB per package, 1,000,000
-  iterations per run, binding spaces up to 10^20 for exact engines.
+- **Technical ceilings** become gateway settings, using the RESEARCH values of 0.1.5: 128 MiB per package
+  (`MAX_PACKAGE_BYTES`), 1,000,000 iterations per run (`MAX_ITERATIONS`), binding spaces up to 10^20 for exact
+  engines (`MAX_BINDING_SPACE_LOG10`).
 - **Run history** follows the retention rules of ARCHITECTURE §10.
-- **Organizations, members and projects** are not limited. A research platform should not throttle colleagues
-  working together. Collections are limited only on FREE, as part of its repository limits.
+- **Organizations and members** are not limited. A research platform should not throttle colleagues working
+  together.
 
 ## 5. Stage 3: prices
 
@@ -167,25 +173,28 @@ with `pricing4ts` 0.12.1, the library SPACE 1.7.1 uses (3 plans, 0 add-ons, 7 fe
 
 ## 6. How OpenBinding enforces it
 
-Feature ids in SPACE are `openbinding-<feature>`; limit ids are `openbinding-<limit>`.
+Feature ids in SPACE are `openbinding-<feature>`; limit ids are `openbinding-<limit>`. The ids the gateway reads are
+spelled in one place, `openbinding-gateway/src/openbinding_gateway/modules/plans/domain/entitlement_map.py`, and the
+gateway refuses to start on a pricing that lacks one of them (ACCOUNTS_AND_PLANS.md, "The startup check").
 
 | Operation | Feature evaluated | Checked by the gateway | Consumption sent to SPACE |
 |---|---|---|---|
-| create a problem | `repository` | problems the account owns < `maxProblems` | — |
-| create a collection | `repository` | collections the account owns < `maxCollections` | — |
-| seal a problem or collection version; publish | `repository` | stored size of the account's versions + the new package ≤ `maxRepositoryStorage` | — |
+| create a problem (from the problems API on) | `repository` | problems the account owns < `maxProblems` | — |
+| store a problem revision | `repository` | stored size of the account's revisions + the new package ≤ `maxRepositoryStorage` (MB = 10^6 bytes) | — |
 | start a run on a built-in engine | `runs` | budget ≤ `maxRunMinutes`; running runs < `maxConcurrentRuns` | `solverHours` = budget in hours |
 | start a run on a federated engine | `federatedEngines` | running runs < `maxConcurrentRuns` | — |
 | create a study run | `studies` | cells ≤ `maxStudyCells`; each cell's budget ≤ `maxRunMinutes` | — |
 | start a study cell on a built-in engine | `studies` | running runs < `maxConcurrentRuns` | `solverHours` = budget in hours |
-| generate instances | `generator` | instances requested ≤ `maxInstancesPerGeneration`; running runs < `maxConcurrentRuns` | `generatedInstances` = instances written |
-| generate with the solver-aware option | `generator`, then `runs` | as above, and budget ≤ `maxRunMinutes` | `generatedInstances` = instances written; `solverHours` = budget in hours |
-| register a federated engine | `federatedEngines` | registered < `maxFederatedEngines` | — |
-| make a project private | `collaboration` | private projects of the owner's organizations < `maxPrivateProjects` | — |
+| activate a federated engine | `federatedEngines` | active registrations < `maxFederatedEngines` | — |
 | create an API key | `apiAccess` | active keys < `maxApiKeys` | — |
 
-SPACE admits an evaluation while the month's hours or instances are not exhausted, then adds the consumption. One
-run or one generation can therefore end a month slightly over the allowance. That is accepted: the count stays exact
+The gateway sends no consumption yet: `solverHours` metering through SPACE's `evaluate`/`revert` arrives with the
+SPACE ledger (F3/F8 of the redesign). `solverHours`, `generator`, `generatedInstances`, `maxInstancesPerGeneration`,
+`collaboration`, `maxCollections` and `maxPrivateProjects` are present in the published 0.2.0 YAML but unenforced
+until 0.3.0.
+
+Once metering arrives, SPACE admits an evaluation while the month's hours are not exhausted, then adds the
+consumption. One run can therefore end a month slightly over the allowance. That is accepted: the count stays exact
 and predictable.
 
 ## 7. From 0.1.5 to 0.2.0 in SPACE

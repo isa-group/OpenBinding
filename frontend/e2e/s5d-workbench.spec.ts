@@ -1,7 +1,7 @@
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
-import type { BindingCase, CaseRevision } from '../src/api/platform';
-import { irDocument, refOf, revisionDocument } from '../src/pages/Cases/fixtures';
+import type { Problem, ProblemRevision } from '../src/api/problems';
+import { irDocument } from '../src/pages/Cases/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
 import { DEFAULT_FILES } from '../src/pages/Workbench/bimDocuments';
@@ -29,42 +29,31 @@ const token = (expiresInSeconds: number) => [
 
 const lucia = {
   id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
-  created_at: '2026-03-02T00:00:00Z', cas_verified: true, institutional_branding: true,
+  created_at: '2026-03-02T00:00:00Z', cas_verified: true,
 };
 
 type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 
-const org = (id: string, slug: string, name: string, role: Role, sponsor = 'user-1') => ({
-  id, slug, name, parent_id: null, billing_sponsor_user_id: sponsor, effective_role: role, created_at: '2026-03-03T00:00:00Z',
+const org = (id: string, slug: string, name: string, role: Role) => ({
+  id, slug, name, parent_id: null, effective_role: role, created_at: '2026-03-03T00:00:00Z',
 });
 
-const project = (n: number, orgId: string, slug: string, name: string) => ({
-  id: `project-${n}`, organization_id: orgId, slug, name, description: '', visibility: 'private', created_by_id: 'user-1',
-  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
-  // The contract's `ProjectView.access`: these specs reach every project as a member.
-  access: 'member' as const, effective_role: 'OWNER' as Role,
-});
+// --- the problem the workbench can open and save into
 
-const projectsOf: Record<string, ReturnType<typeof project>[]> = {
-  'isa-demo': [project(1, 'org-isa-demo', 'qos-benchmarks', 'QoS Benchmarks'), project(2, 'org-isa-demo', 'checkout-privado', 'Checkout (privado)')],
-  'consultora-demo': [project(3, 'org-3', 'client-case', 'Client case')],
-  'member-lab': [project(4, 'org-4', 'bench', 'Bench')],
+const flujo: Problem = {
+  id: 'case-flujo-checkout', organization_id: 'org-isa-demo', slug: 'flujo-checkout', name: 'Flujo de checkout', description: '', created_by_id: 'user-1',
+  created_at: '2026-04-02T00:00:00Z', updated_at: '2026-04-02T00:00:00Z',
 };
 
-// --- the case the workbench can open and save into
-
-const flujo: BindingCase = {
-  id: 'case-flujo-checkout', project_id: 'project-1', slug: 'flujo-checkout', name: 'Flujo de checkout', description: '', created_by_id: 'user-1', created_at: '2026-04-02T00:00:00Z',
-};
-
-const caseRevision = (n: number): CaseRevision => ({
-  id: `case-flujo-checkout-r${n}`,
-  binding_case_id: flujo.id,
-  revision: n,
-  digest: digestOf(String(n)),
-  document: revisionDocument([['application', 'checkout', refOf('checkout-app', String(n + 1), String(n))]]),
-  source_snapshot_id: null,
+const problemRevision = (n: number): ProblemRevision => ({
+  id: `case-flujo-checkout-r${n}`, problem_id: flujo.id, revision: n, package_digest: digestOf(String(n)), package_size: 2048, created_by_id: 'user-1',
   created_at: `2026-04-0${n}T00:00:00Z`,
+});
+
+/** What a save answers: the problem, its version and the compilation. */
+const upload = (problem: Problem, revision: number, created: boolean) => ({
+  problem, revision: problemRevision(revision), created,
+  compilation: { id: `compilation-${revision}`, compilation_digest: digestOf('9'), compiler_digest: digestOf('8'), ir_digest: digestOf('c'), binding_space: '128', created_at: '2026-04-02T00:00:00Z', current: true },
 });
 
 // --- what the gateway answers
@@ -89,22 +78,7 @@ const analysisBody = () => ({
   analysis: { tasks: 1, candidates: 2, constraints: 0, placement: false, bindingSpace: '128' },
 });
 
-const completedJob = {
-  id: 'job-1',
-  status: 'completed',
-  result: {
-    termination: 'FEASIBLE',
-    solutions: [{
-      decision: { kind: 'binding', binding: { hello: { resource: 'catalog', id: 'service-a' } } },
-      metrics: { latency: 10 },
-      objectives: { mode: 'weighted', components: [], penalty: 0, score: 10 },
-      penalties: [],
-      violations: [],
-    }],
-  },
-};
-
-type Overridable = 'validate' | 'snapshot' | 'saveRevision';
+type Overridable = 'validate' | 'create' | 'saveRevision';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
@@ -120,15 +94,14 @@ interface MockOptions {
   admin?: boolean;
 }
 
-const bodyOf = (route: Route) => route.request().postDataJSON() as Record<string, unknown>;
 
 /** Everything these screens read and write, answered; anything else on the API origin is an empty 404. */
 async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   const state: State = { refuse: {}, sent: {} };
   const organizations = [
     org('org-isa-demo', 'isa-demo', 'ISA Demo Group', options.role ?? 'ADMIN'),
-    org('org-3', 'consultora-demo', 'Consultora Demo', 'VIEWER', 'user-nora'),
-    org('org-4', 'member-lab', 'Member Lab', 'MEMBER', 'user-nora'),
+    org('org-3', 'consultora-demo', 'Consultora Demo', 'VIEWER'),
+    org('org-4', 'member-lab', 'Member Lab', 'MEMBER'),
   ];
   await page.addInitScript(() => {
     localStorage.setItem('openbinding-access-token', 's5d-access');
@@ -141,53 +114,56 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
   await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
   await page.route(`${API}/v1/users/me`, json(options.admin ? { ...lucia, role: 'admin' } : lucia));
-  await page.route(`${API}/v1/users/me/usage`, json(usageOf({ capabilities: { maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: 20, storageBytes: 5_368_709_120 } })));
+  await page.route(`${API}/v1/users/me/usage`, json(usageOf({ capabilities: { maxRunMinutes: 30, maxProblems: null, maxRepositoryStorage: null } })));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
-  await page.route(`${API}/v1/profiles`, json({ profiles: [] }));
-  await page.route(`${API}/v1/examples`, json({ examples: ['demo/01_simple_seq'] }));
+  await page.route(`${API}/v1/engines/protocol`, json({ profiles: [] }));
+  await page.route(`${API}/v1/bim/templates`, json({ templates: ['demo/01_simple_seq'] }));
   await page.route(`${API}/v1/engines`, json({ engines: [{ ...ENGINE, id: 'engine-1', ref: ENGINE, modes: [] }, { ...EDGE, id: 'engine-2', ref: EDGE, modes: [] }] }));
 
-  await page.route(`${API}/v1/validate`, (route) => (state.refuse.validate ?? json(analysisBody()))(route));
-  await page.route(`${API}/v1/instances`, (route) => {
-    state.sent.snapshot = route.request().headers()['content-type'];
-    return (state.refuse.snapshot ?? json({ id: 'snapshot-1', irDigest: digestOf('c') }, 201))(route);
+  // The check, and the compiled form when the Workbench asks for it (`include=ir`).
+  await page.route(new RegExp(`^${API}/v1/bim/validate(\\?.*)?$`), (route) => {
+    const withIr = new URL(route.request().url()).searchParams.get('include') === 'ir';
+    if (state.refuse.validate) return state.refuse.validate(route);
+    return json(withIr ? { ...analysisBody(), ir: irDocument(), sourceMap: {} } : analysisBody())(route);
   });
-  await page.route(`${API}/v1/instances/snapshot-1/ir`, json(irDocument()));
-  await page.route(`${API}/v1/jobs`, (route) => {
-    state.sent.job = bodyOf(route);
-    return json({ id: 'job-1', status: 'queued', irDigest: digestOf('c') }, 202)(route);
-  });
-  await page.route(`${API}/v1/jobs/job-1`, json(completedJob));
-  // The run's compiled problem: not available here, so RunResult falls back to the ids it has.
-  await page.route(`${API}/v1/jobs/job-1/ir`, (route) => route.fulfill({ status: 404, json: { detail: 'not found' } }));
+  // The package of a version, exactly as it was uploaded.
+  const packageBytes = Buffer.from(zipStore({ ...DEFAULT_FILES, 'instance.json': DEFAULT_FILES['instance.json'].replace('"hello-bim"', '"from-version-2"') }));
 
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
     const url = new URL(route.request().url());
     const parts = url.pathname.split('/').filter(Boolean);
-    // /v1/organizations/{org}/projects/{project}/cases/{case}/revisions
-    const [, , orgSlug, section, projectSlug, sub, subId, action] = parts;
+    // /v1/organizations/{org}/problems/{problem}/revisions/{revision}/source
+    const [, , orgSlug, section, problemSlug, sub, subId, action] = parts;
     const method = route.request().method();
     const found = organizations.find((item) => item.slug === orgSlug);
 
     if (!orgSlug) return json(organizations)(route);
     if (section === 'members' || section === 'library') return json([])(route);
-    if (section !== 'projects') return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
-
-    const list = projectsOf[orgSlug] ?? [];
-    if (!projectSlug) return json(list)(route);
-    const current = list.find((item) => item.slug === projectSlug);
-    if (!current) return detail(404, 'not_found', 'Project not found.')(route);
-    if (!sub) return json(current)(route);
-
-    if (sub === 'cases') {
-      if (!subId) return json(projectSlug === 'qos-benchmarks' ? [flujo] : [])(route);
-      if (action === 'revisions' && method === 'POST') {
-        state.sent.saveRevision = bodyOf(route);
-        return (state.refuse.saveRevision ?? json({ ...caseRevision(3), source_snapshot_id: 'snapshot-1' }, 201))(route);
+    if (section === 'problems') {
+      if (!found) return detail(403, 'organization_forbidden', 'Not a member.')(route);
+      if (!problemSlug) {
+        if (method === 'POST') {
+          state.sent.create = new URL(route.request().url()).searchParams.toString();
+          const made: Problem = { ...flujo, id: 'case-hello-bim', slug: 'hello-bim', name: 'hello-bim' };
+          return (state.refuse.create ?? json(upload(made, 1, true), 201))(route);
+        }
+        return json({ problems: orgSlug === 'isa-demo' ? [flujo] : [], total: orgSlug === 'isa-demo' ? 1 : 0, limit: 200, offset: 0 })(route);
       }
-      return json(subId === flujo.slug ? [caseRevision(1), caseRevision(2)] : [])(route);
+      if (problemSlug !== flujo.slug) return detail(404, 'not_found', 'Problem not found.')(route);
+      if (sub === 'revisions' && !subId) {
+        if (method === 'POST') {
+          state.sent.saveRevision = route.request().headers()['content-type'];
+          return (state.refuse.saveRevision ?? json(upload(flujo, 3, true), 201))(route);
+        }
+        return json([problemRevision(1), problemRevision(2)])(route);
+      }
+      if (sub === 'revisions' && action === 'source') {
+        return route.fulfill({ status: 200, contentType: 'application/vnd.bim+zip', body: packageBytes });
+      }
+      return json(flujo)(route);
     }
+    if (!section) return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
     return json([])(route);
   });
   return state;
@@ -240,7 +216,7 @@ const viewports = [
   { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 2 },
 ] as const;
 
-const ROOT = '/app/isa-demo/qos-benchmarks';
+const ROOT = '/app/isa-demo';
 const WORKBENCH = `${ROOT}/workbench`;
 
 const packageUpload = () => ({ name: 'imported.bim.zip', mimeType: 'application/vnd.bim+zip', buffer: Buffer.from(zipStore(DEFAULT_FILES)) });
@@ -249,7 +225,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S5d workbench`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('wb-workbench /app/:org/:project/workbench · package, check and result views', async ({ page }, testInfo) => {
+    test('wb-workbench /app/:org/workbench · package, check and result views', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(WORKBENCH);
@@ -257,8 +233,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const index = main.getByRole('navigation', { name: 'BIM resources' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'Workbench' })).toBeVisible();
-      await expect(main.getByText('Check a package, see which engines can run it, then snapshot, run or save it as a problem version.')).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Problems', exact: true })).toHaveAttribute('aria-current', 'page');
+      await expect(main.getByText('Write or check a package, see which engines can run it, then save it as a new problem or as a new version of one. A saved version runs from its problem page.')).toBeVisible();
+      await expect(main.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Problems' })).toHaveAttribute('href', '/app/isa-demo/problems');
       await expect(main.getByRole('tab', { name: 'Problem version' })).toHaveAttribute('aria-selected', 'true');
       await expect(main.getByText(/Nothing validated yet/)).toBeVisible();
       await expect(index).toContainText('workflow.bpmn');
@@ -270,14 +246,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('combobox', { name: 'Problem', exact: true }).selectOption('flujo-checkout');
       await expect(main.getByRole('combobox', { name: 'Problem version', exact: true })).toBeEnabled();
       await main.getByRole('combobox', { name: 'Problem version', exact: true }).selectOption({ label: 'Flujo de checkout · version 2' });
-      await expect(page).toHaveURL(/case=flujo-checkout&revision=case-flujo-checkout-r2/);
+      await expect(page).toHaveURL(/problem=flujo-checkout&revision=2/);
       await expect(main.getByText('Loaded version 2')).toBeVisible();
-      await expect(index).toContainText('isa-demo/checkout-app@3');
+      await index.getByRole('button', { name: /instance\.json/ }).click();
+      await expect(main.getByLabel('Name', { exact: true })).toHaveValue('from-version-2');
       await capture(page, testInfo, `workbench-${name}-case-revision`);
 
       // A file is read, compiled by the gateway, and replaces the package only when it is accepted.
       await main.getByRole('tab', { name: 'Upload file' }).click();
-      await expect(main.getByText('Up to 128 MiB on your plan (RESEARCH)')).toBeVisible();
+      await expect(main.getByText('The gateway refuses packages larger than this deployment allows')).toBeVisible();
       await expect(main.getByText('Drop a .bim.zip here')).toBeVisible();
       await capture(page, testInfo, `workbench-${name}-upload`);
       const compiling = held(() => json(analysisBody()));
@@ -286,6 +263,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('status').filter({ hasText: 'Checking the package you brought in…' })).toBeVisible();
       await capture(page, testInfo, `workbench-${name}-compiling`);
       compiling.release();
+      state.refuse.validate = undefined;
 
       await expect(main.getByRole('heading', { name: 'Valid package' })).toBeVisible();
       await expect(main.getByText('hello-bim · qos-binding/v1')).toBeVisible();
@@ -319,7 +297,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('wb-workbench /app/:org/:project/workbench · what the gateway refuses', async ({ page }, testInfo) => {
+    test('wb-workbench /app/:org/workbench · what the gateway refuses', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(WORKBENCH);
@@ -345,22 +323,21 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('button', { name: 'View source' })).toHaveAttribute('aria-expanded', 'true');
       await capture(page, testInfo, `workbench-${name}-422-source`);
 
-      // 402: too big for the plan, without inventing how far over it is.
-      state.refuse.validate = detail(402, 'instance_complexity_exceeded', 'The compiled problem is larger than the plan allows.', {
-        quota: { limit_id: 'maxInstanceComplexityLog10', limit: 9 },
+      // 422: over the deployment's size limit, which no plan changes: no plan ceiling, no "compare plans".
+      state.refuse.validate = detail(422, 'binding_space_over_technical_limit', 'The binding space is larger than this deployment accepts.', {
+        quota: { limit_id: 'MAX_BINDING_SPACE_LOG10', state: 'exhausted', source: 'technical', limit: 20, used: 23 },
       });
       await validate.click();
-      const tooBig = main.getByRole('alert').filter({ hasText: 'Too big for your plan' });
-      await expect(tooBig).toContainText('Too big for your plan (402 · instance_complexity_exceeded)');
-      await expect(tooBig).toContainText('Your RESEARCH plan allows up to 109 combinations.');
-      await expect(tooBig).toContainText('The server doesn’t report the measured size in this answer, so we can’t show how far over it is.');
-      await expect(tooBig.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
-      await capture(page, testInfo, `workbench-${name}-402`);
+      const capped = main.getByRole('alert').filter({ hasText: 'Over this deployment’s size limit' });
+      await expect(capped).toContainText('Over this deployment’s size limit (422 · binding_space_over_technical_limit)');
+      await expect(capped).toContainText('whatever the plan, so a larger plan won’t change it');
+      await expect(capped.getByRole('link', { name: 'Compare plans' })).toHaveCount(0);
+      await capture(page, testInfo, `workbench-${name}-422-size`);
 
-      // 413: larger than the plan takes in one request.
+      // 413: larger than the deployment takes in one request.
       state.refuse.validate = detail(413, 'payload_too_large', 'The package exceeds the request size limit.');
       await validate.click();
-      await expect(main.getByText('The file is larger than your plan allows per request (128 MiB) · 413.')).toBeVisible();
+      await expect(main.getByText('The package is larger than this deployment allows per request (413 · payload_too_large).')).toBeVisible();
       await capture(page, testInfo, `workbench-${name}-413`);
 
       // 403: the credential cannot validate.
@@ -381,7 +358,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('wb-workbench /app/:org/:project/workbench · the editor and its source', async ({ page }, testInfo) => {
+    test('wb-workbench /app/:org/workbench · the editor and its source', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(WORKBENCH);
@@ -420,7 +397,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `editor-${name}-source`);
 
       // What was edited is what the gateway receives.
-      const validated = page.waitForRequest((request) => request.url() === `${API}/v1/validate` && request.method() === 'POST');
+      const validated = page.waitForRequest((request) => request.url() === `${API}/v1/bim/validate` && request.method() === 'POST');
       await main.getByRole('button', { name: 'Validate', exact: true }).click();
       const request = await validated;
       expect(request.headers()['content-type']).toContain('application/vnd.bim+zip');
@@ -461,73 +438,66 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('wb-workbench /app/:org/:project/workbench · snapshot, save as a problem version and run', async ({ page }, testInfo) => {
+    test('wb-workbench /app/:org/workbench · save as a new problem, then as a new version, which runs from its page', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${WORKBENCH}?case=flujo-checkout`);
-      const main = page.locator('#platform-main');
-      await expect(main.getByRole('combobox', { name: 'Problem', exact: true })).toHaveValue('flujo-checkout');
-      await main.getByRole('button', { name: 'Validate', exact: true }).click();
-      const bar = main.getByRole('region', { name: 'Package actions' });
-      await expect(bar).toContainText('Valid packages can be snapshotted, run or saved as a version of a problem.');
-      await expect(bar.getByRole('combobox', { name: 'Save into problem' })).toHaveValue('flujo-checkout');
-      await capture(page, testInfo, `bar-${name}-valid`);
-
-      // One private snapshot, which also draws the workflow.
-      await bar.getByRole('button', { name: 'Create snapshot' }).click();
-      await expect(main.getByText('Snapshot created. It is private to your account and never changes.')).toBeVisible();
-      // No version of the problem was sealed from this snapshot yet, so the link leads to the list of problems.
-      await expect(main.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems`);
-      await expect(bar.getByRole('button', { name: 'Snapshot created' })).toBeVisible();
-      await expect(main.getByRole('img', { name: /^Workflow: authenticate/ })).toBeVisible();
-      await capture(page, testInfo, `bar-${name}-snapshot`);
-
-      // Saved as a version of the problem, with the snapshot it came from.
-      await expect(bar.getByRole('button', { name: 'Save as problem version' })).toBeEnabled();
-      await bar.getByRole('button', { name: 'Save as problem version' }).click();
-      await expect(main.getByText('Version 3 of Flujo de checkout saved and sealed.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Open it' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=3`);
-      // The snapshot is now the source of version 3, so it opens that version's Source tab.
-      await expect(main.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/source?version=3`);
-      const saved = state.sent.saveRevision as { document: { metadata: { name: string } }; source_snapshot_id: string; resources: unknown[] };
-      expect(saved.source_snapshot_id).toBe('snapshot-1');
-      expect(saved.document.metadata.name).toBe('hello-bim');
-      expect(saved.resources).toEqual([]);
-      await capture(page, testInfo, `bar-${name}-saved`);
-
-      // The gateway's refusal keeps the package and says why.
-      state.refuse.saveRevision = detail(403, 'forbidden', 'The API key does not include projects:write.');
-      await bar.getByRole('button', { name: 'Save as problem version' }).click();
-      await expect(main.getByRole('alert').filter({ hasText: 'The version wasn’t saved' })).toContainText('(403 · forbidden). Nothing was saved.');
-      await capture(page, testInfo, `bar-${name}-403`);
-
-      // Run with the engine mode the analysis offered; the same snapshot is used.
-      await main.getByRole('button', { name: 'Solve' }).click();
-      const runResult = main.getByRole('region', { name: 'Authoritative result' }).getByRole('region', { name: 'Run result' });
-      await expect(runResult.getByRole('cell', { name: 'service-a' })).toBeVisible();
-      await expect(runResult.getByText('View source').first()).toBeVisible();
-      expect(state.sent.job).toMatchObject({ snapshot: 'snapshot-1', engine: ENGINE, registration: REGISTRATION, mode: 'seeded' });
-      await capture(page, testInfo, `bar-${name}-run`);
-      expect(critical).toEqual([]);
-    });
-
-    test('wb-workbench /app/:org/:project/workbench · a VIEWER snapshots and runs but does not save', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      await mockApi(page, { role: 'VIEWER' });
       await page.goto(WORKBENCH);
       const main = page.locator('#platform-main');
       await main.getByRole('button', { name: 'Validate', exact: true }).click();
       const bar = main.getByRole('region', { name: 'Package actions' });
-      await expect(bar).toContainText('You can snapshot and run with your own account; saving into this project needs MEMBER.');
-      await expect(bar.getByRole('button', { name: 'Save as problem version' })).toBeDisabled();
+      await expect(bar).toContainText('Save a valid package as a new problem, or as a new version of one; it runs from its problem page.');
+      // The Workbench runs nothing itself: no engine to pick, no Solve and no snapshot.
+      await expect(main.getByRole('button', { name: 'Solve' })).toHaveCount(0);
+      await expect(main.getByRole('button', { name: 'Create snapshot' })).toHaveCount(0);
+      await expect(bar.getByRole('combobox', { name: 'Save into problem' })).toHaveValue('');
+      await expect(bar.getByRole('textbox', { name: 'Name of the new problem' })).toHaveValue('hello-bim');
+      await capture(page, testInfo, `bar-${name}-valid`);
+
+      // A new problem of the organization, named after the package.
+      await bar.getByRole('button', { name: 'Save as a new problem' }).click();
+      await expect(main.getByText('Saved as version 1 of hello-bim. Run it from its page.')).toBeVisible();
+      await expect(main.getByRole('link', { name: 'Open the problem' })).toHaveAttribute('href', `${ROOT}/problems/hello-bim?version=1`);
+      expect(state.sent.create).toContain('name=hello-bim');
+      await capture(page, testInfo, `bar-${name}-new-problem`);
+
+      // A new version of an existing problem: 201 is a new version, 200 the version it already is.
+      await bar.getByRole('combobox', { name: 'Save into problem' }).selectOption('flujo-checkout');
+      await bar.getByRole('button', { name: 'Save as a new version of Flujo de checkout' }).click();
+      await expect(main.getByText('Saved as version 3 of Flujo de checkout. Run it from its page.')).toBeVisible();
+      expect(state.sent.saveRevision).toContain('application/vnd.bim+zip');
+      state.refuse.saveRevision = json(upload(flujo, 2, false));
+      await bar.getByRole('button', { name: 'Save as a new version of Flujo de checkout' }).click();
+      await expect(main.getByText('Unchanged: this is version 2 of Flujo de checkout.')).toBeVisible();
+      await capture(page, testInfo, `bar-${name}-saved`);
+
+      // The gateway's refusals keep the package and say why.
+      state.refuse.saveRevision = detail(403, 'forbidden', 'The API key does not include problems:write.');
+      await bar.getByRole('button', { name: 'Save as a new version of Flujo de checkout' }).click();
+      await expect(main.getByRole('alert').filter({ hasText: 'The package wasn’t saved' })).toContainText('(403 · forbidden). Nothing was saved.');
+      await bar.getByRole('combobox', { name: 'Save into problem' }).selectOption('');
+      state.refuse.create = detail(409, 'slug_conflict', 'That problem slug is in use in this organization.');
+      await bar.getByRole('button', { name: 'Save as a new problem' }).click();
+      await expect(main.getByRole('alert').filter({ hasText: 'The package wasn’t saved' })).toContainText('That address is already used by another problem in this organization (409 · slug_conflict).');
+      await capture(page, testInfo, `bar-${name}-refused`);
+      expect(critical).toEqual([]);
+    });
+
+    test('wb-workbench /app/:org/workbench · a version opens from the address, and a VIEWER checks but does not save', async ({ page }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      await mockApi(page, { role: 'VIEWER' });
+      await page.goto(`${WORKBENCH}?problem=flujo-checkout&revision=2`);
+      const main = page.locator('#platform-main');
+      await expect(main.getByText('Loaded version 2')).toBeVisible();
+      await main.getByRole('button', { name: 'Validate', exact: true }).click();
+      const bar = main.getByRole('region', { name: 'Package actions' });
+      await expect(bar).toContainText('You can edit and check here; saving into the organization needs MEMBER.');
+      await expect(bar.getByRole('button', { name: /^Save as a new version of / })).toBeDisabled();
       await expect(bar.getByRole('combobox', { name: 'Save into problem' })).toHaveCount(0);
-      await expect(bar.getByRole('button', { name: 'Create snapshot' })).toBeEnabled();
-      await expect(main.getByRole('button', { name: 'Solve' })).toBeEnabled();
       await capture(page, testInfo, `bar-${name}-viewer`);
 
-      // A project the account is not in reads like one that does not exist.
-      await page.goto('/app/isa-demo/ghost/workbench');
-      await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
+      // An organization the account is not in reads like one that does not exist.
+      await page.goto('/app/ghost-lab/workbench');
+      await expect(main.getByRole('heading', { name: 'Organization not available' })).toBeVisible();
       await capture(page, testInfo, `bar-${name}-404`);
       expect(critical).toEqual([]);
     });

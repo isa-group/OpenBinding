@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Idempotent local seed for the demo: synthetic users with the real roles, two
-organizations, one project with a small BIM package from ``examples/`` as a case.
+organizations, and a small BIM package from ``examples/`` as a problem of the main
+organization.
 
 Safe to run on an empty or an already seeded database: every row is looked up by
-a stable key (UUIDv5 ids by username/slug) and created only when missing; there is
-no ``--reset`` and no user, organization, project, case or revision is ever deleted. It
-also compiles again, with the installed bim-toolchain, the package of every snapshot a
-case revision pins that another release compiled, and replaces the IR stored for it; every id is kept. It launches no jobs, no studies and no solvers.
+a stable key (UUIDv5 ids by username/slug, the problem by its slug and package digest)
+and created only when missing; there is no ``--reset`` and no user, organization,
+problem or revision is ever deleted. It also compiles, with the installed
+bim-toolchain, every problem revision that has no compilation of it yet (a new row;
+the older compilations stay). It launches no jobs, no studies and no solvers.
 Importing this module has no side effects.
 
 Environment:
@@ -36,6 +38,7 @@ import re
 import sys
 import uuid
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -56,12 +59,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from openbinding_gateway import space_client
 from openbinding_gateway.db.models import (
     ApiKey,
-    Artifact,
-    ArtifactDraft,
-    ArtifactVersion,
-    CaseArtifact,
-    InstanceSnapshot,
-    ProjectArtifact,
+    ProblemCompilation,
     User,
     UserRole,
 )
@@ -71,14 +69,17 @@ from openbinding_gateway.db.platform_models import (
     Organization,
     OrganizationMembership,
     OrganizationRole,
-    Project,
-    Visibility,
 )
-from openbinding_gateway.services.snapshots import RecompileReport, recompile_stale_snapshots
+from openbinding_gateway.integrations import packages
+from openbinding_gateway.modules.problems.application import (
+    NOT_RECOMPILABLE,
+    add_revision,
+    compile_or_get,
+    create_problem,
+)
 from openbinding_gateway.space_client import OpenGate
 from openbinding_gateway.security.apikeys import ADMIN_PERMISSIONS, ALL_PERMISSIONS, hash_key
 from openbinding_gateway.security.passwords import hash_password, password_complaint, verify_password
-from bim_core.package import load_package
 
 logger = logging.getLogger("seed_lab")
 
@@ -86,7 +87,7 @@ logger = logging.getLogger("seed_lab")
 SEED_NAMESPACE = uuid.UUID("6f1d3a52-8c0e-4b7a-9d21-0f5e7c3a9b10")
 EMAIL_DOMAIN = "example.org"
 DEMO_PACKAGE = "01_simple_seq"
-PROJECT_REF = ("lab-main", "bim-demo")
+MAIN_ORG = "lab-main"
 CASE_SLUG = "simple-seq"
 KNOWN_PRODUCTION_SERVICES = ("openbinding",)
 
@@ -99,7 +100,7 @@ SYNTHETIC_USERS: tuple[tuple[str, UserRole, Mapping[str, OrganizationRole]], ...
     ("lab-viewer", UserRole.USER, {"lab-main": OrganizationRole.VIEWER}),
     ("lab-outsider", UserRole.USER, {"lab-other": OrganizationRole.OWNER}),
 )
-#: (slug, name, sponsor/creator username)
+#: (slug, name, creator username)
 ORGANIZATIONS = (
     ("lab-main", "Lab Main Organization", "lab-owner"),
     ("lab-other", "Lab Other Organization", "lab-outsider"),
@@ -171,7 +172,7 @@ async def ensure_users(session: AsyncSession, password: str, plan: str, created:
 
 async def ensure_organizations(session: AsyncSession, users: dict[str, User], created: list[str]) -> dict[str, Organization]:
     organizations: dict[str, Organization] = {}
-    for slug, name, sponsor in ORGANIZATIONS:
+    for slug, name, creator in ORGANIZATIONS:
         organization = await session.scalar(select(Organization).where(Organization.slug == slug))
         if organization is None:
             organization = Organization(
@@ -179,8 +180,7 @@ async def ensure_organizations(session: AsyncSession, users: dict[str, User], cr
                 slug=slug,
                 name=name,
                 parent_id=None,
-                billing_sponsor_user_id=users[sponsor].id,
-                created_by_id=users[sponsor].id,
+                created_by_id=users[creator].id,
             )
             session.add(organization)
             await session.flush()
@@ -201,132 +201,64 @@ async def ensure_organizations(session: AsyncSession, users: dict[str, User], cr
     return organizations
 
 
-async def ensure_project(session: AsyncSession, organizations: dict[str, Organization], users: dict[str, User], created: list[str]) -> Project:
-    org_slug, slug = PROJECT_REF
-    organization = organizations[org_slug]
-    project = await session.scalar(select(Project).where(Project.organization_id == organization.id, Project.slug == slug))
-    if project is None:
-        project = Project(
-            id=stable_id("project", f"{org_slug}/{slug}"),
-            organization_id=organization.id,
-            slug=slug,
-            name="BIM demo",
-            description="Synthetic lab project with one small BIM package.",
-            visibility=Visibility.PRIVATE,
-            created_by_id=users["lab-owner"].id,
-        )
-        session.add(project)
-        await session.flush()
-        created.append(f"project:{org_slug}/{slug}")
-    return project
-
-
-async def ensure_library_composition(session: AsyncSession, project: Project, user: User, package: Any, prefix: str):
-    """Authored, named library resources for the package, never copies shared by byte equality.
-
-    Extracted from tools/seed_dev.py (which has import-time effects and cannot be imported).
-    """
-    from openbinding_gateway.artifacts import materialize_case, reference, seal_draft, validate_content
-    from openbinding_gateway.models.artifacts import ArtifactUse, DraftContent
-    from bim_core.canonical import digest_bytes
-
-    organization = await session.get(Organization, project.organization_id)
-    uses = []
-    for role, resources in package.instance()["spec"]["resources"].items():
-        for alias, path in resources.items():
-            content = package.json(path) if path.endswith(".json") else package.files[path].decode("utf-8")
-            kind = content["kind"] if isinstance(content, dict) else "BPMN"
-            payload = DraftContent(
-                content=content,
-                media_type="application/json" if isinstance(content, dict) else "application/vnd.omg.bpmn+xml",
-            )
-            raw, contracts = validate_content(kind, payload)
-            name = f"{prefix}-{alias}"
-            artifact = await session.scalar(select(Artifact).where(Artifact.organization_id == organization.id, Artifact.name == name))
-            if artifact is None:
-                artifact = Artifact(
-                    organization_id=organization.id,
-                    namespace=str(organization.id),
-                    name=name,
-                    display_name=f"{prefix} · {alias}",
-                    kind=kind,
-                    created_by_id=user.id,
-                )
-                session.add(artifact)
-                await session.flush()
-            candidates = (
-                await session.scalars(
-                    select(ArtifactVersion).where(
-                        ArtifactVersion.artifact_id == artifact.id, ArtifactVersion.content_digest == digest_bytes(raw)
-                    )
-                )
-            ).all()
-            version = next((item for item in candidates if item.manifest["contracts"] == contracts), None)
-            if version is None:
-                draft = ArtifactDraft(artifact_id=artifact.id, payload=payload.model_dump(mode="json"), created_by_id=user.id)
-                session.add(draft)
-                await session.flush()
-                version = await seal_draft(session, artifact, draft, 1, None, user)
-            if await session.get(ProjectArtifact, (project.id, artifact.id)) is None:
-                session.add(ProjectArtifact(project_id=project.id, artifact_id=artifact.id))
-            uses.append(ArtifactUse(role=role, alias=alias, artifact=reference(artifact, version)))
-    return await materialize_case(session, user, organization, package.instance(), uses)
-
-
-async def ensure_case(session: AsyncSession, project: Project, user: User, examples_dir: Path, created: list[str]) -> BindingCaseRevision:
-    from openbinding_gateway.artifacts import case_composition_digest
-
-    package = load_package(examples_dir / "demo" / DEMO_PACKAGE)
-    case = await session.scalar(select(BindingCase).where(BindingCase.project_id == project.id, BindingCase.slug == CASE_SLUG))
-    if case is None:
-        case = BindingCase(
-            id=stable_id("case", f"{PROJECT_REF[0]}/{PROJECT_REF[1]}/{CASE_SLUG}"),
-            project_id=project.id,
-            slug=CASE_SLUG,
-            name="Sequential Service Workflow",
-            description="Sequential pipeline with strict latency bounds (synthetic demo).",
-            created_by_id=user.id,
-        )
-        session.add(case)
-        await session.flush()
-        created.append(f"case:{CASE_SLUG}")
-    document, snapshot_id, uses = await ensure_library_composition(session, project, user, package, DEMO_PACKAGE)
-    snapshot = await session.get(InstanceSnapshot, snapshot_id)
-    composition = case_composition_digest(document, snapshot, [use.model_dump(mode="json") for use, _ in uses])
-    revision = await session.scalar(
-        select(BindingCaseRevision).where(BindingCaseRevision.binding_case_id == case.id, BindingCaseRevision.digest == composition)
+async def ensure_case(
+    session: AsyncSession, organization: Organization, user: User, examples_dir: Path, created: list[str]
+) -> BindingCaseRevision:
+    """The demo package as the problem ``CASE_SLUG`` of ``organization``; the same package is the same revision."""
+    archive = packages.zip_directory(examples_dir / "demo" / DEMO_PACKAGE)
+    problem = await session.scalar(
+        select(BindingCase).where(BindingCase.organization_id == organization.id, BindingCase.slug == CASE_SLUG)
     )
-    if revision is None:
-        ordinal = int(await session.scalar(select(func.max(BindingCaseRevision.revision)).where(BindingCaseRevision.binding_case_id == case.id)) or 0) + 1
-        revision = BindingCaseRevision(
-            binding_case_id=case.id,
-            revision=ordinal,
-            digest=composition,
-            document=document,
-            source_snapshot_id=snapshot.id,
-            created_by_id=user.id,
+    if problem is None:
+        upload = await create_problem(
+            session, organization, archive, user, slug=CASE_SLUG, name="Sequential Service Workflow",
+            description="Sequential pipeline with strict latency bounds (synthetic demo).",
+            provenance={"producer": "seed_lab"},
         )
-        session.add(revision)
-        await session.flush()
-        for use, version in uses:
-            session.add(CaseArtifact(revision_id=revision.id, role=use.role, alias=use.alias, version_id=version.id, bindings=use.bindings))
-        await session.flush()
-        created.append(f"case-revision:{CASE_SLUG}:{ordinal}")
-    return revision
+        created.append(f"case:{CASE_SLUG}")
+    else:
+        upload = await add_revision(session, problem, archive, user, provenance={"producer": "seed_lab"})
+    if upload.created:
+        created.append(f"case-revision:{CASE_SLUG}:{upload.revision.revision}")
+    return upload.revision
 
 
-async def ensure_current_toolchain(session: AsyncSession, created: list[str]) -> RecompileReport:
-    """Make every snapshot a case revision pins one that the installed toolchain compiled.
+@dataclass(frozen=True)
+class CompileFailure:
+    """A revision the installed toolchain does not accept: ``code`` and the toolchain's ``reason``."""
 
-    After a release of bim-toolchain that changes the IR, the snapshots a seeded lab holds were compiled
-    by the previous one and the gateway refuses them (``422 contract_not_installed``). Their packages are
-    stored, so their IR is compiled again in place; case revisions are sealed
-    and keep their ids, as do the snapshots. On a lab that is already current this changes nothing.
+    revision_id: str
+    code: str
+    reason: dict[str, Any] | None = None
+
+
+async def ensure_current_toolchain(session: AsyncSession, created: list[str]) -> list[CompileFailure]:
+    """Give every problem revision a compilation by the installed toolchain (``compile_or_get``).
+
+    After a release of bim-toolchain that changes the IR, the revisions a seeded lab holds were compiled by
+    the previous one. Their packages are stored, so a new compilation row is added for the installed
+    toolchain; the older rows, and every revision id, stay. A revision the toolchain refuses is reported and
+    left as it is. On a lab that is already current this changes nothing.
     """
-    report = await recompile_stale_snapshots(session)
-    for _, revisions in report.recompiled:
-        created.extend(f"recompiled-case-revision:{revision}" for revision in revisions)
-    return report
+    from fastapi import HTTPException
+
+    failures: list[CompileFailure] = []
+    for revision in (await session.scalars(select(BindingCaseRevision).order_by(BindingCaseRevision.created_at))).all():
+        before = int(await session.scalar(
+            select(func.count()).select_from(ProblemCompilation).where(ProblemCompilation.revision_id == revision.id)
+        ) or 0)
+        try:
+            await compile_or_get(session, revision)
+        except HTTPException as exc:
+            detail = exc.detail if isinstance(exc.detail, dict) else {}
+            failures.append(CompileFailure(str(revision.id), str(detail.get("code") or NOT_RECOMPILABLE), detail.get("reason")))
+            continue
+        after = int(await session.scalar(
+            select(func.count()).select_from(ProblemCompilation).where(ProblemCompilation.revision_id == revision.id)
+        ) or 0)
+        if after > before:
+            created.append(f"compiled-revision:{revision.id}")
+    return failures
 
 
 async def count_rows(session: AsyncSession, users: dict[str, User], organizations: dict[str, Organization]) -> dict[str, int]:
@@ -341,47 +273,46 @@ async def count_rows(session: AsyncSession, users: dict[str, User], organization
         "apiKeys": await count(ApiKey, ApiKey.user_id.in_(user_ids)),
         "organizations": await count(Organization, Organization.id.in_(org_ids)),
         "memberships": await count(OrganizationMembership, OrganizationMembership.organization_id.in_(org_ids)),
-        "projects": await count(Project, Project.organization_id.in_(org_ids)),
-        "cases": await count(BindingCase, BindingCase.slug == CASE_SLUG),
+        "cases": await count(BindingCase, BindingCase.organization_id.in_(org_ids)),
         "caseRevisions": await count(BindingCaseRevision, BindingCaseRevision.created_by_id.in_(user_ids)),
-        "artifacts": await count(Artifact, Artifact.organization_id.in_(org_ids)),
-        "snapshots": await count(InstanceSnapshot, InstanceSnapshot.owner_id.in_(user_ids)),
+        "compilations": await count(
+            ProblemCompilation,
+            ProblemCompilation.revision_id.in_(
+                select(BindingCaseRevision.id).where(BindingCaseRevision.created_by_id.in_(user_ids))
+            ),
+        ),
     }
 
 
-async def seed(session: AsyncSession, password: str, examples_dir: Path, *, plan: str = "BASIC") -> dict[str, Any]:
+async def seed(session: AsyncSession, password: str, examples_dir: Path, *, plan: str = "FREE") -> dict[str, Any]:
     """Create what is missing; return what was created (empty on a repeated run) and the row counts."""
     created: list[str] = []
-    # Storing library content consults the pricing gate for the sponsor's storage allowance. The lab
-    # data is local and synthetic and the synthetic users have no SPACE contract, so the seed uses the
-    # open gate (no plan, no counters) whatever SPACE_ENABLED says, and restores what was installed.
+    # Uploading a problem consults the pricing gate for the uploader's allowances. The lab data is local
+    # and synthetic and the synthetic users have no SPACE contract, so the seed uses the open gate (no plan,
+    # no counters) whatever SPACE_ENABLED says, and restores what was installed.
     try:
         previous = space_client.get_gate()
     except RuntimeError:
         previous = None
     space_client.set_gate(OpenGate())
     try:
-        # First, so that the compilation of the case below finds the regenerated snapshot instead of
-        # making a second one of the same package that would have to be removed.
-        recompile = await ensure_current_toolchain(session, created)
         users = await ensure_users(session, password, plan, created)
         organizations = await ensure_organizations(session, users, created)
-        project = await ensure_project(session, organizations, users, created)
-        revision = await ensure_case(session, project, users["lab-owner"], examples_dir, created)
+        revision = await ensure_case(session, organizations[MAIN_ORG], users["lab-owner"], examples_dir, created)
+        recompile = await ensure_current_toolchain(session, created)
         await session.commit()
     finally:
         space_client.set_gate(previous)
     return {
         "created": created,
         "recompileFailed": [
-            {"snapshotId": item.snapshot_id, "code": item.code, **({"reason": item.refusal.as_dict()} if item.refusal else {})}
-            for item in recompile.failures
+            {"revisionId": item.revision_id, "code": item.code, **({"reason": item.reason} if item.reason else {})}
+            for item in recompile
         ],
         "counts": await count_rows(session, users, organizations),
         "ids": {
             "users": {name: str(user.id) for name, user in users.items()},
             "organizations": {slug: str(item.id) for slug, item in organizations.items()},
-            "project": str(project.id),
             "caseRevision": str(revision.id),
         },
         "roles": {
@@ -491,13 +422,13 @@ async def _run(args: argparse.Namespace, environ: Mapping[str, str], password: s
     db_base.init_engine(database_url)
     try:
         async with db_base.session_factory()() as session:
-            result = await seed(session, password, examples_dir, plan=dev_plan or "BASIC")
+            result = await seed(session, password, examples_dir, plan=dev_plan or "FREE")
         users = result.pop("users")
         report: dict[str, Any] = {"tool": "seed_lab", **result}
         for failure in result["recompileFailed"]:
             print(
-                f"snapshot {failure['snapshotId']} could not be compiled again ({failure['code']}); "
-                "tools/diagnose_snapshots.py reads why, without writing",
+                f"problem revision {failure['revisionId']} cannot be compiled by the installed toolchain "
+                f"({failure['code']}); upload a corrected package as a new revision",
                 file=sys.stderr,
             )
         if args.print_keys:

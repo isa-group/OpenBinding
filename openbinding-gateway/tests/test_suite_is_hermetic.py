@@ -23,10 +23,9 @@ from openbinding_gateway.core.settings import Settings
 #: Variables the suite sets itself, with the value it needs (``None``: any non-empty value).
 SUITE_VALUES = {
     "JOB_DISPATCH_MODE": "inline",
-    "BIM_MODE": "inproc",
     "SPHERE_ENABLED": "false",
-    "SPACE_PRICING_VERSION": "0.1.0",
-    "SPACE_DEFAULT_PLAN": "BASIC",
+    "SPACE_PRICING_VERSION": "0.2.0",
+    "SPACE_DEFAULT_PLAN": "FREE",
     "GATEWAY_JWT_SECRET": None,
     "SCHEMAS_DIR": None,
 }
@@ -82,7 +81,6 @@ def test_the_environment_of_the_suite_carries_no_deployment_setting() -> None:
 def test_the_gateway_reads_the_values_of_the_suite_not_the_defaults_of_a_deployment() -> None:
     settings = Settings(_env_file=None)
     assert settings.job_dispatch_mode == "inline"
-    assert settings.bim_mode == "inproc"
     assert settings.database_url is None
     assert settings.redis_url == "redis://redis:6379/0"
     assert settings.federation_require_https is True
@@ -97,7 +95,6 @@ def test_conftest_discards_a_contaminated_environment_and_keeps_the_admin_for_in
         FEDERATION_REQUIRE_HTTPS="false",
         DATABASE_URL="postgresql://deployment:deployment@db.invalid/deployment",
         REDIS_URL="redis://redis.invalid:6379/0",
-        BIM_MODE="http",
         SPHERE_ENABLED="true",
         SPACE_PRICING_VERSION="9.9.9",
         SPACE_DEFAULT_PLAN="ENTERPRISE",

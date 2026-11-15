@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import pytest
 import pytest_asyncio
+from _problem_helpers import revision_of, runs_url_for
+from _problem_helpers import placeholder_refs
 from pydantic import ValidationError
 
 from openbinding_gateway import main, space_client
@@ -82,7 +84,8 @@ def test_production_refuses_an_empty_list(origins):
 
 def test_production_accepts_an_explicit_closed_list():
     configured = settings(
-        app_env="prod", space_enabled=True, cors_allow_origins="https://openbinding.example.org"
+        app_env="prod", space_enabled=True, space_organization_id="org-test",
+        cors_allow_origins="https://openbinding.example.org",
     )
 
     assert configured.cors_origin_list == ["https://openbinding.example.org"]
@@ -163,11 +166,11 @@ async def test_a_request_without_origin_gets_no_cors_headers(api_client):
 
 async def test_the_preflight_of_a_foreign_origin_is_refused(api_client):
     foreign = await api_client.options(
-        "/v1/jobs",
+        "/v1/organizations/acme/runs",
         headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "POST"},
     )
     local = await api_client.options(
-        "/v1/jobs",
+        "/v1/organizations/acme/runs",
         headers={"Origin": allowed_origin(), "Access-Control-Request-Method": "POST"},
     )
 
@@ -196,26 +199,21 @@ async def test_a_429_exposes_retry_after_to_the_browser(
         json={"username_or_email": details["username"], "password": details["password"]},
     )
     headers = {"Authorization": f"Bearer {tokens.json()['access_token']}"}
-    snapshot = await api_client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=load_package(EXAMPLE).to_zip(),
-    )
-    assert snapshot.status_code == 201, snapshot.text
+    revision_id = await revision_of(api_client, headers, archive=load_package(EXAMPLE).to_zip())
     # The account's only slot is taken by a job that is still queued.
     monkeypatch.setattr(get_settings(), "max_concurrent_jobs_per_user", 1)
     db_session.add(Job(
         owner_id=user.id, engine_id="random-search", engine_job_id="busy",
-        service_url="http://engine", state=JobState.QUEUED,
+        service_url="http://engine", state=JobState.QUEUED, **placeholder_refs(),
     ))
     await db_session.commit()
     origin = allowed_origin()
 
     response = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers={**headers, "Origin": origin},
         json={
-            "snapshot": snapshot.json()["id"],
+            "revision": revision_id,
             "engine": "random-search",
             "mode": "seeded",
             "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},

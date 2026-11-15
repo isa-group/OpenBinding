@@ -2,41 +2,44 @@
 
 from __future__ import annotations
 
-import json
 import uuid
 from typing import Any, Iterable
 
-from bim_core import PackageError
 from fastapi import HTTPException
-from fastapi.responses import JSONResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.requests import Request
 
 from .db import base as db_base
 from .db.models import (
     AuditEvent,
+    BindingCase,
     BindingCaseRevision,
-    InstanceSnapshot,
     Job,
     JobState,
     Organization,
+    ProblemCompilation,
     RunState,
+    Study,
     StudyCell,
     StudyRun,
     User,
     utcnow,
 )
-from .domain import usage_counters
+from .domain.binding_space import BindingSpace
 from .domain.entitlements import Refusal
+from .job_dispatch import dispatch_persisted_job
 from .jobs import lifecycle
 from .jobs.leases import aware
+from .models.errors import api_error
+from .modules.execution.application import STUDY_CELL_KEY_PREFIX, RunRequest
 from .security.roles import require_work_role
 from .services.engines import engine_mode, manifest_async
 from .services.entitlements import entitlement_service
-from .services.snapshots import persist_snapshot, snapshot_ir
-from .space_client import PlanCaps
-from .studies import aggregate_metrics
+from .services.job_submission import JobSubmission, discard_pending_launches, pending_launches
+from .modules.problems.application import compile_or_get
+from .models.platform import StudyDefinition
+from .studies import aggregate_metrics, expand_study, frozen_definition
+from bim_core.canonical import digest
 
 
 class StudyLaunchError(RuntimeError):
@@ -121,29 +124,22 @@ async def cell_job_mismatches(
 ) -> dict[str, dict[str, Any]]:
     """Which identities of a job differ from the cell it is offered as the result of.
 
-    The keys are ``case_revision`` (the BIM package behind the cell's pinned
-    case revision), ``engine`` (namespace, name, version and digest), ``mode``
-    (when the cell pins one) and ``seed``. Each maps to what the cell expects
-    and what the job recorded; an empty result means the job is a faithful
-    execution of the cell.
+    The keys are ``case_revision`` (the problem revision the cell pins),
+    ``compilation`` (the compilation its run pinned for that revision, D7;
+    compared only when the revision matches, since another revision is
+    another compilation), ``engine`` (namespace, name, version and digest),
+    ``mode`` (when the cell pins one) and ``seed``. Each maps to what the
+    cell expects and what the job recorded; an empty result means the job is
+    a faithful execution of the cell.
     """
 
     provenance = job.provenance if isinstance(job.provenance, dict) else {}
     mismatches: dict[str, dict[str, Any]] = {}
 
-    revision = await session.get(BindingCaseRevision, cell.binding_case_revision_id)
-    source = (
-        await session.get(InstanceSnapshot, revision.source_snapshot_id)
-        if revision is not None and revision.source_snapshot_id is not None
-        else None
-    )
-    expected_package = source.package_digest if source is not None else None
-    job_package = provenance.get("packageDigest")
-    if job_package is None and job.instance_snapshot_id is not None:
-        snapshot = await session.get(InstanceSnapshot, job.instance_snapshot_id)
-        job_package = snapshot.package_digest if snapshot is not None else None
-    if expected_package is None or job_package != expected_package:
-        mismatches["case_revision"] = {"cell": expected_package, "job": job_package}
+    if job.revision_id != cell.binding_case_revision_id:
+        mismatches["case_revision"] = {"cell": str(cell.binding_case_revision_id), "job": str(job.revision_id)}
+    elif job.compilation_id != cell.compilation_id:
+        mismatches["compilation"] = {"cell": str(cell.compilation_id), "job": str(job.compilation_id)}
 
     job_engine = provenance.get("engine") if isinstance(provenance.get("engine"), dict) else {}
     cell_engine = {field: cell.engine_ref.get(field) for field in ENGINE_IDENTITY_FIELDS}
@@ -164,83 +160,108 @@ async def cell_job_mismatches(
     return mismatches
 
 
-def _job_request(payload: dict[str, Any], idempotency_key: str | None = None) -> Request:
-    body = json.dumps(payload, separators=(",", ":")).encode()
-    delivered = False
+async def pin_compilations(
+    session: AsyncSession, organization_id: uuid.UUID, revision_ids: Iterable[uuid.UUID]
+) -> list[tuple[BindingCaseRevision, BindingCase, ProblemCompilation]]:
+    """Each distinct revision of a study run, its problem and the compilation its cells will run (D7).
 
-    async def receive() -> dict[str, Any]:
-        nonlocal delivered
-        if delivered:
-            return {"type": "http.disconnect"}
-        delivered = True
-        return {"type": "http.request", "body": body, "more_body": False}
-
-    headers = [(b"content-type", b"application/json")]
-    if idempotency_key is not None:
-        headers.append((b"idempotency-key", idempotency_key.encode()))
-    return Request(
-        {
-            "type": "http",
-            "asgi": {"version": "3.0"},
-            "http_version": "1.1",
-            "method": "POST",
-            "scheme": "http",
-            "path": "/v1/jobs",
-            "raw_path": b"/v1/jobs",
-            "query_string": b"",
-            "headers": headers,
-            "client": ("study-orchestrator", 0),
-            "server": ("gateway", 80),
-        },
-        receive,
-    )
-
-
-def _response_payload(response: Any) -> dict[str, Any]:
-    if isinstance(response, JSONResponse):
-        body = json.loads(response.body)
-        if response.status_code >= 400:
-            raise StudyLaunchError(
-                str(body.get("title", "job_rejected")),
-                str(body.get("detail", "The study cell was rejected.")),
-            )
-        return body
-    if not isinstance(response, dict):
-        raise StudyLaunchError("job_rejected", "The job pipeline returned no job identity.")
-    return response
-
-
-async def study_binding_space_refusal(
-    session: AsyncSession, revision_ids: Iterable[uuid.UUID], caps: PlanCaps
-) -> Refusal | None:
-    """The first refusal among the distinct cases of a study run, decided before the run exists.
-
-    Each case is read from its stored IR (nothing is compiled or written) and held
-    against the plan's binding-space limit and the deployment's safeguard, so a run
-    whose cases are too large is refused whole instead of being accepted and then
-    failing cell by cell. A case whose snapshot cannot be read is left to the
-    launch of its cells, which reports it as it always did; launch applies the
-    same limit again to every job it creates.
+    Called before the run exists: every revision must be a problem revision of ``organization_id``
+    (``422 foreign_case_revision`` otherwise), and ``compile_or_get`` runs once per revision, so a
+    revision the installed toolchain cannot compile refuses the run whole. The compilations found
+    here are the ones the run pins: a toolchain release while its cells launch does not change them.
     """
+    pinned: list[tuple[BindingCaseRevision, BindingCase, ProblemCompilation]] = []
     seen: set[uuid.UUID] = set()
     for revision_id in revision_ids:
         if revision_id in seen:
             continue
         seen.add(revision_id)
-        revision = await session.get(BindingCaseRevision, revision_id)
-        if revision is None or revision.source_snapshot_id is None:
-            continue
-        source = await session.get(InstanceSnapshot, revision.source_snapshot_id)
-        if source is None:
-            continue
-        try:
-            compilation = await snapshot_ir(source, session)
-        except (HTTPException, PackageError, RuntimeError):
-            continue
-        refusal = entitlement_service.binding_space_refusal(compilation.binding_space, caps)
+        row = (await session.execute(
+            select(BindingCaseRevision, BindingCase)
+            .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
+            .where(BindingCaseRevision.id == revision_id)
+        )).first()
+        if row is None or row[1].organization_id != organization_id:
+            raise api_error(
+                422, "foreign_case_revision", "Every study revision must be a problem revision of this organization."
+            )
+        revision, problem = row
+        pinned.append((revision, problem, await compile_or_get(session, revision)))
+    return pinned
+
+
+def study_binding_space_refusal(compilations: Iterable[ProblemCompilation]) -> Refusal | None:
+    """The first refusal among the pinned compilations of a study run, decided before the run exists.
+
+    Each compilation is held against the deployment's binding-space limit (``MAX_BINDING_SPACE_LOG10``),
+    so a run whose problems are too large is refused whole instead of being accepted and then failing
+    cell by cell. Launch applies the same limit again to every job it creates.
+    """
+    for compilation in compilations:
+        refusal = entitlement_service.binding_space_refusal(BindingSpace.from_analysis(compilation.analysis))
         if refusal is not None:
             return refusal
     return None
+
+
+async def create_study_run(
+    session: AsyncSession,
+    study: Study,
+    organization: Organization,
+    user: User,
+    *,
+    summary: dict[str, Any] | None = None,
+) -> tuple[StudyRun, list[StudyCell]]:
+    """Freeze ``study``'s current definition into a new run and write its cells; launch nothing.
+
+    The revisions are checked and their compilations pinned first (``pin_compilations``), and a
+    problem over the binding-space limit refuses the run whole, before the run exists. The run
+    stores the frozen ``openbinding/study-run/v1`` document and its digest; each cell carries the
+    compilation of its revision. Plan checks (feature, cell limit) are the caller's.
+    """
+    definition = StudyDefinition.model_validate(study.definition)
+    pinned = await pin_compilations(session, organization.id, definition.revision_ids)
+    refusal = study_binding_space_refusal(compilation for _, _, compilation in pinned)
+    if refusal is not None:
+        raise api_error(refusal.status, refusal.code, refusal.detail, headers=refusal.headers or None, **refusal.extra)
+    frozen = frozen_definition(definition, [
+        {
+            "revisionId": str(revision.id),
+            "problemId": str(problem.id),
+            "revision": revision.revision,
+            "packageDigest": revision.package_digest,
+            "compilationId": str(compilation.id),
+            "compilationDigest": compilation.compilation_digest,
+            "irDigest": compilation.ir_digest,
+        }
+        for revision, problem, compilation in pinned
+    ])
+    expanded = expand_study(definition, {item["revisionId"]: item["compilationId"] for item in frozen["problems"]})
+    await session.execute(select(Study.id).where(Study.id == study.id).with_for_update())
+    number = int(await session.scalar(
+        select(func.max(StudyRun.run_number)).where(StudyRun.study_id == study.id)
+    ) or 0) + 1
+    run = StudyRun(
+        study_id=study.id, run_number=number, state=RunState.QUEUED,
+        matrix_digest=digest([cell["fingerprint"] for cell in expanded]),
+        definition=frozen, definition_digest=digest(frozen),
+        summary={"cells": len(expanded), **(summary or {})}, created_by_id=user.id,
+    )
+    session.add(run)
+    await session.flush()
+    cells = [
+        StudyCell(
+            study_run_id=run.id, ordinal=cell["ordinal"],
+            binding_case_revision_id=uuid.UUID(cell["caseRevisionId"]),
+            compilation_id=uuid.UUID(cell["compilationId"]),
+            engine_ref=cell["engine"], parameters=cell["parameters"],
+            seed=cell["seed"], fingerprint=cell["fingerprint"], state=RunState.QUEUED,
+        )
+        for cell in expanded
+    ]
+    session.add_all(cells)
+    await session.flush()
+    return run, cells
 
 
 async def launch_study_cell(
@@ -248,19 +269,17 @@ async def launch_study_cell(
     cell: StudyCell,
     user: User,
     organization: Organization,
-    project_id: uuid.UUID,
 ) -> Job:
-    """Create one normal persisted job from an immutable study cell.
+    """Create one normal persisted run of ``organization`` from an immutable study cell.
 
-    The job is written with its ``study_cell_id`` and the cell's ``job_id`` is
-    set in the caller's transaction, which is neither committed nor dispatched
-    here. The caller must ``commit_launched`` (or commit and then
-    ``dispatch_after_commit``); an existing job of the cell is returned as is.
+    The cell's request goes through ``JobSubmission`` as a ``RunRequest``, as
+    ``createRun`` does, with the compilation the cell's run pinned: a cell whose
+    compilation the installed toolchain cannot run fails ``contract_not_installed``. The job is written with its ``study_cell_id`` and the
+    cell's ``job_id`` is set in the caller's transaction, which is neither
+    committed nor dispatched here. The caller must ``commit_launched`` (or
+    commit and then ``dispatch_after_commit``); an existing job of the cell is
+    returned as is.
     """
-
-    # Import lazily: the v1 router owns compilation and engine selection, while
-    # the router imports the durable dispatcher that later calls us back.
-    from .routes import v1
 
     existing = (
         await session.execute(select(Job).where(Job.study_cell_id == cell.id))
@@ -271,26 +290,8 @@ async def launch_study_cell(
         return existing
 
     revision = await session.get(BindingCaseRevision, cell.binding_case_revision_id)
-    if revision is None or revision.source_snapshot_id is None:
-        raise StudyLaunchError(
-            "executable_snapshot_required",
-            "Study case revisions must pin a BIM source snapshot.",
-        )
-    source = await session.get(InstanceSnapshot, revision.source_snapshot_id)
-    if source is None:
-        raise StudyLaunchError(
-            "snapshot_not_found", "The BIM snapshot pinned by this case revision no longer exists."
-        )
-    try:
-        compilation = await snapshot_ir(source, session)
-    except (HTTPException, PackageError, RuntimeError) as exc:
-        raise StudyLaunchError("invalid_case_revision", str(exc)) from exc
-
-    # A project member may run a teammate's case. Persisting the same immutable
-    # package for the actor keeps the existing owner-scoped snapshot contract.
-    snapshot_id = await persist_snapshot(compilation, user, session)
-    if snapshot_id is None:
-        raise StudyLaunchError("snapshot_persistence_failed", "The BIM snapshot could not be persisted.")
+    if revision is None:
+        raise StudyLaunchError("revision_not_found", "The problem revision of this cell no longer exists.")
 
     engine = dict(cell.engine_ref)
     requested_mode = engine.pop("mode", None)
@@ -314,18 +315,11 @@ async def launch_study_cell(
     properties = selected_mode.get("optionsSchema", {}).get("properties", {})
     if isinstance(properties, dict) and "seed" in properties:
         options["seed"] = cell.seed
-    payload = {
-        "snapshot": snapshot_id,
-        "engine": engine,
-        "mode": selected_mode["id"],
-        "optimization": execution_optimization,
-        "options": options,
-    }
     # What keeps a cell to one job is the unique ``study_cell_id`` on the job,
     # written by the INSERT itself. The key only makes a replay of the first
     # launch cheap; a retry detaches the previous job from the cell but that
     # job keeps its key, so the replacement goes without one.
-    key: str | None = f"{v1.STUDY_CELL_KEY_PREFIX}{cell.id}"
+    key: str | None = f"{STUDY_CELL_KEY_PREFIX}{cell.id}"
     held = await session.scalar(
         select(Job.id).where(Job.owner_id == user.id, Job.idempotency_key == key).limit(1)
     )
@@ -336,28 +330,31 @@ async def launch_study_cell(
     # committed here, so the locks the caller holds on the cell and the account
     # last until the cell points at its job. The caller commits and then
     # dispatches (``commit_launched``).
-    pending = v1.pending_launches(session)
+    run_request = RunRequest(
+        organization_id=organization.id,
+        revision_id=str(revision.id),
+        engine=engine,
+        mode=selected_mode["id"],
+        optimization=execution_optimization,
+        options=options,
+        idempotency_key=key,
+        compilation_id=cell.compilation_id,
+    )
+    pending = pending_launches(session)
     before = set(pending)
     savepoint = await session.begin_nested()
     rejection: StudyLaunchError | None = None
     try:
-        try:
-            created = _response_payload(
-                await v1._create_job_core(
-                    _job_request(payload, key),
-                    user,
-                    session,
-                    commit=False,
-                    dispatch=False,
-                    study_cell_id=cell.id,
-                )
-            )
-        except StudyLaunchError as exc:
+        result = await JobSubmission(session, user, commit=False, study_cell_id=cell.id).submit(run_request)
+        if result.kind == "problem":
             # Refused before any job existed.
-            rejection = exc
+            rejection = StudyLaunchError(
+                str(result.body.get("code", "job_rejected")),
+                str(result.body.get("detail", "The study cell was rejected.")),
+            )
         else:
             try:
-                job_id = uuid.UUID(str(created["id"]))
+                job_id = uuid.UUID(str(result.body["id"]))
             except (KeyError, ValueError) as exc:
                 raise StudyLaunchError(
                     "job_rejected", "The job pipeline returned an invalid identity."
@@ -367,8 +364,6 @@ async def launch_study_cell(
                 raise StudyLaunchError("job_not_persisted", "The study job was not persisted.")
             if job.study_cell_id != cell.id:
                 raise StudyLaunchError("job_not_persisted", "The study job is not linked to its cell.")
-            job.organization_id = organization.id
-            job.project_id = project_id
             cell.job_id = job.id
             await session.flush()
             await _sync(session, job.id)
@@ -377,7 +372,7 @@ async def launch_study_cell(
             if savepoint.is_active:
                 await savepoint.rollback()
         finally:
-            v1.discard_pending_launches(session, set(pending) - before)
+            discard_pending_launches(session, set(pending) - before)
         raise
     await savepoint.commit()
     if rejection is not None:
@@ -393,13 +388,11 @@ async def dispatch_after_commit(session: AsyncSession) -> None:
     points at it. In inline mode the job runs on ``session``.
     """
 
-    from .routes import v1
-
-    pending = v1.pending_launches(session)
+    pending = pending_launches(session)
     job_ids = list(pending)
     pending.clear()
     for job_id in job_ids:
-        await v1.dispatch_persisted_job(str(job_id), None if db_base.is_configured() else session)
+        await dispatch_persisted_job(str(job_id), None if db_base.is_configured() else session)
 
 
 async def commit_launched(session: AsyncSession) -> None:
@@ -408,18 +401,16 @@ async def commit_launched(session: AsyncSession) -> None:
     If the commit fails the jobs do not exist, so they are forgotten.
     """
 
-    from .routes import v1
-
     try:
         await session.commit()
     except BaseException:
-        v1.discard_pending_launches(session)
+        discard_pending_launches(session)
         raise
     await dispatch_after_commit(session)
 
 
 #: Launch failures that say "not now" rather than "never": the cell stays queued.
-RETRYABLE_LAUNCH_CODES = frozenset({"concurrency_limit_exceeded", "pricing_unavailable", usage_counters.UNKNOWN_CODE})
+RETRYABLE_LAUNCH_CODES = frozenset({"concurrency_limit_exceeded", "pricing_unavailable"})
 
 
 #: Stable code of a cell left unlaunched because its run's owner lost the work role.
@@ -450,20 +441,26 @@ async def lock_run(session: AsyncSession, run_id: uuid.UUID) -> StudyRun | None:
     first, then the locks of the cells (``lock_cells``), then those of the jobs,
     so that two of them cannot wait for each other. The lock is held until the
     transaction ends. SQLite ignores it.
+
+    The run and its cells are locked ``FOR NO KEY UPDATE``, which serialises
+    their writers as well as ``FOR UPDATE`` does but lets foreign-key checks
+    through: a worker writing a job's outcome checks the job's cell with
+    ``KEY SHARE`` and must not wait for a ``_sync`` of another cell, which may
+    in turn be waiting for the account that worker's check already holds.
     """
 
     return (
         await session.execute(
             select(StudyRun)
             .where(StudyRun.id == run_id)
-            .with_for_update()
+            .with_for_update(key_share=True)
             .execution_options(populate_existing=True)
         )
     ).scalars().first()
 
 
 async def lock_cells(session: AsyncSession, run_id: uuid.UUID) -> list[StudyCell]:
-    """Row-lock every cell of a run, in ordinal order, reloaded as the lock saw them."""
+    """Row-lock every cell of a run, in ordinal order, reloaded as the lock saw them (``FOR NO KEY UPDATE``)."""
 
     return list(
         (
@@ -471,7 +468,7 @@ async def lock_cells(session: AsyncSession, run_id: uuid.UUID) -> list[StudyCell
                 select(StudyCell)
                 .where(StudyCell.study_run_id == run_id)
                 .order_by(StudyCell.ordinal)
-                .with_for_update()
+                .with_for_update(key_share=True)
                 .execution_options(populate_existing=True)
             )
         ).scalars().all()
@@ -581,7 +578,7 @@ async def _sync(session: AsyncSession, job_id: uuid.UUID) -> None:
             # so it cannot hold up the cells behind it. The cells were locked
             # and reloaded above, so a launch committed by another worker
             # meanwhile shows up in job_id here.
-            if user and org and job.project_id:
+            if user and org:
                 waiting = [
                     value for value in cells
                     if value.job_id is None and value.state is RunState.QUEUED
@@ -610,7 +607,7 @@ async def _sync(session: AsyncSession, job_id: uuid.UUID) -> None:
                         continue
                     try:
                         # The launch commits nothing: the caller commits, then dispatches.
-                        await launch_study_cell(session, queued_cell, user, org, job.project_id)
+                        await launch_study_cell(session, queued_cell, user, org)
                     except StudyLaunchError as exc:
                         if exc.code in RETRYABLE_LAUNCH_CODES:
                             break  # stays queued; a later transition launches it
@@ -644,16 +641,14 @@ async def _sync(session: AsyncSession, job_id: uuid.UUID) -> None:
 async def sync_study_job(job_id: str, session: AsyncSession | None = None) -> None:
     """Reflect a child job transition onto its cell and aggregate its run."""
 
-    from .routes import v1
-
     parsed = uuid.UUID(job_id)
     if session is not None:
         try:
             await _sync(session, parsed)
         except BaseException:
-            v1.discard_pending_launches(session)
+            discard_pending_launches(session)
             raise
-        if v1.pending_launches(session):
+        if pending_launches(session):
             # A cell was launched: commit it with its link, and only then queue it.
             await commit_launched(session)
         return
@@ -663,6 +658,6 @@ async def sync_study_job(job_id: str, session: AsyncSession | None = None) -> No
         try:
             await _sync(owned, parsed)
         except BaseException:
-            v1.discard_pending_launches(owned)
+            discard_pending_launches(owned)
             raise
         await commit_launched(owned)

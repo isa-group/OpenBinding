@@ -143,7 +143,7 @@ async def test_the_pricing_token_503_is_fixed_and_carries_the_correlation_id(api
     assert_the_reason_is_in_the_log(logs, response)
 
 
-@pytest.mark.parametrize("path", ["/v1/users/me", "/v1/users/me/usage"])
+@pytest.mark.parametrize("path", ["/v1/users/me/usage"])
 async def test_the_account_routes_503_is_fixed(api_client, registration, logs, path):
     _, headers = await account(api_client, registration)
     space_client.set_gate(down())
@@ -418,7 +418,7 @@ class _Explodes:
     ],
 )
 async def test_the_space_adapter_does_not_carry_the_text_of_a_transport_error(error, logs):
-    gate = SpacePricingGate(Settings(_env_file=None), client=_Explodes(error))
+    gate = SpacePricingGate(Settings(_env_file=None, space_organization_id="org-test"), client=_Explodes(error))
 
     with pytest.raises(PricingUnavailable) as raised:
         await gate.caps(uuid.uuid4())

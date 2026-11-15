@@ -22,17 +22,16 @@ from openbinding_gateway.db.models import (
     Job,
     JobState,
     Organization,
-    Project,
     RunState,
     Study,
     StudyCell,
     StudyRun,
     User,
 )
-from openbinding_gateway.routes import jobs as job_routes
+from openbinding_gateway.modules.execution.adapters import routes as runs_routes
 from openbinding_gateway.routes import studies as study_routes
 
-from .test_study_cells_pg import _seed
+from .test_study_cells_pg import _seed, cell_refs
 
 LIVE = (JobState.QUEUED, JobState.RUNNING)
 
@@ -46,7 +45,6 @@ async def _world(session, **kwargs) -> SimpleNamespace:
         run_id=await session.scalar(select(StudyRun.id)),
         user_id=await session.scalar(select(User.id)),
         organization_id=await session.scalar(select(Organization.id)),
-        project_id=await session.scalar(select(Project.id)),
         study_id=await session.scalar(select(Study.id)),
         first_cell_id=await session.scalar(select(StudyCell.id).where(StudyCell.ordinal == 0)),
     )
@@ -67,7 +65,7 @@ async def _happens(event: asyncio.Event, what: str, seconds: float = 10.0) -> No
 def _launcher(launched: list[uuid.UUID], entered: asyncio.Event | None = None, pause: float = 0.2):
     """A ``launch_study_cell`` that takes a while to create its job, as the real one does."""
 
-    async def launch(session, cell, user, organization, project_id):
+    async def launch(session, cell, user, organization):
         launched.append(cell.id)
         if entered is not None:
             entered.set()
@@ -75,7 +73,7 @@ def _launcher(launched: list[uuid.UUID], entered: asyncio.Event | None = None, p
         job = Job(
             owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
             service_url="http://engine", state=JobState.QUEUED, study_cell_id=cell.id,
-            organization_id=organization.id, project_id=project_id,
+            organization_id=organization.id, **await cell_refs(session, cell),
         )
         session.add(job)
         await session.flush()
@@ -175,22 +173,22 @@ async def test_two_retries_of_one_cell_create_one_job_and_the_second_gets_it(two
     launched: list[uuid.UUID] = []
     monkeypatch.setattr(study_routes, "launch_study_cell", _launcher(launched))
 
-    async def context(session, *args, **kwargs):
-        return SimpleNamespace(id=world.organization_id), SimpleNamespace(id=world.project_id)
+    async def organization(session, *args, **kwargs):
+        return SimpleNamespace(id=world.organization_id)
 
-    async def study(session, project_id, reference, user, **kwargs):
+    async def study(session, organization_id, reference, user, **kwargs):
         return SimpleNamespace(id=world.study_id)
 
     async def run(session, study_id, run_id, user):
         return await session.get(StudyRun, run_id)
 
-    monkeypatch.setattr(study_routes, "_context", context)
+    monkeypatch.setattr(study_routes, "_organization", organization)
     monkeypatch.setattr(study_routes, "_study", study)
     monkeypatch.setattr(study_routes, "_run", run)
 
     async def retry(session):
         return await study_routes.retry_study_cell(
-            org="o", project="p", study="s", run_id=world.run_id, cell_id=world.first_cell_id,
+            org="o", study="s", run_id=world.run_id, cell_id=world.first_cell_id,
             user=SimpleNamespace(id=world.user_id), session=session,
         )
 
@@ -216,8 +214,8 @@ async def test_two_syncs_of_the_last_two_jobs_leave_the_run_finished(two_session
     world = await _world(first)
     running = Job(
         owner_id=world.user_id, engine_id="random-search", engine_job_id="engine-2", service_url="http://engine",
-        state=JobState.RUNNING, organization_id=world.organization_id, project_id=world.project_id,
-        study_cell_id=world.waiting_id,
+        state=JobState.RUNNING, organization_id=world.organization_id,
+        study_cell_id=world.waiting_id, **await cell_refs(first, await first.get(StudyCell, world.waiting_id)),
     )
     first.add(running)
     await first.flush()
@@ -255,8 +253,8 @@ async def test_cancelling_a_study_job_and_its_run_at_once_does_not_deadlock(two_
     world = await _world(first)
     queued = Job(
         owner_id=world.user_id, engine_id="random-search", engine_job_id="engine-2", service_url="http://engine",
-        state=JobState.QUEUED, organization_id=world.organization_id, project_id=world.project_id,
-        study_cell_id=world.waiting_id,
+        state=JobState.QUEUED, organization_id=world.organization_id,
+        study_cell_id=world.waiting_id, **await cell_refs(first, await first.get(StudyCell, world.waiting_id)),
     )
     first.add(queued)
     await first.flush()
@@ -281,7 +279,9 @@ async def test_cancelling_a_study_job_and_its_run_at_once_does_not_deadlock(two_
         await _happens(holding, "the run cancellation taking the run lock")
         owner = await second.get(User, world.user_id)
         try:
-            return await job_routes.cancel_job(job_id=queued_id, user=owner, session=second)
+            return await runs_routes.cancel_run(
+                org=str(world.organization_id), run=queued_id, user=owner, session=second,
+            )
         finally:
             await second.commit()
 

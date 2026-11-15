@@ -1,8 +1,9 @@
 """OpenBinding gateway for the BIM v1 language.
 
-The public language surface is deliberately assembled from the v1 router and
-the account routers only.  Source instances are compiled by the v1 pipeline;
-there is no second HTTP surface that accepts an earlier document shape.
+The public language surface is deliberately assembled from the v1 router, the
+problems and BIM routers of ``modules.problems`` and the account routers only.
+Packages are compiled by one path (``modules.problems``); there is no second
+HTTP surface that accepts an earlier document shape.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ import os
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
+import yaml
 from bim_core import BimError
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -25,7 +27,6 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import space_client
-from .access import public_read
 from .jobs import reconciler as job_reconciler
 from .access.dependencies import session_dependency
 from .access.work_limits import WORK_ROUTES
@@ -39,6 +40,7 @@ from .db.bootstrap import (
     seed_default_administrator,
 )
 from .integrations import bim as bim_integration
+from .modules.plans.application import entitlement_map
 from .core.public_errors import CorrelationIdMiddleware, internal_error_response
 from .models.problem import (
     CORRELATION_ID_KEY,
@@ -52,20 +54,18 @@ from .models.problem import (
     summarize,
     validation_diagnostics,
 )
+from .modules.execution.adapters.routes import router as runs_router
+from .modules.problems.adapters.bim_routes import router as bim_router
+from .modules.problems.adapters.routes import router as problems_router
 from .routes.admin import router as admin_router
-from .routes.artifacts import router as artifacts_router
 from .routes.auth import router as auth_router
 from .routes.cas import identity_router, router as cas_router
-from .routes.jobs import router as jobs_router
-from .routes.library import router as library_router
 from .routes.notifications import router as notifications_router
 from .routes.organizations import invitation_router, router as organizations_router
 from .routes.pricing import public_router as pricing_router
 from .routes.studies import router as studies_router
 from .routes.users import router as users_router
 from .routes.v1 import router as v1_router
-from .routes.compositions import project_router as compositions_project_router
-from .routes.compositions import router as compositions_router
 from .security.apikeys import (
     ALL_PERMISSIONS,
     ENGINE_LIMITED_PERMISSIONS,
@@ -122,7 +122,17 @@ async def _lifespan(settings: Settings):
     if settings.database_url:
         db_base.init_engine(settings.database_url)
 
-    space_client.set_gate(space_client.build_gate(settings))
+    gate = space_client.build_gate(settings)
+    space_client.set_gate(gate)
+    try:
+        await check_pricing(settings, gate)
+    except BaseException:
+        if hasattr(gate, "aclose"):
+            await gate.aclose()
+        space_client.set_gate(None)
+        await db_base.dispose_engine()
+        bim_integration.close_bim()
+        raise
 
     if settings.database_url:
         async with db_base.session_factory()() as session:
@@ -154,17 +164,67 @@ async def _lifespan(settings: Settings):
         bim_integration.close_bim()
 
 
+async def check_pricing(settings: Settings, gate) -> None:
+    """The startup check of the pricing this gateway enforces.
+
+    1. The published pricing is read through the gate: from SPACE
+       (``SPACE_PRICING_VERSION``, or the version SPACE assigns to new contracts),
+       or the package copy under the open gate.
+    2. A document that lacks an entitlement id the gateway reads, or declares a
+       limit that is not NUMERIC, stops the start (``RuntimeError``), whatever
+       the environment: every plan decision would read it.
+    3. With SPACE enabled, ``SPACE_ORGANIZATION_ID`` must be set and SPACE must
+       publish the keys of its pricing tokens (``pricing-token-jwks``), so that a
+       SPACE whose tokens cannot be verified shows here and not as a 503 on every
+       plan read.
+    4. A SPACE that cannot be reached, or a failure of step 3, stops the start
+       under ``APP_ENV=prod`` and is a warning elsewhere.
+    """
+    logger = logging.getLogger(__name__)
+    failures: list[str] = []
+    document = None
+    try:
+        text = await gate.pricing_document()
+    except space_client.PricingUnavailable as error:
+        failures.append(f"the published pricing cannot be read ({error})")
+    else:
+        try:
+            document = yaml.safe_load(text)
+        except yaml.YAMLError as error:
+            raise RuntimeError(f"the published pricing is not YAML: {error}") from error
+        version = document.get("version") if isinstance(document, dict) else None
+        missing = entitlement_map.missing_ids(document)
+        if missing:
+            raise RuntimeError(f"pricing {version or '(no version)'} lacks: {', '.join(missing)}")
+    if settings.space_enabled:
+        if not (settings.space_organization_id or "").strip():
+            failures.append("SPACE_ORGANIZATION_ID is not set, so no pricing token can be verified")
+        publishes_keys = getattr(gate, "publishes_token_keys", None)
+        if publishes_keys is None or not await publishes_keys():
+            failures.append("SPACE does not advertise pricing-token-jwks, so its pricing tokens cannot be verified")
+    if failures:
+        message = "Pricing startup check failed: " + "; ".join(failures)
+        if settings.app_env == "prod":
+            raise RuntimeError(message)
+        logger.warning("%s (APP_ENV=%s, so the gateway starts anyway)", message, settings.app_env)
+        return
+    logger.info(
+        "Pricing startup check passed: pricing %s declares every entitlement the gateway reads",
+        document.get("version") if isinstance(document, dict) else "?",
+    )
+
+
 TAGS_METADATA = [
     {"name": "Health", "description": "Whether the gateway is answering."},
     {"name": "BIM v1", "description": "Modular deterministic QoS binding."},
+    {"name": "BIM", "description": "Stateless BIM language services: validate a package, read the templates."},
     {"name": "Authentication", "description": "Accounts and sessions."},
     {"name": "Users", "description": "Your account, keys and quotas."},
     {"name": "Administration", "description": "Account administration."},
-    {"name": "Organizations", "description": "Nested organizations, members and sponsors."},
-    {"name": "Projects", "description": "Collaborative projects and immutable binding cases."},
-    {"name": "Studies", "description": "Reproducible comparative studies."},
-    {"name": "Artifacts", "description": "Content-addressed artifacts and portable packages."},
-    {"name": "Jobs", "description": "Durable job lifecycle, retries and events."},
+    {"name": "Organizations", "description": "Nested organizations and their members."},
+    {"name": "Problems", "description": "BIM problems of an organization, their revisions and compilations."},
+    {"name": "Studies", "description": "Comparative studies of an organization; each study run freezes its definition."},
+    {"name": "Runs", "description": "Runs of an organization's problem revisions: launch, follow, cancel, retry and re-evaluate."},
     {"name": "Notifications", "description": "Account inbox and preferences."},
     {
         "name": "Pricing",
@@ -176,17 +236,9 @@ TAGS_METADATA = [
 ]
 
 _BIM_PATH_PREFIXES = (
-    "/v1/profiles",
-    "/v1/dialects",
-    "/v1/examples",
+    "/v1/bim/",
     "/v1/engines",
     "/v1/engine-registrations",
-    "/v1/instances",
-    "/v1/validate",
-    "/v1/jobs",
-    # A composition imported from a package is a package upload, and answers like the
-    # others. Only this path: the rest of /v1/compositions keeps the platform's media type.
-    "/v1/compositions/import",
 )
 
 
@@ -368,12 +420,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(organizations_router)
     app.include_router(invitation_router)
     app.include_router(studies_router)
-    app.include_router(library_router)
-    app.include_router(artifacts_router)
-    app.include_router(jobs_router)
+    app.include_router(problems_router)
+    app.include_router(bim_router)
+    app.include_router(runs_router)
     app.include_router(notifications_router)
-    app.include_router(compositions_router)
-    app.include_router(compositions_project_router)
 
     generated_openapi = app.openapi
     app.openapi = lambda: openapi_with_security_contract(app, settings, generated_openapi)
@@ -458,13 +508,6 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     component_schemas.setdefault("Problem", problem_schema)
     document["x-api-key-permissions"] = list(ALL_PERMISSIONS)
     schemas = document["components"]["schemas"]
-    from .models.artifacts import StudyArtifactContent
-    document['x-artifact-content-schemas'] = {}
-    for kind, model in [('Study', StudyArtifactContent)]:
-        content_schema = model.model_json_schema(ref_template='#/components/schemas/{model}')
-        schemas.update(content_schema.pop('$defs', {}))
-        schemas[model.__name__] = content_schema
-        document['x-artifact-content-schemas'][kind] = {'$ref': '#/components/schemas/' + model.__name__}
     schema_root = Path(settings.schemas_dir)
     if not schema_root.is_dir():
         schema_root = Path(__file__).resolve().parents[3] / "schemas"
@@ -598,18 +641,6 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
         },
         "additionalProperties": False,
     }
-    schemas["DialectCatalogEntry"] = {
-        "type": "object",
-        "required": ["apiVersion", "kind", "metadata", "spec", "digest"],
-        "properties": {
-            "apiVersion": {"const": "bim/v1"},
-            "kind": {"const": "Dialect"},
-            "metadata": {"type": "object"},
-            "spec": {"type": "object"},
-            "digest": digest_schema,
-        },
-        "additionalProperties": False,
-    }
     schemas["ProfileList"] = {
         "type": "object",
         "required": ["profiles"],
@@ -621,22 +652,11 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
         },
         "additionalProperties": False,
     }
-    schemas["DialectList"] = {
+    schemas["TemplateList"] = {
         "type": "object",
-        "required": ["dialects"],
+        "required": ["templates"],
         "properties": {
-            "dialects": {
-                "type": "array",
-                "items": {"$ref": "#/components/schemas/DialectCatalogEntry"},
-            }
-        },
-        "additionalProperties": False,
-    }
-    schemas["ExampleList"] = {
-        "type": "object",
-        "required": ["examples"],
-        "properties": {
-            "examples": {"type": "array", "items": {"type": "string"}}
+            "templates": {"type": "array", "items": {"type": "string"}}
         },
         "additionalProperties": False,
     }
@@ -720,12 +740,6 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
         "required": ["secret"],
         "properties": {"secret": {"type": "string", "minLength": 1, "writeOnly": True}},
     }
-    schemas["SnapshotReference"] = {
-        "type": "object",
-        "required": ["snapshot"],
-        "properties": {"snapshot": {"type": "string", "format": "uuid"}},
-        "additionalProperties": False,
-    }
     schemas["ValidationResult"] = {
         "type": "object",
         "required": [
@@ -784,50 +798,20 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
                 "type": "array",
                 "items": {"$ref": "#/components/schemas/EngineCompatibility"},
             },
-        },
-        "additionalProperties": False,
-    }
-    schemas["SnapshotCreated"] = {
-        "type": "object",
-        "required": [
-            "id",
-            "kind",
-            "instanceDigest",
-            "packageDigest",
-            "irDigest",
-            "fileDigests",
-            "resourceDigests",
-        ],
-        "properties": {
-            "id": {"type": "string", "format": "uuid"},
-            "kind": {"const": "InstanceSnapshot"},
-            "instanceDigest": digest_schema,
-            "packageDigest": digest_schema,
-            "irDigest": digest_schema,
-            "fileDigests": digest_map,
-            "resourceDigests": digest_map,
-        },
-        "additionalProperties": False,
-    }
-    schemas["SnapshotView"] = {
-        "type": "object",
-        "required": [*schemas["SnapshotCreated"]["required"], "instance", "createdAt"],
-        "properties": {
-            **schemas["SnapshotCreated"]["properties"],
-            "instance": {"$ref": "#/components/schemas/InstanceManifest"},
-            "createdAt": {"type": "string", "format": "date-time"},
+            "ir": {"$ref": "#/components/schemas/BindingProblem"},
+            "sourceMap": {"type": "object"},
         },
         "additionalProperties": False,
     }
     schemas["JobRequest"] = {
         "type": "object",
-        "required": ["snapshot"],
-        "not": {"required": ["configuration"], "anyOf": [
-            {"required": [field]} for field in ("engine", "registration", "mode", "options")
-        ]},
+        "required": ["revision"],
         "properties": {
-            "snapshot": {"type": "string", "format": "uuid"},
-            "configuration": {"$ref": "#/components/schemas/ArtifactRef"},
+            "revision": {
+                "type": "string",
+                "format": "uuid",
+                "description": "The problem revision the job runs, as `getProblemRevision` names it.",
+            },
             "engine": {
                 "oneOf": [
                     {"type": "string"},
@@ -837,6 +821,7 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             "registration": {"$ref": "#/components/schemas/ImmutableResourceRef"},
             "mode": {"type": "string"},
             "options": {"type": "object"},
+            "optimization": {"type": "object"},
         },
         "additionalProperties": False,
     }
@@ -873,68 +858,6 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
         },
         "additionalProperties": False,
     }
-    schemas["JobView"] = {
-        "type": "object",
-        "required": ["id", "status", "provenance"],
-        "properties": {
-            "id": {"type": "string", "format": "uuid"},
-            "status": {
-                "type": "string",
-                "enum": ["queued", "running", "completed", "failed"],
-            },
-            "provenance": {"type": "object"},
-            "result": {"$ref": "#/components/schemas/GatewayBindingResult"},
-        },
-        "additionalProperties": False,
-    }
-    schemas["JobInstanceView"] = {
-        "type": "object",
-        "required": [
-            "id",
-            "instanceDigest",
-            "packageDigest",
-            "fileDigests",
-            "resourceDigests",
-            "instance",
-        ],
-        "properties": {
-            "id": {"type": "string", "format": "uuid"},
-            "instanceDigest": digest_schema,
-            "packageDigest": digest_schema,
-            "fileDigests": digest_map,
-            "resourceDigests": digest_map,
-            "instance": {"$ref": "#/components/schemas/InstanceManifest"},
-        },
-        "additionalProperties": False,
-    }
-    schemas["JobReport"] = {
-        "type": "object",
-        "required": ["id", "gatewayEvaluation", "remote", "provenance"],
-        "properties": {
-            "id": {"type": "string", "format": "uuid"},
-            "gatewayEvaluation": {
-                "type": "object",
-                "required": ["termination", "solutions"],
-                "properties": {
-                    "termination": {
-                        "oneOf": [
-                            {
-                                "type": "string",
-                                "enum": ["OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"],
-                            },
-                            {"type": "null"},
-                        ]
-                    },
-                    "solutions": {"type": "array", "items": {"type": "object"}},
-                },
-                "additionalProperties": False,
-            },
-            "remote": {"type": "object"},
-            "provenance": {"type": "object"},
-        },
-        "additionalProperties": False,
-    }
-
     def refusal(description: str) -> dict:
         return {
             "description": description,
@@ -957,10 +880,6 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             )
             permissions = sorted(required_permissions(path, method))
             operation["x-required-api-key-permissions"] = permissions
-            if public_read.eligible(method, path):
-                # Also reachable read-only, without credentials or membership,
-                # when the project is public (docs/ACCESS_POLICY.md).
-                operation["x-public-read"] = True
             if set(permissions) & ENGINE_LIMITED_PERMISSIONS:
                 operation["x-api-key-engine-access"] = "exact-revision-allow-list-or-all"
             if path == "/v1/engine-registrations" and method == "get":
@@ -1041,17 +960,14 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
         }
 
     paths = document["paths"]
-    profiles = paths["/v1/profiles"]["get"]
-    profiles["responses"]["200"] = json_response("ProfileList", "Installed BIM Profiles.")
-    paths["/v1/dialects"]["get"]["responses"]["200"] = json_response(
-        "DialectList", "Installed BIM Dialects."
+    paths["/v1/engines/protocol"]["get"]["responses"]["200"] = json_response(
+        "ProfileList", "The installed Profiles and the engine protocol each one targets."
     )
-    examples = paths["/v1/examples"]
-    examples["get"]["responses"]["200"] = json_response(
-        "ExampleList", "Available BIM example package identifiers."
+    paths["/v1/bim/templates"]["get"]["responses"]["200"] = json_response(
+        "TemplateList", "The templates a problem can start from."
     )
-    paths["/v1/examples/{example_path}"]["get"]["responses"]["200"] = zip_response(
-        "Portable BIM example package."
+    paths["/v1/bim/templates/{template}"]["get"]["responses"]["200"] = zip_response(
+        "Portable BIM template package."
     )
 
     engines = paths["/v1/engines"]
@@ -1161,53 +1077,17 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     )
     credential["responses"]["200"]["headers"] = {"ETag": revision.ETAG_HEADER}
 
-    validation = paths["/v1/instances/validate"]["post"]
-    validation["requestBody"] = package_body(
-        "Portable BIM source package to validate without executing an Engine."
-    )
-    validation["responses"]["200"] = json_response(
-        "ValidationResult", "Canonical validation and digest result."
-    )
-    analysis = paths["/v1/validate"]["post"]
-    analysis["requestBody"] = package_body(
-        "Portable BIM source package, or an exact snapshot owned by the caller.",
-        json_component="SnapshotReference",
-    )
+    analysis = paths["/v1/bim/validate"]["post"]
+    analysis["requestBody"] = package_body("Portable BIM source package to validate; nothing is stored.")
     analysis["responses"]["200"] = json_response(
-        "AnalysisResult", "Compiled complexity and exact compatible Engine deployments."
-    )
-    snapshots = paths["/v1/instances"]
-    snapshots["post"]["requestBody"] = package_body(
-        "Portable BIM source package to persist privately."
-    )
-    composition_import = paths["/v1/compositions/import"]["post"]
-    composition_import["requestBody"] = package_body(
-        "Portable BIM source package to read back as a composition."
-    )
-    snapshots["post"]["responses"]["201"] = json_response(
-        "SnapshotCreated", "Private immutable Instance snapshot created."
-    )
-    snapshot = paths["/v1/instances/{snapshot_id}"]["get"]
-    snapshot["responses"]["200"] = json_response(
-        "SnapshotView", "Exact private Instance snapshot."
-    )
-    snapshot_source = paths["/v1/instances/{snapshot_id}/source"]["get"]
-    snapshot_source["responses"]["200"] = zip_response(
-        "Original portable source package for the private snapshot."
-    )
-    snapshot_ir = paths["/v1/instances/{snapshot_id}/ir"]["get"]
-    snapshot_ir["responses"]["200"] = json_response(
-        "BindingProblem", "Canonical immutable BindingProblem IR."
+        "AnalysisResult", "Compiled identities, analysis and the engine modes visible to the caller."
     )
 
-    jobs = paths["/v1/jobs"]
-    jobs["post"]["requestBody"] = package_body(
-        "A BIM package using the default built-in Engine, or a JSON snapshot request that "
-        "selects an exact Engine and deployment.",
-        json_component="JobRequest",
-        multipart=True,
+    runs = paths["/v1/organizations/{org}/runs"]
+    runs["post"]["requestBody"] = json_body(
+        "JobRequest", "The problem revision to run, and the exact Engine, deployment and settings."
     )
-    jobs["post"].setdefault("parameters", []).append(
+    runs["post"].setdefault("parameters", []).append(
         {
             "name": "Idempotency-Key",
             "in": "header",
@@ -1216,24 +1096,8 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             "schema": {"type": "string", "minLength": 1, "maxLength": 255},
         }
     )
-    jobs["post"]["responses"]["202"] = json_response(
-        "JobAccepted", "Private asynchronous solve accepted."
-    )
-    job = paths["/v1/jobs/{job_id}"]["get"]
-    job["responses"]["200"] = json_response(
-        "JobView", "Owned job status, provenance and optional result."
-    )
-    job_ir = paths["/v1/jobs/{job_id}/ir"]["get"]
-    job_ir["responses"]["200"] = json_response(
-        "BindingProblem", "Canonical BindingProblem dispatched for the owned job."
-    )
-    job_instance = paths["/v1/jobs/{job_id}/instance"]["get"]
-    job_instance["responses"]["200"] = json_response(
-        "JobInstanceView", "Private source Instance snapshot used by the owned job."
-    )
-    job_report = paths["/v1/jobs/{job_id}/report"]["get"]
-    job_report["responses"]["200"] = json_response(
-        "JobReport", "Gateway reevaluation, remote provenance and immutable execution pins."
+    runs["post"]["responses"]["202"] = json_response(
+        "JobAccepted", "The run is queued (or, with a replayed Idempotency-Key, the first run of that key)."
     )
 
     def add_problem(operation: dict, status_code: int, description: str) -> None:
@@ -1246,8 +1110,8 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             if method in methods and "422" in operation.get("responses", {}):
                 add_problem(operation, 422, "The request does not satisfy the BIM v1 contract.")
 
-    add_problem(paths["/v1/examples/{example_path}"]["get"], 404, "The example package does not exist.")
-    add_problem(paths["/v1/examples/{example_path}"]["get"], 422, "The installed example package is invalid.")
+    add_problem(paths["/v1/bim/templates/{template}"]["get"], 404, "The template does not exist.")
+    add_problem(paths["/v1/bim/templates/{template}"]["get"], 422, "The installed template package is invalid.")
     add_problem(engines["post"], 403, "The manifest namespace does not belong to the caller.")
     add_problem(engines["post"], 409, "That immutable Engine identity already has different content.")
     add_problem(engines["post"], 413, "The Engine manifest exceeds the request size limit.")
@@ -1268,33 +1132,13 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     add_problem(credential, 409, "Published registration credentials are immutable.")
     add_problem(credential, 413, "The credential request exceeds the request size limit.")
     add_problem(credential, 422, "A non-empty secret is required.")
-    for operation in (validation, analysis, snapshots["post"]):
-        add_problem(operation, 413, "The BIM source package exceeds the request size limit.")
-        add_problem(operation, 415, "The request media type is not a supported BIM package type.")
-        add_problem(operation, 422, "The BIM source package or snapshot reference is invalid.")
-    add_problem(analysis, 404, "The exact private snapshot does not exist for the caller.")
-    add_problem(composition_import, 413, "The BIM source package exceeds the request size limit.")
-    add_problem(composition_import, 415, "The request media type is not a supported BIM package type.")
-    add_problem(
-        composition_import, 422,
-        "The compiler refused the package, or this version of the language cannot express it.",
-    )
-    for operation in (snapshot, snapshot_source, snapshot_ir):
-        add_problem(operation, 404, "The exact private snapshot does not exist for the caller.")
-    for operation in (job, job_ir, job_instance, job_report):
-        add_problem(operation, 404, "The exact owned job or related artifact does not exist.")
-    add_problem(jobs["post"], 404, "A selected snapshot, Engine or deployment is not visible.")
-    add_problem(jobs["post"], 409, "An immutable selection or idempotency key conflicts.")
-    add_problem(jobs["post"], 413, "The request exceeds the caller or transport size limit.")
-    add_problem(jobs["post"], 415, "The request media type is not supported.")
-    add_problem(jobs["post"], 422, "The package, selection, mode or options are invalid.")
-    add_problem(jobs["post"], 402, "The instance exceeds the complexity ceiling of the caller's plan.")
-    add_problem(jobs["post"], 429, "The caller already has the maximum number of queued and running jobs.")
-    add_problem(jobs["post"], 403, "The requested feature or engine is not entitled in the caller's plan.")
+    add_problem(analysis, 413, "The BIM source package exceeds the request size limit.")
+    add_problem(analysis, 415, "The request media type is not a supported BIM package type.")
+    add_problem(analysis, 422, "The BIM source package is invalid, or its binding space exceeds the limit.")
 
     # The per-client budgets of the routes open to anybody (docs/ACCESS_POLICY.md). The table
     # that decides which routes are counted is the one that declares them.
-    for path, work_class in WORK_ROUTES.items():
+    for (method, path), work_class in WORK_ROUTES.items():
         refused = refusal(
             f"Too many `{work_class}` requests from this client: past the budget of its address, "
             "or of its account when signed in. `Retry-After` says when the window ends."
@@ -1309,7 +1153,7 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             refused["content"] = {
                 JSON_MEDIA_TYPE: {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}
             }
-        paths[path]["post"].setdefault("responses", {})["429"] = refused
+        paths[path][method.lower()].setdefault("responses", {})["429"] = refused
 
     # One 422 for the whole API: FastAPI's default `HTTPValidationError` is
     # replaced by `Problem`, which is what the handlers in this module answer

@@ -2,6 +2,7 @@ from copy import deepcopy
 import uuid
 
 import pytest
+from _problem_helpers import revision_of, run_url, runs_url_for
 from sqlalchemy import select
 
 from _repo import REPO_ROOT
@@ -25,7 +26,7 @@ BUILTIN_DEPLOYMENTS = {
 }
 
 
-async def _authenticated_snapshot(client, registration) -> tuple[dict[str, str], str]:
+async def _authenticated_revision(client, registration) -> tuple[dict[str, str], str]:
     details = registration()
     created = await client.post("/v1/auth/register", json=details)
     assert created.status_code == 201, created.text
@@ -38,13 +39,8 @@ async def _authenticated_snapshot(client, registration) -> tuple[dict[str, str],
     )
     headers = {"Authorization": f"Bearer {logged.json()['access_token']}"}
     package = load_package(EXAMPLE)
-    snapshot = await client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package.to_zip(),
-    )
-    assert snapshot.status_code == 201, snapshot.text
-    return headers, snapshot.json()["id"]
+    revision_id = await revision_of(client, headers, archive=package.to_zip())
+    return headers, revision_id
 
 
 def _valid_result(termination: str) -> dict:
@@ -177,14 +173,14 @@ def test_gateway_downgrades_termination_claims_not_declared_by_the_mode() -> Non
 
 
 async def test_job_options_must_be_an_object(api_client, registration) -> None:
-    headers, snapshot_id = await _authenticated_snapshot(api_client, registration)
+    headers, revision_id = await _authenticated_revision(api_client, registration)
 
     for invalid in (None, [], "fast", 1):
         response = await api_client.post(
-            "/v1/jobs",
+            runs_url_for(revision_id),
             headers=headers,
             json={
-                "snapshot": snapshot_id,
+                "revision": revision_id,
                 "engine": "random-search",
                 "mode": "seeded",
                 "options": invalid,
@@ -228,12 +224,12 @@ async def test_persisted_builtin_job_pins_registration_and_mode_guarantees(
         }
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    headers, snapshot_id = await _authenticated_snapshot(api_client, registration)
+    headers, revision_id = await _authenticated_revision(api_client, registration)
     response = await api_client.post(
-        "/v1/jobs",
+        runs_url_for(revision_id),
         headers={**headers, "Idempotency-Key": "builtin-registration-persistence"},
         json={
-            "snapshot": snapshot_id,
+            "revision": revision_id,
             "engine": "random-search",
             "mode": "seeded",
             "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
@@ -285,6 +281,6 @@ async def test_persisted_builtin_job_pins_registration_and_mode_guarantees(
     assert transports and transports[0].allow_internal_http is True
     assert transports[0].mappings == engines.BUILTIN_ENGINE_MAPPINGS
 
-    fetched = await api_client.get(f"/v1/jobs/{stored.id}", headers=headers)
+    fetched = await api_client.get(run_url(stored), headers=headers)
     assert fetched.status_code == 200, fetched.text
     assert fetched.json()["result"]["termination"] == "UNKNOWN"

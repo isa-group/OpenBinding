@@ -16,6 +16,7 @@ from _repo import REPO_ROOT
 from bim_core.canonical import canonical_json
 from bim_core.package import InstancePackage, load_package
 from job_polling import wait_for_job
+from problem_upload import compatible_modes, upload_problem
 
 
 GATEWAY_URL = "http://127.0.0.1:8000"
@@ -157,7 +158,7 @@ def _ensure_multi_registration(
     }
     profile = next(
         item
-        for item in client.get("/v1/profiles").json()["profiles"]
+        for item in client.get("/v1/engines/protocol").json()["profiles"]
         if item["id"] == "qos-binding/v1"
     )
     registration["spec"]["engine"] = engine_ref
@@ -209,10 +210,11 @@ def _ensure_multi_registration(
 
 def _wait_for_job(
     client: httpx.Client,
+    org: str,
     job_id: str,
     headers: dict[str, str],
 ) -> dict:
-    return wait_for_job(client, job_id, headers, timeout_s=60)
+    return wait_for_job(client, org, job_id, headers, timeout_s=60)
 
 
 def _solve(
@@ -222,19 +224,10 @@ def _solve(
     case: RepresentationCase,
     registration_ref: dict[str, str] | None = None,
 ) -> tuple[str, dict]:
-    snapshot = client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package,
-    )
-    assert snapshot.status_code == 201, snapshot.text
-    analysis = client.post(
-        "/v1/validate", headers=headers, json={"snapshot": snapshot.json()["id"]}
-    )
-    assert analysis.status_code == 200, analysis.text
+    upload = upload_problem(client, headers, package)
     matches = [
         item
-        for item in analysis.json()["compatibleModes"]
+        for item in compatible_modes(client, headers, upload)
         if item["compatible"]
         and item["engine"]["name"] == case.engine
         and item["mode"] == case.mode
@@ -244,10 +237,10 @@ def _solve(
     assert len(matches) == 1, json.dumps(matches, sort_keys=True)
     selection = matches[0]
     accepted = client.post(
-        "/v1/jobs",
+        f"/v1/organizations/{upload['org']}/runs",
         headers={**headers, "Idempotency-Key": f"representation-{uuid.uuid4()}"},
         json={
-            "snapshot": snapshot.json()["id"],
+            "revision": upload["revision"]["id"],
             "engine": selection["engine"],
             "registration": selection["registration"],
             "mode": case.mode,
@@ -256,9 +249,9 @@ def _solve(
         },
     )
     assert accepted.status_code == 202, accepted.text
-    job = _wait_for_job(client, accepted.json()["id"], headers)
+    job = _wait_for_job(client, upload["org"], accepted.json()["id"], headers)
     assert job["status"] == "completed", json.dumps(job, sort_keys=True)
-    return snapshot.json()["irDigest"], job["result"]
+    return upload["compilation"]["ir_digest"], job["result"]
 
 
 def _solutions(result: dict) -> list[str]:

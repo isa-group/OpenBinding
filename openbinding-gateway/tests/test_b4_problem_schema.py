@@ -274,7 +274,7 @@ async def test_a_bim_package_the_compiler_refuses_is_a_422_problem_with_its_diag
     files = dict(package.files)
     files["application.json"] = json.dumps(application).encode()
     response = await api_client.post(
-        "/v1/validate",
+        "/v1/bim/validate",
         headers={**member, "Content-Type": "application/vnd.bim+zip"},
         content=InstancePackage(files).to_zip(),
     )
@@ -284,11 +284,11 @@ async def test_a_bim_package_the_compiler_refuses_is_a_422_problem_with_its_diag
 
 async def test_an_unreadable_package_is_the_same_document(api_client, member):
     response = await api_client.post(
-        "/v1/validate",
+        "/v1/bim/validate",
         headers={**member, "Content-Type": "application/vnd.bim+zip"},
         content=b"this is not a zip archive",
     )
-    assert_problem(response, code="validation_error", media_type="application/problem+json")
+    assert_problem(response, code="invalid_request", media_type="application/problem+json")
 
 
 def request_to(path: str) -> Request:
@@ -304,7 +304,7 @@ async def test_the_domain_exception_handler_keeps_every_compiler_field():
         span={"line": 21, "column": 13},
         related=({"resource": "application.json", "pointer": "/spec/tasks"},),
     )
-    response = await gateway_main.bim_error(request_to("/v1/validate"), CompileError([diagnostic]))
+    response = await gateway_main.bim_error(request_to("/v1/bim/validate"), CompileError([diagnostic]))
     assert response.status_code == 422
     assert response.media_type == "application/problem+json"
     body = json.loads(response.body)
@@ -318,7 +318,7 @@ async def test_the_domain_exception_handler_keeps_every_compiler_field():
 async def test_a_422_raised_inside_a_bim_route_is_the_same_as_one_raised_outside():
     from fastapi import HTTPException
 
-    for path, media_type in (("/v1/validate", "application/problem+json"), ("/v1/auth/login", "application/json")):
+    for path, media_type in (("/v1/bim/validate", "application/problem+json"), ("/v1/auth/login", "application/json")):
         response = await gateway_main.http_error(
             request_to(path),
             HTTPException(

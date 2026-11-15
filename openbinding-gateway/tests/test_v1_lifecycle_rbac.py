@@ -8,6 +8,7 @@ import jsonschema
 import pytest
 from sqlalchemy import select
 
+from _problem_helpers import upload_problem
 from _repo import REPO_ROOT
 
 from openbinding_gateway.core.settings import Settings
@@ -15,10 +16,10 @@ from openbinding_gateway.db.models import (
     EngineCredential,
     EngineRegistrationRevision,
     EngineRevision,
-    InstanceSnapshot,
     Job,
     JobState,
     ManifestPublication,
+    ProblemCompilation,
     User,
     UserRole,
 )
@@ -27,7 +28,6 @@ from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.security.secrets import generate_key
 from openbinding_gateway.services import engines
 from bim_core.canonical import digest
-from bim_core.package import load_package
 
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
@@ -109,10 +109,10 @@ def _engine_document(namespace: str, name: str, version: str) -> dict:
     return document
 
 
-def _assert_same_not_found(hidden, missing) -> None:
+def _assert_same_not_found(hidden, missing, media_type: str = "application/problem+json") -> None:
     assert hidden.status_code == missing.status_code == 404
-    assert hidden.headers["content-type"].startswith("application/problem+json")
-    assert missing.headers["content-type"].startswith("application/problem+json")
+    assert hidden.headers["content-type"].startswith(media_type)
+    assert missing.headers["content-type"].startswith(media_type)
     assert hidden.json() == missing.json()
     assert hidden.json()["title"] == "not_found"
 
@@ -128,24 +128,25 @@ def _assert_component(component: str, payload: dict) -> None:
 
 
 @pytest.mark.parametrize(
-    ("method", "path"),
+    ("method", "path", "media_type"),
     [
-        ("GET", "/v1/engine-registrations"),
-        ("POST", "/v1/validate"),
-        ("POST", "/v1/jobs"),
-        ("POST", "/v1/engines"),
-        ("POST", "/v1/engine-registrations"),
+        ("GET", "/v1/engine-registrations", "application/problem+json"),
+        # Runs answer the platform envelope (D9).
+        ("POST", "/v1/organizations/acme/runs", "application/json"),
+        ("POST", "/v1/engines", "application/problem+json"),
+        ("POST", "/v1/engine-registrations", "application/problem+json"),
     ],
 )
 async def test_engine_discovery_and_execution_never_allow_anonymous_callers(
     api_client,
     method: str,
     path: str,
+    media_type: str,
 ) -> None:
     response = await api_client.request(method, path, json={})
     assert response.status_code == 401, response.text
     assert response.headers["www-authenticate"].startswith("Bearer")
-    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.headers["content-type"].startswith(media_type)
 
 
 async def test_the_engine_catalogue_is_public_and_lists_only_public_engines(api_client) -> None:
@@ -174,37 +175,26 @@ async def test_second_user_cannot_distinguish_private_v1_resources(
     await db_session.flush()
     monkeypatch.setattr(routes, "validate_endpoint", lambda endpoint, **_kwargs: None)
 
-    package = load_package(EXAMPLE)
-    created_snapshot = await api_client.post(
-        "/v1/instances",
-        headers=_zip_headers(owner_headers),
-        content=package.to_zip(),
-    )
-    assert created_snapshot.status_code == 201, created_snapshot.text
-    snapshot_id = created_snapshot.json()["id"]
+    uploaded = await upload_problem(api_client, owner_headers, slug="private-problem")
 
     owner = (
         await db_session.execute(
             select(User).where(User.username == owner_details["username"])
         )
     ).scalars().one()
-    snapshot = await db_session.get(InstanceSnapshot, uuid.UUID(snapshot_id))
-    assert snapshot is not None
+    compilation = await db_session.scalar(
+        select(ProblemCompilation).where(ProblemCompilation.revision_id == uuid.UUID(uploaded["revision_id"]))
+    )
     job = Job(
         owner_id=owner.id,
         engine_id="random-search",
         engine_job_id="private-job",
         service_url="https://solver.example",
         state=JobState.QUEUED,
-        original_request={
-            "bindingProblem": {
-                "apiVersion": "bim/v1",
-                "kind": "BindingProblem",
-                "metadata": {"name": "private-problem"},
-                "spec": {},
-            }
-        },
-        instance_snapshot_id=snapshot.id,
+        original_request={},
+        revision_id=compilation.revision_id,
+        compilation_id=compilation.id,
+        organization_id=uuid.UUID(uploaded["problem"]["organization_id"]),
         provenance={},
     )
     db_session.add(job)
@@ -262,23 +252,20 @@ async def test_second_user_cannot_distinguish_private_v1_resources(
     }
 
     missing_id = str(uuid.uuid4())
-    for suffix in ("", "/source", "/ir"):
-        hidden = await api_client.get(
-            f"/v1/instances/{snapshot_id}{suffix}", headers=other_headers
-        )
-        missing = await api_client.get(
-            f"/v1/instances/{missing_id}{suffix}", headers=other_headers
-        )
-        _assert_same_not_found(hidden, missing)
+    problems = f"/v1/organizations/{uploaded['org']}/problems"
+    for suffix in ("", "/revisions", "/revisions/1", "/revisions/1/source"):
+        hidden = await api_client.get(f"{problems}/private-problem{suffix}", headers=other_headers)
+        missing = await api_client.get(f"{problems}/missing{suffix}", headers=other_headers)
+        # Not a member: the organization refuses before anything about the problem is looked up.
+        assert hidden.status_code == missing.status_code == 403
+        assert hidden.json() == missing.json()
 
-    for suffix in ("", "/ir", "/instance", "/report"):
-        hidden = await api_client.get(
-            f"/v1/jobs/{job.id}{suffix}", headers=other_headers
-        )
-        missing = await api_client.get(
-            f"/v1/jobs/{missing_id}{suffix}", headers=other_headers
-        )
-        _assert_same_not_found(hidden, missing)
+    runs = f"/v1/organizations/{uploaded['org']}/runs"
+    for suffix in ("", "/events", "/neighborhood"):
+        # Not a member (a platform administrator neither): the run and a missing one read the same.
+        hidden = await api_client.get(f"{runs}/{job.id}{suffix}", headers=other_headers)
+        missing = await api_client.get(f"{runs}/{missing_id}{suffix}", headers=other_headers)
+        _assert_same_not_found(hidden, missing, "application/json")
 
     for suffix in ("", "/report"):
         hidden = await api_client.get(

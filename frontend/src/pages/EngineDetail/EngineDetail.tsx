@@ -19,7 +19,9 @@ import { Chip } from '../../components/ui/Chip';
 import { DataTable } from '../../components/ui/DataTable';
 import { FilterPills } from '../../components/ui/FilterPills';
 import { Notice } from '../../components/ui/Notice';
-import { ProjectPicker } from '../../components/ui/ProjectPicker';
+import { OrganizationPicker } from '../../components/ui/OrganizationPicker';
+import { launchPath } from '../../routes/paths/runs';
+import { newStudyPath } from '../../routes/paths/studies';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
@@ -192,7 +194,7 @@ export function EngineDetail() {
   const ceilings: PlanCeilings | null = pricing.data ?? null;
   const planNames = ceilings?.plans.map((item) => item.plan) ?? [];
   const userPlan = user?.plan && planNames.includes(user.plan) ? user.plan : '';
-  const plan = planNames.includes(planChoice) ? planChoice : userPlan || (planNames.includes('BASIC') ? 'BASIC' : planNames[0] ?? '');
+  const plan = planNames.includes(planChoice) ? planChoice : userPlan || (planNames.includes('FREE') ? 'FREE' : planNames[0] ?? '');
   const limits = ceilings?.plans.find((item) => item.plan === plan) ?? null;
   const own = (registrations.data ?? []).filter((item) => item.namespace === entry.namespace && item.name === entry.name && item.version === entry.version);
 
@@ -236,8 +238,8 @@ export function EngineDetail() {
         <div className="engine-detail-actions">
           {user ? (
             <>
-              <ProjectPicker variant="primary" label="Run with this engine" destination={(org, project) => `/app/${org}/${project}/runs/new?engine=${encodeURIComponent(ref)}`} />
-              <ProjectPicker label="Add to a study" destination={(org, project) => `/app/${org}/${project}/studies/new?engine=${encodeURIComponent(ref)}`} />
+              <OrganizationPicker variant="primary" label="Run with this engine" destination={(org) => launchPath(org, { engine: ref })} />
+              <OrganizationPicker label="Add to a study" destination={(org) => newStudyPath(org, { engine: ref })} />
             </>
           ) : (
             <Link className="engine-detail-login" to="/login">Log in to run</Link>
@@ -353,13 +355,12 @@ function Breadcrumb({ namespace, name }: { namespace: string; name: string }) {
 
 function PlanNote({ ceilings, plan, signedIn }: { ceilings: PlanCeilings | null; plan: string; signedIn: boolean }) {
   const source = ceilings ? `Figures from pricing ${ceilings.version ?? 'as served by the gateway'}.` : 'The pricing document couldn’t be read.';
-  const row = ceilings?.plans.find((item) => item.plan === (signedIn ? plan : 'BASIC'));
+  const row = ceilings?.plans.find((item) => item.plan === (signedIn ? plan : 'FREE'));
   if (!ceilings || !row) return <p>{signedIn ? `${plan}: ceilings unavailable.` : 'Ceilings depend on your plan.'} {source}</p>;
-  const timeout = row.maxTimeoutSeconds === null ? 'not mapped' : `${row.maxTimeoutSeconds.toLocaleString('en-US')} s`;
-  const iterations = row.maxIterations === null ? 'not mapped' : row.maxIterations.toLocaleString('en-US');
+  const timeout = row.maxRunMinutes === null ? 'no plan limit' : `${row.maxRunMinutes.toLocaleString('en-US')} min`;
   return signedIn
-    ? <p>{row.plan}: max timeout {timeout}, max {iterations} iterations per request. {source}</p>
-    : <p>Ceilings depend on your plan. {row.plan} allows {timeout} and {iterations} iterations per request. {source}</p>;
+    ? <p>{row.plan}: max {timeout} per run. {source}</p>
+    : <p>Ceilings depend on your plan. {row.plan} allows {timeout} per run. {source}</p>;
 }
 
 interface ModePanelProps {

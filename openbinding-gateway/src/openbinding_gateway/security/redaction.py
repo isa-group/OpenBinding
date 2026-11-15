@@ -1,6 +1,6 @@
-"""What a project VIEWER may read of a job.
+"""What an organization VIEWER may read of a run.
 
-A VIEWER may follow a project's work - state, engine, times, result and the
+A VIEWER may follow the organization's work - state, engine, times, result and the
 digests that pin it - but never the request's credentials, the options a member
 chose beyond a short list of harmless ones, or anything that names a private
 engine endpoint. Members and above get the stored job unchanged.
@@ -12,10 +12,9 @@ credential, and its value is a short scalar. A federated engine may declare any
 option it likes - including one a user fills with a secret - so its names are
 not trusted by being in its own schema.
 
-``original_request`` is reduced to the problem document and the pinned
-execution choices, and everything else - in particular anything under an
-``auth`` key - is dropped. The IR itself is the compiled problem and is not
-rewritten. The ``error`` of a failed job is a fixed sentence of the catalog in
+``original_request`` is reduced to the pinned execution choices, and
+everything else - in particular anything under an ``auth`` key - is dropped.
+The IR is not part of a run: it is the compilation the run names. The ``error`` of a failed job is a fixed sentence of the catalog in
 ``core.public_errors`` (older rows hold the text of the exception that stopped
 the job, which can name a private endpoint), so a redacted view replaces it
 with a fixed sentence (and the category, when the result has a code).
@@ -23,7 +22,6 @@ with a fixed sentence (and the category, when the result has a code).
 
 from __future__ import annotations
 
-import copy
 import json
 import re
 from functools import lru_cache
@@ -74,7 +72,7 @@ _MAX_OPTION_STRING = 128
 _REFERENCE_KEYS = ("namespace", "name", "version", "digest")
 
 #: Top-level keys of ``original_request`` a VIEWER may see.
-_REQUEST_KEYS = ("bindingProblem", "timeout", "mode", "optimization", "registration")
+_REQUEST_KEYS = ("timeout", "mode", "optimization", "registration")
 
 
 @lru_cache(maxsize=4)
@@ -144,16 +142,14 @@ def _reference(value: Any) -> Any:
 
 
 def redact_original_request(request: Optional[Mapping[str, Any]]) -> Optional[dict[str, Any]]:
-    """The problem document and the pinned execution choices, nothing else."""
+    """The pinned execution choices, nothing else."""
     if request is None:
         return None
     redacted: dict[str, Any] = {}
     for key in _REQUEST_KEYS:
         if key not in request:
             continue
-        if key == "bindingProblem":
-            redacted[key] = copy.deepcopy(request[key])
-        elif key == "registration":
+        if key == "registration":
             redacted[key] = _reference(request[key])
         else:
             redacted[key] = scrub(request[key])
@@ -176,7 +172,7 @@ def redact_provenance(provenance: Optional[Mapping[str, Any]]) -> Optional[dict[
 
 
 #: What a redacted view says of a failed job; the stored message is free text.
-GENERIC_ERROR = "The job failed. The details are visible to project members."
+GENERIC_ERROR = "The job failed. The details are visible to organization members."
 #: Where a result keeps its category: ``code`` is what the gateway writes today
 #: (``result.code``), the other two are the names older rows and engines use.
 _ERROR_CODE_KEYS = ("code", "errorCode", "error_code")
@@ -215,12 +211,12 @@ def redact_result(result: Optional[Mapping[str, Any]]) -> Optional[dict[str, Any
 
 
 async def must_redact_jobs(session: Any, organization_id: Any, user: Any) -> bool:
-    """Whether ``user`` may follow a project's jobs but not read their inputs.
+    """Whether ``user`` may follow an organization's runs but not read their inputs.
 
     True below MEMBER (and for anyone without a role) and for an API key that
-    cannot write projects: such a key is a read-only credential and must not
-    carry out the options or request a member chose. Shared by every route that
-    serialises a project's jobs.
+    cannot run engines (no ``engines:execute``): such a key is a read-only
+    credential and must not carry out the options or request a member chose.
+    Shared by every route that serialises an organization's runs.
     """
     # Imported here: ``collaboration`` imports models that import this module.
     from ..collaboration import ROLE_STRENGTH, effective_role
@@ -231,7 +227,7 @@ async def must_redact_jobs(session: Any, organization_id: Any, user: Any) -> boo
     if role is None or ROLE_STRENGTH[role] < ROLE_STRENGTH[OrganizationRole.MEMBER]:
         return True
     api_key = authenticated_api_key(user)
-    return api_key is not None and ApiKeyPermission.PROJECTS_WRITE.value not in permissions_of(api_key)
+    return api_key is not None and ApiKeyPermission.ENGINES_EXECUTE.value not in permissions_of(api_key)
 
 
 __all__ = [

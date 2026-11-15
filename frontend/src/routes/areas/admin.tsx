@@ -1,6 +1,5 @@
 import { lazy } from 'react';
 import { live } from '../define';
-import type { MovedRoute } from '../moved';
 import type { RouteDefinition } from '../types';
 
 // Area: admin. Every one of them is admin-only. Pricing is administered in the SPACE and SPHERE consoles.
@@ -17,5 +16,3 @@ export const routes: RouteDefinition[] = [
   live('admin-user-detail', '/app/admin/users/:user', <AdminUserDetail />, { requireAdmin: true }),
   live('admin-moderation', '/app/admin/moderation', <AdminModeration />, { requireAdmin: true }),
 ];
-
-export const moved: MovedRoute[] = [];

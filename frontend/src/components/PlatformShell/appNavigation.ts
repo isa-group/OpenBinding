@@ -1,6 +1,7 @@
-import type { Organization, Project } from '../../api/platform';
+import type { Organization } from '../../api/platform';
 import { PROBLEMS_SEGMENT } from '../../routes/paths/problems';
-import { RUN_HISTORY_PATH, RUNS_SEGMENT } from '../../routes/paths/runs';
+import { RUNS_SEGMENT } from '../../routes/paths/runs';
+import { STUDIES_SEGMENT } from '../../routes/paths/studies';
 
 export interface NavLinkItem {
   to: string;
@@ -10,30 +11,24 @@ export interface NavLinkItem {
 /** An entry of a menu or of the header: a link, or a disabled entry (no `to`) that says what it needs. */
 export interface MenuEntry {
   label: string;
-  /** Where the entry leads; absent when the context it needs (a project) is missing. */
+  /** Where the entry leads; absent when the context it needs (an organization) is missing. */
   to?: string;
   hint?: string;
 }
 
-const STUDIES_SEGMENT = 'studies';
-
-export const NEEDS_PROJECT = 'Needs a project';
+export const NEEDS_ORGANIZATION = 'Needs an organization';
 
 const under = (pathname: string, root: string) => pathname === root || pathname.startsWith(`${root}/`);
-const sameSegment = (segment: string | undefined, ...names: string[]) => segment !== undefined && names.includes(segment);
 
-export type MainSection = 'home' | 'problems' | 'lab' | 'engines' | 'admin' | null;
-export type LabEntryId = 'runs' | 'studies';
+export type MainSection = 'home' | OrganizationSectionId | 'engines' | 'admin' | null;
+/** The sections of the organization that have an entry of their own in the header. */
+export type OrganizationSectionId = 'problems' | 'runs' | 'studies';
 
-/** The entries of the header that do not depend on the current project. */
+/** The entries of the header that do not depend on the organization. */
 export const mainLinks = {
   home: { to: '/app', label: 'Home' },
   engines: { to: '/engines', label: 'Engines' },
   admin: { to: '/app/admin', label: 'Admin' },
-} as const satisfies Record<string, NavLinkItem>;
-
-export const labLinks = {
-  runs: { to: RUN_HISTORY_PATH, label: 'Runs' },
 } as const satisfies Record<string, NavLinkItem>;
 
 export const accountLinks: readonly NavLinkItem[] = [
@@ -44,74 +39,62 @@ export const accountLinks: readonly NavLinkItem[] = [
   { to: '/app/account/notifications', label: 'Notifications' },
 ];
 
-export function projectRoot(organization?: Organization, project?: Project): string | undefined {
-  return organization && project ? `/app/${organization.slug}/${project.slug}` : undefined;
+/** An entry of the organization (the one the address names, else the first), disabled with `Needs an organization` when there is none. */
+function inOrganization(label: string, organization: Organization | undefined, suffix: string): MenuEntry {
+  return organization ? { label, to: `/app/${organization.slug}${suffix}` } : { label, hint: NEEDS_ORGANIZATION };
 }
 
-/** An entry inside the current project, disabled with the hint `Needs a project` when there is none. */
-function inProject(label: string, root: string | undefined, suffix: string): MenuEntry {
-  return root ? { label, to: `${root}${suffix}` } : { label, hint: NEEDS_PROJECT };
-}
-
-export function problemsEntry(organization?: Organization, project?: Project): MenuEntry {
-  return inProject('Problems', projectRoot(organization, project), `/${PROBLEMS_SEGMENT}`);
-}
-
-/** The entries of the Lab menu, in order. */
-export function labEntries(organization?: Organization, project?: Project): Array<MenuEntry & { id: LabEntryId }> {
+/** The entries of the header that lead into the organization, in order: its problems, runs and studies. */
+export function organizationEntries(organization?: Organization): Array<MenuEntry & { id: OrganizationSectionId }> {
   return [
-    { id: 'runs', label: labLinks.runs.label, to: labLinks.runs.to },
-    { id: 'studies', ...inProject('Studies', projectRoot(organization, project), `/${STUDIES_SEGMENT}`) },
+    { id: 'problems', ...inOrganization('Problems', organization, `/${PROBLEMS_SEGMENT}`) },
+    { id: 'runs', ...inOrganization('Runs', organization, `/${RUNS_SEGMENT}`) },
+    { id: 'studies', ...inOrganization('Studies', organization, `/${STUDIES_SEGMENT}`) },
   ];
 }
 
-/** Entries of the "New" menu: always these three, in the current project. */
-export function createItems(organization?: Organization, project?: Project): MenuEntry[] {
-  const root = projectRoot(organization, project);
+/** Entries of the "New" menu: always these three, each in the organization. */
+export function createItems(organization?: Organization): MenuEntry[] {
   return [
-    inProject('Problem', root, `/${PROBLEMS_SEGMENT}?create=problem`),
-    inProject('Study', root, `/${STUDIES_SEGMENT}/new`),
-    inProject('Run', root, `/${RUNS_SEGMENT}/new`),
+    inOrganization('Problem', organization, `/${PROBLEMS_SEGMENT}?create=problem`),
+    inOrganization('Study', organization, `/${STUDIES_SEGMENT}/new`),
+    inOrganization('Run', organization, `/${RUNS_SEGMENT}/new`),
   ];
 }
 
 /** The first segments under `/app` that name a place of their own, not an organization. */
-const APP_PLACES = new Set(['admin', RUNS_SEGMENT, 'jobs', 'engines', 'account', 'analysis', 'organizations']);
+const APP_PLACES = new Set(['admin', 'engines', 'account']);
 /** Of those, the places that belong to no entry of the header. */
-const UNMARKED_PLACES = new Set(['account', 'analysis']);
-/** `/app/:org/…` screens that belong to the organization, not to one of its projects. */
-const ORGANIZATION_SCREENS = new Set(['settings', 'new-project']);
+const UNMARKED_PLACES = new Set(['account']);
+/** `/app/:org/…` screens of the organization itself, which Home marks. */
+const ORGANIZATION_SCREENS = new Set(['settings']);
+/** The second segment of each organization section, and the entry it belongs to (the Workbench edits problems). */
+const SECTION_OF: Record<string, OrganizationSectionId> = {
+  [PROBLEMS_SEGMENT]: 'problems',
+  workbench: 'problems',
+  [RUNS_SEGMENT]: 'runs',
+  [STUDIES_SEGMENT]: 'studies',
+};
 
-/** The segment below a project (`/app/:org/:project/<segment>`), when the address is inside one. */
-function projectSegment(pathname: string): string | undefined {
+/** The section of the organization the address is in (`/app/:org/problems/…`, `/app/:org/workbench`, `/app/:org/runs/…`, `/app/:org/studies/…`). */
+export function organizationSectionOf(pathname: string): OrganizationSectionId | null {
   const parts = pathname.split('/').filter(Boolean);
-  return parts[0] === 'app' && !APP_PLACES.has(parts[1]) ? parts[3] : undefined;
+  if (parts[0] !== 'app' || APP_PLACES.has(parts[1])) return null;
+  return SECTION_OF[parts[2]] ?? null;
 }
 
-/** Which entry of the Lab menu the address belongs to. */
-export function labEntryOf(pathname: string): LabEntryId | null {
-  if (under(pathname, labLinks.runs.to) || sameSegment(projectSegment(pathname), RUNS_SEGMENT)) return 'runs';
-  if (sameSegment(projectSegment(pathname), STUDIES_SEGMENT)) return 'studies';
-  return null;
-}
-
-/**
- * The workspace home is where organizations and projects are browsed: `/app`, an organization with its own screens, a project's overview.
- * The sections inside a project mark themselves in the project tabs, so the header leaves Home alone there.
- */
+/** The workspace home is where organizations are browsed: `/app`, an organization's overview and its settings. */
 function isWorkspaceHome(pathname: string): boolean {
   const parts = pathname.split('/').filter(Boolean);
   if (parts[0] !== 'app') return false;
-  return parts.length <= 3 || ORGANIZATION_SCREENS.has(parts[2]);
+  return parts.length <= 2 || ORGANIZATION_SCREENS.has(parts[2]);
 }
 
 /** Which entry of the header the current address belongs to. */
 export function currentSection(pathname: string): MainSection {
   if (under(pathname, mainLinks.admin.to)) return 'admin';
-  if (labEntryOf(pathname)) return 'lab';
   if (under(pathname, '/app/engines') || under(pathname, mainLinks.engines.to)) return 'engines';
   const [root, place] = pathname.split('/').filter(Boolean);
   if (root !== 'app' || UNMARKED_PLACES.has(place)) return null;
-  if (sameSegment(projectSegment(pathname), PROBLEMS_SEGMENT)) return 'problems';
-  return isWorkspaceHome(pathname) ? 'home' : null;
+  return organizationSectionOf(pathname) ?? (isWorkspaceHome(pathname) ? 'home' : null);
 }

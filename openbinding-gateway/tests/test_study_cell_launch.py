@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 
 import pytest_asyncio
+from _problem_helpers import upload_problem
 from sqlalchemy import func, select
 
 from _repo import REPO_ROOT
@@ -17,11 +18,10 @@ from openbinding_gateway.routes import studies as study_routes
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services import execution
 from openbinding_gateway.services.engines import engine_ref
-from bim_core.package import load_package
 from _pricing import fake_pricing_gate
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
-BASE = "/v1/organizations/lab/projects/routing/studies/compare/runs"
+BASE = "/v1/organizations/lab/studies/compare/runs"
 OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
 
 
@@ -51,7 +51,7 @@ async def _solve(*args, **kwargs):
 
 
 async def _study(client, registration, seeds):
-    """Create org, project, case and a study with one cell per seed; return headers."""
+    """Create org, problem and a study with one cell per seed; return headers."""
     details = registration()
     assert (await client.post("/v1/auth/register", json=details)).status_code == 201
     login = await client.post(
@@ -59,38 +59,17 @@ async def _study(client, registration, seeds):
         json={"username_or_email": details["username"], "password": details["password"]},
     )
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
-    package = load_package(EXAMPLE)
-    snapshot = await client.post(
-        "/v1/instances",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package.to_zip(),
-    )
     await client.post("/v1/organizations", headers=headers, json={"slug": "lab", "name": "Lab"})
-    await client.post(
-        "/v1/organizations/lab/projects",
-        headers=headers,
-        json={"slug": "routing", "name": "Routing", "visibility": "private"},
-    )
-    await client.post(
-        "/v1/organizations/lab/projects/routing/cases",
-        headers=headers,
-        json={"slug": "checkout", "name": "Checkout"},
-    )
-    revision = await client.post(
-        "/v1/organizations/lab/projects/routing/cases/checkout/revisions",
-        headers=headers,
-        json={"document": package.instance(), "source_snapshot_id": snapshot.json()["id"]},
-    )
-    assert revision.status_code == 201, revision.text
+    revision = await upload_problem(client, headers, "lab", slug="checkout")
     reference = engine_ref(routes._manifest("random-search"), "bim.builtin")
     created = await client.post(
-        "/v1/organizations/lab/projects/routing/studies",
+        "/v1/organizations/lab/studies",
         headers=headers,
         json={
             "slug": "compare",
             "name": "Compare",
             "definition": {
-                "case_revision_ids": [revision.json()["id"]],
+                "revision_ids": [revision["revision_id"]],
                 "engines": [{**reference, "mode": "seeded", "optimization": dict(OPTIMIZATION)}],
                 "parameter_sets": [{}],
                 "seeds": seeds,
@@ -133,7 +112,7 @@ async def test_launching_the_same_cell_again_returns_the_same_job(
     # Forget the link on the cell side, as a lost race would leave it.
     cell.job_id = None
     await db_session.flush()
-    again = await study_jobs.launch_study_cell(db_session, cell, user, organization, job.project_id)
+    again = await study_jobs.launch_study_cell(db_session, cell, user, organization)
 
     assert again.id == job.id
     assert cell.job_id == job.id
@@ -184,7 +163,7 @@ async def test_sync_of_a_single_cell_run_never_adds_a_job(
 async def test_a_run_whose_every_cell_fails_to_launch_is_terminal_and_has_no_job(
     api_client, db_session, registration, study_gate, monkeypatch
 ) -> None:
-    async def reject(session, cell, user, organization, project_id):
+    async def reject(session, cell, user, organization):
         raise study_jobs.StudyLaunchError("invalid_engine", "no such engine")
 
     monkeypatch.setattr(study_routes, "launch_study_cell", reject)

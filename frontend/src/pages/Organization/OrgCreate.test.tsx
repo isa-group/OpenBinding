@@ -1,9 +1,8 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { catalogFixture } from '../Pricing/pricingFixture';
-import { iker, lucia, member, org, renderScreen, researchUsage } from './testKit';
+import { lucia, member, org, renderScreen, researchUsage } from './testKit';
 import { OrgCreate } from './OrgCreate';
 
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn(), getPricingCatalog: vi.fn(), adminListUsers: vi.fn() }));
@@ -14,7 +13,7 @@ vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof imp
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const viewerOnly = org('read-only', { name: 'Read Only Lab', effective_role: 'MEMBER' });
-const consultora = org('consultora-demo', { name: 'Consultora Demo', billing_sponsor_user_id: 'user-nora', effective_role: 'ADMIN' });
+const consultora = org('consultora-demo', { name: 'Consultora Demo', effective_role: 'ADMIN' });
 
 const onClose = vi.fn();
 const onCreated = vi.fn();
@@ -84,7 +83,7 @@ describe('New organization', () => {
     expect(screen.getByText('Needs ADMIN here; your role is MEMBER')).toBeInTheDocument();
   });
 
-  it('previews the tree and the sponsor’s room, with what the new organization adds', async () => {
+  it('previews the tree, and no sponsor: quotas are per account', async () => {
     renderCreate();
     type('Name', 'Distributed Systems Lab');
     fireEvent.click(screen.getByRole('radio', { name: /ISA Demo Group/ }));
@@ -93,23 +92,19 @@ describe('New organization', () => {
     expect(within(preview).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['IDISA Demo Group', 'DSDistributed Systems LabNEW']);
     expect(screen.getByText(/Everyone with a role in ISA Demo Group gets at least the same role/)).toBeInTheDocument();
 
-    // The gateway counts nothing per account, so the preview states the plan's limits and draws no meter.
-    expect(await screen.findByText('Up to 5')).toBeInTheDocument();
-    expect(screen.getByText('Up to 15')).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Sponsor' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/sponsor/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('meter')).not.toBeInTheDocument();
   });
 
-  it('creates the organization under the chosen parent and sponsor, reloads the workspace and hands the organization over', async () => {
+  it('creates the organization under the chosen parent, reloads the workspace and hands the organization over', async () => {
     const { reload } = renderCreate();
     type('Name', 'Distributed Systems Lab');
     fireEvent.click(screen.getByRole('radio', { name: /Consultora Demo/ }));
-    const sponsors = within(screen.getByRole('group', { name: 'Sponsor' }));
-    expect(sponsors.getByRole('radio', { name: /You \(lucia\.vega\)/ })).toBeChecked();
-    fireEvent.click(await sponsors.findByRole('radio', { name: /nora · sponsor of Consultora Demo/ }));
     submit();
 
     await waitFor(() => expect(platform.createOrganization).toHaveBeenCalledWith({
-      name: 'Distributed Systems Lab', slug: 'distributed-systems-lab', parent_id: consultora.id, billing_sponsor_user_id: 'user-nora',
+      name: 'Distributed Systems Lab', slug: 'distributed-systems-lab', parent_id: consultora.id,
     }));
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
     expect(onCreated.mock.calls[0][0]).toMatchObject({ slug: 'distributed-systems-lab' });
@@ -135,30 +130,6 @@ describe('New organization', () => {
       expect(onCreated).not.toHaveBeenCalled();
     });
 
-    it('402: the sponsor has no organizations left, with the ways out', async () => {
-      platform.createOrganization.mockRejectedValue(new QuotaError('sponsor_quota_exceeded', 'full', { limit_id: 'organizations', limit: 5, used: 5 }));
-      fillAndSubmit();
-
-      const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('The sponsor has no organizations left (402 · sponsor_quota_exceeded). You already sponsor 5 of 5 organizations.');
-      expect(within(alert).getByRole('link', { name: 'See your plan' })).toHaveAttribute('href', '/app/account/usage');
-      expect(within(alert).getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
-      fireEvent.click(within(alert).getByRole('button', { name: 'Choose another sponsor' }));
-      expect(screen.getByRole('group', { name: 'Sponsor' })).toHaveFocus();
-    });
-
-    it('503: the sponsor’s limits cannot be checked, and nothing was created until it is tried again', async () => {
-      platform.createOrganization.mockRejectedValueOnce(new PricingUnavailableError('pricing is down'));
-      fillAndSubmit();
-
-      const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('The sponsor’s limits can’t be checked right now (503 · pricing_unavailable), so nothing was created.');
-      expect(onCreated).not.toHaveBeenCalled();
-      fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
-      await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
-      expect(platform.createOrganization).toHaveBeenCalledTimes(2);
-    });
-
     it('403: no ADMIN in the parent', async () => {
       platform.createOrganization.mockRejectedValue(Object.assign(new HttpError(403, 'no'), { code: 'organization_forbidden' }));
       renderCreate();
@@ -170,24 +141,4 @@ describe('New organization', () => {
     });
   });
 
-  it('lets a platform administrator sponsor with any account and shows that plan’s ceilings', async () => {
-    api.adminListUsers.mockResolvedValue({
-      users: [
-        { ...iker, contract_pending: false, api_key_count: 0 },
-        { ...lucia, id: 'user-pablo', username: 'pablo', email: 'pablo@example.test', plan: 'PRO', contract_pending: false, api_key_count: 0 },
-      ],
-    });
-    renderCreate(iker, [org('isa-demo', { name: 'ISA Demo Group', billing_sponsor_user_id: iker.id })]);
-    type('Name', 'Distributed Systems Lab');
-
-    expect(screen.getByText('As a platform administrator you may choose any account as sponsor.')).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole('radio', { name: /pablo \(pablo@example\.test\)/ }));
-    expect(screen.getByText('Administrator choice · their PRO plan')).toBeInTheDocument();
-    // Their usage is theirs to see: only the ceilings of the PRO plan are known here.
-    expect(await screen.findByText('Up to 10')).toBeInTheDocument();
-    expect(screen.getByText(/Plan ceilings only; this account’s usage isn’t visible to you/)).toBeInTheDocument();
-    submit();
-
-    await waitFor(() => expect(platform.createOrganization).toHaveBeenCalledWith(expect.objectContaining({ billing_sponsor_user_id: 'user-pablo', parent_id: null })));
-  });
 });

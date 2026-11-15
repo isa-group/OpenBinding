@@ -47,7 +47,7 @@ async def test_registering_puts_the_account_on_a_contract(api_client, registrati
     assert uuid.UUID(profile["id"]) in gate.contracts
 
 
-async def test_a_new_account_starts_on_the_basic_plan(api_client, registration, gate):
+async def test_a_new_account_starts_on_the_default_plan(api_client, registration, gate):
     _, headers = await account(api_client, registration)
 
     usage = await api_client.get("/v1/users/me/usage", headers=headers)
@@ -78,7 +78,7 @@ async def test_usage_reports_the_ceilings_one_request_runs_into(api_client, regi
     assert capabilities == caps_for(DEFAULT_PLAN).http_view()["capabilities"]
 
 
-async def test_moving_to_pro_raises_what_usage_reports(api_client, registration, gate):
+async def test_moving_to_a_larger_plan_raises_what_usage_reports(api_client, registration, gate):
     profile, headers = await account(api_client, registration)
     import uuid
 
@@ -89,8 +89,8 @@ async def test_moving_to_pro_raises_what_usage_reports(api_client, registration,
     assert before["plan"] == DEFAULT_PLAN
     assert after["plan"] == LARGER_PLAN
     assert (
-        after["capabilities"]["maxTimeoutSeconds"]
-        > before["capabilities"]["maxTimeoutSeconds"]
+        after["capabilities"]["maxRunMinutes"]
+        > before["capabilities"]["maxRunMinutes"]
     )
 
 

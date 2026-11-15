@@ -1,28 +1,22 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { unzipPackage } from '../../utils/bimZip';
-import { project } from '../Project/testKit';
 import { DEFAULT_FILES } from './bimDocuments';
 import { ROOT, analysis, openWorkbench } from './workbenchTestKit';
 
 // The forms of the editor: they edit the documents of the package in place, and what the gateway receives is what they wrote.
 
-const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), caseRevisions: vi.fn(), snapshotArchive: vi.fn() }));
-const client = vi.hoisted(() => ({
-  getBimExamples: vi.fn(), getBimExamplePackage: vi.fn(), createBimJob: vi.fn(), getV1Job: vi.fn(), getOwnUsage: vi.fn(), getPricingCatalog: vi.fn(),
-}));
-const workbench = vi.hoisted(() => ({ validate: vi.fn(), snapshot: vi.fn(), ir: vi.fn(), saveRevision: vi.fn() }));
+const problems = vi.hoisted(() => ({ list: vi.fn(), revisions: vi.fn(), source: vi.fn(), create: vi.fn(), createRevision: vi.fn() }));
+const workbench = vi.hoisted(() => ({ validate: vi.fn(), templates: vi.fn(), template: vi.fn() }));
 
-vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
-vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
-vi.mock('../../api/workbench', () => ({ workbenchApi: workbench }));
+vi.mock('../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../api/bim', () => ({ bimApi: workbench }));
 vi.mock('../../components/CodeEditor/CodeEditor', () => ({
   CodeEditor: ({ value, onChange, ariaLabel, readOnly }: { value: string; onChange: (value: string) => void; ariaLabel: string; readOnly?: boolean }) => (
     <textarea aria-label={ariaLabel} value={value} readOnly={readOnly} onChange={(event) => onChange(event.target.value)} />
   ),
 }));
 vi.mock('./BpmnModeler', () => ({ BpmnModeler: () => <div data-testid="bpmn-modeler" /> }));
-vi.mock('../../components/Artifacts/ArtifactVersionPicker', () => ({ ArtifactVersionPicker: () => <span>Sealed configurations</span> }));
 
 const DRAFT_KEY = `bim-v1-draft:user-lucia:${ROOT}/workbench::`;
 
@@ -39,12 +33,9 @@ describe('Workbench · forms of the editor', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.resetAllMocks();
-    platform.project.mockResolvedValue(project('qos-benchmarks', { name: 'QoS Benchmarks' }));
-    platform.cases.mockResolvedValue([]);
-    platform.caseRevisions.mockResolvedValue([]);
-    client.getBimExamples.mockResolvedValue([]);
-    client.getOwnUsage.mockResolvedValue({ plan: 'RESEARCH', capabilities: {}, features: {}, contract_pending: false });
-    client.getPricingCatalog.mockResolvedValue(null);
+    problems.list.mockResolvedValue({ problems: [], total: 0, limit: 200, offset: 0 });
+    problems.revisions.mockResolvedValue([]);
+    workbench.templates.mockResolvedValue([]);
     workbench.validate.mockResolvedValue(analysis());
   });
 

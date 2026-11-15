@@ -10,7 +10,7 @@ import {
 import { RegisterEngine } from './RegisterEngine';
 
 const api = vi.hoisted(() => ({
-  getProfiles: vi.fn(),
+  getProtocolProfiles: vi.fn(),
   getBimProfile: vi.fn(),
   createEngine: vi.fn(),
   createEngineRegistration: vi.fn(),
@@ -81,7 +81,7 @@ async function createRegistration() {
 describe('eng-register · the registration wizard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    api.getProfiles.mockResolvedValue([QOS_PROFILE]);
+    api.getProtocolProfiles.mockResolvedValue([QOS_PROFILE]);
     api.getBimProfile.mockResolvedValue({ id: 'qos-binding/v1', output: QOS_PROFILE.output, protocol: 'bim-engine/v1', protocolDigest: PROTOCOL_DIGEST, digest: QOS_PROFILE.digest });
     api.getOwnUsage.mockResolvedValue(usageOf('RESEARCH', 3));
     api.listEngineRegistrations.mockResolvedValue([EDGE_SOLVER]);
@@ -252,7 +252,7 @@ describe('eng-register · the registration wizard', () => {
   });
 
   it('says the plan is full (402) and links to the usage', async () => {
-    api.createEngineRegistration.mockRejectedValueOnce(new QuotaError('quota_exceeded', 'limit', { limit_id: 'federatedEngines', limit: 3, used: 3 }));
+    api.createEngineRegistration.mockRejectedValueOnce(new QuotaError('quota_exceeded', 'limit', { limit_id: 'maxFederatedEngines', limit: 3, used: 3 }));
     renderPage();
     await createEngineRevision();
     await fillDeployment();
@@ -352,7 +352,7 @@ describe('eng-register · the registration wizard', () => {
   });
 
   it('works with the standard vocabulary when the gateway’s profiles cannot be read', async () => {
-    api.getProfiles.mockRejectedValue(refusal(503, 'accounts_unavailable'));
+    api.getProtocolProfiles.mockRejectedValue(refusal(503, 'accounts_unavailable'));
     renderPage();
     expect(await screen.findByText(/uses the standard qos-binding\/v1 vocabulary/)).toBeInTheDocument();
     await createEngineRevision();
