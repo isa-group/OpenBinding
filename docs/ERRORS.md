@@ -51,7 +51,10 @@ to, it is kept under `extra`.
 | `in` | request validation | `body`, `query`, `path`, `header` or `cookie` |
 | `parameter` | `in` ≠ `body` | the query/path/header/cookie parameter (`limit`, `cursor`) |
 | `resource` | compiler findings | the package file the finding is about |
-| `span` | when known | position in the source text: `{"offset": 12}` for malformed JSON; `{"line", "column"}` for documents |
+| `span` | when known | position in the source text: `{"offset": 12}` for malformed JSON; `{"line", "column"}` for documents; for Composition2Yaml documents always present, `{"line", "column", "end_line", "end_column"}` (one-based, the end exclusive) or `null` when there is no text to point into (a JSON document) |
+| `severity` | Composition2Yaml findings | `error` refuses the document; `warning` and `info` only inform (one list, errors first) |
+| `path` | Composition2Yaml findings | the dotted path of the element at fault (`binding.t1.from.version`, `workflow.seq[1].and[0]`; empty for the whole document). Readable but ambiguous, since a task id may contain a dot; `pointer` (always present on these findings, `""` for the document) is built from the same segments and is not |
+| `document` | a refused `diffCompositions` | `before` or `after`: the side the finding is about |
 | `hint` / `fix` | when known | what to do / a concrete replacement (`"This field is required."`, the JSON parser's reason) |
 | `loc` | request validation | the raw Pydantic location (`["body", "features", 0]`), nothing lost |
 | `context` | request validation | the limits that were exceeded (`{"ge": 1}`, `{"max_length": 64}`) — scalars only |
@@ -129,9 +132,9 @@ Routes keep raising `api_error(422, code, message)`; they need not know the shap
 
 ### Media type
 
-BIM routes (`/v1/bim/…`, `/v1/engines`,
-`/v1/engine-registrations` — the prefixes in `_BIM_PATH_PREFIXES`) answer
-`application/problem+json`, as they always did. The platform routes
+The stateless language services and the engine routes (`/v1/bim/…`, `/v1/compositions/…`,
+`/v1/engines`, `/v1/engine-registrations` — the prefixes in `_PROBLEM_JSON_PREFIXES`) answer
+`application/problem+json`, as the BIM routes always did. The platform routes
 (accounts, organizations and their problems, runs and studies, pricing, …)
 keep `application/json`. The runs moved to `/v1/organizations/{org}/runs` in F0b and
 answer the platform envelope since: a refusal other than a 422 carries `code` beside
@@ -157,6 +160,75 @@ is not needed.
 | `revision_required` | 422 | `createRun` (`POST /v1/organizations/{org}/runs`) without `revision` |
 | `revision_not_in_organization` | 409 | `createRun` names a revision of another organization the caller can see: launch it from that organization |
 | `contract_not_installed` | 422 | a retry of a run whose compilation needs a contract the installed toolchain does not have |
+
+## Composition2Yaml
+
+The stateless services `/v1/compositions/{validate,parse,serialise,diff}` answer
+`application/problem+json`. `validateComposition` is a lint: it answers 200 `{valid, diagnostics}`
+whether or not the document is valid. The others refuse a document with an error.
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `composition_invalid` | 422 | `parseComposition`, `serialiseComposition` or `diffCompositions` read a document with at least one error; `diagnostics` lists every finding (the `c2y_*` codes below), located; on a diff each names its `document` |
+| `composition_busy` | 429 | every Composition2Yaml slot of this process is taken (`COMPOSITION_LANGUAGE_SLOTS`, 4); `Retry-After: 1`. Refused at once rather than queued |
+| `payload_too_large` | 413 | a document longer than 262 144 bytes (a JSON document to serialise: 524 288); `limitBytes` says the limit |
+| `unsupported_media_type` | 415 | `validate` and `parse` read `application/yaml`, `text/yaml` or `application/x-yaml`; `serialise` and `diff` read `application/json` |
+| `rate_limit_exceeded` | 429 | past the `read` budget of the client ([ACCESS_POLICY.md](ACCESS_POLICY.md)) |
+
+The findings, in the order a document is read (size, YAML, root, sections, coherence, schema).
+Every one is an error unless its severity says otherwise.
+
+| `c2y_*` code | Meaning |
+|---|---|
+| `c2y_too_long` | the document, or the canonical text written from it, is longer than 262 144 UTF-8 bytes |
+| `c2y_syntax` | not YAML, or YAML that JSON cannot hold: an alias, a duplicate key, a key that is not a string, a number that is not finite, an integer past ±(2^53 − 1), bytes that are not UTF-8; located where the reader stopped |
+| `c2y_problem_content` | content that belongs to the BIM problem (tasks, properties, candidates, constraints, objectives) |
+| `c2y_unknown_key` | a key the language does not have (`presentation:` included) |
+| `c2y_missing_key` | a required key is absent; its path is the key's own, its span the parent's |
+| `c2y_type` | a value of the wrong JSON type |
+| `c2y_syntax_version_type` | `syntaxVersion` is not a quoted `<major>.<minor>` string (unquoted, YAML reads `1.0` as a number) |
+| `c2y_syntax_version_unsupported` | `syntaxVersion` names a version this gateway does not read (supported: `1.0`) |
+| `c2y_slug_invalid` | `composition` is not a slug |
+| `c2y_version_not_semver` | `version` is not a Semantic Versioning label |
+| `c2y_kind_unknown` | `kind` is not `application`, `workflow`, `pipeline` or `system` |
+| `c2y_problem_ref` | `problem.ref` or `problem.compilation` is malformed |
+| `c2y_workflow_malformed` | a workflow node that is not a task, `null` or one well-formed `seq`/`and`/`xor`/`loop` |
+| `c2y_task_id_invalid`, `c2y_property_id_invalid` | an id the container would not accept |
+| `c2y_candidate_ref_invalid` | a candidate that is neither an id nor `<resource>/<id>` |
+| `c2y_task_unbound` | a workflow task with no `binding` entry |
+| `c2y_binding_unknown_task` | a `binding` entry for a task the workflow does not have |
+| `c2y_binding_entry` | an entry that is not exactly one of `candidate` or `local: true`, or a `from` beside `local: true` |
+| `c2y_xor_probabilities` | an `xor` with some probabilities stated and some not, or `uniform: true` beside probabilities |
+| `c2y_xor_sum` | the stated probabilities of an `xor` do not add up to exactly 1 (decimal arithmetic) |
+| `c2y_from_version_missing` | a `from` without the SPHERE version it pins |
+| `c2y_from_incomplete` | a `from` without its `sphere` or `plan` |
+| `c2y_from_shape` | a malformed `from` field, or an add-on listed twice |
+| `c2y_from_registry_unknown` | a `from` on a registry `SPHERE_REGISTRIES` does not define |
+| `c2y_offering_sources` | an `offering` with no source or with more than one |
+| `c2y_offering_shape` | a malformed `offering`: a key, type or value it may not have (its plans and its version live outside the document) |
+| `c2y_offering_url_not_https` | an offering URL that is not an absolute `https://` URL |
+| `c2y_offering_registry_unknown` | **warning**: an offering on a registry `SPHERE_REGISTRIES` does not define; the composition stays valid |
+| `c2y_value_shape` | a value that is a boolean, or an empty unit |
+| `c2y_evidence_shape` | evidence that does not hold together (a run and `manual`, a point without a run, a run that is not a UUID, an unknown `evaluatedBy`) |
+| `c2y_evidence_gateway_without_problem`, `c2y_evidence_run_without_problem` | gateway evidence or a run on a composition linked to no problem |
+| `c2y_slug_mismatch` | **info**: the document's slug is not the slug of the composition it is submitted to |
+| `c2y_schema` | the JSON Schema backstop refused something no specific rule names |
+| `c2y_more` | **info**: more findings than a list holds (100); fix these first |
+
+Against a compiled problem (the organization's routes, from F1 B8):
+
+| `c2y_*` code | Meaning |
+|---|---|
+| `c2y_workflow_mismatch` | the workflow is not the problem's |
+| `c2y_candidate_unknown` | no catalog of the problem holds the candidate |
+| `c2y_candidate_ambiguous` | two catalogs give the task the same id: write `<resource>/<id>` |
+| `c2y_candidate_not_allowed`, `c2y_task_local_mismatch` | the task may not take the candidate; `local: true` on a service task or a candidate on a local one. Reported only when the toolchain refuses the binding, to locate its refusal |
+| `c2y_property_unknown` | a value of a property the problem does not have |
+| `c2y_unit_missing`, `c2y_unit_mismatch` | a bare number where the problem has a unit; a unit that is not the problem's |
+| `c2y_value_differs` | **warning**: a declared value is not the one the toolchain computes; the computed one is kept |
+| `c2y_value_not_computed` | **warning**: a declared value of a property the toolchain does not compute; dropped |
+| `c2y_constraint_violated` | the binding violates a hard constraint |
+| `c2y_constraint_soft` | **warning**: the binding misses a soft constraint, with its penalty |
 
 ## Organizations
 

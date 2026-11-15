@@ -102,13 +102,16 @@ def categorize_error(status_code: int, code: str) -> str:
     return "system_bug"
 
 
-async def _get_db_session() -> Tuple[Optional[AsyncSession], bool]:
-    """Retrieve an async session from either engine pool or test dependency override."""
+async def _get_db_session(app: Any = None) -> Tuple[Optional[AsyncSession], bool]:
+    """Retrieve an async session from either engine pool or the serving app's test dependency override.
+
+    ``app`` is the application that served the request (``scope["app"]``), so this module never
+    imports the composition root.
+    """
     try:
         from .access.dependencies import session_dependency
-        from .main import app
 
-        override = app.dependency_overrides.get(session_dependency)
+        override = (getattr(app, "dependency_overrides", None) or {}).get(session_dependency)
         if override:
             gen = override()
             s = await anext(gen)
@@ -223,8 +226,9 @@ async def record_api_error(
     user_id: Optional[uuid.UUID] = None,
     organization_id: Optional[uuid.UUID] = None,
     session: Optional[AsyncSession] = None,
+    app: Any = None,
 ) -> Optional[ApiErrorEvent]:
-    """Persist an ApiErrorEvent record."""
+    """Persist an ApiErrorEvent record; ``app`` is the application that served the failure."""
     sanitized = sanitize_detail(detail, endpoint)
     event = ApiErrorEvent(
         id=uuid.uuid4(),
@@ -243,7 +247,7 @@ async def record_api_error(
         session.add(event)
         return event
 
-    db_session, should_close = await _get_db_session()
+    db_session, should_close = await _get_db_session(app)
     if db_session is None:
         return None
 
@@ -355,6 +359,7 @@ class ErrorTelemetryMiddleware:
                                 category=category,
                                 detail=detail,
                                 user_id=user_id,
+                                app=scope.get("app"),
                             )
                         except Exception as exc:
                             logger.debug("Failed recording error in telemetry middleware: %s", exc)

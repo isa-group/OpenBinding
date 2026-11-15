@@ -1134,13 +1134,14 @@ def _schema_file(syntax_version: str) -> FilePath:
 
 
 @lru_cache(maxsize=None)
-def _schema_text(syntax_version: str) -> str:
+def schema_text(syntax_version: str = SYNTAX_VERSION) -> str:
+    """The JSON Schema of a syntax version, as the bytes it ships in (``GET /v1/compositions/schema``)."""
     return _schema_file(syntax_version).read_text(encoding="utf-8")
 
 
 def schema(syntax_version: str = SYNTAX_VERSION) -> dict[str, Any]:
     """The JSON Schema of a syntax version, as it ships: a fresh copy on each call."""
-    return json.loads(_schema_text(syntax_version))
+    return json.loads(schema_text(syntax_version))
 
 
 @lru_cache(maxsize=None)

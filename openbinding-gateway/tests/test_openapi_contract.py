@@ -141,6 +141,12 @@ def test_authentication_and_role_requirements_are_explicit(document):
         # The public engine catalogue: a visitor gets the built-in and published Engines.
         ("/v1/engines", "get"),
         ("/v1/bim/validate", "post"),
+        # The stateless Composition2Yaml services: counted for anybody, as /v1/bim/validate is.
+        ("/v1/compositions/validate", "post"),
+        ("/v1/compositions/parse", "post"),
+        ("/v1/compositions/serialise", "post"),
+        ("/v1/compositions/diff", "post"),
+        ("/v1/compositions/schema", "get"),
     }
     for path, method, operation in operations(document):
         if (path, method) in public:
@@ -272,6 +278,15 @@ def test_binary_yaml_and_job_inputs_have_their_real_media_types(document):
         paths["/v1/organizations/{org}/problems/{problem}/revisions"]["post"],
     ):
         assert set(upload["requestBody"]["content"]) == {"application/vnd.bim+zip", "application/zip"}
+    for operation in ("validate", "parse"):
+        body = paths[f"/v1/compositions/{operation}"]["post"]["requestBody"]["content"]
+        assert set(body) == {"application/yaml", "text/yaml", "application/x-yaml"}
+    serialised = paths["/v1/compositions/serialise"]["post"]
+    assert set(serialised["requestBody"]["content"]) == {"application/json"}
+    assert set(serialised["responses"]["200"]["content"]) == {"application/yaml"}
+    schema = paths["/v1/compositions/schema"]["get"]["responses"]["200"]
+    assert set(schema["content"]) == {"application/schema+json"}
+    assert "ETag" in schema["headers"]
     runs = paths["/v1/organizations/{org}/runs"]["post"]
     assert set(runs["requestBody"]["content"]) == {"application/json"}
     assert runs["requestBody"]["content"]["application/json"]["schema"] == {"$ref": "#/components/schemas/JobRequest"}

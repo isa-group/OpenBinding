@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 109
+    assert len(ROUTES) == 114
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -181,3 +181,42 @@ async def test_an_unclassified_route_is_forbidden_to_a_key_but_not_to_a_session(
     assert with_key.json()["detail"]["code"] == "insufficient_api_key_permission"
     assert with_key.json()["detail"]["missing_permissions"] == [UNCLASSIFIED_ROUTE_PERMISSION]
     assert with_session.status_code == 200
+
+
+def test_the_composition2yaml_services_need_compositions_read_and_the_schema_is_open():
+    language = [route for route in ROUTES if route[1].startswith("/v1/compositions/")]
+
+    assert sorted(language) == [
+        ("GET", "/v1/compositions/schema"),
+        ("POST", "/v1/compositions/diff"),
+        ("POST", "/v1/compositions/parse"),
+        ("POST", "/v1/compositions/serialise"),
+        ("POST", "/v1/compositions/validate"),
+    ]
+    for method, path in language:
+        expected = frozenset() if method == "GET" else frozenset({"compositions:read"})
+        assert required_permissions(path, method) == expected, path
+    assert is_open("GET", "/v1/compositions/schema")
+    assert {"compositions:read", "compositions:write"} <= set(ALL_PERMISSIONS)
+
+
+def test_the_compositions_of_an_organization_have_their_own_permissions():
+    compositions = "/v1/organizations/{org}/compositions"
+    read, write = frozenset({"compositions:read"}), frozenset({"compositions:write"})
+
+    assert required_permissions(compositions, "GET") == read
+    assert required_permissions(f"{compositions}/{{composition}}/versions", "GET") == read
+    assert required_permissions(f"{compositions}/{{composition}}/versions/check", "POST") == read
+    assert required_permissions(f"{compositions}/{{composition}}/versions/{{version}}/evaluate", "POST") == read
+    assert required_permissions(compositions, "POST") == write
+    assert required_permissions(f"{compositions}/{{composition}}", "PATCH") == write
+    assert required_permissions(f"{compositions}/{{composition}}", "DELETE") == write
+    assert required_permissions(f"{compositions}/{{composition}}/versions", "POST") == write
+    # The organizations fallthrough does not reach them: an org-admin key gains no composition write.
+    assert "organizations:write" not in required_permissions(compositions, "POST")
+    # A composition-scoped key reaches them, by kind and by slug; a problem-scoped one does not.
+    request = {"method": "GET", "path_params": {"org": "acme", "composition": "shop"}, "path": f"{compositions}/{{composition}}"}
+    assert allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["composition"]}}), **request)
+    assert not allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["problem"]}}), **request)
+    assert allows_request(SimpleNamespace(grants={"boundary": {"slugs": ["shop"]}}), **request)
+    assert not allows_request(SimpleNamespace(grants={"boundary": {"slugs": ["other"]}}), **request)

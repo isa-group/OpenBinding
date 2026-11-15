@@ -110,6 +110,7 @@ has the one-shot `pricing-bootstrap`, a separate compose project that prepares t
 | `problems` | problems of an organization, their sealed revisions (the uploaded `.bim.zip` and its digests) and compilations (one per revision and toolchain, insert-only), the stateless BIM services (`/v1/bim/validate`, `/v1/bim/templates`) | `BimPort`, `BlobStore` | `modules/problems` (domain, application, adapters; F0b); `integrations/bim*.py`, the engine protocol document in `services/engines.py` |
 | `engines` | engine revisions, modes and manifests, federated deployments, conformance, capability matching | `EngineTransport` | `services/engines.py`, `services/engine_registry.py`, `services/probe.py`, `v1/remote.py` |
 | `execution` | runs of an organization: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood | `EngineTransport`, `BimPort`, `PlanPort` | `modules/execution` (the run request and the runs API `/v1/organizations/{org}/runs`; F0b); `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py` |
+| `compositions` | Composition2Yaml documents served by the platform: the stateless language services (`/v1/compositions/validate`, `parse`, `serialise`, `diff`, `schema`; F1 B6), then compositions of an organization and their versions. The language itself is the pure library `openbinding_gateway/composition` (contract `composition-library-pure`) | `BimPort` (from B8) | `modules/compositions` (F1) |
 | `laboratory` | studies of an organization (the editable matrix inline), study runs that freeze their definition and pin each revision's compilation, cells, protocol metrics, trade-offs across engines | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py` (`/v1/organizations/{org}/studies`; F0b); the generator moved to QACOForge; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
 | `publishing` | published results (a frozen study run), citations, Zenodo-ready export | application APIs of `problems` and `laboratory` | none: the reports, their publications and Explore were removed in F0a |
 | `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH through CAS) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `modules/plans` (entitlement map, per-account quotas, the package copy of the pricing; F0b); `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`. Local metering and billing sponsorship were removed in F0b |
@@ -136,8 +137,9 @@ openbinding-gateway/src/openbinding_gateway/
 - Between modules: only through the other module's `application` public API, or through in-process domain events
   (audit, notifications, cache invalidation). No cross-module ORM joins; each table has one owning module.
 - Modules form layers, and a module imports only modules below it: `administration` → `laboratory`
-  → `execution` → `engines` | `problems` → `language` → `collaboration` → `identity` → `plans` → `shared`
-  (`|` marks independent siblings).
+  → `compositions` → `execution` → `engines` | `problems` → `collaboration` → `identity` → `plans` → `shared`
+  (`|` marks independent siblings). `compositions` sits above `execution` because a composition is derived
+  from a run, and below `laboratory` because a study's trade-off set becomes compositions.
 - External systems only through ports: `BimPort` (exists), `PlanPort`, `PricingSource`, `EngineTransport`,
   `BlobStore`, `IdentityProvider`, `Mailer`, `Clock`.
 - Patterns: ports and adapters; application services as use-case functions; repositories with a unit of work per

@@ -98,7 +98,7 @@ describe('New API key', () => {
       renderWizard();
       await nameIt();
 
-      expect(screen.getAllByRole('checkbox')).toHaveLength(20);
+      expect(screen.getAllByRole('checkbox')).toHaveLength(22);
       for (const id of ['engines:moderate', 'admin:accounts:read', 'admin:accounts:write']) {
         expect(permission(id)).toBeDisabled();
       }
@@ -122,7 +122,7 @@ describe('New API key', () => {
       await nameIt();
 
       fireEvent.click(screen.getByRole('button', { name: 'Preset: read results' }));
-      for (const id of ['jobs:read', 'studies:read', 'problems:read']) expect(permission(id)).toBeChecked();
+      for (const id of ['jobs:read', 'studies:read', 'problems:read', 'compositions:read']) expect(permission(id)).toBeChecked();
       expect(permission('engines:execute')).not.toBeChecked();
 
       fireEvent.click(screen.getByRole('button', { name: 'Preset: run an engine' }));

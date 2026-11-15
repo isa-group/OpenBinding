@@ -86,6 +86,7 @@ cannot keep the compiler busy for everybody else, every client also has a budget
 | Class | Routes | Anonymous, per client address | Signed in, per account |
 |---|---|---|---|
 | `compile` | `POST /v1/bim/validate`, `POST /v1/organizations/{org}/problems`, `POST …/problems/{problem}/revisions`, `GET …/revisions/{revision}/compilation` | `WORK_RATE_LIMIT_COMPILE_REQUESTS` (default 10) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` (default 5) |
+| `read` | `POST /v1/compositions/validate`, `/parse`, `/serialise`, `/diff` | `WORK_RATE_LIMIT_READ_REQUESTS` (default 60) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` |
 
 - **Per window.** A fixed window of `WORK_RATE_LIMIT_WINDOW_S` seconds (default 60)
   that starts at a client's first request of the class. `0` switches a class off.
@@ -106,6 +107,23 @@ cannot keep the compiler busy for everybody else, every client also has a budget
 - **`/v1/bim/validate` needs no account.** Anonymous callers are charged by address;
   a signed-in caller is charged to the account, and an API key also needs
   `problems:read` there.
+- **The Composition2Yaml services need no account either.** `POST /v1/compositions/validate`,
+  `/parse`, `/serialise` and `/diff` read or write one document, bounded at 262 144 bytes, and
+  store nothing; an editor calls them as its author types, so the `read` class has the larger
+  budget. They are counted like `/v1/bim/validate`; an API key needs `compositions:read`.
+  Their concurrency is bounded apart, per process, by `COMPOSITION_LANGUAGE_SLOTS` (default 4):
+  a request that finds every slot taken gets `429 composition_busy` with `Retry-After: 1`.
+  `GET /v1/compositions/schema` is open, like the BIM templates, and needs no permission.
+
+## API key permissions of compositions
+
+`compositions:read` and `compositions:write` are the composition pair, as `problems:*` and
+`studies:*` are for theirs. `compositions:read` reaches the stateless services above and,
+under `/v1/organizations/{org}/compositions`, every `GET` and the two operations that write
+nothing (`POST …/versions/check` and `POST …/evaluate`); every other method there needs
+`compositions:write`. The `organizations:*` permissions do not reach compositions, so a key
+that administers organizations gains no composition write. A key boundary names a composition
+by its kind (`composition`, `compositions`) and by its slug.
 
 What an anonymous caller's failures leave behind is limited too. At most
 `ANONYMOUS_ERROR_EVENTS_PER_MINUTE` of them (default 30) are recorded per client and

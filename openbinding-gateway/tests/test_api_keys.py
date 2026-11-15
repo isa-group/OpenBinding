@@ -799,9 +799,25 @@ def test_problem_routes_need_the_problem_permissions(path, method, permission):
     assert apikeys.required_permissions(path, method) == frozenset({permission})
 
 
-@pytest.mark.parametrize('path', ['/v1/bim/templates', '/v1/bim/templates/demo/01_simple_seq', '/v1/engines/protocol'])
-def test_the_templates_and_the_engine_protocol_need_no_permission(path):
+@pytest.mark.parametrize('path', [
+    '/v1/bim/templates', '/v1/bim/templates/demo/01_simple_seq', '/v1/engines/protocol', '/v1/compositions/schema',
+])
+def test_the_templates_the_engine_protocol_and_the_composition_schema_need_no_permission(path):
     assert apikeys.required_permissions(path, 'GET') == frozenset()
+
+
+@pytest.mark.parametrize('path,method,permission', [
+    ('/v1/compositions/validate', 'POST', 'compositions:read'),
+    ('/v1/compositions/parse', 'POST', 'compositions:read'),
+    ('/v1/compositions/serialise', 'POST', 'compositions:read'),
+    ('/v1/compositions/diff', 'POST', 'compositions:read'),
+    ('/v1/organizations/team/compositions', 'GET', 'compositions:read'),
+    ('/v1/organizations/team/compositions', 'POST', 'compositions:write'),
+    ('/v1/organizations/{org}/compositions/{composition}/versions/check', 'POST', 'compositions:read'),
+    ('/v1/organizations/{org}/compositions/{composition}/versions', 'POST', 'compositions:write'),
+])
+def test_the_composition_routes_need_the_composition_permissions(path, method, permission):
+    assert apikeys.required_permissions(path, method) == frozenset({permission})
 
 
 @pytest.fixture

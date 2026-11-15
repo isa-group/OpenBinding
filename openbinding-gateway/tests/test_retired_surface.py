@@ -90,3 +90,10 @@ def test_the_tool_passes_on_this_checkout():
 
     assert done.returncode == 0, done.stdout + done.stderr
     assert "no retired route, table or spelled entitlement id" in done.stdout
+
+
+def test_the_composition2yaml_services_are_not_the_retired_language():
+    services = [f"/v1/compositions/{name}" for name in ("validate", "parse", "serialise", "diff", "schema")]
+    assert surface.retired_routes(services) == []
+    retired = [f"/v1/compositions/{name}" for name in ("compile", "package", "import", "language")]
+    assert surface.retired_routes(retired) == retired
