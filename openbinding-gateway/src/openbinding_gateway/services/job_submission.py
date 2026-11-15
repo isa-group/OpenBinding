@@ -142,9 +142,9 @@ class _Finished(Exception):
 # -- Idempotency ------------------------------------------------------------
 
 
-async def _find_idempotent_job(session: AsyncSession, owner_id: Any, key: str) -> Job | None:
+async def _find_idempotent_job(session: AsyncSession, created_by_id: Any, key: str) -> Job | None:
     return (
-        await session.execute(select(Job).where(Job.owner_id == owner_id, Job.idempotency_key == key))
+        await session.execute(select(Job).where(Job.created_by_id == created_by_id, Job.idempotency_key == key))
     ).scalars().first()
 
 
@@ -166,11 +166,11 @@ def _idempotent_outcome(existing: Job, fingerprint: str) -> JobSubmissionResult:
 
 
 async def _raced_idempotent_outcome(
-    session: AsyncSession, owner_id: Any, key: str | None, fingerprint: str | None
+    session: AsyncSession, created_by_id: Any, key: str | None, fingerprint: str | None
 ) -> JobSubmissionResult | None:
     if not key or fingerprint is None:
         return None
-    existing = await _find_idempotent_job(session, owner_id, key)
+    existing = await _find_idempotent_job(session, created_by_id, key)
     if existing is None:
         return None
     return _idempotent_outcome(existing, fingerprint)
@@ -626,7 +626,7 @@ class JobSubmission:
         space = BindingSpace.from_analysis(compilation.analysis)
         db_job = Job(
             id=uuid.UUID(job_id),
-            owner_id=caller.id,
+            created_by_id=caller.id,
             engine_id=engine.name,
             engine_job_id=job_id,
             service_url=registration.endpoint,

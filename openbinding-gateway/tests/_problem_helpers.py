@@ -102,7 +102,7 @@ MINIMAL_IR: dict[str, Any] = {"apiVersion": "bim/v1", "kind": "BindingProblem", 
 async def seed_problem_run(
     db,
     *,
-    owner_id: uuid.UUID,
+    created_by_id: uuid.UUID,
     organization_id: uuid.UUID | None = None,
     ir: dict[str, Any] | None = None,
     ir_digest: str | None = None,
@@ -124,7 +124,7 @@ async def seed_problem_run(
     from openbinding_gateway.modules.problems.application import semantic_digest
 
     if organization_id is None:
-        organization = Organization(slug=f"org-{uuid.uuid4().hex[:10]}", name="Seeded", created_by_id=owner_id)
+        organization = Organization(slug=f"org-{uuid.uuid4().hex[:10]}", name="Seeded", created_by_id=created_by_id)
         db.add(organization)
         await db.flush()
         organization_id = organization.id
@@ -134,18 +134,18 @@ async def seed_problem_run(
     blob = Blob(
         organization_id=organization_id, digest="sha256-" + uuid.uuid4().hex + uuid.uuid4().hex,
         media_type="application/vnd.bim+zip", size_bytes=1,
-        storage_uri=f"/nonexistent/{uuid.uuid4().hex}", created_by_id=owner_id,
+        storage_uri=f"/nonexistent/{uuid.uuid4().hex}", created_by_id=created_by_id,
     )
     problem = BindingCase(
         organization_id=organization_id, slug=f"p-{uuid.uuid4().hex[:10]}", name="Seeded problem",
-        created_by_id=owner_id,
+        created_by_id=created_by_id,
     )
     db.add_all([blob, problem])
     await db.flush()
     revision = BindingCaseRevision(
         binding_case_id=problem.id, revision=1, package_digest=package_digest, package_blob_id=blob.id,
         package_size=1, document={"apiVersion": "bim/v1", "kind": "Instance", "metadata": {"name": "seeded"}},
-        files=[], resource_digests={}, created_by_id=owner_id,
+        files=[], resource_digests={}, created_by_id=created_by_id,
     )
     db.add(revision)
     await db.flush()
@@ -227,4 +227,4 @@ async def seeded_run_refs(db, owner_id: uuid.UUID | None = None) -> dict[str, uu
         db.add(user)
         await db.flush()
         owner_id = user.id
-    return run_refs(await seed_problem_run(db, owner_id=owner_id))
+    return run_refs(await seed_problem_run(db, created_by_id=owner_id))

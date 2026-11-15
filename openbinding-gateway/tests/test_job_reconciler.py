@@ -75,7 +75,7 @@ async def a_job(session, owner, *, state=JobState.RUNNING, age_s=None, budget_s=
         # A queued job is judged by the queue timeout, a running one by its budget.
         age_s = get_settings().queue_timeout_s + 1 if state is JobState.QUEUED else OVERDUE_S
     job = Job(
-        owner_id=owner.id if owner else None,
+        created_by_id=owner.id if owner else None,
         engine_id="random-search",
         engine_job_id="engine-1",
         service_url="http://engine",

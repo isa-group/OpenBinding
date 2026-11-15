@@ -95,12 +95,12 @@ async def _seed(session):
     session.add_all(cells)
     await session.flush()
     finishing = Job(
-        owner_id=user.id, engine_id="random-search", engine_job_id="engine-0", service_url="http://engine",
+        created_by_id=user.id, engine_id="random-search", engine_job_id="engine-0", service_url="http://engine",
         state=JobState.RUNNING, lease_token=TOKEN, lease_until=utcnow(), organization_id=organization.id,
         study_cell_id=cells[0].id, **refs,
     )
     finished = Job(
-        owner_id=user.id, engine_id="random-search", engine_job_id="engine-1", service_url="http://engine",
+        created_by_id=user.id, engine_id="random-search", engine_job_id="engine-1", service_url="http://engine",
         state=JobState.COMPLETED, result={"termination": "FEASIBLE", "solutions": []}, termination="FEASIBLE",
         finished_at=utcnow(), organization_id=organization.id, study_cell_id=cells[1].id, **refs,
     )

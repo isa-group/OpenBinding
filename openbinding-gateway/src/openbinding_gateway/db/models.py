@@ -181,7 +181,7 @@ class Job(Base):
 
     __tablename__ = "jobs"
     __table_args__ = (
-        UniqueConstraint("owner_id", "idempotency_key", name="uq_jobs_owner_idempotency_key"),
+        UniqueConstraint("created_by_id", "idempotency_key", name="uq_jobs_created_by_idempotency_key"),
         CheckConstraint(
             "termination IS NULL OR termination IN ('OPTIMAL', 'FEASIBLE', 'INFEASIBLE', 'UNKNOWN')",
             name="ck_jobs_termination",
@@ -205,9 +205,9 @@ class Job(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    #: Null for jobs created before accounts existed, or while running without
-    #: a database. A job with no owner is nobody's to read.
-    owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    #: The account that asked for the run. Null for jobs created before accounts
+    #: existed, or while running without a database: such a job is nobody's to read.
+    created_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=True, index=True
     )
 

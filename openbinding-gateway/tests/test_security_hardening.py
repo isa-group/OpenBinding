@@ -581,7 +581,7 @@ async def organization_with_a_job(api_client, registration, db_session, gate):  
     organization = await make_org(api_client, owner_h)
     slug = organization["slug"]
     job = Job(
-        owner_id=uuid.UUID(owner["id"]), engine_id="random-search", engine_job_id=str(uuid.uuid4()),
+        created_by_id=uuid.UUID(owner["id"]), engine_id="random-search", engine_job_id=str(uuid.uuid4()),
         service_url="http://engine", state=JobState.COMPLETED, termination="OPTIMAL",
         organization_id=uuid.UUID(organization["id"]),
         options=dict(SENSITIVE_OPTIONS),
@@ -707,7 +707,7 @@ def test_the_allow_list_comes_from_the_engine_manifests():
 
 def test_redacting_a_job_view_never_mutates_the_job():
     job = Job(
-        owner_id=uuid.uuid4(), engine_id="e", engine_job_id="1", service_url="http://engine",
+        created_by_id=uuid.uuid4(), engine_id="e", engine_job_id="1", service_url="http://engine",
         state=JobState.COMPLETED, options=dict(SENSITIVE_OPTIONS),
         original_request={"timeout": 30.0, "auth": {"token": "tok-SECRET-9"}}, organization_id=uuid.uuid4(),
         provenance=json.loads(json.dumps(PROVENANCE)),

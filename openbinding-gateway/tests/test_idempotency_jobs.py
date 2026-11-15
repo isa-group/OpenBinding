@@ -155,11 +155,11 @@ def _hide_from_first_lookups(monkeypatch, hidden):
     real = job_submission._find_idempotent_job
     seen = []
 
-    async def find(session, owner_id, key):
+    async def find(session, created_by_id, key):
         seen.append(key)
         if len(seen) <= hidden:
             return None
-        return await real(session, owner_id, key)
+        return await real(session, created_by_id, key)
 
     monkeypatch.setattr(job_submission, "_find_idempotent_job", find)
 

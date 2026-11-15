@@ -134,7 +134,7 @@ async def refs_for(session: AsyncSession, jobs: list[Job]) -> dict[uuid.UUID, di
         .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
         .join(Organization, Organization.id == BindingCase.organization_id)
         .join(ProblemCompilation, ProblemCompilation.id == Job.compilation_id)
-        .outerjoin(User, User.id == Job.owner_id)
+        .outerjoin(User, User.id == Job.created_by_id)
         .where(Job.id.in_(ids))
     )).all()
     return {

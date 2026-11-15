@@ -186,7 +186,7 @@ async def test_second_user_cannot_distinguish_private_v1_resources(
         select(ProblemCompilation).where(ProblemCompilation.revision_id == uuid.UUID(uploaded["revision_id"]))
     )
     job = Job(
-        owner_id=owner.id,
+        created_by_id=owner.id,
         engine_id="random-search",
         engine_job_id="private-job",
         service_url="https://solver.example",

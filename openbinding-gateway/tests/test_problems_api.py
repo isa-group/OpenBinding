@@ -215,7 +215,7 @@ async def test_a_problem_a_run_names_is_kept(api_client, registration, db_sessio
     compilation = await db_session.scalar(select(ProblemCompilation).where(ProblemCompilation.revision_id == revision_id))
     problem = await db_session.get(BindingCase, uuid.UUID(created["problem"]["id"]))
     db_session.add(Job(
-        owner_id=uuid.UUID(account["id"]), engine_id="random-search", engine_job_id="e", service_url="http://engine",
+        created_by_id=uuid.UUID(account["id"]), engine_id="random-search", engine_job_id="e", service_url="http://engine",
         state=JobState.COMPLETED, revision_id=revision_id, compilation_id=compilation.id,
         organization_id=problem.organization_id,
     ))
@@ -307,6 +307,6 @@ async def test_seeded_runs_reference_their_problem(db_session):
     db_session.add(user)
     await db_session.flush()
 
-    seeded = await seed_problem_run(db_session, owner_id=user.id)
+    seeded = await seed_problem_run(db_session, created_by_id=user.id)
 
     assert (await db_session.get(BindingCaseRevision, seeded["revision_id"])).binding_case_id == seeded["problem_id"]

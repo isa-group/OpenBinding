@@ -432,7 +432,7 @@ async def test_study_cancel_and_cell_retry_are_http_idempotent(
 ) -> None:
     async def leave_queued(session, cell, user, organization):
         job = Job(
-            owner_id=user.id,
+            created_by_id=user.id,
             engine_id=cell.engine_ref["name"],
             engine_job_id=str(uuid.uuid4()),
             service_url="http://engine",

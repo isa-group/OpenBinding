@@ -66,7 +66,7 @@ async def _seed(session, prepare=None, owner_role=OrganizationRole.OWNER):
     if prepare is not None:
         refs, engine_ref = await prepare(session, user, organization)
     else:
-        refs = run_refs(await seed_problem_run(session, owner_id=user.id, organization_id=organization.id))
+        refs = run_refs(await seed_problem_run(session, created_by_id=user.id, organization_id=organization.id))
     engine = engine_ref or {
         "namespace": "bim.builtin", "name": "random-search", "version": "1.0.0", "digest": "sha256-" + "5" * 64,
     }
@@ -96,7 +96,7 @@ async def _seed(session, prepare=None, owner_role=OrganizationRole.OWNER):
     session.add_all(cells)
     await session.flush()
     finished = Job(
-        owner_id=user.id, engine_id="random-search", engine_job_id="engine-1", service_url="http://engine",
+        created_by_id=user.id, engine_id="random-search", engine_job_id="engine-1", service_url="http://engine",
         state=JobState.COMPLETED, organization_id=organization.id,
         study_cell_id=cells[0].id, revision_id=refs["revision_id"], compilation_id=refs["compilation_id"],
     )
@@ -118,7 +118,7 @@ async def test_two_concurrent_syncs_launch_the_next_cell_once(two_sessions, monk
         launched.append(cell.id)
         await asyncio.sleep(0.2)  # long enough for the other worker to arrive
         job = Job(
-            owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
+            created_by_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
             service_url="http://engine", state=JobState.QUEUED, study_cell_id=cell.id,
             organization_id=organization.id, **await cell_refs(session, cell),
         )
@@ -260,9 +260,9 @@ async def test_a_cell_cannot_pin_the_compilation_of_another_revision(two_session
 
     session, _ = two_sessions
     finished_id, waiting_id = await _seed(session)
-    owner = (await session.get(Job, finished_id)).owner_id
+    owner = (await session.get(Job, finished_id)).created_by_id
     waiting = await session.get(StudyCell, waiting_id)
-    other = run_refs(await seed_problem_run(session, owner_id=owner))
+    other = run_refs(await seed_problem_run(session, created_by_id=owner))
     await session.commit()
 
     await _another_cell(session, waiting_id, refs={
@@ -280,9 +280,9 @@ async def test_a_compilation_a_cell_pinned_cannot_be_deleted(two_sessions):
 
     session, _ = two_sessions
     finished_id, waiting_id = await _seed(session)
-    owner = (await session.get(Job, finished_id)).owner_id
+    owner = (await session.get(Job, finished_id)).created_by_id
     organization_id = (await session.get(Job, finished_id)).organization_id
-    pinned = run_refs(await seed_problem_run(session, owner_id=owner, organization_id=organization_id))
+    pinned = run_refs(await seed_problem_run(session, created_by_id=owner, organization_id=organization_id))
     await _another_cell(session, waiting_id, refs=pinned)
     await session.commit()
 

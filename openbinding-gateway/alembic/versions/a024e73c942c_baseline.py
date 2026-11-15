@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '58fcac77b838'
+revision: str = 'a024e73c942c'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -471,7 +471,7 @@ def upgrade() -> None:
     op.create_index('ix_problem_compilations_revision_semantic', 'problem_compilations', ['revision_id', 'semantic_digest'], unique=False)
     op.create_table('jobs',
     sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('owner_id', sa.Uuid(), nullable=True),
+    sa.Column('created_by_id', sa.Uuid(), nullable=True),
     sa.Column('engine_id', sa.String(length=128), nullable=False),
     sa.Column('engine_job_id', sa.String(length=128), nullable=False),
     sa.Column('service_url', sa.String(length=512), nullable=False),
@@ -502,19 +502,19 @@ def upgrade() -> None:
     sa.Column('finished_at', sa.DateTime(timezone=True), nullable=True),
     sa.CheckConstraint("termination IS NULL OR termination IN ('OPTIMAL', 'FEASIBLE', 'INFEASIBLE', 'UNKNOWN')", name=op.f('ck_jobs_ck_jobs_termination')),
     sa.ForeignKeyConstraint(['compilation_id', 'revision_id'], ['problem_compilations.id', 'problem_compilations.revision_id'], name='fk_jobs_compilation_revision', ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], name=op.f('fk_jobs_created_by_id_users'), ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name=op.f('fk_jobs_organization_id_organizations'), ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['owner_id'], ['users.id'], name=op.f('fk_jobs_owner_id_users'), ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['retry_of_id'], ['jobs.id'], name=op.f('fk_jobs_retry_of_id_jobs'), ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['revision_id'], ['binding_case_revisions.id'], name=op.f('fk_jobs_revision_id_binding_case_revisions'), ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['study_cell_id'], ['study_cells.id'], name='fk_jobs_study_cell_id', ondelete='SET NULL', use_alter=True),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_jobs')),
-    sa.UniqueConstraint('owner_id', 'idempotency_key', name='uq_jobs_owner_idempotency_key')
+    sa.UniqueConstraint('created_by_id', 'idempotency_key', name='uq_jobs_created_by_idempotency_key')
     )
     op.create_index(op.f('ix_jobs_compilation_id'), 'jobs', ['compilation_id'], unique=False)
     op.create_index(op.f('ix_jobs_created_at'), 'jobs', ['created_at'], unique=False)
+    op.create_index(op.f('ix_jobs_created_by_id'), 'jobs', ['created_by_id'], unique=False)
     op.create_index(op.f('ix_jobs_idempotency_key'), 'jobs', ['idempotency_key'], unique=False)
     op.create_index(op.f('ix_jobs_organization_id'), 'jobs', ['organization_id'], unique=False)
-    op.create_index(op.f('ix_jobs_owner_id'), 'jobs', ['owner_id'], unique=False)
     op.create_index(op.f('ix_jobs_retry_of_id'), 'jobs', ['retry_of_id'], unique=False)
     op.create_index(op.f('ix_jobs_revision_id'), 'jobs', ['revision_id'], unique=False)
     op.create_index('ix_jobs_state_lease_until', 'jobs', ['state', 'lease_until'], unique=False)
@@ -709,9 +709,9 @@ def downgrade() -> None:
     op.drop_index('ix_jobs_state_lease_until', table_name='jobs')
     op.drop_index(op.f('ix_jobs_revision_id'), table_name='jobs')
     op.drop_index(op.f('ix_jobs_retry_of_id'), table_name='jobs')
-    op.drop_index(op.f('ix_jobs_owner_id'), table_name='jobs')
     op.drop_index(op.f('ix_jobs_organization_id'), table_name='jobs')
     op.drop_index(op.f('ix_jobs_idempotency_key'), table_name='jobs')
+    op.drop_index(op.f('ix_jobs_created_by_id'), table_name='jobs')
     op.drop_index(op.f('ix_jobs_created_at'), table_name='jobs')
     op.drop_index(op.f('ix_jobs_compilation_id'), table_name='jobs')
     op.drop_table('jobs')

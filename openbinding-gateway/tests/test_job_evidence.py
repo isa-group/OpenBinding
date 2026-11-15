@@ -286,9 +286,9 @@ async def test_the_retry_completes_the_job_without_running_the_engine(api_client
     assert await count_evidence(db_session) == 0
     events = (await db_session.execute(select(AuditEvent).where(AuditEvent.action == "job.reevaluated"))).scalars().all()
     [event] = events
-    assert event.actor_id == job.owner_id and event.target_id == job.id
+    assert event.actor_id == job.created_by_id and event.target_id == job.id
     assert event.detail == {
-        "jobId": str(job.id), "ownerId": str(job.owner_id), "evidenceId": str(row.id), "result": "completed",
+        "jobId": str(job.id), "createdById": str(job.created_by_id), "evidenceId": str(row.id), "result": "completed",
     }
 
 
@@ -371,7 +371,7 @@ async def _in_a_study(_session, job, _row):
 async def _retried(session, job, _row):
     session.add(
         Job(
-            owner_id=job.owner_id, engine_id=job.engine_id, engine_job_id="again", service_url=job.service_url,
+            created_by_id=job.created_by_id, engine_id=job.engine_id, engine_job_id="again", service_url=job.service_url,
             state=JobState.QUEUED, retry_of_id=job.id, **placeholder_refs(),
         )
     )
@@ -568,7 +568,7 @@ def test_the_retention_is_validated():
 
 async def test_the_expiry_follows_the_configured_retention(db_session, owner, monkeypatch):
     monkeypatch.setattr(get_settings(), "evidence_retention_days", 3)
-    job = Job(owner_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine", **placeholder_refs())
+    job = Job(created_by_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine", **placeholder_refs())
     db_session.add(job)
     await db_session.commit()
 
@@ -579,7 +579,7 @@ async def test_the_expiry_follows_the_configured_retention(db_session, owner, mo
 
 
 async def test_an_answer_over_the_bound_is_not_kept(db_session, owner):
-    job = Job(owner_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine", **placeholder_refs())
+    job = Job(created_by_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine", **placeholder_refs())
     db_session.add(job)
     await db_session.commit()
 
@@ -590,7 +590,7 @@ async def test_an_answer_over_the_bound_is_not_kept(db_session, owner):
 
 
 async def test_the_sweep_deletes_only_expired_evidence_in_bounded_batches(db_session, owner):
-    job = Job(owner_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine", **placeholder_refs())
+    job = Job(created_by_id=owner.id, engine_id="random-search", engine_job_id="e", service_url="http://engine", **placeholder_refs())
     db_session.add(job)
     await db_session.commit()
     now = utcnow()

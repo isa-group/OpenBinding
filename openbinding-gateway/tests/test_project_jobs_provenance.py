@@ -12,11 +12,11 @@ from openbinding_gateway.models.platform import job_view
 PROVENANCE = {"irDigest": "sha256-x"}
 
 
-async def _job(db_session, owner_id, organization_id) -> Job:
+async def _job(db_session, created_by_id, organization_id) -> Job:
     job = Job(
-        owner_id=owner_id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
+        created_by_id=created_by_id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
         service_url="http://engine", state=JobState.COMPLETED, provenance=dict(PROVENANCE),
-        **run_refs(await seed_problem_run(db_session, owner_id=owner_id, organization_id=organization_id)),
+        **run_refs(await seed_problem_run(db_session, created_by_id=created_by_id, organization_id=organization_id)),
     )
     db_session.add(job)
     await db_session.flush()

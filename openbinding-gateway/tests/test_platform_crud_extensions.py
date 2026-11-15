@@ -119,7 +119,7 @@ async def test_organization_runs_and_engine_revisions(api_client, registration, 
     from sqlalchemy import select
     from openbinding_gateway.db.models import Job, JobState, Organization
     organization = (await db_session.execute(select(Organization).where(Organization.slug == org_slug))).scalars().first()
-    job = Job(owner_id=organization.created_by_id, organization_id=organization.id,
+    job = Job(created_by_id=organization.created_by_id, organization_id=organization.id,
               engine_id="diagnostic", engine_job_id="metadata-fixture", service_url="https://example.invalid",
               state=JobState.COMPLETED, original_request={"evidence": "pinned"}, result={"solutions": [{"large": "evidence"}]},
               provenance={"engine": {"namespace": "bim.builtin", "name": "diagnostic", "version": "1", "digest": "sha256-d"}},

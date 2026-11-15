@@ -107,7 +107,7 @@ async def test_a_compilation_is_found_by_its_digest_within_its_revision(db_sessi
     before = upload.compilation
     with bim.bim_override(OtherToolchain(bim.get_bim())):
         added = await compile_or_get(db_session, upload.revision)
-    other = await seed_problem_run(db_session, owner_id=user.id)
+    other = await seed_problem_run(db_session, created_by_id=user.id)
 
     assert (await compilation_by_digest(db_session, upload.revision.id, before.compilation_digest)).id == before.id
     assert (await compilation_by_digest(db_session, upload.revision.id, added.compilation_digest)).id == added.id
@@ -138,8 +138,8 @@ async def test_a_revision_cannot_be_updated(db_session):
 
 async def test_a_run_whose_compilation_belongs_to_another_revision_is_refused(db_session):
     user = await a_user(db_session)
-    one = await seed_problem_run(db_session, owner_id=user.id)
-    other = await seed_problem_run(db_session, owner_id=user.id, organization_id=one["organization_id"])
+    one = await seed_problem_run(db_session, created_by_id=user.id)
+    other = await seed_problem_run(db_session, created_by_id=user.id, organization_id=one["organization_id"])
     await db_session.commit()
     # SQLite checks foreign keys only when asked to, outside a transaction (PostgreSQL always does).
     async with db_session.bind.connect() as connection:
@@ -147,7 +147,7 @@ async def test_a_run_whose_compilation_belongs_to_another_revision_is_refused(db
         await autocommit.exec_driver_sql("PRAGMA foreign_keys=ON")
 
     db_session.add(Job(
-        owner_id=user.id, engine_id="random-search", engine_job_id="e", service_url="http://engine",
+        created_by_id=user.id, engine_id="random-search", engine_job_id="e", service_url="http://engine",
         state=JobState.QUEUED, organization_id=one["organization_id"],
         revision_id=one["revision_id"], compilation_id=other["compilation_id"],
     ))

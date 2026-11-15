@@ -177,7 +177,7 @@ async def test_seed_dev_compositions_are_derived_and_declared_once(db_session):
     # A run of simple-seq as the seed's engines leave it: completed, its solution the demo's binding.
     binding = {task: {"resource": "catalog", "id": candidate} for task, candidate in (("t1", "c1a"), ("t2", "c2a"), ("t3", "c3a"))}
     run = Job(
-        owner_id=alice.id, engine_id="random-search", engine_job_id="seed-run", service_url="http://engine",
+        created_by_id=alice.id, engine_id="random-search", engine_job_id="seed-run", service_url="http://engine",
         state=JobState.COMPLETED, termination="FEASIBLE",
         result={"solutions": [{"decision": {"kind": "binding", "binding": binding}, "features": {}}]},
         organization_id=organization.id, revision_id=revision.id, compilation_id=compilation.id, provenance={},

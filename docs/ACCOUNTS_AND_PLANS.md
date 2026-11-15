@@ -365,7 +365,7 @@ step, nothing is changed and the contract stays.
 - `account.deleted` is audited with no personal data.
 
 Nothing is reassigned to another person. The foreign keys that history holds on
-an account (`jobs.owner_id`, engine revisions, registration revisions, manifest
+an account (`jobs.created_by_id`, engine revisions, registration revisions, manifest
 publications) are `RESTRICT`, so a stray hard delete fails instead of destroying
 shared history. Administration no longer lists or acts on a deleted account.
 

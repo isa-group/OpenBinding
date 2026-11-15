@@ -321,7 +321,7 @@ async def launch_study_cell(
     # job keeps its key, so the replacement goes without one.
     key: str | None = f"{STUDY_CELL_KEY_PREFIX}{cell.id}"
     held = await session.scalar(
-        select(Job.id).where(Job.owner_id == user.id, Job.idempotency_key == key).limit(1)
+        select(Job.id).where(Job.created_by_id == user.id, Job.idempotency_key == key).limit(1)
     )
     if held is not None:
         key = None

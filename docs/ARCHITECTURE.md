@@ -381,7 +381,7 @@ problems (`binding_cases`), their revisions (`binding_case_revisions`: the uploa
 that organization, with its digests) and their compilations (`problem_compilations`: the IR of a revision by one
 toolchain, insert-only and unique by `(revision_id, compiler_digest)` and by `(revision_id, compilation_digest)`;
 since F1 each row also stores the `semantic_digest` of its IR, which two toolchains that read the problem alike share). A run
-(`jobs`) belongs to the organization and names a revision and a compilation through a composite foreign key, so it cannot
+(`jobs`, its creator in `created_by_id` like every other table) belongs to the organization and names a revision and a compilation through a composite foreign key, so it cannot
 run another revision's IR. A study (`studies`) holds the editable definition; a study run (`study_runs`) holds the frozen
 copy and its digest, and each cell (`study_cells`) pins the compilation it runs. There are no projects, no artifact store,
 no snapshots and no public read. Sealed rows reject UPDATE through triggers declared once in `db/triggers.py`

@@ -101,7 +101,7 @@ def study_body(lab: Lab, slug: str) -> dict:
 def organization_job(lab: Lab, person: Person, state: JobState) -> Job:
     failed = state is JobState.FAILED
     return Job(
-        owner_id=person.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
+        created_by_id=person.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
         service_url="http://engine", state=state, organization_id=lab.org_id,
         revision_id=uuid.UUID(lab.snapshot), compilation_id=lab.compilation_id,
         options=dict(SENSITIVE_OPTIONS), original_request={}, provenance=dict(PROVENANCE),

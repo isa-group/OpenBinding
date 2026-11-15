@@ -2,7 +2,7 @@
 
 Deleting an account pseudonymises its row (``routes/users.py``), so nothing in the gateway
 deletes a user. The foreign keys that history holds on the account are RESTRICT
-(``jobs.owner_id``, ``v1_engine_revisions``, ``v1_engine_registration_revisions``,
+(``jobs.created_by_id``, ``v1_engine_revisions``, ``v1_engine_registration_revisions``,
 ``v1_manifest_publications``), while what belongs to the account alone (API keys, refresh
 tokens, memberships, notifications) still goes with it. SQLite enforces no foreign keys in the
 suite, so this is the only check of the RESTRICT.
@@ -47,7 +47,7 @@ def history_of(user: User, run: dict[str, object]) -> dict[str, object]:
     engine_digest = digest()
     return {
         "job": Job(
-            owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
+            created_by_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
             state=JobState.COMPLETED, original_request={}, options={}, provenance={}, **run,
         ),
         "engine": EngineRevision(
@@ -69,7 +69,7 @@ async def test_a_user_that_history_names_cannot_be_hard_deleted(pg, kind) -> Non
     async with pg.session() as session:
         user = await a_user(session)
         # The run is of a problem another account created, so only the job names ``user``.
-        run = run_refs(await seed_problem_run(session, owner_id=(await a_user(session)).id))
+        run = run_refs(await seed_problem_run(session, created_by_id=(await a_user(session)).id))
         session.add(history_of(user, run)[kind])
         await session.commit()
         user_id = user.id

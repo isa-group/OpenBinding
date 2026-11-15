@@ -81,12 +81,12 @@ async def test_concurrent_compile_or_get_stores_one_compilation(two_sessions, mo
 async def test_a_run_cannot_name_the_compilation_of_another_revision(two_sessions):
     session, _ = two_sessions
     user = await _user(session)
-    one = await seed_problem_run(session, owner_id=user.id)
-    other = await seed_problem_run(session, owner_id=user.id, organization_id=one["organization_id"])
+    one = await seed_problem_run(session, created_by_id=user.id)
+    other = await seed_problem_run(session, created_by_id=user.id, organization_id=one["organization_id"])
     await session.commit()
 
     session.add(Job(
-        owner_id=user.id, state=JobState.QUEUED, engine_id="random-search", engine_job_id="",
+        created_by_id=user.id, state=JobState.QUEUED, engine_id="random-search", engine_job_id="",
         service_url="http://engine",
         organization_id=one["organization_id"], revision_id=one["revision_id"],
         compilation_id=other["compilation_id"],

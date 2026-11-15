@@ -137,7 +137,7 @@ async def test_a_member_cancels_and_retries_a_teammates_run_as_their_own(api_cli
     # One retry for the organization, whoever asks; the new run is the caller's.
     assert again.json()["id"] == retried.json()["id"]
     replacement = await db_session.get(Job, uuid.UUID(retried.json()["id"]))
-    assert replacement.owner_id == member.id
+    assert replacement.created_by_id == member.id
     assert replacement.organization_id == lab.org_id
     assert replacement.retry_of_id == lab.failed["OWNER"]
 

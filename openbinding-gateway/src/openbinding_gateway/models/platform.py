@@ -362,16 +362,6 @@ def run_view(job: Any, viewer: Any, *, redact: bool = False, refs: Optional[Mapp
     return RunView(**base.model_dump(), error=error, remote=dict(remote))
 
 
-class SnapshotView(BaseModel):
-    id: uuid.UUID
-    owner_id: Optional[uuid.UUID] = None
-    instance_digest: str
-    package_digest: str
-    archive_size: int
-    created_at: datetime
-    ir: Optional[dict[str, Any]] = None
-
-
 class AnalyticsView(BaseModel):
     cells: int
     completed: int

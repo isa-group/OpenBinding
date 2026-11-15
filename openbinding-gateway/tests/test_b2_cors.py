@@ -203,7 +203,7 @@ async def test_a_429_exposes_retry_after_to_the_browser(
     # The account's only slot is taken by a job that is still queued.
     monkeypatch.setattr(get_settings(), "max_concurrent_jobs_per_user", 1)
     db_session.add(Job(
-        owner_id=user.id, engine_id="random-search", engine_job_id="busy",
+        created_by_id=user.id, engine_id="random-search", engine_job_id="busy",
         service_url="http://engine", state=JobState.QUEUED, **placeholder_refs(),
     ))
     await db_session.commit()
