@@ -5,7 +5,7 @@ import { HttpError } from '../../api/client';
 import type { ProblemUpload } from '../../api/problems';
 import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseDetail } from './CaseDetail';
-import { digestOf, irDocument } from './fixtures';
+import { checkoutFacts, compiledDocument, digestOf } from './fixtures';
 
 const problems = vi.hoisted(() => ({
   get: vi.fn(), revisions: vi.fn(), revision: vi.fn(), compilation: vi.fn(), ir: vi.fn(), source: vi.fn(),
@@ -13,7 +13,10 @@ const problems = vi.hoisted(() => ({
 }));
 const runs = vi.hoisted(() => ({ list: vi.fn() }));
 
+const facts = vi.hoisted(() => ({ get: vi.fn() }));
+
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../entities/problem/facts', async (actual) => ({ ...await actual<typeof import('../../entities/problem/facts')>(), problemFactsApi: facts }));
 vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi: runs }));
 
 const owner = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'OWNER' });
@@ -55,7 +58,8 @@ describe('Problem page', () => {
     problems.get.mockResolvedValue(checkout);
     problems.revisions.mockResolvedValue([r1, r2]);
     problems.compilation.mockResolvedValue(compilation);
-    problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), ir: irDocument(), source_map: {} });
+    problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), ir: compiledDocument(), source_map: {} });
+    facts.get.mockResolvedValue(checkoutFacts());
     problems.revision.mockImplementation(async (_org: string, _problem: string, revision: string) => ({
       ...(String(revision) === '1' ? r1 : r2), document: { apiVersion: 'bim/v1', kind: 'Instance' }, files: [], resource_digests: {}, compilations: [],
     }));
@@ -146,6 +150,21 @@ describe('Problem page', () => {
       expect(within(region).getByRole('link', { name: 'Compare with v1' })).toHaveAttribute('href', `${root}/problems/flujo-checkout/versions?from=1&to=2`);
       expect(within(region).getAllByRole('link', { name: 'Run' })[0]).toHaveAttribute('href', '/app/isa-demo/runs/new?problem=flujo-checkout&revision=2');
       expect(region.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
+    });
+
+    it('sizes each version from the binding space of its current compilation', async () => {
+      problems.revision.mockImplementation(async (_org: string, _problem: string, revision: string) => ({
+        ...(String(revision) === '1' ? r1 : r2), document: {}, files: [], resource_digests: {},
+        compilations: [
+          { ...compilation, id: `old-${revision}`, binding_space: '7', current: false },
+          { ...compilation, id: `now-${revision}`, binding_space: String(revision) === '1' ? '600' : '1920', current: true },
+        ],
+      }));
+      renderDetail(owner, 'flujo-checkout', '/versions');
+
+      const region = await screen.findByRole('region', { name: 'Versions' });
+      expect(await within(region).findByText('≈ 10^3.3')).toBeInTheDocument();
+      expect(await within(region).findByText('≈ 10^2.8')).toBeInTheDocument();
     });
 
     it('copies the exact reference of a version: problem, number and package digest', async () => {

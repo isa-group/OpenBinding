@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import JSZip from 'jszip';
 import type { Page, Route } from '@playwright/test';
 import type { AdminUserView } from '../../src/api/auth';
 import type { Job, Study, StudyCell, StudyRun } from '../../src/api/platform';
 import type { Problem, ProblemRevision } from '../../src/api/problems';
-import { digestOf as caseDigest, irDocument } from '../../src/pages/Cases/fixtures';
+import { digestOf as caseDigest, compiledDocument } from '../../src/pages/Cases/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../../src/pages/Pricing/pricingFixture';
 import {
   AUDIT, ERROR_EVENTS, ERROR_OVERVIEW, MODERATION, OVERVIEW, USERS, queuesAt, subscriptionOf, usageOf as adminUsageOf, userPage,
@@ -176,8 +177,19 @@ const PROBLEM_REVISIONS = [revisionFixture(2, { package_size: 48_213 }), revisio
 const latestOf = (problem: typeof PROBLEM) => (problem.id === PROBLEM.id
   ? { id: PROBLEM_REVISIONS[0].id, revision: 2, package_digest: PROBLEM_REVISIONS[0].package_digest, created_at: PROBLEM_REVISIONS[0].created_at }
   : null);
-/** How many candidates the payment task has in each version: what their compiled forms differ in. */
-const PAY_OF: Record<string, number> = { 1: 5, 2: 8 };
+/** A gateway-produced fixture of src/test/fixtures/core (dump_frontend_fixtures.py), read as JSON. */
+const coreFixture = (file: string): Record<string, unknown> => JSON.parse(readFileSync(new URL(`../../src/test/fixtures/core/${file}`, import.meta.url), 'utf8'));
+/** The facts of each version's compilation: what the problem page, the run result and the launcher read. Version 1 and 2 differ. */
+const FACTS_OF: Record<string, string> = { 1: 'fms', 2: 'json-complete' };
+const factsOf = (revision: number | string) => coreFixture(`${FACTS_OF[String(revision)] ?? 'json-complete'}.facts.json`);
+/** What `validate?include=…` adds to the analysis: the IR bytes (shown, never read) and the facts of the package. */
+const included = (include: string | null): Record<string, unknown> => {
+  const parts = (include ?? '').split(',');
+  return {
+    ...(parts.includes('ir') ? { ir: compiledDocument(), sourceMap: {} } : {}),
+    ...(parts.includes('facts') ? { facts: coreFixture('json-complete.validate.json').facts } : {}),
+  };
+};
 const revisionDetail = (revision: typeof PROBLEM_REVISIONS[number]) => ({
   ...revision, document: { apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: 'checkout' } }, compilations: [],
   files: [
@@ -350,8 +362,9 @@ function problemRoutes(request: Request, orgSlug: string): Reply {
   if (tail === 'source') return { status: 200, bytes: request.archive, type: 'application/vnd.bim+zip' };
   if (tail === 'compilation') return ok(compilationOf(String(revision.revision)));
   if (tail === 'compilations' && compilationId && last === 'ir') {
-    return ok({ id: compilationId, ir_digest: caseDigest('c'), ir: irDocument(PAY_OF[revision.revision] ?? 8), source_map: {} });
+    return ok({ id: compilationId, ir_digest: caseDigest('c'), ir: compiledDocument(), source_map: {} });
   }
+  if (tail === 'compilations' && compilationId && last === 'facts') return ok(factsOf(revision.revision));
   return notFound('Not mocked.');
 }
 
@@ -494,7 +507,7 @@ function route(request: Request): Reply | null {
         return ok({
           valid: true, instanceDigest: caseDigest('a'), packageDigest: caseDigest('b'), irDigest: caseDigest('c'), fileDigests: {}, resourceDigests: {}, diagnostics: [],
           compatibleModes: COMPATIBLE_MODES(), analysis: ANALYSIS,
-          ...(request.query.get('include') === 'ir' ? { ir: irDocument(8), sourceMap: {} } : {}),
+          ...included(request.query.get('include')),
         });
       }
       return null;
@@ -702,8 +715,9 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
     if (tail === 'source') return { status: 200, bytes: found.bytes, type: 'application/vnd.bim+zip' };
     if (tail === 'compilation') return ok(compilationFor(found.row));
     if (tail === 'compilations' && last === 'ir') {
-      return ok({ id: compilationFor(found.row).id, ir_digest: compilationFor(found.row).ir_digest, ir: irDocument(8), source_map: {} });
+      return ok({ id: compilationFor(found.row).id, ir_digest: compilationFor(found.row).ir_digest, ir: compiledDocument(), source_map: {} });
     }
+    if (tail === 'compilations' && last === 'facts') return ok(factsOf(2));
     return notFound('Not mocked.');
   };
 
@@ -845,7 +859,7 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
       return ok({
         valid: true, instanceDigest: sha256(`instance:${sha256(body ?? '')}`), packageDigest: sha256(body ?? Buffer.alloc(0)), irDigest: sha256(`ir:${sha256(body ?? '')}`),
         fileDigests: {}, resourceDigests: {}, diagnostics: [], compatibleModes: COMPATIBLE_MODES(), analysis: ANALYSIS,
-        ...(request.query.get('include') === 'ir' ? { ir: irDocument(8), sourceMap: {} } : {}),
+        ...included(request.query.get('include')),
       });
     }
     if (area === 'bim' && second === 'templates' && third) return { status: 200, type: 'application/vnd.bim+zip', bytes: template };

@@ -81,21 +81,6 @@
 .case-bar i { display: block; height: 100%; border-radius: var(--tp-radius-full); background: var(--tp-primary); }
 .case-bar i.is-from { background: var(--tp-severity-info-border); }
 .case-bar.is-small { width: 56px; }
-/* A range: a segment between its ends; an open end fades out towards the edge, where an arrow says it goes on. */
-.case-bar.is-interval { position: relative; overflow: visible; }
-.case-bar.is-interval i { position: absolute; top: 0; min-width: 3px; }
-.case-bar.is-interval i.is-open-low { border-top-left-radius: 0; border-bottom-left-radius: 0; background: linear-gradient(to right, transparent, var(--tp-primary)); }
-.case-bar.is-interval i.is-open-high { border-top-right-radius: 0; border-bottom-right-radius: 0; background: linear-gradient(to left, transparent, var(--tp-primary)); }
-.case-bar.is-interval i.is-open-low.is-open-high { background: repeating-linear-gradient(to right, var(--tp-primary) 0 4px, transparent 4px 7px); }
-.case-bar.is-interval i.is-open-low::before, .case-bar.is-interval i.is-open-high::after {
-  position: absolute;
-  top: -2px;
-  color: var(--tp-primary);
-  font-size: 10px;
-  line-height: 10px;
-}
-.case-bar.is-interval i.is-open-low::before { left: -7px; content: '◂'; }
-.case-bar.is-interval i.is-open-high::after { right: -7px; content: '▸'; }
 .case-range { font-variant-numeric: tabular-nums; }
 .case-ranges { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-xs); }
 .case-range-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 0.8125rem; }
@@ -122,56 +107,6 @@
 .case-dashed { padding: 12px 14px; border: 1px dashed var(--tp-hairline-strong); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); color: var(--tp-slate); font-size: 0.8125rem; }
 .case-sub { margin-top: var(--tp-spacing-xs); font-size: 0.8125rem; font-weight: 600; }
 
-/* The drawing of a workflow */
-.flow { display: flex; flex-direction: column; gap: 12px; }
-.flow-scroll { overflow-x: auto; padding-bottom: 4px; }
-.flow-canvas { display: inline-block; min-width: 100%; }
-.flow-seq { display: flex; align-items: center; gap: 8px; }
-.flow-seq.is-vertical { flex-direction: column; align-items: stretch; }
-.flow-arrow { flex: none; color: var(--tp-steel); text-align: center; }
-
-.flow-task {
-  display: flex;
-  min-width: 130px;
-  flex: none;
-  flex-direction: column;
-  gap: 4px;
-  padding: 10px;
-  border: 2px solid var(--tp-primary);
-  border-radius: 12px;
-  background: var(--tp-canvas);
-}
-
-.flow-task.is-local { border: 2px dashed var(--tp-hairline-strong); }
-.flow-task-top { display: flex; justify-content: space-between; gap: 6px; }
-.flow-task-top code { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; overflow-wrap: anywhere; }
-.flow-task-top b { font-size: 0.6875rem; font-weight: 600; }
-.flow-task small { color: var(--tp-steel); font-size: 0.6875rem; }
-.flow-count { align-self: flex-start; padding: 1px 6px; border-radius: 4px; background: var(--tp-cream-deeper); font-size: 0.6875rem; }
-.flow-bar { height: 4px; overflow: hidden; border-radius: var(--tp-radius-full); background: var(--tp-hairline-soft); }
-.flow-bar i { display: block; height: 100%; background: var(--tp-primary); }
-
-.flow-group {
-  display: flex;
-  min-width: 170px;
-  flex: none;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  border: 1px solid var(--tp-severity-info-border);
-  border-radius: 12px;
-  background: var(--tp-surface-cream);
-}
-
-.flow-group-label { color: var(--tp-primary-deep); font-size: 0.625rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; }
-.flow-branch { display: flex; flex-direction: column; gap: 4px; }
-.flow-branch-id { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 500; }
-.flow-when { color: var(--tp-steel); font-size: 0.6875rem; }
-.flow-empty { color: var(--tp-steel); font-size: 0.75rem; }
-.flow-legend { display: flex; flex-wrap: wrap; gap: 12px; color: var(--tp-slate); font-size: 0.75rem; }
-.flow-legend span { display: inline-flex; align-items: center; gap: 6px; }
-.flow-key { display: inline-block; width: 14px; height: 10px; border: 2px solid var(--tp-primary); border-radius: 3px; }
-.flow-key.is-local { border: 2px dashed var(--tp-hairline-strong); }
 .case-flow-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--tp-steel); font-size: 0.75rem; }
 .case-flow-head b { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; }
 
@@ -187,9 +122,6 @@
 
 .case-model { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: var(--tp-spacing-md); align-items: start; }
 .case-model-side { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-sm); }
-.case-candidates { padding: 0; overflow: hidden; }
-.case-candidates > .proj-panel-head, .case-candidates > span { padding: 0 var(--tp-spacing-md); }
-.case-candidates > .proj-panel-head { padding-top: var(--tp-spacing-sm); }
 
 .case-table-scroll { overflow-x: auto; }
 .case-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }

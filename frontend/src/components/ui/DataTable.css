@@ -21,3 +21,4 @@
 .ui-table tbody tr { border-top: 1px solid var(--tp-hairline-soft); }
 .ui-table .is-mono, .ui-table code { font-family: var(--font-mono); }
 .ui-table a { font-weight: 500; }
+.ui-table-caption { padding: 10px var(--tp-spacing-md) 4px; color: var(--tp-ink-tint); font-size: 0.8125rem; font-weight: 600; text-align: left; caption-side: top; }

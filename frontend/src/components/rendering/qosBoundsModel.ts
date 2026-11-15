@@ -1,7 +1,7 @@
 export type BoundOp = 'lt' | 'lte' | 'gt' | 'gte';
 
 export interface QoSBound {
-  /** The constraint's `ref.id`. */
+  /** The constraint as the facts name it: `<resource>/<id>`. */
   rule: string;
   /** The quality: `latency` for the path `features.latency`. */
   feature: string;
@@ -103,6 +103,9 @@ function boundOf(node: Rec): { feature: string; op: BoundOp; limit: number } | n
 
 interface Violation { resource: string; id: string; soft: boolean; penalty: number | null; message: string | null }
 
+/** A violated constraint named as the facts name constraints (`<resource>/<id>`), so the two are compared as identifiers. */
+const nameOf = (violation: Violation) => (violation.resource ? `${violation.resource}/${violation.id}` : violation.id);
+
 const readViolations = (violations: unknown): Violation[] | null => {
   if (!Array.isArray(violations)) return null;
   const used: Violation[] = [];
@@ -124,7 +127,7 @@ const readViolations = (violations: unknown): Violation[] | null => {
 
 const penaltyOf = (matches: Violation[]) => matches.reduce((sum, v) => sum + (v.penalty ?? 0), 0);
 
-/** Bounds and rules of the compiled form's constraints, with the status taken from the gateway's violations only. */
+/** Bounds and rules of the constraints of a problem's facts, with the status taken from the gateway's violations only. */
 export function qosBoundsOf(
   constraints: unknown,
   features: Record<string, unknown> | null | undefined,
@@ -138,18 +141,17 @@ export function qosBoundsOf(
   const values = isRecord(features) ? features : {};
 
   for (const entry of list(constraints)) {
-    if (!isRecord(entry) || !isRecord(entry.ref)) continue;
-    const rule = text(entry.ref.id);
+    if (!isRecord(entry)) continue;
+    const rule = text(entry.id);
     if (rule === null) continue;
-    const resource = typeof entry.ref.resource === 'string' ? entry.ref.resource : '';
     const enforcement = entry.enforcement === 'soft' ? 'soft' : 'hard';
-    const matches = reported === null ? [] : reported.filter((v) => v.id === rule && v.resource === resource);
+    const matches = reported === null ? [] : reported.filter((v) => nameOf(v) === rule);
     matches.forEach((v) => matched.add(v));
     const met = reported === null ? null : matches.length === 0;
     const status = { enforcement, met, ...(met === false && enforcement === 'soft' ? { penalty: penaltyOf(matches) } : {}) } as const;
 
     const always = entry.when === undefined || entry.when === null || isAlways(entry.when);
-    const parts = always ? conjuncts(entry.assert) : null;
+    const parts = always ? conjuncts(entry.expression) : null;
     const read = parts?.map(boundOf);
     if (parts && read && read.every((b) => b !== null)) {
       for (const b of read) {
@@ -158,7 +160,7 @@ export function qosBoundsOf(
         bounds.push({ rule, feature: b.feature, op: b.op, limit: b.limit, value, unit, ...status });
       }
     } else {
-      rules.push({ rule, text: describe(entry.assert), when: always ? null : describe(entry.when), ...status });
+      rules.push({ rule, text: describe(entry.expression), when: always ? null : describe(entry.when), ...status });
     }
   }
 
@@ -169,7 +171,7 @@ export function qosBoundsOf(
     seen.add(key);
     const group = (reported ?? []).filter((o) => o.resource === v.resource && o.id === v.id && !matched.has(o));
     rules.push({
-      rule: v.id,
+      rule: nameOf(v),
       text: group.find((o) => o.message !== null)?.message ?? FALLBACK_TEXT,
       when: null,
       enforcement: v.soft ? 'soft' : 'hard',

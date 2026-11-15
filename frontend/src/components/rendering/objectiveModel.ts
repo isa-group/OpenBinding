@@ -10,7 +10,7 @@ export interface ObjectiveTerm {
   weighted: number | null;
 }
 
-/** Structural: the compiled problem read by the binding model fits as it is. */
+/** Structural: `runProblemOf(facts)` (runProblem.ts) fits as it is. */
 export interface ObjectiveProblem {
   criteria: Array<{ id: string; direction: 'minimize' | 'maximize' | null }>;
   features?: Record<string, { unit: string | null }>;

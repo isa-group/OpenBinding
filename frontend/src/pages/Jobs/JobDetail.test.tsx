@@ -5,14 +5,16 @@ import type { Job } from '../../api/platform';
 import { org, renderOrgScreen } from '../../features/workspace/testKit';
 import { saveBytes } from '../../features/workspace/download';
 import type { JobDetail as RunDetail } from '../../api/runs';
-import { NEIGHBORHOOD, PROBLEM, RESULT, S1, detailOf, jobOf } from '../../test/fixtures/jobs';
+import { NEIGHBORHOOD, PROBLEM_FACTS, RESULT, S1, detailOf, jobOf } from '../../test/fixtures/jobs';
 import { JobDetail } from './JobDetail';
 
 const runsApi = vi.hoisted(() => ({ get: vi.fn(), list: vi.fn(), cancel: vi.fn(), retry: vi.fn(), neighborhood: vi.fn() }));
 const problems = vi.hoisted(() => ({ ir: vi.fn(), revision: vi.fn() }));
 
 vi.mock('../../api/runs', async () => ({ ...await vi.importActual<typeof import('../../api/runs')>('../../api/runs'), runsApi }));
+const facts = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../entities/problem/facts', async (actual) => ({ ...await actual<typeof import('../../entities/problem/facts')>(), problemFactsApi: facts }));
 vi.mock('../../features/workspace/download', () => ({ saveBytes: vi.fn() }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
@@ -37,7 +39,8 @@ describe('One run', () => {
     vi.clearAllMocks();
     runsApi.get.mockResolvedValue(full('completed'));
     runsApi.list.mockResolvedValue({ total: 2, runs: [meta('completed'), jobOf('job-other-9', 'minizinc', 'completed', 'OPTIMAL', '2026-10-01T09:00:00Z', '2026-10-01T09:00:40Z')] });
-    problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: 'sha256-c', ir: PROBLEM, source_map: {} });
+    problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: 'sha256-c', ir: { apiVersion: 'bim/v1', kind: 'BindingProblem' }, source_map: {} });
+    facts.get.mockResolvedValue(PROBLEM_FACTS);
     problems.revision.mockResolvedValue({ document: { apiVersion: 'bim/v1', kind: 'Instance' } });
     runsApi.neighborhood.mockResolvedValue(NEIGHBORHOOD);
   });
@@ -86,8 +89,11 @@ describe('One run', () => {
     const run = await screen.findByRole('region', { name: 'Run result' });
     expect(within(run).getByText('FEASIBLE')).toBeInTheDocument();
     const providers = await within(run).findByRole('region', { name: 'Chosen providers' });
-    const payment = await within(providers).findByRole('row', { name: /Payment/ });
-    expect(payment).toHaveTextContent('Stripe EU');
+    // The facts name a task by its id and a candidate as the problem writes it; their values and units come along.
+    const payment = await within(providers).findByRole('row', { name: /^t1/ });
+    expect(payment).toHaveTextContent('c1');
+    expect(payment).toHaveTextContent('stripe');
+    expect(payment).toHaveTextContent('120');
     expect(within(providers).queryByRole('row', { name: /pay-card payco-eu/ })).not.toBeInTheDocument();
 
     const figures = within(run).getByRole('list', { name: 'Quality of this combination' });
@@ -96,7 +102,7 @@ describe('One run', () => {
     expect(within(figures).queryByText('Objective')).not.toBeInTheDocument();
 
     const bounds = within(run).getByRole('region', { name: 'QoS against bounds' });
-    expect(await within(bounds).findByText('max-latency')).toBeInTheDocument();
+    expect(await within(bounds).findByText('rules/max-latency')).toBeInTheDocument();
     expect(within(run).getByRole('region', { name: 'Trade-off set' })).toBeInTheDocument();
     expect(within(run).getByText('Numbers are OpenBinding’s own re-check of the engine’s answer.')).toBeInTheDocument();
     expect(await within(run).findByText('Solved with presolve')).toBeInTheDocument();
@@ -110,12 +116,13 @@ describe('One run', () => {
     expect(log.querySelector('summary')).toHaveTextContent(/^Engine log/);
   });
 
-  it('loads the compiled problem once for a completed job, takes the engine report from the run, and has no compare button', async () => {
+  it('loads the facts of the compiled problem once for a completed job, takes the engine report from the run, and has no compare button', async () => {
     renderJob();
 
     await screen.findByRole('region', { name: 'Chosen providers' });
-    expect(problems.ir).toHaveBeenCalledTimes(1);
-    expect(problems.ir).toHaveBeenCalledWith('isa-demo', 'checkout-flow', 2, 'compilation-2');
+    await waitFor(() => expect(facts.get).toHaveBeenCalledTimes(1));
+    expect(facts.get).toHaveBeenCalledWith('isa-demo', 'checkout-flow', 2, 'compilation-2');
+    expect(problems.ir).not.toHaveBeenCalled();
     expect(await screen.findByText('Solved with presolve')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'The engine’s own report' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'The engine’s own report' })).not.toBeInTheDocument();
@@ -124,7 +131,7 @@ describe('One run', () => {
 
   it('says the compiled problem is not available (404, then 409) and shows ids, with no notice when the engine reported nothing', async () => {
     const note = 'The compiled problem of this run is not available, so tasks and candidates are shown by id, without feature values, bounds or units.';
-    problems.ir.mockRejectedValue(refusal(404, 'not_found'));
+    facts.get.mockRejectedValue(refusal(404, 'not_found'));
     runsApi.get.mockResolvedValue(full('completed', { remote: {} }));
     const view = renderJob();
 
@@ -133,10 +140,10 @@ describe('One run', () => {
     expect(within(run).getByText('FEASIBLE')).toBeInTheDocument();
     expect(within(run).queryByRole('list', { name: 'Engine notes' })).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.queryByText('Payment')).not.toBeInTheDocument();
+    expect(screen.queryByText('stripe')).not.toBeInTheDocument();
     view.unmount();
 
-    problems.ir.mockRejectedValue(refusal(409, 'analysis_unavailable'));
+    facts.get.mockRejectedValue(refusal(409, 'analysis_unavailable'));
     renderJob();
     const again = await screen.findByRole('region', { name: 'Run result' });
     expect(await within(again).findByText(note)).toBeInTheDocument();
@@ -160,7 +167,7 @@ describe('One run', () => {
       expect(await screen.findByText(words)).toBeInTheDocument();
     }
     expect(screen.queryByRole('region', { name: 'Run result' })).not.toBeInTheDocument();
-    expect(problems.ir).not.toHaveBeenCalled();
+    expect(facts.get).not.toHaveBeenCalled();
   });
 
   it('says which problem version and which compilation the run used', async () => {
@@ -261,7 +268,7 @@ describe('One run', () => {
     expect(screen.getByText(/Everyone else, including platform administrators, gets this same answer\./)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'All runs' })).toHaveAttribute('href', `${ROOT}/runs`);
     expect(runsApi.list).not.toHaveBeenCalled();
-    expect(problems.ir).not.toHaveBeenCalled();
+    expect(facts.get).not.toHaveBeenCalled();
   });
 
   it('explains a key without jobs:read and a gateway that does not answer', async () => {

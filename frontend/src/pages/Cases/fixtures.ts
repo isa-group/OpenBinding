@@ -1,92 +1,82 @@
-/** Shared by the tests of the case screens: digests, a compiled form to read and the contents of a checkout package. */
+import type { ProblemFacts } from '../../shared/api/types';
+
+/** Shared by the tests of the case screens and the browser specs: digests, the facts of a compiled checkout and the contents of its package. */
 export const digestOf = (char: string) => `sha256-${char.repeat(64)}`;
 
-const taskRef = (id: string) => ({ resource: 'app', id });
-const node = (id: string) => ({ kind: 'task', task: taskRef(id) });
+/**
+ * The compiled `BindingProblem` of the checkout as the gateway serves it for downloads and the source view. The browser shows these
+ * bytes and never reads them: what a screen draws comes from the facts below.
+ */
+export function compiledDocument(): Record<string, unknown> {
+  return { apiVersion: 'bim/v1', kind: 'BindingProblem', metadata: { name: 'checkout' }, spec: {} };
+}
 
 /**
- * A compiled `BindingProblem` for a checkout: authenticate, then stock and shipping in parallel, then one of two payments by
- * probability, then a local notification. `pay` is how many candidates the card payment has (the transfer has half).
+ * The facts of the compiled checkout (`GET …/compilations/{compilation}/facts`): authenticate, then stock and shipping in parallel,
+ * then one of two payments by probability, then a local notification. `pay` is how many candidates the card payment has (the
+ * transfer has half). The authenticate candidates show every kind of value: a number, a closed range, one open above and one
+ * open below.
  */
-export function irDocument(pay = 8): Record<string, unknown> {
-  const candidates: Record<string, unknown> = {};
-  const eligibility: Record<string, Array<{ resource: string; id: string }>> = {};
-  const add = (task: string, capability: string, count: number) => {
-    eligibility[task] = [];
+export function checkoutFacts(pay = 8): ProblemFacts {
+  const candidates: ProblemFacts['candidates'] = [];
+  const tasks: ProblemFacts['tasks'] = [];
+  const origin = (id: string, feature: string) => ({ kind: 'package' as const, resource: 'providers', path: 'candidates.json', pointer: `/spec/candidates/${id}/features/${feature}` });
+  const add = (task: string, count: number) => {
+    const eligible: ProblemFacts['tasks'][number]['eligible'] = [];
     for (let index = 1; index <= count; index += 1) {
       const id = `${task}-${index}`;
-      candidates[id] = {
-        ref: { resource: 'providers', id }, name: `${capability}-${index}`, provider: { resource: 'providers', id: 'acme' },
-        provides: [{ type: capability, properties: {} }], properties: {},
-        features: { latency: index * 40, cost: { min: index / 100, max: index / 50 } },
-      };
-      // The authenticate providers show every kind of value: a number, a closed range, one open above and one open below.
-      if (task === 'authenticate' && index === 3) (candidates[id] as { features: Record<string, unknown> }).features = { latency: { min: 100, max: null }, cost: { min: null, max: 0.05 } };
-      if (task === 'authenticate' && index === 4) (candidates[id] as { features: Record<string, unknown> }).features = { latency: { min: null, max: null }, cost: 0.04 };
-      eligibility[task].push({ resource: 'providers', id });
+      let values: ProblemFacts['candidates'][number]['values'] = { latency: index * 40, cost: { min: index / 100, max: index / 50 } };
+      if (task === 'authenticate' && index === 3) values = { latency: { min: 100, max: null }, cost: { min: null, max: 0.05 } };
+      if (task === 'authenticate' && index === 4) values = { latency: { min: null, max: null }, cost: 0.04 };
+      candidates.push({ key: `providers/${id}`, resource: 'providers', id, provider: 'acme', values, origins: { latency: origin(id, 'latency'), cost: origin(id, 'cost') } });
+      eligible.push({ candidate: `providers/${id}`, written: id });
     }
+    tasks.push({ id: task, kind: 'service', eligible });
   };
-  add('authenticate', 'auth', 4);
-  add('inventory', 'stock', 5);
-  add('shipping', 'shipping', 3);
-  add('pay-card', 'payment', pay);
-  add('pay-transfer', 'payment', Math.max(1, Math.floor(pay / 2)));
-  const service = (capability: string) => ({ kind: 'service', requires: { type: capability } });
+  const transfer = Math.max(1, Math.floor(pay / 2));
+  add('authenticate', 4);
+  add('inventory', 5);
+  add('shipping', 3);
+  add('pay-card', pay);
+  add('pay-transfer', transfer);
+  tasks.push({ id: 'notify', kind: 'local', eligible: [] });
+  const path = (...segments: string[]) => ({ kind: 'path', segments });
+  const literal = (value: unknown) => ({ kind: 'literal', value });
   return {
-    apiVersion: 'bim/v1',
-    kind: 'BindingProblem',
-    metadata: { name: 'checkout' },
-    spec: {
-      profile: { namespace: 'bim.builtin', id: 'qos-binding/v1', version: '1.0.0', digest: digestOf('a'), adapter: { id: 'qos-adapter', version: '1.0.0', digest: digestOf('b') } },
-      dialects: [{ namespace: 'bim.builtin', id: 'qos-dialect/v1', version: '1.0.0', digest: digestOf('d'), irFeatures: [], adapter: { id: 'qos-adapter', version: '1.0.0', digest: digestOf('b') } }],
-      instance: { digest: digestOf('e'), resources: {} },
-      application: {
-        resource: 'app',
-        tasks: {
-          authenticate: service('auth'), inventory: service('stock'), shipping: service('shipping'),
-          'pay-card': service('payment'), 'pay-transfer': service('payment'), notify: { kind: 'local' },
-        },
-        features: { latency: { unit: 'ms', direction: 'minimize' }, cost: { unit: 'EUR', direction: 'minimize' } },
-        requiredFeatures: [],
-        taskRequiredFeatures: {},
-        workflow: {
-          kind: 'sequence',
-          steps: [
-            node('authenticate'),
-            { kind: 'parallel', branches: [node('inventory'), node('shipping')] },
-            { kind: 'exclusive', branches: [{ id: 'card', flow: node('pay-card') }, { id: 'transfer', flow: node('pay-transfer') }] },
-            node('notify'),
-          ],
-        },
+    binding_space: String(4 * 5 * 3 * pay * transfer),
+    candidates: candidates.sort((a, b) => a.key.localeCompare(b.key)),
+    constraints: [
+      {
+        id: 'rules/sla-latency', enforcement: 'hard', when: literal(true), penalty: null,
+        expression: { kind: 'compare', op: 'lte', left: path('features', 'latency'), right: literal(600) },
+        origin: { resource: 'rules', path: 'rules.json', pointer: '/spec/constraints/sla-latency' },
       },
-      candidates: { providers: { providers: { acme: { name: 'Acme' } }, featureBindings: {}, candidates } },
-      eligibility,
-      routing: [
-        { target: { resource: 'flow', id: 'card' }, probability: 0.7 },
-        { target: { resource: 'flow', id: 'transfer' }, probability: 0.3 },
-      ],
-      constraints: [
-        {
-          ref: { resource: 'rules', id: 'sla-latency' }, when: { kind: 'literal', value: true }, enforcement: 'hard',
-          assert: { kind: 'compare', op: 'lte', left: { kind: 'path', segments: ['features', 'latency'] }, right: { kind: 'literal', value: 600 } },
-        },
-        {
-          ref: { resource: 'rules', id: 'sla-availability' }, when: { kind: 'literal', value: true }, enforcement: 'soft',
-          assert: { kind: 'compare', op: 'gte', left: { kind: 'path', segments: ['features', 'availability'] }, right: { kind: 'literal', value: 99.9 } },
-          penalty: { kind: 'literal', value: 5 },
-        },
-      ],
-      placement: [],
-      optimization: {
-        resource: 'goal',
-        criteria: [
-          { id: 'cost', feature: { resource: 'app', id: 'cost' }, direction: 'minimize' },
-          { id: 'latency', feature: { resource: 'app', id: 'latency' }, direction: 'minimize', normalize: { min: 0, max: 1000, clamp: true } },
-        ],
-        penalties: [{ constraint: { resource: 'rules', id: 'sla-availability' }, weight: 5 }],
+      {
+        id: 'rules/sla-availability', enforcement: 'soft', when: literal(true), penalty: literal(5),
+        expression: { kind: 'compare', op: 'gte', left: path('features', 'availability'), right: literal(99.9) },
+        origin: { resource: 'rules', path: 'rules.json', pointer: '/spec/constraints/sla-availability' },
       },
-      extensions: {},
-      sourceMap: {},
+    ],
+    features: [
+      { id: 'latency', unit: 'ms', direction: 'min', required: true },
+      { id: 'cost', unit: 'EUR', direction: 'min', required: true },
+    ],
+    ir_digest: digestOf('c'),
+    objectives: {
+      criteria: [
+        { id: 'cost', feature: { resource: 'app', id: 'cost' }, direction: 'minimize' },
+        { id: 'latency', feature: { resource: 'app', id: 'latency' }, direction: 'minimize', normalize: { min: 0, max: 1000, clamp: true } },
+      ],
+      penalties: [{ constraint: { resource: 'rules', id: 'sla-availability' }, weight: 5 }],
+    },
+    tasks,
+    workflow: {
+      seq: [
+        'authenticate',
+        { and: ['inventory', 'shipping'] },
+        { xor: [{ probability: 0.7, flow: 'pay-card' }, { probability: 0.3, flow: 'pay-transfer' }] },
+        'notify',
+      ],
     },
   };
 }

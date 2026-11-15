@@ -10,11 +10,12 @@ const lit = (value: unknown) => ({ kind: 'literal', value });
 const cmp = (op: string, left: unknown, right: unknown) => ({ kind: 'compare', op, left, right });
 const ref = (id: string) => ({ resource: 'rules', id });
 
+// Constraints as a problem's facts carry them: `<resource>/<id>` and the IR expressions.
 const QOS = [
-  { ref: ref('max-latency'), enforcement: 'hard', when: lit(true), assert: cmp('lte', x('latency'), lit(600)) },
-  { ref: ref('cost-band'), enforcement: 'soft', assert: { kind: 'and', left: cmp('lte', lit(2), x('cost')), right: cmp('lt', x('cost'), lit(10)) } },
-  { ref: ref('busy-latency'), enforcement: 'hard', when: cmp('gt', x('load'), lit(5)), assert: cmp('lte', x('latency'), lit(400)) },
-  { ref: ref('bundle-cost'), enforcement: 'hard', when: lit(true), assert: cmp('lte', { kind: 'arithmetic', op: 'add', left: x('cost'), right: x('fee') }, lit(12)) },
+  { id: 'rules/max-latency', enforcement: 'hard', when: lit(true), expression: cmp('lte', x('latency'), lit(600)) },
+  { id: 'rules/cost-band', enforcement: 'soft', when: null, expression: { kind: 'and', left: cmp('lte', lit(2), x('cost')), right: cmp('lt', x('cost'), lit(10)) } },
+  { id: 'rules/busy-latency', enforcement: 'hard', when: cmp('gt', x('load'), lit(5)), expression: cmp('lte', x('latency'), lit(400)) },
+  { id: 'rules/bundle-cost', enforcement: 'hard', when: lit(true), expression: cmp('lte', { kind: 'arithmetic', op: 'add', left: x('cost'), right: x('fee') }, lit(12)) },
 ];
 const FEATURES = { latency: 412, cost: 11.5, load: 3, fee: 0.25 };
 const UNITS = { latency: 'ms', cost: 'EUR', load: null, fee: 'EUR' };
@@ -37,9 +38,9 @@ describe('QoSAgainstBounds', () => {
     expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Rule', 'Quality', 'Kind', 'Bound', 'Value', 'Margin', 'Status']);
     const rows = rowsOf();
     expect(rows.map(cellsOf)).toEqual([
-      ['max-latency', 'latency', 'must', '≤ 600 ms', '412 ms', '188 ms below', 'met'],
-      ['cost-band', 'cost', 'should', '≥ 2 EUR', '11.5 EUR', '9.5 EUR above', 'violated penalty 2.5'],
-      ['cost-band', 'cost', 'should', '< 10 EUR', '11.5 EUR', '1.5 EUR above', 'violated penalty 2.5'],
+      ['rules/max-latency', 'latency', 'must', '≤ 600 ms', '412 ms', '188 ms below', 'met'],
+      ['rules/cost-band', 'cost', 'should', '≥ 2 EUR', '11.5 EUR', '9.5 EUR above', 'violated penalty 2.5'],
+      ['rules/cost-band', 'cost', 'should', '< 10 EUR', '11.5 EUR', '1.5 EUR above', 'violated penalty 2.5'],
     ]);
     rows.forEach((row) => expect(within(row).getAllByRole('cell')[0].firstElementChild?.tagName).toBe('CODE'));
     expect(within(screen.getByRole('region', { name: 'QoS against bounds' })).getByRole('region', { name: 'Bounds' })).toBeInTheDocument();
@@ -52,7 +53,7 @@ describe('QoSAgainstBounds', () => {
 
     const items = within(screen.getByRole('list', { name: 'Other rules' })).getAllByRole('listitem');
     expect(items).toHaveLength(2);
-    expect(within(items[0]).getByText('busy-latency').tagName).toBe('CODE');
+    expect(within(items[0]).getByText('rules/busy-latency').tagName).toBe('CODE');
     expect(items[0]).toHaveTextContent('features.latency ≤ 400');
     expect(items[0]).toHaveTextContent('applies when features.load > 5');
     expect(items[0]).toHaveTextContent('must');

@@ -157,7 +157,7 @@ describe('RunResult', () => {
       const items = within(qualityList()).getAllByRole('listitem');
       expect(items[0]).toHaveTextContent(/latency.*420.*ms/);
       expect(items[1]).toHaveTextContent(/cost.*9\.5.*EUR/);
-      expect(within(boundRow('max-latency')).getByText('420 ms')).toBeInTheDocument();
+      expect(within(boundRow('rules/max-latency')).getByText('420 ms')).toBeInTheDocument();
       expect(textOutsideSource()).not.toContain('999');
     });
 
@@ -167,7 +167,7 @@ describe('RunResult', () => {
       show({ result: resultWith({ solutions: [rest] }) });
 
       expect(within(qualityList()).getAllByRole('listitem')[0]).toHaveTextContent(/latency.*300.*ms/);
-      expect(within(boundRow('max-latency')).getByText('300 ms')).toBeInTheDocument();
+      expect(within(boundRow('rules/max-latency')).getByText('300 ms')).toBeInTheDocument();
     });
 
     it('reads type and scalarization, not mode', () => {
@@ -226,7 +226,7 @@ describe('RunResult', () => {
       expect(table.getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Task', 'Candidate']);
       const qos = within(region('QoS against bounds'));
       expect(qos.queryByRole('region', { name: 'Bounds' })).toBeNull();
-      expect(within(qos.getByRole('list', { name: 'Other rules' })).getByText('prefer-eu')).toBeInTheDocument();
+      expect(within(qos.getByRole('list', { name: 'Other rules' })).getByText('rules/prefer-eu')).toBeInTheDocument();
     });
 
     it('shows no note while the problem is loading', () => {

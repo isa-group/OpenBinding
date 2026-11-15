@@ -1,5 +1,6 @@
 import type { JobDetail } from '../../api/runs';
 import type { Job } from '../../api/platform';
+import type { ProblemFacts } from '../../shared/api/types';
 
 /** Shared by the tests of the job screens and by the browser spec that mocks the same API. */
 
@@ -79,46 +80,41 @@ export const SOLUTION = S1;
 
 export const RESULT = { termination: 'FEASIBLE', logs: 'solve started\nsolve finished\n', solutions: [S1, S2] };
 
-const candidate = (name: string, provider: string, latency: number, cost: number) => ({ name, provider: { resource: 'catalog', id: provider }, features: { latency, cost } });
+const candidate = (id: string, provider: string, latency: number, cost: number): ProblemFacts['candidates'][number] => {
+  const origin = (feature: string) => ({ kind: 'package' as const, resource: 'catalog', path: 'candidates.json', pointer: `/spec/candidates/${id}/features/${feature}` });
+  return { key: `catalog/${id}`, resource: 'catalog', id, provider, values: { latency, cost }, origins: { latency: origin('latency'), cost: origin('cost') } };
+};
+const eligible = (...ids: string[]) => ids.map((id) => ({ candidate: `catalog/${id}`, written: id }));
 
-/** The compiled document of a run's compilation: a BindingProblem that `readBindingProblem` reads. */
-export const CONSTRAINTS = [
-  { ref: { resource: 'rules', id: 'max-latency' }, enforcement: 'hard', assert: { kind: 'compare', op: 'lte', left: { kind: 'path', segments: ['features', 'latency'] }, right: { kind: 'literal', value: 600 } } },
-  { ref: { resource: 'rules', id: 'prefer-eu' }, enforcement: 'soft', assert: { kind: 'compare', op: 'eq', left: { kind: 'path', segments: ['features', 'region'] }, right: { kind: 'literal', value: 'eu' } } },
+/** The constraints of the facts of a run's compilation: one bound the result table reads, one rule it lists in words. */
+export const CONSTRAINTS: ProblemFacts['constraints'] = [
+  { id: 'rules/max-latency', enforcement: 'hard', when: null, penalty: null, origin: null, expression: { kind: 'compare', op: 'lte', left: { kind: 'path', segments: ['features', 'latency'] }, right: { kind: 'literal', value: 600 } } },
+  { id: 'rules/prefer-eu', enforcement: 'soft', when: null, penalty: null, origin: null, expression: { kind: 'compare', op: 'eq', left: { kind: 'path', segments: ['features', 'region'] }, right: { kind: 'literal', value: 'eu' } } },
 ];
 
-export const PROBLEM = {
-  apiVersion: 'bim/v1',
-  kind: 'BindingProblem',
-  spec: {
-    application: {
-      tasks: {
-        t1: { name: 'Payment', requires: { type: 'payment' } },
-        t2: { name: 'Shipping', requires: { type: 'shipping' } },
-        t3: { name: 'Notify', requires: { type: 'notify' } },
-      },
-      features: { latency: { unit: 'ms', direction: 'minimize' }, cost: { unit: 'EUR', direction: 'minimize' } },
-    },
-    candidates: {
-      catalog: {
-        providers: { stripe: { name: 'Stripe' }, adyen: { name: 'Adyen' }, dhl: { name: 'DHL' }, twilio: { name: 'Twilio' } },
-        candidates: {
-          c1: candidate('Stripe EU', 'stripe', 120, 4),
-          c2: candidate('Adyen', 'adyen', 90, 5),
-          c3: candidate('DHL', 'dhl', 200, 3),
-          c4: candidate('Twilio', 'twilio', 100, 2.5),
-        },
-      },
-    },
-    eligibility: { t1: [at('c1'), at('c2')], t2: [at('c3')], t3: [at('c4')] },
-    constraints: CONSTRAINTS,
-    optimization: {
-      criteria: [
-        { id: 'cost', feature: { id: 'cost' }, direction: 'minimize' },
-        { id: 'latency', feature: { id: 'latency' }, direction: 'minimize' },
-      ],
-    },
+/** The facts of a run's compilation (`GET …/compilations/{compilation}/facts`): what the run result names tasks and candidates with. */
+export const PROBLEM_FACTS: ProblemFacts = {
+  binding_space: '2',
+  candidates: [candidate('c1', 'stripe', 120, 4), candidate('c2', 'adyen', 90, 5), candidate('c3', 'dhl', 200, 3), candidate('c4', 'twilio', 100, 2.5)],
+  constraints: CONSTRAINTS,
+  features: [
+    { id: 'latency', unit: 'ms', direction: 'min', required: true },
+    { id: 'cost', unit: 'EUR', direction: 'min', required: true },
+  ],
+  ir_digest: digestOf('c'),
+  objectives: {
+    criteria: [
+      { id: 'cost', feature: { resource: 'application', id: 'cost' }, direction: 'minimize' },
+      { id: 'latency', feature: { resource: 'application', id: 'latency' }, direction: 'minimize' },
+    ],
+    penalties: [],
   },
+  tasks: [
+    { id: 't1', kind: 'service', eligible: eligible('c1', 'c2') },
+    { id: 't2', kind: 'service', eligible: eligible('c3') },
+    { id: 't3', kind: 'service', eligible: eligible('c4') },
+  ],
+  workflow: { seq: ['t1', 't2', 't3'] },
 };
 
 /** What the runs of the fixtures are of: version 2 of the checkout problem of `isa-demo`, and its compilation. */

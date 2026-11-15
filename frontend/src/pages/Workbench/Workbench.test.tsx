@@ -4,7 +4,7 @@ import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { unzipPackage } from '../../utils/bimZip';
 import type { ProblemUpload } from '../../api/problems';
-import { digestOf, irDocument } from '../Cases/fixtures';
+import { checkoutFacts, compiledDocument, digestOf } from '../Cases/fixtures';
 import { caseOf, revisionOf } from '../../features/workspace/testKit';
 import {
   ENGINE_REF, REGISTRATION_REF, ROOT, SECOND_REGISTRATION, analysis, openWorkbench, packageArchive, packageFile, renderWorkbench,
@@ -50,9 +50,9 @@ describe('Workbench', () => {
     problems.revisions.mockResolvedValue([r1, r2]);
     problems.source.mockResolvedValue(packageArchive('from-version'));
     bim.templates.mockResolvedValue(['demo/01_simple_seq']);
-    // The analysis, with the compiled form when the screen asks for it (`include: 'ir'`).
+    // The analysis, with the compiled form and its facts when the screen asks for them (`include: 'ir,facts'`).
     bim.validate.mockImplementation((_archive: Uint8Array, options?: { include?: string }) => Promise.resolve(
-      options?.include === 'ir' ? analysis({ ir: irDocument(), sourceMap: {}, irDigest: 'sha256-ir' }) : analysis(),
+      options?.include === 'ir,facts' ? analysis({ ir: compiledDocument(), facts: checkoutFacts(), sourceMap: {}, irDigest: 'sha256-ir' }) : analysis(),
     ));
   });
 
@@ -207,12 +207,12 @@ describe('Workbench', () => {
 
     it('draws the workflow once the package has been compiled', async () => {
       await validated();
-      expect(screen.queryByRole('img', { name: /^Workflow:/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('group', { name: 'Workflow' })).not.toBeInTheDocument();
 
       fireEvent.click(screen.getByRole('button', { name: 'Draw the workflow' }));
-      const drawing = await screen.findByRole('img', { name: /^Workflow: authenticate, then inventory and shipping in parallel/ });
-      expect(drawing).toBeInTheDocument();
-      expect(bim.validate).toHaveBeenLastCalledWith(expect.any(Uint8Array), { include: 'ir' });
+      const drawing = await screen.findByRole('group', { name: 'Workflow' });
+      expect(drawing).toHaveAccessibleDescription(/^Workflow: authenticate, then \(inventory and shipping in parallel\)/);
+      expect(bim.validate).toHaveBeenLastCalledWith(expect.any(Uint8Array), { include: 'ir,facts' });
     });
   });
 

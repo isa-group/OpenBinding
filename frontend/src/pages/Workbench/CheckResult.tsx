@@ -7,8 +7,8 @@ import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { useCopy } from '../../components/ui/useCopy';
-import { readBindingProblem } from '../Cases/bindingModel';
-import { FlowDrawing, Power } from '../Cases/parts';
+import { workflowGraph, type TaskOverlay } from '../../entities/binding/workflowGraph';
+import { WorkflowGraph } from '../../widgets/workflow-graph/WorkflowGraph';
 import { resourcePathForDiagnostic, type Diagnostic, type ResourceEntry } from './bimDocuments';
 import { LIMIT_KINDS, engineRows, goalTerms, packageFileList, refusalMarker, refusalText, type Refusal } from './workbenchModel';
 import type { Workbench } from './useWorkbench';
@@ -116,7 +116,9 @@ function ValidSummary({ wb }: { wb: Workbench }) {
 }
 
 function AnalysisView({ wb }: { wb: Workbench }) {
-  const model = useMemo(() => (wb.compiledIr ? readBindingProblem(wb.compiledIr.document) : null), [wb.compiledIr]);
+  const facts = wb.compiledIr?.facts ?? null;
+  const graph = useMemo(() => (facts ? workflowGraph(facts.workflow) : null), [facts]);
+  const overlay = useMemo(() => Object.fromEntries((facts?.tasks ?? []).map((task): [string, TaskOverlay] => [task.id, { local: task.kind === 'local' }])), [facts]);
   const analysis = wb.analysisData;
   const terms = goalTerms(wb.files, wb.resources);
   const counts = [
@@ -139,8 +141,8 @@ function AnalysisView({ wb }: { wb: Workbench }) {
           <h3 id="wb-flow-title" className="wb-eyebrow">Workflow</h3>
           {wb.root?.spec?.profile && <span className="wb-muted">· profile {wb.root.spec.profile}</span>}
         </div>
-        {wb.compiledIr ? (
-          <FlowDrawing flow={model?.flow ?? null} caption={model?.log10 != null ? <span>Possible combinations ≈ <Power log10={model.log10} /></span> : undefined} />
+        {graph ? (
+          <WorkflowGraph graph={graph} overlay={overlay} label="Workflow" />
         ) : (
           <div className="wb-flow-ask">
             <p className="wb-muted">The drawing comes from the compiled package. Drawing it has the gateway compile the package once more; nothing is stored.</p>

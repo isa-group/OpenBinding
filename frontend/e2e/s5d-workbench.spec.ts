@@ -1,7 +1,7 @@
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 import { failureBody } from './helpers/problems';
 import type { Problem, ProblemRevision } from '../src/api/problems';
-import { irDocument } from '../src/pages/Cases/fixtures';
+import { checkoutFacts, compiledDocument } from '../src/pages/Cases/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
 import { DEFAULT_FILES } from '../src/pages/Workbench/bimDocuments';
@@ -121,11 +121,11 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/v1/bim/templates`, json({ templates: ['demo/01_simple_seq'] }));
   await page.route(`${API}/v1/engines`, json({ engines: [{ ...ENGINE, id: 'engine-1', ref: ENGINE, modes: [] }, { ...EDGE, id: 'engine-2', ref: EDGE, modes: [] }] }));
 
-  // The check, and the compiled form when the Workbench asks for it (`include=ir`).
+  // The check, and the compiled form with its facts when the Workbench asks for them (`include=ir,facts`).
   await page.route(new RegExp(`^${API}/v1/bim/validate(\\?.*)?$`), (route) => {
-    const withIr = new URL(route.request().url()).searchParams.get('include') === 'ir';
+    const compiled = new URL(route.request().url()).searchParams.get('include') === 'ir,facts';
     if (state.refuse.validate) return state.refuse.validate(route);
-    return json(withIr ? { ...analysisBody(), ir: irDocument(), sourceMap: {} } : analysisBody())(route);
+    return json(compiled ? { ...analysisBody(), ir: compiledDocument(), facts: checkoutFacts(), sourceMap: {} } : analysisBody())(route);
   });
   // The package of a version, exactly as it was uploaded.
   const packageBytes = Buffer.from(zipStore({ ...DEFAULT_FILES, 'instance.json': DEFAULT_FILES['instance.json'].replace('"hello-bim"', '"from-version-2"') }));
@@ -278,7 +278,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The workflow is drawn once the package has been compiled.
       await main.getByRole('button', { name: 'Draw the workflow' }).click();
-      await expect(main.getByRole('img', { name: /^Workflow: authenticate, then inventory and shipping in parallel/ })).toBeVisible();
+      const drawing = main.getByRole('group', { name: 'Workflow' });
+      await expect(drawing).toBeVisible();
+      await expect(drawing).toHaveAccessibleDescription(/^Workflow: authenticate, then \(inventory and shipping in parallel\)/);
       await capture(page, testInfo, `workbench-${name}-workflow`);
 
       // Which engines can run it, and why the others cannot.

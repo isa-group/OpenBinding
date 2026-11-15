@@ -1,7 +1,7 @@
 import { expect as baseExpect, test, type Page, type TestInfo } from '@playwright/test';
 import { API, PUBLIC_ENGINES, installMockApi } from './helpers/mockApi';
 import { failureBody } from './helpers/problems';
-import { digestOf, irDocument } from '../src/pages/Cases/fixtures';
+import { checkoutFacts, digestOf } from '../src/pages/Cases/fixtures';
 import { REGISTRATION, detailOf } from '../src/test/fixtures/jobs';
 
 // F2 · ranges of candidate features, from the problems to the engines.
@@ -38,24 +38,26 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
   expect(overflow, `${name} should not scroll sideways`).toBeLessThanOrEqual(1);
 }
 
-/** The IR of a version's compilation, with some qualities edited: version 2 is version 1 one step later. */
-function irWith(pay: number, edit: (candidates: Record<string, { features: Record<string, unknown> }>) => void) {
-  const document = irDocument(pay) as { spec: { candidates: { providers: { candidates: Record<string, { features: Record<string, unknown> }> } } } };
-  edit(document.spec.candidates.providers.candidates);
-  return document;
+type Values = Record<string, number | { min: number | null; max: number | null }>;
+
+/** The facts of a version's compilation, with some values edited: version 2 is version 1 one step later. */
+function factsWith(pay: number, edit: (values: (id: string) => Values) => void) {
+  const facts = checkoutFacts(pay);
+  edit((id) => facts.candidates.find((candidate) => candidate.id === id)?.values as Values);
+  return facts;
 }
 
 async function answerCompilations(page: Page) {
-  const reply = (revision: number, pay: number, edit: Parameters<typeof irWith>[1]) => page.route(
-    new RegExp(`/v1/organizations/isa-demo/problems/checkout-flow/revisions/${revision}/compilations/[^/]+/ir$`),
-    (route) => route.fulfill({ status: 200, json: { id: `compilation-${revision}`, ir_digest: digestOf('c'), ir: irWith(pay, edit), source_map: {} } }),
+  const reply = (revision: number, pay: number, edit: Parameters<typeof factsWith>[1]) => page.route(
+    new RegExp(`/v1/organizations/isa-demo/problems/checkout-flow/revisions/${revision}/compilations/[^/]+/facts$`),
+    (route) => route.fulfill({ status: 200, json: factsWith(pay, edit) }),
   );
   await reply(1, 5, () => undefined);
   // One step later: a number became an open range, a range moved, and an open range became a number.
-  await reply(2, 8, (candidates) => {
-    candidates['authenticate-1'].features.latency = { min: null, max: 60 };
-    candidates['authenticate-2'].features.cost = { min: 0.02, max: 0.05 };
-    candidates['authenticate-3'].features.latency = 90;
+  await reply(2, 8, (values) => {
+    values('authenticate-1').latency = { min: null, max: 60 };
+    values('authenticate-2').cost = { min: 0.02, max: 0.05 };
+    values('authenticate-3').latency = 90;
   });
 }
 
@@ -80,18 +82,21 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('#platform-main');
 
       await page.goto(`${PROBLEMS}/checkout-flow?version=2`);
-      const providers = main.getByRole('region', { name: 'Candidates' });
-      await expect(providers.getByRole('table')).toBeVisible();
-      await expect(providers.getByRole('row', { name: /auth-1/ })).toContainText('≤ 60 ms');
-      await expect(providers.getByRole('row', { name: /auth-2/ })).toContainText('0.02–0.05 EUR');
-      await expect(providers.getByRole('row', { name: /auth-4/ })).toContainText('unbounded');
-      await expect(providers.getByRole('row', { name: /auth-4/ })).toContainText('0.04 EUR');
+      // The candidates of a task: a table on a desktop, a card per candidate on a phone.
+      const providers = main.getByRole('region', { name: 'Candidates of each task' });
+      const candidate = (written: string) => (isMobile
+        ? providers.getByRole('list', { name: 'Candidates for authenticate' }).getByRole('listitem').filter({ hasText: written })
+        : providers.getByRole('table', { name: /Task authenticate/ }).getByRole('row', { name: new RegExp(written) }));
+      await expect(candidate('authenticate-1')).toContainText('≤ 60 ms');
+      await expect(candidate('authenticate-2')).toContainText('0.02–0.05 EUR');
+      await expect(candidate('authenticate-4')).toContainText('unbounded');
+      await expect(candidate('authenticate-4')).toContainText('0.04 EUR');
       await expect(providers.getByText('≤ 60 ms')).toHaveAttribute('title', '(−∞, 60] ms');
       // A range is a stretch on the bar; an open end fades out towards the edge.
-      await expect(providers.locator('.case-bar.is-interval')).not.toHaveCount(0);
-      await expect(providers.locator('.case-bar.is-interval i.is-open-low')).not.toHaveCount(0);
-      await expect(providers.locator('.case-bar.is-interval i.is-open-high')).not.toHaveCount(0);
-      await expect(providers.locator('.case-bar.is-interval i.is-open-low.is-open-high')).toHaveCount(1);
+      await expect(providers.locator('.cm-bar.is-interval')).not.toHaveCount(0);
+      await expect(providers.locator('.cm-bar.is-interval i.is-open-low')).not.toHaveCount(0);
+      await expect(providers.locator('.cm-bar.is-interval i.is-open-high')).not.toHaveCount(0);
+      await expect(providers.locator('.cm-bar.is-interval i.is-open-low.is-open-high')).toHaveCount(1);
       await capture(page, testInfo, `revision-${name}`);
       if (isMobile) {
         expect(critical).toEqual([]);

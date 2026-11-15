@@ -26,11 +26,14 @@ const problem = {
 
 export const PROBLEM: RunProblem = problem;
 
+/** The constraints of a run's compilation as its facts carry them: `<resource>/<id>` and the IR expressions. */
 export const CONSTRAINTS: unknown[] = [
   {
-    ref: { resource: 'rules', id: 'max-latency' },
+    id: 'rules/max-latency',
     enforcement: 'hard',
-    assert: {
+    when: null,
+    penalty: null,
+    expression: {
       kind: 'compare',
       op: 'lte',
       left: { kind: 'path', segments: ['features', 'latency'] },
@@ -38,9 +41,11 @@ export const CONSTRAINTS: unknown[] = [
     },
   },
   {
-    ref: { resource: 'rules', id: 'prefer-eu' },
+    id: 'rules/prefer-eu',
     enforcement: 'soft',
-    assert: {
+    when: null,
+    penalty: null,
+    expression: {
       kind: 'compare',
       op: 'eq',
       left: { kind: 'path', segments: ['features', 'region'] },

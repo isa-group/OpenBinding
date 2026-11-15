@@ -4,12 +4,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { caseOf, org, renderOrgScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseDetail } from './CaseDetail';
-import { digestOf, irDocument } from './fixtures';
+import { checkoutFacts, compiledDocument, digestOf } from './fixtures';
 
 const problems = vi.hoisted(() => ({ get: vi.fn(), revisions: vi.fn(), revision: vi.fn(), source: vi.fn(), compilation: vi.fn(), ir: vi.fn() }));
 const download = vi.hoisted(() => ({ saveBytes: vi.fn() }));
 
+const facts = vi.hoisted(() => ({ get: vi.fn() }));
+
 vi.mock('../../api/problems', () => ({ problemsApi: problems }));
+vi.mock('../../entities/problem/facts', async (actual) => ({ ...await actual<typeof import('../../entities/problem/facts')>(), problemFactsApi: facts }));
 vi.mock('../../features/workspace/download', () => download);
 const rendering = vi.hoisted(() => ({ saveText: vi.fn() }));
 const { saveText } = rendering;
@@ -55,7 +58,8 @@ describe('Source tab of the problem page', () => {
     problems.revisions.mockResolvedValue([revisionOf(checkout, 1), r2]);
     problems.revision.mockResolvedValue(detail);
     problems.compilation.mockResolvedValue(compilationOf());
-    problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), ir: irDocument(), source_map: {} });
+    problems.ir.mockResolvedValue({ id: 'compilation-2', ir_digest: digestOf('c'), ir: compiledDocument(), source_map: {} });
+    facts.get.mockResolvedValue(checkoutFacts());
     problems.source.mockResolvedValue(new ArrayBuffer(8));
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockResolvedValue(undefined) }, configurable: true });
   });
@@ -82,6 +86,7 @@ describe('Source tab of the problem page', () => {
     const view = await screen.findByRole('region', { name: 'Compiled form (JSON)' });
     expect(view).toHaveTextContent('"kind": "BindingProblem"');
     expect(problems.ir).toHaveBeenCalledWith('isa-demo', 'flujo-checkout', 2, 'compilation-2');
+    expect(facts.get).toHaveBeenCalledWith('isa-demo', 'flujo-checkout', 2, 'compilation-2');
     fireEvent.click(within(view).getByRole('button', { name: 'Download Compiled form (JSON)' }));
     expect(saveText).toHaveBeenCalledWith(expect.stringContaining('"kind": "BindingProblem"'), 'flujo-checkout-v2-compiled.json', 'application/json');
   });
@@ -108,16 +113,24 @@ describe('Source tab of the problem page', () => {
     expect(details.textContent).not.toMatch(/sha256-|[0-9a-f]{12}/);
   });
 
-  it('names the exact language the compiled form was made with, and the resources the compiler read', async () => {
+  it('names the resources the compiler read with the language each is written in', async () => {
     renderSource();
 
     const section = await screen.findByRole('region', { name: 'Exact language used' });
-    expect(await within(section).findByText('Profile · qos-binding/v1')).toBeInTheDocument();
-    expect(within(section).getByText('Dialects · qos-dialect/v1')).toBeInTheDocument();
-    expect(within(section).getByRole('table', { name: 'Resources' })).toHaveTextContent('appapplicationApplication');
+    expect(await within(section).findByRole('table', { name: 'Resources' })).toHaveTextContent('appapplicationApplicationqos-binding/v1');
   });
 
-  it('summarizes what the engines receive, from the compilation', async () => {
+  it('says the language cannot be listed without a compilation', async () => {
+    problems.compilation.mockRejectedValue(refusal(503, 'unavailable'));
+    renderSource();
+
+    const section = await screen.findByRole('region', { name: 'Exact language used' });
+    expect(await within(section).findByText('The compilation isn’t available, so the language it used can’t be listed.')).toBeInTheDocument();
+    expect(await screen.findByText('The gateway’s analysis of this version isn’t available right now (503 · unavailable).')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'What the engines receive' })).not.toBeInTheDocument();
+  });
+
+  it('summarizes what the engines receive, from the compilation and the goal terms of its facts', async () => {
     renderSource();
 
     const section = await screen.findByRole('region', { name: 'What the engines receive' });

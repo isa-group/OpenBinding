@@ -1,4 +1,5 @@
 import { apiClient, type BimAnalysisResponse, type PackageValidationOutcome } from './client';
+import type { ProblemFacts } from '../shared/api/types';
 
 const ZIP = { 'Content-Type': 'application/vnd.bim+zip' };
 
@@ -6,7 +7,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** `POST /v1/bim/validate`: the analysis of a package, and with `include: 'ir'` its IR and source map. Nothing is stored. */
+/**
+ * `POST /v1/bim/validate`: the analysis of a package, with `include: 'ir'` its IR and source map, and with `include: 'facts'` its
+ * facts (what the workflow graph and the candidate matrix read). Nothing is stored.
+ */
 export interface BimValidation extends BimAnalysisResponse {
   instanceDigest?: string;
   packageDigest?: string;
@@ -15,9 +19,13 @@ export interface BimValidation extends BimAnalysisResponse {
   resourceDigests?: Record<string, string>;
   ir?: Record<string, unknown>;
   sourceMap?: Record<string, unknown>;
+  facts?: ProblemFacts;
 }
 
-const validateEndpoint = (include?: 'ir') => `/v1/bim/validate${include ? `?include=${include}` : ''}`;
+/** What `include` may ask for besides the analysis: the IR, the facts, or both. */
+export type ValidateInclude = 'ir' | 'facts' | 'ir,facts';
+
+const validateEndpoint = (include?: ValidateInclude) => `/v1/bim/validate${include ? `?include=${include}` : ''}`;
 
 /**
  * The stateless BIM language services (`/v1/bim/*`): checking a package and the package templates. None needs an account; a
@@ -28,7 +36,7 @@ export const bimApi = {
    * Check a package and say which engine modes can run it. Throws on a refusal (HttpError for 413, 415, 422, 429…) so the screen
    * words each one; a 422 carries the located diagnostics.
    */
-  validate: (archive: Uint8Array, options: { include?: 'ir'; signal?: AbortSignal } = {}) =>
+  validate: (archive: Uint8Array, options: { include?: ValidateInclude; signal?: AbortSignal } = {}) =>
     apiClient.request<BimValidation>(validateEndpoint(options.include), {
       method: 'POST', headers: ZIP, body: archive as unknown as BodyInit, signal: options.signal,
     }, undefined, true, true),

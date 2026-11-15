@@ -2,7 +2,7 @@ import { expect as baseExpect, test, type Locator, type Page, type Route, type T
 import { failureBody } from './helpers/problems';
 import type { Job } from '../src/api/platform';
 import type { Problem, ProblemRevision } from '../src/api/problems';
-import { ENGINE, NEIGHBORHOOD, PROBLEM, REGISTRATION, detailOf, jobOf, provenanceOf } from '../src/test/fixtures/jobs';
+import { ENGINE, NEIGHBORHOOD, PROBLEM_FACTS, REGISTRATION, detailOf, jobOf, provenanceOf } from '../src/test/fixtures/jobs';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
 
@@ -201,14 +201,15 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
       return run ? json(run)(route) : detail(404, 'not_found', 'Run not found.')(route);
     }
     if (section === 'problems') {
-      // The problems of the organization: the list, the versions of one, its compilation and the IR of that.
+      // The problems of the organization: the list, the versions of one, its compilation, and the facts and the IR of that.
       const [, , , , problemSlug, , revisionRef, tail] = parts;
       const own = orgSlug === 'isa-demo' ? [checkout] : [];
       if (!problemSlug) return json({ problems: own, total: own.length, limit: 200, offset: 0 })(route);
       if (problemSlug !== checkout.slug || orgSlug !== 'isa-demo') return detail(404, 'not_found', 'Problem not found.')(route);
       if (!revisionRef) return json([problemRevision(1), problemRevision(2)])(route);
       if (tail === 'compilation') return (state.refuse.compilation ?? json(analysisBody()))(route);
-      if (tail === 'compilations') return json({ id: 'compilation-2', ir_digest: digestOf('c'), ir: PROBLEM, source_map: {} })(route);
+      if (tail === 'compilations' && parts.at(-1) === 'facts') return json(PROBLEM_FACTS)(route);
+      if (tail === 'compilations') return json({ id: 'compilation-2', ir_digest: digestOf('c'), ir: { apiVersion: 'bim/v1', kind: 'BindingProblem' }, source_map: {} })(route);
       return json({ ...problemRevision(Number(revisionRef)), document: {}, files: [], resource_digests: {}, compilations: [] })(route);
     }
     if (!section) return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
@@ -365,6 +366,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const best = main.getByRole('region', { name: 'Run result' });
       await expect(best.getByRole('list', { name: 'Quality of this combination' }).getByRole('listitem')).toHaveCount(2);
       await expect(best.getByRole('region', { name: 'Chosen providers' }).getByRole('row')).toHaveCount(4);
+      // The table names each candidate and its values from the facts of the run's compilation.
+      await expect(best.getByRole('region', { name: 'Chosen providers' }).getByRole('row', { name: /^t1/ })).toContainText('120');
       const solutionSource = main.getByRole('region', { name: 'Solution 1 source' });
       await expect(solutionSource).toBeHidden();
       await capture(page, testInfo, `detail-${name}-result`, { area: best });

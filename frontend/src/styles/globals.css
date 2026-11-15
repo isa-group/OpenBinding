@@ -76,6 +76,13 @@
   --tp-severity-success: #22c55e;
   --tp-severity-success-bg: #f0fdf4;
   --tp-severity-success-border: #86efac;
+  /* The status of a composition value and the kinds of change: aliases of the severity colours, always shown beside words. */
+  --tp-status-verified: var(--tp-severity-success);
+  --tp-status-declared: var(--tp-severity-info);
+  --tp-status-unverified: var(--tp-severity-warning);
+  --tp-diff-added: var(--tp-severity-success);
+  --tp-diff-removed: var(--tp-severity-error);
+  --tp-diff-changed: var(--tp-severity-warning);
 
   --tp-spacing-xxs: 4px;
   --tp-spacing-xs: 8px;

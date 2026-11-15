@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { readBindingProblem } from '../../pages/Cases/bindingModel';
+import type { ProblemFacts } from '../../shared/api/types';
+import { runProblemOf } from './runProblem';
 import { bindingFeaturesOf, bindingRowsOf, type BindingProblemShape } from './bindingTableModel';
 
 const PROBLEM: BindingProblemShape = {
@@ -23,21 +24,20 @@ const PROBLEM: BindingProblemShape = {
 
 const BINDING = { ship: { resource: 'carriers', id: 'dhl' }, pay: { resource: 'payments', id: 'stripe' } };
 
-const COMPILED = {
-  spec: {
-    application: {
-      tasks: { pay: { name: 'Payment', requires: { type: 'payment' } } },
-      features: { latency: { unit: 'ms' } },
-    },
-    eligibility: { pay: [{ resource: 'payments', id: 'stripe' }] },
-    candidates: {
-      payments: {
-        providers: { 'stripe-inc': { name: 'Stripe' } },
-        candidates: { stripe: { name: 'Stripe Payments', provider: { id: 'stripe-inc' }, features: { latency: 120 } } },
-      },
-    },
-  },
-};
+/** The facts of a compilation with one task: what `runProblemOf` reads. */
+const FACTS = {
+  binding_space: '1',
+  candidates: [{
+    key: 'payments/stripe', resource: 'payments', id: 'stripe', provider: 'stripe-inc', values: { latency: 120 },
+    origins: { latency: { kind: 'package', resource: 'payments', path: 'payments.json', pointer: '/spec/candidates/stripe/features/latency' } },
+  }],
+  constraints: [],
+  features: [{ id: 'latency', unit: 'ms', direction: 'min', required: true }],
+  ir_digest: 'sha256-c',
+  objectives: { criteria: [], penalties: [] },
+  tasks: [{ id: 'pay', kind: 'service', eligible: [{ candidate: 'payments/stripe', written: 'stripe' }] }],
+  workflow: 'pay',
+} as ProblemFacts;
 
 const NULLS = { latency: null, cost: null, availability: null };
 
@@ -78,11 +78,10 @@ describe('bindingRowsOf', () => {
     expect(rows[0].task).toBe('ship');
   });
 
-  it('reads the value that readBindingProblem returns', () => {
-    const problem = readBindingProblem(COMPILED);
-    expect(problem).not.toBeNull();
+  it('reads the problem that runProblemOf makes of the facts: the written name and the provider id', () => {
+    const problem = runProblemOf(FACTS);
     expect(bindingRowsOf({ pay: { resource: 'payments', id: 'stripe' } }, problem)).toEqual([
-      { task: 'pay', taskName: 'Payment', candidate: 'stripe', candidateName: 'Stripe Payments', provider: 'Stripe', values: { latency: 120 } },
+      { task: 'pay', taskName: 'pay', candidate: 'stripe', candidateName: 'stripe', provider: 'stripe-inc', values: { latency: 120 } },
     ]);
     expect(bindingFeaturesOf(problem)).toEqual([{ name: 'latency', unit: 'ms' }]);
   });

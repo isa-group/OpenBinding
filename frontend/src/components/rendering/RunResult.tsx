@@ -31,7 +31,7 @@ interface RunResultProps {
   result: RunResultData;
   /** undefined: not loaded yet; null: not available (no note is shown while loading). */
   problem?: RunProblem | null;
-  /** The compiled document's spec.constraints, as qosBoundsOf reads them; [] when absent. */
+  /** The constraints of the facts of the run's compilation, as qosBoundsOf reads them; [] when absent. */
   constraints?: unknown;
   report?: RunReport | null;
   /** Page content right after the summary. */

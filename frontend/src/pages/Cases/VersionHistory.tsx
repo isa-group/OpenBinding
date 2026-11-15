@@ -1,20 +1,20 @@
 import { Link } from 'react-router-dom';
+import { problemsApi } from '../../api/problems';
+import { parseBindingSpace } from '../../components/BindingSpaceBadge/bindingSpace';
 import { Chip } from '../../components/ui/Chip';
 import { useCopy } from '../../components/ui/useCopy';
 import { problemPath } from '../../routes/paths/problems';
 import { formatBytes, formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { exactReference } from './casesModel';
-import { loadModel, modelKey, type ModelState } from './modelLoader';
-import { Power } from './parts';
+import { exactReference, powerText } from './casesModel';
 import type { RouteProblemContent } from './useRouteProblem';
 // The timeline styles keep the name of the page that used to hold them.
 import './VersionHistory.css';
 
 type Version = RouteProblemContent['revisions'][number];
 
-function VersionCard({ org, caseSlug, revision, previous, latest, model, runHref }: {
-  org: string; caseSlug: string; revision: Version; previous: Version | undefined; latest: boolean; model: ModelState | undefined;
+function VersionCard({ org, caseSlug, revision, previous, latest, runHref }: {
+  org: string; caseSlug: string; revision: Version; previous: Version | undefined; latest: boolean;
   /** Where a run of the version is launched; `null` hides the link (a viewer). */
   runHref: string | null;
 }) {
@@ -24,7 +24,9 @@ function VersionCard({ org, caseSlug, revision, previous, latest, model, runHref
     : previous.package_digest === revision.package_digest ? `Same package as v${previous.revision}.` : `A different package from v${previous.revision}.`;
   const href = problemPath(org, caseSlug, undefined, { version: revision.revision });
   const key = `r${revision.revision}`;
-  const log10 = model?.state === 'ready' ? model.model?.log10 ?? null : null;
+  // The size of the version's binding space, from the compilation of the installed toolchain the revision lists (no facts read).
+  const detail = useResource(`revision-detail:${org}/${caseSlug}/${revision.id}`, () => problemsApi.revision(org, caseSlug, revision.revision));
+  const space = detail.data?.compilations.find((compilation) => compilation.current)?.binding_space ?? null;
 
   return (
     <li className="case-rev">
@@ -39,11 +41,11 @@ function VersionCard({ org, caseSlug, revision, previous, latest, model, runHref
           </button>
         </div>
         <p className="case-rev-change">{summary} {formatBytes(revision.package_size)?.split(' (')[0] ?? ''}</p>
-        {log10 !== null && (
+        {space !== null && (
           <div className="case-rev-size">
             Combinations
-            <span className="case-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.round((log10 / 20) * 100))}%` }} /></span>
-            <span>≈ <Power log10={log10} /></span>
+            <span className="case-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, Math.round((parseBindingSpace(space).log10 / 20) * 100))}%` }} /></span>
+            <span>≈ {powerText(space)}</span>
           </div>
         )}
         <div className="case-rev-links">
@@ -62,11 +64,6 @@ export function VersionHistory({ org, content, runOf, canCreate }: {
   org: string; content: RouteProblemContent; runOf: (revision: number) => string | null; canCreate: boolean;
 }) {
   const { item, revisions } = content;
-  const latest = revisions[0];
-  const glanceState = useResource<ModelState | null>(
-    latest ? modelKey(org, item.slug, latest) : 'model:none',
-    async () => (latest ? loadModel(org, item.slug, latest.revision) : null),
-  );
   return (
     <section className="org-section" aria-labelledby="cd-revisions">
       <h2 id="cd-revisions">Versions</h2>
@@ -79,7 +76,6 @@ export function VersionHistory({ org, content, runOf, canCreate }: {
             revision={revision}
             previous={revisions[index + 1]}
             latest={index === 0}
-            model={index === 0 ? glanceState.data ?? undefined : undefined}
             runHref={canCreate ? runOf(revision.revision) : null}
           />
         ))}

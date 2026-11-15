@@ -5,7 +5,6 @@ import type { PricingCatalog, UsageView } from '../../api/auth';
 import { apiClient, type EngineCatalogEntry } from '../../api/client';
 import { runsApi, type JobReceipt } from '../../api/runs';
 import type { Organization } from '../../api/platform';
-import { problemsApi } from '../../api/problems';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -13,7 +12,8 @@ import { useAuth } from '../../contexts/auth';
 import { useResource } from '../../utils/useResource';
 import { randomUUID } from '../../utils/uuid';
 import { classifyAuthError } from '../../shared/api/errors';
-import { irHasRanges } from '../Cases/bindingModel';
+import { problemsApi } from '../../api/problems';
+import { hasRanges, problemFactsApi } from '../../entities/problem/facts';
 import { loadProblems } from '../Cases/problemsData';
 import { problemsPath } from '../../routes/paths/problems';
 import { runPath, runsPath } from '../../routes/paths/runs';
@@ -24,7 +24,7 @@ import { useRouteOrganization } from '../Organization/useRouteOrganization';
 import { refusalOf, type Refusal } from './jobErrors';
 import { EngineStep, ForecastBars, SettingsStep, SlotCountdown, SourceStep, type Prepared } from './LaunchSteps';
 import {
-  buildRequest, criteriaCountOf, forecastOf, initialChoice, modeChoices, modeOfCatalog, optimizationFor, optionInputs, parseEngineParam,
+  buildRequest, forecastOf, initialChoice, modeChoices, modeOfCatalog, optimizationFor, optionInputs, parseEngineParam,
   planCeilingsOf, planOptions, requestOptions, sourceChoices,
 } from './launchModel';
 import { JobFrame, RefusalNotice } from './parts';
@@ -32,13 +32,13 @@ import { JobFrame, RefusalNotice } from './parts';
 const STEPS = ['What', 'Engine', 'Settings', 'Send'] as const;
 
 /**
- * Does the compiled form of the revision hold a range, and how many criteria does it optimize? Not being able to read it is not a reason
- * to stop: every mode is then offered, and the gateway decides about the optimization.
+ * Does the compiled revision hold a range, and how many criteria does it optimize? Both are read from its facts. Not being able to read
+ * them is not a reason to stop: every mode is then offered, and the gateway decides about the optimization.
  */
 async function readCompiled(org: string, problem: string, revision: number, compilation: string): Promise<{ ranges: boolean; criteria: number | null }> {
   try {
-    const compiled = await problemsApi.ir(org, problem, revision, compilation);
-    return { ranges: irHasRanges(compiled.ir), criteria: criteriaCountOf(compiled.ir) };
+    const facts = await problemFactsApi.get(org, problem, revision, compilation);
+    return { ranges: hasRanges(facts), criteria: facts.objectives.criteria.length };
   } catch {
     return { ranges: false, criteria: null };
   }

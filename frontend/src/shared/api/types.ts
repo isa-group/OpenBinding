@@ -13,3 +13,18 @@ export type ProblemFacts = Schemas['ProblemFactsView'];
 
 /** What changed from one version of a composition to another (`GET …/compositions/{composition}/diff`). */
 export type CompositionVersionDiff = Schemas['CompositionVersionDiff'];
+
+/** One candidate of a problem's facts: its key, provider, values by feature and where each value is written. */
+export type ProblemFactsCandidate = Schemas['ProblemFactsCandidate'];
+
+/** One constraint of a problem's facts: `<resource>/<id>`, its enforcement and its IR expressions. */
+export type ProblemFactsConstraint = Schemas['ProblemFactsConstraint'];
+
+/** Where a value of a candidate is written in its package (`kind: package`; F3 adds the other origins). */
+export type ProblemValueOrigin = Schemas['ProblemValueOrigin'];
+
+/** What `POST /v1/bim/validate` answers for a valid package, with `facts` when `include=facts` asks for them. */
+export type AnalysisResult = Schemas['AnalysisResult'];
+
+/** One version of a composition as the gateway serves it (`GET …/compositions/{composition}/versions/{version}`). */
+export type CompositionVersionView = Schemas['CompositionVersionView'];

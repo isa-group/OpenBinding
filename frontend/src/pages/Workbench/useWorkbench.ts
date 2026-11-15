@@ -405,14 +405,17 @@ export function useWorkbench({ orgSlug, userId, pathname, problemRef, revisionRe
 
   // --- compiled form, saving
 
-  /** Read the compiled form of the package as it is now: the gateway validates it once more and answers with its IR (nothing is stored). */
+  /**
+   * Read the compiled form of the package as it is now: the gateway validates it once more and answers with its IR, for the source
+   * view, and its facts, for the workflow drawing (nothing is stored).
+   */
   const compile = async (): Promise<boolean> => {
     setIrLoading(true);
     setIrError(null);
     try {
-      const response = await bimApi.validate(zipStore(packageFiles(filesRef.current)), { include: 'ir' });
-      if (!response.ir) throw new HttpError(422, 'The gateway did not return the compiled form.');
-      setCompiledIr({ digest: String(response.irDigest ?? ''), document: response.ir });
+      const response = await bimApi.validate(zipStore(packageFiles(filesRef.current)), { include: 'ir,facts' });
+      if (!response.ir || !response.facts) throw new HttpError(422, 'The gateway did not return the compiled form.');
+      setCompiledIr({ digest: String(response.irDigest ?? ''), document: response.ir, facts: response.facts });
       return true;
     } catch (caught: unknown) {
       setIrError(refusalText(refusalOf(caught), 'the package could not be compiled'));

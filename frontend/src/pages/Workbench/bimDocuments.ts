@@ -1,4 +1,5 @@
 import type { BimResourceRef } from '../../api/client';
+import type { ProblemFacts } from '../../shared/api/types';
 import type { FeatureSlot } from '../../utils/featureRange';
 import type { WorkspaceFiles } from '../../utils/workspaceDraft';
 
@@ -75,10 +76,14 @@ export const DEFAULT_FILES: WorkspaceFiles = {
 
 export type WorkspaceStatus = 'idle' | 'validating' | 'valid' | 'queued' | 'running' | 'completed' | 'failed';
 
-/** The compiled form of the package on screen, as the gateway's validation returned it (nothing is stored). */
+/**
+ * The compiled form of the package on screen, as the gateway's validation returned it (nothing is stored): the IR, shown as
+ * source and never read, and the facts, which the workflow drawing reads.
+ */
 export interface CompiledIr {
   digest: string;
   document: Record<string, unknown>;
+  facts: ProblemFacts;
 }
 
 export type ResourceRole = string;
