@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom/vitest';
+import 'fake-indexeddb/auto';
 import { cleanup, configure } from '@testing-library/react';
-import { afterEach } from 'vitest';
+import { IDBFactory } from 'fake-indexeddb';
+import { afterEach, beforeEach } from 'vitest';
 
 // `waitFor` and every `findBy*` query poll within this window, and Testing Library defaults it to
 // 1000 ms. That is the budget a React render, its effects and a resolved mock have to meet together,
@@ -14,6 +16,11 @@ import { afterEach } from 'vitest';
 configure({ asyncUtilTimeout: 5000 });
 
 afterEach(() => cleanup());
+
+// jsdom has no IndexedDB, and the editors keep their drafts there. Every test gets an empty one, so drafts never leak between tests.
+beforeEach(() => {
+  globalThis.indexedDB = new IDBFactory();
+});
 
 class ResizeObserverStub {
   observe() {}

@@ -4,7 +4,7 @@ import { ACCESS_TOKEN_KEY, HttpError, apiClient, PRICING_TOKEN_UPDATED_EVENT, SE
 import type { UserProfile } from '../api/auth';
 import { ErrorState } from '../components/ui/ErrorState';
 import { clearSessionEnded, markSessionEnded } from '../utils/authFlow';
-import { clearUserDrafts } from '../utils/workspaceDraft';
+import { clearUserDrafts } from '../shared/editor/drafts';
 import { AuthContext } from './auth';
 
 /**
@@ -116,16 +116,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [loadProfile]
   );
 
+  const userId = user?.id;
   const signOut = useCallback(async () => {
     try {
       await apiClient.logout();
     } finally {
-      // The person's workbench drafts stay in this browser; they must not outlive their session.
-      await clearUserDrafts().catch(() => undefined);
+      // The person's editor drafts stay in this browser; they must not outlive their session.
+      if (userId) await clearUserDrafts(userId).catch(() => undefined);
     }
     setUser(null);
     setUnavailable(false);
-  }, []);
+  }, [userId]);
 
   const retry = async () => {
     setRetrying(true);

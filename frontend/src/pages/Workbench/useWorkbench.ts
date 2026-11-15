@@ -1,17 +1,18 @@
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { bimApi } from '../../api/bim';
 import { HttpError, type BimAnalysisData, type BimAnalysisResponse } from '../../api/client';
 import { problemsApi, type ProblemUpload } from '../../api/problems';
 import { packageFiles, unzipPackage, zipStore } from '../../utils/bimZip';
 import { migrateFiles } from '../../utils/bimVocabulary';
-import { loadDraft, saveDraft, type WorkspaceFiles } from '../../utils/workspaceDraft';
+import { draftScope as scopeOfDraft, loadDraft } from '../../shared/editor/drafts';
+import { useDraftStore } from '../../shared/editor/useDraftStore';
 import { sourceDiff, toYaml } from '../../utils/workspaceViews';
 import {
   DEFAULT_BPMN, DEFAULT_FILES, allModesFromAnalysis, diagnosticSelection, errorDiagnostics, instanceResources,
   modesFromAnalysis, parseJson, pretty, resourcePathForDiagnostic,
-  type BimDocument, type CompatibleMode, type CompiledIr, type Diagnostic, type WorkspaceStatus,
+  type BimDocument, type CompatibleMode, type CompiledIr, type Diagnostic, type WorkspaceFiles, type WorkspaceStatus,
 } from './bimDocuments';
-import { refusalOf, refusalText, saveRefusalText, workbenchDraftScope, type Refusal } from './workbenchModel';
+import { refusalOf, refusalText, saveRefusalText, type Refusal } from './workbenchModel';
 
 export type EditorTab = 'resources' | 'form' | 'bpmn';
 export type SourceView = 'json' | 'yaml' | 'workflow' | 'bpmnXml' | 'ir' | 'diff';
@@ -22,7 +23,6 @@ export type CheckOrigin = 'package' | 'import' | 'example';
 export interface WorkbenchOptions {
   orgSlug: string;
   userId?: string;
-  pathname: string;
   /** The problem the address opens (`?problem=`). */
   problemRef: string | null;
   /** Its version, by number or id (`?revision=`); the newest without it. */
@@ -128,23 +128,18 @@ async function hydrate({ scope, requestedExample, problemRef, revisionRef, orgSl
  * and the problem version saved from them. Nothing runs here: a saved version runs from its problem page. Screens read it and call its
  * actions; nothing here draws.
  */
-export function useWorkbench({ orgSlug, userId, pathname, problemRef, revisionRef, requestedExample }: WorkbenchOptions) {
-  const draftScope = workbenchDraftScope(userId, pathname, problemRef, revisionRef);
+export function useWorkbench({ orgSlug, userId, problemRef, revisionRef, requestedExample }: WorkbenchOptions) {
+  const draftScope = scopeOfDraft({ user: userId, kind: 'problem', org: orgSlug, entity: problemRef || 'new', base: revisionRef || 'none' });
 
-  // The package
-  const [files, setFiles] = useState<WorkspaceFiles>(DEFAULT_FILES);
-  const [baseline, setBaseline] = useState<WorkspaceFiles>(DEFAULT_FILES);
+  // The package, its history and its draft in the browser
+  const draft = useDraftStore<WorkspaceFiles>({ scope: draftScope, initial: DEFAULT_FILES });
+  const { files, baseline } = draft;
   const [selectedPath, setSelectedPath] = useState('instance.json');
   const [bpmnDraft, setBpmnDraft] = useState(DEFAULT_BPMN);
-  const [hydratedScope, setHydratedScope] = useState<string | null>(null);
-  const [historyDepth, setHistoryDepth] = useState(0);
   const [revisionRefusal, setRevisionRefusal] = useState<{ scope: string; failure: Refusal } | null>(null);
-  const [draftIssue, setDraftIssue] = useState<string | null>(null);
   const [migrationNotes, setMigrationNotes] = useState<string[]>([]);
   const [examples, setExamples] = useState<string[]>([]);
   const [attempt, setAttempt] = useState(0);
-  const historyRef = useRef<WorkspaceFiles[]>([]);
-  const filesRef = useRef<WorkspaceFiles>(DEFAULT_FILES);
 
   // The check
   const [status, setStatus] = useState<WorkspaceStatus>('idle');
@@ -171,7 +166,7 @@ export function useWorkbench({ orgSlug, userId, pathname, problemRef, revisionRe
   const [focusedBpmnElement, setFocusedBpmnElement] = useState<string | null>(null);
   const [editorSelection, setEditorSelection] = useState<{ anchor: number; head: number } | undefined>();
 
-  const hydrated = hydratedScope === draftScope;
+  const hydrated = draft.hydrated;
   const loadIssue = revisionRefusal?.scope === draftScope ? revisionRefusal.failure : null;
   const root = useMemo(() => parseJson(files['instance.json']), [files]);
   const resources = useMemo(() => instanceResources(root, files), [root, files]);
@@ -191,12 +186,6 @@ export function useWorkbench({ orgSlug, userId, pathname, problemRef, revisionRe
 
   // --- bringing a package in
 
-  /** The workspace changes: the files the next call reads are these, even before the screen has drawn them. */
-  const commitFiles = (next: WorkspaceFiles) => {
-    filesRef.current = next;
-    setFiles(next);
-  };
-
   const clearChecks = () => {
     setStatus('idle');
     setRefusal(null);
@@ -211,11 +200,6 @@ export function useWorkbench({ orgSlug, userId, pathname, problemRef, revisionRe
     setSaveIssue(null);
   };
 
-  const remember = (current: WorkspaceFiles) => {
-    historyRef.current = [...historyRef.current.slice(-39), current];
-    setHistoryDepth(historyRef.current.length);
-  };
-
   const showBpmnOf = (next: WorkspaceFiles) => {
     const nextBpmn = bpmnPathOf(next);
     setBpmnDraft(nextBpmn ? next[nextBpmn] : DEFAULT_BPMN);
@@ -223,15 +207,13 @@ export function useWorkbench({ orgSlug, userId, pathname, problemRef, revisionRe
 
   const applyHydration = useEffectEvent((outcome: Hydration) => {
     if (outcome.kind === 'files') {
-      commitFiles(outcome.files);
-      setBaseline(outcome.files);
+      draft.start(outcome.files);
       setMigrationNotes(outcome.migrated);
       showBpmnOf(outcome.files);
       setSelectedPath('instance.json');
       clearChecks();
     } else if (outcome.kind === 'example') {
-      commitFiles(outcome.files);
-      setBaseline(outcome.files);
+      draft.start(outcome.files);
       showBpmnOf(outcome.files);
       const modes = modesFromAnalysis(outcome.response);
       setOrigin('example');
@@ -245,11 +227,11 @@ export function useWorkbench({ orgSlug, userId, pathname, problemRef, revisionRe
       setStatus('failed');
       setRefusal(outcome.failure);
       setDiagnostics(outcome.diagnostics);
+      // The workspace keeps what it shows, and that is what the draft keeps from now on.
+      draft.start();
     } else {
       setRevisionRefusal({ scope: outcome.scope, failure: outcome.failure });
-      return;
     }
-    setHydratedScope(outcome.scope);
   });
 
   useEffect(() => {
@@ -267,44 +249,30 @@ export function useWorkbench({ orgSlug, userId, pathname, problemRef, revisionRe
     setAttempt((value) => value + 1);
   };
 
-  useEffect(() => {
-    if (hydratedScope !== draftScope) return;
-    void saveDraft(files, draftScope)
-      .then(() => setDraftIssue(null))
-      .catch((reason: unknown) => setDraftIssue(reason instanceof Error ? reason.message : 'This draft could not be kept in the browser.'));
-  }, [files, hydratedScope, draftScope]);
-
   /** A whole package replaces the workspace: a new baseline and fresh checks. */
   const replaceWorkspace = (nextFiles: WorkspaceFiles) => {
-    remember(filesRef.current);
-    setBaseline(nextFiles);
-    commitFiles(nextFiles);
+    draft.replace(nextFiles, { asBaseline: true });
     setSelectedPath('instance.json');
     setEditorTab('resources');
     showBpmnOf(nextFiles);
     clearChecks();
   };
 
+  /** The workspace changes as one undo step: the files the next call reads are these, even before the screen has drawn them. */
   const updateWorkspace = (updater: (current: WorkspaceFiles) => WorkspaceFiles) => {
-    const current = filesRef.current;
-    remember(current);
-    commitFiles(updater(current));
+    draft.commit(updater);
     clearChecks();
   };
 
   const undo = () => {
-    const previous = historyRef.current.pop();
+    const previous = draft.undo();
     if (!previous) return;
-    commitFiles(previous);
-    setHistoryDepth(historyRef.current.length);
     showBpmnOf(previous);
     clearChecks();
   };
 
   const reset = () => {
-    remember(filesRef.current);
-    commitFiles(baseline);
-    showBpmnOf(baseline);
+    showBpmnOf(draft.reset());
     setSelectedPath('instance.json');
     setEditorTab('resources');
     clearChecks();
@@ -313,7 +281,7 @@ export function useWorkbench({ orgSlug, userId, pathname, problemRef, revisionRe
   // --- the check
 
   /** Have the gateway check the package. Answers with its analysis, or `null` when it refused. */
-  const validate = async (candidateFiles: WorkspaceFiles = filesRef.current): Promise<BimAnalysisResponse | null> => {
+  const validate = async (candidateFiles: WorkspaceFiles = draft.current()): Promise<BimAnalysisResponse | null> => {
     setStatus('validating');
     setOrigin('package');
     setRefusal(null);
@@ -413,7 +381,7 @@ export function useWorkbench({ orgSlug, userId, pathname, problemRef, revisionRe
     setIrLoading(true);
     setIrError(null);
     try {
-      const response = await bimApi.validate(zipStore(packageFiles(filesRef.current)), { include: 'ir,facts' });
+      const response = await bimApi.validate(zipStore(packageFiles(draft.current())), { include: 'ir,facts' });
       if (!response.ir || !response.facts) throw new HttpError(422, 'The gateway did not return the compiled form.');
       setCompiledIr({ digest: String(response.irDigest ?? ''), document: response.ir, facts: response.facts });
       return true;
@@ -434,7 +402,7 @@ export function useWorkbench({ orgSlug, userId, pathname, problemRef, revisionRe
     setSaveIssue(null);
     setSaved(null);
     try {
-      const archive = zipStore(packageFiles(filesRef.current));
+      const archive = zipStore(packageFiles(draft.current()));
       const upload = target.kind === 'new'
         ? await problemsApi.create(orgSlug, archive, { slug: target.slug, name: target.name })
         : await problemsApi.createRevision(orgSlug, target.problem, archive);
@@ -470,7 +438,7 @@ export function useWorkbench({ orgSlug, userId, pathname, problemRef, revisionRe
   const acceptBpmn = (xml: string) => {
     if (!bpmnPath) return;
     const normalized = xml.replace(/\r\n?/g, '\n');
-    if (filesRef.current[bpmnPath] !== normalized) updateWorkspace((current) => ({ ...current, [bpmnPath]: normalized }));
+    if (draft.current()[bpmnPath] !== normalized) updateWorkspace((current) => ({ ...current, [bpmnPath]: normalized }));
     setBpmnDraft(xml);
     setDiagnostics((current) => current.filter((item) => item.code !== 'bpmn-editor'));
   };
@@ -517,7 +485,7 @@ export function useWorkbench({ orgSlug, userId, pathname, problemRef, revisionRe
 
   return {
     // package
-    files, selectedPath, bpmnDraft, hydrated, historyDepth, loadIssue, draftIssue, migrationNotes, dismissMigration: () => setMigrationNotes([]), examples, baseline,
+    files, selectedPath, bpmnDraft, hydrated, canUndo: draft.canUndo, loadIssue, draftIssue: draft.issue, migrationNotes, dismissMigration: () => setMigrationNotes([]), examples, baseline,
     root, resources, selectedDocument, selectedResource, selectedKind, selectedYaml, selectedDiff, selectedChanged, application,
     bpmnPath, workflowText,
     // check: while an example is being brought in, the package is being checked

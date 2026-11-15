@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
+import { loadDraft } from '../../shared/editor/drafts';
 import { unzipPackage } from '../../utils/bimZip';
 import type { ProblemUpload } from '../../api/problems';
 import { checkoutFacts, compiledDocument, digestOf } from '../Cases/fixtures';
@@ -384,11 +385,11 @@ describe('Workbench', () => {
       expect(screen.getByLabelText('Name')).toHaveValue('guided-example');
     });
 
-    it('keeps the unsaved edits of the workspace in the browser, per address', async () => {
+    it('keeps the unsaved edits of the workspace in the browser, per person, organization and problem version', async () => {
       const first = await openWorkbench();
       fireEvent.click(screen.getByRole('button', { name: /instance\.json/i }));
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'kept-in-the-browser' } });
-      await waitFor(() => expect(localStorage.getItem(`bim-v1-draft:user-lucia:${ROOT}/workbench::`)).toContain('kept-in-the-browser'));
+      await waitFor(async () => expect((await loadDraft('user-lucia:problem:isa-demo:new:none'))?.['instance.json']).toContain('kept-in-the-browser'));
       first.unmount();
 
       await openWorkbench();

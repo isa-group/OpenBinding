@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import type { Organization } from '../../api/platform';
 import { problemsApi, type ProblemRevision } from '../../api/problems';
 import { Action } from '../../components/ui/Action';
@@ -26,7 +26,6 @@ const PICKER_LIMIT = 200;
 
 function WorkbenchScreen({ organization, canSave }: { organization: Organization; canSave: boolean }) {
   const { user } = useAuth();
-  const location = useLocation();
   const [params, setParams] = useSearchParams();
   const org = organization.slug;
   const problemRef = params.get('problem');
@@ -35,7 +34,7 @@ function WorkbenchScreen({ organization, canSave }: { organization: Organization
   const [pickedCase, setPickedCase] = useState(problemRef ?? '');
   const [saveTarget, setSaveTarget] = useState(problemRef ?? NEW_PROBLEM);
 
-  const wb = useWorkbench({ orgSlug: org, userId: user?.id, pathname: location.pathname, problemRef, revisionRef, requestedExample });
+  const wb = useWorkbench({ orgSlug: org, userId: user?.id, problemRef, revisionRef, requestedExample });
 
   const problems = useResource(`wb-problems:${org}`, async () => (await problemsApi.list(org, { limit: PICKER_LIMIT })).problems);
   const revisions = useResource<ProblemRevision[]>(

@@ -4,8 +4,7 @@ import { RANGE_CODE, RANGE_REFUSAL } from '../../utils/featureRange';
 import { inInterfaceWords } from '../../components/ui/interfaceWords';
 import { limitProblemOf } from '../../utils/limitRefusals';
 import { limitInfo } from '../../utils/limits';
-import type { WorkspaceFiles } from '../../utils/workspaceDraft';
-import { isRecord, parseJson, type BimDocument, type CompatibleMode, type Diagnostic, type ResourceEntry } from './bimDocuments';
+import { isRecord, parseJson, type BimDocument, type CompatibleMode, type Diagnostic, type ResourceEntry, type WorkspaceFiles } from './bimDocuments';
 
 /** Everything the workbench says about a package or a refusal, as plain functions. */
 
@@ -210,11 +209,4 @@ export function engineRows(modes: CompatibleMode[]): EngineRow[] {
       ? `Runs through ${item.registration.namespace}/${item.registration.name}@${item.registration.version}.`
       : whyNot(item),
   }));
-}
-
-// --- the draft of the workspace
-
-/** Where a workspace's unsaved edits are kept: per person, per address and per problem version. */
-export function workbenchDraftScope(userId: string | undefined, pathname: string, problemRef: string | null, revisionRef: string | null): string {
-  return `${userId || 'anonymous'}:${pathname}:${problemRef || ''}:${revisionRef || ''}`;
 }

@@ -1,8 +1,9 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { saveDraft } from '../../shared/editor/drafts';
 import { unzipPackage } from '../../utils/bimZip';
 import { DEFAULT_FILES } from './bimDocuments';
-import { ROOT, analysis, openWorkbench } from './workbenchTestKit';
+import { analysis, openWorkbench } from './workbenchTestKit';
 
 // The forms of the editor: they edit the documents of the package in place, and what the gateway receives is what they wrote.
 
@@ -18,7 +19,8 @@ vi.mock('../../components/CodeEditor/CodeEditor', () => ({
 }));
 vi.mock('./BpmnModeler', () => ({ BpmnModeler: () => <div data-testid="bpmn-modeler" /> }));
 
-const DRAFT_KEY = `bim-v1-draft:user-lucia:${ROOT}/workbench::`;
+/** Where the workbench of the test organization keeps the draft of a new problem for Lucía. */
+const DRAFT_SCOPE = 'user-lucia:problem:isa-demo:new:none';
 
 /** The files the gateway was asked to check on a call of the validation. */
 async function checkedFiles(callIndex = workbench.validate.mock.calls.length - 1) {
@@ -31,7 +33,6 @@ const validate = () => fireEvent.click(screen.getByRole('button', { name: 'Valid
 
 describe('Workbench · forms of the editor', () => {
   beforeEach(() => {
-    localStorage.clear();
     vi.resetAllMocks();
     problems.list.mockResolvedValue({ problems: [], total: 0, limit: 200, offset: 0 });
     problems.revisions.mockResolvedValue([]);
@@ -103,7 +104,7 @@ describe('Workbench · forms of the editor', () => {
   });
 
   it('edits Optimization criteria, normalization, and explicit penalties with the keys of the schema', async () => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+    await saveDraft(DRAFT_SCOPE, {
       ...DEFAULT_FILES,
       'instance.json': JSON.stringify({
         apiVersion: 'bim/v1',
@@ -134,7 +135,7 @@ describe('Workbench · forms of the editor', () => {
         metadata: { name: 'constraints' },
         spec: { constraints: { softLatency: { assert: 'features.latency >= 0', enforcement: 'soft', penalty: 1 }, hardCost: { assert: 'features.cost >= 0', enforcement: 'hard' } } },
       }),
-    }));
+    });
     await openWorkbench();
     fireEvent.click(await screen.findByRole('button', { name: /optimization\.json/i }));
 
@@ -273,7 +274,7 @@ describe('Workbench · forms of the editor', () => {
   });
 
   it('says what a package lacks to compile across its documents, and writes it with one action', async () => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+    await saveDraft(DRAFT_SCOPE, {
       'instance.json': JSON.stringify({
         apiVersion: 'bim/v1',
         kind: 'Instance',
@@ -317,7 +318,7 @@ describe('Workbench · forms of the editor', () => {
           criteria: [{ id: 'latency', feature: { resource: 'application', id: 'latency' } }, { id: 'cost', feature: { resource: 'application', id: 'cost' } }],
         },
       }),
-    }));
+    });
     await openWorkbench();
 
     // The catalog: a provider that is not declared, a binding to a feature the Application does not declare, a value the goal asks for.
@@ -358,13 +359,13 @@ describe('Workbench · forms of the editor', () => {
   });
 
   it('offers nothing to point to when the Application declares no feature, and sends the person there', async () => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+    await saveDraft(DRAFT_SCOPE, {
       ...DEFAULT_FILES,
       'application.json': JSON.stringify({
         apiVersion: 'qos-binding/v1', kind: 'Application', metadata: { name: 'app' },
         spec: { tasks: { hello: 'http' }, features: {}, workflow: { task: { resource: 'application', id: 'hello' } } },
       }),
-    }));
+    });
     await openWorkbench();
     fireEvent.click(await screen.findByRole('button', { name: /optimization\.json/i }));
     expect(screen.getByText('The Application declares no features')).toBeInTheDocument();
@@ -374,7 +375,7 @@ describe('Workbench · forms of the editor', () => {
   });
 
   it('opens a draft written with the older vocabulary in the real one, says so, and keeps what has no place in the schema', async () => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+    await saveDraft(DRAFT_SCOPE, {
       'instance.json': JSON.stringify({
         apiVersion: 'bim/v1',
         kind: 'Instance',
@@ -402,7 +403,7 @@ describe('Workbench · forms of the editor', () => {
         metadata: { name: 'goal' },
         spec: { type: 'MONO', mode: 'weighted', terms: [{ metric: { resource: 'application', id: 'latency' }, weight: 2 }] },
       }),
-    }));
+    });
     await openWorkbench();
     expect(await screen.findByText(/used an older vocabulary/)).toBeInTheDocument();
     expect(screen.getByText(/optimization\.json · spec: 1 term became criteria/)).toBeInTheDocument();
@@ -423,7 +424,7 @@ describe('Workbench · forms of the editor', () => {
   });
 
   it('authors RoutingOverlay and the complete Placement topology without opening the source', async () => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+    await saveDraft(DRAFT_SCOPE, {
       'instance.json': JSON.stringify({
         apiVersion: 'bim/v1',
         kind: 'Instance',
@@ -447,7 +448,7 @@ describe('Workbench · forms of the editor', () => {
         metadata: { name: 'placement' },
         spec: { pools: { p_edge: { kind: 'edge', capacity: { memory: 4 } } }, defaults: { memory: 1 } },
       }),
-    }));
+    });
     await openWorkbench();
 
     fireEvent.click(await screen.findByRole('button', { name: /routing\.json/i }));
@@ -492,7 +493,7 @@ describe('Workbench · forms of the editor', () => {
   }, 15000);
 
   it('creates schema-valid expression AST and keeps an invalid AST draft out of the package', async () => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+    await saveDraft(DRAFT_SCOPE, {
       'instance.json': JSON.stringify({
         apiVersion: 'bim/v1',
         kind: 'Instance',
@@ -502,7 +503,7 @@ describe('Workbench · forms of the editor', () => {
       'constraints.json': JSON.stringify({
         apiVersion: 'qos-binding/v1', kind: 'ConstraintSet', metadata: { name: 'constraints' }, spec: { constraints: {} },
       }),
-    }));
+    });
     await openWorkbench();
     fireEvent.click(await screen.findByRole('button', { name: /constraints\.json/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Add AST constraint' }));

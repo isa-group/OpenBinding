@@ -146,7 +146,7 @@ export function PackageSource({ wb, choices, requestedExample, casesHref }: Pack
         </div>
       )}
       <div className="wb-card-foot">
-        <Action variant="ghost" size="sm" onClick={wb.undo} disabled={!wb.historyDepth}><History aria-hidden="true" />Undo edit</Action>
+        <Action variant="ghost" size="sm" onClick={wb.undo} disabled={!wb.canUndo}><History aria-hidden="true" />Undo edit</Action>
         <Action variant="ghost" size="sm" onClick={wb.reset}><RotateCcw aria-hidden="true" />Reset workspace</Action>
         <Action variant="ghost" size="sm" onClick={wb.exportPackage}><Download aria-hidden="true" />Export .bim.zip</Action>
         {wb.draftIssue && <span className="wb-draft-issue" role="status">{wb.draftIssue}</span>}
