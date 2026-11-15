@@ -464,13 +464,17 @@ def test_the_openapi_document_declares_the_refusal(route):
 # ------------------------------------------------------------------- the reads visitors may make
 
 COMPOSITION = "/v1/organizations/{org}/compositions/{composition}"
-#: A visitor's request for every read of a public composition: counted, then 404 (nothing is there).
+#: A visitor's request for every read of public compositions, and what it answers once counted: the reads of
+#: one composition 404 (nothing is there), the list of every organization's 200 (empty).
 ANONYMOUS_REQUESTS = {
-    ("GET", COMPOSITION): "/v1/organizations/{org}/compositions/none",
-    ("GET", f"{COMPOSITION}/versions"): "/v1/organizations/{org}/compositions/none/versions",
-    ("GET", f"{COMPOSITION}/versions/{{version}}"): "/v1/organizations/{org}/compositions/none/versions/1",
-    ("GET", f"{COMPOSITION}/versions/{{version}}/content"): "/v1/organizations/{org}/compositions/none/versions/1/content",
-    ("GET", f"{COMPOSITION}/diff"): "/v1/organizations/{org}/compositions/none/diff",
+    ("GET", "/v1/compositions"): ("/v1/compositions", 200),
+    ("GET", COMPOSITION): ("/v1/organizations/{org}/compositions/none", 404),
+    ("GET", f"{COMPOSITION}/versions"): ("/v1/organizations/{org}/compositions/none/versions", 404),
+    ("GET", f"{COMPOSITION}/versions/{{version}}"): ("/v1/organizations/{org}/compositions/none/versions/1", 404),
+    ("GET", f"{COMPOSITION}/versions/{{version}}/content"): (
+        "/v1/organizations/{org}/compositions/none/versions/1/content", 404,
+    ),
+    ("GET", f"{COMPOSITION}/diff"): ("/v1/organizations/{org}/compositions/none/diff", 404),
 }
 
 
@@ -494,19 +498,20 @@ def test_the_anonymous_reads_are_the_routes_that_take_a_reader():
 @pytest.mark.parametrize("route", sorted(ANONYMOUS_REQUESTS))
 async def test_every_anonymous_read_is_limited_in_the_platform_envelope(api_client, budgets, member, route):
     budgets(read=1)
-    path = ANONYMOUS_REQUESTS[route].format(org=member[1]["org"])
+    template, answered = ANONYMOUS_REQUESTS[route]
+    path = template.format(org=member[1]["org"])
 
     first = await api_client.get(path)
     second = await api_client.get(path)
     signed_in = [(await api_client.get(path, headers=member[0])).status_code for _ in range(3)]
 
-    assert first.status_code == 404, first.text
+    assert first.status_code == answered, first.text
     assert_refused(second)
     assert second.headers["content-type"].split(";")[0] == "application/json"
     assert second.json()["detail"]["code"] == "rate_limit_exceeded"
     assert second.json()["detail"]["work_class"] == "read"
     # A member is never charged for reading.
-    assert signed_in == [404, 404, 404]
+    assert signed_in == [answered] * 3
 
 
 @pytest.mark.parametrize("route", sorted(ANONYMOUS_READ_ROUTES))

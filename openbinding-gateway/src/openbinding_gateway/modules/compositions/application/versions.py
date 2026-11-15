@@ -15,7 +15,7 @@ from bim_core import BimError
 from fastapi import status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import defer
+from sqlalchemy.orm import defer, load_only
 
 from ....db.models import (
     BindingCase,
@@ -23,7 +23,9 @@ from ....db.models import (
     Composition,
     CompositionEvaluation,
     CompositionVersion,
+    EvaluationOutcome,
     ProblemCompilation,
+    ValuesStatus,
 )
 from ....integrations import bim
 from ....models.errors import api_error
@@ -222,6 +224,26 @@ async def summaries(session: AsyncSession, composition_ids: list[uuid.UUID]) -> 
     }
 
 
+async def verified_among(session: AsyncSession, versions: list[CompositionVersion]) -> set[uuid.UUID]:
+    """Which of ``versions`` their current evaluation verified (a version view's ``verified``), in one query."""
+    linked = [version.id for version in versions if version.values_status == ValuesStatus.VERIFIED]
+    if not linked:
+        return set()
+    evaluations: dict[uuid.UUID, list[CompositionEvaluation]] = {identifier: [] for identifier in linked}
+    for evaluation in (await session.scalars(
+        select(CompositionEvaluation).options(
+            load_only(CompositionEvaluation.version_id, CompositionEvaluation.basis_key, CompositionEvaluation.outcome)
+        ).where(CompositionEvaluation.version_id.in_(linked))
+        .order_by(CompositionEvaluation.created_at, CompositionEvaluation.id)
+    )).all():
+        evaluations[evaluation.version_id].append(evaluation)
+    basis = installed_basis()
+    return {
+        identifier for identifier, own in evaluations.items()
+        if (current := current_of(own, basis)) is not None and current.outcome == EvaluationOutcome.VERIFIED
+    }
+
+
 __all__ = [
     "Detail",
     "Link",
@@ -233,5 +255,6 @@ __all__ = [
     "list_versions",
     "required_version",
     "summaries",
+    "verified_among",
     "version_by_ref",
 ]

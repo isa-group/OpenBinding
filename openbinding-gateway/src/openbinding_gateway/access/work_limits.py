@@ -29,9 +29,9 @@ the budget and does not share it with whoever shares its address. A key and its 
 caller. The counters are the ones in ``core/ratelimit.py``: Redis, so every replica shares them, and
 counters per process while Redis does not answer.
 
-The reads of a public composition are open to anybody too (``ANONYMOUS_READ_ROUTES``). They are cheap for
-a member, so only a visitor (no credential) is charged, against the ``read`` class's anonymous budget:
-members paging versions, and every signed-in caller, are never limited there.
+The list of public compositions and the reads of one are open to anybody too (``ANONYMOUS_READ_ROUTES``).
+They are cheap for a member, so only a visitor (no credential) is charged, against the ``read`` class's
+anonymous budget: members paging versions, and every signed-in caller, are never limited there.
 
 A request is counted when it arrives, whatever becomes of it, so a malformed one is not free. What this
 does not do: it counts requests rather than their size, and on a route with a JSON body it runs after FastAPI
@@ -86,10 +86,12 @@ WORK_ROUTES: dict[tuple[str, str], WorkClass] = {
     ("POST", "/v1/organizations/{org}/compositions/{composition}/derive"): "evaluate",
 }
 
-#: The routes a visitor may read a public composition through (``get_reader``). Only a visitor is charged, one
-#: request of the ``read`` class each (``charge_anonymous_read``). A test pins this table to the routes that
-#: depend on ``get_reader``, and the OpenAPI document declares the 429 from it.
+#: The routes a visitor may read public compositions through (``get_reader``): the list of every organization's,
+#: and the reads of one. Only a visitor is charged, one request of the ``read`` class each
+#: (``charge_anonymous_read``). A test pins this table to the routes that depend on ``get_reader``, and the
+#: OpenAPI document declares the 429 from it.
 ANONYMOUS_READ_ROUTES: frozenset[tuple[str, str]] = frozenset({
+    ("GET", "/v1/compositions"),
     ("GET", "/v1/organizations/{org}/compositions/{composition}"),
     ("GET", "/v1/organizations/{org}/compositions/{composition}/versions"),
     ("GET", "/v1/organizations/{org}/compositions/{composition}/versions/{version}"),

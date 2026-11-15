@@ -193,6 +193,56 @@ async def list_compositions(
     return Page(list(rows), total)
 
 
+@dataclass(frozen=True)
+class PublicPage:
+    """One page of the public compositions of every organization, each with its organization, and how many
+    match in all."""
+
+    compositions: list[tuple[Composition, Organization]]
+    total: int
+
+
+async def list_public(
+    session: AsyncSession,
+    *,
+    kind: CompositionKind | None = None,
+    q: str | None = None,
+    organization: str | None = None,
+    limit: int = 24,
+    offset: int = 0,
+) -> PublicPage:
+    """The public compositions of every organization that are not archived and have a version, the most
+    recently changed first, filtered by kind, by a text in name or slug, and by the organization's slug.
+
+    Only what anybody reads is listed, so an organization with no public composition does not appear, and a
+    filter on one answers an empty page whether it exists or not.
+    """
+    query = (
+        select(Composition, Organization)
+        .join(Organization, Organization.id == Composition.organization_id)
+        .where(
+            Composition.visibility == PUBLIC,
+            Composition.archived.is_(False),
+            select(CompositionVersion.id).where(CompositionVersion.composition_id == Composition.id).exists(),
+        )
+    )
+    if kind is not None:
+        query = query.where(Composition.kind == kind)
+    if organization:
+        query = query.where(Organization.slug == organization)
+    if q:
+        pattern = like_contains(q)
+        query = query.where(or_(
+            Composition.name.ilike(pattern, escape=LIKE_ESCAPE),
+            Composition.slug.ilike(pattern, escape=LIKE_ESCAPE),
+        ))
+    total = int(await session.scalar(select(func.count()).select_from(query.subquery())) or 0)
+    rows = (await session.execute(
+        query.order_by(Composition.updated_at.desc(), Composition.slug, Composition.id).offset(offset).limit(limit)
+    )).all()
+    return PublicPage([(composition, owner) for composition, owner in rows], total)
+
+
 # -- Writing ---------------------------------------------------------------------------------------------
 
 

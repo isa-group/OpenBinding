@@ -220,6 +220,46 @@ class CompositionList(BaseModel):
     offset: int
 
 
+class PublicCompositionOrganization(BaseModel):
+    """The organization a public composition belongs to, as its URLs and its header name it."""
+
+    slug: str
+    name: str = Field(description="The organization's display name.")
+
+
+class PublicVersionSummary(BaseModel):
+    """The latest version of a public composition, as a list shows it."""
+
+    label: str = Field(description="The document's `version:` (Semantic Versioning).")
+    ordinal: int = Field(ge=1)
+    values_status: ValuesStatusName
+    verified: bool = Field(description="Whether the current evaluation verified the binding and computed the values.")
+    created_at: datetime
+
+
+class PublicCompositionView(BaseModel):
+    """A public composition in the list of every organization's: what anybody reads, and no member id or
+    lineage."""
+
+    organization: PublicCompositionOrganization
+    slug: str
+    name: str
+    description: str
+    kind: CompositionKindName
+    latest_version: PublicVersionSummary
+    version_count: int = Field(ge=1, description="How many versions it has.")
+    updated_at: datetime
+
+
+class PublicCompositionList(BaseModel):
+    """One page of the public compositions of every organization, and how many match in all."""
+
+    compositions: list[PublicCompositionView]
+    total: int
+    limit: int
+    offset: int
+
+
 # -- Versions and their evaluations ----------------------------------------------------------------------
 
 

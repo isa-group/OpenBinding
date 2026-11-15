@@ -8015,6 +8015,156 @@
         ],
         "type": "object"
       },
+      "PublicCompositionList": {
+        "description": "One page of the public compositions of every organization, and how many match in all.",
+        "properties": {
+          "compositions": {
+            "items": {
+              "$ref": "#/components/schemas/PublicCompositionView"
+            },
+            "title": "Compositions",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "compositions",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "PublicCompositionList",
+        "type": "object"
+      },
+      "PublicCompositionOrganization": {
+        "description": "The organization a public composition belongs to, as its URLs and its header name it.",
+        "properties": {
+          "name": {
+            "description": "The organization's display name.",
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name"
+        ],
+        "title": "PublicCompositionOrganization",
+        "type": "object"
+      },
+      "PublicCompositionView": {
+        "description": "A public composition in the list of every organization's: what anybody reads, and no member id or\nlineage.",
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "application",
+              "workflow",
+              "pipeline",
+              "system"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "latest_version": {
+            "$ref": "#/components/schemas/PublicVersionSummary"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/PublicCompositionOrganization"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version_count": {
+            "description": "How many versions it has.",
+            "minimum": 1.0,
+            "title": "Version Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "organization",
+          "slug",
+          "name",
+          "description",
+          "kind",
+          "latest_version",
+          "version_count",
+          "updated_at"
+        ],
+        "title": "PublicCompositionView",
+        "type": "object"
+      },
+      "PublicVersionSummary": {
+        "description": "The latest version of a public composition, as a list shows it.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "label": {
+            "description": "The document's `version:` (Semantic Versioning).",
+            "title": "Label",
+            "type": "string"
+          },
+          "ordinal": {
+            "minimum": 1.0,
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "values_status": {
+            "enum": [
+              "verified",
+              "declared"
+            ],
+            "title": "Values Status",
+            "type": "string"
+          },
+          "verified": {
+            "description": "Whether the current evaluation verified the binding and computed the values.",
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label",
+          "ordinal",
+          "values_status",
+          "verified",
+          "created_at"
+        ],
+        "title": "PublicVersionSummary",
+        "type": "object"
+      },
       "QuotaBody": {
         "description": "Which allowance refused, and where it stands.\n\nEnough for a client to decide what to do next without asking again: the\nlimit that ran out, how much of it there was, and when it comes back.",
         "properties": {
@@ -12582,6 +12732,184 @@
         "summary": "Validate a BIM package and find the engine modes that fit it",
         "tags": [
           "BIM"
+        ]
+      }
+    },
+    "/v1/compositions": {
+      "get": {
+        "description": "The public compositions of every organization, the most recently changed first; anybody reads them.",
+        "operationId": "listPublicCompositions",
+        "parameters": [
+          {
+            "description": "Text in the name or the slug.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 160,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Text in the name or the slug.",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "application",
+                    "workflow",
+                    "pipeline",
+                    "system"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "description": "Only the public compositions of this organization (its slug).",
+            "in": "query",
+            "name": "organization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only the public compositions of this organization (its slug).",
+              "title": "Organization"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicCompositionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          },
+          {}
+        ],
+        "summary": "List Public Compositions",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
         ]
       }
     },

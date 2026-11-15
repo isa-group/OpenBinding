@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 135
+    assert len(ROUTES) == 136
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -199,6 +199,16 @@ def test_the_composition2yaml_services_need_compositions_read_and_the_schema_is_
         assert required_permissions(path, method) == expected, path
     assert is_open("GET", "/v1/compositions/schema")
     assert {"compositions:read", "compositions:write"} <= set(ALL_PERMISSIONS)
+
+
+def test_the_public_compositions_of_every_organization_are_a_composition_read():
+    assert ("GET", "/v1/compositions") in ROUTES
+    assert required_permissions("/v1/compositions", "GET") == frozenset({"compositions:read"})
+    assert not is_open("GET", "/v1/compositions")
+    # A key scoped to compositions lists them; one scoped to problems does not.
+    request = {"method": "GET", "path_params": {}, "path": "/v1/compositions"}
+    assert allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["composition"]}}), **request)
+    assert not allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["problem"]}}), **request)
 
 
 def test_the_compositions_of_an_organization_have_their_own_permissions():

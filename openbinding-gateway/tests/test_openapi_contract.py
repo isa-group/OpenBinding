@@ -149,9 +149,11 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/compositions/diff", "post"),
         ("/v1/compositions/schema", "get"),
     }
-    # The reads of a public composition: a credential is optional (`{}`), and one that names nobody is a 401.
+    # The list of public compositions and the reads of one: a credential is optional (`{}`), and one that names
+    # nobody is a 401.
     composition = "/v1/organizations/{org}/compositions/{composition}"
     optional = {
+        ("/v1/compositions", "get"),
         (composition, "get"),
         (f"{composition}/versions", "get"),
         (f"{composition}/versions/{{version}}", "get"),

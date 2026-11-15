@@ -71,6 +71,12 @@ compositions, the members-only rule of [ADR 0034](adr/0034-no-public-read-in-f0b
   public now (read when the view is built). Otherwise `based_on` is `null` and `forked_from` keeps only
   `droppedProblem`, so a fork of a private source, published later, names no source organization or
   composition.
+- **The list across organizations.** `GET /v1/compositions` (`listPublicCompositions`) lists every public
+  composition that is not archived and has a version, from any organization, the most recently changed first
+  (filters `q`, `kind`, `organization`; `limit` up to 100). It follows the same caller rules: anybody reads it,
+  a credential that names nobody is `401`, and only a visitor is charged. Its rows carry no member id and no
+  lineage. An organization's own list (`GET …/{org}/compositions`) stays for its members, so an organization
+  that published nothing appears nowhere, and filtering on it answers an empty page as an unknown one does.
 - **Every other route stays for members**, public composition or not: `POST …/versions/check`, `evaluate`,
   `neighborhood`, `derive`, re-evaluation, sealing and every write answer `404` to a non-member and `401` to a
   visitor. A fork reads the source as these reads do: anybody signed in forks a public composition into an
@@ -146,7 +152,7 @@ cannot keep the compiler busy for everybody else, every client also has a budget
 | Class | Routes | Anonymous, per client address | Signed in, per account |
 |---|---|---|---|
 | `compile` | `POST /v1/bim/validate`, `POST /v1/organizations/{org}/problems`, `POST …/problems/{problem}/revisions`, `GET …/revisions/{revision}/compilation` | `WORK_RATE_LIMIT_COMPILE_REQUESTS` (default 10) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` (default 5) |
-| `read` | `POST /v1/compositions/validate`, `/parse`, `/serialise`, `/diff`; and, for a visitor only, the five reads of a public composition | `WORK_RATE_LIMIT_READ_REQUESTS` (default 60) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` (not charged on the reads of a composition) |
+| `read` | `POST /v1/compositions/validate`, `/parse`, `/serialise`, `/diff`; and, for a visitor only, `GET /v1/compositions` and the five reads of a public composition | `WORK_RATE_LIMIT_READ_REQUESTS` (default 60) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` (not charged on the reads of a composition) |
 | `evaluate` | `POST /v1/organizations/{org}/compositions/{composition}/versions`, `POST …/versions/check`, `POST …/fork`, `POST …/versions/{version}/evaluations`, `POST …/evaluate`, `GET …/neighborhood`, `POST …/derive` | `WORK_RATE_LIMIT_EVALUATE_REQUESTS` (default 30) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` |
 
 - **Per window.** A fixed window of `WORK_RATE_LIMIT_WINDOW_S` seconds (default 60)

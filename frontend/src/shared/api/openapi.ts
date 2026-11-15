@@ -603,6 +603,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/compositions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Public Compositions
+         * @description The public compositions of every organization, the most recently changed first; anybody reads them.
+         */
+        get: operations["listPublicCompositions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/compositions/diff": {
         parameters: {
             query?: never;
@@ -5232,6 +5252,91 @@ export interface components {
             };
         };
         /**
+         * PublicCompositionList
+         * @description One page of the public compositions of every organization, and how many match in all.
+         */
+        PublicCompositionList: {
+            /** Compositions */
+            compositions: components["schemas"]["PublicCompositionView"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * PublicCompositionOrganization
+         * @description The organization a public composition belongs to, as its URLs and its header name it.
+         */
+        PublicCompositionOrganization: {
+            /**
+             * Name
+             * @description The organization's display name.
+             */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
+        /**
+         * PublicCompositionView
+         * @description A public composition in the list of every organization's: what anybody reads, and no member id or
+         *     lineage.
+         */
+        PublicCompositionView: {
+            /** Description */
+            description: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "application" | "workflow" | "pipeline" | "system";
+            latest_version: components["schemas"]["PublicVersionSummary"];
+            /** Name */
+            name: string;
+            organization: components["schemas"]["PublicCompositionOrganization"];
+            /** Slug */
+            slug: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Version Count
+             * @description How many versions it has.
+             */
+            version_count: number;
+        };
+        /**
+         * PublicVersionSummary
+         * @description The latest version of a public composition, as a list shows it.
+         */
+        PublicVersionSummary: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Label
+             * @description The document's `version:` (Semantic Versioning).
+             */
+            label: string;
+            /** Ordinal */
+            ordinal: number;
+            /**
+             * Values Status
+             * @enum {string}
+             */
+            values_status: "verified" | "declared";
+            /**
+             * Verified
+             * @description Whether the current evaluation verified the binding and computed the values.
+             */
+            verified: boolean;
+        };
+        /**
          * QuotaBody
          * @description Which allowance refused, and where it stands.
          *
@@ -7818,6 +7923,81 @@ export interface operations {
                 headers: {
                     /** @description Seconds until the budget is available again. */
                     "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listPublicCompositions: {
+        parameters: {
+            query?: {
+                /** @description Text in the name or the slug. */
+                q?: string | null;
+                kind?: ("application" | "workflow" | "pipeline" | "system") | null;
+                /** @description Only the public compositions of this organization (its slug). */
+                organization?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicCompositionList"];
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many `read` requests from this address by a caller with no credential: past the anonymous budget. A signed-in caller is not charged. `Retry-After` says when the window ends. */
+            429: {
+                headers: {
+                    /** @description Seconds until the budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content: {
