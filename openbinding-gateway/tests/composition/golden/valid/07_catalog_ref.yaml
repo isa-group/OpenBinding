@@ -1,0 +1,10 @@
+# A candidate id two catalogs give the same task is written <resource>/<id>.
+syntaxVersion: "1.0"
+composition: catalog-ref
+version: 1.0.0
+kind: application
+workflow: {and: [store, index]}
+binding:
+  store: {candidate: storage/blob}
+  index: {candidate: search}
+values: {}

@@ -109,7 +109,8 @@ has the one-shot `pricing-bootstrap`, a separate compose project that prepares t
 | `collaboration` | organizations (nested, the only container), memberships, roles, invitations, audit, notifications | — | `collaboration.py`, `routes/organizations.py`, `repositories/organizations.py` |
 | `problems` | problems of an organization, their sealed revisions (the uploaded `.bim.zip` and its digests) and compilations (one per revision and toolchain, insert-only), the stateless BIM services (`/v1/bim/validate`, `/v1/bim/templates`) | `BimPort`, `BlobStore` | `modules/problems` (domain, application, adapters; F0b); `integrations/bim*.py`, the engine protocol document in `services/engines.py` |
 | `engines` | engine revisions, modes and manifests, federated deployments, conformance, capability matching | `EngineTransport` | `services/engines.py`, `services/engine_registry.py`, `services/probe.py`, `v1/remote.py` |
-| `execution` | runs of an organization: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood | `EngineTransport`, `BimPort`, `PlanPort` | `modules/execution` (the run request and the runs API `/v1/organizations/{org}/runs`; F0b); `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py` |
+| `execution` | runs of an organization: submission, idempotency, dispatch, leases, cancellation, events, re-evaluation, results (with the trade-off set of a multi-objective run), neighbourhood; run presets (F1) | `EngineTransport`, `BimPort`, `PlanPort` | `modules/execution` (the run request and the runs API `/v1/organizations/{org}/runs`; F0b); `services/job_submission.py`, `services/execution.py`, `jobs/*`, `job_dispatch.py`, `worker.py` |
+| `compositions` | compositions of an organization, their sealed versions (canonical Composition2Yaml bytes), their evaluations (one per toolchain, or one declared) and derivations, forks into another organization, and the stateless language services (`/v1/compositions/validate`, `parse`, `serialise`, `diff`, `schema`). The language itself is the pure library `openbinding_gateway/composition` (contract `composition-library-pure`) | `BimPort`; `problems` and `execution` application APIs | `modules/compositions` (F1) |
 | `laboratory` | studies of an organization (the editable matrix inline), study runs that freeze their definition and pin each revision's compilation, cells, protocol metrics, trade-offs across engines | `execution` application API | `studies.py`, `study_jobs.py`, `routes/studies.py` (`/v1/organizations/{org}/studies`; F0b); the generator moved to QACOForge; the decision-space workspace (`analysis_jobs.py`, analysis routes, analysis queue and worker) was removed by M9.6 |
 | `publishing` | published results (a frozen study run), citations, Zenodo-ready export | application APIs of `problems` and `laboratory` | none: the reports, their publications and Explore were removed in F0a |
 | `plans` | the SPACE port, the entitlement map, the pricing descriptor, plan changes and eligibility (RESEARCH through CAS) | `PlanPort` (SPACE), `PricingSource` (SPHERE public API) | `modules/plans` (entitlement map, per-account quotas, the package copy of the pricing; F0b); `space_client/*`, `services/entitlements.py`, `access/policy.py`, `access/contracts.py`, `domain/entitlements.py`. Local metering and billing sponsorship were removed in F0b |
@@ -136,8 +137,9 @@ openbinding-gateway/src/openbinding_gateway/
 - Between modules: only through the other module's `application` public API, or through in-process domain events
   (audit, notifications, cache invalidation). No cross-module ORM joins; each table has one owning module.
 - Modules form layers, and a module imports only modules below it: `administration` → `laboratory`
-  → `execution` → `engines` | `problems` → `language` → `collaboration` → `identity` → `plans` → `shared`
-  (`|` marks independent siblings).
+  → `compositions` → `execution` → `engines` | `problems` → `collaboration` → `identity` → `plans` → `shared`
+  (`|` marks independent siblings). `compositions` sits above `execution` because a composition is derived
+  from a run, and below `laboratory` because a study's trade-off set becomes compositions.
 - External systems only through ports: `BimPort` (exists), `PlanPort`, `PricingSource`, `EngineTransport`,
   `BlobStore`, `IdentityProvider`, `Mailer`, `Clock`.
 - Patterns: ports and adapters; application services as use-case functions; repositories with a unit of work per
@@ -270,6 +272,15 @@ classDiagram
   Organization "1" --> "*" Organization : parent of
   Organization "1" --> "*" Problem
   Organization "1" --> "*" Study
+  Organization "1" --> "*" Composition
+  Organization "1" --> "*" RunPreset
+  Composition "1" --> "*" CompositionVersion
+  CompositionVersion "*" --> "0..1" CompiledForm : links
+  CompositionVersion "1" --> "1..*" Evaluation
+  Evaluation "*" --> "0..1" CompiledForm : evaluated on
+  CompositionVersion "1" --> "0..1" Derivation
+  Derivation "*" --> "0..1" Run : from
+  Run "*" --> "0..1" RunPreset : started from
   Problem "1" --> "*" ProblemVersion
   ProblemVersion "1" --> "1" CompiledForm
   Engine "1" --> "*" EngineRevision
@@ -299,7 +310,8 @@ slugs.
 **As built after F0b.** The organization is the only container; the schema has 25 tables. An organization owns its
 problems (`binding_cases`), their revisions (`binding_case_revisions`: the uploaded package, held by a `blobs` row of
 that organization, with its digests) and their compilations (`problem_compilations`: the IR of a revision by one
-toolchain, insert-only and unique by `(revision_id, compiler_digest)` and by `(revision_id, compilation_digest)`). A run
+toolchain, insert-only and unique by `(revision_id, compiler_digest)` and by `(revision_id, compilation_digest)`;
+since F1 each row also stores the `semantic_digest` of its IR, which two toolchains that read the problem alike share). A run
 (`jobs`) belongs to the organization and names a revision and a compilation through a composite foreign key, so it cannot
 run another revision's IR. A study (`studies`) holds the editable definition; a study run (`study_runs`) holds the frozen
 copy and its digest, and each cell (`study_cells`) pins the compilation it runs. There are no projects, no artifact store,
@@ -307,6 +319,23 @@ no snapshots and no public read. Sealed rows reject UPDATE through triggers decl
 (`immutable`, `protect`, `retain`); history is kept by `RESTRICT` foreign keys rather than by refusing every DELETE, so
 a problem nobody ran can be deleted ([ADR 0023](adr/0023-trigger-ddl-single-source.md),
 [ADR 0024](adr/0024-immutable-means-no-update.md)).
+
+**As built after F1.** The schema has 30 tables. Five arrived with compositions and presets, and one column with the
+problem link:
+
+| Table or column | What it holds | Mutability and deletion |
+|---|---|---|
+| `problem_compilations.semantic_digest` | the digest of what the IR means, shared by toolchain releases that read the problem alike ([ADR 0042](adr/0042-problem-link-semantic-digest.md)) | insert-only with its row |
+| `compositions` | a composition of an organization: slug, name, description, `kind`, `archived` | mutable (ETag `updated_at`); deleted by `deleteComposition` or with its organization |
+| `composition_versions` | the canonical Composition2Yaml bytes of a version (inline `TEXT`, at most 256 KiB), its ordinal and label, `syntax_version`, `values_status`, content digest, the linked revision and compilation, the evidence run, the offering source, `based_on`, `forked_from` and `analytics` ([ADR 0045](adr/0045-composition-versions-canonical-bytes.md)) | insert-only (`immutable`); deleted with its composition |
+| `composition_evaluations` | one evaluation per version and basis (a toolchain's `compilerDigest`, or `declared`): outcome, values with units, violations, digests, toolchain and diagnostics located in the stored bytes ([ADR 0044](adr/0044-one-evaluation-per-version-and-toolchain.md)) | insert-only; deleted with its version |
+| `composition_derivations` | the edge a derived version keeps: source (`run` or `binding`), revision, compilation, binding and its digest, run and point, provenance | insert-only; deleted with its version |
+| `run_presets` | an organization's named run settings: engine, registration, mode, options, optimisation | mutable (ETag); deleted by `deleteRunPreset` or with its organization |
+
+Versions, evaluations and derivations name problem compilations (and runs) through `RESTRICT` foreign keys, so a
+problem a composition links answers `409 problem_has_compositions` on delete, and the admin purge keeps the terminal
+runs a version or derivation names. Deleting an organization locks its compositions before its problems and deletes
+them with the subtree.
 
 ## 7. Key flows
 
@@ -361,7 +390,34 @@ from `problem_compilations` when it claims the job and refuses to run one whose 
 same row, and a study run pins one compilation per revision for all its cells
 ([ADR 0028](adr/0028-frozen-study-definitions.md)).
 
-### 7.3 Study
+### 7.3 Compose: seal, derive and evaluate a composition
+
+```mermaid
+sequenceDiagram
+  actor U as Researcher
+  participant G as Gateway (compositions)
+  participant P as problems / execution
+  participant B as BIM toolchain (BimPort)
+  U->>G: POST …/compositions/{c}/versions (Composition2Yaml) or …/derive (run or binding)
+  G->>G: read the document (language slot): syntax, sections, coherence, schema
+  G->>P: resolve problem.ref and compilation; compile-or-get on the installed toolchain
+  G->>G: semantic-digest gate; judge workflow, candidates and units against the IR's facts
+  G->>B: evaluate(installed IR, binding) (evaluation slot)
+  B-->>G: values, violations, or binding_invalid
+  G->>P: check the evidence run's solution
+  G->>G: one short transaction: lock, dedupe by content digest, insert version, evaluation, derivation
+  G-->>U: version (verified or declared), evaluation, diagnostics
+```
+
+Every path that judges a composition (seal, check, derive, fork, re-evaluate, evaluate, neighbourhood) goes through
+one assessment (`modules/compositions/application/assess.py`). It writes nothing; sealing then stores its result in
+one short transaction. A document with a `problem` is evaluated on the installed toolchain's compilation of the linked
+revision: the link holds while the semantic digests agree (an info when the named compilation is another release's),
+and is refused when they differ ([ADR 0042](adr/0042-problem-link-semantic-digest.md)). Values and validity are
+`BimPort.evaluate`'s, exactly as returned ([ADR 0043](adr/0043-values-only-from-bimport.md)). A document without a
+problem is stored with its values declared. The language is specified in [COMPOSITION2YAML.md](COMPOSITION2YAML.md).
+
+### 7.4 Study
 
 A study selects problem versions, engine modes, parameter sets and seeds. A study run expands the
 matrix into cells, each one a run with frozen inputs; cells retry independently. Analytics read only re-evaluated
@@ -371,7 +427,7 @@ contradicted by a validated binding, or an OPTIMAL beaten, invalidates the run),
 With several objectives, the results view also shows, per problem, the trade-off set across engines. The QACOBench
 harness keeps working against the public API; the study is the same protocol inside the platform.
 
-### 7.4 Publish a result
+### 7.5 Publish a result
 
 `Publish` freezes a finished study run. The gateway seals the exact problem versions, engine
 revisions, budgets, seeds and computed metrics into a published result with a permanent link, a digest and a
@@ -380,7 +436,7 @@ result is never edited: a correction is a new published result that names the on
 it from Explore while its permanent link keeps answering (§10). There is no document editor; the text of a paper lives
 in the paper.
 
-### 7.5 Plans
+### 7.6 Plans
 
 See §9.
 
@@ -659,6 +715,12 @@ Each move is one `refactor/<id>` change that updates CI, Dockerfiles, documentat
 | [0038](adr/0038-old-composition2yaml-removed.md) | the problem-authoring Composition2Yaml is removed (D27) |
 | [0039](adr/0039-drop-v1-job-provenance.md) | `v1_job_provenance` is dropped (D28) |
 | [0040](adr/0040-deleted-accounts-deactivate-engines.md) | a deleted account's federated engines are deactivated (D29) |
+| [0041](adr/0041-composition2yaml-final-composition.md) | Composition2Yaml is the document of a final composition (F1 D1-D6) |
+| [0042](adr/0042-problem-link-semantic-digest.md) | a composition links a problem by its semantic digest, and is evaluated on the installed compilation (F1 D7) |
+| [0043](adr/0043-values-only-from-bimport.md) | global values and binding validity come only from BimPort, exactly as returned (F1 D5, D10) |
+| [0044](adr/0044-one-evaluation-per-version-and-toolchain.md) | one evaluation per version and toolchain; the offering is a reference with one source (F1 D8) |
+| [0045](adr/0045-composition-versions-canonical-bytes.md) | composition versions are canonical bytes in the row, sealed in two phases, read back in stored mode (F1 D11, D14, D20, D21) |
+| [0046](adr/0046-compositions-module.md) | the compositions module, its access rule and key permissions, and run presets in execution (F1 D12, D16-D18) |
 
 The earlier records, 0001 to 0021 (BIM behind a port, engines as services, durable jobs, the frontend stack,
 problem+json, the layered gateway, the OpenAPI snapshot, plans through SPACE and SPHERE, extensible profiles, the

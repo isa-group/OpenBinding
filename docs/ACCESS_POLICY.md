@@ -2,7 +2,7 @@
 
 The organization is the only container. Everything a person works on lives under
 `/v1/organizations/{org}/...`: its members, invitations and audit log, its problems
-(with their revisions and compilations), its runs and its studies. There are no
+(with their revisions and compilations), its runs and run presets, its studies and its compositions. There are no
 projects, and there is no public read: every route under an organization is for its
 members.
 
@@ -13,8 +13,10 @@ A member of the organization, or of one of its ancestors, has a role there
 the chain applies (`collaboration.effective_role`). Anybody else is refused:
 
 - a signed-in non-member gets `403 organization_forbidden`; a slug that names no
-  organization is `404 not_found`; the runs routes answer `404` to a non-member too
-  (below);
+  organization is `404 not_found`; the runs and run presets routes answer `404` to a
+  non-member too (below), and so do the compositions routes: a composition the caller cannot read
+  answers exactly as a missing one, `404` and never `403`, on every route and before
+  any `If-Match` handling, as SPHERE answers a private pricing ([ADR 0046](adr/0046-compositions-module.md));
 - a caller with no credential gets `401` on every route under `/v1/organizations`;
 - a platform administrator is a non-member like anybody else unless invited.
 
@@ -32,7 +34,9 @@ malformed, and a malformed boundary denies everything.
 | `/audit` | ADMIN | — | `organizations:read` |
 | `/problems`, `/problems/{problem}`, `/problems/{problem}/revisions/...` | VIEWER | MEMBER uploads, adds revisions and edits; ADMIN deletes | `problems:read` / `problems:write` |
 | `/runs/...` | VIEWER (redacted below MEMBER) | MEMBER | `jobs:read` / `engines:execute` |
+| `/presets`, `/presets/{preset}` | VIEWER (options redacted below MEMBER; a non-member gets `404`) | MEMBER creates, edits and deletes | `jobs:read` / `engines:execute` |
 | `/studies/...` (study runs and cells included) | VIEWER | MEMBER creates, edits and runs; ADMIN deletes | `studies:read` / `studies:write` |
+| `/compositions`, `/compositions/{composition}`, `/compositions/{composition}/versions/...`, `/compositions/{composition}/diff`, `/compositions/{composition}/fork`, `/compositions/{composition}/evaluate`, `/compositions/{composition}/neighborhood`, `/compositions/{composition}/derive` | VIEWER (a non-member gets `404`); VIEWER also checks a document (`POST …/versions/check`), compares versions, evaluates another binding of a version (`POST …/evaluate`) and explores its neighbourhood | MEMBER creates, edits, seals, re-evaluates (`POST …/versions/{version}/evaluations`) and derives versions (`POST …/derive`, from a run of the organization or a binding of one of its problems); ADMIN deletes. A fork needs read on the source and MEMBER on the target organization, which must be another one | `compositions:read` / `compositions:write` |
 
 ## Deleting an organization
 
@@ -40,8 +44,8 @@ malformed, and a malformed boundary denies everything.
 platform administrator. It takes the organization and every organization below it in
 one transaction. Runs and study runs are history: a subtree that holds any is refused
 with `409 historical_references`, including a run or study run that starts while the
-delete is in progress (the subtree's studies, problems and organizations are locked
-before the check). Otherwise its studies, problems (revisions and
+delete is in progress (the subtree's studies, compositions, problems and organizations
+are locked before the check). Otherwise its studies, run presets, compositions, problems (revisions and
 compilations), blob rows, invitations, memberships and audit events go with it. The
 stored files are not unlinked: they are content addressed and may back another
 organization's blob.
@@ -54,7 +58,8 @@ creation with `422 slug_reserved`: `admin`, `account`, `engines`, `organizations
 `invitations`, `runs`, `problems`, `studies`, `settings`, `workbench` and `new`
 (`RESERVED_ORGANIZATION_SLUGS` in `models/platform.py`, mirrored by
 `frontend/src/components/PlatformShell/workspacePath.ts`). A slug cannot be changed
-after creation.
+after creation. `compositions` and `presets` join the list in F2, with the screens that
+use them as sections.
 
 ## The runs of an organization (`/v1/organizations/{org}/runs`)
 
@@ -67,6 +72,12 @@ reads as missing), not `403`.
 | `GET /runs`, `GET /runs/{run}`, `GET /runs/{run}/events`, `GET /runs/{run}/neighborhood` | VIEWER and up; below MEMBER the options, the request and the error text are redacted | `jobs:read` |
 | `POST /runs` | MEMBER and up; the revision must be of `{org}` (`409 revision_not_in_organization`) | `engines:execute` |
 | `POST /runs/{run}/cancel`, `/retry`, `/reevaluate` | MEMBER and up, whoever launched the run (`403 insufficient_role` below) | `engines:execute` |
+| `GET /presets`, `GET /presets/{preset}` | VIEWER and up; below MEMBER the options are redacted | `jobs:read` |
+| `POST /presets`, `PATCH`/`DELETE /presets/{preset}` | MEMBER and up (`403 insufficient_role` below) | `engines:execute` |
+
+A run preset names the settings a run starts from (`createRun {revision, preset}`). The run
+copies them and records the preset as `{id, slug}`, so editing or deleting a preset never
+changes a run.
 
 An API key that cannot run engines (no `engines:execute`) reads redacted whatever
 the role of its user, and a key only sees the runs of the Engine revisions it may
@@ -86,6 +97,8 @@ cannot keep the compiler busy for everybody else, every client also has a budget
 | Class | Routes | Anonymous, per client address | Signed in, per account |
 |---|---|---|---|
 | `compile` | `POST /v1/bim/validate`, `POST /v1/organizations/{org}/problems`, `POST …/problems/{problem}/revisions`, `GET …/revisions/{revision}/compilation` | `WORK_RATE_LIMIT_COMPILE_REQUESTS` (default 10) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` (default 5) |
+| `read` | `POST /v1/compositions/validate`, `/parse`, `/serialise`, `/diff` | `WORK_RATE_LIMIT_READ_REQUESTS` (default 60) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` |
+| `evaluate` | `POST /v1/organizations/{org}/compositions/{composition}/versions`, `POST …/versions/check`, `POST …/fork`, `POST …/versions/{version}/evaluations`, `POST …/evaluate`, `GET …/neighborhood`, `POST …/derive` | `WORK_RATE_LIMIT_EVALUATE_REQUESTS` (default 30) | that, times `WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER` |
 
 - **Per window.** A fixed window of `WORK_RATE_LIMIT_WINDOW_S` seconds (default 60)
   that starts at a client's first request of the class. `0` switches a class off.
@@ -106,6 +119,30 @@ cannot keep the compiler busy for everybody else, every client also has a budget
 - **`/v1/bim/validate` needs no account.** Anonymous callers are charged by address;
   a signed-in caller is charged to the account, and an API key also needs
   `problems:read` there.
+- **The Composition2Yaml services need no account either.** `POST /v1/compositions/validate`,
+  `/parse`, `/serialise` and `/diff` read or write one document, bounded at 262 144 bytes, and
+  store nothing; an editor calls them as its author types, so the `read` class has the larger
+  budget. They are counted like `/v1/bim/validate`; an API key needs `compositions:read`.
+  Their concurrency is bounded apart, per process, by `COMPOSITION_LANGUAGE_SLOTS` (default 4):
+  a request that finds every slot taken gets `429 composition_busy` with `Retry-After: 1`.
+  `GET /v1/compositions/schema` is open, like the BIM templates, and needs no permission.
+- **Sealing, checking, forking, evaluating and deriving a composition version is the `evaluate` class.** Each
+  request has the toolchain evaluate one binding once (or, for the neighbourhood, at most 128
+  alternatives within two seconds), and compiles the linked revision only when the installed
+  toolchain has no compilation of it yet (at most once per revision and release). Only
+  members of the organization reach these routes, so they are charged to the account. Their
+  concurrency is bounded apart, per process, by `COMPOSITION_EVALUATION_SLOTS` (default 2), with
+  the same `429 composition_busy`.
+
+## API key permissions of compositions
+
+`compositions:read` and `compositions:write` are the composition pair, as `problems:*` and
+`studies:*` are for theirs. `compositions:read` reaches the stateless services above and,
+under `/v1/organizations/{org}/compositions`, every `GET` and the two operations that write
+nothing (`POST …/versions/check` and `POST …/evaluate`); every other method there needs
+`compositions:write`. The `organizations:*` permissions do not reach compositions, so a key
+that administers organizations gains no composition write. A key boundary names a composition
+by its kind (`composition`, `compositions`) and by its slug.
 
 What an anonymous caller's failures leave behind is limited too. At most
 `ANONYMOUS_ERROR_EVENTS_PER_MINUTE` of them (default 30) are recorded per client and

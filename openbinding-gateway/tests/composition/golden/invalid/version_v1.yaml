@@ -1,0 +1,10 @@
+# The document's own label is a semantic version.
+syntaxVersion: "1.0"
+composition: shop
+version: v1
+kind: application
+workflow: {seq: [pick, ship]}
+binding:
+  pick: {candidate: c_pick}
+  ship: {candidate: c_ship}
+values: {cost: {value: 4.5, unit: EUR/month}}

@@ -372,42 +372,52 @@ def compose(text: str) -> Any:
 
 
 class TooLong(Exception):
-    """The text being written passed the length it was allowed."""
+    """The text being written passed the number of UTF-8 bytes it was allowed."""
 
     def __init__(self, limit: int) -> None:
-        super().__init__(f"the text is longer than {limit} characters")
+        super().__init__(f"the text is longer than {limit} bytes")
         self.limit = limit
 
 
 class _Bounded(io.StringIO):
-    """A text buffer that refuses to grow past a length, so the writer stops when it does."""
+    """A text buffer that refuses to grow past a number of UTF-8 bytes, so the writer stops when it does.
+
+    Bytes, not characters: the writer allows Unicode, and the documents it writes are stored
+    and capped in bytes, so a character count would let a text through that the store refuses.
+    """
 
     def __init__(self, limit: int) -> None:
         super().__init__()
+        self._limit = limit
         self._room = limit
 
     def write(self, text: str) -> int:
-        self._room -= len(text)
+        self._room -= len(text.encode("utf-8", errors="surrogatepass"))
         if self._room < 0:
-            raise TooLong(self.tell() + len(text) + self._room)
+            raise TooLong(self._limit)
         return super().write(text)
 
 
-def dump(document: Any, limit: int | None = None) -> str:
+#: The line width the writer folds at: wider than any document line, so no scalar is folded
+#: and a long string is written on the line it belongs to.
+WIDTH = 4096
+
+
+def dump(document: Any, limit: int | None = None, width: int = WIDTH) -> str:
     """A document as YAML text, block style, in the document's own key order.
 
     With ``limit``, the writing stops -- raising :class:`TooLong` -- as soon as the text
-    passes it. Block YAML indents every line by its depth and folds long strings into lines
-    indented the same way, so a document can write many times its own size: bounding the
-    writing itself, rather than estimating it first, is the bound that holds.
+    passes that many UTF-8 bytes. Block YAML indents every line by its depth and folds long
+    strings into lines indented the same way, so a document can write many times its own
+    size: bounding the writing itself, rather than estimating it first, is the bound that
+    holds. ``width`` is where a long scalar would be folded; the default folds none.
     """
+    options = {
+        "Dumper": Dumper, "sort_keys": False, "allow_unicode": True,
+        "default_flow_style": False, "width": width,
+    }
     if limit is None:
-        return yaml.dump(
-            document, Dumper=Dumper, sort_keys=False, allow_unicode=True, default_flow_style=False,
-        )
+        return yaml.dump(document, **options)
     stream = _Bounded(limit)
-    yaml.dump(
-        document, stream, Dumper=Dumper, sort_keys=False, allow_unicode=True,
-        default_flow_style=False,
-    )
+    yaml.dump(document, stream, **options)
     return stream.getvalue()

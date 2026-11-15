@@ -54,6 +54,8 @@ class ApiKeyPermission(str, Enum):
     ORGANIZATIONS_WRITE = "organizations:write"
     STUDIES_READ = "studies:read"
     STUDIES_WRITE = "studies:write"
+    COMPOSITIONS_READ = "compositions:read"
+    COMPOSITIONS_WRITE = "compositions:write"
     NOTIFICATIONS_READ = "notifications:read"
     PRICING_READ = "pricing:read"
     ADMIN_ACCOUNTS_READ = "admin:accounts:read"
@@ -91,7 +93,11 @@ OPEN_V1_PREFIXES = (
 )
 OPEN_V1_GET_PATHS = frozenset({
     "/v1/engines/protocol",
+    "/v1/compositions/schema",
 })
+#: The operations on an organization's compositions that write nothing: reading, and
+#: checking or evaluating a document against its problem.
+_COMPOSITION_READ_ACTIONS = ("/versions/check", "/evaluate")
 
 
 @dataclass(frozen=True)
@@ -221,7 +227,7 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
         return False
     aliases = {
         "organizations": ("org", "organization", "organization_id", "org_id"),
-        "slugs": ("slug", "problem", "study"),
+        "slugs": ("slug", "problem", "study", "composition", "preset"),
     }
     for field, names in aliases.items():
         allowed = boundary.get(field)
@@ -238,7 +244,9 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "invitations": {"invitation", "invitations"},
             "problems": {"problem", "problems"},
             "studies": {"study", "studies"},
+            "compositions": {"composition", "compositions"},
             "runs": {"run", "runs"},
+            "presets": {"preset", "presets"},
             "cells": {"cell", "cells"},
             "bim": {"problem", "problems"},
             "engines": {"engine", "engines"},
@@ -352,9 +360,10 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             if method == "GET"
             else {ApiKeyPermission.ADMIN_ACCOUNTS_WRITE.value}
         )
-    if path.startswith("/v1/organizations/") and path.split("/")[4:5] == ["runs"]:
+    if path.startswith("/v1/organizations/") and path.split("/")[4:5] in (["runs"], ["presets"]):
         # The runs of an organization: reading them is following jobs, creating, cancelling, retrying
-        # or re-evaluating one runs an engine.
+        # or re-evaluating one runs an engine. Its run presets alike: configuring how engines run is
+        # what creating a run needs.
         return frozenset(
             {ApiKeyPermission.JOBS_READ.value}
             if method == "GET"
@@ -365,6 +374,15 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             {ApiKeyPermission.PROBLEMS_READ.value}
             if method == "GET"
             else {ApiKeyPermission.PROBLEMS_WRITE.value}
+        )
+    if path.startswith("/v1/organizations/") and path.split("/")[4:5] == ["compositions"]:
+        # The compositions of an organization. Before the organizations fallthrough, so that a key
+        # that may administer organizations does not inherit composition writes.
+        reads = method == "GET" or (method == "POST" and path.endswith(_COMPOSITION_READ_ACTIONS))
+        return frozenset(
+            {ApiKeyPermission.COMPOSITIONS_READ.value}
+            if reads
+            else {ApiKeyPermission.COMPOSITIONS_WRITE.value}
         )
     if path.startswith("/v1/organizations/") and path.split("/")[4:5] == ["studies"]:
         # The studies of an organization, their runs and cells: one permission pair for all of them.
@@ -385,6 +403,9 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         return frozenset({ApiKeyPermission.NOTIFICATIONS_READ.value})
     if path.startswith("/v1/pricing"):
         return frozenset({ApiKeyPermission.PRICING_READ.value})
+    if path.startswith("/v1/compositions/") and not (method == "GET" and _is_open_v1_read(path)):
+        # The stateless Composition2Yaml services store nothing: reading compositions is enough.
+        return frozenset({ApiKeyPermission.COMPOSITIONS_READ.value})
     if path == "/v1/bim/validate":
         # Validation writes nothing; a key needs to be able to read problems.
         return frozenset({ApiKeyPermission.PROBLEMS_READ.value})

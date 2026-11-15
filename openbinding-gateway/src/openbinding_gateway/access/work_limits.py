@@ -5,11 +5,23 @@ asks. Each request's cost is bounded where the work happens, a package in its si
 it would emit, but nothing bounded how often one client may ask, so one client could keep the
 compiler busy for everybody else.
 
-Every such route belongs to a class (``WORK_ROUTES``). There is one today:
+Every such route belongs to a class (``WORK_ROUTES``):
 
 ``compile``
     Runs the container's compiler in this process: real work per request and nothing an
     editor does at every pause in typing, so its budget is small.
+
+``read``
+    Reads or writes a Composition2Yaml document (validate, parse, serialise, diff): bounded
+    work an editor asks for as its author types, so its budget is larger. Its concurrency is
+    bounded apart, by the language slots (``modules/compositions/application/slots.py``).
+
+``evaluate``
+    Judges a composition against its problem and has the toolchain evaluate its binding (seal a
+    version, check one, fork one, re-evaluate one, evaluate another binding of one, explore the
+    neighbourhood of its binding, derive one from a binding): one evaluation or one bounded
+    neighbourhood per request, and at most one compile per revision and toolchain release. Its
+    concurrency is bounded apart, by the evaluation slots.
 
 A client is the address the proxy resolved (``core/ratelimit.client_address``), or the /64 of an
 IPv6 one, or, when signed in, the account, which gets ``WORK_RATE_LIMIT_SIGNED_IN_MULTIPLIER`` times
@@ -36,7 +48,7 @@ from ..db.models import User
 from ..models.errors import api_error
 from .dependencies import counted_caller, get_optional_user
 
-WorkClass = Literal["compile"]
+WorkClass = Literal["compile", "read", "evaluate"]
 
 
 def route_template(request: Request) -> str:
@@ -53,6 +65,28 @@ WORK_ROUTES: dict[tuple[str, str], WorkClass] = {
     ("POST", "/v1/organizations/{org}/problems/{problem}/revisions"): "compile",
     # It compiles the revision on a miss (a toolchain release), as validation does.
     ("GET", "/v1/organizations/{org}/problems/{problem}/revisions/{revision}/compilation"): "compile",
+    ("POST", "/v1/compositions/validate"): "read",
+    ("POST", "/v1/compositions/parse"): "read",
+    ("POST", "/v1/compositions/serialise"): "read",
+    ("POST", "/v1/compositions/diff"): "read",
+    # A seal or a check evaluates once, and compiles only on a miss (a toolchain release).
+    ("POST", "/v1/organizations/{org}/compositions/{composition}/versions"): "evaluate",
+    ("POST", "/v1/organizations/{org}/compositions/{composition}/versions/check"): "evaluate",
+    # A fork seals its first version through the same pipeline as a seal.
+    ("POST", "/v1/organizations/{org}/compositions/{composition}/fork"): "evaluate",
+    # A stored version evaluated again: by the installed toolchain, with another binding, around its binding.
+    ("POST", "/v1/organizations/{org}/compositions/{composition}/versions/{version}/evaluations"): "evaluate",
+    ("POST", "/v1/organizations/{org}/compositions/{composition}/evaluate"): "evaluate",
+    ("GET", "/v1/organizations/{org}/compositions/{composition}/neighborhood"): "evaluate",
+    # A derivation evaluates the binding it writes the document of, and seals it as a seal does.
+    ("POST", "/v1/organizations/{org}/compositions/{composition}/derive"): "evaluate",
+}
+
+#: The setting that holds each class's budget.
+_BUDGETS: dict[WorkClass, str] = {
+    "compile": "work_rate_limit_compile_requests",
+    "read": "work_rate_limit_read_requests",
+    "evaluate": "work_rate_limit_evaluate_requests",
 }
 
 
@@ -93,7 +127,7 @@ def set_work_limiter(limiter: Optional[WorkRateLimiter]) -> None:
 
 
 def _budget(settings: Settings, work_class: WorkClass, signed_in: bool) -> int:
-    budget = settings.work_rate_limit_compile_requests
+    budget = int(getattr(settings, _BUDGETS[work_class]))
     return budget * settings.work_rate_limit_signed_in_multiplier if signed_in else budget
 
 

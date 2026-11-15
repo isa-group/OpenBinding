@@ -1,0 +1,43 @@
+syntaxVersion: '1.0'
+composition: small-placement
+version: 1.0.0
+kind: application
+problem:
+  ref: isa/problems/small-placement@1
+  compilation: {compilation}
+workflow:
+  seq:
+  - t_login
+  - and:
+    - seq:
+      - t_process
+      - xor:
+        - t_check
+        - t_rules
+        uniform: true
+    - t_render
+binding:
+  t_login:
+    candidate: c_cloud
+  t_process:
+    candidate: c_cloud
+  t_check:
+    candidate: c_cloud
+  t_rules:
+    candidate: c_cloud
+  t_render:
+    candidate: c_cloud
+values:
+  cost:
+    value: 18.0
+    unit: USD/month
+  latency:
+    value: 15.0
+    unit: ms
+  security:
+    value: 1.0
+    unit: score
+evidence:
+  manual: true
+  evaluatedBy: gateway
+  toolchain: {toolchain}

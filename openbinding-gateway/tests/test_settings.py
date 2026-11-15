@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import pytest
 
-from openbinding_gateway.core.settings import Settings
+from openbinding_gateway.composition import ids
+from openbinding_gateway.core.settings import SPHERE_REGISTRY_ALIAS, Settings
 
 
 
@@ -34,6 +35,7 @@ def a_pristine_environment(monkeypatch):
         "SPACE_TIMEOUT_MS",
         "FEDERATION_SECRET_KEY",
         "FEDERATION_REQUIRE_HTTPS",
+        "SPHERE_REGISTRIES",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -162,3 +164,59 @@ def test_an_unrelated_environment_variable_is_not_a_configuration_error(monkeypa
     monkeypatch.setenv("SOME_VARIABLE_THE_GATEWAY_DOES_NOT_KNOW", "x")
 
     assert settings().engine_solve_timeout_s == 1800.0
+
+
+# -- SPHERE registries ----------------------------------------------------
+
+
+def test_no_sphere_registry_is_defined_by_default():
+    configured = settings()
+    assert configured.sphere_registries == {}
+    assert configured.sphere_registry_aliases == frozenset()
+
+
+def test_sphere_registries_are_read_from_json_in_the_environment(monkeypatch):
+    monkeypatch.setenv(
+        "SPHERE_REGISTRIES",
+        '{"lab": {"url": "https://sphere.lab.local", "api_key": "s3cr3t-key"}, "onprem": {"url": "https://sphere.example"}}',
+    )
+    configured = settings()
+    assert configured.sphere_registry_aliases == frozenset({"lab", "onprem"})
+    assert configured.sphere_registries["lab"].url.host == "sphere.lab.local"
+    assert configured.sphere_registries["lab"].api_key.get_secret_value() == "s3cr3t-key"
+    assert configured.sphere_registries["onprem"].api_key is None
+
+
+def test_a_sphere_registry_is_reached_over_https_only():
+    with pytest.raises(ValueError, match="https"):
+        settings(sphere_registries={"lab": {"url": "http://sphere.lab.local"}})
+
+
+@pytest.mark.parametrize("alias", ["Lab", "-lab", "lab-", "la_b", "l" * 33, ""])
+def test_a_sphere_registry_alias_a_document_could_not_name_is_refused(alias):
+    with pytest.raises(ValueError, match="alias"):
+        settings(sphere_registries={alias: {"url": "https://sphere.lab.local"}})
+
+
+def test_a_sphere_registry_with_an_unknown_key_is_refused():
+    with pytest.raises(ValueError):
+        settings(sphere_registries={"lab": {"url": "https://sphere.lab.local", "token": "x"}})
+
+
+def test_the_registry_key_never_shows_in_repr():
+    configured = settings(sphere_registries={"lab": {"url": "https://sphere.lab.local", "api_key": "s3cr3t-key"}})
+    assert "s3cr3t-key" not in repr(configured)
+    assert "s3cr3t-key" not in str(configured.sphere_registries)
+    assert "s3cr3t-key" not in repr(configured.model_dump())
+
+
+def test_the_registry_alias_pattern_is_the_language_s():
+    assert SPHERE_REGISTRY_ALIAS.pattern == ids.ALIAS.pattern
+
+
+def test_the_composition_slots_and_the_read_budget_have_defaults():
+    configured = settings()
+    assert (configured.composition_language_slots, configured.composition_evaluation_slots) == (4, 2)
+    assert configured.work_rate_limit_read_requests == 60
+    with pytest.raises(ValueError):
+        settings(composition_language_slots=0)

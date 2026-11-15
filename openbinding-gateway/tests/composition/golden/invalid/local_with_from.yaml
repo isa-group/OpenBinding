@@ -1,0 +1,10 @@
+# A step done in house comes from no pricing.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: {seq: [pick, ship]}
+binding:
+  pick: {local: true, from: {sphere: acme/picking, version: v1, plan: Basic}}
+  ship: {candidate: c_ship}
+values: {}

@@ -27,7 +27,7 @@ from functools import lru_cache
 from typing import List, Literal, Optional
 from urllib.parse import urlsplit
 
-from pydantic import Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 #: The only origins allowed by default: the frontend's Vite dev server (5173)
@@ -64,6 +64,32 @@ DEFAULT_SPACE_SERVICE_NAME = "openbinding"
 
 #: Shape of a SPACE service name (``SPACE_SERVICE_NAME``).
 SPACE_SERVICE_NAME_PATTERN = re.compile(r"[a-z0-9][a-z0-9_-]{1,62}")
+
+
+#: A SPHERE registry alias: the pattern a Composition2Yaml ``registry:`` names one by
+#: (``composition/ids.py`` ``ALIAS``; a test keeps the two the same).
+SPHERE_REGISTRY_ALIAS = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$")
+
+
+class SphereRegistry(BaseModel):
+    """One on-premise SPHERE a document may name by its alias (``registry: <alias>``).
+
+    F1 reads only the aliases; the address and the key are for the pricing reader (F3). The
+    key is a ``SecretStr``, so neither ``repr`` nor a log line shows it, and neither the
+    address nor the key ever reaches a response.
+    """
+
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+
+    url: HttpUrl
+    api_key: Optional[SecretStr] = None
+
+    @field_validator("url")
+    @classmethod
+    def https_only(cls, url: HttpUrl) -> HttpUrl:
+        if url.scheme != "https":
+            raise ValueError("a SPHERE registry is reached over https only")
+        return url
 
 
 def _mask_userinfo(value: str) -> str:
@@ -262,11 +288,18 @@ class Settings(BaseSettings):
     #: Requests per window that one client may send to the routes open to
     #: anybody that do real CPU work (``access/work_limits.py`` names them and
     #: docs/ACCESS_POLICY.md explains them). A client is its address (its /64
-    #: for IPv6) or, signed in, its account. The one class, ``compile``, runs
-    #: the container's compiler. ``0`` switches it off for everybody. Counted like
+    #: for IPv6) or, signed in, its account. The class ``compile`` runs the
+    #: container's compiler. ``0`` switches a class off for everybody. Counted like
     #: authentication: in Redis, or per process while Redis does not answer.
     work_rate_limit_window_s: int = Field(default=60, ge=1)
     work_rate_limit_compile_requests: int = Field(default=10, ge=0)
+    #: The class ``read``: the stateless Composition2Yaml services (validate,
+    #: parse, serialise, diff), which an editor calls as its author types, so its
+    #: budget is larger.
+    work_rate_limit_read_requests: int = Field(default=60, ge=0)
+    #: The class ``evaluate``: sealing or checking a composition version, which
+    #: has the toolchain evaluate its binding (and compile its problem on a miss).
+    work_rate_limit_evaluate_requests: int = Field(default=30, ge=0)
     #: How many times that budget a signed-in caller gets.
     work_rate_limit_signed_in_multiplier: int = Field(default=5, ge=1)
 
@@ -364,6 +397,21 @@ class Settings(BaseSettings):
     sphere_organization_id: Optional[str] = None
     sphere_pricing_slug: Literal["openbinding"] = "openbinding"
     sphere_timeout_s: float = 10.0
+    #: The on-premise SPHERE registries a Composition2Yaml document may name
+    #: (``SPHERE_REGISTRIES``), as JSON keyed by alias, for example
+    #: ``{"lab": {"url": "https://sphere.lab.local", "api_key": "..."}}``. A
+    #: ``registry:`` alias that is not here is an error in a ``from`` and a warning
+    #: in an ``offering``. The URL must be https; secrets live here, never in a
+    #: document. The default SPHERE (``sphere:`` without ``registry:``) is the
+    #: pricing reader's to configure (F3).
+    sphere_registries: dict[str, SphereRegistry] = Field(default_factory=dict)
+
+    # -- Composition2Yaml ------------------------------------------------
+    #: Per-process slots for reading and writing documents, and for evaluating a
+    #: composition with the toolchain; a request that finds them all taken is
+    #: refused with 429 ``composition_busy`` instead of waiting.
+    composition_language_slots: int = Field(default=4, ge=1)
+    composition_evaluation_slots: int = Field(default=2, ge=1)
 
     # -- Diagnostics ------------------------------------------------------
     #: Failures of anonymous callers persisted as error events per client
@@ -396,6 +444,18 @@ class Settings(BaseSettings):
     federation_require_https: bool = True
 
     # -- Startup checks --------------------------------------------------
+
+    @field_validator("sphere_registries")
+    @classmethod
+    def registry_aliases_are_aliases(cls, registries: dict[str, SphereRegistry]) -> dict[str, SphereRegistry]:
+        """Refuse an alias a document could not name."""
+        for alias in registries:
+            if not SPHERE_REGISTRY_ALIAS.fullmatch(alias):
+                raise ValueError(
+                    f"SPHERE_REGISTRIES has an invalid alias {alias!r}: lower-case letters, digits and inner "
+                    "'-', at most 32 characters"
+                )
+        return registries
 
     @model_validator(mode="after")
     def closed_cors_in_production(self) -> "Settings":
@@ -529,6 +589,11 @@ class Settings(BaseSettings):
         return self
 
     # -- Derived values --------------------------------------------------
+
+    @property
+    def sphere_registry_aliases(self) -> frozenset[str]:
+        """The registry aliases a document may name; F1 reads nothing else of ``SPHERE_REGISTRIES``."""
+        return frozenset(self.sphere_registries)
 
     @property
     def cors_origin_list(self) -> List[str]:

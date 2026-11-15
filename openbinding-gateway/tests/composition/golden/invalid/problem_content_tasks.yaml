@@ -1,0 +1,14 @@
+# A problem-authoring document: its tasks and properties belong in the BIM problem.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: {seq: [pick, ship]}
+binding:
+  pick: {candidate: c_pick}
+  ship: {candidate: c_ship}
+values: {cost: {value: 4.5, unit: EUR/month}}
+tasks:
+  pick: {title: Pick the order}
+properties:
+  cost: {unit: EUR/month, direction: min}

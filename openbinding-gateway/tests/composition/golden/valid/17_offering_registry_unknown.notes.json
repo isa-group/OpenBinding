@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_offering_registry_unknown", "severity": "warning", "path": "offering.registry", "pointer": "/offering/registry", "span": [11, 30, 11, 43]}
+]

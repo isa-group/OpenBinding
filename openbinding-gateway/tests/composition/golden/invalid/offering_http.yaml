@@ -1,0 +1,10 @@
+# The offering is read over HTTPS only.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: pick
+binding:
+  pick: {candidate: c_pick}
+values: {}
+offering: {url: "http://pricings.example.org/shop.yml"}

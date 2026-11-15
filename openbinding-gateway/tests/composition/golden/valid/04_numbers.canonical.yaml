@@ -1,0 +1,18 @@
+syntaxVersion: '1.0'
+composition: numbers
+version: 1.0.0
+kind: system
+workflow: run
+binding:
+  run:
+    candidate: runner
+values:
+  count: 7
+  error:
+    value: 1.0e-05
+    unit: 1/run
+  latency:
+    value: 30.0
+    unit: ms
+  negative: -2.5
+  reliability: 0.30000000000000004

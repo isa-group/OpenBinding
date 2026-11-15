@@ -48,7 +48,7 @@ def is_open(method: str, path: str) -> bool:
 
 
 def test_the_route_table_has_the_v1_surface():
-    assert len(ROUTES) == 109
+    assert len(ROUTES) == 135
 
 
 def test_the_unclassified_permission_cannot_be_granted():
@@ -126,9 +126,10 @@ def test_projects_are_gone_with_their_permissions_and_boundary():
     assert not [route for route in ROUTES if "/projects" in route[1] or "{project}" in route[1]]
     assert not {"projects:read", "projects:write"} & set(ALL_PERMISSIONS)
     assert "projects" not in apikeys.BOUNDARY_FIELDS
-    # The organization tree holds only the organization, its members, invitations, audit, problems, runs and studies.
+    # The organization tree holds only the organization, its members, invitations, audit, problems, runs, run
+    # presets, studies and compositions.
     sections = {route[1].split("/")[4] for route in ROUTES if route[1].startswith("/v1/organizations/{org}/")}
-    assert sections == {"members", "invitations", "audit", "problems", "runs", "studies"}
+    assert sections == {"members", "invitations", "audit", "problems", "runs", "presets", "studies", "compositions"}
     # A stored boundary that still names projects is malformed, and a malformed boundary denies everything.
     stale = SimpleNamespace(grants={"boundary": {"projects": ["p"]}})
     assert not allows_request(stale, method="GET", path_params={"org": "acme"}, path="/v1/organizations/{org}")
@@ -181,3 +182,108 @@ async def test_an_unclassified_route_is_forbidden_to_a_key_but_not_to_a_session(
     assert with_key.json()["detail"]["code"] == "insufficient_api_key_permission"
     assert with_key.json()["detail"]["missing_permissions"] == [UNCLASSIFIED_ROUTE_PERMISSION]
     assert with_session.status_code == 200
+
+
+def test_the_composition2yaml_services_need_compositions_read_and_the_schema_is_open():
+    language = [route for route in ROUTES if route[1].startswith("/v1/compositions/")]
+
+    assert sorted(language) == [
+        ("GET", "/v1/compositions/schema"),
+        ("POST", "/v1/compositions/diff"),
+        ("POST", "/v1/compositions/parse"),
+        ("POST", "/v1/compositions/serialise"),
+        ("POST", "/v1/compositions/validate"),
+    ]
+    for method, path in language:
+        expected = frozenset() if method == "GET" else frozenset({"compositions:read"})
+        assert required_permissions(path, method) == expected, path
+    assert is_open("GET", "/v1/compositions/schema")
+    assert {"compositions:read", "compositions:write"} <= set(ALL_PERMISSIONS)
+
+
+def test_the_compositions_of_an_organization_have_their_own_permissions():
+    compositions = "/v1/organizations/{org}/compositions"
+    read, write = frozenset({"compositions:read"}), frozenset({"compositions:write"})
+
+    assert required_permissions(compositions, "GET") == read
+    assert required_permissions(f"{compositions}/{{composition}}/versions", "GET") == read
+    assert required_permissions(f"{compositions}/{{composition}}/versions/check", "POST") == read
+    assert required_permissions(f"{compositions}/{{composition}}/versions/{{version}}/evaluate", "POST") == read
+    assert required_permissions(compositions, "POST") == write
+    assert required_permissions(f"{compositions}/{{composition}}", "PATCH") == write
+    assert required_permissions(f"{compositions}/{{composition}}", "DELETE") == write
+    assert required_permissions(f"{compositions}/{{composition}}/versions", "POST") == write
+    assert required_permissions(f"{compositions}/{{composition}}/diff", "GET") == read
+    assert required_permissions(f"{compositions}/{{composition}}/fork", "POST") == write
+    assert required_permissions(f"{compositions}/{{composition}}/evaluate", "POST") == read
+    assert required_permissions(f"{compositions}/{{composition}}/neighborhood", "GET") == read
+    assert required_permissions(f"{compositions}/{{composition}}/versions/{{version}}/evaluations", "POST") == write
+    assert required_permissions(f"{compositions}/{{composition}}/derive", "POST") == write
+    # The organizations fallthrough does not reach them: an org-admin key gains no composition write.
+    assert "organizations:write" not in required_permissions(compositions, "POST")
+    # A composition-scoped key reaches them, by kind and by slug; a problem-scoped one does not.
+    request = {"method": "GET", "path_params": {"org": "acme", "composition": "shop"}, "path": f"{compositions}/{{composition}}"}
+    assert allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["composition"]}}), **request)
+    assert not allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["problem"]}}), **request)
+    assert allows_request(SimpleNamespace(grants={"boundary": {"slugs": ["shop"]}}), **request)
+    assert not allows_request(SimpleNamespace(grants={"boundary": {"slugs": ["other"]}}), **request)
+
+
+def test_the_compositions_of_an_organization_are_composition_reads_and_writes():
+    compositions = "/v1/organizations/{org}/compositions"
+    routes = sorted(route for route in ROUTES if route[1].startswith(compositions))
+
+    assert routes == [
+        ("DELETE", f"{compositions}/{{composition}}"),
+        ("GET", compositions),
+        ("GET", f"{compositions}/{{composition}}"),
+        ("GET", f"{compositions}/{{composition}}/diff"),
+        ("GET", f"{compositions}/{{composition}}/neighborhood"),
+        ("GET", f"{compositions}/{{composition}}/versions"),
+        ("GET", f"{compositions}/{{composition}}/versions/{{version}}"),
+        ("GET", f"{compositions}/{{composition}}/versions/{{version}}/content"),
+        ("PATCH", f"{compositions}/{{composition}}"),
+        ("POST", compositions),
+        ("POST", f"{compositions}/{{composition}}/derive"),
+        ("POST", f"{compositions}/{{composition}}/evaluate"),
+        ("POST", f"{compositions}/{{composition}}/fork"),
+        ("POST", f"{compositions}/{{composition}}/versions"),
+        ("POST", f"{compositions}/{{composition}}/versions/check"),
+        ("POST", f"{compositions}/{{composition}}/versions/{{version}}/evaluations"),
+    ]
+    for method, path in routes:
+        # Checking a document against its problem, or evaluating another binding, writes nothing;
+        # re-evaluating a version stores its evaluation, and deriving one seals it.
+        reads = method == "GET" or path.endswith(("/versions/check", "/evaluate"))
+        expected = "compositions:read" if reads else "compositions:write"
+        assert required_permissions(path, method) == frozenset({expected}), (method, path)
+        # The organizations fallback does not reach them.
+        assert not {"organizations:read", "organizations:write"} & required_permissions(path, method)
+    composition_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["composition"]}})
+    problems_only = SimpleNamespace(grants={"boundary": {"resourceKinds": ["problem"]}})
+    request = {"method": "GET", "path_params": {"org": "acme", "composition": "c"}, "path": f"{compositions}/{{composition}}"}
+    assert allows_request(composition_only, **request)
+    assert not allows_request(problems_only, **request)
+
+
+def test_the_run_presets_of_an_organization_are_jobs_reads_and_engine_executions():
+    presets = "/v1/organizations/{org}/presets"
+    routes = sorted(route for route in ROUTES if route[1].startswith(presets))
+
+    assert routes == [
+        ("DELETE", f"{presets}/{{preset}}"),
+        ("GET", presets),
+        ("GET", f"{presets}/{{preset}}"),
+        ("PATCH", f"{presets}/{{preset}}"),
+        ("POST", presets),
+    ]
+    for method, path in routes:
+        # Configuring how engines run is what creating a run needs.
+        expected = "jobs:read" if method == "GET" else "engines:execute"
+        assert required_permissions(path, method) == frozenset({expected}), (method, path)
+        assert not {"organizations:read", "organizations:write"} & required_permissions(path, method)
+    request = {"method": "GET", "path_params": {"org": "acme", "preset": "quick"}, "path": f"{presets}/{{preset}}"}
+    assert allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["preset"]}}), **request)
+    assert not allows_request(SimpleNamespace(grants={"boundary": {"resourceKinds": ["run"]}}), **request)
+    assert allows_request(SimpleNamespace(grants={"boundary": {"slugs": ["quick"]}}), **request)
+    assert not allows_request(SimpleNamespace(grants={"boundary": {"slugs": ["other"]}}), **request)

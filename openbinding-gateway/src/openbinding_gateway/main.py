@@ -54,6 +54,9 @@ from .models.problem import (
     summarize,
     validation_diagnostics,
 )
+from .modules.compositions.adapters.language_routes import router as composition_language_router
+from .modules.compositions.adapters.routes import router as compositions_router
+from .modules.execution.adapters.preset_routes import router as run_presets_router
 from .modules.execution.adapters.routes import router as runs_router
 from .modules.problems.adapters.bim_routes import router as bim_router
 from .modules.problems.adapters.routes import router as problems_router
@@ -218,6 +221,11 @@ TAGS_METADATA = [
     {"name": "Health", "description": "Whether the gateway is answering."},
     {"name": "BIM v1", "description": "Modular deterministic QoS binding."},
     {"name": "BIM", "description": "Stateless BIM language services: validate a package, read the templates."},
+    {
+        "name": "Composition2Yaml",
+        "description": "Stateless Composition2Yaml services: validate, parse, serialise and diff documents; the schema.",
+    },
+    {"name": "Compositions", "description": "Compositions of an organization: Composition2Yaml documents and their versions."},
     {"name": "Authentication", "description": "Accounts and sessions."},
     {"name": "Users", "description": "Your account, keys and quotas."},
     {"name": "Administration", "description": "Account administration."},
@@ -235,20 +243,23 @@ TAGS_METADATA = [
     },
 ]
 
-_BIM_PATH_PREFIXES = (
+#: The routes that answer every failure as ``application/problem+json``: the stateless language
+#: services (BIM and Composition2Yaml) and the engines. The platform routes keep ``application/json``.
+_PROBLEM_JSON_PREFIXES = (
     "/v1/bim/",
+    "/v1/compositions/",
     "/v1/engines",
     "/v1/engine-registrations",
 )
 
 
-def _is_bim_request(request: Request) -> bool:
-    return any(request.url.path.startswith(prefix) for prefix in _BIM_PATH_PREFIXES)
+def _answers_problem_json(request: Request) -> bool:
+    return any(request.url.path.startswith(prefix) for prefix in _PROBLEM_JSON_PREFIXES)
 
 
 def _problem_media_type(request: Request) -> str:
-    """BIM routes answer ``application/problem+json``; the platform routes keep ``application/json``."""
-    return PROBLEM_MEDIA_TYPE if _is_bim_request(request) else JSON_MEDIA_TYPE
+    """Language and engine routes answer ``application/problem+json``; the platform routes keep ``application/json``."""
+    return PROBLEM_MEDIA_TYPE if _answers_problem_json(request) else JSON_MEDIA_TYPE
 
 
 # Every 422 leaves the gateway through ``problem_response`` (models/problem.py),
@@ -290,7 +301,7 @@ async def http_error(request: Request, exc: HTTPException):
             extra=extra,
             media_type=_problem_media_type(request),
         )
-    if _is_bim_request(request):
+    if _answers_problem_json(request):
         code, message, diagnostics, extra = split_detail(exc.detail, "request_error")
         return problem_response(
             exc.status_code,
@@ -421,8 +432,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(invitation_router)
     app.include_router(studies_router)
     app.include_router(problems_router)
+    app.include_router(compositions_router)
     app.include_router(bim_router)
+    app.include_router(composition_language_router)
     app.include_router(runs_router)
+    app.include_router(run_presets_router)
     app.include_router(notifications_router)
 
     generated_openapi = app.openapi
@@ -454,9 +468,26 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             },
             "parameter": {"type": "string", "description": "The query, path, header or cookie parameter at fault."},
             "resource": {"type": "string", "description": "The package file or resource the finding is about."},
+            "severity": {
+                "type": "string",
+                "enum": ["error", "warning", "info"],
+                "description": "On a document's diagnostics: an error refuses it, a warning or an info only informs.",
+            },
+            "path": {
+                "type": "string",
+                "description": "On a document's diagnostics: the dotted path of the element at fault (`binding.t1.from`).",
+            },
+            "document": {
+                "type": "string",
+                "enum": ["before", "after"],
+                "description": "On a refused diff: which of the two documents the finding is about.",
+            },
             "span": {
-                "type": "object",
-                "description": "Position in the source text (`offset` for malformed JSON; line/column for documents).",
+                "type": ["object", "null"],
+                "description": (
+                    "Position in the source text (`offset` for malformed JSON; `line`, `column`, `end_line` and "
+                    "`end_column` for documents); null on a document's finding that has no text (a JSON document)."
+                ),
                 "additionalProperties": {"type": "integer"},
             },
             "hint": {"type": "string", "description": "What to do about it."},
@@ -822,6 +853,14 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
             "mode": {"type": "string"},
             "options": {"type": "object"},
             "optimization": {"type": "object"},
+            "preset": {
+                "type": "string",
+                "minLength": 1,
+                "description": (
+                    "A run preset of the organization (`listRunPresets`), by slug or id, whose settings the run "
+                    "copies; not together with `engine`, `registration`, `mode`, `options` or `optimization`."
+                ),
+            },
         },
         "additionalProperties": False,
     }
@@ -1085,7 +1124,8 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
 
     runs = paths["/v1/organizations/{org}/runs"]
     runs["post"]["requestBody"] = json_body(
-        "JobRequest", "The problem revision to run, and the exact Engine, deployment and settings."
+        "JobRequest",
+        "The problem revision to run, and the exact Engine, deployment and settings, or a run preset that holds them.",
     )
     runs["post"].setdefault("parameters", []).append(
         {
@@ -1104,7 +1144,8 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
         operation.setdefault("responses", {})[str(status_code)] = refusal(description)
 
     for path, path_item in paths.items():
-        if not any(path.startswith(prefix) for prefix in _BIM_PATH_PREFIXES):
+        # The Composition2Yaml routes declare their own 422.
+        if not any(path.startswith(prefix) for prefix in _PROBLEM_JSON_PREFIXES) or path.startswith("/v1/compositions/"):
             continue
         for method, operation in path_item.items():
             if method in methods and "422" in operation.get("responses", {}):
@@ -1149,7 +1190,17 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
                 "schema": {"type": "integer", "minimum": 1},
             }
         }
-        if not any(path.startswith(prefix) for prefix in _BIM_PATH_PREFIXES):
+        if path.startswith("/v1/compositions/"):
+            refused["description"] += (
+                " A request may also find every Composition2Yaml slot of this gateway busy: "
+                "`composition_busy`, `Retry-After: 1`."
+            )
+        elif "/compositions/" in path:
+            refused["description"] += (
+                " A request may also find every Composition2Yaml or evaluation slot of this gateway busy: "
+                "`composition_busy`, `Retry-After: 1`."
+            )
+        if not any(path.startswith(prefix) for prefix in _PROBLEM_JSON_PREFIXES):
             refused["content"] = {
                 JSON_MEDIA_TYPE: {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}
             }
@@ -1168,7 +1219,7 @@ def openapi_with_security_contract(app: FastAPI, settings: Settings, generated_o
     for path, path_item in paths.items():
         media_type = (
             PROBLEM_MEDIA_TYPE
-            if any(path.startswith(prefix) for prefix in _BIM_PATH_PREFIXES)
+            if any(path.startswith(prefix) for prefix in _PROBLEM_JSON_PREFIXES)
             else JSON_MEDIA_TYPE
         )
         for method, operation in path_item.items():

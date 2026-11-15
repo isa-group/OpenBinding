@@ -1,0 +1,10 @@
+# A candidate is an id, or <resource>/<id>.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: {seq: [pick, ship]}
+binding:
+  pick: {candidate: c_pick}
+  ship: {candidate: catalog/sub/c_ship}
+values: {cost: {value: 4.5, unit: EUR/month}}

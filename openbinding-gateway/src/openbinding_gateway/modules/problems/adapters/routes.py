@@ -33,6 +33,7 @@ from ....integrations import bim
 from ....models.errors import CONFLICT_RESPONSE, NOT_FOUND_RESPONSE, ErrorResponse, api_error
 from ....services.engines import compatible_modes
 from ....services.entitlements import entitlement_service
+from ...shared.application import audit
 from ..application import problems
 from ..application.package import PackageRequest, read_package
 from ..domain.compilation import analysis_summary, resource_contracts
@@ -119,7 +120,7 @@ def _provenance(request: Request, producer: str | None) -> dict[str, Any] | None
 def _summary(row: ProblemCompilation) -> CompilationSummary:
     return CompilationSummary(
         id=row.id, compilation_digest=row.compilation_digest, compiler_digest=row.compiler_digest,
-        ir_digest=row.ir_digest, binding_space=analysis_summary(row.ir, row.analysis)["bindingSpace"],
+        semantic_digest=row.semantic_digest, ir_digest=row.ir_digest, binding_space=analysis_summary(row.ir, row.analysis)["bindingSpace"],
         created_at=row.created_at, current=row.compiler_digest == bim.toolchain_digest(),
     )
 
@@ -265,7 +266,7 @@ async def update_problem(
     if payload.description is not None:
         found.description = payload.description
     await session.flush()
-    problems.audit(session, user, "problem.updated", "BindingCase", found.id, organization.id)
+    audit(session, user, "problem.updated", "BindingCase", found.id, organization.id)
     etags.set_etag(response, found)
     latest = (await problems.latest_revisions(session, [found.id])).get(found.id)
     return _problem_view(found, latest)
@@ -283,7 +284,11 @@ async def delete_problem(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> None:
-    """Delete a problem nothing has run on (409 `problem_has_runs` otherwise). Its stored files stay."""
+    """Delete a problem nothing has run on and no composition links.
+
+    409 `problem_has_runs` when a run or a study names a revision, `problem_has_compositions` when a sealed
+    composition version does. Its stored files stay.
+    """
     organization = await _organization(session, org, user, OrganizationRole.ADMIN)
     found = await _problem(session, organization, problem)
     await problems.delete_problem(session, found, user)

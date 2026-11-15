@@ -71,7 +71,7 @@ async def test_a_run_committed_after_the_check_is_caught_by_the_foreign_key(two_
         nonlocal checks
         value = await original_scalar(statement, *args, **kwargs)
         checks += 1
-        if checks == 2:  # the last reference check (runs, then study cells): launch a run from the other session now
+        if checks == 2:  # the second reference check (runs, then study cells): launch a run from the other session now
             second.add(_job(await second.get(User, user.id), refs))
             await second.commit()
         return value

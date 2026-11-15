@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_offering_shape", "severity": "error", "path": "offering.url", "pointer": "/offering/url", "span": [10, 12, 10, 70]}
+]

@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_task_id_invalid", "severity": "error", "path": "workflow.seq[1]", "pointer": "/workflow/seq/1", "span": [6, 24, 6, 32]}
+]

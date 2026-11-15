@@ -64,7 +64,7 @@ from ....services.engines import persisted_mode_contract, run_in_org
 from ....services.entitlements import EntitlementService, get_entitlements
 from ....services.execution import evaluate_engine_result
 from ....services.job_submission import JobSubmission, JobSubmissionResult
-from ..domain.run_request import REQUEST_FIELDS, STUDY_CELL_KEY_PREFIX, RunRequest
+from ..domain.run_request import REQUEST_FIELDS, STUDY_CELL_KEY_PREFIX, RunRequest, RunRequestRefused
 
 router = APIRouter(prefix="/v1/organizations/{org}/runs", tags=["Runs"])
 
@@ -138,7 +138,10 @@ async def _read_run_request(request: Request, organization: Organization, key: s
         raise api_error(422, "revision_required", "A run names the problem revision it runs (revision).")
     if set(payload) - REQUEST_FIELDS:
         raise api_error(422, "invalid_request_fields", "The run request contains fields outside the run contract.")
-    return RunRequest.from_document(organization.id, payload, idempotency_key=key, body_size=len(body))
+    try:
+        return RunRequest.from_document(organization.id, payload, idempotency_key=key, body_size=len(body))
+    except RunRequestRefused as exc:
+        raise api_error(422, exc.code, exc.message) from exc
 
 
 def _refusal(result: JobSubmissionResult) -> JSONResponse:
@@ -180,7 +183,11 @@ def _refusal(result: JobSubmissionResult) -> JSONResponse:
         )},
         413: {"model": ErrorResponse, "description": "The request exceeds the transport size limit."},
         415: {"model": ErrorResponse, "description": "The request is not JSON."},
-        422: {"description": "The revision, selection, mode or options are invalid, or the binding space exceeds the limit."},
+        422: {"description": (
+            "The revision, selection, mode or options are invalid, or the binding space exceeds the limit; the "
+            "preset is not one of the organization's (`preset_not_found`) or comes with settings of its own "
+            "(`preset_with_settings`)."
+        )},
         429: {"model": ErrorResponse, "description": "The account already has the maximum number of queued and running runs."},
         503: UNAVAILABLE_RESPONSE,
     },
@@ -192,6 +199,10 @@ async def create_run(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ):
     """Run a revision of one of the organization's problems on an engine (MEMBER).
+
+    The settings (engine, registration, mode, options, optimization) are given inline or taken from a run
+    preset of the organization (``preset``, its slug or id), never both. The run copies the preset's
+    settings and records it as ``{id, slug}`` in ``original_request`` and ``provenance``.
 
     ``Idempotency-Key`` makes sending twice by accident start one run: the same key and the same
     request answer the first run again (202, ``idempotent``), the same key with another request 409.

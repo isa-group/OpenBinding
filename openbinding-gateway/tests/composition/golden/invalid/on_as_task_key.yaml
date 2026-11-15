@@ -1,0 +1,10 @@
+# YAML 1.1 reads the key on as a boolean.
+syntaxVersion: "1.0"
+composition: switch
+version: 1.0.0
+kind: workflow
+workflow: {seq: ["on", "off"]}
+binding:
+  on: {candidate: c_on}
+  "off": {candidate: c_off}
+values: {}

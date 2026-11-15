@@ -454,11 +454,20 @@ from .platform_models import (  # noqa: E402,F401
     AuditEvent,
     BindingCase,
     BindingCaseRevision,
+    Composition,
+    CompositionDerivation,
+    CompositionEvaluation,
+    CompositionKind,
+    CompositionVersion,
+    DerivationSource,
+    EvaluationBasis,
+    EvaluationOutcome,
     Notification,
     Organization,
     OrganizationInvitation,
     OrganizationMembership,
     OrganizationRole,
+    RunPreset,
     RunState,
     Study,
     StudyCell,
@@ -466,6 +475,7 @@ from .platform_models import (  # noqa: E402,F401
     StudyState,
     PasswordResetToken,
     ProblemCompilation,
+    ValuesStatus,
 )
 
 # Last, once every table above is in the metadata: the triggers of db/triggers.py (D2).

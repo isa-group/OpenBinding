@@ -600,6 +600,8 @@
           "organizations:write",
           "studies:read",
           "studies:write",
+          "compositions:read",
+          "compositions:write",
           "notifications:read",
           "pricing:read",
           "admin:accounts:read",
@@ -2466,6 +2468,75 @@
         "title": "ChangeSubscriptionRequest",
         "type": "object"
       },
+      "CheckResult": {
+        "description": "The lint of a document against its problem: 200 whether or not it is valid; nothing is stored.",
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The exact canonical text a seal would store; null when not valid.",
+            "title": "Content"
+          },
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "valid": {
+            "description": "Whether a seal would accept the document.",
+            "title": "Valid",
+            "type": "boolean"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/ValueView"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The values a seal would store; null when not valid.",
+            "title": "Values"
+          },
+          "values_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "verified",
+                  "declared"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What a seal would store: `verified` for a linked document, `declared` for one with no problem.",
+            "title": "Values Status"
+          }
+        },
+        "required": [
+          "valid",
+          "values_status",
+          "values",
+          "content",
+          "diagnostics"
+        ],
+        "title": "CheckResult",
+        "type": "object"
+      },
       "CompilationIr": {
         "properties": {
           "id": {
@@ -2529,12 +2600,18 @@
           "ir_digest": {
             "title": "Ir Digest",
             "type": "string"
+          },
+          "semantic_digest": {
+            "description": "The digest of what the compiled problem means; equal across toolchains that read it alike.",
+            "title": "Semantic Digest",
+            "type": "string"
           }
         },
         "required": [
           "id",
           "compilation_digest",
           "compiler_digest",
+          "semantic_digest",
           "ir_digest",
           "binding_space",
           "created_at",
@@ -2600,6 +2677,11 @@
             "title": "Revision Id",
             "type": "string"
           },
+          "semantic_digest": {
+            "description": "The digest of what the compiled problem means; equal across toolchains that read it alike.",
+            "title": "Semantic Digest",
+            "type": "string"
+          },
           "toolchain": {
             "additionalProperties": true,
             "title": "Toolchain",
@@ -2610,6 +2692,7 @@
           "id",
           "compilation_digest",
           "compiler_digest",
+          "semantic_digest",
           "ir_digest",
           "binding_space",
           "created_at",
@@ -2618,6 +2701,1038 @@
           "analysis"
         ],
         "title": "CompilationView",
+        "type": "object"
+      },
+      "CompositionCreate": {
+        "additionalProperties": false,
+        "description": "A new, empty composition.",
+        "properties": {
+          "description": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Description",
+            "type": "string"
+          },
+          "kind": {
+            "default": "application",
+            "description": "What the composition composes; once a version exists it follows the latest version's `kind`.",
+            "enum": [
+              "application",
+              "workflow",
+              "pipeline",
+              "system"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "description": "Unique within the organization: 1 to 64 lowercase letters, digits and hyphens.",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name"
+        ],
+        "title": "CompositionCreate",
+        "type": "object"
+      },
+      "CompositionDerive": {
+        "additionalProperties": false,
+        "description": "A binding of a problem to derive a version from: a run's solution, or a binding given with a revision.",
+        "properties": {
+          "binding": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "maxProperties": 1024,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "With `revision`: each service task's candidate, as a document names it (its id, or `<resource>/<id>`). Local tasks are bound `local: true` on their own.",
+            "title": "Binding"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "application",
+                  "workflow",
+                  "pipeline",
+                  "system"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The composition's by default.",
+            "title": "Kind"
+          },
+          "offering": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The composition's offering, `{sphere, registry?}` or `{url}`; a derivation writes none by default.",
+            "title": "Offering"
+          },
+          "point": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The solution of the run: its index in the run's result; 0 by default.",
+            "title": "Point"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 3,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The problem revision to derive from (with `binding`): `<problem>@<revision>`, each by slug, id or number.",
+            "title": "Revision"
+          },
+          "run": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The run whose solution is derived (with `point`).",
+            "title": "Run"
+          },
+          "seal": {
+            "default": true,
+            "description": "Store the version (`true`), or only answer the document it would be.",
+            "title": "Seal",
+            "type": "boolean"
+          },
+          "version": {
+            "description": "The derived version's `version:` (Semantic Versioning). Required: it is part of the bytes.",
+            "maxLength": 64,
+            "minLength": 5,
+            "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "CompositionDerive",
+        "type": "object"
+      },
+      "CompositionDiagnosticView": {
+        "description": "One finding about a Composition2Yaml document.",
+        "properties": {
+          "code": {
+            "description": "A `c2y_*` code (docs/ERRORS.md).",
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "path": {
+            "description": "Dotted path of the element at fault (`binding.t1.from`); empty for the document.",
+            "title": "Path",
+            "type": "string"
+          },
+          "pointer": {
+            "description": "The same path as an RFC 6901 JSON Pointer, unambiguous where the dotted one is not.",
+            "title": "Pointer",
+            "type": "string"
+          },
+          "severity": {
+            "description": "An error refuses the document; a warning or an info only informs.",
+            "enum": [
+              "error",
+              "warning",
+              "info"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "span": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompositionSpan"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where the element is in the text; null when there is no text (a JSON document)."
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "severity",
+          "path",
+          "pointer",
+          "span"
+        ],
+        "title": "CompositionDiagnosticView",
+        "type": "object"
+      },
+      "CompositionEvaluate": {
+        "additionalProperties": false,
+        "description": "A version of a composition to evaluate, with some of its tasks bound otherwise.",
+        "properties": {
+          "binding": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "maxProperties": 1024,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tasks to bind otherwise, each to a candidate as a document names it (its id, or `<resource>/<id>`); the other tasks keep the version's binding.",
+            "title": "Binding"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version to evaluate: its id, label or ordinal; the latest by default.",
+            "title": "Version"
+          }
+        },
+        "title": "CompositionEvaluate",
+        "type": "object"
+      },
+      "CompositionFork": {
+        "additionalProperties": false,
+        "description": "A version of a composition to fork into another organization, as a new composition there.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The source's by default.",
+            "title": "Description"
+          },
+          "dropProblem": {
+            "default": false,
+            "description": "Fork a version that links a problem anyway: its `problem` and `evidence` are removed and its values sealed as declared. Without it, such a fork is 409 `composition_fork_problem_unreadable`.",
+            "title": "Dropproblem",
+            "type": "boolean"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The source's by default.",
+            "title": "Name"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The new composition's slug; the source's by default. Taken by default is 200 `nameTaken`, taken when given is 409.",
+            "title": "Slug"
+          },
+          "targetOrganization": {
+            "description": "The organization to fork into (slug or id); not the source's own.",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Targetorganization",
+            "type": "string"
+          },
+          "version": {
+            "description": "The version to fork: its id, label or ordinal.",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "targetOrganization"
+        ],
+        "title": "CompositionFork",
+        "type": "object"
+      },
+      "CompositionList": {
+        "description": "One page of an organization's compositions, and how many match in all.",
+        "properties": {
+          "compositions": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionView"
+            },
+            "title": "Compositions",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "compositions",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "CompositionList",
+        "type": "object"
+      },
+      "CompositionMove": {
+        "description": "One alternative of the version's binding: one task bound to another candidate.",
+        "properties": {
+          "candidate": {
+            "description": "The candidate the move binds (`to`), as a document names it.",
+            "title": "Candidate",
+            "type": "string"
+          },
+          "comparison": {
+            "enum": [
+              "better",
+              "worse",
+              "equal",
+              "trade-off",
+              "infeasible",
+              "repairs-feasibility"
+            ],
+            "title": "Comparison",
+            "type": "string"
+          },
+          "componentDeltas": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Componentdeltas",
+            "type": "array"
+          },
+          "decision": {
+            "additionalProperties": true,
+            "title": "Decision",
+            "type": "object"
+          },
+          "feasible": {
+            "title": "Feasible",
+            "type": "boolean"
+          },
+          "features": {
+            "additionalProperties": true,
+            "title": "Features",
+            "type": "object"
+          },
+          "from": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "From",
+            "type": "object"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "title": "Metrics",
+            "type": "object"
+          },
+          "objectives": {
+            "additionalProperties": true,
+            "title": "Objectives",
+            "type": "object"
+          },
+          "penaltyDelta": {
+            "title": "Penaltydelta",
+            "type": "number"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          },
+          "to": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "To",
+            "type": "object"
+          },
+          "violations": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task",
+          "from",
+          "to",
+          "decision",
+          "objectives",
+          "violations",
+          "feasible",
+          "comparison",
+          "componentDeltas",
+          "penaltyDelta",
+          "candidate"
+        ],
+        "title": "CompositionMove",
+        "type": "object"
+      },
+      "CompositionNeighborhoodResponse": {
+        "description": "The toolchain's one-task alternatives of a version's binding.",
+        "properties": {
+          "base": {
+            "additionalProperties": true,
+            "title": "Base",
+            "type": "object"
+          },
+          "conclusion": {
+            "title": "Conclusion",
+            "type": "string"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/NeighborhoodCoverage"
+          },
+          "failures": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Failures",
+            "type": "array"
+          },
+          "irDigest": {
+            "title": "Irdigest",
+            "type": "string"
+          },
+          "kind": {
+            "const": "canonical-one-task-counterfactuals",
+            "title": "Kind",
+            "type": "string"
+          },
+          "moves": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionMove"
+            },
+            "title": "Moves",
+            "type": "array"
+          },
+          "scope": {
+            "enum": [
+              "all-service-tasks",
+              "selected-service-task"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "semantics": {
+            "title": "Semantics",
+            "type": "string"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          },
+          "version": {
+            "$ref": "#/components/schemas/VersionName"
+          }
+        },
+        "required": [
+          "kind",
+          "irDigest",
+          "scope",
+          "task",
+          "base",
+          "moves",
+          "failures",
+          "coverage",
+          "conclusion",
+          "semantics",
+          "version"
+        ],
+        "title": "CompositionNeighborhoodResponse",
+        "type": "object"
+      },
+      "CompositionOrganization": {
+        "description": "The organization a composition belongs to.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug"
+        ],
+        "title": "CompositionOrganization",
+        "type": "object"
+      },
+      "CompositionSpan": {
+        "description": "Where a finding sits in the document's text: one-based lines and columns, the end exclusive.",
+        "properties": {
+          "column": {
+            "minimum": 1.0,
+            "title": "Column",
+            "type": "integer"
+          },
+          "end_column": {
+            "minimum": 1.0,
+            "title": "End Column",
+            "type": "integer"
+          },
+          "end_line": {
+            "minimum": 1.0,
+            "title": "End Line",
+            "type": "integer"
+          },
+          "line": {
+            "minimum": 1.0,
+            "title": "Line",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "line",
+          "column",
+          "end_line",
+          "end_column"
+        ],
+        "title": "CompositionSpan",
+        "type": "object"
+      },
+      "CompositionUpdate": {
+        "additionalProperties": false,
+        "description": "The fields to change; absent fields stay. `kind` follows the versions and is not edited here.",
+        "properties": {
+          "archived": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "CompositionUpdate",
+        "type": "object"
+      },
+      "CompositionVersionDiff": {
+        "description": "What changed from one version of a composition to another.",
+        "properties": {
+          "comparison": {
+            "$ref": "#/components/schemas/DiffComparison"
+          },
+          "from": {
+            "$ref": "#/components/schemas/VersionName",
+            "description": "The earlier side."
+          },
+          "general": {
+            "items": {
+              "$ref": "#/components/schemas/FieldChangeView"
+            },
+            "title": "General",
+            "type": "array"
+          },
+          "isEmpty": {
+            "description": "Whether nothing changed that a diff reports.",
+            "title": "Isempty",
+            "type": "boolean"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/SectionDiffView"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "to": {
+            "$ref": "#/components/schemas/VersionName",
+            "description": "The later side."
+          },
+          "totals": {
+            "$ref": "#/components/schemas/DiffTotals"
+          }
+        },
+        "required": [
+          "general",
+          "sections",
+          "totals",
+          "isEmpty",
+          "comparison",
+          "from",
+          "to"
+        ],
+        "title": "CompositionVersionDiff",
+        "type": "object"
+      },
+      "CompositionVersionList": {
+        "description": "One page of a composition's versions, and how many it has.",
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionVersionView"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "versions",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "CompositionVersionList",
+        "type": "object"
+      },
+      "CompositionVersionSummary": {
+        "description": "A version, named.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "description": "The document's `version:` (Semantic Versioning).",
+            "title": "Label",
+            "type": "string"
+          },
+          "ordinal": {
+            "description": "1 for the first version sealed, then one more each time.",
+            "minimum": 1.0,
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "values_status": {
+            "enum": [
+              "verified",
+              "declared"
+            ],
+            "title": "Values Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ordinal",
+          "label",
+          "values_status",
+          "created_at"
+        ],
+        "title": "CompositionVersionSummary",
+        "type": "object"
+      },
+      "CompositionVersionView": {
+        "description": "A sealed version of a composition: immutable.",
+        "properties": {
+          "analytics": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A summary of the document computed at seal: `tasks`, `boundTasks`, `localTasks`, `providers`, `upstreamPricings`, `workflow{depth, xor, and, loop}`, `hasOffering`. In a list, only with `include=analytics`.",
+            "title": "Analytics"
+          },
+          "based_on": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version it was forked from, as data: `{composition_id, version_id, label}`.",
+            "title": "Based On"
+          },
+          "content_digest": {
+            "description": "Digest of the canonical bytes; the content's `ETag`.",
+            "title": "Content Digest",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "format": "uuid",
+            "title": "Created By Id",
+            "type": "string"
+          },
+          "current_evaluation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Evaluation Id"
+          },
+          "evaluations": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluationView"
+            },
+            "title": "Evaluations",
+            "type": "array"
+          },
+          "evidence_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceRun"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "forked_from": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What it was forked from, as it was named when it was forked: `{compositionId, versionId, label, organization{id, name, displayName}, slug, name, droppedProblem}`. `droppedProblem` says the fork removed the source's problem link and evidence, so its values are the source's, declared.",
+            "title": "Forked From"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "application",
+              "workflow",
+              "pipeline",
+              "system"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "description": "The document's `version:` (Semantic Versioning).",
+            "title": "Label",
+            "type": "string"
+          },
+          "offering": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The offering's source: `{sphere, registry?}` or `{url}`.",
+            "title": "Offering"
+          },
+          "ordinal": {
+            "minimum": 1.0,
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VersionLink"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The problem the version links; null for a declared one."
+          },
+          "size_bytes": {
+            "minimum": 1.0,
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "syntax_version": {
+            "description": "The `syntaxVersion` the version was sealed with.",
+            "title": "Syntax Version",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ValueView"
+            },
+            "description": "The values of the current evaluation.",
+            "title": "Values",
+            "type": "object"
+          },
+          "values_status": {
+            "description": "`verified`: the values are the toolchain's; `declared`: they are the author's.",
+            "enum": [
+              "verified",
+              "declared"
+            ],
+            "title": "Values Status",
+            "type": "string"
+          },
+          "verified": {
+            "description": "Whether the current evaluation verified the binding and computed the values.",
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "ordinal",
+          "label",
+          "syntax_version",
+          "kind",
+          "values_status",
+          "verified",
+          "content_digest",
+          "size_bytes",
+          "values",
+          "problem",
+          "offering",
+          "evidence_run",
+          "based_on",
+          "evaluations",
+          "current_evaluation_id",
+          "created_by_id",
+          "created_at"
+        ],
+        "title": "CompositionVersionView",
+        "type": "object"
+      },
+      "CompositionView": {
+        "description": "A composition of an organization.",
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "format": "uuid",
+            "title": "Created By Id",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "application",
+              "workflow",
+              "pipeline",
+              "system"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "latest_version": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompositionVersionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The latest sealed version; null while it has none."
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/CompositionOrganization"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version_count": {
+            "default": 0,
+            "description": "How many versions it has.",
+            "minimum": 0.0,
+            "title": "Version Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "description",
+          "kind",
+          "archived",
+          "organization",
+          "created_by_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CompositionView",
         "type": "object"
       },
       "ContractSubscriptionView": {
@@ -2874,6 +3989,176 @@
         "title": "CreatedApiKey",
         "type": "object"
       },
+      "DerivationView": {
+        "description": "How a version was derived: the binding, where it came from and where the toolchain evaluated it.",
+        "properties": {
+          "binding": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "description": "`{task: {resource, id}}`, as the toolchain was given it.",
+            "title": "Binding",
+            "type": "object"
+          },
+          "binding_digest": {
+            "title": "Binding Digest",
+            "type": "string"
+          },
+          "compilation_id": {
+            "description": "The compilation the derived document links (the run's, for a run).",
+            "format": "uuid",
+            "title": "Compilation Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "format": "uuid",
+            "title": "Created By Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The run it was derived from.",
+            "title": "Job Id"
+          },
+          "point": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The solution of the run.",
+            "title": "Point"
+          },
+          "provenance": {
+            "additionalProperties": true,
+            "description": "`{toolchain, irDigest, semanticDigest, evaluatedCompilationId, run}`: the compilation evaluated and, for a run, its `{engine, engineDigest, mode, evaluatorDigest}`.",
+            "title": "Provenance",
+            "type": "object"
+          },
+          "revision_id": {
+            "format": "uuid",
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "run",
+              "binding"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "revision_id",
+          "compilation_id",
+          "job_id",
+          "point",
+          "binding",
+          "binding_digest",
+          "provenance",
+          "created_by_id",
+          "created_at"
+        ],
+        "title": "DerivationView",
+        "type": "object"
+      },
+      "DeriveDraft": {
+        "description": "The version a derivation would seal (`seal: false`); nothing is stored.",
+        "properties": {
+          "content": {
+            "description": "The exact canonical text a seal would store.",
+            "title": "Content",
+            "type": "string"
+          },
+          "diagnostics": {
+            "description": "Every warning and info, located in `content`.",
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "document": {
+            "additionalProperties": true,
+            "description": "The same document, as JSON.",
+            "title": "Document",
+            "type": "object"
+          },
+          "values": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ValueView"
+            },
+            "description": "The values the toolchain computed for the binding.",
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "content",
+          "document",
+          "values",
+          "diagnostics"
+        ],
+        "title": "DeriveDraft",
+        "type": "object"
+      },
+      "DeriveResult": {
+        "description": "A derived version, sealed: the version, its evaluation, its derivation and what deriving found.",
+        "properties": {
+          "derivation": {
+            "$ref": "#/components/schemas/DerivationView"
+          },
+          "diagnostics": {
+            "description": "Every warning and info, located in the version's content.",
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "evaluation": {
+            "$ref": "#/components/schemas/EvaluationView"
+          },
+          "version": {
+            "$ref": "#/components/schemas/CompositionVersionView"
+          }
+        },
+        "required": [
+          "version",
+          "evaluation",
+          "derivation",
+          "diagnostics"
+        ],
+        "title": "DeriveResult",
+        "type": "object"
+      },
       "Diagnostic": {
         "additionalProperties": true,
         "description": "One thing wrong with the request, with where and (when known) how to fix it.",
@@ -2900,6 +4185,14 @@
           "context": {
             "description": "Limits that were exceeded (`gt`, `max_length`, ...).",
             "type": "object"
+          },
+          "document": {
+            "description": "On a refused diff: which of the two documents the finding is about.",
+            "enum": [
+              "before",
+              "after"
+            ],
+            "type": "string"
           },
           "fix": {
             "description": "A concrete replacement, when one is known.",
@@ -2945,6 +4238,10 @@
             "description": "The query, path, header or cookie parameter at fault.",
             "type": "string"
           },
+          "path": {
+            "description": "On a document's diagnostics: the dotted path of the element at fault (`binding.t1.from`).",
+            "type": "string"
+          },
           "pointer": {
             "description": "RFC 6901 JSON Pointer to the offending field (inside the request body, or the document named by `resource`).",
             "type": "string"
@@ -2959,12 +4256,24 @@
             "description": "The package file or resource the finding is about.",
             "type": "string"
           },
+          "severity": {
+            "description": "On a document's diagnostics: an error refuses it, a warning or an info only informs.",
+            "enum": [
+              "error",
+              "warning",
+              "info"
+            ],
+            "type": "string"
+          },
           "span": {
             "additionalProperties": {
               "type": "integer"
             },
-            "description": "Position in the source text (`offset` for malformed JSON; line/column for documents).",
-            "type": "object"
+            "description": "Position in the source text (`offset` for malformed JSON; `line`, `column`, `end_line` and `end_column` for documents); null on a document's finding that has no text (a JSON document).",
+            "type": [
+              "object",
+              "null"
+            ]
           },
           "unsupported": {
             "description": "The values of `category` the problem uses and the engine mode does not support.",
@@ -2978,6 +4287,101 @@
           "code",
           "message"
         ],
+        "type": "object"
+      },
+      "DiffComparison": {
+        "description": "Whether the values of the two sides can be compared, and what tells them apart if not.",
+        "properties": {
+          "comparable": {
+            "description": "Both sides verified on the same problem revision and compilation, or both declared on the same link (or none). Otherwise the `values` section is empty: value changes are not shown.",
+            "title": "Comparable",
+            "type": "boolean"
+          },
+          "compilationChanged": {
+            "title": "Compilationchanged",
+            "type": "boolean"
+          },
+          "problemRefChanged": {
+            "title": "Problemrefchanged",
+            "type": "boolean"
+          },
+          "valueStatus": {
+            "$ref": "#/components/schemas/ValueStatusPair"
+          }
+        },
+        "required": [
+          "comparable",
+          "problemRefChanged",
+          "compilationChanged",
+          "valueStatus"
+        ],
+        "title": "DiffComparison",
+        "type": "object"
+      },
+      "DiffResult": {
+        "description": "What changed between two documents, in SPHERE's PricingDiff shape.\n\n`general` holds the top-level fields that changed (`syntaxVersion`, `composition`, `kind`, `problem.*`, and\n`workflow` compared whole); `version` and `evidence` are not reported. `sections` are always `binding`\n(one entry per task), `values` (one per property) and `offering` (one, `source`).",
+        "properties": {
+          "comparison": {
+            "$ref": "#/components/schemas/DiffComparison"
+          },
+          "general": {
+            "items": {
+              "$ref": "#/components/schemas/FieldChangeView"
+            },
+            "title": "General",
+            "type": "array"
+          },
+          "isEmpty": {
+            "description": "Whether nothing changed that a diff reports.",
+            "title": "Isempty",
+            "type": "boolean"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/SectionDiffView"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/DiffTotals"
+          }
+        },
+        "required": [
+          "general",
+          "sections",
+          "totals",
+          "isEmpty",
+          "comparison"
+        ],
+        "title": "DiffResult",
+        "type": "object"
+      },
+      "DiffTotals": {
+        "description": "How many entries were added, removed and changed; each general change counts as changed.",
+        "properties": {
+          "added": {
+            "minimum": 0.0,
+            "title": "Added",
+            "type": "integer"
+          },
+          "changed": {
+            "minimum": 0.0,
+            "title": "Changed",
+            "type": "integer"
+          },
+          "removed": {
+            "minimum": 0.0,
+            "title": "Removed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "added",
+          "removed",
+          "changed"
+        ],
+        "title": "DiffTotals",
         "type": "object"
       },
       "EngineCatalog": {
@@ -3998,6 +5402,38 @@
         ],
         "type": "object"
       },
+      "EntryDiffView": {
+        "description": "One entry of a section (a task, a property, the offering's `source`) that was added, removed or changed.",
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/FieldChangeView"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "added",
+              "removed",
+              "changed"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "changes"
+        ],
+        "title": "EntryDiffView",
+        "type": "object"
+      },
       "ErrorBody": {
         "description": "The payload under ``detail``.",
         "properties": {
@@ -4078,6 +5514,279 @@
           "detail"
         ],
         "title": "ErrorResponse",
+        "type": "object"
+      },
+      "EvaluateResult": {
+        "description": "A binding of a version as the toolchain evaluated it; nothing is stored.",
+        "properties": {
+          "diagnostics": {
+            "description": "What the evaluation found; a finding about a task the request rebinds points at `/binding/<task>`.",
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "valid": {
+            "description": "Whether the binding holds: the toolchain reports no hard violation.",
+            "title": "Valid",
+            "type": "boolean"
+          },
+          "values": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ValueView"
+            },
+            "description": "The global values the toolchain computed for this binding.",
+            "title": "Values",
+            "type": "object"
+          },
+          "version": {
+            "$ref": "#/components/schemas/VersionName"
+          },
+          "violations": {
+            "description": "The constraint violations the toolchain reported.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "version",
+          "valid",
+          "values",
+          "violations",
+          "diagnostics"
+        ],
+        "title": "EvaluateResult",
+        "type": "object"
+      },
+      "EvaluationCompilation": {
+        "description": "The compilation an evaluation evaluated: the toolchain's of that release.",
+        "properties": {
+          "compilation_digest": {
+            "title": "Compilation Digest",
+            "type": "string"
+          },
+          "compiler_digest": {
+            "title": "Compiler Digest",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "semantic_digest": {
+            "title": "Semantic Digest",
+            "type": "string"
+          },
+          "toolchain": {
+            "additionalProperties": true,
+            "title": "Toolchain",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "compilation_digest",
+          "compiler_digest",
+          "semantic_digest",
+          "toolchain"
+        ],
+        "title": "EvaluationCompilation",
+        "type": "object"
+      },
+      "EvaluationView": {
+        "description": "One evaluation of a version: by one toolchain release (`bim`), or the author's values (`declared`).",
+        "properties": {
+          "basis": {
+            "enum": [
+              "bim",
+              "declared"
+            ],
+            "title": "Basis",
+            "type": "string"
+          },
+          "compilation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationCompilation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "current": {
+            "description": "Whether this is the version's current evaluation.",
+            "title": "Current",
+            "type": "boolean"
+          },
+          "diagnostics": {
+            "description": "What the evaluation found, located in the version's content (null span where it has no place there).",
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "verified",
+              "binding_invalid",
+              "semantics_changed",
+              "declared"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ValueView"
+            },
+            "title": "Values",
+            "type": "object"
+          },
+          "violations": {
+            "description": "The constraint violations the toolchain reported.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "basis",
+          "outcome",
+          "values",
+          "violations",
+          "diagnostics",
+          "compilation",
+          "current",
+          "created_at"
+        ],
+        "title": "EvaluationView",
+        "type": "object"
+      },
+      "EvidenceRun": {
+        "description": "The run a version's evidence names.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "EvidenceRun",
+        "type": "object"
+      },
+      "ExistingComposition": {
+        "description": "The composition that holds the slug a fork would take.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name"
+        ],
+        "title": "ExistingComposition",
+        "type": "object"
+      },
+      "FieldChangeView": {
+        "description": "One field that differs: its dotted path within the entry (or the document), and both values.",
+        "properties": {
+          "after": {
+            "description": "The value after; null when the field is absent after.",
+            "title": "After"
+          },
+          "before": {
+            "description": "The value before; null when the field is absent before.",
+            "title": "Before"
+          },
+          "path": {
+            "description": "Dotted path of the field: `candidate`, `from.version`, `value`, `problem.ref`, `workflow`.",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "FieldChangeView",
+        "type": "object"
+      },
+      "ForkNameTaken": {
+        "description": "Nothing was forked: the source's slug is taken in the target organization; name another `slug`.",
+        "properties": {
+          "existingComposition": {
+            "$ref": "#/components/schemas/ExistingComposition"
+          },
+          "nameTaken": {
+            "const": true,
+            "title": "Nametaken",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "nameTaken",
+          "existingComposition"
+        ],
+        "title": "ForkNameTaken",
+        "type": "object"
+      },
+      "ForkResult": {
+        "description": "The new composition and its first version, sealed from the source's document.",
+        "properties": {
+          "composition": {
+            "$ref": "#/components/schemas/CompositionView"
+          },
+          "droppedProblem": {
+            "description": "Whether the source's problem link was removed (`dropProblem`).",
+            "title": "Droppedproblem",
+            "type": "boolean"
+          },
+          "version": {
+            "$ref": "#/components/schemas/CompositionVersionView"
+          }
+        },
+        "required": [
+          "composition",
+          "version",
+          "droppedProblem"
+        ],
+        "title": "ForkResult",
         "type": "object"
       },
       "GatewayBindingResult": {
@@ -4591,6 +6300,11 @@
           },
           "options": {
             "type": "object"
+          },
+          "preset": {
+            "description": "A run preset of the organization (`listRunPresets`), by slug or id, whose settings the run copies; not together with `engine`, `registration`, `mode`, `options` or `optimization`.",
+            "minLength": 1,
+            "type": "string"
           },
           "registration": {
             "$ref": "#/components/schemas/ImmutableResourceRef"
@@ -5125,6 +6839,7 @@
         "type": "object"
       },
       "NeighborhoodResponse": {
+        "description": "The counterfactuals of one solution of a run.",
         "properties": {
           "base": {
             "additionalProperties": true,
@@ -5195,8 +6910,6 @@
           }
         },
         "required": [
-          "jobId",
-          "solutionIndex",
           "kind",
           "irDigest",
           "scope",
@@ -5206,7 +6919,9 @@
           "failures",
           "coverage",
           "conclusion",
-          "semantics"
+          "semantics",
+          "jobId",
+          "solutionIndex"
         ],
         "title": "NeighborhoodResponse",
         "type": "object"
@@ -5459,6 +7174,30 @@
           "media_type"
         ],
         "title": "PackageFile",
+        "type": "object"
+      },
+      "ParseResult": {
+        "description": "A valid document as its canonical JSON model, with its warnings and infos.",
+        "properties": {
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "document": {
+            "additionalProperties": true,
+            "description": "The canonical form of the document, as JSON.",
+            "title": "Document",
+            "type": "object"
+          }
+        },
+        "required": [
+          "document",
+          "diagnostics"
+        ],
+        "title": "ParseResult",
         "type": "object"
       },
       "PasswordResetComplete": {
@@ -6593,6 +8332,323 @@
         "title": "RunList",
         "type": "object"
       },
+      "RunPresetCreate": {
+        "additionalProperties": false,
+        "description": "A new run preset: its name and the settings a run started from it runs with.",
+        "properties": {
+          "description": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Description",
+            "type": "string"
+          },
+          "engine": {
+            "description": "A built-in engine name, or an immutable reference `{namespace, name, version, digest}`.",
+            "oneOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "$ref": "#/components/schemas/ImmutableResourceRef"
+              }
+            ],
+            "title": "Engine"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The engine mode; null for the engine's default.",
+            "title": "Mode"
+          },
+          "name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "optimization": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`{type: SINGLE|MULTI|MANY, scalarization, weights?: [{criteria, value}]}`, resolved against the problem's criteria when a run uses the preset.",
+            "title": "Optimization"
+          },
+          "options": {
+            "description": "The engine options, as a run request's (at most 65536 bytes as JSON).",
+            "title": "Options",
+            "type": "object"
+          },
+          "registration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImmutableResourceRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The deployment to run on, an immutable reference; null for the engine's installed one.",
+            "title": "Registration"
+          },
+          "slug": {
+            "description": "Unique within the organization: 1 to 64 lowercase letters, digits and hyphens.",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$",
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "engine"
+        ],
+        "title": "RunPresetCreate",
+        "type": "object"
+      },
+      "RunPresetList": {
+        "description": "One page of an organization's run presets, by name, and how many match in all.",
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "presets": {
+            "items": {
+              "$ref": "#/components/schemas/RunPresetView"
+            },
+            "title": "Presets",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "presets",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "RunPresetList",
+        "type": "object"
+      },
+      "RunPresetUpdate": {
+        "additionalProperties": false,
+        "description": "The fields to change; absent fields stay. `registration`, `mode` and `optimization` are cleared with null.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "engine": {
+            "description": "A built-in engine name, or an immutable reference `{namespace, name, version, digest}`.",
+            "oneOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "$ref": "#/components/schemas/ImmutableResourceRef"
+              }
+            ],
+            "title": "Engine"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The engine mode; null for the engine's default.",
+            "title": "Mode"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "optimization": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`{type: SINGLE|MULTI|MANY, scalarization, weights?: [{criteria, value}]}`, resolved against the problem's criteria when a run uses the preset.",
+            "title": "Optimization"
+          },
+          "options": {
+            "description": "The engine options, as a run request's (at most 65536 bytes as JSON).",
+            "title": "Options",
+            "type": "object"
+          },
+          "registration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImmutableResourceRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The deployment to run on, an immutable reference; null for the engine's installed one.",
+            "title": "Registration"
+          }
+        },
+        "title": "RunPresetUpdate",
+        "type": "object"
+      },
+      "RunPresetView": {
+        "description": "A run preset of an organization. Below MEMBER the options are redacted, as a run's are.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "format": "uuid",
+            "title": "Created By Id",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "engine": {
+            "description": "A built-in engine name, or an immutable reference `{namespace, name, version, digest}`.",
+            "oneOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "$ref": "#/components/schemas/ImmutableResourceRef"
+              }
+            ],
+            "title": "Engine"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "optimization": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optimization"
+          },
+          "options": {
+            "additionalProperties": true,
+            "title": "Options",
+            "type": "object"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "registration": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registration"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "slug",
+          "name",
+          "description",
+          "engine",
+          "options",
+          "created_by_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "RunPresetView",
+        "type": "object"
+      },
       "RunView": {
         "description": "One run (``getRun``): the summary, the result and its error, and what the engine said about itself.\n\n``remote`` is ``result.provenance.engineReported`` (empty until the engine answered); ``error``\nrepeats ``result.error`` for a failed run. Both are redacted with the result.",
         "properties": {
@@ -6785,6 +8841,64 @@
           "finished_at"
         ],
         "title": "RunView",
+        "type": "object"
+      },
+      "SealResult": {
+        "description": "A sealed version, the evaluation stored for it, and what the seal found in the submitted text.",
+        "properties": {
+          "diagnostics": {
+            "description": "Every warning and info, located in the submitted text.",
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "evaluation": {
+            "$ref": "#/components/schemas/EvaluationView"
+          },
+          "version": {
+            "$ref": "#/components/schemas/CompositionVersionView"
+          }
+        },
+        "required": [
+          "version",
+          "evaluation",
+          "diagnostics"
+        ],
+        "title": "SealResult",
+        "type": "object"
+      },
+      "SectionDiffView": {
+        "description": "The entries of one section that differ.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/EntryDiffView"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "key": {
+            "enum": [
+              "binding",
+              "values",
+              "offering"
+            ],
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "entries"
+        ],
+        "title": "SectionDiffView",
         "type": "object"
       },
       "StudyCellResult": {
@@ -7467,6 +9581,29 @@
         "title": "UserProfile",
         "type": "object"
       },
+      "ValidateResult": {
+        "description": "The lint of one document: 200 whether or not it is valid.",
+        "properties": {
+          "diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionDiagnosticView"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "valid": {
+            "description": "Whether no diagnostic is an error.",
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valid",
+          "diagnostics"
+        ],
+        "title": "ValidateResult",
+        "type": "object"
+      },
       "ValidationResult": {
         "properties": {
           "diagnostics": {
@@ -7514,6 +9651,171 @@
           "irDigest",
           "diagnostics"
         ],
+        "type": "object"
+      },
+      "ValueStatusPair": {
+        "description": "Whose values each side holds: the toolchain's (`verified`) or the author's (`declared`).",
+        "properties": {
+          "after": {
+            "enum": [
+              "verified",
+              "declared"
+            ],
+            "title": "After",
+            "type": "string"
+          },
+          "before": {
+            "enum": [
+              "verified",
+              "declared"
+            ],
+            "title": "Before",
+            "type": "string"
+          }
+        },
+        "required": [
+          "before",
+          "after"
+        ],
+        "title": "ValueStatusPair",
+        "type": "object"
+      },
+      "ValueView": {
+        "description": "A global value: the toolchain's float as it returned it, or the author's number, and its unit.",
+        "properties": {
+          "unit": {
+            "description": "The problem's unit; `\"1\"` for a dimensionless value.",
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "value",
+          "unit"
+        ],
+        "title": "ValueView",
+        "type": "object"
+      },
+      "VersionCompilation": {
+        "description": "The compilation a version's document names.",
+        "properties": {
+          "compilation_digest": {
+            "title": "Compilation Digest",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "semantic_digest": {
+            "title": "Semantic Digest",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "compilation_digest",
+          "semantic_digest"
+        ],
+        "title": "VersionCompilation",
+        "type": "object"
+      },
+      "VersionLink": {
+        "description": "The problem revision a version is judged against, and the compilation its document names.",
+        "properties": {
+          "linked_compilation": {
+            "$ref": "#/components/schemas/VersionCompilation"
+          },
+          "problem": {
+            "$ref": "#/components/schemas/VersionProblem"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/VersionRevision"
+          }
+        },
+        "required": [
+          "problem",
+          "revision",
+          "linked_compilation"
+        ],
+        "title": "VersionLink",
+        "type": "object"
+      },
+      "VersionName": {
+        "description": "A version, by id and label.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "VersionName",
+        "type": "object"
+      },
+      "VersionProblem": {
+        "description": "The problem a version links.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name"
+        ],
+        "title": "VersionProblem",
+        "type": "object"
+      },
+      "VersionRevision": {
+        "description": "The revision of the problem a version links.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ],
+        "title": "VersionRevision",
         "type": "object"
       }
     },
@@ -10087,6 +12389,418 @@
         ]
       }
     },
+    "/v1/compositions/diff": {
+      "post": {
+        "description": "What changed from `before` to `after`, in SPHERE's PricingDiff shape: `general` changes, the `binding`, `values` and `offering` sections, `totals`, `isEmpty`, and `comparison`, which says whether the two sides' values can be compared (value changes are not listed when not). Either side with an error is refused with 422 `composition_invalid`, each diagnostic naming its `document`.",
+        "operationId": "diffCompositions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "description": "Two documents to compare, each as YAML text.",
+                "properties": {
+                  "after": {
+                    "description": "The later document, as Composition2Yaml text.",
+                    "title": "After",
+                    "type": "string"
+                  },
+                  "before": {
+                    "description": "The earlier document, as Composition2Yaml text.",
+                    "title": "Before",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "before",
+                  "after"
+                ],
+                "title": "DiffRequest",
+                "type": "object"
+              }
+            }
+          },
+          "description": "The two documents as YAML text, each at most 262144 bytes.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiffResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The document is longer than a document may be (`limitBytes`)."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request media type is not one this service reads."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The document has errors: `code` is `composition_invalid`, and `diagnostics` lists each one, located."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Compare two Composition2Yaml documents",
+        "tags": [
+          "Composition2Yaml"
+        ]
+      }
+    },
+    "/v1/compositions/parse": {
+      "post": {
+        "description": "The canonical form of a valid document, as the JSON an editor mutates, with its warnings and infos. A document with an error is refused with 422 `composition_invalid`.",
+        "operationId": "parseComposition",
+        "requestBody": {
+          "content": {
+            "application/x-yaml": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "application/yaml": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "text/yaml": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "A Composition2Yaml document, as YAML text in UTF-8, at most 262144 bytes.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParseResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The document is longer than a document may be (`limitBytes`)."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request media type is not one this service reads."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The document has errors: `code` is `composition_invalid`, and `diagnostics` lists each one, located."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Read a Composition2Yaml document into its JSON model",
+        "tags": [
+          "Composition2Yaml"
+        ]
+      }
+    },
+    "/v1/compositions/schema": {
+      "get": {
+        "description": "The JSON Schema of one `syntaxVersion` (the latest by default), as it ships. It checks a document's structure; the coherence rules are the validator's.",
+        "operationId": "getCompositionSchema",
+        "parameters": [
+          {
+            "description": "The syntax version whose schema to serve.",
+            "in": "query",
+            "name": "syntaxVersion",
+            "required": false,
+            "schema": {
+              "const": "1.0",
+              "default": "1.0",
+              "description": "The syntax version whose schema to serve.",
+              "title": "Syntaxversion",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/schema+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The schema. `ETag` is the digest of these bytes.",
+            "headers": {
+              "ETag": {
+                "description": "Digest of the schema's bytes.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          }
+        },
+        "summary": "Download the JSON Schema of Composition2Yaml",
+        "tags": [
+          "Composition2Yaml"
+        ]
+      }
+    },
+    "/v1/compositions/serialise": {
+      "post": {
+        "description": "A document given as JSON (the model `parseComposition` answers), written as its canonical YAML: one key order, the binding in workflow order, the values sorted. Diagnostics of a refused document have a path and a pointer, and no span.",
+        "operationId": "serialiseComposition",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "description": "A Composition2Yaml document as JSON, at most 524288 bytes.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/yaml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The canonical text of the document."
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The document is longer than a document may be (`limitBytes`)."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request media type is not one this service reads."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The document has errors: `code` is `composition_invalid`, and `diagnostics` lists each one, located."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Write a Composition2Yaml document as its canonical text",
+        "tags": [
+          "Composition2Yaml"
+        ]
+      }
+    },
+    "/v1/compositions/validate": {
+      "post": {
+        "description": "Every diagnostic of the document, located in its text: 200 whether or not it is valid. The document is judged on its own and against this deployment's SPHERE registries; nothing is stored.",
+        "operationId": "validateComposition",
+        "requestBody": {
+          "content": {
+            "application/x-yaml": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "application/yaml": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "text/yaml": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "A Composition2Yaml document, as YAML text in UTF-8, at most 262144 bytes.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The document is longer than a document may be (`limitBytes`)."
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request media type is not one this service reads."
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too many `read` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Lint a Composition2Yaml document",
+        "tags": [
+          "Composition2Yaml"
+        ]
+      }
+    },
     "/v1/engine-registrations": {
       "get": {
         "description": "Normally returns the caller's registrations and published registrations. Administrators may set review=true to receive only explicit publication requests.",
@@ -12619,7 +15333,7 @@
     },
     "/v1/organizations/{org}": {
       "delete": {
-        "description": "Delete an organization and every organization below it, in one transaction.\n\nRuns and study runs are history, so a subtree that holds any is refused. Otherwise its studies,\nproblems (revisions and compilations), blob rows, invitations, memberships and audit events go.\nStored files are not unlinked here: they are content addressed and shared (D14).\n\nThe subtree's studies, problems and organizations are locked before the history check, in the order\nconcurrent writers take them (a study-run start locks its study, a revision upload its problem, and every\ninsert into an organization takes a key-share lock on its row): a writer that got there first commits\nbefore the check sees the subtree, and a later one waits for the delete. A foreign key that still catches\na concurrent write is answered with the same 409.",
+        "description": "Delete an organization and every organization below it, in one transaction.\n\nRuns and study runs are history, so a subtree that holds any is refused. Otherwise its studies, run\npresets, compositions (their versions and evaluations first), problems (revisions and compilations), blob rows,\ninvitations, memberships and audit events go. A version's evidence names a run of the subtree, so a\nsubtree that reaches the delete has none to name. Stored files are not unlinked here: they are content addressed and shared (D14).\n\nThe subtree's studies, compositions, problems and organizations are locked before the history check, in\nthe order concurrent writers take them (a study-run start locks its study, a revision upload its problem,\nand every insert into an organization takes a key-share lock on its row). Compositions come before\nproblems because a composition write that reads a problem locks the composition first. A writer that got\nthere first commits before the check sees the subtree, and a later one waits for the delete. A foreign key\nthat still catches a concurrent write is answered with the same 409.",
         "operationId": "deleteOrganization",
         "parameters": [
           {
@@ -13059,6 +15773,2398 @@
         ],
         "x-required-api-key-permissions": [
           "organizations:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions": {
+      "get": {
+        "description": "The organization's compositions, by name.",
+        "operationId": "listCompositions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "application",
+                    "workflow",
+                    "pipeline",
+                    "system"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "description": "Text in the name or the slug.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 160,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Text in the name or the slug.",
+              "title": "Q"
+            }
+          },
+          {
+            "description": "Only archived (`true`) or only active (`false`) ones.",
+            "in": "query",
+            "name": "archived",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only archived (`true`) or only active (`false`) ones.",
+              "title": "Archived"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Compositions",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      },
+      "post": {
+        "description": "Create an empty composition: no version yet.",
+        "operationId": "createComposition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The slug is in use in this organization (`slug_conflict`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Create Composition",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}": {
+      "delete": {
+        "description": "Delete a composition with its versions and their evaluations.",
+        "operationId": "deleteComposition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Delete Composition",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write"
+        ]
+      },
+      "get": {
+        "description": "One composition, by slug or id.",
+        "operationId": "getComposition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Composition",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      },
+      "patch": {
+        "description": "Rename, describe, archive or restore a composition.",
+        "operationId": "updateComposition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Update Composition",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/derive": {
+      "post": {
+        "description": "Write the Composition2Yaml document of a binding the problem already has (a run's solution at `point`, or `binding` given with `revision`), evaluated by the toolchain on the installed compilation, and seal it as a new version with an edge naming what it was derived from. The document links the compilation the run solved (the installed one for a binding), states the toolchain's values and writes no offering unless one is given. The same binding derived again gives the same bytes: 200 with the version that holds them. With `seal: false` nothing is stored and the document is answered instead.",
+        "operationId": "deriveComposition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionDerive"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/DeriveResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DeriveDraft"
+                    }
+                  ],
+                  "title": "Response 200 Derivecomposition"
+                }
+              }
+            },
+            "description": "The bytes were already sealed: the version that holds them (its derivation edge added when it had none). Or, with `seal: false`, the document a seal would store (`DeriveDraft`)."
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeriveResult"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "The version's content digest, quoted.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Location": {
+                "description": "The new version.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization, composition, run or problem revision, or the caller cannot read it."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Another content holds this `version` (`version_label_taken`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The binding cannot be derived (`derivation_invalid`): `diagnostics` lists the `c2y_*` findings, those about the request at `/point`, `/binding/<task>` or `/offering/...`, the others in the derived document."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The toolchain does not answer (`bim_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Derive a version from a binding of a problem",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/diff": {
+      "get": {
+        "description": "What changed from version `from` to version `to`, read from their stored bytes, in SPHERE's PricingDiff shape with a `comparison` (see `diffCompositions`). `to` is the latest version by default, and `from` the one before `to`. Versions of two compositions are compared with `diffCompositions` on their contents.",
+        "operationId": "diffCompositionVersions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The earlier version: id, label or ordinal.",
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The earlier version: id, label or ordinal.",
+              "title": "From"
+            }
+          },
+          {
+            "description": "The later version: id, label or ordinal.",
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The later version: id, label or ordinal.",
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionVersionDiff"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A default the composition cannot give: no version yet, or none before `to` (`diff_version_missing`)."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Every Composition2Yaml slot of this process is taken (`composition_busy`)."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Compare two versions of a composition",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/evaluate": {
+      "post": {
+        "description": "Have the installed toolchain evaluate the binding of a version (the latest by default) with the tasks `binding` names bound to those candidates, the others as the version binds them. Nothing is stored. A binding the toolchain evaluated answers 200, `valid` false when it reports a hard violation; one it could not evaluate is 422 `evaluation_invalid`.",
+        "operationId": "evaluateComposition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionEvaluate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluateResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The composition has no version to default to (`composition_empty`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The binding could not be evaluated (`evaluation_invalid`; a finding about a rebound task points at `/binding/<task>`), or the version links no problem (`composition_not_linked`)."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The toolchain does not answer (`bim_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Evaluate another binding of a version",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/fork": {
+      "post": {
+        "description": "Create a new composition in `targetOrganization` whose first version is the source version's document with `composition:` set to the new slug, sealed again through the same pipeline. The caller must read the source and be a MEMBER of the target. Without `slug` the fork takes the source's, and when the target holds it already nothing is written: 200 `nameTaken` names the composition that holds it. A version that links a problem is forked only with `dropProblem`, which removes its `problem` and `evidence` and declares its values.",
+        "operationId": "forkComposition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompositionFork"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForkNameTaken"
+                }
+              }
+            },
+            "description": "Nothing was forked: the source's slug is taken in the target."
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForkResult"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Location": {
+                "description": "The new composition.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's role in the target is too weak (`organization_forbidden`), its plan lacks the `repository` feature (`feature_not_entitled`), or its API key does not reach the target (`api_key_boundary`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The target is the source's own organization (`composition_fork_same_organization`), the version links a problem and `dropProblem` is not set (`composition_fork_problem_unreadable`), or the given `slug` is in use in the target (`slug_conflict`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The forked document has errors (`composition_invalid`); `diagnostics` lists each one."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Fork a version of a composition into another organization",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/neighborhood": {
+      "get": {
+        "description": "The toolchain's canonical one-task counterfactuals of a version's binding (the latest version by default), on the installed toolchain's compilation of the problem it links: at most `limit` alternatives, within a cooperative two-second budget. Each move also names its candidate as a document does. Nothing is stored.",
+        "operationId": "getCompositionNeighborhood",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The version: id, label or ordinal; the latest by default.",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The version: id, label or ordinal; the latest by default.",
+              "title": "Version"
+            }
+          },
+          {
+            "description": "Only the alternatives of this task.",
+            "in": "query",
+            "name": "task",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only the alternatives of this task.",
+              "title": "Task"
+            }
+          },
+          {
+            "description": "At most this many alternatives are evaluated.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 32,
+              "description": "At most this many alternatives are evaluated.",
+              "maximum": 128,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionNeighborhoodResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The composition has no version to default to (`composition_empty`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The toolchain cannot analyse the binding or the task (`analysis_invalid`), the version links no problem (`composition_not_linked`), or the installed toolchain reads the problem differently (`c2y_compilation_semantics_changed`)."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The toolchain does not answer (`bim_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Evaluate the one-task alternatives of a version's binding",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/versions": {
+      "get": {
+        "description": "The composition's versions, each with its values, value status and evaluations.",
+        "operationId": "listCompositionVersions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "description": "`analytics`: each version with the summary of its document.",
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "analytics",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`analytics`: each version with the summary of its document.",
+              "title": "Include"
+            }
+          },
+          {
+            "description": "`newest` first (the default) or `oldest` first, as evolution charts read them.",
+            "in": "query",
+            "name": "order",
+            "required": false,
+            "schema": {
+              "default": "newest",
+              "description": "`newest` first (the default) or `oldest` first, as evolution charts read them.",
+              "enum": [
+                "newest",
+                "oldest"
+              ],
+              "title": "Order",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionVersionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Composition Versions",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      },
+      "post": {
+        "description": "Read the document, judge it and, when it links a problem, have the toolchain check its binding and compute its values; then store its canonical text as a new, immutable version with that evaluation. The same canonical text sealed again answers 200 with the version that holds it.",
+        "operationId": "createCompositionVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-yaml": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "application/yaml": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "text/yaml": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "A Composition2Yaml document, as YAML text in UTF-8, at most 262144 bytes.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SealResult"
+                }
+              }
+            },
+            "description": "The canonical text was already sealed: the version that holds it.",
+            "headers": {
+              "ETag": {
+                "description": "The version's content digest, quoted.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SealResult"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "The version's content digest, quoted.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Location": {
+                "description": "The new version.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Another content holds this `version:` (`version_label_taken`)."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The document is longer than 262144 bytes (`limitBytes`)."
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The document is not sent as YAML."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The document has errors (`composition_invalid`); `diagnostics` lists each one, located."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The toolchain does not answer (`bim_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Seal a version of a composition",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/versions/check": {
+      "post": {
+        "description": "Every diagnostic a seal of this document would give, against its problem and by the toolchain, and the canonical text a seal would store: 200 whether or not the document is valid.",
+        "operationId": "checkCompositionVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-yaml": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "application/yaml": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "text/yaml": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "A Composition2Yaml document, as YAML text in UTF-8, at most 262144 bytes.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The document is longer than 262144 bytes (`limitBytes`)."
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The document is not sent as YAML."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The toolchain does not answer (`bim_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Check a document as a seal would, storing nothing",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/versions/{version}": {
+      "get": {
+        "description": "One version, by id, label or ordinal.",
+        "operationId": "getCompositionVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompositionVersionView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "The version's content digest, quoted.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Composition Version",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/versions/{version}/content": {
+      "get": {
+        "description": "The canonical text the version stores. It never changes: `ETag` is its digest.",
+        "operationId": "getCompositionVersionContent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/yaml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The canonical text.",
+            "headers": {
+              "ETag": {
+                "description": "The version's content digest, quoted.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The caller's copy (`If-None-Match`) is the content."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Download a version's Composition2Yaml text",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/compositions/{composition}/versions/{version}/evaluations": {
+      "post": {
+        "description": "Store the installed toolchain's evaluation of the version, read from its stored bytes and the problem it links: one per toolchain release, whatever its outcome (`verified`, `binding_invalid`, `semantics_changed`). 200 with the evaluation when it already exists; a version linked to no problem answers its declared evaluation. The version itself never changes.",
+        "operationId": "reevaluateCompositionVersion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "composition",
+            "required": true,
+            "schema": {
+              "title": "Composition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationView"
+                }
+              }
+            },
+            "description": "The installed toolchain had evaluated the version already."
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or composition, or the caller cannot read it."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The installed toolchain could not evaluate the version, for example its package no longer compiles (`evaluation_invalid`); `diagnostics` says why."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many `evaluate` requests from this client: past the budget of its address, or of its account when signed in. `Retry-After` says when the window ends. A request may also find every Composition2Yaml or evaluation slot of this gateway busy: `composition_busy`, `Retry-After: 1`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the budget is available again.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The toolchain does not answer (`bim_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Evaluate a version with the installed toolchain",
+        "tags": [
+          "Compositions"
+        ],
+        "x-required-api-key-permissions": [
+          "compositions:write"
         ]
       }
     },
@@ -13527,6 +18633,637 @@
         ]
       }
     },
+    "/v1/organizations/{org}/presets": {
+      "get": {
+        "description": "The organization's run presets, by name.",
+        "operationId": "listRunPresets",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Text in the name or the slug.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 160,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Text in the name or the slug.",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPresetList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or preset, or the caller is not a member."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Run Presets",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read"
+        ]
+      },
+      "post": {
+        "description": "Name a set of run settings that runs of the organization can start from (MEMBER).\n\nOnly their shape is checked here; the engine, the mode's options and the optimization are checked\nagainst the problem when a run uses the preset.",
+        "operationId": "createRunPreset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunPresetCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPresetView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Below MEMBER (`insufficient_role`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or preset, or the caller is not a member."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The slug is in use in this organization (`slug_conflict`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "A setting of the wrong shape (`invalid_request_fields`), located by its `pointer`."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Create Run Preset",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "engines:execute"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/presets/{preset}": {
+      "delete": {
+        "description": "Delete a run preset (MEMBER); runs started from it keep the settings they copied.",
+        "operationId": "deleteRunPreset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "preset",
+            "required": true,
+            "schema": {
+              "title": "Preset",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Below MEMBER (`insufficient_role`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or preset, or the caller is not a member."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Delete Run Preset",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "engines:execute"
+        ]
+      },
+      "get": {
+        "description": "One run preset, by slug or id.",
+        "operationId": "getRunPreset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "preset",
+            "required": true,
+            "schema": {
+              "title": "Preset",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPresetView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or preset, or the caller is not a member."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Run Preset",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read"
+        ]
+      },
+      "patch": {
+        "description": "Rename, describe or change the settings of a run preset (MEMBER); runs already started keep theirs.",
+        "operationId": "updateRunPreset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "preset",
+            "required": true,
+            "schema": {
+              "title": "Preset",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Revision the client last read, as given by the `ETag` of a GET or of an earlier edit: an entity-tag, a list of them, or `*` for any existing resource. Absent: the edit is applied without a revision check. Weak tags never match.",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunPresetUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPresetView"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` is not a list of entity-tags or `*` (code `invalid_if_match`)."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Below MEMBER (`insufficient_role`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such organization or preset, or the caller is not a member."
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`If-Match` does not match the current revision (code `precondition_failed`): nothing was applied. The `ETag` header carries the current revision.",
+            "headers": {
+              "ETag": {
+                "description": "Revision of the resource; send it back as `If-Match` to edit it.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Update Run Preset",
+        "tags": [
+          "Runs"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "engines:execute"
+        ]
+      }
+    },
     "/v1/organizations/{org}/problems": {
       "get": {
         "description": "The organization's problems, each with its latest revision and that revision's current compilation.",
@@ -13885,7 +19622,7 @@
     },
     "/v1/organizations/{org}/problems/{problem}": {
       "delete": {
-        "description": "Delete a problem nothing has run on (409 `problem_has_runs` otherwise). Its stored files stay.",
+        "description": "Delete a problem nothing has run on and no composition links.\n\n409 `problem_has_runs` when a run or a study names a revision, `problem_has_compositions` when a sealed\ncomposition version does. Its stored files stay.",
         "operationId": "deleteProblem",
         "parameters": [
           {
@@ -15166,7 +20903,7 @@
         ]
       },
       "post": {
-        "description": "Run a revision of one of the organization's problems on an engine (MEMBER).\n\n``Idempotency-Key`` makes sending twice by accident start one run: the same key and the same\nrequest answer the first run again (202, ``idempotent``), the same key with another request 409.",
+        "description": "Run a revision of one of the organization's problems on an engine (MEMBER).\n\nThe settings (engine, registration, mode, options, optimization) are given inline or taken from a run\npreset of the organization (``preset``, its slug or id), never both. The run copies the preset's\nsettings and records it as ``{id, slug}`` in ``original_request`` and ``provenance``.\n\n``Idempotency-Key`` makes sending twice by accident start one run: the same key and the same\nrequest answer the first run again (202, ``idempotent``), the same key with another request 409.",
         "operationId": "createRun",
         "parameters": [
           {
@@ -15198,7 +20935,7 @@
               }
             }
           },
-          "description": "The problem revision to run, and the exact Engine, deployment and settings.",
+          "description": "The problem revision to run, and the exact Engine, deployment and settings, or a run preset that holds them.",
           "required": true
         },
         "responses": {
@@ -15290,7 +21027,7 @@
                 }
               }
             },
-            "description": "The revision, selection, mode or options are invalid, or the binding space exceeds the limit."
+            "description": "The revision, selection, mode or options are invalid, or the binding space exceeds the limit; the preset is not one of the organization's (`preset_not_found`) or comes with settings of its own (`preset_with_settings`)."
           },
           "429": {
             "content": {
@@ -18547,6 +24284,14 @@
       "name": "BIM"
     },
     {
+      "description": "Stateless Composition2Yaml services: validate, parse, serialise and diff documents; the schema.",
+      "name": "Composition2Yaml"
+    },
+    {
+      "description": "Compositions of an organization: Composition2Yaml documents and their versions.",
+      "name": "Compositions"
+    },
+    {
       "description": "Accounts and sessions.",
       "name": "Authentication"
     },
@@ -18600,6 +24345,8 @@
     "organizations:write",
     "studies:read",
     "studies:write",
+    "compositions:read",
+    "compositions:write",
     "notifications:read",
     "pricing:read",
     "admin:accounts:read",

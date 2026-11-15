@@ -1,118 +1,64 @@
-"""The identifiers a composition compiles to, all of which are visible in the IR digest.
+"""The identifier patterns of a Composition2Yaml document.
 
-Nothing here is cosmetic. The container's IR digest strips metadata and a few control
-sections and keeps everything else, so every id this module derives is part of the
-identity of the compiled problem. Two consequences shape the whole module:
+A document names tasks, properties and candidates by the ids of the problem it describes, so
+it accepts exactly the ids the container accepts: :data:`SYMBOL` and :data:`NAME` are the
+container's own patterns, not a convention of this package. The rest are the document's own
+grammar: its slug, its semver label, the reference to a problem and a compilation, and the
+SPHERE coordinates of an offering or a provenance.
 
-* Every id is a **pure function** of the source -- never a counter, a clock, a hash of a
-  float or a UUID. The same composition must give the same ids on every machine and in
-  every process.
-* **No id is minted for a workflow node.** The container accepts an ``id`` on any node,
-  copies it into the IR and does not strip it; its sequence flattening also refuses to
-  flatten a nested sequence that carries one. No package in the corpus uses a node id,
-  so minting them would move the digest of every package the Studio touches, and there is
-  no golden that would catch a partial mistake -- only the digest would move.
-
-Branch ids are the one id the Studio does derive, because an exclusive choice is split
-across two documents and the branch id is the join key between them.
+Each pattern is compiled once and always matched with ``fullmatch``: a ``$`` under
+``re.search`` also accepts a trailing newline, and an id with a newline in it is not an id.
+Digits are spelled ``[0-9]``, because ``\\d`` also matches the digits of every other script.
 """
 
 from __future__ import annotations
 
 import re
 
-#: Resource ids are part of the IR: the compiled problem names the application and the
-#: optimization by resource, and keys candidates by their catalog's resource id. 82 of the
-#: 83 corpus packages use these five -- the exception is the toolchain's own example
-#: fixture -- so they are normative here rather than conventional. Naming the catalog
-#: anything else yields a semantically identical package with a different digest and no
-#: hint why. A placement resource is a sixth id, ``PLACEMENT``; its document belongs to a
-#: dialect rather than to ``qos-binding/v1``.
-APPLICATION = "application"
-CATALOG = "catalog"
-ROUTING = "routing"
-CONSTRAINTS = "constraints"
-OPTIMIZATION = "optimization"
-PLACEMENT = "placement"
-
-#: File name per resource id, as the corpus names them. The ids are normative because they
-#: reach the IR; the file names are not -- renaming them all at once leaves the digest
-#: byte-identical (measured). A package reader accepts exactly these resources.
-FILES: dict[str, str] = {
-    APPLICATION: "application.json",
-    CATALOG: "candidates.json",
-    ROUTING: "routing.json",
-    CONSTRAINTS: "constraints.json",
-    OPTIMIZATION: "optimization.json",
-    PLACEMENT: "placement.json",
-}
-
-#: The profile role each resource is declared under in the package manifest. The routing
-#: overlay belongs to the candidate-catalog role, not to the application role: the
-#: authoring guide and the placement document both say otherwise, and the profile
-#: manifest in the compiler is the authority.
-ROLES: dict[str, str] = {
-    APPLICATION: "application",
-    CATALOG: "candidateCatalog",
-    ROUTING: "candidateCatalog",
-    CONSTRAINTS: "constraintSet",
-    OPTIMIZATION: "optimization",
-}
+_SYMBOL = r"[A-Za-z][A-Za-z0-9_.-]{0,127}"
+_SLUG = r"[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?"
+_UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+_DIGEST = r"sha256-[0-9a-f]{64}"
+_NUMBER = r"(?:0|[1-9][0-9]*)"
+_PRERELEASE = r"(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
 
 #: Task, feature and candidate ids; the container's own pattern for a map key.
-SYMBOL = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,127}$")
+SYMBOL = re.compile(rf"^{_SYMBOL}$")
 #: Document names; the container's own pattern for ``metadata.name``.
 NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
-
-def branch_id(exclusive_id: str, position: int) -> str:
-    """The id of the branch at ``position`` (one-based) of an exclusive choice.
-
-    The author gives the exclusive its id and the position comes from source order, so
-    the result is stable across processes and machines. An exclusive that carries
-    probabilities and has no id is refused rather than given an invented one.
-    """
-    if position < 1:
-        raise ValueError(f"branch positions are one-based, got {position}")
-    return f"{exclusive_id}_branch_{position}"
-
-
-def fixed_capability(task_id: str) -> str:
-    """The capability type minted for a fixed task, so exactly one candidate matches.
-
-    A catalog never lists task ids: eligibility is capability matching between a task's
-    requirement and a candidate's offer. A fixed task is therefore a service task with a
-    requirement no other candidate claims, plus the single candidate that claims it.
-    """
-    return f"fixed/{task_id}"
-
-
-def fixed_candidate(task_id: str) -> str:
-    """The id of the one candidate of a fixed task."""
-    return f"cand_{task_id}"
-
-
-def document_name(composition: str, resource: str) -> str:
-    """``metadata.name`` of one emitted document.
-
-    The composition id carries the identity; the resource suffix keeps the five documents
-    of one package distinguishable, which is what the corpus does too.
-    """
-    return f"{composition}_{resource}"
-
-
-def exclusive_stem(first_branch_id: str | None, position: int) -> str:
-    """The id an imported exclusive choice takes, recovered from its branches.
-
-    An exclusive's own id is never emitted -- the branches carry theirs, and an imported
-    composition keeps those verbatim -- but the model requires one, so it has to be derived
-    the same way wherever a package is read: from a source document, or lifted out of a
-    reduced BPMN workflow. Two rules for one derivation give two models for one package,
-    which is a difference no digest would ever show.
-
-    When the branch ids follow the ``{stem}_branch_{n}`` scheme the stem is recovered;
-    otherwise the one-based position in source order stands in for it.
-    """
-    if first_branch_id and first_branch_id.endswith("_branch_1"):
-        return first_branch_id[: -len("_branch_1")]
-    return f"exclusive_{position}"
+#: A composition's slug: the platform's own slug (``models/platform.py``).
+SLUG = re.compile(rf"^{_SLUG}$")
+#: A UUID, lower case, as the platform writes them.
+UUID = re.compile(rf"^{_UUID}$")
+#: A document's own label: Semantic Versioning 2.0.0.
+SEMVER = re.compile(
+    rf"^{_NUMBER}\.{_NUMBER}\.{_NUMBER}"
+    rf"(?:-{_PRERELEASE}(?:\.{_PRERELEASE})*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
+)
+#: The longest label a document may carry.
+MAX_SEMVER_CHARS = 64
+#: A candidate as a binding names it: its id, or ``<resource>/<id>`` when two catalogs give
+#: the same task that id.
+CANDIDATE = re.compile(rf"^{_SYMBOL}(?:/{_SYMBOL})?$")
+#: A problem revision: ``<organization>/problems/<problem>@<revision>``, the organization and
+#: problem by slug or UUID, the revision by number, UUID or digest.
+REF = re.compile(
+    rf"^(?P<organization>{_SLUG}|{_UUID})/problems/(?P<problem>{_SLUG}|{_UUID})"
+    rf"@(?P<revision>[1-9][0-9]{{0,8}}|{_UUID}|{_DIGEST})$"
+)
+#: A compilation digest, as the toolchain writes it.
+DIGEST = re.compile(rf"^{_DIGEST}$")
+#: A pricing in SPHERE: ``owner/name``.
+PRICING = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+#: A SPHERE registry alias, defined in the deployment's ``SPHERE_REGISTRIES``.
+ALIAS = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$")
+#: A SPHERE pricing version id.
+VERSION_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+#: A plan or add-on name: one to 128 characters, none of them a control character.
+PLAN = re.compile(r"^[^\x00-\x1f\x7f-\x9f]{1,128}$")
+#: A unit: any non-empty string, exactly the container's feature unit (``minLength: 1``).
+UNIT = re.compile(r".+", re.DOTALL)
+#: The form of a ``syntaxVersion``: ``<major>.<minor>``.
+SYNTAX_VERSION = re.compile(r"^[0-9]+\.[0-9]+$")

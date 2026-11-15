@@ -1,0 +1,14 @@
+# Numbers stay the int or float YAML read, and are written back as the same double.
+syntaxVersion: "1.0"
+composition: numbers
+version: 1.0.0
+kind: system
+workflow: run
+binding:
+  run: {candidate: runner}
+values:
+  count: 7
+  latency: {value: 30.0, unit: ms}
+  error: {value: 1.0e-05, unit: "1/run"}
+  reliability: 0.30000000000000004
+  negative: -2.5

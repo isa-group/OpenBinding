@@ -1,0 +1,20 @@
+syntaxVersion: '1.0'
+composition: nested
+version: 1.0.0
+kind: workflow
+workflow:
+  seq:
+  - a
+  - b
+  - c
+  - d
+binding:
+  a:
+    candidate: ca
+  b:
+    candidate: cb
+  c:
+    candidate: cc
+  d:
+    candidate: cd
+values: {}

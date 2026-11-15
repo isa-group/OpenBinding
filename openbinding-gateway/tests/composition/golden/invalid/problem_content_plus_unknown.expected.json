@@ -1,0 +1,4 @@
+[
+  {"code": "c2y_problem_content", "severity": "error", "path": "constraints", "pointer": "/constraints", "span": [12, 1, 14, 1]},
+  {"code": "c2y_unknown_key", "severity": "error", "path": "title", "pointer": "/title", "span": [11, 1, 11, 16]}
+]

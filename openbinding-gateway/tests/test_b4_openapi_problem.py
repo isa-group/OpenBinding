@@ -12,7 +12,7 @@ import json
 import pytest
 
 from _repo import REPO_ROOT
-from openbinding_gateway.main import _BIM_PATH_PREFIXES, app
+from openbinding_gateway.main import _PROBLEM_JSON_PREFIXES, app
 
 SNAPSHOT = REPO_ROOT / "docs" / "openapi.json"
 PROBLEM = {"$ref": "#/components/schemas/Problem"}
@@ -67,7 +67,7 @@ def test_every_422_is_the_problem_document_in_the_media_type_its_routes_answer_w
         if response is None:
             continue
         seen += 1
-        bim = any(path.startswith(prefix) for prefix in _BIM_PATH_PREFIXES)
+        bim = any(path.startswith(prefix) for prefix in _PROBLEM_JSON_PREFIXES)
         expected = "application/problem+json" if bim else "application/json"
         assert set(response["content"]) == {expected}, f"{method.upper()} {path}"
         assert response["content"][expected]["schema"] == PROBLEM, f"{method.upper()} {path}"

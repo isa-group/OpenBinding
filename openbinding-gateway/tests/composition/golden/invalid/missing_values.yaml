@@ -1,0 +1,9 @@
+# Every document has values, even an empty mapping.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: {seq: [pick, ship]}
+binding:
+  pick: {candidate: c_pick}
+  ship: {candidate: c_ship}

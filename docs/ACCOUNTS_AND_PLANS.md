@@ -615,6 +615,7 @@ does for a declared size.
 | `SPACE_PRICING_VERSION`, `SPACE_DEFAULT_PLAN` | The pricing version new contracts are pinned to and the startup check reads (`0.2.0`), and the plan a sign-up starts on (`FREE`). |
 | `SPACE_ORGANIZATION_ID`, `SPACE_TOKEN_ISSUER`, `SPACE_TOKEN_LEEWAY_S` | What a pricing token is verified against: its `aud`/`organizationId` (required with SPACE enabled; `APP_ENV=prod` refuses to start without it), its `iss` (default `space`) and the tolerance for its `exp` (default 30 s). |
 | `SPHERE_ENABLED`, `SPHERE_URL`, `SPHERE_API_KEY`, `SPHERE_ORGANIZATION_ID` | The remote SPHERE, from which the published pricing is read. |
+| `SPHERE_REGISTRIES` | The on-premise SPHERE registries a Composition2Yaml document may name (`registry: <alias>`), as JSON keyed by alias: `{"lab": {"url": "https://sphere.lab.local", "api_key": "…"}}`. The URL must be https and an alias lower-case letters, digits and inner `-` (anything else stops the start). An alias not listed is an error in a `from` and a warning in an `offering`. Addresses and keys never reach a response, a log line or a document. Default: none. |
 | `MAX_CONCURRENT_JOBS_PER_USER` | Technical cap on queued plus running jobs per account (default 8); the plan's `maxConcurrentRuns` may lower it. |
 | `MAX_PACKAGE_BYTES` | Largest BIM package of one request (default 128 MiB, never above `MAX_REQUEST_BODY_BYTES`). |
 | `MAX_ITERATIONS` | Ceiling on `iterations` and `max_evaluations` (default 1 000 000). |

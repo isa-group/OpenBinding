@@ -141,6 +141,12 @@ def test_authentication_and_role_requirements_are_explicit(document):
         # The public engine catalogue: a visitor gets the built-in and published Engines.
         ("/v1/engines", "get"),
         ("/v1/bim/validate", "post"),
+        # The stateless Composition2Yaml services: counted for anybody, as /v1/bim/validate is.
+        ("/v1/compositions/validate", "post"),
+        ("/v1/compositions/parse", "post"),
+        ("/v1/compositions/serialise", "post"),
+        ("/v1/compositions/diff", "post"),
+        ("/v1/compositions/schema", "get"),
     }
     for path, method, operation in operations(document):
         if (path, method) in public:
@@ -272,10 +278,21 @@ def test_binary_yaml_and_job_inputs_have_their_real_media_types(document):
         paths["/v1/organizations/{org}/problems/{problem}/revisions"]["post"],
     ):
         assert set(upload["requestBody"]["content"]) == {"application/vnd.bim+zip", "application/zip"}
+    for operation in ("validate", "parse"):
+        body = paths[f"/v1/compositions/{operation}"]["post"]["requestBody"]["content"]
+        assert set(body) == {"application/yaml", "text/yaml", "application/x-yaml"}
+    serialised = paths["/v1/compositions/serialise"]["post"]
+    assert set(serialised["requestBody"]["content"]) == {"application/json"}
+    assert set(serialised["responses"]["200"]["content"]) == {"application/yaml"}
+    schema = paths["/v1/compositions/schema"]["get"]["responses"]["200"]
+    assert set(schema["content"]) == {"application/schema+json"}
+    assert "ETag" in schema["headers"]
     runs = paths["/v1/organizations/{org}/runs"]["post"]
     assert set(runs["requestBody"]["content"]) == {"application/json"}
     assert runs["requestBody"]["content"]["application/json"]["schema"] == {"$ref": "#/components/schemas/JobRequest"}
     assert any(parameter["name"] == "Idempotency-Key" for parameter in runs["parameters"])
+    # A run names its settings or a preset that holds them.
+    assert "preset" in document["components"]["schemas"]["JobRequest"]["properties"]
 
 
 @pytest.mark.parametrize(
@@ -326,6 +343,12 @@ def test_a_quota_refusal_says_which_limit_and_where_it_stands(document):
     [
         ("/v1/organizations/{org}/runs", "post", {"202", "403", "404", "409", "422", "429"}),
         ("/v1/organizations/{org}/runs/{run}", "get", {"200", "404", "422"}),
+        # The run presets of an organization: a non-member gets a 404, a role below MEMBER a 403 on writes.
+        ("/v1/organizations/{org}/presets", "get", {"200", "404", "422"}),
+        ("/v1/organizations/{org}/presets", "post", {"201", "403", "404", "409", "422"}),
+        ("/v1/organizations/{org}/presets/{preset}", "get", {"200", "404"}),
+        ("/v1/organizations/{org}/presets/{preset}", "patch", {"200", "400", "403", "404", "412", "422"}),
+        ("/v1/organizations/{org}/presets/{preset}", "delete", {"204", "403", "404"}),
         ("/v1/auth/login", "post", {"401", "503"}),
         ("/v1/auth/register", "post", {"409", "503"}),
         ("/v1/users/me", "get", {"401", "503"}),
@@ -335,6 +358,42 @@ def test_a_quota_refusal_says_which_limit_and_where_it_stands(document):
         ("/v1/admin/users/{user_id}/subscription", "post", {"400", "404", "409", "412", "503"}),
         ("/v1/organizations", "post", {"201", "409", "422"}),
         ("/v1/organizations/{org}", "delete", {"204", "403", "409"}),
+        # The compositions of an organization: an unreadable one is a 404, a weak role a 403.
+        ("/v1/organizations/{org}/compositions", "get", {"200", "403", "404", "422"}),
+        ("/v1/organizations/{org}/compositions", "post", {"201", "403", "404", "409", "422"}),
+        ("/v1/organizations/{org}/compositions/{composition}", "get", {"200", "404"}),
+        ("/v1/organizations/{org}/compositions/{composition}", "patch", {"200", "400", "403", "404", "412", "422"}),
+        ("/v1/organizations/{org}/compositions/{composition}", "delete", {"204", "403", "404"}),
+        # Its versions: a seal is evaluated by the toolchain and counted against the `evaluate` budget.
+        ("/v1/organizations/{org}/compositions/{composition}/versions", "get", {"200", "404", "422"}),
+        (
+            "/v1/organizations/{org}/compositions/{composition}/versions", "post",
+            {"200", "201", "403", "404", "409", "413", "415", "422", "429", "503"},
+        ),
+        (
+            "/v1/organizations/{org}/compositions/{composition}/versions/check", "post",
+            {"200", "404", "413", "415", "429", "503"},
+        ),
+        ("/v1/organizations/{org}/compositions/{composition}/versions/{version}", "get", {"200", "404"}),
+        ("/v1/organizations/{org}/compositions/{composition}/versions/{version}/content", "get", {"200", "304", "404"}),
+        # Comparing two versions reads their stored bytes in a language slot; a fork seals as a seal does.
+        ("/v1/organizations/{org}/compositions/{composition}/diff", "get", {"200", "404", "422", "429"}),
+        (
+            "/v1/organizations/{org}/compositions/{composition}/fork", "post",
+            {"200", "201", "403", "404", "409", "422", "429"},
+        ),
+        # A stored version evaluated again, with another binding, and around its binding.
+        (
+            "/v1/organizations/{org}/compositions/{composition}/versions/{version}/evaluations", "post",
+            {"200", "201", "403", "404", "422", "429", "503"},
+        ),
+        ("/v1/organizations/{org}/compositions/{composition}/evaluate", "post", {"200", "404", "409", "422", "429", "503"}),
+        ("/v1/organizations/{org}/compositions/{composition}/neighborhood", "get", {"200", "404", "409", "422", "429", "503"}),
+        # A version derived from a run's solution or a binding, sealed as a seal is.
+        (
+            "/v1/organizations/{org}/compositions/{composition}/derive", "post",
+            {"200", "201", "403", "404", "409", "422", "429", "503"},
+        ),
     ],
 )
 def test_the_failures_an_endpoint_can_produce_are_declared(document, path, method, statuses):

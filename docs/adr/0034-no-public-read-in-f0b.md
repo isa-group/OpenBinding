@@ -17,6 +17,8 @@ no entity.
 ## Consequences
 
 - Public reads come back with compositions (F1/F9), as a showcase.
+- F1 added compositions without public read: a composition the caller cannot read answers `404`
+  ([ADR 0046](0046-compositions-module.md)), and public composition read is deferred to the showcase (F2/F9).
 - The engine catalogue stays public, as before.
 
 Where: `security/apikeys.py`, `docs/ACCESS_POLICY.md`.

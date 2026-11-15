@@ -121,6 +121,7 @@ async def seed_problem_run(
         Organization,
         ProblemCompilation,
     )
+    from openbinding_gateway.modules.problems.application import semantic_digest
 
     if organization_id is None:
         organization = Organization(slug=f"org-{uuid.uuid4().hex[:10]}", name="Seeded", created_by_id=owner_id)
@@ -150,8 +151,8 @@ async def seed_problem_run(
     await db.flush()
     compilation = ProblemCompilation(
         revision_id=revision.id, compiler_digest="sha256-" + "c" * 64,
-        compilation_digest="sha256-" + uuid.uuid4().hex + uuid.uuid4().hex, toolchain={},
-        ir_digest=ir_digest, ir=ir, source_map={}, analysis={},
+        compilation_digest="sha256-" + uuid.uuid4().hex + uuid.uuid4().hex,
+        semantic_digest=semantic_digest(ir), toolchain={}, ir_digest=ir_digest, ir=ir, source_map={}, analysis={},
     )
     db.add(compilation)
     await db.flush()

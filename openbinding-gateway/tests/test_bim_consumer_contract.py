@@ -21,11 +21,10 @@ import pytest
 
 from _repo import TOOLCHAIN_ROOT
 from openbinding_gateway.integrations import bim
+from openbinding_gateway.modules.problems.application import semantic_digest
 from bim_core import BimError
-from bim_core.canonical import digest
 
 FIXTURES = TOOLCHAIN_ROOT / "contracts" / "consumers" / "openbinding"
-NON_SEMANTIC = frozenset({"profile", "dialects", "instance", "sourceMap"})
 EXPECTED_FIXTURES = {
     "compile",
     "compatibility",
@@ -62,7 +61,7 @@ def normalize(body: Any) -> Any:
         result["ir"] = {
             "apiVersion": body["ir"]["apiVersion"],
             "kind": body["ir"]["kind"],
-            "semanticDigest": digest({key: value for key, value in body["ir"]["spec"].items() if key not in NON_SEMANTIC}),
+            "semanticDigest": semantic_digest(body["ir"]),
         }
     return result
 

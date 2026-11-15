@@ -1,0 +1,10 @@
+# JSON readers lose the digits of an integer past 2^53 - 1.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: {seq: [pick, ship]}
+binding:
+  pick: {candidate: c_pick}
+  ship: {candidate: c_ship}
+values: {orders: 9007199254740993}

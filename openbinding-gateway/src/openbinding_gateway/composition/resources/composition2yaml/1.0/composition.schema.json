@@ -1,0 +1,428 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openbinding.dev/schemas/composition2yaml/1.0/composition.schema.json",
+  "title": "Composition2Yaml 1.0",
+  "description": "A final composition: the candidate chosen for each task of a workflow, where it came from, the global values it yields, and optionally the BIM problem and compilation it was judged against, the composition's own offering and the evidence of its values. The alternatives, constraints and objectives are the BIM problem's and are never written here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "syntaxVersion",
+    "composition",
+    "version",
+    "kind",
+    "workflow",
+    "binding",
+    "values"
+  ],
+  "properties": {
+    "syntaxVersion": {
+      "description": "The Composition2Yaml syntax version, a quoted <major>.<minor> string. It is the language's own version and never follows the toolchain's or BIM's releases.",
+      "const": "1.0"
+    },
+    "composition": {
+      "description": "The composition's slug: lower-case letters, digits and inner hyphens, at most 64 characters.",
+      "type": "string",
+      "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$"
+    },
+    "version": {
+      "description": "The document's own label, a Semantic Versioning 2.0.0 string of at most 64 characters.",
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "kind": {
+      "description": "What the composition is. Metadata only: no rule depends on it.",
+      "enum": [
+        "application",
+        "workflow",
+        "pipeline",
+        "system"
+      ]
+    },
+    "problem": {
+      "description": "The BIM problem the composition was judged against, and the compilation it was judged on.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "compilation"
+      ],
+      "properties": {
+        "ref": {
+          "description": "A problem revision: <organization>/problems/<problem>@<revision>, the organization and problem by slug or UUID, the revision by number, UUID or digest.",
+          "type": "string",
+          "pattern": "^(?:[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/problems/(?:[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})@(?:[1-9][0-9]{0,8}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|sha256-[0-9a-f]{64})$"
+        },
+        "compilation": {
+          "description": "The compilation digest the composition was judged on.",
+          "type": "string",
+          "pattern": "^sha256-[0-9a-f]{64}$"
+        }
+      }
+    },
+    "workflow": {
+      "description": "The orchestration of the tasks, made of seq, and, xor and loop blocks over task ids and the empty step (null).",
+      "$ref": "#/$defs/node"
+    },
+    "binding": {
+      "description": "One entry per task of the workflow: the candidate chosen for it, or local: true for a step done in house.",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "values": {
+      "description": "The composition's global values: a bare number (dimensionless) or {value, unit}.",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/value"
+      }
+    },
+    "offering": {
+      "$ref": "#/$defs/offering"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    }
+  },
+  "$defs": {
+    "task": {
+      "description": "A task id, as the container accepts it.",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"
+    },
+    "node": {
+      "description": "A workflow step: a task id, null (the empty step), or one block.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/task"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/seq"
+        },
+        {
+          "$ref": "#/$defs/and"
+        },
+        {
+          "$ref": "#/$defs/xor"
+        },
+        {
+          "$ref": "#/$defs/loop"
+        }
+      ]
+    },
+    "seq": {
+      "description": "Steps one after another.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seq"
+      ],
+      "properties": {
+        "seq": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        }
+      }
+    },
+    "and": {
+      "description": "Branches that all run.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "and"
+      ],
+      "properties": {
+        "and": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        }
+      }
+    },
+    "xor": {
+      "description": "A choice of exactly one branch. Every branch states its probability, or none does; uniform: true says every branch is equally likely.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "xor"
+      ],
+      "properties": {
+        "xor": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/branch"
+          }
+        },
+        "uniform": {
+          "description": "Every branch is equally likely.",
+          "type": "boolean"
+        }
+      }
+    },
+    "branch": {
+      "description": "A branch of an xor: a step, or {probability, flow}.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/node"
+        },
+        {
+          "$ref": "#/$defs/weightedBranch"
+        }
+      ]
+    },
+    "weightedBranch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probability",
+        "flow"
+      ],
+      "properties": {
+        "probability": {
+          "description": "The probability the branch is taken, between 0 and 1. The probabilities of one xor add up to exactly 1.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "flow": {
+          "$ref": "#/$defs/node"
+        }
+      }
+    },
+    "loop": {
+      "description": "A body run count times, or expected times on average; never both.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "loop"
+      ],
+      "properties": {
+        "loop": {
+          "$ref": "#/$defs/node"
+        },
+        "count": {
+          "description": "How many times the body runs.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "expected": {
+          "description": "How many times the body runs on average.",
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "not": {
+        "required": [
+          "count",
+          "expected"
+        ]
+      }
+    },
+    "entry": {
+      "description": "The binding of one task.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "candidate"
+          ],
+          "properties": {
+            "candidate": {
+              "description": "The candidate chosen: its id, or <resource>/<id> when two catalogs give the task the same id.",
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}(?:/[A-Za-z][A-Za-z0-9_.-]{0,127})?$"
+            },
+            "from": {
+              "$ref": "#/$defs/provenance"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "local"
+          ],
+          "properties": {
+            "local": {
+              "description": "The step is done in house: no candidate is bound.",
+              "const": true
+            }
+          }
+        }
+      ]
+    },
+    "provenance": {
+      "description": "Where the candidate came from: a plan of a SPHERE pricing, at a pinned version. Without the version, upstream changes cannot be detected.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sphere",
+        "version",
+        "plan"
+      ],
+      "properties": {
+        "sphere": {
+          "description": "The pricing in SPHERE: owner/name.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+        },
+        "registry": {
+          "description": "The alias of an on-premise SPHERE, defined in the deployment's configuration.",
+          "type": "string",
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$"
+        },
+        "version": {
+          "description": "The SPHERE version id the candidate was chosen against.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "plan": {
+          "description": "The plan chosen.",
+          "type": "string",
+          "pattern": "^[^\\x00-\\x1f\\x7f-\\x9f]{1,128}$"
+        },
+        "addons": {
+          "description": "The add-ons chosen, each once.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[^\\x00-\\x1f\\x7f-\\x9f]{1,128}$"
+          }
+        }
+      }
+    },
+    "value": {
+      "description": "A global value: a bare number is dimensionless; otherwise {value, unit}.",
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value",
+            "unit"
+          ],
+          "properties": {
+            "value": {
+              "type": "number"
+            },
+            "unit": {
+              "description": "The unit, exactly as the problem writes it.",
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "offering": {
+      "description": "The composition's own pricing, by reference only, from exactly one source. Its plans, prices and limits live outside the document, and it has no version here: the version used is stored with each evaluation.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sphere"
+          ],
+          "properties": {
+            "sphere": {
+              "description": "The pricing in SPHERE: owner/name.",
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}/[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+            },
+            "registry": {
+              "description": "The alias of an on-premise SPHERE, defined in the deployment's configuration.",
+              "type": "string",
+              "pattern": "^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url"
+          ],
+          "properties": {
+            "url": {
+              "description": "A public Pricing2Yaml file over HTTPS, with no credentials.",
+              "type": "string",
+              "maxLength": 2048,
+              "pattern": "^https://[^\\s/?#@]+(?:[/?#]\\S*)?$"
+            }
+          }
+        }
+      ]
+    },
+    "evidence": {
+      "description": "How the values were obtained: a run (and a point of its front), or by hand; and who evaluated them.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "run": {
+          "description": "The run the composition comes from.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "point": {
+          "description": "The solution index in the run's front.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "manual": {
+          "description": "The binding was chosen by hand.",
+          "type": "boolean"
+        },
+        "evaluatedBy": {
+          "description": "gateway when the gateway computed the values with the toolchain; declared when the author wrote them.",
+          "enum": [
+            "gateway",
+            "declared"
+          ]
+        },
+        "toolchain": {
+          "description": "The toolchain that computed the values: <name> <version>.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "dependentRequired": {
+        "point": [
+          "run"
+        ]
+      },
+      "not": {
+        "required": [
+          "run",
+          "manual"
+        ],
+        "properties": {
+          "manual": {
+            "const": true
+          }
+        }
+      }
+    }
+  }
+}

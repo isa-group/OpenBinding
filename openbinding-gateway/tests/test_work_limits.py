@@ -28,6 +28,16 @@ from openbinding_gateway.modules.problems.adapters import bim_routes
 PROBE = "/v1/bim/validate"
 EMPTY_PACKAGE = {"content": b"", "headers": {"content-type": "application/vnd.bim+zip"}}
 COMPILATION = "/v1/organizations/{org}/problems/{problem}/revisions/{revision}/compilation"
+#: A Composition2Yaml request each language service counts and then refuses (an empty document).
+EMPTY_YAML = {"content": b"", "headers": {"content-type": "application/yaml"}}
+EMPTY_JSON = {"content": b"{}", "headers": {"content-type": "application/json"}}
+LANGUAGE = "/v1/compositions"
+VERSIONS = "/v1/organizations/{org}/compositions/{composition}/versions"
+FORK = "/v1/organizations/{org}/compositions/{composition}/fork"
+REEVALUATE = "/v1/organizations/{org}/compositions/{composition}/versions/{version}/evaluations"
+EVALUATE = "/v1/organizations/{org}/compositions/{composition}/evaluate"
+NEIGHBORHOOD = "/v1/organizations/{org}/compositions/{composition}/neighborhood"
+DERIVE = "/v1/organizations/{org}/compositions/{composition}/derive"
 
 #: A request for every route that reaches the limiter: ``(method, template) -> (method, concrete path, body)``,
 #: the concrete path filled in by the ``member`` fixture's organization and problem.
@@ -38,18 +48,36 @@ REQUESTS = {
         "POST", "/v1/organizations/{org}/problems/{problem}/revisions", EMPTY_PACKAGE,
     ),
     ("GET", COMPILATION): ("GET", "/v1/organizations/{org}/problems/{problem}/revisions/1/compilation", {}),
+    ("POST", f"{LANGUAGE}/validate"): ("POST", f"{LANGUAGE}/validate", EMPTY_YAML),
+    ("POST", f"{LANGUAGE}/parse"): ("POST", f"{LANGUAGE}/parse", EMPTY_YAML),
+    ("POST", f"{LANGUAGE}/serialise"): ("POST", f"{LANGUAGE}/serialise", EMPTY_JSON),
+    ("POST", f"{LANGUAGE}/diff"): ("POST", f"{LANGUAGE}/diff", EMPTY_JSON),
+    # Counted before the composition is looked up: the first is a 404, the second a 429.
+    ("POST", f"{VERSIONS}"): ("POST", "/v1/organizations/{org}/compositions/none/versions", EMPTY_YAML),
+    ("POST", f"{VERSIONS}/check"): ("POST", "/v1/organizations/{org}/compositions/none/versions/check", EMPTY_YAML),
+    ("POST", FORK): ("POST", "/v1/organizations/{org}/compositions/none/fork", EMPTY_JSON),
+    ("POST", REEVALUATE): ("POST", "/v1/organizations/{org}/compositions/none/versions/1/evaluations", {}),
+    ("POST", EVALUATE): ("POST", "/v1/organizations/{org}/compositions/none/evaluate", EMPTY_JSON),
+    ("GET", NEIGHBORHOOD): ("GET", "/v1/organizations/{org}/compositions/none/neighborhood", {}),
+    ("POST", DERIVE): ("POST", "/v1/organizations/{org}/compositions/none/derive", EMPTY_JSON),
 }
 
-BIM_ROUTES = {("POST", PROBE)}
+#: The stateless language services: open to anybody, and answering ``application/problem+json``.
+LANGUAGE_ROUTES = {route for route in REQUESTS if route[1].startswith(LANGUAGE)}
+BIM_ROUTES = {("POST", PROBE)} | LANGUAGE_ROUTES
 
 
 @pytest.fixture
 def budgets(monkeypatch):
     """Switch the budget on; the suite runs with it off, in this test's own memory (conftest)."""
 
-    def apply(*, compile: int = 1000, multiplier: int = 1, window: int = 3600) -> None:
+    def apply(
+        *, compile: int = 1000, read: int = 1000, evaluate: int = 1000, multiplier: int = 1, window: int = 3600,
+    ) -> None:
         settings = get_settings()
         monkeypatch.setattr(settings, "work_rate_limit_compile_requests", compile)
+        monkeypatch.setattr(settings, "work_rate_limit_read_requests", read)
+        monkeypatch.setattr(settings, "work_rate_limit_evaluate_requests", evaluate)
         monkeypatch.setattr(settings, "work_rate_limit_signed_in_multiplier", multiplier)
         monkeypatch.setattr(settings, "work_rate_limit_window_s", window)
 
@@ -72,6 +100,13 @@ async def post(client, path: str = PROBE, **extra):
     request = EMPTY_PACKAGE
     headers = {**request.get("headers", {}), **extra.pop("headers", {})}
     return await client.post(path, **{**request, **extra, "headers": headers})
+
+
+async def lint(client, headers: dict | None = None):
+    """One empty document to the editor's lint: counted, then answered 200 ``valid: false``."""
+    return await client.post(
+        f"{LANGUAGE}/validate", content=b"", headers={**EMPTY_YAML["headers"], **(headers or {})},
+    )
 
 
 @pytest.fixture
@@ -113,8 +148,12 @@ def test_a_route_added_under_the_compiling_prefixes_has_to_be_classified():
     """Deny-by-default, as for public reads: a new route fails here until somebody decides."""
     found = {
         (method, path) for method, path in routes()
-        if (method == "POST" and path.startswith(("/v1/compositions/", "/v1/bim/", "/v1/organizations/{org}/problems")))
+        if (method == "POST" and path.startswith((
+            "/v1/compositions/", "/v1/bim/", "/v1/organizations/{org}/problems",
+            "/v1/organizations/{org}/compositions/{composition}/",
+        )))
         or path.endswith("/compilation")
+        or (path.startswith("/v1/organizations/{org}/compositions/{composition}/") and path.endswith("/neighborhood"))
     }
     assert found == set(WORK_ROUTES)
 
@@ -124,13 +163,18 @@ def test_every_counted_route_is_exercised_below():
     assert set(REQUESTS) == set(WORK_ROUTES)
 
 
-def test_compile_is_the_one_class_the_policy_states():
-    assert set(WORK_ROUTES.values()) == {"compile"}
+def test_compile_read_and_evaluate_are_the_classes_the_policy_states():
+    assert set(WORK_ROUTES.values()) == {"compile", "read", "evaluate"}
+    assert {route for route, work_class in WORK_ROUTES.items() if work_class == "read"} == LANGUAGE_ROUTES
+    assert {route for route, work_class in WORK_ROUTES.items() if work_class == "evaluate"} == {
+        ("POST", VERSIONS), ("POST", f"{VERSIONS}/check"), ("POST", FORK),
+        ("POST", REEVALUATE), ("POST", EVALUATE), ("GET", NEIGHBORHOOD), ("POST", DERIVE),
+    }
 
 
 @pytest.mark.parametrize("route", sorted(REQUESTS))
 async def test_every_route_is_limited_and_answers_a_coded_problem(api_client, budgets, member, route):
-    budgets(compile=1)
+    budgets(compile=1, read=1, evaluate=1)
 
     first = await send(api_client, route, member)
     second = await send(api_client, route, member)
@@ -188,6 +232,41 @@ async def test_the_refusal_says_what_ran_out(api_client, budgets):
     assert body["limit"] == 1
     assert body["window_seconds"] == 90
     assert body["work_class"] == "compile"
+
+
+async def test_the_read_class_has_its_own_budget(api_client, budgets):
+    budgets(compile=1, read=2)
+
+    statuses = [(await lint(api_client)).status_code for _ in range(3)]
+
+    assert statuses == [200, 200, 429]
+    assert (await post(api_client)).status_code == 422  # the compile budget is untouched
+    refused = await lint(api_client)
+    assert refused.json()["work_class"] == "read"
+    assert refused.json()["limit"] == 2
+
+
+async def test_the_evaluate_class_has_its_own_budget(api_client, budgets, member):
+    budgets(compile=1, read=1, evaluate=2)
+    headers, names = member
+    path = f"/v1/organizations/{names['org']}/compositions/none/versions/check"
+
+    statuses = [
+        (await api_client.post(path, content=b"", headers={**EMPTY_YAML["headers"], **headers})).status_code
+        for _ in range(3)
+    ]
+
+    assert statuses == [404, 404, 429]
+    assert (await lint(api_client)).status_code == 200  # the read budget is untouched
+
+
+async def test_a_signed_in_caller_gets_the_larger_read_budget(api_client, registration, db_session, budgets, gate):  # noqa: F811
+    budgets(read=1, multiplier=3)
+    _, headers = await make_account(api_client, registration, db_session, gate)
+
+    signed_in = [(await lint(api_client, headers)).status_code for _ in range(4)]
+
+    assert signed_in == [200, 200, 200, 429]
 
 
 # ------------------------------------------------------------------- who is a client

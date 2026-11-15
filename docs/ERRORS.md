@@ -51,7 +51,10 @@ to, it is kept under `extra`.
 | `in` | request validation | `body`, `query`, `path`, `header` or `cookie` |
 | `parameter` | `in` ≠ `body` | the query/path/header/cookie parameter (`limit`, `cursor`) |
 | `resource` | compiler findings | the package file the finding is about |
-| `span` | when known | position in the source text: `{"offset": 12}` for malformed JSON; `{"line", "column"}` for documents |
+| `span` | when known | position in the source text: `{"offset": 12}` for malformed JSON; `{"line", "column"}` for documents; for Composition2Yaml documents always present, `{"line", "column", "end_line", "end_column"}` (one-based, the end exclusive) or `null` when there is no text to point into (a JSON document) |
+| `severity` | Composition2Yaml findings | `error` refuses the document; `warning` and `info` only inform (one list, errors first) |
+| `path` | Composition2Yaml findings | the dotted path of the element at fault (`binding.t1.from.version`, `workflow.seq[1].and[0]`; empty for the whole document). Readable but ambiguous, since a task id may contain a dot; `pointer` (always present on these findings, `""` for the document) is built from the same segments and is not |
+| `document` | a refused `diffCompositions` | `before` or `after`: the side the finding is about |
 | `hint` / `fix` | when known | what to do / a concrete replacement (`"This field is required."`, the JSON parser's reason) |
 | `loc` | request validation | the raw Pydantic location (`["body", "features", 0]`), nothing lost |
 | `context` | request validation | the limits that were exceeded (`{"ge": 1}`, `{"max_length": 64}`) — scalars only |
@@ -129,9 +132,9 @@ Routes keep raising `api_error(422, code, message)`; they need not know the shap
 
 ### Media type
 
-BIM routes (`/v1/bim/…`, `/v1/engines`,
-`/v1/engine-registrations` — the prefixes in `_BIM_PATH_PREFIXES`) answer
-`application/problem+json`, as they always did. The platform routes
+The stateless language services and the engine routes (`/v1/bim/…`, `/v1/compositions/…`,
+`/v1/engines`, `/v1/engine-registrations` — the prefixes in `_PROBLEM_JSON_PREFIXES`) answer
+`application/problem+json`, as the BIM routes always did. The platform routes
 (accounts, organizations and their problems, runs and studies, pricing, …)
 keep `application/json`. The runs moved to `/v1/organizations/{org}/runs` in F0b and
 answer the platform envelope since: a refusal other than a 422 carries `code` beside
@@ -152,11 +155,151 @@ is not needed.
 | `invalid_instance` | 422 | the compiler refuses the package; `diagnostics` locate the refusal |
 | `slug_conflict` | 409 | the problem slug is in use in the organization |
 | `problem_has_runs` | 409 | `DELETE …/problems/{problem}`: a run, a study cell or a sealed study names one of its revisions, which are kept as their evidence |
+| `problem_has_compositions` | 409 | `DELETE …/problems/{problem}`: a sealed composition version, or one of its evaluations, names one of its revisions. Delete the compositions that link the problem first |
 | `revision_not_recompilable` | 422 | the installed toolchain refuses a stored revision (or reads it as another package); `reason` carries the refusal |
 | `content_unavailable` | 409 | the stored package of a revision cannot be read |
 | `revision_required` | 422 | `createRun` (`POST /v1/organizations/{org}/runs`) without `revision` |
 | `revision_not_in_organization` | 409 | `createRun` names a revision of another organization the caller can see: launch it from that organization |
 | `contract_not_installed` | 422 | a retry of a run whose compilation needs a contract the installed toolchain does not have |
+| `preset_with_settings` | 422 | `createRun` names a `preset` together with `engine`, `registration`, `mode`, `options` or `optimization`: a run takes its settings from the preset or from the request, never both |
+| `preset_not_found` | 422 | `createRun` names a `preset` the run's organization has no run preset by (slug or id) |
+| `invalid_request_fields` | 422 | `createRun`: a field outside the run contract, or a `preset` that is not a slug or id |
+
+## Run presets
+
+The run presets of an organization (`/v1/organizations/{org}/presets`) follow the runs: a non-member gets
+`404 not_found` on every route, a role below MEMBER `403 insufficient_role` on a write.
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `not_found` | 404 | no such organization or preset, or the caller is not a member |
+| `insufficient_role` | 403 | `createRunPreset`, `updateRunPreset`, `deleteRunPreset` below MEMBER |
+| `slug_conflict` | 409 | the preset slug is in use in the organization |
+| `invalid_request_fields` | 422 | a setting of the wrong shape: `engine` not a name or an immutable reference, `registration` not an immutable reference, `mode` not a mode id, `options` not an object of at most 65 536 bytes as JSON, `optimization` not `{type: SINGLE\|MULTI\|MANY, scalarization, weights?: [{criteria, value}]}`; its one diagnostic's `pointer` names the setting (`/optimization/weights/0`). Whether the engine runs the problem is checked when a run uses the preset |
+
+## Composition2Yaml
+
+The stateless services `/v1/compositions/{validate,parse,serialise,diff}` answer
+`application/problem+json`. `validateComposition` is a lint: it answers 200 `{valid, diagnostics}`
+whether or not the document is valid. The others refuse a document with an error.
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `composition_invalid` | 422 | `parseComposition`, `serialiseComposition` or `diffCompositions` read a document with at least one error; `diagnostics` lists every finding (the `c2y_*` codes below), located; on a diff each names its `document` |
+| `composition_busy` | 429 | every Composition2Yaml slot of this process is taken (`COMPOSITION_LANGUAGE_SLOTS`, 4); `Retry-After: 1`. Refused at once rather than queued |
+
+A diff (`diffCompositions`, and `diffCompositionVersions` below) answers SPHERE's PricingDiff shape:
+`general` (top-level changes, `workflow` compared whole; `version` and `evidence` are not reported), the
+`binding`, `values` and `offering` `sections` with their entries, `totals` and `isEmpty`, plus
+`comparison {comparable, problemRefChanged, compilationChanged, valueStatus}`. Value changes are listed only
+when the two sides are `comparable`.
+| `payload_too_large` | 413 | a document longer than 262 144 bytes (a JSON document to serialise: 524 288); `limitBytes` says the limit |
+| `unsupported_media_type` | 415 | `validate` and `parse` read `application/yaml`, `text/yaml` or `application/x-yaml`; `serialise` and `diff` read `application/json` |
+| `rate_limit_exceeded` | 429 | past the `read` budget of the client ([ACCESS_POLICY.md](ACCESS_POLICY.md)) |
+
+The findings, in the order a document is read (size, YAML, root, sections, coherence, schema).
+Every one is an error unless its severity says otherwise. The language's specification,
+[COMPOSITION2YAML.md](COMPOSITION2YAML.md) §14, lists the same codes with their severity and phase,
+and tests an example of most of them.
+
+| `c2y_*` code | Meaning |
+|---|---|
+| `c2y_too_long` | the document, or the canonical text written from it, is longer than 262 144 UTF-8 bytes |
+| `c2y_syntax` | not YAML, or YAML that JSON cannot hold: an alias, a duplicate key, a key that is not a string, a number that is not finite, an integer past ±(2^53 − 1), bytes that are not UTF-8; located where the reader stopped |
+| `c2y_problem_content` | content that belongs to the BIM problem (tasks, properties, candidates, constraints, objectives) |
+| `c2y_unknown_key` | a key the language does not have (`presentation:` included) |
+| `c2y_missing_key` | a required key is absent; its path is the key's own, its span the parent's |
+| `c2y_type` | a value of the wrong JSON type |
+| `c2y_syntax_version_type` | `syntaxVersion` is not a quoted `<major>.<minor>` string (unquoted, YAML reads `1.0` as a number) |
+| `c2y_syntax_version_unsupported` | `syntaxVersion` names a version this gateway does not read (supported: `1.0`) |
+| `c2y_slug_invalid` | `composition` is not a slug |
+| `c2y_version_not_semver` | `version` is not a Semantic Versioning label |
+| `c2y_kind_unknown` | `kind` is not `application`, `workflow`, `pipeline` or `system` |
+| `c2y_problem_ref` | `problem.ref` or `problem.compilation` is malformed |
+| `c2y_workflow_malformed` | a workflow node that is not a task, `null` or one well-formed `seq`/`and`/`xor`/`loop` |
+| `c2y_task_id_invalid`, `c2y_property_id_invalid` | an id the container would not accept |
+| `c2y_candidate_ref_invalid` | a candidate that is neither an id nor `<resource>/<id>` |
+| `c2y_task_unbound` | a workflow task with no `binding` entry |
+| `c2y_binding_unknown_task` | a `binding` entry for a task the workflow does not have |
+| `c2y_binding_entry` | an entry that is not exactly one of `candidate` or `local: true`, or a `from` beside `local: true` |
+| `c2y_xor_probabilities` | an `xor` with some probabilities stated and some not, or `uniform: true` beside probabilities |
+| `c2y_xor_sum` | the stated probabilities of an `xor` do not add up to exactly 1 (decimal arithmetic) |
+| `c2y_from_version_missing` | a `from` without the SPHERE version it pins |
+| `c2y_from_incomplete` | a `from` without its `sphere` or `plan` |
+| `c2y_from_shape` | a malformed `from` field, or an add-on listed twice |
+| `c2y_from_registry_unknown` | a `from` on a registry `SPHERE_REGISTRIES` does not define |
+| `c2y_offering_sources` | an `offering` with no source or with more than one |
+| `c2y_offering_shape` | a malformed `offering`: a key, type or value it may not have (its plans and its version live outside the document) |
+| `c2y_offering_url_not_https` | an offering URL that is not an absolute `https://` URL |
+| `c2y_offering_registry_unknown` | **warning**: an offering on a registry `SPHERE_REGISTRIES` does not define; the composition stays valid |
+| `c2y_value_shape` | a value that is a boolean, or an empty unit |
+| `c2y_evidence_shape` | evidence that does not hold together (a run and `manual`, a point without a run, a run that is not a UUID, an unknown `evaluatedBy`) |
+| `c2y_evidence_gateway_without_problem`, `c2y_evidence_run_without_problem` | gateway evidence or a run on a composition linked to no problem |
+| `c2y_slug_mismatch` | **info**: the document's slug is not the slug of the composition it is submitted to |
+| `c2y_schema` | the JSON Schema backstop refused something no specific rule names |
+| `c2y_more` | **info**: more findings than a list holds (100); fix these first |
+
+Against a compiled problem, and when assessing a document in an organization (the organization's routes):
+
+| `c2y_*` code | Meaning |
+|---|---|
+| `c2y_workflow_mismatch` | the workflow is not the problem's |
+| `c2y_candidate_unknown` | no catalog of the problem holds the candidate |
+| `c2y_candidate_ambiguous` | two catalogs give the task the same id: write `<resource>/<id>` |
+| `c2y_candidate_not_allowed`, `c2y_task_local_mismatch` | the task may not take the candidate; `local: true` on a service task or a candidate on a local one. Reported only when the toolchain refuses the binding, to locate its refusal |
+| `c2y_property_unknown` | a value of a property the problem does not have |
+| `c2y_unit_missing`, `c2y_unit_mismatch` | a bare number where the problem has a unit; a unit that is not the problem's |
+| `c2y_value_differs` | **warning**: a declared value is not the one the toolchain computes; the computed one is kept |
+| `c2y_value_not_computed` | **warning**: a declared value of a property the toolchain does not compute; dropped |
+| `c2y_constraint_violated` | the binding violates a hard constraint |
+| `c2y_constraint_soft` | **warning**: the binding misses a soft constraint, with its penalty |
+| `c2y_problem_foreign` | `problem.ref` names a problem of another organization; it is not looked up there |
+| `c2y_problem_not_found` | the organization has no such problem or revision (or it was deleted while the version was being sealed) |
+| `c2y_problem_not_recompilable` | the installed toolchain refuses the linked revision's stored package |
+| `c2y_compilation_not_found` | the revision has no compilation with the digest `problem.compilation` names |
+| `c2y_compilation_superseded` | **info**: the named compilation was made by another toolchain release that reads the problem alike; the binding is evaluated on the installed one's |
+| `c2y_compilation_semantics_changed` | the installed toolchain reads the revision differently from the named compilation: derive the composition again |
+| `c2y_binding_invalid` | the toolchain refuses the binding; its message as given, beside the located `c2y_candidate_not_allowed` / `c2y_task_local_mismatch` |
+| `c2y_evaluation_failed` | the toolchain could not evaluate the binding |
+| `c2y_run_not_found` | the organization has no run `evidence.run` names (or the caller may not see it) |
+| `c2y_run_foreign_revision` | the run solved another revision, or a compilation that reads it differently |
+| `c2y_run_point_invalid` | the run has no binding to cite, or `evidence.point` is not one of its solutions (`deriveComposition`: the request's `point`) |
+| `c2y_run_binding_mismatch` | the binding is not the run's solution (`point`) or none of them; the message lists the tasks that differ |
+
+Reserved for F3, which emits them (no route reports them yet): `c2y_offering_unreadable` (**warning**: the
+offering cannot be read; no margins), `c2y_offering_invalid_pricing` (**warning**: its content is not a valid
+Pricing2Yaml; no margins) and `c2y_provenance_mismatch` (a `from` disagrees with the provenance a
+SPHERE-generated problem recorded for its candidate).
+
+## Compositions
+
+The compositions of an organization (`/v1/organizations/{org}/compositions`). A composition the caller
+cannot read answers as a missing one: `404 not_found` for a non-member and for another organization's
+composition, never `403`. A member whose role is too weak for a write gets `403 organization_forbidden`.
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `not_found` | 404 | no such organization or composition, or the caller cannot read it; `deriveComposition`: no such run or problem revision in the organization (or the caller may not see the run) |
+| `organization_forbidden` | 403 | the caller reads the organization but its role is too weak: MEMBER creates and edits, ADMIN deletes |
+| `feature_not_entitled` | 403 | `createComposition`, `forkComposition`: the caller's plan lacks the `repository` feature |
+| `slug_conflict` | 409 | the composition slug is in use in the organization (`forkComposition`: the `slug` given is in use in the target; without one, a taken slug answers 200 `{nameTaken: true, existingComposition}` and nothing is forked) |
+| `diff_version_missing` | 422 | `diffCompositionVersions` needs a default the composition cannot give: it has no version yet, or none before `to`. Name `from` |
+| `composition_fork_same_organization` | 409 | `forkComposition` into the source's own organization: a fork goes to another organization; seal a new version instead |
+| `composition_fork_problem_unreadable` | 409 | `forkComposition` of a version that links a problem, which the target organization cannot read. Set `dropProblem` to fork it without `problem` and `evidence`, its values declared |
+| `api_key_boundary` | 403 | `forkComposition`: the API key's boundary does not reach the target organization or slug |
+| `composition_invalid` | 422 | `createCompositionVersion` read or judged a document with at least one error; `diagnostics` lists every finding (the `c2y_*` codes above), located in the submitted text. `checkCompositionVersion` answers the same findings with 200. `forkComposition`: the forked copy was refused as a new seal would be (for example `c2y_from_registry_unknown` once a registry left `SPHERE_REGISTRIES`) |
+| `version_label_taken` | 409 | `createCompositionVersion`, `deriveComposition`: another content of the composition holds this `version:`; `version` names it (`id`, `ordinal`, `label`) |
+| `composition_busy` | 429 | `createCompositionVersion`, `checkCompositionVersion`, `forkComposition`, `diffCompositionVersions`, `reevaluateCompositionVersion`, `evaluateComposition`, `getCompositionNeighborhood`, `deriveComposition`: every Composition2Yaml or evaluation slot of this process is taken (`COMPOSITION_EVALUATION_SLOTS`, 2); `Retry-After: 1` |
+| `composition_empty` | 409 | `evaluateComposition`, `getCompositionNeighborhood` without `version`: the composition has no version yet |
+| `composition_not_linked` | 422 | `evaluateComposition`, `getCompositionNeighborhood`: the version links no problem, so its values are declared and the toolchain has nothing to evaluate. `reevaluateCompositionVersion` of such a version answers its declared evaluation |
+| `evaluation_invalid` | 422 | `evaluateComposition`: the toolchain could not evaluate the binding (an unknown candidate, its refusal, a problem it reads differently); `diagnostics` lists the `c2y_*` findings, and one about a task the request rebinds points at `/binding/<task>`. A binding it evaluated answers 200, `valid` false on a hard violation. `reevaluateCompositionVersion`: the installed toolchain could not evaluate the version (its package no longer compiles, the evaluation failed); nothing is stored |
+| `analysis_invalid` | 422 | `getCompositionNeighborhood`: the toolchain cannot analyse the version's binding or the task named |
+| `c2y_compilation_semantics_changed` | 422 | `getCompositionNeighborhood`: the installed toolchain reads the linked revision differently from the compilation the version names; derive the composition again |
+| `derivation_invalid` | 422 | `deriveComposition`: the binding cannot be derived; `diagnostics` lists the `c2y_*` findings. Those about the request point into it: `/point` (`c2y_run_point_invalid`: a run that did not complete, a point out of range, a solution that is not a binding), `/binding/<task>` (an unknown task or candidate, a task left unbound, the toolchain's refusal) and `/offering/...` (an offering that is not one). The others point into the derived document: `c2y_constraint_violated` (a binding with a hard violation is not derivable), `c2y_compilation_semantics_changed` (the run solved a compilation the installed toolchain reads differently: run the problem again) |
+| `payload_too_large` | 413 | a document longer than 262 144 bytes; `limitBytes` says the limit |
+| `unsupported_media_type` | 415 | a document not sent as `application/yaml`, `text/yaml` or `application/x-yaml` |
+| `rate_limit_exceeded` | 429 | past the `evaluate` budget of the caller ([ACCESS_POLICY.md](ACCESS_POLICY.md)) |
+| `bim_unavailable` | 503 | the toolchain does not answer |
 
 ## Organizations
 
@@ -184,13 +327,15 @@ These operations take an optional `If-Match` header:
 - `PATCH /v1/organizations/{org}`
 - `PATCH …/problems/{problem}`
 - `PATCH …/studies/{study}`
+- `PATCH …/compositions/{composition}`
+- `PATCH …/presets/{preset}`
 - `PATCH /v1/users/me`
 - `PUT /v1/notifications/preferences`
 - `PUT /v1/engine-registrations/{name}/credential`
 - `POST /v1/admin/users/{user_id}/plan`
 - `POST /v1/admin/users/{user_id}/subscription`
 
-The first seven are the covered-operations table of change `optimistic-concurrency`. Their `200`, and the
+The first nine are the covered-operations table of change `optimistic-concurrency`, with `updateComposition` and `updateRunPreset` added in F1. Their `200`, and the
 single-resource `GET` of the same resource, carry an `ETag`. The tag is a strong, opaque entity tag, so send it back
 unchanged and never parse it. Without `If-Match` nothing is checked and the request behaves as it always did, with
 the last writer winning.

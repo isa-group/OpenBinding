@@ -33,6 +33,13 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
+    name: 'Compositions',
+    permissions: [
+      { id: 'compositions:read', description: 'Read compositions and check documents' },
+      { id: 'compositions:write', description: 'Create, seal and derive compositions' },
+    ],
+  },
+  {
     name: 'Execution',
     permissions: [
       { id: 'jobs:read', description: 'Read runs and results' },
@@ -67,6 +74,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
 const CATALOGUED: Record<ApiKeyPermission, true> = {
   'account:read': true, 'account:write': true, 'keys:read': true, 'keys:write': true,
   'problems:read': true, 'problems:write': true,
+  'compositions:read': true, 'compositions:write': true,
   'jobs:read': true, 'engines:read': true, 'engines:execute': true, 'engines:register': true, 'engines:publish': true, 'engines:moderate': true,
   'organizations:read': true, 'organizations:write': true,
   'studies:read': true, 'studies:write': true,
@@ -87,7 +95,7 @@ export const ENGINE_LIMITED: ReadonlySet<ApiKeyPermission> = new Set<ApiKeyPermi
 ]);
 
 export const PRESETS: Record<'read' | 'run', ApiKeyPermission[]> = {
-  read: ['jobs:read', 'studies:read', 'problems:read'],
+  read: ['jobs:read', 'studies:read', 'problems:read', 'compositions:read'],
   run: ['engines:read', 'engines:execute', 'jobs:read', 'problems:read'],
 };
 

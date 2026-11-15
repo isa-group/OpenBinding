@@ -4,7 +4,7 @@ Code outside ``modules/problems`` reaches the module through this package only
 (``tests/test_modules_cross_import.py``); the composition root mounts the routers of ``adapters``.
 """
 
-from ..domain.compilation import Compilation, analysis_summary, ir_analysis, package_file_digests
+from ..domain.compilation import Compilation, analysis_summary, ir_analysis, package_file_digests, semantic_digest
 from ..domain.digests import is_digest, revision_digest
 from .compile import CompileRefusal, compile_package, compile_refusal
 from .package import BIM_ZIP_TYPES, PackageRequest, read_package
@@ -12,6 +12,7 @@ from .problems import (
     NOT_RECOMPILABLE,
     Upload,
     add_revision,
+    compilation_by_digest,
     compile_or_get,
     create_problem,
     current_compilations,
@@ -36,6 +37,7 @@ __all__ = [
     "Upload",
     "add_revision",
     "analysis_summary",
+    "compilation_by_digest",
     "compile_or_get",
     "compile_package",
     "compile_refusal",
@@ -50,6 +52,7 @@ __all__ = [
     "read_package",
     "revision_by_ref",
     "revision_digest",
+    "semantic_digest",
     "slug_from_name",
     "store_compilation",
     "template_package",

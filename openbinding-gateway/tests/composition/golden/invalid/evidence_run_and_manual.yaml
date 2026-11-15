@@ -1,0 +1,11 @@
+# A binding comes from a run or was chosen by hand, not both.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+problem: {ref: isa/problems/shop@3, compilation: sha256-6b1c0d6f1e9e4a8f0d2c3b4a5968778695a4b3c2d1e0f9e8d7c6b5a493827160}
+workflow: pick
+binding:
+  pick: {candidate: c_pick}
+values: {}
+evidence: {run: 3f2b8c1e-7d4a-4e9b-9c1f-2a6d8e5b7c90, manual: true, evaluatedBy: gateway}

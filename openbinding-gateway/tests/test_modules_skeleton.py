@@ -1,7 +1,7 @@
 """Module skeleton: the ``app``, ``shared`` and ``modules`` packages and their import contracts.
 
 ``app`` and ``shared`` are still empty; ``modules`` holds the modules of ARCHITECTURE §4.2 as they arrive
-(``plans`` first, then ``problems``, ``shared`` and ``execution``, F0b), and the legacy layers reach a module through its
+(``plans`` first, then ``problems``, ``shared`` and ``execution``, F0b, and ``compositions``, F1), and the legacy layers reach a module through its
 ``application`` package only; ``main.py``, the composition root, also mounts the routers of its ``adapters``.
 
 import-linter lives in the ``lint`` dependency group only, so the static tests read the configuration files;
@@ -33,15 +33,23 @@ LEGACY_INI = GATEWAY_ROOT / ".importlinter"
 MODULE_ORDER = [
     "(administration)",
     "(laboratory)",
+    "(compositions)",
     "(execution)",
     "(engines) | (problems)",
-    "(language)",
     "(collaboration)",
     "(identity)",
     "(plans)",
     "(shared)",
 ]
-CONTRACTS = {"kernel", "composition-root", "no-legacy-http", "module-layers", "module-inside", "pure-domain"}
+CONTRACTS = {
+    "kernel",
+    "composition-root",
+    "no-legacy-http",
+    "module-layers",
+    "module-inside",
+    "pure-domain",
+    "composition-library-pure",
+}
 
 
 def _read(path: Path) -> configparser.ConfigParser:
@@ -154,9 +162,9 @@ def test_nothing_outside_the_new_packages_imports_them_but_a_modules_application
 
 def test_the_composition_root_mounts_only_adapters_of_known_modules() -> None:
     mounted = [entry for entry in _offenders(SOURCE) if _composition_root_mounts_adapters(entry)]
-    assert mounted, "main.py mounts the routers of modules/problems and modules/execution"
+    assert mounted, "main.py mounts the routers of modules/problems, modules/execution and modules/compositions"
     modules = {entry.split(": ", 1)[1].split(".")[2] for entry in mounted}
-    assert modules == {"problems", "execution"}, mounted
+    assert modules == {"problems", "execution", "compositions"}, mounted
 
 
 def test_import_resolver_finds_every_import_form(tmp_path: Path) -> None:
@@ -205,6 +213,10 @@ def test_forbidden_contracts() -> None:
         "kernel": ([f"{p}.shared"], {f"{p}.modules", f"{p}.app", f"{p}.main"}),
         "composition-root": ([f"{p}.modules", f"{p}.shared"], {f"{p}.app"}),
         "no-legacy-http": ([f"{p}.modules"], {f"{p}.routes", f"{p}.main"}),
+        "composition-library-pure": (
+            [f"{p}.composition"],
+            {f"{p}.modules", f"{p}.db", f"{p}.integrations", "bim_core", "bim_client", "sqlalchemy", "fastapi", "httpx"},
+        ),
     }
     for name, (sources, forbidden) in expected.items():
         contract = _contract(parser, name)
@@ -255,6 +267,7 @@ _PLANTED = {
         "import openbinding_gateway.modules.plans.application\n",
     ),
     "pure-domain": ("modules/plans/domain/rules.py", "import fastapi\n"),
+    "composition-library-pure": ("composition/leak.py", "import sqlalchemy\n"),
 }
 
 
@@ -285,12 +298,12 @@ def test_every_contract_breaks_on_a_planted_violation(tmp_path: Path) -> None:
         )
 
     clean = run()
-    assert "Contracts: 6 kept, 0 broken" in clean.stdout + clean.stderr, clean.stdout + clean.stderr
+    assert "Contracts: 7 kept, 0 broken" in clean.stdout + clean.stderr, clean.stdout + clean.stderr
     for relative, source in _PLANTED.values():
         (copy / relative).write_text(source, encoding="utf-8")
     result = run()
     output = result.stdout + result.stderr
-    assert re.search(r"Contracts: 0 kept, 6 broken", output), output
+    assert re.search(r"Contracts: 0 kept, 7 broken", output), output
     for title in re.findall(r"^name = (.+)$", MODULES_INI.read_text(encoding="utf-8"), re.MULTILINE):
         assert f"{title} BROKEN" in output, title
     assert result.returncode == 1, output

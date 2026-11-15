@@ -1,0 +1,18 @@
+# A third written out three times adds up to 0.9999999999999999, not 1: write uniform: true.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow:
+  seq:
+    - pick
+    - xor:
+        - {probability: 0.3333333333333333, flow: express}
+        - {probability: 0.3333333333333333, flow: courier}
+        - {probability: 0.3333333333333333, flow: post}
+binding:
+  pick: {candidate: c_pick}
+  express: {candidate: c_express}
+  courier: {candidate: c_courier}
+  post: {candidate: c_post}
+values: {}

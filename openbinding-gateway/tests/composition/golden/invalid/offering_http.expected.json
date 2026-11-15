@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_offering_url_not_https", "severity": "error", "path": "offering.url", "pointer": "/offering/url", "span": [10, 12, 10, 55]}
+]

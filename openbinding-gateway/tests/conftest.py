@@ -192,7 +192,8 @@ def isolated_work_rate_limiter(monkeypatch):
     """The per-client work budget switched off, and counted in this test's own memory.
 
     The default is sized for one person at a keyboard and the suite is not one: a test
-    that validates more than ten packages would be refused at the eleventh.
+    that validates more than ten packages would be refused at the eleventh. Every class
+    (``compile``, ``read`` and ``evaluate``) is switched off.
     ``tests/test_work_limits.py`` switches it on again.
     """
     if not GATEWAY_INSTALLED:
@@ -202,6 +203,8 @@ def isolated_work_rate_limiter(monkeypatch):
     from openbinding_gateway.core.settings import get_settings
 
     monkeypatch.setattr(get_settings(), "work_rate_limit_compile_requests", 0)
+    monkeypatch.setattr(get_settings(), "work_rate_limit_read_requests", 0)
+    monkeypatch.setattr(get_settings(), "work_rate_limit_evaluate_requests", 0)
     set_work_limiter(WorkRateLimiter(primary=None))
     yield
     set_work_limiter(None)

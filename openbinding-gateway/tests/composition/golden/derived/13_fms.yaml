@@ -1,0 +1,47 @@
+syntaxVersion: '1.0'
+composition: fms
+version: 1.0.0
+kind: application
+problem:
+  ref: isa/problems/fms@1
+  compilation: {compilation}
+workflow:
+  seq:
+  - T1
+  - T2
+  - T3
+  - xor:
+    - probability: 0.8
+      flow: node_classic_routing
+    - probability: 0.2
+      flow: T5
+  - T6
+binding:
+  T1:
+    candidate: cand_t1_aws
+  T2:
+    candidate: cand_t2_radius_iot_network
+  T3:
+    candidate: cand_t3_distance_matrix_api
+  node_classic_routing:
+    local: true
+  T5:
+    candidate: cand_t5_amazon_braket
+  T6:
+    candidate: cand_t6_paypal
+values:
+  availability: 0.9963044476255752
+  cost:
+    value: 3060.0
+    unit: USD/month
+  execution_time:
+    value: 3180.0
+    unit: ms
+  reliability: 0.97670566058688
+  security:
+    value: 4.0
+    unit: score
+evidence:
+  manual: true
+  evaluatedBy: gateway
+  toolchain: {toolchain}

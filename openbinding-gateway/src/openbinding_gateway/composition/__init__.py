@@ -1,100 +1,94 @@
-"""Building blocks for the Composition API of F1.
+"""The Composition2Yaml library: located YAML, the workflow tree and the Composition2Yaml document.
 
-The problem-authoring Composition2Yaml of the Studio was removed in F0b, because
-composition problems are written in BIM. What stays here is what F1 reuses to derive a
-composition from a problem and a binding: reading a BIM package into a model (``read``,
-with ``bpmn`` for BPMN workflows and ``neutral`` for the neutral values the compiler
-infers), the workflow tree and its identifiers (``model``, ``ids``), the model diff
-(``diff``), and located YAML with its diagnostics (``syntax``, ``spans``,
-``diagnostics``). F1 prunes the problem-side types it does not need.
+* ``syntax`` reads YAML narrowed to JSON's data model and writes it back, bounded in bytes;
+* ``spans`` places a path in the source text, so a diagnostic can be underlined;
+* ``diagnostics`` is the located finding (code, severity, dotted path and JSON Pointer);
+* ``ids`` holds the identifier patterns: the container's own, and the document's grammar;
+* ``workflow`` is the workflow tree, lifted from a compiled IR, normalised and compared;
+* ``document`` is the Composition2Yaml document in memory;
+* ``text`` reads a document from YAML (or JSON) with located diagnostics, and writes its
+  canonical form; it also ships the language's JSON Schema;
+* ``checks`` judges what the document alone decides: how its sections agree, its ``from``
+  and offering references, and the rules that depend on the deployment or the entity;
+* ``problem`` reads the facts of a compiled problem from its IR and judges a document against
+  them: the workflow, the candidates, the units, and the toolchain's evaluation of the binding;
+* ``derive`` builds the document of a binding of a compiled problem;
+* ``diff`` lists what changed between two documents.
 
-This layer stays free of the web layer and of the container's internals. The architecture
-test enforces that by listing ``composition`` among the protected layers.
+The library is pure: it imports neither the web layer, the database nor the toolchain.
+Facts about a problem reach it as plain data read from the stored IR. The import-linter
+contract ``composition-library-pure`` enforces it, and the architecture test lists
+``composition`` among the protected layers.
 """
 
 from __future__ import annotations
 
-from . import bpmn, diff, ids, read
-from .diagnostics import CompositionError, Diagnostic, Span
-from .model import (
-    Aggregation,
+from . import checks, derive, diff, document, ids, problem, text, workflow
+from .diagnostics import CompositionError, Diagnostic, Path, Span, at
+from .document import (
+    SUPPORTED_SYNTAX_VERSIONS,
+    SYNTAX_VERSION,
+    Document,
+    Entry,
+    Evidence,
+    Offering,
+    ProblemLink,
+    ProblemRef,
+    Provenance,
+    Value,
+)
+from .text import Context, Reading
+from .workflow import (
     Branch,
-    Candidate,
-    CapacityRule,
-    Composition,
-    Domain,
     EmptyNode,
-    Endpoint,
-    Event,
-    EventLatency,
     Exclusive,
-    FixedTask,
-    GlobalLatency,
-    Goal,
-    LocalTask,
-    NetworkEdge,
+    Mismatch,
     Node,
-    Normalize,
-    OpenTask,
     Parallel,
-    Placement,
-    Pool,
-    PoolDemand,
-    PricingRef,
-    Property,
-    Provider,
     Repeat,
-    Rule,
     Sequence,
     TaskNode,
-    Transition,
-    TEMPLATES,
+    WorkflowError,
 )
-from .neutral import NeutralSource, Unbounded, expand_aggregation, infer_neutral, resolve_neutral
+
+#: The language's name, as the platform refers to it. Its versions are ``syntaxVersion``.
+LANGUAGE_ID = "composition2yaml"
 
 __all__ = [
-    "Aggregation",
-    "bpmn",
+    "at",
+    "checks",
+    "Context",
+    "derive",
+    "diff",
+    "document",
+    "Document",
+    "Entry",
+    "Evidence",
+    "LANGUAGE_ID",
+    "Offering",
+    "problem",
+    "ProblemLink",
+    "ProblemRef",
+    "Provenance",
+    "Reading",
+    "SUPPORTED_SYNTAX_VERSIONS",
+    "SYNTAX_VERSION",
+    "text",
+    "Value",
     "Branch",
-    "Candidate",
-    "CapacityRule",
-    "Composition",
     "CompositionError",
     "Diagnostic",
-    "diff",
-    "Domain",
     "EmptyNode",
-    "Endpoint",
-    "Event",
-    "EventLatency",
     "Exclusive",
-    "expand_aggregation",
-    "FixedTask",
-    "GlobalLatency",
-    "Goal",
     "ids",
-    "infer_neutral",
-    "LocalTask",
-    "NetworkEdge",
-    "NeutralSource",
+    "Mismatch",
     "Node",
-    "Normalize",
-    "OpenTask",
     "Parallel",
-    "Placement",
-    "Pool",
-    "PoolDemand",
-    "PricingRef",
-    "Property",
-    "Provider",
-    "read",
+    "Path",
     "Repeat",
-    "resolve_neutral",
-    "Rule",
     "Sequence",
     "Span",
     "TaskNode",
-    "TEMPLATES",
-    "Transition",
-    "Unbounded",
+    "workflow",
+    "WorkflowError",
 ]

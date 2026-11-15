@@ -1,0 +1,9 @@
+# A provenance without the version it pins: upstream changes could not be detected.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow: pick
+binding:
+  pick: {candidate: c_pick, from: {sphere: acme/picking, plan: Basic}}
+values: {}

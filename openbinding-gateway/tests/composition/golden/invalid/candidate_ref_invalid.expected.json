@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_candidate_ref_invalid", "severity": "error", "path": "binding.ship.candidate", "pointer": "/binding/ship/candidate", "span": [9, 10, 9, 39]}
+]

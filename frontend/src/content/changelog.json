@@ -1,6 +1,22 @@
 {
   "platform": [
     {
+      "version": "F1",
+      "date": "Unreleased",
+      "title": "Compositions: the final composition as a versioned, evaluated document",
+      "changes": [
+        "Specify Composition2Yaml 1.0 with tested examples, record the F1 decisions as ADRs 0041-0046 and walk problem, run, composition, version, evaluation and preset end to end",
+        "Add run presets that runs start from",
+        "Derive composition versions from a run's solution or a binding of a problem, byte for byte the same each time",
+        "Re-evaluate versions per toolchain release, evaluate other bindings and explore the neighbourhood",
+        "Compare composition versions and fork them into another organization",
+        "Seal composition versions as canonical bytes with their evaluation: verified by the toolchain, or declared",
+        "Add compositions to organizations, readable by their members only",
+        "Read, write, lint and compare Composition2Yaml documents through stateless services",
+        "Store the semantic digest of every problem compilation, so a composition's link survives a toolchain release"
+      ]
+    },
+    {
       "version": "F0b",
       "date": "Unreleased",
       "title": "Re-anchoring: the organization holds problems, runs and studies",

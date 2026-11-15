@@ -1,8 +1,10 @@
 """Collaborative platform tables built around the BIM v1 pipeline.
 
 Organizations own problems (``binding_cases``), whose revisions are uploaded
-packages kept as blobs, the compilations of those revisions, and studies whose
-runs freeze the definition they ran.
+packages kept as blobs, the compilations of those revisions, studies whose
+runs freeze the definition they ran, compositions with their sealed
+versions, their evaluations and how they were derived, and the run presets
+a run can start from.
 """
 
 from __future__ import annotations
@@ -21,8 +23,10 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     Integer,
     String,
+    Text,
     UniqueConstraint,
     Uuid,
     func,
@@ -252,6 +256,8 @@ class ProblemCompilation(Base):
         UniqueConstraint("revision_id", "compiler_digest", name="uq_problem_compilations_revision_compiler"),
         # The target of the composite foreign keys that tie a run's compilation to its revision.
         UniqueConstraint("id", "revision_id", name="uq_problem_compilations_id_revision"),
+        # A composition's link holds while the compilation it names and the installed one mean the same.
+        Index("ix_problem_compilations_revision_semantic", "revision_id", "semantic_digest"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -260,6 +266,8 @@ class ProblemCompilation(Base):
     )
     compiler_digest: Mapped[str] = mapped_column(String(80), nullable=False)
     compilation_digest: Mapped[str] = mapped_column(String(80), nullable=False)
+    #: The digest of what the IR means (``domain.compilation.semantic_digest``), written at insert.
+    semantic_digest: Mapped[str] = mapped_column(String(80), nullable=False)
     toolchain: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     ir_digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     ir: Mapped[dict] = mapped_column(JSON, nullable=False)
@@ -292,6 +300,289 @@ class Study(Base):
     definition_digest: Mapped[str] = mapped_column(String(80), nullable=False)
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     state: Mapped[StudyState] = enum_column(StudyState, StudyState.DRAFT)
+    created_by_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow, server_default=func.now()
+    )
+
+
+class CompositionKind(str, enum.Enum):
+    """What a composition composes: the ``kind`` of Composition2Yaml (``composition.document.KINDS``)."""
+
+    APPLICATION = "application"
+    WORKFLOW = "workflow"
+    PIPELINE = "pipeline"
+    SYSTEM = "system"
+
+
+class Composition(Base):
+    """A composition of an organization: a named binding of a workflow to services, as Composition2Yaml.
+
+    Mutable, like a problem (the ETag is ``updated_at``). An empty composition, with no version yet, is the
+    editor's starting point and a derivation's target. ``kind`` is metadata: the latest version's kind, and
+    the one given at creation until a version exists.
+    """
+
+    __tablename__ = "compositions"
+    __table_args__ = (UniqueConstraint("organization_id", "slug", name="uq_compositions_organization_slug"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    slug: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    description: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
+    kind: Mapped[CompositionKind] = enum_column(CompositionKind, CompositionKind.APPLICATION, length=16)
+    archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_by_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow, server_default=func.now()
+    )
+
+
+class ValuesStatus(str, enum.Enum):
+    """Where a version's values come from: the toolchain (linked to a problem) or the author."""
+
+    VERIFIED = "verified"
+    DECLARED = "declared"
+
+
+class EvaluationBasis(str, enum.Enum):
+    """What evaluated a version: the toolchain on a compilation, or nobody (the author's values)."""
+
+    BIM = "bim"
+    DECLARED = "declared"
+
+
+class EvaluationOutcome(str, enum.Enum):
+    """What an evaluation concluded. A seal stores only ``verified`` or ``declared``."""
+
+    VERIFIED = "verified"
+    BINDING_INVALID = "binding_invalid"
+    SEMANTICS_CHANGED = "semantics_changed"
+    DECLARED = "declared"
+
+
+class CompositionVersion(Base):
+    """One sealed version of a composition: its canonical Composition2Yaml bytes. Insert only.
+
+    The bytes are inline (at most 256 KiB) and written in the same transaction as the version's first
+    evaluation. A version linked to a problem keeps the link as ids (the revision and the compilation the
+    document names), so renaming a slug never breaks it. ``offering`` is the normalised source of the
+    offering the document names, and ``analytics`` a summary of the document computed once at seal. Fork
+    lineage is data (``based_on``, and ``forked_from``, the source as it was named when forked): a fork
+    outlives its source and its renames.
+    """
+
+    __tablename__ = "composition_versions"
+    __table_args__ = (
+        UniqueConstraint("composition_id", "ordinal", name="uq_composition_versions_composition_ordinal"),
+        UniqueConstraint("composition_id", "label", name="uq_composition_versions_composition_label"),
+        UniqueConstraint("composition_id", "content_digest", name="uq_composition_versions_composition_digest"),
+        CheckConstraint("ordinal > 0", name="composition_version_ordinal_positive"),
+        CheckConstraint("size_bytes > 0 AND size_bytes <= 262144", name="composition_version_size_bounded"),
+        CheckConstraint(
+            "(revision_id IS NULL) = (linked_compilation_id IS NULL)", name="composition_version_link_whole",
+        ),
+        CheckConstraint(
+            "(values_status = 'verified') = (revision_id IS NOT NULL)", name="composition_version_verified_linked",
+        ),
+        # The compilation the document names is one of its revision's.
+        ForeignKeyConstraint(
+            ["linked_compilation_id", "revision_id"],
+            ["problem_compilations.id", "problem_compilations.revision_id"],
+            ondelete="RESTRICT",
+            name="fk_composition_versions_link",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    composition_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("compositions.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    #: The document's ``version:`` (semver).
+    label: Mapped[str] = mapped_column(String(64), nullable=False)
+    #: The ``syntaxVersion`` the document was sealed with.
+    syntax_version: Mapped[str] = mapped_column(String(16), nullable=False)
+    kind: Mapped[CompositionKind] = enum_column(CompositionKind, CompositionKind.APPLICATION, length=16)
+    values_status: Mapped[ValuesStatus] = enum_column(ValuesStatus, ValuesStatus.DECLARED, length=16)
+    #: The canonical bytes of the document.
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content_digest: Mapped[str] = mapped_column(String(80), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    revision_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, nullable=True, index=True)
+    #: The compilation the document names (not necessarily the one evaluated).
+    linked_compilation_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, nullable=True)
+    #: The run the evidence names, once it was found to hold the binding.
+    evidence_job_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("jobs.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    #: The offering's source: ``{sphere, registry?}`` or ``{url}``.
+    offering: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    #: Fork lineage: ``{composition_id, version_id, label}``.
+    based_on: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    #: The fork's source as it was named at fork time: ``{compositionId, versionId, label,
+    #: organization{id, name, displayName}, slug, name, droppedProblem}``.
+    forked_from: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    #: A summary of the document (tasks, bindings, workflow shape), for evolution charts.
+    analytics: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_by_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
+class CompositionEvaluation(Base):
+    """One evaluation of a version: by one toolchain release, or the author's values. Insert only.
+
+    A version has one evaluation per ``basis_key`` (a toolchain's ``compilerDigest``, or ``declared``).
+    The values are the toolchain's floats as it returned them. ``diagnostics`` are located in the
+    version's content.
+    """
+
+    __tablename__ = "composition_evaluations"
+    __table_args__ = (
+        UniqueConstraint("version_id", "basis_key", name="uq_composition_evaluations_version_basis"),
+        CheckConstraint(
+            "(basis = 'bim') = (compilation_id IS NOT NULL)", name="composition_evaluation_bim_compiled",
+        ),
+        CheckConstraint(
+            "(basis = 'declared') = (outcome = 'declared')", name="composition_evaluation_declared_outcome",
+        ),
+        ForeignKeyConstraint(
+            ["compilation_id", "revision_id"],
+            ["problem_compilations.id", "problem_compilations.revision_id"],
+            ondelete="RESTRICT",
+            name="fk_composition_evaluations_compilation",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    version_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("composition_versions.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    basis: Mapped[EvaluationBasis] = enum_column(EvaluationBasis, EvaluationBasis.DECLARED, length=16)
+    basis_key: Mapped[str] = mapped_column(String(80), nullable=False)
+    outcome: Mapped[EvaluationOutcome] = enum_column(EvaluationOutcome, EvaluationOutcome.DECLARED, length=24)
+    revision_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, nullable=True, index=True)
+    #: The compilation evaluated: the installed toolchain's.
+    compilation_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, nullable=True)
+    compiler_digest: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    compilation_digest: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    semantic_digest: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    ir_digest: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    toolchain: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    #: The binding as the toolchain was given it, ``{task: {resource, id}}``.
+    binding: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    #: ``{name: {value, unit}}``.
+    values: Mapped[dict] = mapped_column("values", JSON, nullable=False)
+    #: What the toolchain's evaluation returned, as it returned it.
+    result: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    diagnostics: Mapped[list] = mapped_column(JSON, nullable=False)
+    created_by_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
+class DerivationSource(str, enum.Enum):
+    """What a version was derived from: a solution of a run, or a binding given with a problem revision."""
+
+    RUN = "run"
+    BINDING = "binding"
+
+
+class CompositionDerivation(Base):
+    """How a version was derived: the problem binding it was built from, and the run that found it. Insert only.
+
+    A version has at most one. The binding is kept besides the point, in BIM form, because a solution index
+    means something only within the run's stored result. ``compilation_id`` is the compilation the document
+    links (the run's, for a run); ``provenance`` names the compilation the toolchain evaluated.
+    """
+
+    __tablename__ = "composition_derivations"
+    __table_args__ = (
+        CheckConstraint("source IN ('run', 'binding')", name="composition_derivation_source_known"),
+        CheckConstraint("(source = 'run') = (job_id IS NOT NULL)", name="composition_derivation_run_job"),
+        CheckConstraint("point IS NULL OR job_id IS NOT NULL", name="composition_derivation_point_of_run"),
+        CheckConstraint("point IS NULL OR point >= 0", name="composition_derivation_point_nonnegative"),
+        ForeignKeyConstraint(
+            ["compilation_id", "revision_id"],
+            ["problem_compilations.id", "problem_compilations.revision_id"],
+            ondelete="RESTRICT",
+            name="fk_composition_derivations_compilation",
+        ),
+        Index("ix_composition_derivations_binding", "revision_id", "compilation_id", "binding_digest"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    version_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("composition_versions.id", ondelete="RESTRICT"), nullable=False, unique=True
+    )
+    source: Mapped[DerivationSource] = enum_column(DerivationSource, DerivationSource.BINDING, length=16)
+    revision_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    #: The compilation the derived document links: the run's, for a run.
+    compilation_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    job_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("jobs.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    #: The solution of the run's stored result (``result.solutions[point]``).
+    point: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    #: ``{task: {resource, id}}``, as the toolchain was given it.
+    binding: Mapped[dict] = mapped_column(JSON, nullable=False)
+    binding_digest: Mapped[str] = mapped_column(String(80), nullable=False)
+    #: ``{toolchain, irDigest, semanticDigest, evaluatedCompilationId, run: {engine, engineDigest, mode,
+    #: evaluatorDigest} | null}``.
+    provenance: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_by_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
+class RunPreset(Base):
+    """Named run settings of an organization: the engine, registration, mode, options and optimization a run
+    can start from (``createRun {revision, preset}``).
+
+    Mutable, like a study (the ETag is ``updated_at``). A run copies the settings it expands, so editing or
+    deleting a preset never changes a run, and nothing keeps a reference to it.
+    """
+
+    __tablename__ = "run_presets"
+    __table_args__ = (UniqueConstraint("organization_id", "slug", name="uq_run_presets_organization_slug"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    slug: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    description: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
+    #: A built-in engine name or an immutable reference ``{namespace, name, version, digest}``, as a run request's.
+    engine: Mapped[object] = mapped_column(JSON, nullable=False)
+    registration: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    mode: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    options: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    #: ``{type, scalarization, weights: [{criteria, value}]}``, resolved against the problem when a run uses it.
+    optimization: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )

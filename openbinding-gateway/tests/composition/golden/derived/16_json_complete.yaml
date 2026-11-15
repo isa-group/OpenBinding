@@ -1,0 +1,52 @@
+syntaxVersion: '1.0'
+composition: json-complete
+version: 1.0.0
+kind: application
+problem:
+  ref: isa/problems/json-complete@1
+  compilation: {compilation}
+workflow:
+  seq:
+  - authenticate
+  - and:
+    - seq:
+      - enrich
+      - xor:
+        - probability: 0.65
+          flow: cache
+        - probability: 0.35
+          flow: fetch
+      - loop: score
+        count: 2
+    - audit
+  - publish
+binding:
+  authenticate:
+    candidate: auth-cloud
+  enrich:
+    candidate: enrich-cloud
+  cache:
+    candidate: cache-cloud
+  fetch:
+    candidate: fetch-cloud
+  score:
+    candidate: score-cloud
+  audit:
+    candidate: audit-cloud
+  publish:
+    candidate: publish-cloud
+values:
+  carbon:
+    value: 22.5
+    unit: gCO2e/run
+  cost:
+    value: 16.0
+    unit: EUR/run
+  latency:
+    value: 51.650000000000006
+    unit: ms
+  trust: 0.95
+evidence:
+  manual: true
+  evaluatedBy: gateway
+  toolchain: {toolchain}

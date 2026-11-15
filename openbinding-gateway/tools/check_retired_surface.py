@@ -40,7 +40,12 @@ RETIRED_PATH_FRAGMENTS = (
     "/v1/examples",
     "/v1/artifacts",
     "/library",
-    "/v1/compositions",
+    # The operations of the old problem-authoring language. ``/v1/compositions`` itself is the
+    # Composition2Yaml services' prefix again (F1).
+    "/v1/compositions/compile",
+    "/v1/compositions/package",
+    "/v1/compositions/import",
+    "/v1/compositions/language",
     "/v1/jobs",
 )
 

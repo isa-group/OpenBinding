@@ -1,0 +1,3 @@
+[
+  {"code": "c2y_from_incomplete", "severity": "error", "path": "binding.pick.from.sphere", "pointer": "/binding/pick/from/sphere", "span": [8, 29, 8, 76]}
+]

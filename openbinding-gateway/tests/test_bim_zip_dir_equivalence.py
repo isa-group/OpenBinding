@@ -38,8 +38,9 @@ from typing import Any
 import pytest
 
 from _repo import REPO_ROOT, TOOLCHAIN_ROOT
-from bim_core import canonical_json, compile_instance, digest, load_package
+from bim_core import canonical_json, compile_instance, load_package
 from openbinding_gateway.integrations import packages
+from openbinding_gateway.modules.problems.application import semantic_digest
 
 GOLDEN = json.loads(
     (Path(__file__).resolve().parent / "golden" / "bim_baseline" / "corpus.json").read_text(encoding="utf-8")
@@ -48,7 +49,6 @@ PATHS = sorted(GOLDEN["packages"])
 EXPECTED_PACKAGES = 82
 EXPECTED_MOVED = 64
 ALLOW_NO_CORPUS = os.environ.get("BIM_ZIP_DIR_ALLOW_NO_CORPUS") == "1"
-NON_SEMANTIC = frozenset({"profile", "dialects", "instance", "sourceMap"})
 METRICS = ("semantic", "ir", "irDigest", "packageDigest", "eligibility")
 
 TOOLCHAIN = TOOLCHAIN_ROOT
@@ -110,15 +110,11 @@ def reversed_zip(files: dict[str, bytes]) -> bytes:
     return output.getvalue()
 
 
-def semantic_of(document: dict[str, Any]) -> str:
-    return digest({key: value for key, value in document["spec"].items() if key not in NON_SEMANTIC})
-
-
 def observe(package: Any) -> dict[str, Any]:
     problem = compile_instance(package)
     document = problem.document
     return {
-        "semantic": semantic_of(document),
+        "semantic": semantic_digest(document),
         "ir": canonical_json(document),
         "irDigest": problem.digest,
         "packageDigest": package.package_digest,

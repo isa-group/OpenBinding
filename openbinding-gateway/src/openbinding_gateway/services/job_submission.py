@@ -45,7 +45,7 @@ from ..db.models import (
 )
 from ..domain import idempotency
 from ..modules.execution.application import STUDY_CELL_KEY_PREFIX as STUDY_CELL_KEY_PREFIX
-from ..modules.execution.application import RunRequest
+from ..modules.execution.application import PresetNotFound, RunRequest, expand_preset
 from ..modules.plans.application import entitlement_map as ids
 from ..integrations import bim
 from ..jobs import limits as job_limits
@@ -291,6 +291,8 @@ class JobSubmission:
         if self.caller is None or self.session is None:
             return problem(401, "unauthorized", _ACCOUNT_REQUIRED)
         source = await self._resolve_source(request)
+        # A request that named a preset reads, from here on, as the settings the preset held.
+        request = source.request
         fingerprint = await self._precheck(request, source)
         engine = await self._select_engine(source)
         terms = await self._plan_terms(request, source, engine)
@@ -322,8 +324,10 @@ class JobSubmission:
 
         The run belongs to the organization of the request, which must be the problem's: a
         revision of another organization the caller can see is a 409. A VIEWER, who only
-        reads, is refused before the key is looked up or anything is written. A miss compiles
-        once per revision and toolchain; later runs reuse the row.
+        reads, is refused before the key is looked up or anything is written. A request that
+        names a run preset gets the preset's settings, looked up in the run's organization (422
+        ``preset_not_found``), before anything is compiled. A miss compiles once per revision and
+        toolchain; later runs reuse the row.
         """
         session = self.session
         try:
@@ -351,6 +355,15 @@ class JobSubmission:
             ))
         try:
             await require_work_role(session, self.caller, [problem_row.organization_id])
+        except HTTPException as exc:
+            raise _Finished(problem_from_http(exc)) from exc
+        try:
+            request = await expand_preset(session, request)
+        except PresetNotFound:
+            raise _Finished(problem(
+                422, "preset_not_found", "The organization has no run preset by that slug or id.",
+            )) from None
+        try:
             if request.compilation_id is not None:
                 compilation = await self._pinned_compilation(request.compilation_id)
             else:
@@ -567,6 +580,8 @@ class JobSubmission:
             "terminationGuarantees": mode_contract["terminationGuarantees"],
         }
         provenance["requestedOptions"] = engine.requested_options
+        if source.request.preset is not None:
+            provenance["preset"] = source.request.preset.as_json()
         return provenance
 
     async def _persist(
@@ -621,6 +636,7 @@ class JobSubmission:
                 "mode": mode_contract,
                 "optimization": engine.optimization,
                 "registration": registration.reference,
+                **({"preset": request.preset.as_json()} if request.preset is not None else {}),
             },
             options=terms.options,
             warnings=terms.warnings,

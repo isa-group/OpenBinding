@@ -1,0 +1,14 @@
+# uniform: true beside stated probabilities.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+workflow:
+  xor:
+    - {probability: 0.5, flow: express}
+    - {probability: 0.5, flow: post}
+  uniform: true
+binding:
+  express: {candidate: c_express}
+  post: {candidate: c_post}
+values: {}

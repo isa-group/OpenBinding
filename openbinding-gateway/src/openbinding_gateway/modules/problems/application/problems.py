@@ -24,10 +24,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....db.models import (
-    AuditEvent,
     BindingCase,
     BindingCaseRevision,
     Blob,
+    CompositionDerivation,
+    CompositionEvaluation,
+    CompositionVersion,
     Job,
     Organization,
     ProblemCompilation,
@@ -41,7 +43,7 @@ from ....models.errors import api_error
 from ....services.entitlements import entitlement_service
 from ...plans.application import entitlement_map as ids
 from ...plans.application import quotas
-from ...shared.application import put_row, read_verified, write_file
+from ...shared.application import audit, put_row, read_verified, write_file
 from ..domain.compilation import Compilation
 from ..domain.digests import is_digest
 from .compile import compile_package, compile_refusal
@@ -152,6 +154,18 @@ async def _compilation_for(session: AsyncSession, revision_id: uuid.UUID, compil
     )
 
 
+async def compilation_by_digest(
+    session: AsyncSession, revision_id: uuid.UUID, compilation_digest: str
+) -> ProblemCompilation | None:
+    """The stored compilation of a revision with that ``compilation_digest`` (whichever toolchain made it)."""
+    return await session.scalar(
+        select(ProblemCompilation).where(
+            ProblemCompilation.revision_id == revision_id,
+            ProblemCompilation.compilation_digest == compilation_digest,
+        )
+    )
+
+
 # -- Compile or get ----------------------------------------------------------------------------------
 
 
@@ -175,6 +189,7 @@ async def store_compilation(
         revision_id=revision_id,
         compiler_digest=compiler,
         compilation_digest=compilation.compilation_digest,
+        semantic_digest=compilation.semantic_digest,
         toolchain=dict(compilation.toolchain),
         ir_digest=compilation.ir_digest,
         ir=compilation.ir,
@@ -296,14 +311,6 @@ def _new_revision(
         provenance=provenance or None,
         created_by_id=actor.id,
     )
-
-
-def audit(session: AsyncSession, actor: User, action: str, target_type: str, target_id: uuid.UUID,
-           organization_id: uuid.UUID, **detail: Any) -> None:
-    session.add(AuditEvent(
-        organization_id=organization_id, actor_id=actor.id, action=action,
-        target_type=target_type, target_id=target_id, detail=detail,
-    ))
 
 
 async def create_problem(
@@ -434,18 +441,19 @@ async def add_revision(
 
 
 async def delete_problem(session: AsyncSession, problem: BindingCase, actor: User) -> None:
-    """Delete ``problem``, its revisions and compilations; 409 ``problem_has_runs`` when anything names them.
+    """Delete ``problem``, its revisions and compilations, unless something names them.
 
-    A run or a study cell that names one of its revisions keeps the problem. Blob rows and files stay (D14).
-    A run launched while the delete runs is caught by the ``RESTRICT`` foreign keys and answered the same way.
+    A run or a study cell that names one of its revisions keeps the problem (409 ``problem_has_runs``), and
+    so does a sealed composition version, evaluation or derivation (409 ``problem_has_compositions``); runs are checked
+    first. Blob rows and files stay (D14). A run launched or a version sealed while the delete runs is caught
+    by the ``RESTRICT`` foreign keys, and the references are checked again to answer with the right code.
     """
     revision_ids = list((await session.scalars(
         select(BindingCaseRevision.id).where(BindingCaseRevision.binding_case_id == problem.id)
     )).all())
-    if revision_ids:
-        for column in (Job.revision_id, StudyCell.binding_case_revision_id):
-            if await session.scalar(select(column).where(column.in_(revision_ids)).limit(1)) is not None:
-                raise _has_runs()
+    refusal = await _named(session, revision_ids)
+    if refusal is not None:
+        raise refusal
     try:
         async with session.begin_nested():
             if revision_ids:
@@ -462,9 +470,29 @@ async def delete_problem(session: AsyncSession, problem: BindingCase, actor: Use
             await session.delete(problem)
             await session.flush()
     except IntegrityError as exc:
-        raise _has_runs() from exc
+        raise (await _named(session, revision_ids) or _has_runs()) from exc
     audit(session, actor, "problem.deleted", "BindingCase", problem.id, problem.organization_id, slug=problem.slug)
     await session.flush()
+
+
+async def _named(session: AsyncSession, revision_ids: list[uuid.UUID]) -> HTTPException | None:
+    """Why the revisions are kept: a run or study cell first, then a composition; ``None`` when nothing names them.
+
+    Compositions are read from their tables directly: this module may not import the compositions module.
+    """
+    if not revision_ids:
+        return None
+    for column in (Job.revision_id, StudyCell.binding_case_revision_id):
+        if await session.scalar(select(column).where(column.in_(revision_ids)).limit(1)) is not None:
+            return _has_runs()
+    for column in (
+        CompositionVersion.revision_id, CompositionEvaluation.revision_id, CompositionDerivation.revision_id,
+    ):
+        if await session.scalar(select(column).where(column.in_(revision_ids)).limit(1)) is not None:
+            return api_error(
+                409, "problem_has_compositions", "Delete the compositions that link this problem first.",
+            )
+    return None
 
 
 def _has_runs() -> HTTPException:

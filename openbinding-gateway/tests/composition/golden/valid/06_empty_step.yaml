@@ -1,0 +1,15 @@
+# The empty step is null: here the second branch of a choice does nothing.
+syntaxVersion: "1.0"
+composition: empty-step
+version: 1.0.0
+kind: workflow
+workflow:
+  seq:
+    - order
+    - xor:
+        - {probability: 0.25, flow: notify}
+        - {probability: 0.75, flow: null}
+binding:
+  order: {candidate: c_order}
+  notify: {candidate: c_notify}
+values: {}

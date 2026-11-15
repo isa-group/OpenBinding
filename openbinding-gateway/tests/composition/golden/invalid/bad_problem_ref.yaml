@@ -1,0 +1,11 @@
+# A problem is referred to as <organization>/problems/<problem>@<revision>.
+syntaxVersion: "1.0"
+composition: shop
+version: 1.0.0
+kind: application
+problem: {ref: isa/tomatometer@3, compilation: sha256-abc}
+workflow: {seq: [pick, ship]}
+binding:
+  pick: {candidate: c_pick}
+  ship: {candidate: c_ship}
+values: {cost: {value: 4.5, unit: EUR/month}}

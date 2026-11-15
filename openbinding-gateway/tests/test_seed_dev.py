@@ -9,13 +9,27 @@ import sys
 import pytest
 from _paths import GATEWAY_ROOT
 from _repo import REPO_ROOT
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 
 _tools_dir = str(GATEWAY_ROOT / "tools")
 if _tools_dir not in sys.path:
     sys.path.insert(0, _tools_dir)
 
-from openbinding_gateway.db.models import ApiKey, Study, EngineRegistrationRevision, EngineRevision, Job, User, UserRole
+from openbinding_gateway.db.models import (
+    ApiKey,
+    Composition,
+    CompositionDerivation,
+    CompositionEvaluation,
+    CompositionVersion,
+    EngineRegistrationRevision,
+    EngineRevision,
+    Job,
+    JobState,
+    ProblemCompilation,
+    Study,
+    User,
+    UserRole,
+)
 from openbinding_gateway.db.platform_models import (
     AuditEvent,
     BindingCase,
@@ -29,6 +43,7 @@ from seed_dev import (
     DEV_PASSWORD,
     clean_existing_data,
     ensure_cases,
+    ensure_compositions,
     ensure_engine_revisions,
     ensure_notifications_and_audit,
     ensure_organizations,
@@ -143,3 +158,48 @@ async def test_seed_dev_lifecycle(db_session):
     remaining_users = (await db_session.execute(select(User))).scalars().all()
     # Only admin should remain
     assert all(u.username == "admin" for u in remaining_users)
+
+
+async def _count(db_session, model) -> int:
+    return int(await db_session.scalar(select(func.count()).select_from(model)) or 0)
+
+
+@pytest.mark.asyncio
+async def test_seed_dev_compositions_are_derived_and_declared_once(db_session):
+    """``simple-seq`` derives from the seeded run of its problem, ``tomatometer-sketch`` is declared, and
+    seeding again stores nothing new."""
+    users = await ensure_users(db_session)
+    orgs = await ensure_organizations(db_session, users)
+    organization, alice = orgs["score-ai"], users["alice"]
+    case_map = await ensure_cases(db_session, organization, alice, REPO_ROOT / "examples")
+    _, revision = case_map["simple-seq"]
+    compilation = await db_session.scalar(select(ProblemCompilation).where(ProblemCompilation.revision_id == revision.id))
+    # A run of simple-seq as the seed's engines leave it: completed, its solution the demo's binding.
+    binding = {task: {"resource": "catalog", "id": candidate} for task, candidate in (("t1", "c1a"), ("t2", "c2a"), ("t3", "c3a"))}
+    run = Job(
+        owner_id=alice.id, engine_id="random-search", engine_job_id="seed-run", service_url="http://engine",
+        state=JobState.COMPLETED, termination="FEASIBLE",
+        result={"solutions": [{"decision": {"kind": "binding", "binding": binding}, "features": {}}]},
+        organization_id=organization.id, revision_id=revision.id, compilation_id=compilation.id, provenance={},
+    )
+    db_session.add(run)
+    await db_session.commit()
+
+    sealed = await ensure_compositions(db_session, organization, alice, case_map, [run])
+
+    assert [version.label for version in sealed] == ["1.0.0", "0.1.0"]
+    slugs = (await db_session.scalars(select(Composition.slug).order_by(Composition.slug))).all()
+    assert slugs == ["simple-seq", "tomatometer-sketch"]
+    counts = [await _count(db_session, model) for model in (CompositionVersion, CompositionEvaluation, CompositionDerivation)]
+    assert counts == [2, 2, 1]
+    derivation = await db_session.scalar(select(CompositionDerivation))
+    assert derivation.job_id == run.id and derivation.point == 0
+    derived, declared = sealed
+    assert derived.values_status.value == "verified" and derived.evidence_job_id == run.id
+    assert declared.values_status.value == "declared" and declared.offering == {"sphere": "isa/tomatometer"}
+    assert "  login:\n    local: true\n" in declared.content
+
+    again = await ensure_compositions(db_session, organization, alice, case_map, [run])
+
+    assert [version.id for version in again] == [version.id for version in sealed]
+    assert [await _count(db_session, model) for model in (Composition, CompositionVersion, CompositionEvaluation, CompositionDerivation)] == [2, 2, 2, 1]
