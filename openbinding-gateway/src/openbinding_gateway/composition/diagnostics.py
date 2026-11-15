@@ -1,53 +1,37 @@
-"""Authoring diagnostics for Composition2Yaml, located in the source text.
+"""Diagnostics for Composition2Yaml, located in the source text.
 
 The container's compiler reports against a resource and a JSON Pointer, which is the
 right address for a generated document and the wrong one for a person editing YAML. A
-Studio diagnostic therefore carries the span of the element at fault in the source, so
-the editor can underline it, and a code prefixed ``c2y_`` so it is never confused with a
-container code.
+diagnostic here therefore carries the span of the element at fault in the source, so the
+editor can underline it, a code prefixed ``c2y_`` so it is never confused with a container
+code, and a severity: errors refuse the document, warnings and infos only inform.
 
-Compilation is all-or-nothing, as it is in the container: a document with any error
-produces no package. Refusing at this layer is the point — most of these codes exist to
-catch, at authoring time, something that would otherwise compile into a package that
-fails later and further away.
+Every diagnostic is addressed by a :class:`Path`, a tuple of key and index segments. The
+dotted form (``binding.t1.from.version``, ``workflow.seq[1].and[0]``) is what a person
+reads; the JSON Pointer (RFC 6901) is what a program follows. Both are built from the same
+segments by :func:`at`, so they never disagree. The dotted form alone is ambiguous, since a
+task id may contain a dot; the pointer is not.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from typing import Iterable, Literal
 
 #: The text is not YAML at all, or is YAML that JSON cannot hold (an alias, a duplicate key,
 #: a key that is not a string, a number that is not finite -- see ``syntax``). The most
 #: common error while typing, and PyYAML reports where it found the problem, so it is located
 #: like every other diagnostic.
 SYNTAX = "c2y_syntax"
-#: A property whose neutral cannot be resolved: a ``min``/``max`` aggregation with no domain
-#: bound on the side it needs and no declared neutral (incomplete), or a neutral, declared or
-#: inferred, outside the domain -- a ratio's being [0, 1] (an error). The container emits
-#: ``feature_neutral`` and ``feature_neutral_domain`` for the two; this names the property.
-PROPERTY_NEUTRAL = "c2y_property_neutral"
-PROPERTY_TEMPLATE = "c2y_property_template"
+#: The JSON Schema backstop refused the document.
 SCHEMA = "c2y_schema"
-TASK_KIND = "c2y_task_kind"
-TASK_UNKNOWN = "c2y_task_unknown"
-TASK_UNREACHED = "c2y_task_unreached"
-#: An exclusive with probabilities needs an author-given id: its branch ids are visible
-#: in the IR digest, so an invented one would be both unstable and digest-visible.
-EXCLUSIVE_ID = "c2y_exclusive_id"
-EXCLUSIVE_PROBABILITIES = "c2y_exclusive_probabilities"
-#: ``distribution`` and inline probabilities say the same thing two ways.
-EXCLUSIVE_DISTRIBUTION = "c2y_exclusive_distribution"
-REPEAT_COUNT = "c2y_repeat_count"
-CANDIDATE_PROPERTY = "c2y_candidate_property"
-CANDIDATE_UNMATCHED = "c2y_candidate_unmatched"
 #: More problems were found than a refusal lists; the first ones are listed.
 MORE = "c2y_more"
-GOAL_UNKNOWN = "c2y_goal_unknown"
-#: A goal with no ``normalize`` range over a property whose domain has an open end: the
-#: criterion would have nothing to normalize over.
-GOAL_RANGE = "c2y_goal_range"
-RULE_EXPRESSION = "c2y_rule_expression"
 
+Severity = Literal["error", "warning", "info"]
+
+#: The order diagnostics are listed in: what refuses the document first.
+SEVERITIES: tuple[Severity, ...] = ("error", "warning", "info")
 
 #: How many diagnostics one refusal lists. A document can be wrong in as many places as it
 #: has elements, and an editor needs the first ones, not a response as long as the document.
@@ -88,6 +72,58 @@ def listed(
     return tuple(found[:MAX_LISTED]) + (Diagnostic(code=MORE, message=message, path=""),)
 
 
+class Path(tuple):
+    """Where an element sits in a document: its key and index segments from the root.
+
+    A ``str`` segment is a mapping key and an ``int`` one a sequence index. The empty path
+    is the document itself.
+    """
+
+    __slots__ = ()
+
+    def __new__(cls, segments: Iterable[str | int] = ()) -> "Path":
+        return super().__new__(cls, segments)
+
+    def __add__(self, other: Iterable[str | int]) -> "Path":  # type: ignore[override]
+        return Path((*self, *other))
+
+    def child(self, *segments: str | int) -> "Path":
+        """This path extended by ``segments``."""
+        return Path((*self, *segments))
+
+    @property
+    def dotted(self) -> str:
+        """The path as a person reads it: ``binding.t1.from``, ``workflow.seq[1].and[0]``."""
+        text = ""
+        for segment in self:
+            if isinstance(segment, int):
+                text += f"[{segment}]"
+            else:
+                text = f"{text}.{segment}" if text else segment
+        return text
+
+    @property
+    def pointer(self) -> str:
+        """The path as an RFC 6901 JSON Pointer: ``/binding/t1/from``, ``/workflow/seq/1``."""
+        return "".join(
+            "/" + str(segment).replace("~", "~0").replace("/", "~1") for segment in self
+        )
+
+    @classmethod
+    def from_pointer(cls, pointer: str) -> "Path":
+        """The segments of an RFC 6901 pointer. Every segment is a ``str``: whether ``"0"`` is
+        a key or an index depends on the document it is followed in, and the span locator
+        decides by the node it reaches."""
+        if not pointer:
+            return cls()
+        if not pointer.startswith("/"):
+            raise ValueError(f"a JSON Pointer starts with '/': {pointer!r}")
+        return cls(part.replace("~1", "/").replace("~0", "~") for part in pointer[1:].split("/"))
+
+    def __repr__(self) -> str:
+        return f"Path({tuple(self)!r})"
+
+
 @dataclass(frozen=True, slots=True)
 class Span:
     """A half-open region of the source document, one-based lines and columns."""
@@ -100,35 +136,56 @@ class Span:
 
 @dataclass(frozen=True, slots=True)
 class Diagnostic:
-    """One refusal, addressed to the author rather than to the compiler."""
+    """One finding, addressed to the author rather than to the compiler."""
 
     code: str
     message: str
-    #: Dotted path of the offending element, e.g. ``properties.throughput``.
+    #: Dotted path of the element at fault, e.g. ``binding.t1.candidate``.
     path: str
     span: Span | None = None
+    severity: Severity = "error"
+    #: The same path as an RFC 6901 JSON Pointer, unambiguous where the dotted path is not.
+    pointer: str | None = None
 
     def __str__(self) -> str:
         where = f"{self.span.line}:{self.span.column}" if self.span else self.path
-        return f"{where}: {self.code}: {self.message}"
+        return f"{where}: {self.severity} {self.code}: {self.message}"
 
 
-class TextError(Exception):
-    """A document that cannot be read as a composition at all.
+def at(
+    path: Iterable[str | int],
+    code: str,
+    message: str,
+    *,
+    severity: Severity = "error",
+) -> Diagnostic:
+    """A diagnostic about the element at ``path``, its dotted path and pointer from the same segments."""
+    where = path if isinstance(path, Path) else Path(path)
+    return Diagnostic(
+        code=code,
+        message=clipped(message),
+        path=where.dotted,
+        severity=severity,
+        pointer=where.pointer,
+    )
 
-    Kept as the base of :class:`CompositionError` rather than replaced by it, so that
-    ``except TextError`` keeps catching every refusal: two callers outside this package
-    rely on it -- the library's content validator and the diff route -- and neither should
-    have had to change to gain diagnostics it does not read.
-    """
+
+def _rank(item: Diagnostic) -> tuple[bool, int]:
+    # The "more were found" note stays last whatever its severity: it is about the list.
+    return (item.code == MORE, SEVERITIES.index(item.severity))
 
 
-class CompositionError(TextError):
-    """Raised when a composition cannot be translated; carries every diagnostic."""
+class CompositionError(Exception):
+    """A document with at least one error; carries every diagnostic found, errors first."""
 
-    def __init__(self, diagnostics: tuple[Diagnostic, ...]) -> None:
-        self.diagnostics = diagnostics
-        super().__init__("; ".join(str(d) for d in diagnostics))
+    def __init__(self, diagnostics: Iterable[Diagnostic]) -> None:
+        self.diagnostics: tuple[Diagnostic, ...] = tuple(sorted(diagnostics, key=_rank))
+        super().__init__("; ".join(str(d) for d in self.diagnostics))
+
+    @property
+    def errors(self) -> tuple[Diagnostic, ...]:
+        """The diagnostics that refuse the document."""
+        return tuple(item for item in self.diagnostics if item.severity == "error")
 
     def located(self, spans: dict[str, Span]) -> "CompositionError":
         """The same diagnostics with their spans filled in from the source.
@@ -141,8 +198,3 @@ class CompositionError(TextError):
             item if item.span is not None else replace(item, span=spans.get(item.path))
             for item in self.diagnostics
         ))
-
-
-def refuse(code: str, message: str, path: str) -> CompositionError:
-    """One diagnostic, ready to raise. The span is attached later, by ``parse``."""
-    return CompositionError((Diagnostic(code=code, message=message, path=path),))

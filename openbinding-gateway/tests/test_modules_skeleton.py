@@ -41,7 +41,15 @@ MODULE_ORDER = [
     "(plans)",
     "(shared)",
 ]
-CONTRACTS = {"kernel", "composition-root", "no-legacy-http", "module-layers", "module-inside", "pure-domain"}
+CONTRACTS = {
+    "kernel",
+    "composition-root",
+    "no-legacy-http",
+    "module-layers",
+    "module-inside",
+    "pure-domain",
+    "composition-library-pure",
+}
 
 
 def _read(path: Path) -> configparser.ConfigParser:
@@ -205,6 +213,10 @@ def test_forbidden_contracts() -> None:
         "kernel": ([f"{p}.shared"], {f"{p}.modules", f"{p}.app", f"{p}.main"}),
         "composition-root": ([f"{p}.modules", f"{p}.shared"], {f"{p}.app"}),
         "no-legacy-http": ([f"{p}.modules"], {f"{p}.routes", f"{p}.main"}),
+        "composition-library-pure": (
+            [f"{p}.composition"],
+            {f"{p}.modules", f"{p}.db", f"{p}.integrations", "bim_core", "bim_client", "sqlalchemy", "fastapi", "httpx"},
+        ),
     }
     for name, (sources, forbidden) in expected.items():
         contract = _contract(parser, name)
@@ -255,6 +267,7 @@ _PLANTED = {
         "import openbinding_gateway.modules.plans.application\n",
     ),
     "pure-domain": ("modules/plans/domain/rules.py", "import fastapi\n"),
+    "composition-library-pure": ("composition/leak.py", "import sqlalchemy\n"),
 }
 
 
@@ -285,12 +298,12 @@ def test_every_contract_breaks_on_a_planted_violation(tmp_path: Path) -> None:
         )
 
     clean = run()
-    assert "Contracts: 6 kept, 0 broken" in clean.stdout + clean.stderr, clean.stdout + clean.stderr
+    assert "Contracts: 7 kept, 0 broken" in clean.stdout + clean.stderr, clean.stdout + clean.stderr
     for relative, source in _PLANTED.values():
         (copy / relative).write_text(source, encoding="utf-8")
     result = run()
     output = result.stdout + result.stderr
-    assert re.search(r"Contracts: 0 kept, 6 broken", output), output
+    assert re.search(r"Contracts: 0 kept, 7 broken", output), output
     for title in re.findall(r"^name = (.+)$", MODULES_INI.read_text(encoding="utf-8"), re.MULTILINE):
         assert f"{title} BROKEN" in output, title
     assert result.returncode == 1, output

@@ -12,6 +12,8 @@ provenance, its global values with units, and an optional link to the problem an
 evidence it came from). It arrives with the Composition API in F1.
 
 The old specification is in git history: the parent of the commit that removed it, and
-the `pre-redesign` tag. The building blocks F1 reuses (reading a BIM package into a model,
-the workflow tree, the model diff, located YAML and its diagnostics) stay in
-`openbinding-gateway/src/openbinding_gateway/composition/`.
+the `pre-redesign` tag. The library it is built on lives in
+`openbinding-gateway/src/openbinding_gateway/composition/`: located YAML and its
+diagnostics, and the workflow tree lifted from a compiled problem's IR. The problem-side
+model, the package reader, the neutral rules and the model diff were pruned in F1, since the
+workflow and the facts of a problem are read from its stored IR.

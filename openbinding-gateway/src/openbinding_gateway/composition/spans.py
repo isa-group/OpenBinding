@@ -16,20 +16,23 @@ editor should underline for "this property is wrong": the name is the part the a
 recognises. A sequence item spans itself. The marks PyYAML reports are zero-based and a
 ``Span`` is one-based, as a person counts lines.
 
-Paths are the ones a reader would write: ``properties.cost``, ``properties.cost.domain``,
-``candidates.rows[0].id``, ``goals[1].property``. A path that is not in the document simply
-has no span, and a diagnostic without one falls back to naming its path -- which is what
-``Diagnostic.__str__`` already does.
+Paths are the ones a reader would write: ``binding.t1``, ``binding.t1.from.version``,
+``workflow.seq[1].and[0]``. A dotted path does not say where a key that holds a dot ends, so
+the locator also takes a :class:`~.diagnostics.Path`, whose segments say it exactly, and every
+diagnostic built by :func:`~.diagnostics.at` is placed through its pointer. A path that is not
+in the document simply has no span, and a diagnostic without one falls back to naming its
+path -- which is what ``Diagnostic.__str__`` already does.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import replace
 from typing import Any
 
 import yaml
 
-from .diagnostics import CompositionError, Span
+from .diagnostics import CompositionError, Path, Span
 from .syntax import Lines, compose
 
 
@@ -50,12 +53,14 @@ def _walk(node: Any, prefix: str, found: dict[str, Span], lines: Lines) -> None:
             _walk(item, path, found, lines)
 
 
-def locate(text: str, paths: Iterable[str] | None = None) -> dict[str, Span]:
-    """The dotted paths of the document, mapped to the source they came from.
+def locate(text: str, paths: Iterable[str | Path] | None = None) -> dict[Any, Span]:
+    """The paths of the document, mapped to the source they came from.
 
     With ``paths``, only those are placed -- the paths of the diagnostics about to be
     located -- and each is found by walking down from the root, so the cost follows the
-    paths asked for rather than the size of the document. Without, every path is mapped,
+    paths asked for rather than the size of the document. A dotted ``str`` is resolved by
+    trying the keys it may name; a :class:`Path` by its segments, with no guessing, and it is
+    the key of its own span in the result. Without ``paths``, every dotted path is mapped,
     which is what the tests that pin the span rules read. Building every path of a large
     document was the expensive part: a path is a string as long as every key above it, so a
     long key over a long list cost their product in memory.
@@ -82,11 +87,47 @@ def locate(text: str, paths: Iterable[str] | None = None) -> dict[str, Span]:
         return found
     finder = _Finder(lines)
     for path in set(paths):
-        if path and path not in found:
+        if isinstance(path, Path):
+            span = _segments(root, path, lines)
+            if span is not None:
+                found[path] = span
+        elif path and path not in found:
             span = finder.find(root, path)
             if span is not None:
                 found[path] = span
     return found
+
+
+def _segments(root: Any, path: Path, lines: Lines) -> Span | None:
+    """The span of the element ``path`` names, followed segment by segment from the root.
+
+    A segment is a key at a mapping and an index at a sequence, whichever node it reaches, so
+    a path read back from a JSON Pointer (every segment a string) is followed the same way.
+    """
+    node = root
+    span = lines.span(root.start_mark, root.end_mark)
+    for segment in path:
+        if isinstance(node, yaml.MappingNode):
+            for key, value in node.value:
+                if isinstance(key, yaml.ScalarNode) and key.value == str(segment):
+                    span, node = lines.span(key.start_mark, value.end_mark), value
+                    break
+            else:
+                return None
+        elif isinstance(node, yaml.SequenceNode):
+            if isinstance(segment, int):
+                position = segment
+            elif segment.isascii() and segment.isdigit() and (segment == "0" or not segment.startswith("0")):
+                position = int(segment)
+            else:
+                return None
+            if not 0 <= position < len(node.value):
+                return None
+            node = node.value[position]
+            span = lines.span(node.start_mark, node.end_mark)
+        else:
+            return None
+    return span
 
 
 class _Finder:
@@ -179,6 +220,15 @@ def placed(error: CompositionError, text: str) -> CompositionError:
     """The error's diagnostics with their spans filled in from ``text``.
 
     Only the paths of the diagnostics that have no span yet are looked for, so placing a
-    refusal costs what the refusal names, not what the document holds.
+    refusal costs what the refusal names, not what the document holds. A diagnostic with a
+    pointer is placed by it, exactly; one without, by its dotted path.
     """
-    return error.located(locate(text, (item.path for item in error.diagnostics if item.span is None)))
+    wanted: dict[int, str | Path] = {}
+    for position, item in enumerate(error.diagnostics):
+        if item.span is None:
+            wanted[position] = Path.from_pointer(item.pointer) if item.pointer is not None else item.path
+    spans = locate(text, wanted.values())
+    return CompositionError(tuple(
+        replace(item, span=spans.get(wanted[position])) if position in wanted else item
+        for position, item in enumerate(error.diagnostics)
+    ))
