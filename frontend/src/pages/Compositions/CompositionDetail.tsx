@@ -1,7 +1,7 @@
 // Design follows SPHERE frontend/src/modules/pricing/pages/card/index.tsx (revision 73779a8a); no code copied
 import { useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, GitFork } from 'lucide-react';
 import type { Organization } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Badge } from '../../components/ui/Badge';
@@ -14,13 +14,15 @@ import { pickVersion } from '../../entities/composition/versionRef';
 import { compositionViewModel } from '../../entities/composition/viewModel';
 import { problemFactsApi } from '../../entities/problem/facts';
 import { NewVersionMenu } from '../../features/composition-editor/NewVersionMenu';
+import { ForkCompositionDialog } from '../../features/fork/ForkCompositionDialog';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { Gate } from '../../features/workspace/parts';
 import { NotFoundScreen } from '../../routes/NotFoundScreen';
-import { compositionPath, compositionsPath, isCompositionTabSegment, type CompositionTabSegment } from '../../routes/paths/compositions';
+import { compositionPath, compositionsPath, isCompositionTabSegment, showcasePath, type CompositionTabSegment } from '../../routes/paths/compositions';
 import { runPath, runsPath } from '../../routes/paths/runs';
 import { classifyAuthError, marker } from '../../shared/api/errors';
-import type { CompositionVersionView, ProblemFacts } from '../../shared/api/types';
+import type { CompositionVersionView, CompositionView, ProblemFacts } from '../../shared/api/types';
+import { useAuth } from '../../contexts/auth';
 import { useResource } from '../../utils/useResource';
 import { ReadOnlyNote } from '../Cases/parts';
 import { CompositionMissing } from './CompositionMissing';
@@ -29,18 +31,23 @@ import { factsSource } from './factsSource';
 import { AnalysisTab } from './tabs/AnalysisTab';
 import { EditorTab, type EditorEntry } from './tabs/EditorTab';
 import { OverviewTab, type CandidatesState } from './tabs/OverviewTab';
+import { SettingsTab } from './tabs/SettingsTab';
 import { VersionsTab } from './tabs/VersionsTab';
 import { relativeTime } from './time';
 import { useRouteComposition, type CompositionAccess, type RouteCompositionContent } from './useRouteComposition';
 
 type TabId = 'overview' | CompositionTabSegment;
 
-/** The tabs built so far; Settings joins with its block. Analysis shows only for a version whose linked problem the reader can read. */
+/**
+ * The tabs of a composition. Analysis shows only for a version whose linked problem the reader can read; Settings only for a MEMBER
+ * (a direct address keeps its tab, which then says why there is nothing to change).
+ */
 const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: 'overview', label: 'Overview' },
   { id: 'editor', label: 'Editor' },
   { id: 'versions', label: 'Versions' },
   { id: 'analysis', label: 'Analysis' },
+  { id: 'settings', label: 'Settings' },
 ];
 
 interface ShownVersion {
@@ -56,18 +63,32 @@ const findsInText = (version: CompositionVersionView) => version.evaluations.som
 
 const shortId = (id: string) => id.slice(0, 8);
 
-/** Where the shown version comes from: the composition it was forked from, the run or the binding it was derived from. */
-function Lineage({ org, version, mine }: { org: string; version: CompositionVersionView; mine: (org: string) => boolean }) {
+/** The composition a version was forked from, when the version names it: its organization's slug and its own. */
+function forkSourceOf(version: CompositionVersionView | null): { org: string; slug: string } | null {
+  const forked = version?.forked_from;
+  return forked?.organization && forked.slug ? { org: forked.organization.name, slug: forked.slug } : null;
+}
+
+/**
+ * Where the shown version comes from: the composition it was forked from, the run or the binding it was derived from. A fork's source
+ * links to its public page while it is public, to its page in the app for a member of its organization, and is plain text otherwise.
+ */
+function Lineage({ org, version, mine, sourcePublic }: {
+  org: string; version: CompositionVersionView; mine: (org: string) => boolean; sourcePublic: boolean;
+}) {
   const lines: ReactNode[] = [];
   const forked = version.forked_from;
   if (forked) {
     const source = forked.organization && forked.slug ? `${forked.organization.displayName} / ${forked.name ?? forked.slug}` : null;
-    const href = forked.organization && forked.slug && mine(forked.organization.name)
-      ? compositionPath(forked.organization.name, forked.slug, undefined, { version: forked.label ?? undefined })
-      : null;
+    const at = { version: forked.label ?? undefined };
+    let href: string | null = null;
+    if (forked.organization && forked.slug) {
+      if (sourcePublic) href = showcasePath(forked.organization.name, forked.slug, at);
+      else if (mine(forked.organization.name)) href = compositionPath(forked.organization.name, forked.slug, undefined, at);
+    }
     lines.push(
       <li key="forked">
-        {source ? <>Forked from {href ? <Link to={href}>{source}</Link> : source}{forked.label ? ` ${forked.label}` : ''}</> : 'Forked from a composition that is not shared with you'}
+        {source ? <>Forked from {href ? <Link to={href}>{source}</Link> : source}{forked.label ? ` ${forked.label}` : ''}</> : 'Forked from another composition'}
         {forked.droppedProblem ? ', without its problem.' : '.'}
       </li>,
     );
@@ -93,8 +114,10 @@ function CompositionBody({ organization, organizations, access, content, tab, re
   const navigate = useNavigate();
   const location = useLocation();
   const [query] = useSearchParams();
-  const { composition, versions } = content;
+  const { user } = useAuth();
+  const { composition, versions, etag } = content;
   const org = organization.slug;
+  const [forking, setForking] = useState(false);
   const active: TabId = tab ?? 'overview';
   const { canCreate, role } = access;
   const toast = (location.state as { toast?: string } | null)?.toast ?? '';
@@ -124,12 +147,21 @@ function CompositionBody({ organization, organizations, access, content, tab, re
   };
   const versionFailure = shown.status === 'error' ? classifyAuthError(shown.error) : null;
   const mine = (slug: string) => organizations.some((item) => item.slug === slug);
+  // Whether the composition the shown version was forked from is public now: its public page is then the link to it.
+  const forkSource = forkSourceOf(version);
+  const forkedFrom = useResource<CompositionView | null>(
+    `composition-fork-source:${forkSource ? `${forkSource.org}/${forkSource.slug}` : 'none'}`,
+    async () => (forkSource ? (await compositionsApi.get(forkSource.org, forkSource.slug)).value : null),
+  );
+  const sourcePublic = forkedFrom.data?.visibility === 'public';
   // The version the gateway said links no problem after all (422 composition_not_linked): its Analysis tab goes.
   const [unlinked, setUnlinked] = useState<string | null>(null);
   const analysable = version !== null && model.modes.includes('calculator') && unlinked !== version.id;
   const analysisModel = analysable ? model : { ...model, modes: model.modes.filter((mode) => mode !== 'calculator' && mode !== 'configurator') };
   // A direct address to Analysis keeps its tab, which then explains why there is nothing to explore.
-  const tabs = TABS.filter((item) => item.id !== 'analysis' || analysable || active === 'analysis');
+  const tabs = TABS.filter((item) => (
+    (item.id !== 'analysis' || analysable || active === 'analysis') && (item.id !== 'settings' || canCreate || active === 'settings')
+  ));
   const reading = (active === 'overview' || active === 'analysis') && picked !== null && shown.status === 'loading';
 
   return (
@@ -157,16 +189,24 @@ function CompositionBody({ organization, organizations, access, content, tab, re
               </select>
             </label>
           )}
-          {version && <Lineage org={org} version={version} mine={mine} />}
+          {version && <Lineage org={org} version={version} mine={mine} sourcePublic={sourcePublic} />}
         </div>
-        {canCreate && (
-          <NewVersionMenu
-            onCodeEditor={() => open('editor', undefined, { pane: 'code' })}
-            onVisualEditor={() => open('editor', undefined, { pane: 'visual' })}
-            onUploadFile={() => open('editor', undefined, { upload: true })}
-            deriveHref={runsPath(org)}
-          />
-        )}
+        <div className="cmp-actions">
+          {user && version && (
+            <Action variant="secondary" onClick={() => setForking(true)}>
+              <GitFork aria-hidden="true" className="cmp-icon" />
+              Fork
+            </Action>
+          )}
+          {canCreate && (
+            <NewVersionMenu
+              onCodeEditor={() => open('editor', undefined, { pane: 'code' })}
+              onVisualEditor={() => open('editor', undefined, { pane: 'visual' })}
+              onUploadFile={() => open('editor', undefined, { upload: true })}
+              deriveHref={runsPath(org)}
+            />
+          )}
+        </div>
       </header>
 
       {toast && (
@@ -204,7 +244,19 @@ function CompositionBody({ organization, organizations, access, content, tab, re
         {active === 'versions' && (
           <VersionsTab org={org} composition={composition} versions={versions} shown={picked?.id ?? null} canCreate={canCreate} onChanged={() => { shown.reload(); reload(); }} />
         )}
+        {active === 'settings' && (
+          <SettingsTab
+            key={composition.slug}
+            org={org}
+            organizationName={organization.name}
+            composition={composition}
+            etag={etag}
+            access={access}
+            onChanged={reload}
+          />
+        )}
       </TabPanel>
+      {forking && version && <ForkCompositionDialog composition={composition} version={version} onClose={() => setForking(false)} />}
     </CompositionFrame>
   );
 }

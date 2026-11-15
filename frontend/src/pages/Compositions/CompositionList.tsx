@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Layers } from 'lucide-react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { CheckCircle2, Layers } from 'lucide-react';
 import type { Organization } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Badge } from '../../components/ui/Badge';
@@ -66,8 +66,11 @@ function Row({ org, composition }: { org: string; composition: CompositionView }
 function ListBody({ organization }: { organization: Organization }) {
   const org = organization.slug;
   const navigate = useNavigate();
+  const location = useLocation();
   const [params] = useSearchParams();
   const { role, canCreate } = compositionAccess(organization);
+  // What the screen that led here did (a composition deleted).
+  const toast = (location.state as { toast?: string } | null)?.toast ?? '';
   const kindParam = params.get('kind');
   const kind = isKind(kindParam) ? kindParam : undefined;
   const archived = params.get('archived') === 'true';
@@ -107,6 +110,12 @@ function ListBody({ organization }: { organization: Organization }) {
         )}
       </header>
 
+      {toast && (
+        <div className="org-toast" role="status">
+          <CheckCircle2 aria-hidden="true" />
+          <span>{toast}</span>
+        </div>
+      )}
       {!canCreate && <ReadOnlyNote role={role}>You can open and read compositions here; creating them and sealing versions need MEMBER.</ReadOnlyNote>}
 
       <div className="cmp-toolbar">

@@ -9,9 +9,9 @@ describe('the address builders of the compositions area', () => {
   });
 
   it('has the Editor, Versions and Analysis tabs so far: Overview is the composition page itself', () => {
-    expect(COMPOSITION_TAB_SEGMENTS).toEqual(['editor', 'versions', 'analysis']);
-    for (const segment of ['editor', 'versions', 'analysis']) expect(isCompositionTabSegment(segment), segment).toBe(true);
-    for (const segment of ['overview', 'settings', '']) expect(isCompositionTabSegment(segment), segment).toBe(false);
+    expect(COMPOSITION_TAB_SEGMENTS).toEqual(['editor', 'versions', 'analysis', 'settings']);
+    for (const segment of ['editor', 'versions', 'analysis', 'settings']) expect(isCompositionTabSegment(segment), segment).toBe(true);
+    for (const segment of ['overview', 'operations', '']) expect(isCompositionTabSegment(segment), segment).toBe(false);
   });
 
   it('builds the list with its filters, leaving out the empty ones', () => {

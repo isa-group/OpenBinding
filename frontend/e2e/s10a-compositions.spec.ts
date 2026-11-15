@@ -3,9 +3,10 @@ import { installMockApi } from './helpers/mockApi';
 
 // S10a · the compositions of an organization: composition-list (/app/:org/compositions) and the composition page composition-detail
 // with its Overview (the catalog of the version shown, its architecture and its workflow), its Editor (Composition2Yaml code with
-// the gateway's lint, and the seal), its Versions (the table, and the comparison of two versions by entry and by line) and its
-// Analysis (one change at a time, and a binding chosen per task, evaluated and derived). The smoke grows with the blocks that build
-// the composition screens: list, create, overview, editor, versions and analysis here; settings later.
+// the gateway's lint, and the seal), its Versions (the table, and the comparison of two versions by entry and by line), its
+// Analysis (one change at a time, and a binding chosen per task, evaluated and derived) and its Settings (rename, archive, publish
+// and delete), and the fork of the version shown into another organization. The smoke grew with the blocks that built the
+// composition screens: list, create, overview, editor, versions, analysis and settings.
 // There is no backend: e2e/helpers/mockApi.ts answers the API origin, with the compositions of e2e/helpers/mockCompositions.ts.
 
 // Several browsers share one development server, so a screen can take longer than the default five seconds to settle.
@@ -296,6 +297,70 @@ test.describe('S10a · compositions', () => {
 
     await page.goto(`${LIST}/order-desk/analysis`);
     await expect(main(page).getByText('Values are declared: the calculator and configurator need a linked problem you can read.')).toBeVisible();
+    expect(mock.unmocked).toEqual([]);
+  });
+
+  test('Settings publish a composition after saying what that shows, and a fork takes the version into another organization without its problem', async ({ page }) => {
+    const mock = await installMockApi(page, 'admin');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${LIST}/fleet-routing/settings`);
+
+    await expect(main(page).getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true');
+    const visibility = region(page, 'Visibility');
+    await expect(visibility).toContainText('Only the members of ISA Demo Group read it.');
+    await visibility.getByRole('button', { name: 'Make public' }).click();
+    const publish = page.getByRole('dialog', { name: 'Make Fleet routing public?' });
+    await expect(publish).toContainText('the problem reference, the run and point recorded as evidence');
+    await expect(publish).toContainText('A fork’s source is named only while that source is public.');
+    await publish.getByRole('button', { name: 'Make public' }).click();
+    await expect(main(page).getByText('The composition is public: anybody reads it.')).toBeVisible();
+    await expect(visibility.getByRole('button', { name: 'Make private' })).toBeVisible();
+    await expect(main(page).locator('.cmp-badges')).toContainText('Public');
+
+    // Fork the version shown (1.2.0, linked to checkout-flow) into QoS Lab: the problem link goes, on purpose.
+    await main(page).getByRole('button', { name: 'Fork', exact: true }).click();
+    const fork = page.getByRole('dialog', { name: 'Fork this composition' });
+    await expect(fork.getByRole('radio', { name: 'ISA Demo Group' })).toBeDisabled();
+    await expect(fork.getByRole('radio', { name: 'Read Lab' })).toBeDisabled();
+    await fork.getByRole('radio', { name: 'QoS Lab' }).check();
+    await fork.getByRole('button', { name: 'Next' }).click();
+    await expect(fork).toContainText('This version links a problem of ISA Demo Group, which QoS Lab cannot read.');
+    await expect(fork.getByRole('button', { name: 'Fork', exact: true })).toBeDisabled();
+    await fork.getByRole('checkbox', { name: /Fork without the problem/ }).check();
+    await fork.getByRole('button', { name: 'Fork', exact: true }).click();
+
+    await expect(page).toHaveURL('/app/qos-lab/compositions/fleet-routing');
+    await expect(main(page).getByText('Forked. The copy is private. Values are declared.')).toBeVisible();
+    await expect(main(page).locator('.cmp-badges')).toContainText('Private');
+    const lineage = main(page).getByRole('list', { name: 'Lineage' });
+    await expect(lineage).toContainText('Forked from ISA Demo Group / Fleet routing 1.2.0, without its problem.');
+    await expect(lineage.getByRole('link', { name: 'ISA Demo Group / Fleet routing' })).toHaveAttribute('href', '/c/isa-demo/fleet-routing?version=1.2.0');
+    await expect(region(page, 'Value status')).toContainText('Declared');
+    expect(mock.unmocked).toEqual([]);
+  });
+
+  test('Settings rename, restore and delete a composition', async ({ page }) => {
+    const mock = await installMockApi(page, 'admin');
+    await page.goto(`${LIST}/legacy-intake/settings`);
+
+    const details = region(page, 'Name and description');
+    await details.getByLabel('Name').fill('Legacy intake (old)');
+    await details.getByRole('button', { name: 'Save' }).click();
+    await expect(main(page).getByText('Name and description saved.')).toBeVisible();
+    await expect(main(page).getByRole('heading', { level: 1, name: 'Legacy intake (old)' })).toBeVisible();
+
+    await region(page, 'Archived').getByRole('switch', { name: 'Archived' }).click();
+    await expect(main(page).getByText('Composition restored.')).toBeVisible();
+    await expect(main(page).locator('.cmp-badges')).not.toContainText('Archived');
+
+    await region(page, 'Danger zone').getByRole('button', { name: 'Delete composition' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Delete Legacy intake (old)?' });
+    await expect(dialog.getByRole('button', { name: 'Delete permanently' })).toBeDisabled();
+    await dialog.getByLabel('Type legacy-intake to confirm').fill('legacy-intake');
+    await dialog.getByRole('button', { name: 'Delete permanently' }).click();
+    await expect(page).toHaveURL(LIST);
+    await expect(main(page).getByText('Composition “Legacy intake (old)” deleted.')).toBeVisible();
+    await expect(main(page).getByRole('table').locator('tbody th a')).toHaveText(['Fleet routing', 'Order desk']);
     expect(mock.unmocked).toEqual([]);
   });
 

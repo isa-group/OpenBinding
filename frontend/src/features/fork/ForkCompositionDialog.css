@@ -1,0 +1,37 @@
+/* The fork dialog: its steps, the form of each and the gateway's refusals. */
+.fk { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-md); }
+
+.fk-steps { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-sm); margin: 0; padding: 0; list-style: none; color: var(--tp-steel); font-size: 0.8125rem; }
+.fk-steps li { display: inline-flex; align-items: center; gap: 6px; }
+.fk-steps li span {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--tp-hairline);
+  border-radius: 50%;
+  font-size: 0.75rem;
+}
+.fk-steps li.is-current { color: var(--tp-ink); font-weight: 600; }
+.fk-steps li.is-current span { border-color: var(--tp-link); color: var(--tp-link); }
+
+.fk-form { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-sm); }
+.fk-form p { margin: 0; overflow-wrap: anywhere; }
+.fk-muted { color: var(--tp-slate); font-size: 0.875rem; }
+.fk-check { display: flex; min-height: 28px; align-items: flex-start; gap: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
+.fk-check input { width: 1.125rem; height: 1.125rem; flex: none; margin: 2px 0 0; accent-color: var(--tp-primary); }
+
+.fk-refusal {
+  display: flex;
+  gap: var(--tp-spacing-xs);
+  padding: 10px var(--tp-spacing-sm);
+  border: 1px solid var(--tp-severity-error-border);
+  border-radius: var(--tp-radius-md);
+  background: var(--tp-severity-error-bg);
+  color: var(--tp-ink);
+  font-size: 0.8125rem;
+}
+.fk-refusal svg { width: 1rem; height: 1rem; flex: none; margin-top: 2px; color: var(--color-error); }
+.fk-refusal p { margin: 0; }
+.fk-refusal ul { margin: 4px 0 0; padding-left: 1.1rem; overflow-wrap: anywhere; }

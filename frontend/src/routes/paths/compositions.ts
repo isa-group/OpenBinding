@@ -7,11 +7,8 @@ import { organizationPath } from './problems';
 /** The segment of the composition list and the composition page. */
 export const COMPOSITIONS_SEGMENT = 'compositions';
 
-/**
- * The segments of the composition page after the composition: no segment is the Overview tab. The Settings tab joins the list
- * with the block that builds it.
- */
-export const COMPOSITION_TAB_SEGMENTS = ['editor', 'versions', 'analysis'] as const;
+/** The segments of the composition page after the composition: no segment is the Overview tab. */
+export const COMPOSITION_TAB_SEGMENTS = ['editor', 'versions', 'analysis', 'settings'] as const;
 
 export type CompositionTabSegment = (typeof COMPOSITION_TAB_SEGMENTS)[number];
 

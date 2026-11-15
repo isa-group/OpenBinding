@@ -15,6 +15,10 @@ import type { CompositionVersionView, CompositionView } from '../../src/shared/a
 // Deriving a binding (`revision` and `binding`, the Analysis tab) writes the FMS binding with those tasks bound otherwise, on the
 // problem version named. The Analysis tab's `neighborhood` lists one move per other candidate each task of the linked problem has
 // (core/fms.facts.json), and `evaluate` computes another binding's values from T1's candidate, as above.
+// Settings change a composition (`PATCH`: name, description, archived, visibility) and delete it (`DELETE`). A fork (`POST …/fork`)
+// goes to another organization of the account where it is MEMBER or more (mockApi.ts passes them), as a new private composition
+// whose first version is the source version's, without its problem when it links one (`dropProblem`); the target's compositions
+// are kept for the page, so the fork opens there.
 
 /** The organization that has compositions; every other one has none. */
 export const COMPOSITIONS_ORG = 'isa-demo';
@@ -235,9 +239,17 @@ export interface CompositionReply {
   type?: string;
 }
 
+/** An organization of the account, as `GET /v1/organizations` lists it: where a fork may go. */
+export interface MockOrganization {
+  id: string;
+  slug: string;
+  name: string;
+  effective_role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' | null;
+}
+
 export interface CompositionStore {
-  /** Answers `/v1/organizations/{org}/compositions…` for the organization `org`. */
-  route: (request: CompositionRequest, org: string) => CompositionReply;
+  /** Answers `/v1/organizations/{org}/compositions…` for the organization `org`; a fork may go to one of `organizations`. */
+  route: (request: CompositionRequest, org: string, organizations?: readonly MockOrganization[]) => CompositionReply;
   /** Answers the language services `/v1/compositions/{validate,parse,serialise,schema}`; null for anything else. */
   language: (request: CompositionRequest) => CompositionReply | null;
 }
@@ -599,12 +611,16 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     });
   };
 
-  const list = (request: CompositionRequest): CompositionReply => {
+  /** The compositions forks made in the other organizations, by organization slug. */
+  const forks = new Map<string, Entry[]>();
+  const poolOf = (org: string): Entry[] => (org === COMPOSITIONS_ORG ? entries : forks.get(org) ?? []);
+
+  const list = (request: CompositionRequest, pool: Entry[]): CompositionReply => {
     const { query } = request;
     const kind = query.get('kind');
     const archived = query.get('archived');
     const needle = (query.get('q') ?? '').toLowerCase();
-    const rows = entries.map((entry) => entry.view)
+    const rows = pool.map((entry) => entry.view)
       .filter((view) => (!kind || view.kind === kind) && (archived === null || String(view.archived) === archived))
       .filter((view) => !needle || `${view.name} ${view.slug}`.toLowerCase().includes(needle))
       .sort((a, b) => (query.get('sort') === 'updated' ? b.updated_at.localeCompare(a.updated_at) : a.name.localeCompare(b.name)));
@@ -626,14 +642,86 @@ export function compositionStore(options: CompositionSeed = {}): CompositionStor
     return ok(view, 201);
   };
 
+  /** `PATCH` a composition: its name, description, archived state and visibility, as sent. */
+  const update = (entry: Entry, request: CompositionRequest): CompositionReply => {
+    const sent = request.body() as Partial<Pick<CompositionView, 'name' | 'description' | 'archived' | 'visibility'>>;
+    const changed = Object.fromEntries(Object.entries(sent).filter(([key, value]) => (
+      ['name', 'description', 'archived', 'visibility'].includes(key) && value !== null && value !== undefined
+    )));
+    entry.view = { ...entry.view, ...changed, updated_at: new Date().toISOString() };
+    return ok(entry.view);
+  };
+
+  /**
+   * `POST …/fork`: the version named into another organization of the account, as a new private composition. A version that links a
+   * problem needs `dropProblem`, and its copy is declared; without `slug`, a target that has the source's slug answers `nameTaken`.
+   */
+  const fork = (entry: Entry, request: CompositionRequest, organizations: readonly MockOrganization[]): CompositionReply => {
+    const sent = request.body() as { version?: string; targetOrganization?: string; dropProblem?: boolean; slug?: string; name?: string; description?: string };
+    const version = named(entry, sent.version);
+    if (!version) return { status: 404, json: { detail: { code: 'not_found', error: 'Composition version not found.' } } };
+    const target = organizations.find((item) => item.slug === sent.targetOrganization || item.id === sent.targetOrganization);
+    if (!target || target.effective_role === null || target.effective_role === 'VIEWER') {
+      return { status: 403, json: { detail: { code: 'organization_forbidden', error: 'This action requires MEMBER access to the organization.' } } };
+    }
+    if (target.slug === COMPOSITIONS_ORG) {
+      return { status: 409, json: { detail: { code: 'composition_fork_same_organization', error: 'A fork goes to another organization; to change this composition, seal a new version of it instead.' } } };
+    }
+    const linked = version.problem !== null;
+    if (linked && !sent.dropProblem) {
+      return { status: 409, json: { detail: { code: 'composition_fork_problem_unreadable', error: 'This version links a problem of its own organization, which the target organization cannot read.' } } };
+    }
+    const pool = forks.get(target.slug) ?? [];
+    forks.set(target.slug, pool);
+    const wanted = sent.slug ?? entry.view.slug;
+    const holder = pool.find((item) => item.view.slug === wanted);
+    if (holder && !sent.slug) return ok({ nameTaken: true, existingComposition: { id: holder.view.id, slug: holder.view.slug, name: holder.view.name } });
+    if (holder) return { status: 409, json: { detail: { code: 'slug_conflict', error: 'That composition slug is in use in this organization.' } } };
+
+    created += 1;
+    const now = new Date().toISOString();
+    const document: Fields = { ...structuredClone(asFields(version.document)), composition: wanted };
+    if (linked) {
+      delete document.problem;
+      delete document.evidence;
+    }
+    const copy: CompositionVersionView = {
+      ...structuredClone(version),
+      id: uuid(0xe800 + created), ordinal: 1, created_at: now, created_by_id: AUTHOR, document,
+      based_on: { composition_id: entry.view.id, version_id: version.id, label: version.label },
+      forked_from: {
+        droppedProblem: linked, compositionId: entry.view.id, versionId: version.id, label: version.label, name: entry.view.name, slug: entry.view.slug,
+        organization: { id: ORGANIZATION.id, name: ORGANIZATION.slug, displayName: ORGANIZATION.name },
+      },
+      ...(linked ? {
+        problem: null, values_status: 'declared', verified: false, evidence_run: null, derivation: null,
+        current_evaluation: version.current_evaluation && { ...version.current_evaluation, basis: 'declared', outcome: 'declared', compilation: null },
+        evaluations: version.evaluations.map((item) => ({ ...item, basis: 'declared', outcome: 'declared', compilation: null, binding: null, diagnostics: [], violations: [] })),
+      } as Partial<CompositionVersionView> : {}),
+    };
+    texts.set(copy.id, write(document));
+    const view = composition(0x200 + created, wanted, sent.name ?? entry.view.name, {
+      organization: { id: target.id, slug: target.slug, name: target.name }, kind: entry.view.kind,
+      description: sent.description ?? entry.view.description, visibility: 'private',
+    }, [copy]);
+    pool.push({ view, versions: [copy] });
+    return ok({ composition: view, version: copy, droppedProblem: linked }, 201);
+  };
+
   return {
-    route(request, org) {
-      if (org !== COMPOSITIONS_ORG) return request.parts[4] ? missing() : ok({ compositions: [], total: 0, limit: 50, offset: 0 });
+    route(request, org, organizations = []) {
       const [, , , , slug, section, ref, tail] = request.parts;
-      if (!slug) return request.method === 'POST' ? create(request) : list(request);
-      const entry = entries.find((item) => item.view.slug === slug);
+      const pool = poolOf(org);
+      if (!slug) return request.method === 'POST' && org === COMPOSITIONS_ORG ? create(request) : list(request, pool);
+      const entry = pool.find((item) => item.view.slug === slug);
       if (!entry) return missing();
+      if (!section && request.method === 'PATCH') return update(entry, request);
+      if (!section && request.method === 'DELETE') {
+        pool.splice(pool.indexOf(entry), 1);
+        return { status: 204 };
+      }
       if (!section) return ok(entry.view);
+      if (section === 'fork' && request.method === 'POST') return fork(entry, request, organizations);
       if (section === 'derive' && request.method === 'POST') return derive(entry, request);
       if (section === 'evaluate' && request.method === 'POST') return evaluate(entry, request);
       if (section === 'neighborhood' && request.method === 'GET') return neighbourhood(entry, request);

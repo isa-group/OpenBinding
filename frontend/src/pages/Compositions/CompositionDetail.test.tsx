@@ -8,13 +8,17 @@ import fmsFacts from '../../test/fixtures/core/fms.facts.json';
 import fmsVersion from '../../test/fixtures/core/fms.version.json';
 import { CompositionDetail } from './CompositionDetail';
 
-const api = vi.hoisted(() => ({ get: vi.fn(), allVersions: vi.fn(), version: vi.fn(), content: vi.fn() }));
+const api = vi.hoisted(() => ({ get: vi.fn(), allVersions: vi.fn(), version: vi.fn(), content: vi.fn(), update: vi.fn(), fork: vi.fn() }));
 
 vi.mock('../../entities/composition/api', () => ({ compositionsApi: api }));
 
 const factsApi = vi.hoisted(() => ({ get: vi.fn() }));
 
 vi.mock('../../entities/problem/facts', () => ({ problemFactsApi: factsApi }));
+
+const platform = vi.hoisted(() => ({ organizations: vi.fn() }));
+
+vi.mock('../../api/platform', async (importOriginal) => ({ ...(await importOriginal<object>()), platformApi: platform }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
 const partner = org('partner-lab', { name: 'Partner Lab', effective_role: 'VIEWER' });
@@ -58,7 +62,11 @@ function renderDetail(url = '/app/isa-demo/compositions/fleet-routing') {
 describe('Composition page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    api.get.mockResolvedValue({ value: composition, etag: 'W/"7"' });
+    api.get.mockImplementation(async (org: string) => {
+      if (org === 'isa-demo') return { value: composition, etag: 'W/"7"' };
+      throw Object.assign(new HttpError(404, 'Composition not found.'), { code: 'not_found' });
+    });
+    platform.organizations.mockResolvedValue([group, partner]);
     api.allVersions.mockResolvedValue(versions);
     api.version.mockImplementation(async (_org: string, _slug: string, id: string) => versions.find((version) => version.id === id));
     factsApi.get.mockResolvedValue(fmsFacts);
@@ -117,12 +125,64 @@ describe('Composition page', () => {
     expect(screen.queryByText(/candidates of the linked problem/)).toBeNull();
   });
 
-  it('says where a forked version comes from, linking a source in one of the account’s organizations', async () => {
+  it('says where a forked version comes from, linking a private source in one of the account’s organizations', async () => {
     renderDetail();
 
     const lineage = await screen.findByRole('list', { name: 'Lineage' });
     expect(lineage).toHaveTextContent('Forked from Partner Lab / Fleet base 2.0.0.');
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('partner-lab', 'fleet-base'));
     expect(within(lineage).getByRole('link', { name: 'Partner Lab / Fleet base' })).toHaveAttribute('href', '/app/partner-lab/compositions/fleet-base?version=2.0.0');
+  });
+
+  it('links a fork’s source to its public page while it is public', async () => {
+    const source = { ...composition, slug: 'fleet-base', visibility: 'public' as const };
+    api.get.mockImplementation(async (org: string) => ({ value: org === 'isa-demo' ? composition : source, etag: null }));
+    renderDetail();
+
+    const lineage = await screen.findByRole('list', { name: 'Lineage' });
+    await waitFor(() => expect(within(lineage).getByRole('link', { name: 'Partner Lab / Fleet base' })).toHaveAttribute('href', '/c/partner-lab/fleet-base?version=2.0.0'));
+  });
+
+  it('names no source it was not given', async () => {
+    const hidden = versionOf('v3', '1.2.0', 3, {
+      forked_from: { droppedProblem: true, compositionId: null, versionId: null, label: null, name: null, slug: null, organization: null },
+    });
+    api.allVersions.mockResolvedValue([hidden]);
+    api.version.mockResolvedValue(hidden);
+    renderDetail();
+
+    expect(await screen.findByRole('list', { name: 'Lineage' })).toHaveTextContent('Forked from another composition, without its problem.');
+    expect(api.get).toHaveBeenCalledTimes(1);
+  });
+
+  it('forks the version shown into another organization', async () => {
+    renderDetail('/app/isa-demo/compositions/fleet-routing?version=1.0.0');
+
+    await waitFor(() => expect(api.version).toHaveBeenCalledWith('isa-demo', 'fleet-routing', 'v1', { document: true }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Fork' }));
+    const dialog = screen.getByRole('dialog', { name: 'Fork this composition' });
+    expect(dialog).toHaveTextContent('Create your own copy of Fleet routing at version 1.0.0');
+    expect(await within(dialog).findByRole('radio', { name: 'ISA Demo Group' })).toBeDisabled();
+  });
+
+  it('shows Settings to a MEMBER, whose changes name the revision the page read', async () => {
+    api.update.mockResolvedValue({ value: composition, etag: 'W/"8"' });
+    renderDetail('/app/isa-demo/compositions/fleet-routing/settings');
+
+    expect(await screen.findByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.click(screen.getByRole('switch', { name: 'Archived' }));
+    await waitFor(() => expect(api.update).toHaveBeenCalledWith('isa-demo', 'fleet-routing', { archived: true }, 'W/"7"'));
+    expect(screen.queryByRole('button', { name: 'Make private' })).toBeNull();
+  });
+
+  it('has no Settings tab for a VIEWER, who may still fork', async () => {
+    renderOrgScreen(<CompositionDetail />, {
+      path: '/app/:org/compositions/:composition/:tab?', url: '/app/isa-demo/compositions/fleet-routing',
+      organizations: [{ ...group, effective_role: 'VIEWER' }],
+    });
+    expect(await screen.findByRole('tab', { name: 'Versions' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Settings' })).toBeNull();
+    expect(await screen.findByRole('button', { name: 'Fork' })).toBeInTheDocument();
   });
 
   it('opens the version the address names, by label or ordinal, and changes it with the select', async () => {
@@ -174,7 +234,7 @@ describe('Composition page', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
-  it.each(['overview', 'settings', 'nonsense'])('answers the tab %s it does not have with the page that does not exist', (tab) => {
+  it.each(['overview', 'operations', 'nonsense'])('answers the tab %s it does not have with the page that does not exist', (tab) => {
     renderDetail(`/app/isa-demo/compositions/fleet-routing/${tab}`);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();

@@ -392,7 +392,7 @@ function organizationRoutes(request: Request): Reply {
     case 'problems': return problemRoutes(request, found.slug);
     case 'runs': return runRoutes(request, found.slug);
     case 'studies': return studyRoutes(request, found.slug);
-    case 'compositions': return request.compositions.route(request, found.slug);
+    case 'compositions': return request.compositions.route(request, found.slug, ORGANIZATIONS);
     default: return notFound('Not mocked.');
   }
 }
