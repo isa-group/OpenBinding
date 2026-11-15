@@ -165,7 +165,7 @@ function ListBody({ organization }: { organization: Organization }) {
         <CreateCompositionDialog
           organization={organization}
           onClose={dialog.close}
-          onCreated={(created) => navigate(compositionPath(org, created.slug), { state: { toast: `Composition “${created.name}” created. It has no version yet.` } })}
+          onCreated={(created) => navigate(compositionPath(org, created.slug, 'editor'), { state: { toast: `Composition “${created.name}” created. It has no version yet: write its first one here.` } })}
         />
       )}
     </CompositionFrame>

@@ -318,6 +318,8 @@ interface Request {
   parts: string[];
   query: URLSearchParams;
   body: () => Record<string, unknown>;
+  /** The body as text (a Composition2Yaml document). */
+  text: () => string;
   /** A small package, for every download. */
   archive: Buffer;
   /** The compositions of this page (e2e/helpers/mockCompositions.ts): the seeded ones and what the page creates. */
@@ -504,6 +506,7 @@ function route(request: Request): Reply | null {
       if (second === 'current') return ok(CURRENT_FIXTURE);
       return null;
     case 'organizations': return organizationRoutes(request);
+    case 'compositions': return second ? request.compositions.language(request) : null;
     case 'engine-registrations': return engineRegistrationRoutes(request);
     case 'admin': return adminRoutes(request);
     case 'engines':
@@ -547,6 +550,7 @@ export async function installMockApi(page: Page, session: Session): Promise<Mock
     const parts = url.pathname.split('/').filter(Boolean);
     const known: Request = {
       method: request.method(), parts, query: url.searchParams, archive, compositions,
+      text: () => request.postData() ?? '',
       body: () => {
         try {
           return (request.postDataJSON() ?? {}) as Record<string, unknown>;
@@ -893,6 +897,7 @@ export async function installWalkApi(page: Page, template: Buffer): Promise<Walk
     const body = request.postDataBuffer();
     const known: Request = {
       method: request.method(), parts, query: url.searchParams, archive: template, compositions,
+      text: () => request.postData() ?? '',
       body: () => {
         try {
           return (request.postDataJSON() ?? {}) as Record<string, unknown>;

@@ -119,6 +119,28 @@ describe('CodeEditor', () => {
     expect(currentCompletions(view.state).map((option) => option.label)).toEqual(['offering', 'values']);
   });
 
+  it('keeps the markers when the screen redraws it with a new change handler or completion source', async () => {
+    const findings = [KIND];
+    const first = () => null;
+    const { container, rerender } = render(
+      <CodeEditor value={TEXT} onChange={() => undefined} language="yaml" diagnostics={findings} completions={first} />,
+    );
+    const view = viewOf(container);
+    const count = () => {
+      let markers = 0;
+      forEachDiagnostic(view.state, () => { markers += 1; });
+      return markers;
+    };
+    await waitFor(() => expect(count()).toBe(1));
+
+    rerender(<CodeEditor value={TEXT} onChange={() => undefined} language="yaml" diagnostics={findings} completions={first} />);
+    rerender(<CodeEditor value={TEXT} onChange={() => undefined} language="yaml" diagnostics={findings} completions={() => null} />);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(count()).toBe(1);
+    expect(container.querySelector('.cm-lintRange-error')).not.toBeNull();
+    expect(viewOf(container)).toBe(view);
+  });
+
   it('is read-only when asked', () => {
     const { container } = render(<CodeEditor value={TEXT} onChange={() => undefined} language="yaml" readOnly />);
     expect(viewOf(container).state.readOnly).toBe(true);

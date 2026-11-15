@@ -2,8 +2,9 @@ import { expect as baseExpect, test, type Page } from '@playwright/test';
 import { installMockApi } from './helpers/mockApi';
 
 // S10a · the compositions of an organization: composition-list (/app/:org/compositions) and the composition page composition-detail
-// with its Overview: the catalog of the version shown, its architecture and its workflow. The smoke grows with the blocks that build the composition screens: list,
-// create and overview here; the editor, the comparison of versions, analysis and settings later.
+// with its Overview (the catalog of the version shown, its architecture and its workflow) and its Editor (Composition2Yaml code with
+// the gateway's lint, and the seal). The smoke grows with the blocks that build the composition screens: list, create, overview and
+// editor here; the comparison of versions, analysis and settings later.
 // There is no backend: e2e/helpers/mockApi.ts answers the API origin, with the compositions of e2e/helpers/mockCompositions.ts.
 
 // Several browsers share one development server, so a screen can take longer than the default five seconds to settle.
@@ -64,7 +65,7 @@ test.describe('S10a · compositions', () => {
     expect(mock.unmocked).toEqual([]);
   });
 
-  test('a new composition opens on its Overview, with no version yet', async ({ page }) => {
+  test('a new composition opens in its Editor, on the starter document named after it', async ({ page }) => {
     const mock = await installMockApi(page, 'admin');
     await page.goto(LIST);
 
@@ -79,15 +80,59 @@ test.describe('S10a · compositions', () => {
     await dialog.getByLabel('Kind').selectOption('pipeline');
     await dialog.getByRole('button', { name: 'Create composition' }).click();
 
-    await expect(page).toHaveURL(`${LIST}/order-intake`);
+    await expect(page).toHaveURL(`${LIST}/order-intake/editor`);
     await expect(main(page).getByRole('heading', { level: 1, name: 'Order intake' })).toBeVisible();
-    await expect(main(page).getByText('Composition “Order intake” created. It has no version yet.')).toBeVisible();
+    await expect(main(page).getByText('Composition “Order intake” created. It has no version yet: write its first one here.')).toBeVisible();
     await expect(main(page).getByText('Pipeline', { exact: true })).toBeVisible();
-    await expect(main(page).getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
-    await expect(main(page).getByText(/No version yet/)).toBeVisible();
+    await expect(main(page).getByRole('tab', { name: 'Editor' })).toHaveAttribute('aria-selected', 'true');
+    await expect(main(page).getByText('No version yet. Start from this document and seal its first version.')).toBeVisible();
+    const source = main(page).getByRole('textbox', { name: 'composition.yaml source' });
+    await expect(source).toContainText('composition: order-intake');
+    await expect(source).toContainText('kind: pipeline');
+    await expect(main(page).getByLabel('Label')).toHaveValue('1.0.0');
 
     await main(page).getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Compositions' }).click();
     await expect(main(page).getByRole('table').locator('tbody th a')).toHaveText(['Order intake', 'Fleet routing', 'Order desk']);
+    expect(mock.unmocked).toEqual([]);
+  });
+
+  test('the Editor marks what the gateway finds in the code, and seals the fixed text as a new version', async ({ page }) => {
+    const mock = await installMockApi(page, 'admin');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${LIST}/order-desk`);
+
+    await main(page).getByRole('button', { name: 'New version' }).click();
+    await main(page).getByRole('menu', { name: 'New version' }).getByRole('menuitem', { name: /Code editor/ }).click();
+    await expect(page).toHaveURL(`${LIST}/order-desk/editor`);
+    await expect(main(page).getByText(/Editing from version/)).toContainText('Editing from version 1.2.0.');
+    const source = main(page).getByRole('textbox', { name: 'composition.yaml source' });
+    await expect(source).toContainText('version: 1.2.0');
+    const problems = main(page).getByRole('region', { name: 'Problems' });
+    await expect(problems).toContainText('No issues');
+
+    // Break the kind: the gateway's lint marks it in the code and lists it.
+    await source.getByText('kind: application').click();
+    await page.keyboard.press('End');
+    await page.keyboard.type('x');
+    await expect(problems.getByRole('button', { name: /'applicationx' is not a kind/ })).toContainText('Line 8, column 7');
+    await expect(main(page).locator('.cm-lintRange-error')).toHaveCount(1);
+    await expect(main(page).getByText('Needs attention')).toBeVisible();
+    await expect(main(page).getByRole('button', { name: 'Seal version' })).toBeDisabled();
+
+    // Fix it, and give the version its own label.
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Backspace');
+    await expect(problems).toContainText('No issues');
+    await expect(main(page).locator('.cm-lintRange-error')).toHaveCount(0);
+    const label = main(page).getByLabel('Label');
+    await label.fill('1.3.0');
+    await label.press('Enter');
+    await expect(source).toContainText('version: 1.3.0');
+
+    await main(page).getByRole('button', { name: 'Seal version' }).click();
+    await expect(page).toHaveURL(`${LIST}/order-desk?version=1.3.0`);
+    await expect(main(page).getByText('Version 1.3.0 sealed.')).toBeVisible();
+    await expect(main(page).getByRole('combobox', { name: 'Version' }).locator('option:checked')).toHaveText('1.3.0 · latest');
     expect(mock.unmocked).toEqual([]);
   });
 

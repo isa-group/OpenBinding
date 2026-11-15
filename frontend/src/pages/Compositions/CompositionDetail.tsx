@@ -1,5 +1,5 @@
 // Design follows SPHERE frontend/src/modules/pricing/pages/card/index.tsx (revision 73779a8a); no code copied
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { CheckCircle2 } from 'lucide-react';
 import type { Organization } from '../../api/platform';
@@ -13,26 +13,29 @@ import { kindLabel } from '../../entities/composition/kinds';
 import { pickVersion } from '../../entities/composition/versionRef';
 import { compositionViewModel } from '../../entities/composition/viewModel';
 import { problemFactsApi } from '../../entities/problem/facts';
+import { NewVersionMenu } from '../../features/composition-editor/NewVersionMenu';
 import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { Gate } from '../../features/workspace/parts';
 import { NotFoundScreen } from '../../routes/NotFoundScreen';
 import { compositionPath, compositionsPath, isCompositionTabSegment, type CompositionTabSegment } from '../../routes/paths/compositions';
-import { runPath } from '../../routes/paths/runs';
+import { runPath, runsPath } from '../../routes/paths/runs';
 import { classifyAuthError, marker } from '../../shared/api/errors';
 import type { CompositionVersionView, ProblemFacts } from '../../shared/api/types';
 import { useResource } from '../../utils/useResource';
 import { ReadOnlyNote } from '../Cases/parts';
 import { CompositionMissing } from './CompositionMissing';
 import { CompositionFrame } from './parts';
+import { EditorTab, type EditorEntry } from './tabs/EditorTab';
 import { OverviewTab, type CandidatesState } from './tabs/OverviewTab';
 import { relativeTime } from './time';
 import { useRouteComposition, type CompositionAccess, type RouteCompositionContent } from './useRouteComposition';
 
 type TabId = 'overview' | CompositionTabSegment;
 
-/** The tabs built so far; Editor, Versions, Analysis and Settings join with their blocks. */
+/** The tabs built so far; Versions, Analysis and Settings join with their blocks. */
 const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: 'overview', label: 'Overview' },
+  { id: 'editor', label: 'Editor' },
 ];
 
 interface ShownVersion {
@@ -109,7 +112,7 @@ function CompositionBody({ organization, organizations, access, content, tab, re
   const org = organization.slug;
   const active: TabId = tab ?? 'overview';
   const { canCreate, role } = access;
-  const [toast] = useState<string>(() => (location.state as { toast?: string } | null)?.toast ?? '');
+  const toast = (location.state as { toast?: string } | null)?.toast ?? '';
   const picked = pickVersion(versions, query.get('version'));
   const shown = useResource<ShownVersion | null>(
     `composition-version:${org}/${composition.slug}/${picked?.id ?? 'none'}`,
@@ -119,8 +122,8 @@ function CompositionBody({ organization, organizations, access, content, tab, re
       return findsInText(version) ? { version, content: await compositionsApi.content(org, composition.slug, version.id) } : { version };
     },
   );
-  const open = (id: TabId, version = query.get('version') ?? undefined) => void navigate(
-    compositionPath(org, composition.slug, id === 'overview' ? undefined : id, { version }), { viewTransition: true },
+  const open = (id: TabId, version = query.get('version') ?? undefined, entry?: EditorEntry) => void navigate(
+    compositionPath(org, composition.slug, id === 'overview' ? undefined : id, { version }), { viewTransition: true, state: entry },
   );
   const updated = relativeTime(composition.updated_at);
   const version = shown.data?.version ?? null;
@@ -164,6 +167,14 @@ function CompositionBody({ organization, organizations, access, content, tab, re
           )}
           {version && <Lineage org={org} version={version} mine={mine} />}
         </div>
+        {canCreate && (
+          <NewVersionMenu
+            onCodeEditor={() => open('editor', undefined, { pane: 'code' })}
+            onVisualEditor={() => open('editor', undefined, { pane: 'visual' })}
+            onUploadFile={() => open('editor', undefined, { upload: true })}
+            deriveHref={runsPath(org)}
+          />
+        )}
       </header>
 
       {toast && (
@@ -176,15 +187,18 @@ function CompositionBody({ organization, organizations, access, content, tab, re
 
       <TabBar items={TABS} value={active} onChange={(id) => open(id as TabId)} ariaLabel="Composition sections" prefix="cp-tab" />
       <TabPanel prefix="cp-tab" active={active}>
-        {picked && shown.status === 'loading' && (
+        {active === 'overview' && picked && shown.status === 'loading' && (
           <div role="status" aria-busy="true" className="cmp-panel-loading"><span className="sr-only">Loading the version…</span><Skeleton variant="panel" /><Skeleton variant="card" /></div>
         )}
-        {versionFailure && (
+        {active === 'overview' && versionFailure && (
           <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={() => { shown.reload(); reload(); }}>Retry</Action>}>
             {`Version ${picked?.label ?? ''} couldn’t be loaded${marker(versionFailure)}.`}
           </Notice>
         )}
         {active === 'overview' && (!picked || shown.status === 'ready') && <OverviewTab org={org} model={model} version={version} candidates={candidates} />}
+        {active === 'editor' && (
+          <EditorTab org={org} composition={composition} version={picked ?? null} canSeal={canCreate} onSealed={reload} />
+        )}
       </TabPanel>
     </CompositionFrame>
   );

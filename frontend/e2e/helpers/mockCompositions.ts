@@ -15,6 +15,10 @@ const AUTHOR = '00000000-0000-4000-8000-000000000005';
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const digest = (char: string) => `sha256-${char.repeat(64)}`;
 
+/** The text of the declared versions: the fixture, at their label and cost. */
+const DECLARED_TEXT = readFileSync(new URL('../../src/test/fixtures/compositions/declared.yaml', import.meta.url), 'utf8');
+const declaredText = (label: string, cost: number) => DECLARED_TEXT.replace('version: 1.0.0', `version: ${label}`).replace('value: 42.5', `value: ${cost}`);
+
 const core = (file: string): Record<string, unknown> => JSON.parse(readFileSync(new URL(`../../src/test/fixtures/core/${file}`, import.meta.url), 'utf8'));
 
 // -- The declared composition: an order desk whose author wrote its values
@@ -138,17 +142,58 @@ export interface CompositionRequest {
   parts: string[];
   query: URLSearchParams;
   body: () => Record<string, unknown>;
+  /** The body as text (a Composition2Yaml document). */
+  text: () => string;
 }
 
 export interface CompositionReply {
   status: number;
-  json: unknown;
+  json?: unknown;
+  text?: string;
+  type?: string;
 }
 
 export interface CompositionStore {
   /** Answers `/v1/organizations/{org}/compositions…` for the organization `org`. */
   route: (request: CompositionRequest, org: string) => CompositionReply;
+  /** Answers the language services `/v1/compositions/{validate,parse,serialise,schema}`; null for anything else. */
+  language: (request: CompositionRequest) => CompositionReply | null;
 }
+
+const KINDS = ['application', 'workflow', 'pipeline', 'system'];
+
+/** The schema as far as completion reads it: the document's keys and the kinds. */
+const SCHEMA = {
+  type: 'object',
+  properties: {
+    syntaxVersion: { const: '1.0' }, composition: { type: 'string' }, version: { type: 'string' }, kind: { enum: KINDS },
+    problem: { type: 'object', properties: { ref: { type: 'string' }, compilation: { type: 'string' } } },
+    workflow: {}, binding: { type: 'object' }, values: { type: 'object' }, offering: { type: 'object' }, evidence: { type: 'object' },
+  },
+};
+
+const scalar = (text: string, key: string) => new RegExp(`^${key}:[ \\t]*(.*)$`, 'm').exec(text)?.[1]?.trim().replace(/^["']|["']$/g, '') ?? null;
+
+/** The mock's lint: an unknown `kind` is an error at its value; everything else passes. */
+function lint(text: string) {
+  const match = /^kind:[ \t]*(.*)$/m.exec(text);
+  const value = match?.[1].trim() ?? '';
+  if (!match || KINDS.includes(value)) return { valid: true, diagnostics: [] };
+  const line = text.slice(0, match.index).split('\n').length;
+  const column = match[0].indexOf(value, 'kind:'.length) + 1;
+  return {
+    valid: false,
+    diagnostics: [{
+      code: 'c2y_kind_unknown', message: `'${value}' is not a kind; a composition is one of ${KINDS.join(', ')}`, severity: 'error', path: 'kind', pointer: '/kind',
+      span: { line, column, end_line: line, end_column: column + value.length },
+    }],
+  };
+}
+
+const refused = (diagnostics: unknown[]): CompositionReply => ({
+  status: 422,
+  json: { type: 'about:blank', title: 'Unprocessable Content', status: 422, code: 'composition_invalid', detail: 'The document is not valid Composition2Yaml.', diagnostics },
+});
 
 const ok = (json: unknown, status = 200): CompositionReply => ({ status, json });
 const missing = (): CompositionReply => ({ status: 404, json: { detail: { code: 'not_found', error: 'Composition not found.' } } });
@@ -160,6 +205,56 @@ const lightRow = (version: CompositionVersionView): CompositionVersionView => ({
 export function compositionStore(): CompositionStore {
   const entries = seed();
   let created = 0;
+  let sealed = 0;
+  /** The stored text of each version, by id. */
+  const texts = new Map<string, string>();
+  for (const entry of entries) {
+    for (const version of entry.versions) {
+      const cost = (version.values.cost as { value: number } | undefined)?.value ?? 0;
+      texts.set(version.id, version.values_status === 'declared' ? declaredText(version.label, cost) : `${JSON.stringify(version.document, null, 2)}\n`);
+    }
+  }
+
+  /** A text read back as the stored document of its composition, with the text's label and kind. */
+  const documentOf = (text: string): Record<string, unknown> => {
+    const slug = scalar(text, 'composition') ?? '';
+    const latest = entries.find((entry) => entry.view.slug === slug)?.versions.at(-1);
+    const base = (latest?.document as Record<string, unknown> | null | undefined)
+      ?? { syntaxVersion: '1.0', composition: slug, workflow: null, binding: {}, values: {} };
+    return { ...structuredClone(base), version: scalar(text, 'version') ?? '', kind: scalar(text, 'kind') ?? '' };
+  };
+
+  const seal = (entry: Entry, text: string): CompositionReply => {
+    const linted = lint(text);
+    if (!linted.valid) return refused(linted.diagnostics);
+    const label = scalar(text, 'version') ?? '';
+    const existing = entry.versions.find((version) => version.label === label);
+    if (existing && texts.get(existing.id) === text) return ok({ version: existing, evaluation: existing.evaluations[0], diagnostics: [] });
+    if (existing) return { status: 409, json: { detail: { code: 'version_label_taken', error: `Version ${label} already holds another content.` } } };
+    sealed += 1;
+    const now = new Date().toISOString();
+    const latest = entry.versions.at(-1) ?? declaredVersion(0, label, 0, now);
+    const version: CompositionVersionView = {
+      ...structuredClone(latest),
+      id: uuid(0xe000 + sealed), ordinal: entry.versions.length + 1, label, created_at: now, content_digest: digest('e'),
+      document: { ...documentOf(text), composition: entry.view.slug },
+    };
+    entry.versions.push(version);
+    texts.set(version.id, text);
+    entry.view = {
+      ...entry.view, updated_at: now, version_count: entry.versions.length,
+      latest_version: { id: version.id, ordinal: version.ordinal, label, values_status: version.values_status, created_at: now },
+    };
+    return ok({ version, evaluation: version.evaluations[0], diagnostics: [] }, 201);
+  };
+
+  const check = (entry: Entry, text: string): CompositionReply => {
+    const linted = lint(text);
+    if (!linted.valid) return ok({ valid: false, values_status: null, values: null, content: null, diagnostics: linted.diagnostics });
+    return ok({
+      valid: true, values_status: /^problem\s*:/m.test(text) ? 'verified' : 'declared', values: entry.versions.at(-1)?.values ?? {}, content: text, diagnostics: [],
+    });
+  };
 
   const list = (request: CompositionRequest): CompositionReply => {
     const { query } = request;
@@ -191,20 +286,38 @@ export function compositionStore(): CompositionStore {
   return {
     route(request, org) {
       if (org !== COMPOSITIONS_ORG) return request.parts[4] ? missing() : ok({ compositions: [], total: 0, limit: 50, offset: 0 });
-      const [, , , , slug, section, ref] = request.parts;
+      const [, , , , slug, section, ref, tail] = request.parts;
       if (!slug) return request.method === 'POST' ? create(request) : list(request);
       const entry = entries.find((item) => item.view.slug === slug);
       if (!entry) return missing();
       if (!section) return ok(entry.view);
       if (section !== 'versions') return { status: 404, json: { detail: 'not mocked' } };
       const newest = [...entry.versions].reverse();
+      if (!ref && request.method === 'POST') return seal(entry, request.text());
+      if (ref === 'check' && request.method === 'POST') return check(entry, request.text());
       if (!ref) {
         const ordered = request.query.get('order') === 'oldest' ? entry.versions : newest;
         return ok({ versions: ordered.map(lightRow), total: ordered.length, limit: 200, offset: 0 });
       }
       const version = entry.versions.find((item) => item.id === ref || item.label === ref || String(item.ordinal) === ref);
       if (!version) return { status: 404, json: { detail: { code: 'not_found', error: 'Composition version not found.' } } };
+      if (tail === 'content') return { status: 200, text: texts.get(version.id) ?? '', type: 'application/yaml' };
       return ok(request.query.get('include') === 'document' ? version : { ...version, document: null });
+    },
+
+    language(request) {
+      const [, , operation] = request.parts;
+      if (request.method === 'GET' && operation === 'schema') return ok(SCHEMA);
+      if (request.method !== 'POST') return null;
+      switch (operation) {
+        case 'validate': return ok(lint(request.text()));
+        case 'parse': {
+          const linted = lint(request.text());
+          return linted.valid ? ok({ document: documentOf(request.text()), diagnostics: [] }) : refused(linted.diagnostics);
+        }
+        case 'serialise': return { status: 200, text: `${JSON.stringify(request.body(), null, 2)}\n`, type: 'application/yaml' };
+        default: return null;
+      }
     },
   };
 }

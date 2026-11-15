@@ -96,6 +96,12 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Re
     : route.fulfill({ json: { compositions: [], total: 0, limit: 200, offset: 0 } })));
   await page.route(`${API}/v1/organizations/acme/compositions/lab-flow`, json(LAB_FLOW));
   await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/compositions/lab-flow/versions`, json({ versions: [], total: 0, limit: 200, offset: 0 }));
+  // The Editor of lab-flow lints its starter document and reads it for the visual editor.
+  await page.route(`${API}/v1/compositions/validate`, json({ valid: true, diagnostics: [] }));
+  await page.route(`${API}/v1/compositions/schema`, json({ type: 'object', properties: {} }));
+  await page.route(`${API}/v1/compositions/parse`, json({
+    document: { syntaxVersion: '1.0', composition: 'lab-flow', version: '1.0.0', kind: 'application', workflow: null, binding: {}, values: {} }, diagnostics: [],
+  }));
   await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/problems`, json({ problems: [], total: 0, limit: 200, offset: 0 }));
   await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/runs`, json({ runs: [], total: 0 }));
   await page.route((url) => url.origin + url.pathname === `${API}/v1/organizations/acme/studies`, json([]));

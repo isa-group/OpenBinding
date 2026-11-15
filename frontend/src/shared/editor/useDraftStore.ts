@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { draftsAvailable, loadDraft, saveDraft, type DraftFiles } from './drafts';
+import { clearDraft, draftsAvailable, loadDraft, saveDraft, type DraftFiles } from './drafts';
 
 /** How many earlier states undo can go back to. */
 export const HISTORY_LIMIT = 40;
@@ -130,6 +130,15 @@ export function useDraftStore<F extends DraftFiles>({ scope, initial, delay = SA
       .catch((reason: unknown) => setSaveIssue(reason instanceof Error ? reason.message : 'This draft could not be kept in the browser.'));
   }, []);
 
+  /**
+   * Forget the draft kept for this scope (after a seal, say): a change still waiting for its delay is dropped first, so it is not
+   * written back. The files on screen stay; only a later change is kept again.
+   */
+  const forget = useCallback(() => {
+    pendingRef.current = null;
+    return clearDraft(scopeRef.current);
+  }, []);
+
   useEffect(() => {
     if (!hydrated) return;
     pendingRef.current = { scope, files };
@@ -149,7 +158,7 @@ export function useDraftStore<F extends DraftFiles>({ scope, initial, delay = SA
     canRedo: depth.future > 0,
     /** Why the draft is not being kept, if it is not. */
     issue: draftsAvailable() ? saveIssue : DRAFTS_UNAVAILABLE,
-    current, commit, undo, redo, reset, replace, start, restore,
+    current, commit, undo, redo, reset, replace, start, restore, forget,
   };
 }
 

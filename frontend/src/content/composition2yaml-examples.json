@@ -1,0 +1,3 @@
+{
+  "starter": "# A Composition2Yaml document: the candidate chosen for each task of a workflow, and the values it yields.\n# Without a problem the values are the ones you declare. Link a problem revision (problem: {ref, compilation})\n# and the gateway computes and verifies them when you seal.\nsyntaxVersion: \"1.0\"\ncomposition: my-composition\nversion: 1.0.0\nkind: application\nworkflow:\n  seq:\n    - signIn\n    - notify\nbinding:\n  signIn: {local: true}\n  notify: {candidate: email.provider.basic}\nvalues:\n  cost: {value: 10, unit: EUR/month}\n"
+}

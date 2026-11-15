@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { autocompletion, type CompletionSource } from '@codemirror/autocomplete';
 import { json } from '@codemirror/lang-json';
 import { yaml } from '@codemirror/lang-yaml';
-import { lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint';
+import { linter, lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint';
 import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import type { Located } from '../../shared/diagnostics/located';
@@ -53,6 +53,21 @@ function markers(diagnostics: readonly Located[], length: number): Diagnostic[] 
   return marked;
 }
 
+const SETUP = {
+  lineNumbers: true,
+  highlightActiveLineGutter: true,
+  highlightActiveLine: true,
+  foldGutter: true,
+  dropCursor: true,
+  indentOnInput: true,
+  bracketMatching: true,
+  closeBrackets: true,
+  highlightSelectionMatches: true,
+};
+/** The setups, one object each, so the editor is not reconfigured on every render (completion replaces the built-in one). */
+const WITH_AUTOCOMPLETION = { ...SETUP, autocompletion: true };
+const WITHOUT_AUTOCOMPLETION = { ...SETUP, autocompletion: false };
+
 export function CodeEditor({
   value,
   onChange,
@@ -74,9 +89,16 @@ export function CodeEditor({
     if (language === 'json') list.push(json());
     if (language === 'yaml') list.push(yaml());
     if (completions) list.push(autocompletion({ override: [completions] }));
-    if (linted) list.push(lintGutter());
+    // The lint state is part of the configuration itself (a linter with no source: the findings are pushed), so it survives
+    // every reconfiguration instead of being appended by the first `setDiagnostics` and dropped by the next reconfigure.
+    if (linted) list.push(linter(null), lintGutter());
     return list;
   }, [ariaLabel, language, completions, linted]);
+
+  // One change handler for the editor's life: a new function from the screen must not reconfigure the editor.
+  const changeRef = useRef(onChange);
+  useEffect(() => { changeRef.current = onChange; }, [onChange]);
+  const change = useCallback((next: string) => changeRef.current(next), []);
 
   // The cursor follows `selection` without a remount; only a change after the first placement takes the focus with it.
   const placed = useRef(false);
@@ -98,24 +120,13 @@ export function CodeEditor({
     <div className="code-editor-wrapper">
       <CodeMirror
         value={value}
-        onChange={onChange}
+        onChange={change}
         onCreateEditor={setView}
         extensions={extensions}
         theme="light"
         readOnly={readOnly}
         placeholder={placeholder}
-        basicSetup={{
-          lineNumbers: true,
-          highlightActiveLineGutter: true,
-          highlightActiveLine: true,
-          foldGutter: true,
-          dropCursor: true,
-          indentOnInput: true,
-          bracketMatching: true,
-          closeBrackets: true,
-          autocompletion: !completions,
-          highlightSelectionMatches: true,
-        }}
+        basicSetup={completions ? WITHOUT_AUTOCOMPLETION : WITH_AUTOCOMPLETION}
         style={{
           minHeight,
           maxHeight,

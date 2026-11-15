@@ -43,7 +43,7 @@ test('the organization overview offers no New project, and its upload opens the 
   await expect(page.getByRole('dialog', { name: 'Upload a BIM package' })).toBeVisible();
 });
 
-test('New composition opens a dialog over the Compositions list, and creating lab-flow opens it with no version yet', async ({ page }) => {
+test('New composition opens a dialog over the Compositions list, and creating lab-flow opens its Editor with no version yet', async ({ page }) => {
   const requests = await mockApi(page);
   await page.goto('/app/acme/compositions');
   await page.locator('#platform-main').getByRole('button', { name: 'New composition', exact: true }).first().click();
@@ -54,10 +54,11 @@ test('New composition opens a dialog over the Compositions list, and creating la
   await expect(dialog.getByLabel('Address')).toHaveValue('lab-flow');
   await dialog.getByRole('button', { name: 'Create composition' }).click();
   await expect(dialog).toHaveCount(0);
-  await expect.poll(() => pathAndSearch(page)).toBe('/app/acme/compositions/lab-flow');
+  await expect.poll(() => pathAndSearch(page)).toBe('/app/acme/compositions/lab-flow/editor');
   await expect(page.getByRole('heading', { level: 1, name: 'Lab flow' })).toBeVisible();
   await expect(page.locator('#platform-main').getByText(/No version yet/).first()).toBeVisible();
-  expect(requests.filter((request) => request.method === 'POST').map((request) => [request.path, JSON.parse(request.body)])).toEqual([
+  // The Editor lints the starter document through the stateless language services; what is created is only the composition.
+  expect(requests.filter((request) => request.method === 'POST' && request.path.startsWith('/v1/organizations/')).map((request) => [request.path, JSON.parse(request.body)])).toEqual([
     ['/v1/organizations/acme/compositions', { slug: 'lab-flow', name: 'Lab flow', kind: 'application', description: '' }],
   ]);
 });

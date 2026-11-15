@@ -136,6 +136,17 @@ describe('the copy of a draft in the browser', () => {
     await act(async () => { expect(await again.result.current.restore()).toEqual(text('edited just now')); });
   });
 
+  it('forgets the kept draft, and drops a change still waiting so it is not written back', async () => {
+    await saveDraft(SCOPE, text('kept earlier'));
+    const { result, unmount } = store();
+    act(() => result.current.start(text('base')));
+    act(() => { result.current.commit(text('sealed just now')); });
+    await act(() => result.current.forget());
+    unmount();
+    await new Promise((resolve) => setTimeout(resolve, SAVE_DELAY_MS + 50));
+    expect(await loadDraft(SCOPE)).toBeNull();
+  });
+
   describe('where this browser has no IndexedDB', () => {
     const indexedDb = globalThis.indexedDB;
     afterEach(() => { globalThis.indexedDB = indexedDb; });
