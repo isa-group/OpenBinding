@@ -5,7 +5,7 @@ import { ENGINE, INSTANCE, NEIGHBORHOOD, PROBLEM, REGISTRATION, REPORT, detailOf
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { digestOf, usageOf } from '../src/test/fixtures/resources';
 
-// S6a · execution: job-launch, job-list, job-detail and job-history.
+// S6a · execution: job-launch, job-list and job-detail.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
 // so they can be looked at after a run. Every test walks a screen through its states on a desktop and on a phone.
 
@@ -664,77 +664,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('alert')).toContainText('Over this deployment’s size limit (422 · binding_space_over_technical_limit)');
       await expect(main.getByRole('radiogroup', { name: 'Engine' }).getByRole('radio', { name: /^random-search.*Checked when you send/ })).toBeEnabled();
       await capture(page, testInfo, `launch-${name}-422-analysis`);
-      expect(critical).toEqual([]);
-    });
-
-    test('job-history /app/runs · my jobs across projects, filters and actions', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      await page.goto('/app/runs');
-      const main = page.locator('#platform-main');
-      const list = main.getByRole('list', { name: 'Your runs' });
-
-      await expect(main.getByRole('heading', { level: 1, name: 'My runs' })).toBeVisible();
-      await expect(main.getByText('Everything you’ve run, across projects.')).toBeVisible();
-      await expect(list.getByRole('listitem')).toHaveCount(8);
-      await expect(list.getByRole('link', { name: 'random-search on QoS Benchmarks' }).first()).toHaveAttribute('href', `${ROOT}/runs/job-queued-3`);
-      await expect(main.getByText('8 in total')).toBeVisible();
-      // No plan sets a retention window, so none is announced.
-      await expect(main.getByRole('region', { name: 'How long runs are kept' })).toHaveCount(0);
-      await expect(list.getByRole('button', { name: 'Cancel' })).toHaveCount(3);
-      await expect(list.getByRole('button', { name: 'Retry' })).toHaveCount(2);
-      await expect(list.getByRole('link', { name: 'Analyze' })).toHaveCount(0);
-      await capture(page, testInfo, `history-${name}-list`);
-
-      await main.getByRole('button', { name: 'Completed (3)' }).click();
-      await expect(list.getByRole('listitem')).toHaveCount(3);
-      await main.getByRole('combobox', { name: 'Engine' }).selectOption('minizinc');
-      await expect(list.getByRole('listitem')).toHaveCount(1);
-      await capture(page, testInfo, `history-${name}-filtered`);
-      await main.getByRole('button', { name: 'All (8)' }).click();
-      await main.getByRole('combobox', { name: 'Engine' }).selectOption('');
-
-      // Cancel one that is going, retry one that failed, and one the account cannot afford.
-      await list.getByRole('listitem').filter({ hasText: 'minizinc' }).first().getByRole('button', { name: 'Cancel' }).click();
-      await expect(main.getByText('Cancellation requested.')).toBeVisible();
-      expect(state.sent.cancel).toBe('job-running-2');
-      await capture(page, testInfo, `history-${name}-cancel`);
-      await list.getByRole('listitem').filter({ hasText: 'evolutionary' }).first().getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByText('Retry queued.')).toBeVisible();
-      await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/runs/job-new-9`);
-      state.refuse.retry = detail(402, 'quota_exceeded', 'Storage exhausted.', { quota: { limit_id: 'maxRepositoryStorage', limit: 10, used: 10 } });
-      await list.getByRole('listitem').filter({ hasText: 'random-search' }).getByRole('button', { name: 'Retry' }).first().click();
-      await expect(main.getByText('Retry refused: Out of storage (402 · quota_exceeded)')).toBeVisible();
-      await capture(page, testInfo, `history-${name}-402`);
-      expect(critical).toEqual([]);
-    });
-
-    test('job-history /app/runs · empty, a key without access and a page that does not load', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page);
-      const main = page.locator('#platform-main');
-
-      state.history = [];
-      await page.goto('/app/runs');
-      await expect(main.getByText('No runs yet')).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Start a run' })).toBeVisible();
-      await capture(page, testInfo, `history-${name}-empty`);
-
-      state.history = ownRows;
-
-      state.refuse.history = detail(403, 'api_key_forbidden', 'The API key does not include jobs:read.');
-      await page.goto('/app/runs');
-      await expect(main.getByText(/This API key doesn’t include “read runs” \(403/)).toBeVisible();
-      await expect(main.getByRole('list', { name: 'Your runs' })).toHaveCount(0);
-      await capture(page, testInfo, `history-${name}-403-key`);
-
-      state.refuse.history = unavailable;
-      await page.goto('/app/runs');
-      await expect(main.getByText(/Your runs can’t be loaded right now \(503/)).toBeVisible();
-      await capture(page, testInfo, `history-${name}-503`);
-      state.refuse.history = undefined;
-      await main.getByRole('button', { name: 'Try again' }).click();
-      await expect(main.getByRole('list', { name: 'Your runs' })).toBeVisible();
       expect(critical).toEqual([]);
     });
   });

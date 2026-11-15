@@ -152,15 +152,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.locator('.home-hero').screenshot({ path: testInfo.outputPath(`home-${name}-signed-in.png`), animations: 'disabled', style: HIDE_FLOATING });
     });
 
-    test('/status is replaced by /about, which holds the service-status note', async ({ page }, testInfo) => {
+    test('/about holds the service-status note, and nothing links to /status', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
       await page.goto('/pricing');
-      await page.goto('/status?probe=1');
+      await page.goto('/about');
       const main = page.locator('main');
 
-      // The query of the retired address is dropped.
-      await expect.poll(() => new URL(page.url()).pathname + new URL(page.url()).search).toBe('/about');
       await expect(main.getByText('Service status: All systems operational')).toBeVisible();
       await expect(page.locator('footer a[href="/status"], header a[href="/status"]')).toHaveCount(0);
       await ready(page);

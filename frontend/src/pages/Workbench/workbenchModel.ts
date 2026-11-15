@@ -195,35 +195,6 @@ export interface EngineRow {
   why: string;
 }
 
-/** What the run says when an engine refuses a package for its ranges, plus the diagnostics' pointers when the gateway sent them. */
-export const RANGE_RUN_ERROR = 'This engine only accepts single values, and this package has range features (a min and a max, open or not). Pick a mode that declares interval values, or edit those candidates to use single values.';
-
-/** Did the run end because the engine mode doesn't take ranges (`unsupported_capability_value`)? */
-export function isRangeRefusal(caught: unknown): boolean {
-  if (caught instanceof HttpError) {
-    if (caught.code === RANGE_CODE) return true;
-    if ((caught.diagnostics ?? []).some((row) => isRecord(row) && row.code === RANGE_CODE)) return true;
-  }
-  return caught instanceof Error && caught.message.includes(RANGE_CODE);
-}
-
-/**
- * Where the diagnostics of such a refusal point, as ` The gateway pointed at candidates.json#/spec/candidates/a/features/latency, ….`
- * (empty when it sent none). The refusal is `engine_mode_incompatible` with an `unsupported_capability_value` diagnostic among its
- * diagnostics, which may carry no pointer at all: only the range diagnostics are read (every one when the refusal itself is the range
- * code), by `pointer` (inside `resource` when named), else by `irPath`.
- */
-export function rangePointers(caught: unknown): string {
-  const rows = (caught instanceof HttpError ? caught.diagnostics ?? [] : []).filter(isRecord);
-  const ranged = rows.filter((row) => row.code === RANGE_CODE);
-  const own = caught instanceof HttpError && caught.code === RANGE_CODE ? rows : [];
-  const pointers = (ranged.length > 0 ? ranged : own).flatMap((row) => {
-    if (typeof row.pointer === 'string' && row.pointer !== '') return [typeof row.resource === 'string' && row.resource !== '' ? `${row.resource}#${row.pointer}` : row.pointer];
-    return typeof row.irPath === 'string' && row.irPath !== '' ? [row.irPath] : [];
-  }).slice(0, 5);
-  return pointers.length ? ` The gateway pointed at ${pointers.join(', ')}.` : '';
-}
-
 /** Did the gateway turn the mode down because of ranges (`unsupported_capability_value`, or an interval it can't take)? */
 export function refusesRanges(mode: CompatibleMode): boolean {
   return mode.compatible !== true && (mode.diagnostics ?? []).some((diagnostic) => (
@@ -249,17 +220,6 @@ export function engineRows(modes: CompatibleMode[]): EngineRow[] {
       ? `Runs through ${item.registration.namespace}/${item.registration.name}@${item.registration.version}.`
       : whyNot(item),
   }));
-}
-
-/** Does any candidate of any catalog of the package hold a range (an object under `features`)? */
-export function filesHaveRanges(files: WorkspaceFiles): boolean {
-  return Object.entries(files).some(([path, source]) => {
-    if (!path.toLowerCase().endsWith('.json')) return false;
-    const document = parseJson(source);
-    const candidates = document?.kind === 'CandidateCatalog' && isRecord(document.spec) ? document.spec.candidates : undefined;
-    const entries = isRecord(candidates) ? Object.values(candidates) : Array.isArray(candidates) ? candidates : [];
-    return entries.some((entry) => isRecord(entry) && isRecord(entry.features) && Object.values(entry.features).some(isRecord));
-  });
 }
 
 // --- the draft of the workspace

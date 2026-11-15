@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { org, project, renderProjectScreen } from '../Project/testKit';
+import { org, project, renderProjectScreen } from '../../features/workspace/testKit';
 import { CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, digestOf, revisionFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyBuilder } from './StudyBuilder';
 

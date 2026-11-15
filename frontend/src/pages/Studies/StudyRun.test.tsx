@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import type { StudyCell } from '../../api/platform';
-import { org, project, renderProjectScreen } from '../Project/testKit';
+import { org, project, renderProjectScreen } from '../../features/workspace/testKit';
 import { CHECKOUT, EVOLUTIONARY, REVISION_1, REVISION_2, RUN_ID, cellFixture, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyDetail } from './StudyDetail';
 

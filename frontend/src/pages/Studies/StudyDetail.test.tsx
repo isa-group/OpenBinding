@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { org, project, renderProjectScreen } from '../Project/testKit';
+import { org, project, renderProjectScreen } from '../../features/workspace/testKit';
 import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, VERSION_ID, analyticsFixture, cellsFixture, digestOf, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyDetail } from './StudyDetail';
 
@@ -16,7 +16,7 @@ const download = vi.hoisted(() => ({ saveBytes: vi.fn() }));
 
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/library', () => library);
-vi.mock('../Project/download', () => download);
+vi.mock('../../features/workspace/download', () => download);
 // The decision workspace is not what is under test here.
 vi.mock('../../components/BindingAnalysis/BindingAnalysis', async () => {
   const { createElement } = await import('react');

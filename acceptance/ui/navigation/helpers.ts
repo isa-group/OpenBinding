@@ -48,7 +48,7 @@ export const PROBLEMS_SEGMENT = 'problems';
 export const RUNS_SEGMENT = 'runs';
 export const PROBLEMS = `/app/acme/demo/${PROBLEMS_SEGMENT}`;
 export const RUN_NEW = `/app/acme/demo/${RUNS_SEGMENT}/new`;
-export const RUNS_ALL = `/app/${RUNS_SEGMENT}`;
+export const RUNS = `/app/acme/demo/${RUNS_SEGMENT}`;
 
 const EXAMPLES = ['demo/01_simple_seq', 'demo/02_parallel', 'placement/01_small_placement'];
 

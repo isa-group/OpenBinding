@@ -4,7 +4,7 @@ import { platformApi } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { useAuth } from '../../contexts/auth';
 import { useResource } from '../../utils/useResource';
-import { classifyAuthError, type AuthFailure } from './projectErrors';
+import { classifyAuthError, type AuthFailure } from '../../features/workspace/errors';
 import { accessIn, type ProjectAccess } from './projectModel';
 
 export interface RouteProject {

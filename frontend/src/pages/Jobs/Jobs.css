@@ -21,7 +21,7 @@
   text-overflow: ellipsis;
 }
 
-.job-retention, .job-total { margin-left: auto; color: var(--tp-slate); font-size: 0.8125rem; }
+.job-retention { margin-left: auto; color: var(--tp-slate); font-size: 0.8125rem; }
 
 .job-retention {
   padding: 2px 10px;
@@ -70,26 +70,6 @@
 .job-retention-bars i { display: block; width: 28px; border-radius: 4px 4px 0 0; background: var(--tp-cream-deeper); }
 .job-retention-bars i.is-current { background: var(--tp-primary); }
 .job-retention-bars small { color: var(--tp-steel); font-size: 0.625rem; }
-
-.job-history-list { display: flex; flex-direction: column; gap: var(--tp-spacing-xs); margin: 0; padding: 0; list-style: none; }
-
-.job-history-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--tp-hairline);
-  border-radius: var(--tp-radius-lg);
-  background: var(--tp-canvas);
-}
-
-.job-history-row > .proj-status { min-width: 104px; justify-content: center; }
-.job-history-main { display: flex; min-width: 220px; flex: 1; flex-direction: column; }
-.job-history-main a, .job-history-main strong { font-weight: 600; overflow-wrap: anywhere; }
-.job-history-main small { color: var(--tp-steel); font-size: 0.75rem; }
-.job-history-actions { display: flex; gap: 10px; font-size: 0.8125rem; }
-.job-history-actions a, .job-history-actions .job-link-button { font-weight: 500; }
 
 /* A run */
 .job-card {
@@ -309,7 +289,6 @@
 
 @media (max-width: 767px) {
   .job-timeline li { flex-basis: 100%; }
-  .job-history-main { min-width: 0; flex-basis: 100%; }
   .job-options table, .job-options tbody { display: block; min-width: 0; }
   .job-options thead { display: none; }
   .job-options tr { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; padding: 10px 12px; border-top: 1px solid var(--tp-hairline-soft); }
@@ -322,7 +301,7 @@
   .job-steps small { display: none; }
   .job-review { grid-template-columns: 1fr; }
   .job-facts > div { grid-template-columns: 1fr; }
-  .job-retention, .job-total { margin-left: 0; }
+  .job-retention { margin-left: 0; }
   .job-wizard { padding: var(--tp-spacing-md); }
   .job-footer-side { width: 100%; }
   .job-footer-side .ui-action { flex: 1; }

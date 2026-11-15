@@ -2,8 +2,8 @@ import type { JobSolution } from '../../api/jobs';
 import type { Job } from '../../api/platform';
 import { formatDateTime } from '../../utils/format';
 
-export { jobStatus } from '../Project/projectModel';
-export type { JobTone } from '../Project/projectModel';
+export { jobStatus } from '../../features/workspace/model';
+export type { JobTone } from '../../features/workspace/model';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

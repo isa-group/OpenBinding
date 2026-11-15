@@ -10,7 +10,6 @@ import { PROBLEM_SLUG } from './helpers-problems';
 
 export const PROBLEMS_FINAL = '/app/acme/demo/problems';
 export const RUNS_FINAL = '/app/acme/demo/runs';
-export const RUNS_ALL_FINAL = '/app/runs';
 
 export const API_CASES = '/v1/organizations/acme/projects/demo/cases';
 export const API_JOBS = '/v1/organizations/acme/projects/demo/jobs';

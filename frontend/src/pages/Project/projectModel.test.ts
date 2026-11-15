@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { HttpError } from '../../api/client';
 import {
-  accessIn, canOpenSection, canRead, canWrite, levelOf, cellBreakdown, countWord, GATEWAY_PACKAGE_LIMIT, importCeiling, integrityOf, jobStatus, latestRun, planLimit,
+  accessIn, canOpenSection, canRead, canWrite, levelOf, cellBreakdown, countWord, GATEWAY_PACKAGE_LIMIT, importCeiling, integrityOf, latestRun,
   sealedShare, visibilityEffects,
 } from './projectModel';
 import { createRefusal, deleteRefusal, exportFailure, importRefusal, updateRefusal } from './projectErrors';
-import { caseOf, org, revisionOf, runOf, studyOf } from './testKit';
+import { caseOf, org, revisionOf, runOf, studyOf } from '../../features/workspace/testKit';
 
 describe('who can do what in a project', () => {
   it('reads it from the role in the organization', () => {
@@ -99,19 +99,7 @@ describe('what is sealed and what is a draft', () => {
   });
 });
 
-describe('jobs and visibility in words', () => {
-  it('says how a job ended, not only that it finished', () => {
-    expect(jobStatus('running')).toEqual({ label: 'Running', tone: 'running' });
-    expect(jobStatus('queued')).toEqual({ label: 'Queued', tone: 'queued' });
-    expect(jobStatus('completed', 'INFEASIBLE')).toEqual({ label: 'No feasible binding', tone: 'warn' });
-    expect(jobStatus('completed', 'OPTIMAL')).toEqual({ label: 'Optimal', tone: 'ok' });
-    expect(jobStatus('completed', 'FEASIBLE')).toEqual({ label: 'Feasible', tone: 'ok' });
-    expect(jobStatus('completed')).toEqual({ label: 'Completed', tone: 'ok' });
-    expect(jobStatus('failed')).toEqual({ label: 'Failed', tone: 'bad' });
-    expect(jobStatus('cancelled')).toEqual({ label: 'Cancelled', tone: 'off' });
-    expect(jobStatus('mystery')).toEqual({ label: 'mystery', tone: 'off' });
-  });
-
+describe('visibility in words', () => {
   it('words what a visibility change does', () => {
     expect(visibilityEffects('public').changes).toContain('Anybody can read it, without changing anything');
     expect(visibilityEffects('private').changes).toContain('Only its members can read it');
@@ -122,14 +110,6 @@ describe('jobs and visibility in words', () => {
 describe('the import ceiling', () => {
   it('is the gateway’s own, whatever the plan', () => {
     expect(importCeiling()).toEqual({ effective: GATEWAY_PACKAGE_LIMIT });
-  });
-
-  it('reads a plan value from the pricing document, the plan’s own value over the default', () => {
-    const catalog = { usageLimits: { maxProblems: { defaultValue: 25 } }, plans: { FREE: {}, LAB: { usageLimits: { maxProblems: { value: 900 } } } } };
-    expect(planLimit(catalog, 'LAB', 'maxProblems')).toBe(900);
-    expect(planLimit(catalog, 'FREE', 'maxProblems')).toBe(25);
-    expect(planLimit(catalog, 'NOPE', 'maxProblems')).toBe(25);
-    expect(planLimit(null, 'FREE', 'maxProblems')).toBeNull();
   });
 });
 

@@ -1,8 +1,8 @@
-import type { PricingCatalog } from '../../api/auth';
-import type { BindingCase, CaseRevision, Organization, OrganizationRole, ProjectAccessKind, Study, StudyCell, StudyRun, Visibility } from '../../api/platform';
+import type { Organization, OrganizationRole, ProjectAccessKind, StudyCell, StudyRun, Visibility } from '../../api/platform';
+import type { CaseContent, StudyContent } from '../../features/workspace/model';
 import { canWrite, levelOf, type AccessLevel } from './accessLevel';
 
-export { atLeast, SLUG_PATTERN, slugFromName } from '../Organization/orgModel';
+export { atLeast } from '../Organization/orgModel';
 export { canOpenSection, canRead, canWrite, levelOf, type AccessLevel } from './accessLevel';
 
 /** The longest a name and a description may be (`ProjectCreate` in the contract). */
@@ -66,18 +66,6 @@ export interface IntegrityItem {
   plural: string;
 }
 
-export interface CaseContent {
-  item: BindingCase;
-  revisions: CaseRevision[];
-}
-
-export interface StudyContent {
-  study: Study;
-  runs: StudyRun[];
-  /** The cells of the latest run, read only for the studies a card shows. */
-  latestCells?: StudyCell[];
-}
-
 export function latestRun(runs: readonly StudyRun[]): StudyRun | undefined {
   return runs.reduce<StudyRun | undefined>((best, run) => (!best || run.run_number > best.run_number ? run : best), undefined);
 }
@@ -118,42 +106,10 @@ export function countWord(item: Pick<IntegrityItem, 'count' | 'singular' | 'plur
   return item.count === 1 ? item.singular : item.plural;
 }
 
-// --- jobs
-
-export type JobTone = 'running' | 'queued' | 'ok' | 'warn' | 'bad' | 'off';
-
-/** The word and the colour of a job, from the state it reports and how it ended. */
-export function jobStatus(status: string, termination?: string | null): { label: string; tone: JobTone } {
-  const state = status.toLowerCase();
-  if (state === 'running') return { label: 'Running', tone: 'running' };
-  if (state === 'queued') return { label: 'Queued', tone: 'queued' };
-  if (state === 'failed') return { label: 'Failed', tone: 'bad' };
-  if (state === 'cancelled' || state === 'canceled') return { label: 'Cancelled', tone: 'off' };
-  if (state === 'completed') {
-    if (termination === 'INFEASIBLE') return { label: 'No feasible binding', tone: 'warn' };
-    if (termination === 'OPTIMAL') return { label: 'Optimal', tone: 'ok' };
-    if (termination === 'FEASIBLE') return { label: 'Feasible', tone: 'ok' };
-    return { label: 'Completed', tone: 'ok' };
-  }
-  return { label: status, tone: 'off' };
-}
-
 // --- the import ceiling
 
 /** The gateway refuses a package bigger than this whatever the plan says (`import_project_package`). */
 export const GATEWAY_PACKAGE_LIMIT = 128 * 1024 * 1024;
-
-function record(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : {};
-}
-
-/** The plan's value of a limit in the pricing document: its own, else the document's default; `null` when unlimited or unknown. */
-export function planLimit(catalog: PricingCatalog | null | undefined, plan: string | undefined, id: string): number | null {
-  if (!catalog || !plan) return null;
-  const own = record(record(record(record(catalog.plans)[plan]).usageLimits)[id]);
-  const raw = 'value' in own ? own.value : record(record(catalog.usageLimits)[id]).defaultValue;
-  return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
-}
 
 export interface ImportCeiling {
   /** What the gateway accepts: its own 128 MiB, whatever the plan (no plan limits a package). */

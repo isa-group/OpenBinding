@@ -12,9 +12,9 @@ import { useAuth } from '../../contexts/auth';
 import { useResource } from '../../utils/useResource';
 import { planCeilingsOf } from '../Jobs/launchModel';
 import { RefusalNotice } from '../Jobs/parts';
-import { MembersOnlyGate, ProjectGate, ProjectSkeleton } from '../Project/parts';
+import { MembersOnlyGate, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { loadCases } from '../Project/projectData';
-import { SLUG_PATTERN, slugFromName, type CaseContent } from '../Project/projectModel';
+import { SLUG_PATTERN, slugFromName, type CaseContent } from '../../features/workspace/model';
 import { useRouteProject } from '../Project/useRouteProject';
 import { AdoptPanel, CasesField, EnginesField, SettingsField } from './BuilderFields';
 import { StudyFrame } from './parts';
@@ -257,10 +257,10 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
 
 /** A new study (`study-builder`, `/app/:org/:project/studies/new`): the cases, engines, settings and seeds that become one cell each. */
 export function StudyBuilder() {
-  const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
-  if (waiting) return <ProjectSkeleton />;
+  const { organization, project, access, waiting, failure, reload } = useRouteProject();
+  if (waiting) return <OrgSkeleton label="Loading project…" />;
   if (!organization || !project) {
-    return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
+    return <OrgGate failure={organization ? failure : null} organizationName={organization?.name} onRetry={reload} />;
   }
   if (access.publicRead) return <MembersOnlyGate root={`/app/${organization.slug}/${project.slug}`} />;
   return <BuilderBody key={`${organization.slug}/${project.slug}`} organization={organization} project={project} canCreate={access.canCreate} />;

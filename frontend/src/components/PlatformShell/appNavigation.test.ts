@@ -1,20 +1,17 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import type { Organization, Project } from '../../api/platform';
-import { movedRoutes, routeDefinitions } from '../../routes/registry';
+import { routeDefinitions } from '../../routes/registry';
 import {
-  accountLinks, createItems, currentSection, labEntries, labEntryOf, labLinks, mainLinks, NEEDS_PROJECT, problemsEntry,
+  accountLinks, createItems, currentSection, labEntries, labEntryOf, mainLinks, NEEDS_PROJECT, problemsEntry,
   type MenuEntry,
 } from './appNavigation';
 
 const organization = { slug: 'isa-demo', name: 'ISA demo' } as Organization;
 const project = { slug: 'qos', name: 'QoS' } as Project;
 
-/** The screens, and the old addresses that stay valid on purpose (`permanent`): a link of the navigation may lead to either. */
-const routed = [
-  ...routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path })),
-  ...movedRoutes.filter((route) => route.permanent).map((route) => ({ id: route.id, path: route.path })),
-];
+/** The screens: a link of the navigation leads to one of them. */
+const routed = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
 const pathOf = (address: string) => address.split(/[?#]/)[0];
 const addressesOf = (entries: readonly MenuEntry[]) => entries.flatMap((entry) => (entry.to ? [entry.to] : []));
 
@@ -44,22 +41,22 @@ describe('mainLinks', () => {
 });
 
 describe('problemsEntry and labEntries', () => {
-  it('lead into the current project, and Runs does not need one', () => {
+  it('lead into the current project', () => {
     expect(problemsEntry(organization, project)).toEqual({ label: 'Problems', to: '/app/isa-demo/qos/problems' });
     expect(labEntries(organization, project).map(({ id, label, to }) => [id, label, to])).toEqual([
-      ['runs', 'Runs', '/app/runs'], ['studies', 'Studies', '/app/isa-demo/qos/studies'],
+      ['runs', 'Runs', '/app/isa-demo/qos/runs'], ['studies', 'Studies', '/app/isa-demo/qos/studies'],
     ]);
     for (const address of [...addressesOf([problemsEntry(organization, project)]), ...addressesOf(labEntries(organization, project))]) {
       expect(matchRoutes(routed, address), address).not.toBeNull();
     }
   });
 
-  it('disables Problems and Studies with the hint "Needs a project" without a current project', () => {
+  it('disables Problems, Runs and Studies with the hint "Needs a project" without a current project', () => {
     expect(NEEDS_PROJECT).toBe('Needs a project');
     expect(problemsEntry(organization)).toEqual({ label: 'Problems', hint: 'Needs a project' });
     expect(problemsEntry()).toEqual({ label: 'Problems', hint: 'Needs a project' });
     expect(labEntries(organization).map(({ label, to, hint }) => [label, to, hint])).toEqual([
-      ['Runs', labLinks.runs.to, undefined], ['Studies', undefined, 'Needs a project'],
+      ['Runs', undefined, 'Needs a project'], ['Studies', undefined, 'Needs a project'],
     ]);
   });
 });
@@ -108,7 +105,6 @@ describe('currentSection', () => {
     ['/app/isa-demo/settings/members', 'home'],
     ['/app/isa-demo/qos/problems', 'problems'],
     ['/app/isa-demo/qos/problems/routing', 'problems'],
-    ['/app/runs', 'lab'],
     ['/app/isa-demo/qos/runs', 'lab'],
     ['/app/isa-demo/qos/runs/new', 'lab'],
     ['/app/isa-demo/qos/studies', 'lab'],
@@ -138,13 +134,11 @@ describe('currentSection', () => {
     expect(currentSection(mainLinks.home.to)).toBe('home');
     expect(currentSection(mainLinks.engines.to)).toBe('engines');
     expect(currentSection(mainLinks.admin.to)).toBe('admin');
-    expect(currentSection(labLinks.runs.to)).toBe('lab');
   });
 });
 
 describe('labEntryOf', () => {
   it('tells the entry of the Lab menu an address belongs to', () => {
-    expect(labEntryOf('/app/runs')).toBe('runs');
     expect(labEntryOf('/app/isa-demo/qos/runs/job-1')).toBe('runs');
     expect(labEntryOf('/app/isa-demo/qos/studies/s1')).toBe('studies');
     expect(labEntryOf('/app/isa-demo/qos/problems')).toBeNull();

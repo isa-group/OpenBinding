@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Organization, Project, StudyCell } from '../../api/platform';
-import { ProjectTabs } from '../../components/PlatformShell/ProjectTabs';
-import { Breadcrumb, Gate, type Crumb } from '../Organization/parts';
+import { Gate, type Crumb } from '../Organization/parts';
+import { OrgFrame } from '../../features/workspace/OrgFrame';
 import { stateWord, countStates, breakdownText } from './studiesModel';
 import '../Project/Project.css';
 import '../Jobs/Jobs.css';
@@ -18,21 +18,10 @@ interface StudyFrameProps {
 
 /** The frame of every project screen about studies: breadcrumb, the project tabs with Studies current, and one live content column. */
 export function StudyFrame({ organization, project, trail, width = 'wide', children }: StudyFrameProps) {
-  const root = `/app/${organization.slug}/${project.slug}`;
-  const items: Crumb[] = [
-    { label: 'Home', to: '/app' },
-    { label: organization.name, to: `/app/${organization.slug}` },
-    { label: project.name, to: root },
-    ...trail,
-  ];
   return (
-    <div className="proj-frame">
-      <div className="proj-band">
-        <div className="proj-band-inner"><Breadcrumb items={items} /></div>
-      </div>
-      <ProjectTabs active="studies" orgSlug={organization.slug} projectSlug={project.slug} access={project.access} />
-      <div className={`proj-body st-body is-${width}`} aria-live="polite">{children}</div>
-    </div>
+    <OrgFrame organization={organization} project={project} section="studies" trail={trail} width={width} bodyClassName="st-body">
+      {children}
+    </OrgFrame>
   );
 }
 

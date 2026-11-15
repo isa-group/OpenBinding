@@ -121,8 +121,7 @@
 .home-activity { margin: 0; padding: 0; list-style: none; }
 .home-activity li { border-top: 1px solid var(--tp-hairline-soft); }
 .home-activity li:first-child { border-top: 0; }
-.home-activity a { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-sm); padding: var(--tp-spacing-sm) var(--tp-spacing-md); color: var(--tp-ink); text-decoration: none; }
-.home-activity a:hover { background: var(--tp-surface); color: var(--tp-ink); }
+.home-activity-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-sm); padding: var(--tp-spacing-sm) var(--tp-spacing-md); color: var(--tp-ink); }
 .home-activity-body { display: flex; min-width: 200px; flex: 1; flex-direction: column; }
 .home-activity-body strong { font-weight: 500; }
 .home-activity-body small { color: var(--tp-steel); font-size: 0.75rem; }

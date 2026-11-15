@@ -8,7 +8,7 @@ import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { formatByteSize, formatBytes } from '../../utils/format';
 import { SelectField } from '../Organization/parts';
-import { saveBytes } from './download';
+import { saveBytes } from '../../features/workspace/download';
 import { loadCases } from './projectData';
 import { exportFailure, importRefusal, type ImportRefusal } from './projectErrors';
 import { importCeiling } from './projectModel';

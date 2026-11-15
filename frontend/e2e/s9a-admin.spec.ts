@@ -306,11 +306,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The Tools hold no sponsorship transfer: there is no field to name an organization.
       await expect(main.getByLabel('Organization slug or id')).toHaveCount(0);
-
-      // The old sponsorship address is retired: it leads back to the administration overview.
-      await page.goto('/app/admin/organizations/isa-demo/sponsor');
-      await expect(page).toHaveURL(/\/app\/admin$/);
-      await expect(page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Administration' })).toBeVisible();
       expect(critical).toEqual([]);
     });
 
@@ -684,7 +679,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test('administration is for administrators: another account is sent away and sees none of it', async ({ page }) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page, { role: 'user' });
-      for (const path of ['/app/admin', '/app/admin/users', `/app/admin/users/${SAM.id}`, '/app/admin?section=audit', '/app/admin?section=errors', '/app/admin?section=queues', '/app/admin/organizations/isa-demo/sponsor']) {
+      for (const path of ['/app/admin', '/app/admin/users', `/app/admin/users/${SAM.id}`, '/app/admin?section=audit', '/app/admin?section=errors', '/app/admin?section=queues']) {
         await page.goto(path);
         await expect(page).toHaveURL(/\/app\/account$/);
         await expect(page.getByText('Platform admin', { exact: true })).toHaveCount(0);

@@ -9,7 +9,7 @@ import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { NotFoundScreen } from '../../routes/NotFoundScreen';
 import { isProblemTabSegment, problemPath, problemsPath, type ProblemTabSegment } from '../../routes/paths/problems';
 import { useResource } from '../../utils/useResource';
-import { ProjectGate, ProjectSkeleton } from '../Project/parts';
+import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { classifyAuthError, isMissing, marker } from './caseErrors';
 import { VersionOverview } from './CaseRevision';
 import { plural } from './casesModel';
@@ -126,9 +126,9 @@ function ProblemPage({ tab }: { tab: ProblemTabSegment | undefined }) {
     async () => (organization && project && ask ? casesApi.revision(organization.slug, project.slug, caseSlug, named) : null),
   );
 
-  if (waiting) return <ProjectSkeleton />;
+  if (waiting) return <OrgSkeleton label="Loading project…" />;
   if (!organization || !project) {
-    return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
+    return <OrgGate failure={organization ? failure : null} organizationName={organization?.name} onRetry={reload} />;
   }
   if (project.access === 'public_read' && tab !== undefined && MEMBERS_ONLY.includes(tab)) return <NotFoundScreen />;
   const root = `/app/${organization.slug}/${project.slug}`;

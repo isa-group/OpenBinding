@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { org, project, renderProjectScreen } from '../Project/testKit';
+import { org, project, renderProjectScreen } from '../../features/workspace/testKit';
 import { cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyList } from './StudyList';
 

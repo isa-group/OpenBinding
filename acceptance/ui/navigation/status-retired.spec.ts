@@ -1,13 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { mockApi, pathOf } from './helpers';
+import { mockApi } from './helpers';
 
 test.use({ viewport: { width: 1280, height: 800 } });
-
-test('/status is replaced by /about', async ({ page }) => {
-  await mockApi(page, { role: null });
-  await page.goto('/status');
-  await expect.poll(() => pathOf(page)).toBe('/about');
-});
 
 test('About shows the service status when every dependency is up', async ({ page }) => {
   await mockApi(page, { role: null });

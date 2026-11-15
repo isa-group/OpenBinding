@@ -89,7 +89,6 @@ function ActivityBlock() {
     <section className="apphome-card" aria-labelledby="home-activity-title" aria-busy={jobs.status === 'loading'}>
       <header className="home-card-head">
         <h2 id="home-activity-title">Recent activity</h2>
-        <Link to="/app/runs" viewTransition>All runs</Link>
       </header>
       {jobs.status === 'loading' && <div className="home-skeleton" role="status"><span className="sr-only">Loading recent runs…</span><Skeleton variant="tile" /><Skeleton variant="tile" /><Skeleton variant="tile" /></div>}
       {failure && isForbidden(failure) && <p className="home-blocked">Not available with this key (needs <code>jobs:read</code>).</p>}
@@ -116,11 +115,11 @@ function ActivityBlock() {
             const status = jobStatus(job);
             return (
               <li key={job.id}>
-                <Link to="/app/runs" viewTransition>
+                <div className="home-activity-row">
                   <span className={`home-dot is-${status.tone}`} aria-hidden="true" />
                   <span className="home-activity-body"><strong>{job.engine_id}</strong><small>{jobMeta(job)}</small></span>
                   <span className={`home-status is-${status.tone}`}>{status.label}</span>
-                </Link>
+                </div>
               </li>
             );
           })}

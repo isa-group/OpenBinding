@@ -1,4 +1,4 @@
-import { classifyAuthError, generalFailure, marker, type AuthFailure } from '../Project/projectErrors';
+import { classifyAuthError, generalFailure, marker, type AuthFailure } from '../../features/workspace/errors';
 
 export { classifyAuthError, marker };
 export type { AuthFailure };

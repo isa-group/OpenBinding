@@ -1,6 +1,6 @@
 /**
  * First segment after /app that belongs to a fixed screen instead of an organization slug,
- * so `/app/:org` never claims `/app/runs`, `/app/engines/new` and friends.
+ * so `/app/:org` never claims `/app/engines/new`, `/app/account` and friends.
  */
 export const RESERVED_SLUGS = new Set([
   // Fixed screens of the prototype

@@ -1,6 +1,6 @@
 import type { Organization, Project } from '../../api/platform';
 import { PROBLEMS_SEGMENT } from '../../routes/paths/problems';
-import { RUN_HISTORY_PATH, RUNS_SEGMENT } from '../../routes/paths/runs';
+import { RUNS_SEGMENT } from '../../routes/paths/runs';
 
 export interface NavLinkItem {
   to: string;
@@ -32,10 +32,6 @@ export const mainLinks = {
   admin: { to: '/app/admin', label: 'Admin' },
 } as const satisfies Record<string, NavLinkItem>;
 
-export const labLinks = {
-  runs: { to: RUN_HISTORY_PATH, label: 'Runs' },
-} as const satisfies Record<string, NavLinkItem>;
-
 export const accountLinks: readonly NavLinkItem[] = [
   { to: '/app/account', label: 'Profile' },
   { to: '/app/account/usage', label: 'Plan' },
@@ -57,11 +53,12 @@ export function problemsEntry(organization?: Organization, project?: Project): M
   return inProject('Problems', projectRoot(organization, project), `/${PROBLEMS_SEGMENT}`);
 }
 
-/** The entries of the Lab menu, in order. */
+/** The entries of the Lab menu, in order: both inside the current project. */
 export function labEntries(organization?: Organization, project?: Project): Array<MenuEntry & { id: LabEntryId }> {
+  const root = projectRoot(organization, project);
   return [
-    { id: 'runs', label: labLinks.runs.label, to: labLinks.runs.to },
-    { id: 'studies', ...inProject('Studies', projectRoot(organization, project), `/${STUDIES_SEGMENT}`) },
+    { id: 'runs', ...inProject('Runs', root, `/${RUNS_SEGMENT}`) },
+    { id: 'studies', ...inProject('Studies', root, `/${STUDIES_SEGMENT}`) },
   ];
 }
 
@@ -76,9 +73,9 @@ export function createItems(organization?: Organization, project?: Project): Men
 }
 
 /** The first segments under `/app` that name a place of their own, not an organization. */
-const APP_PLACES = new Set(['admin', RUNS_SEGMENT, 'jobs', 'engines', 'account', 'analysis', 'organizations']);
+const APP_PLACES = new Set(['admin', 'engines', 'account']);
 /** Of those, the places that belong to no entry of the header. */
-const UNMARKED_PLACES = new Set(['account', 'analysis']);
+const UNMARKED_PLACES = new Set(['account']);
 /** `/app/:org/…` screens that belong to the organization, not to one of its projects. */
 const ORGANIZATION_SCREENS = new Set(['settings', 'new-project']);
 
@@ -90,7 +87,7 @@ function projectSegment(pathname: string): string | undefined {
 
 /** Which entry of the Lab menu the address belongs to. */
 export function labEntryOf(pathname: string): LabEntryId | null {
-  if (under(pathname, labLinks.runs.to) || sameSegment(projectSegment(pathname), RUNS_SEGMENT)) return 'runs';
+  if (sameSegment(projectSegment(pathname), RUNS_SEGMENT)) return 'runs';
   if (sameSegment(projectSegment(pathname), STUDIES_SEGMENT)) return 'studies';
   return null;
 }

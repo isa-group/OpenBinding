@@ -15,7 +15,7 @@ import { studyRunLabel } from '../../shared/lib/identity';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
-import { saveBytes } from '../Project/download';
+import { saveBytes } from '../../features/workspace/download';
 import { DistributionPlot, RankingTable, SeedTable, TimeBars, TradeoffPlot } from './AnalyticsCharts';
 import { cellsCsv, engineRows, measureTitle, scatterOf, seedGroups, spreadOf } from './analyticsModel';
 import { StateChip, StudyGate } from './parts';

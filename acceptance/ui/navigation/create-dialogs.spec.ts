@@ -47,12 +47,3 @@ test('New project opens a dialog on the organization overview and creating demo-
   await expect.poll(() => pathAndSearch(page)).toBe('/app/acme/demo-two');
 });
 
-test('old creation addresses land on the open dialogs', async ({ page }) => {
-  await mockApi(page);
-  await page.goto('/app/organizations/new');
-  await expect.poll(() => pathAndSearch(page)).toBe('/app?create=organization');
-  await expect(page.getByRole('dialog', { name: 'New organization' })).toBeVisible();
-  await page.goto('/app/acme/new-project');
-  await expect.poll(() => pathAndSearch(page)).toBe('/app/acme?create=project');
-  await expect(page.getByRole('dialog', { name: 'New project' })).toBeVisible();
-});

@@ -19,8 +19,8 @@ import { classifyAuthError } from '../Account/accountErrors';
 import { irHasRanges } from '../Cases/bindingModel';
 import { loadCases } from '../Project/projectData';
 import { canOpenSection } from '../Project/accessLevel';
-import { MembersOnlyGate, ProjectGate, ProjectSkeleton } from '../Project/parts';
-import type { CaseContent } from '../Project/projectModel';
+import { MembersOnlyGate, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
+import type { CaseContent } from '../../features/workspace/model';
 import { useRouteProject } from '../Project/useRouteProject';
 import { refusalOf, type Refusal } from './jobErrors';
 import { EngineStep, ForecastBars, SettingsStep, SlotCountdown, SourceStep, type Prepared } from './LaunchSteps';
@@ -318,10 +318,10 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
 
 /** Start a run (`job-launch`, `/app/:org/:project/runs/new`): what to solve, the exact engine, its settings, and what the plan reduces. */
 export function JobLaunch() {
-  const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
-  if (waiting) return <ProjectSkeleton />;
+  const { organization, project, access, waiting, failure, reload } = useRouteProject();
+  if (waiting) return <OrgSkeleton label="Loading project…" />;
   if (!organization || !project) {
-    return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
+    return <OrgGate failure={organization ? failure : null} organizationName={organization?.name} onRetry={reload} />;
   }
   if (!canOpenSection(access.level, 'jobs')) return <MembersOnlyGate root={`/app/${organization.slug}/${project.slug}`} />;
   return <LaunchBody key={`${organization.slug}/${project.slug}`} organization={organization} project={project} canLaunch={access.canCreate} role={access.role} />;

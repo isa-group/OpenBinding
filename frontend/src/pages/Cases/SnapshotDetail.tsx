@@ -14,7 +14,7 @@ import { problemsPath } from '../../routes/paths/problems';
 import { formatBytes } from '../../utils/format';
 import { readZipArchive, type ZipArchive } from '../../utils/zipExplorer';
 import { useResource } from '../../utils/useResource';
-import { saveBytes } from '../Project/download';
+import { saveBytes } from '../../features/workspace/download';
 import { formatFeature } from '../../utils/featureRange';
 import { rangeCandidates, readBindingProblem, powerText, type BindingModel } from './bindingModel';
 import { classifyAuthError, marker, snapshotFailureKind, type AuthFailure } from './caseErrors';

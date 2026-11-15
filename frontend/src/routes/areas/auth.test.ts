@@ -1,6 +1,6 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { movedRoutes, routeDefinitions, routesByArea } from '../registry';
+import { routeDefinitions, routesByArea } from '../registry';
 
 // One pair per line: screenBudget.test.ts counts them.
 const PROTOTYPE: Array<[string, string]> = [
@@ -38,16 +38,8 @@ describe('area auth', () => {
       expect(matchRoutes(config, path)?.at(-1)?.route.id ?? null).toBe(id);
     });
 
-    it('leaves /password-reset/complete to the moved-routes table', () => {
+    it('answers /password-reset/complete with no screen', () => {
       expect(matchRoutes(config, '/password-reset/complete')).toBeNull();
     });
-  });
-
-  it('moves /password-reset/complete to /password-reset for good, with the token', () => {
-    const route = movedRoutes.find((entry) => entry.path === '/password-reset/complete');
-    expect(route?.id).toBe('reset-complete-link');
-    expect(route?.permanent).toBe(true);
-    expect(route?.target(new URLSearchParams('token=abc123'), {})).toBe('/password-reset?token=abc123');
-    expect(route?.target(new URLSearchParams(''), {})).toBe('/password-reset');
   });
 });

@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { unzipPackage } from '../../utils/bimZip';
-import { project } from '../Project/testKit';
+import { project } from '../../features/workspace/testKit';
 import { DEFAULT_FILES } from './bimDocuments';
 import { ROOT, analysis, openWorkbench } from './workbenchTestKit';
 
@@ -15,7 +15,7 @@ import { ROOT, analysis, openWorkbench } from './workbenchTestKit';
 
 const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), caseRevisions: vi.fn(), snapshotArchive: vi.fn() }));
 const client = vi.hoisted(() => ({
-  getBimExamples: vi.fn(), getBimExamplePackage: vi.fn(), createBimJob: vi.fn(), getV1Job: vi.fn(), getOwnUsage: vi.fn(), getPricingCatalog: vi.fn(),
+  getBimExamples: vi.fn(), getBimExamplePackage: vi.fn(), getOwnUsage: vi.fn(), getPricingCatalog: vi.fn(),
 }));
 const workbench = vi.hoisted(() => ({ validate: vi.fn(), snapshot: vi.fn(), ir: vi.fn(), saveRevision: vi.fn() }));
 
@@ -28,7 +28,6 @@ vi.mock('../../components/CodeEditor/CodeEditor', () => ({
   ),
 }));
 vi.mock('./BpmnModeler', () => ({ BpmnModeler: () => <div data-testid="bpmn-modeler" /> }));
-vi.mock('../../components/Artifacts/ArtifactVersionPicker', () => ({ ArtifactVersionPicker: () => <span>Sealed configurations</span> }));
 
 const DRAFT_KEY = `bim-v1-draft:user-lucia:${ROOT}/workbench::`;
 

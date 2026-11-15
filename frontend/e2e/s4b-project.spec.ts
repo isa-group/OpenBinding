@@ -297,9 +297,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
       const dialog = page.getByRole('dialog', { name: 'New project' });
-      // The old creation address lands on the open dialog.
-      await page.goto('/app/isa-demo/new-project');
-      await expect(page).toHaveURL(/\/app\/isa-demo\?create=project$/);
+      await page.goto('/app/isa-demo?create=project');
 
       await expect(dialog).toBeVisible();
       await expect(dialog.getByText(/^In ISA Demo Group\./)).toBeVisible();
@@ -354,7 +352,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(page).toHaveURL(/\/app\/isa-demo\/placement-multi-region$/);
 
       // A missing organization reads the same as one the account is not in.
-      await page.goto('/app/ghost-lab/new-project');
+      await page.goto('/app/ghost-lab?create=project');
       await expect(main.getByRole('heading', { name: 'Organization not available' })).toBeVisible();
       expect(critical).toEqual([]);
     });
@@ -429,8 +427,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: /Flujo de checkout/ })).toBeVisible();
       await capture(page, testInfo, `overview-${name}-public-read`);
 
-      // Its members-only parts show the neutral gate, not the screens (the old package address leads to the settings).
-      for (const part of ['runs', 'package', 'settings']) {
+      // Its members-only parts show the neutral gate, not the screens.
+      for (const part of ['runs', 'settings']) {
         await page.goto(`/app/open-lab/open-bench/${part}`);
         await expect(main.getByRole('heading', { name: 'Members only' })).toBeVisible();
         await expect(main.getByRole('link', { name: 'Back to the project' })).toHaveAttribute('href', '/app/open-lab/open-bench');
@@ -588,11 +586,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { name: 'Import package' })).toBeVisible();
       await expect(main.getByText('ZIP, JSON or YAML package · up to 128 MiB for the gateway')).toBeVisible();
       await capture(page, testInfo, `package-${name}-success`);
-
-      // The old package address leads here.
-      await page.goto('/app/isa-demo/qos-benchmarks/package');
-      await expect(page).toHaveURL(/\/app\/isa-demo\/qos-benchmarks\/settings$/);
-      await expect(main.getByRole('heading', { name: 'Import package' })).toBeVisible();
 
       // A package with its fingerprints sound: the report is on the page, the content is not.
       const upload = (pkg: Record<string, unknown>, fileName = 'qos.openbinding.json') => page.setInputFiles('input[aria-label="Package file"]', {

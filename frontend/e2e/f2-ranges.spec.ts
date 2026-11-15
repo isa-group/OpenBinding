@@ -7,7 +7,7 @@ import { REGISTRATION, detailOf } from '../src/test/fixtures/jobs';
 // F2 · ranges of candidate features, from the problems to the engines.
 // A feature of a candidate is a number or a range { min, max } whose ends are numbers or null (no limit). This walks it through the
 // screens that read it (the Overview and the Versions tab of a problem page) and decide on it
-// (the engine step of a run, a run the engine refused, the workbench, a run that failed for ranges). Snapshot pages are covered by their unit tests. The API origin is the shared mock of the QA gallery with a few answers of
+// (the engine step of a run, a run the engine refused, the workbench's check result, a run that failed for ranges). Snapshot pages are covered by their unit tests. The API origin is the shared mock of the QA gallery with a few answers of
 // its own on top. Unlike the other specs, the pictures are always taken (test-results/, ignored by git): they are the evidence of F2.
 
 // The first screens are slow to open under load (the problem page reads the case and then its compiled snapshot), so a wait is generous.
@@ -200,10 +200,14 @@ test.describe('desktop · F2 ranges in the workbench and in a failed run', () =>
     await expect(main.getByLabel('latency for service-a max', { exact: true })).toHaveValue('+∞');
 
     await main.getByRole('button', { name: 'Validate', exact: true }).click();
-    const note = main.getByRole('note').filter({ hasText: 'This package has range features' });
-    await expect(note).toContainText('1 engine mode is off.');
-    await expect(note.getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-    await expect(main.getByRole('option', { name: /random-search · sampling .* can’t run ranges/ })).toHaveAttribute('disabled', '');
+    // The check result says which modes are off and why; the Workbench runs nothing itself (a saved version runs from its problem page).
+    await main.getByRole('tab', { name: /Engines that can run it/ }).click();
+    const table = main.getByRole('table', { name: 'Engine modes and whether they can run this package' });
+    const off = table.getByRole('row').filter({ hasText: 'random-search' });
+    await expect(off).toContainText('No');
+    await expect(off).toContainText('This package has range features; this engine only accepts single values');
+    await expect(table.getByRole('row').filter({ hasText: 'minizinc' })).toContainText('Yes');
+    await expect(main.getByRole('button', { name: 'Solve' })).toHaveCount(0);
     await capture(page, testInfo, 'workbench-desktop-ranges');
     expect(critical).toEqual([]);
   });

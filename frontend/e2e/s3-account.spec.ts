@@ -535,11 +535,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('alert')).toContainText('keys:read');      expect(critical).toEqual([]);
     });
 
-    test('acct-profile /app/account/keys?create=key · the New API key dialog, reached from the moved /app/account/keys/new', async ({ page }, testInfo) => {
+    test('acct-profile /app/account/keys?create=key · the New API key dialog', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page, marco);
-      await page.goto('/app/account/keys/new');
-      await expect(page).toHaveURL(/\/app\/account\/keys\?create=key$/);
+      await page.goto('/app/account/keys?create=key');
       // The wizard is a dialog over the API keys section: the queries below start at the dialog.
       const main = page.getByRole('dialog', { name: 'New API key' });
       const next = () => main.getByRole('button', { name: 'Continue' }).click();

@@ -15,7 +15,7 @@ describe('buildCommands', () => {
   it('offers no command for a retired address, with data loaded and an administrator', () => {
     const commands = buildCommands({ organizations: [organization], projects: [project], organization, project, isAdmin: true });
 
-    expect(commands.length).toBeGreaterThan(20);
+    expect(commands.length).toBeGreaterThan(19);
     expect(commands.filter((command) => command.label === 'Analysis')).toEqual([]);
     expect(commands.filter((command) => /^\/app\/analysis([/?#]|$)/.test(command.href))).toEqual([]);
     expect(commands.map((command) => command.href)).toContain('/app/isa-demo/qos-benchmarks/studies');
@@ -52,7 +52,7 @@ describe('buildCommands', () => {
     expect(commands.filter((command) => /^\/app\/account\/keys\/new([/?#]|$)/.test(command.href))).toEqual([]);
   });
 
-  it('opens the New organization dialog of the workspace home, not the moved address', () => {
+  it('opens the New organization dialog of the workspace home', () => {
     const commands = buildCommands({ organizations: [organization], isAdmin: false });
 
     expect(commands.filter((command) => command.label === 'New organization').map((command) => command.href)).toEqual(['/app?create=organization']);
@@ -65,8 +65,7 @@ describe('buildCommands', () => {
 
     expect(commands.filter((command) => command.group === 'Tools')).toEqual([]);
     expect(goTo.map((command) => [command.label, command.href])).toEqual([
-      ['Home', '/app'], ['Runs', '/app/runs'], ['Engines', '/engines'],
-      ['Pricing', '/pricing'],
+      ['Home', '/app'], ['Engines', '/engines'], ['Pricing', '/pricing'],
     ]);
     expect(commands.filter((command) => ['Jobs', 'Verify', 'Verifier', 'Engine catalog', 'My engines', 'Workbench'].includes(command.label))).toEqual([]);
     expect(commands.filter((command) => command.label === 'Problems').map((command) => command.href)).toEqual(['/app/isa-demo/qos-benchmarks/problems']);

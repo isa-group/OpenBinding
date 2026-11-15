@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
-  PROBLEMS_FINAL, RUNS_ALL_FINAL, RUNS_FINAL, forbiddenText, mockGateway,
+  PROBLEMS_FINAL, RUNS_FINAL, forbiddenText, mockGateway,
 } from './helpers-vocabulary';
 
 test.use({ viewport: { width: 1440, height: 900 } });
@@ -15,7 +15,7 @@ test('the project screens are headed Problems and Runs and the Problems tab offe
 });
 
 const SIGNED_IN_SCREENS = [
-  '/app', '/app/acme', '/app/acme/demo', PROBLEMS_FINAL, RUNS_FINAL, RUNS_ALL_FINAL,
+  '/app', '/app/acme', '/app/acme/demo', PROBLEMS_FINAL, RUNS_FINAL,
   '/app/acme/demo/studies', '/app/account/usage',
 ];
 

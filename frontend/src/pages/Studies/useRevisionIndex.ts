@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useResource } from '../../utils/useResource';
 import { loadCases } from '../Project/projectData';
-import type { CaseContent } from '../Project/projectModel';
+import type { CaseContent } from '../../features/workspace/model';
 import { revisionIndex, type RevisionInfo } from './studiesModel';
 
 export interface RevisionDirectory {

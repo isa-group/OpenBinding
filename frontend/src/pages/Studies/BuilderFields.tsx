@@ -1,7 +1,7 @@
 import { Plus, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Artifact, ArtifactVersion } from '../../api/library';
-import type { CaseContent } from '../Project/projectModel';
+import type { CaseContent } from '../../features/workspace/model';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { problemsPath } from '../../routes/paths/problems';

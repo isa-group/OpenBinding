@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { movedRoutes, routeDefinitions } from '../../routes/registry';
-import { RETIRED_ROUTES } from '../../routes/retiredRoutes';
+import { routeDefinitions } from '../../routes/registry';
 import { RESERVED_SLUGS, workspaceSlugs } from './workspacePath';
 
 /**
- * The first segment after /app of every address the application answers with something other than an organization: the screens, the
- * retired addresses (they redirect) and the moved ones. A segment that is a `:param` names an organization and is not listed.
+ * The first segment after /app of every address the application answers with something other than an organization: its screens.
+ * A segment that is a `:param` names an organization and is not listed.
  */
 const FIXED_SEGMENTS = [...new Set(
-  [...routeDefinitions, ...RETIRED_ROUTES, ...movedRoutes].flatMap((route) => {
+  routeDefinitions.flatMap((route) => {
     const [, root, first] = route.path.split('/');
     return root === 'app' && first && !first.startsWith(':') ? [first] : [];
   }),
@@ -31,7 +30,7 @@ describe('workspaceSlugs', () => {
     expect(workspaceSlugs(`/app/${segment}`)).toEqual({});
   });
 
-  it.each(['runs', 'jobs'])('keeps %s unusable as an organization slug: the run history and its moved address', (segment) => {
+  it.each(['runs', 'jobs'])('keeps %s unusable as an organization slug, though no screen of its own is left', (segment) => {
     expect(RESERVED_SLUGS.has(segment)).toBe(true);
     expect(workspaceSlugs(`/app/${segment}`)).toEqual({});
     expect(workspaceSlugs(`/app/${segment}/new`)).toEqual({});
@@ -44,7 +43,7 @@ describe('workspaceSlugs', () => {
   });
 
   it('finds the fixed segments of the registry', () => {
-    expect(FIXED_SEGMENTS.length).toBeGreaterThan(3);
+    expect(FIXED_SEGMENTS).toEqual(expect.arrayContaining(['account', 'admin', 'engines']));
   });
 
   it.each(FIXED_SEGMENTS)('never reads the fixed address /app/%s as an organization', (segment) => {

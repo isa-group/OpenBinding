@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CaseContent } from '../Project/projectModel';
+import type { CaseContent } from '../../features/workspace/model';
 import { CHECKOUT, REVISION_1, REVISION_2, cellsFixture, studyFixture, revisionFixture } from '../../test/fixtures/studies';
 import {
   MAX_SEEDS, defaultSelection, definitionGrid, definitionSize, describeParameters, emptyVariant, engineChoices, enginesOf, explainFailure,

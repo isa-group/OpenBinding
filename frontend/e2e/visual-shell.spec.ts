@@ -130,7 +130,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
           await page.keyboard.press('Enter');
           await expect(lab).toHaveAttribute('aria-expanded', 'true');
           const labMenu = header.locator('#app-lab-menu');
-          await expect(labMenu.getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/runs');
+          await expect(labMenu.getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/runs');
           await expect(labMenu.getByRole('link', { name: 'Studies' })).toHaveAttribute('href', '/app/isa-demo/qos-benchmarks/studies');
           await shot('menu-lab');
           await page.keyboard.press('Escape');

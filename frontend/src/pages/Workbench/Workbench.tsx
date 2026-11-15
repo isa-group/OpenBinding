@@ -8,13 +8,12 @@ import { useAuth } from '../../contexts/auth';
 import { problemsPath } from '../../routes/paths/problems';
 import { useResource } from '../../utils/useResource';
 import { newestFirst } from '../Cases/casesModel';
-import { ProjectFrame, ProjectGate, ProjectSkeleton } from '../Project/parts';
+import { OrgFrame, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { useRouteProject } from '../Project/useRouteProject';
 import { ActionBar } from './ActionBar';
 import { CheckResult } from './CheckResult';
 import { PackageEditor } from './PackageEditor';
 import { PackageSource } from './PackageSource';
-import { RunPanel } from './RunPanel';
 import { useWorkbench } from './useWorkbench';
 import { loadRefusalText } from './workbenchModel';
 import './Workbench.css';
@@ -50,11 +49,11 @@ function WorkbenchScreen({ organization, project, canSave }: { organization: Org
   };
 
   return (
-    <ProjectFrame organization={organization} project={project} section="cases" crumb="Workbench">
+    <OrgFrame organization={organization} project={project} section="cases" trail={[{ label: 'Workbench' }]}>
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>Workbench</h1>
-          <p>Check a package, see which engines can run it, then snapshot, run or save it as a problem version.</p>
+          <p>Write or check a package, see which engines can run it, then snapshot it or save it as a problem version. A saved version runs from its problem page.</p>
         </div>
       </header>
 
@@ -92,7 +91,6 @@ function WorkbenchScreen({ organization, project, canSave }: { organization: Org
           <>
             <CheckResult wb={wb} />
             <PackageEditor wb={wb} />
-            <RunPanel wb={wb} orgSlug={organization.slug} jobsHref={`${root}/runs`} />
             <ActionBar
               wb={wb}
               canSave={canSave}
@@ -106,16 +104,16 @@ function WorkbenchScreen({ organization, project, canSave }: { organization: Org
           </>
         )}
       </div>
-    </ProjectFrame>
+    </OrgFrame>
   );
 }
 
-/** The workbench (`wb-workbench`, `/app/:org/:project/workbench`): check a package, see which engines can run it, then snapshot, run or save it as a problem version. */
+/** The workbench (`wb-workbench`, `/app/:org/:project/workbench`): the BIM problem editor. Check a package, see which engines can run it, then snapshot it or save it as a problem version. */
 export function Workbench() {
-  const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
-  if (waiting) return <ProjectSkeleton />;
+  const { organization, project, access, waiting, failure, reload } = useRouteProject();
+  if (waiting) return <OrgSkeleton label="Loading project…" />;
   if (!organization || !project) {
-    return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
+    return <OrgGate failure={organization ? failure : null} organizationName={organization?.name} onRetry={reload} />;
   }
   return <WorkbenchScreen organization={organization} project={project} canSave={access.canCreate} />;
 }

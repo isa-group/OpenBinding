@@ -1,5 +1,5 @@
 // Address builders of the problems area (M2.6). Code that links to a problem, a problem version or the problem list builds the address here,
-// so the segment is named once. The old segment (`cases`) only survives as the moved addresses of routes/areas/problems.tsx.
+// so the segment is named once.
 
 /** The segment of the problem list and the problem page. */
 export const PROBLEMS_SEGMENT = 'problems';

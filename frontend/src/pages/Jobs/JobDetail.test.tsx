@@ -2,8 +2,8 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import type { Job } from '../../api/platform';
-import { caseOf, org, project, renderProjectScreen, revisionOf } from '../Project/testKit';
-import { saveBytes } from '../Project/download';
+import { caseOf, org, project, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
+import { saveBytes } from '../../features/workspace/download';
 import { INSTANCE, NEIGHBORHOOD, PROBLEM, REPORT, RESULT, S1, detailOf, jobOf } from '../../test/fixtures/jobs';
 import { JobDetail } from './JobDetail';
 
@@ -14,7 +14,7 @@ const client = vi.hoisted(() => ({ getBindingNeighborhood: vi.fn() }));
 vi.mock('../../api/jobs', () => ({ jobsApi }));
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
-vi.mock('../Project/download', () => ({ saveBytes: vi.fn() }));
+vi.mock('../../features/workspace/download', () => ({ saveBytes: vi.fn() }));
 
 const group = org('isa-demo', { name: 'ISA Demo Group' });
 const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });

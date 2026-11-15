@@ -6,7 +6,7 @@ import type { UsageView, UserProfile } from '../../api/auth';
 import type { BindingCase, CaseRevision, Organization, Project, Study, StudyRun } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { AuthContext } from '../../contexts/auth';
-import { iker, lucia, org, project } from '../Organization/testKit';
+import { iker, lucia, org, project } from '../../pages/Organization/testKit';
 
 export { iker, lucia, org, project };
 

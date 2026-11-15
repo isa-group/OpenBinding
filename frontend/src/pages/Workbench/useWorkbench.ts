@@ -1,6 +1,5 @@
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { HttpError, apiClient, type BimAnalysisData, type BimAnalysisResponse } from '../../api/client';
-import type { ArtifactVersion } from '../../api/library';
 import { platformApi, type CaseRevision } from '../../api/platform';
 import { workbenchApi } from '../../api/workbench';
 import { packageFiles, unzipPackage, zipStore } from '../../utils/bimZip';
@@ -8,18 +7,14 @@ import { migrateFiles } from '../../utils/bimVocabulary';
 import { loadDraft, saveDraft, type WorkspaceFiles } from '../../utils/workspaceDraft';
 import { sourceDiff, toYaml } from '../../utils/workspaceViews';
 import {
-  DEFAULT_BPMN, DEFAULT_FILES, allModesFromAnalysis, diagnosticSelection, errorDiagnostics, executionKey, instanceResources, isRecord,
+  DEFAULT_BPMN, DEFAULT_FILES, allModesFromAnalysis, diagnosticSelection, errorDiagnostics, instanceResources,
   isRegisteredResourceRef, modesFromAnalysis, parseJson, pretty, resourcePathForDiagnostic,
-  type BindingResult, type BimDocument, type CompatibleMode, type CompiledIr, type Diagnostic, type WorkspaceStatus,
+  type BimDocument, type CompatibleMode, type CompiledIr, type Diagnostic, type WorkspaceStatus,
 } from './bimDocuments';
-import { isAbort, pollV1Job } from './pollJob';
-import {
-  RANGE_RUN_ERROR, filesHaveRanges, isRangeRefusal, rangePointers, refusalOf, refusalText, saveRefusalText, workbenchDraftScope, type Refusal,
-} from './workbenchModel';
+import { refusalOf, refusalText, saveRefusalText, workbenchDraftScope, type Refusal } from './workbenchModel';
 
 export type EditorTab = 'resources' | 'form' | 'bpmn';
 export type SourceView = 'json' | 'yaml' | 'workflow' | 'bpmnXml' | 'ir' | 'diff';
-export type RunState = 'idle' | 'queued' | 'running' | 'completed' | 'failed';
 
 /** Where the package on screen was last checked from: the editor, or a file or example that was brought in. */
 export type CheckOrigin = 'package' | 'import' | 'example';
@@ -130,7 +125,8 @@ async function hydrate({ scope, requestedExample, caseRef, revisionRef, orgSlug,
 
 /**
  * The state of the workbench: the files of the package and the history of editing them, what the gateway said when it checked them,
- * the snapshot and revision made from them, and the run. Screens read it and call its actions; nothing here draws.
+ * and the snapshot and revision made from them. Nothing runs here: a saved version runs from its problem page. Screens read it and call
+ * its actions; nothing here draws.
  */
 export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, revisionRef, requestedExample }: WorkbenchOptions) {
   const draftScope = workbenchDraftScope(userId, pathname, caseRef, revisionRef);
@@ -163,14 +159,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
   // The snapshot and the revision
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const snapshotRef = useRef<Snapshot | null>(null);
-  /** Closing the screen stops the polling of a run; starting another run stops the one before it. */
-  const screenOpen = useRef<AbortController | null>(null);
-  const runWatcher = useRef<AbortController | null>(null);
-  useEffect(() => {
-    const controller = new AbortController();
-    screenOpen.current = controller;
-    return () => controller.abort();
-  }, []);
   const [snapshotBusy, setSnapshotBusy] = useState(false);
   const [snapshotIssue, setSnapshotIssue] = useState<Refusal | null>(null);
   const [compiledIr, setCompiledIr] = useState<CompiledIr | null>(null);
@@ -180,25 +168,12 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
   const [saved, setSaved] = useState<SavedRevision | null>(null);
   const [saveIssue, setSaveIssue] = useState<string | null>(null);
 
-  // The run
-  const [runState, setRunState] = useState<RunState>('idle');
-  const [runError, setRunError] = useState<string | null>(null);
-  const [runRange, setRunRange] = useState(false);
-  const [result, setResult] = useState<BindingResult | null>(null);
-  const [resultJobId, setResultJobId] = useState<string>();
-  const [selectedMode, setSelectedMode] = useState('');
-  const [configuration, setConfiguration] = useState<{ org: string; version: ArtifactVersion } | null>(null);
-
   // The editor
   const [editorTab, setEditorTab] = useState<EditorTab>('resources');
   const [sourceOpen, setSourceOpen] = useState(false);
   const [sourceView, setSourceView] = useState<SourceView>('json');
   const [focusedBpmnElement, setFocusedBpmnElement] = useState<string | null>(null);
   const [editorSelection, setEditorSelection] = useState<{ anchor: number; head: number } | undefined>();
-
-  /** A configuration picked for one organization is not carried to another. */
-  const executionConfiguration = configuration?.org === orgSlug ? configuration.version : null;
-  const setExecutionConfiguration = (version: ArtifactVersion | null) => setConfiguration(version ? { org: orgSlug, version } : null);
 
   const hydrated = hydratedScope === draftScope;
   const loadIssue = revisionRefusal?.scope === draftScope ? revisionRefusal.failure : null;
@@ -209,7 +184,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
   const application = applicationResource?.path ? parseJson(files[applicationResource.path]) : null;
   const bpmnPath = resources.find((resource) => resource.kind === 'BPMN')?.path;
   const workflowText = pretty(application?.spec?.workflow || {});
-  const selectedCompatibility = compatibleModes.find((item) => executionKey(item) === selectedMode);
   const selectedResource = resources.find((resource) => resource.path === selectedPath);
   const selectedKind = selectedPath === 'instance.json' ? 'Instance' : selectedResource?.kind || selectedDocument?.kind || 'Unknown';
   const selectedYaml = useMemo(() => (selectedDocument ? toYaml(selectedDocument) : null), [selectedDocument]);
@@ -219,7 +193,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
   );
   const selectedChanged = baseline[selectedPath] !== files[selectedPath];
   const rootDocument = root as Record<string, unknown> | null;
-  const hasRanges = useMemo(() => filesHaveRanges(files), [files]);
 
   // --- bringing a package in
 
@@ -237,7 +210,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     setCompatibleModes([]);
     setAnalysisData(null);
     setDigests(null);
-    setSelectedMode('');
     snapshotRef.current = null;
     setSnapshot(null);
     setSnapshotIssue(null);
@@ -245,9 +217,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     setIrError(null);
     setSaved(null);
     setSaveIssue(null);
-    setResult(null);
-    setRunState('idle');
-    setRunError(null);
   };
 
   const remember = (current: WorkspaceFiles) => {
@@ -278,7 +247,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
       setCompatibleModes(modes);
       setAnalysisData(outcome.response.analysis || null);
       setDigests(digestsOf(outcome.response));
-      setSelectedMode(modes[0] ? executionKey(modes[0]) : '');
       setStatus('valid');
     } else if (outcome.kind === 'example-refused') {
       setOrigin('example');
@@ -358,7 +326,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     setOrigin('package');
     setRefusal(null);
     setDiagnostics([]);
-    setResult(null);
     try {
       const response = await workbenchApi.validate(zipStore(packageFiles(candidateFiles)));
       if (response.valid === false) {
@@ -373,7 +340,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
       setCompatibleModes(modes);
       setAnalysisData(response.analysis || null);
       setDigests(digestsOf(response));
-      setSelectedMode((current) => (modes.some((item) => executionKey(item) === current) ? current : modes[0] ? executionKey(modes[0]) : ''));
       setDiagnostics((response.diagnostics ?? []) as Diagnostic[]);
       setStatus('valid');
       return response;
@@ -399,7 +365,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
       setCompatibleModes(modes);
       setAnalysisData(prepared.response.analysis || null);
       setDigests(digestsOf(prepared.response));
-      if (modes[0]) setSelectedMode(executionKey(modes[0]));
       setStatus('valid');
     } catch (caught: unknown) {
       const failure = refusalOf(caught);
@@ -495,55 +460,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     }
   };
 
-  // --- the run
-
-  const run = async () => {
-    let mode = selectedCompatibility;
-    if (!mode && !executionConfiguration) {
-      const analysis = await validate();
-      if (!analysis) return;
-      mode = modesFromAnalysis(analysis)[0];
-    }
-    if (!mode && !executionConfiguration) {
-      setRunState('failed');
-      setRunError('No engine mode is compatible with this package. Open “Engines that can run it” to see why.');
-      return;
-    }
-    setRunState('queued');
-    setRunError(null);
-    setRunRange(false);
-    setResult(null);
-    runWatcher.current?.abort();
-    const watcher = new AbortController();
-    runWatcher.current = watcher;
-    screenOpen.current?.signal.addEventListener('abort', () => watcher.abort(), { once: true });
-    try {
-      const made = await ensureSnapshot();
-      const receipt = executionConfiguration
-        ? await apiClient.createConfiguredBimJob(made.id, executionConfiguration.ref)
-        : await apiClient.createBimJob(made.id, mode!.engine, mode!.registration, mode!.mode);
-      if (watcher.signal.aborted) return;
-      const job = await pollV1Job(receipt.id, { signal: watcher.signal, onStatus: (reading) => { if (reading.status === 'running') setRunState('running'); } });
-      if (job.status === 'failed') {
-        const detail = isRecord(job.result) && typeof job.result.error === 'string' ? job.result.error : (job.error || 'The run failed.');
-        throw new Error(detail);
-      }
-      setResultJobId(receipt.id);
-      setResult(isRecord(job.result) ? job.result as BindingResult : null);
-      setRunState('completed');
-    } catch (caught: unknown) {
-      // The screen closed or a newer run took over: nobody is waiting for this one any more.
-      if (watcher.signal.aborted || isAbort(caught)) return;
-      setRunState('failed');
-      if (isRangeRefusal(caught)) {
-        setRunRange(true);
-        setRunError(`${RANGE_RUN_ERROR}${rangePointers(caught)}`);
-        return;
-      }
-      setRunError(refusalText(refusalOf(caught), 'the run did not finish'));
-    }
-  };
-
   // --- editing
 
   const updateSelectedDocument = (document: BimDocument) => updateWorkspace((current) => ({ ...current, [selectedPath]: pretty(document) }));
@@ -621,12 +537,10 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     origin, refusal, diagnostics, allModes, compatibleModes, analysisData, digests,
     // snapshot and revision
     snapshot, snapshotBusy, snapshotIssue, compiledIr, irLoading, irError, saveBusy, saved, saveIssue,
-    // run
-    hasRanges, runRange, runState, runError, result, resultJobId, selectedMode, setSelectedMode, executionConfiguration, setExecutionConfiguration,
     // editor
     editorTab, setEditorTab, sourceOpen, setSourceOpen, sourceView, setSourceView, focusedBpmnElement, editorSelection,
     // actions
-    validate, importArchive, importFile, loadExample, exportPackage, ensureSnapshot, compile, saveRevision, run, retryLoad,
+    validate, importArchive, importFile, loadExample, exportPackage, ensureSnapshot, compile, saveRevision, retryLoad,
     undo, reset, updateWorkspace, updateSelectedDocument, updateSource, updateWorkflow, acceptBpmn, bpmnFailed, updateBpmnDraft, selectResource, openDiagnostic,
   };
 }

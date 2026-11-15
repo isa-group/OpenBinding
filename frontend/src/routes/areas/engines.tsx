@@ -1,7 +1,6 @@
 import { lazy } from 'react';
 import { Engines } from '../../pages/Engines/Engines';
 import { live } from '../define';
-import type { MovedRoute } from '../moved';
 import type { RouteDefinition } from '../types';
 
 // Area: engines. The public catalog and the engines registered by the account.
@@ -18,5 +17,3 @@ export const routes: RouteDefinition[] = [
   live('eng-registrations', '/app/engines/registrations', <EngRegistrations />),
   live('eng-registration-detail', '/app/engines/registrations/:name', <EngRegistrationDetail />),
 ];
-
-export const moved: MovedRoute[] = [];

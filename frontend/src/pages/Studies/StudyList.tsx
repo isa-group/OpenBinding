@@ -13,9 +13,9 @@ import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import { RefusalNotice } from '../Jobs/parts';
-import { ProjectGate, ProjectSkeleton } from '../Project/parts';
+import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { loadStudies } from '../Project/projectData';
-import type { StudyContent } from '../Project/projectModel';
+import type { StudyContent } from '../../features/workspace/model';
 import { useRouteProject } from '../Project/useRouteProject';
 import { CellBar, StateChip, StudyFrame } from './parts';
 import { definitionSize, formulaOf, latestOf, plural, studyPageHref } from './studiesModel';
@@ -197,10 +197,10 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
 
 /** The studies of a project (`study-list`, `/app/:org/:project/studies`): the matrix of each and its latest run. */
 export function StudyList() {
-  const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
-  if (waiting) return <ProjectSkeleton />;
+  const { organization, project, access, waiting, failure, reload } = useRouteProject();
+  if (waiting) return <OrgSkeleton label="Loading project…" />;
   if (!organization || !project) {
-    return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
+    return <OrgGate failure={organization ? failure : null} organizationName={organization?.name} onRetry={reload} />;
   }
   return <StudyListBody key={`${organization.slug}/${project.slug}`} organization={organization} project={project} canCreate={access.canCreate} canAdminister={access.canAdminister} />;
 }

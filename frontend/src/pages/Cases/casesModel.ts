@@ -3,7 +3,7 @@ import type { BindingCase, CaseRevision } from '../../api/platform';
 import { formatFeature } from '../../utils/featureRange';
 import { flowText, powerText, rulesText, type BindingModel } from './bindingModel';
 
-export { SLUG_PATTERN, slugFromName } from '../Project/projectModel';
+export { SLUG_PATTERN, slugFromName } from '../../features/workspace/model';
 
 /** The longest a case's name and description may be (`BindingCaseCreate` in the contract). */
 export const NAME_MAX = 160;

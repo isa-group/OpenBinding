@@ -312,8 +312,6 @@ const viewports = [
 
 const ROOT = '/app/isa-demo/qos-benchmarks';
 const CASE = `${ROOT}/problems/flujo-checkout`;
-// The address of the problem before the segment became `problems`: the two tests of the old version and compare addresses visit it on purpose.
-const OLD_CASE = `${ROOT}/cases/flujo-checkout`;
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S5a cases`, () => {
@@ -509,13 +507,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('case-detail Overview ?version= (the old revision address moves to it)', async ({ page }, testInfo) => {
+    test('case-detail Overview ?version=', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${OLD_CASE}/revisions/2`);
+      await page.goto(`${CASE}?version=2`);
       const main = page.locator('#platform-main');
 
-      await expect(page).toHaveURL(`${CASE}?version=2`);
       await expect(main.getByRole('heading', { level: 1, name: 'Flujo de checkout' })).toBeVisible();
       await expect(main.getByRole('combobox', { name: 'Version', exact: true })).toHaveValue('2');
       await expect(main.getByText('Sealed', { exact: true }).first()).toBeVisible();
@@ -567,13 +564,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('case-detail Versions · compare (the old compare address moves to it)', async ({ page }, testInfo) => {
+    test('case-detail Versions · compare', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto(`${OLD_CASE}/compare`);
+      await page.goto(`${CASE}/versions`);
       const main = page.locator('#platform-main');
 
-      await expect(page).toHaveURL(`${CASE}/versions`);
       await expect(main.getByRole('heading', { level: 2, name: 'Compare versions' })).toBeVisible();
       await expect(main.getByRole('combobox', { name: 'From', exact: true })).toHaveValue('1');
       await expect(main.getByRole('combobox', { name: 'To', exact: true })).toHaveValue('2');
@@ -601,8 +597,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('≈ 3.2× fewer combinations (10^0.5)')).toBeVisible();
 
       // The same version on both sides has nothing to compare.
-      await page.goto(`${OLD_CASE}/compare?from=2&to=2`);
-      await expect(page).toHaveURL(`${CASE}/versions?from=2&to=2`);
+      await page.goto(`${CASE}/versions?from=2&to=2`);
       await expect(main.getByText('Both sides are the same version, so there’s nothing to compare. Choose two different versions.')).toBeVisible();
       await capture(page, testInfo, `compare-${name}-same`);
 
@@ -617,11 +612,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('case-detail Source ?version= (the old snapshot address moves to the list of problems)', async ({ page }, testInfo) => {
+    test('case-detail Source ?version=', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/snapshots/${S2}`);
-      await expect(page).toHaveURL(`${ROOT}/problems`);
       await page.goto(`${CASE}/source?version=2`);
       const main = page.locator('#platform-main');
 

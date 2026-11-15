@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError, type EngineCatalogEntry, type EngineMode } from '../../api/client';
-import { caseOf, org, project, renderProjectScreen, revisionOf } from '../Project/testKit';
+import { caseOf, org, project, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
 import { ENGINE, REGISTRATION, digestOf } from '../../test/fixtures/jobs';
 import { usageOf } from '../../test/fixtures/resources';
 import { JobLaunch } from './JobLaunch';

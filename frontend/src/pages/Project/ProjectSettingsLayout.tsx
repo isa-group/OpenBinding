@@ -5,7 +5,7 @@ import type { Organization, Project } from '../../api/platform';
 import { useCurrentIntoView } from '../../components/PlatformShell/useCurrentIntoView';
 import { useAuth } from '../../contexts/auth';
 import { RoleChip } from '../Organization/parts';
-import { ProjectFrame } from './parts';
+import { OrgFrame } from '../../features/workspace/OrgFrame';
 import '../Organization/Organization.css';
 import './Project.css';
 
@@ -31,7 +31,7 @@ export function ProjectSettingsLayout({ organization, project, section, children
   ];
 
   return (
-    <ProjectFrame organization={organization} project={project} section="settings" crumb="Settings" width="lg">
+    <OrgFrame organization={organization} project={project} section="settings" trail={[{ label: 'Settings' }]} width="lg">
       <header className="org-head">
         <div>
           <h1>Project settings</h1>
@@ -50,6 +50,6 @@ export function ProjectSettingsLayout({ organization, project, section, children
         </div>
         <div className="org-content">{children}</div>
       </div>
-    </ProjectFrame>
+    </OrgFrame>
   );
 }

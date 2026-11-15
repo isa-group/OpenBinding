@@ -1,11 +1,11 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { iker, org, project, renderProjectScreen } from '../Project/testKit';
+import { iker, org, project, renderProjectScreen } from '../../features/workspace/testKit';
 import { jobOf } from '../../test/fixtures/jobs';
 import { JobList } from './JobList';
 
-const jobsApi = vi.hoisted(() => ({ mine: vi.fn(), history: vi.fn(), retry: vi.fn() }));
+const jobsApi = vi.hoisted(() => ({ mine: vi.fn(), retry: vi.fn() }));
 const platform = vi.hoisted(() => ({ project: vi.fn(), projectJobs: vi.fn() }));
 
 vi.mock('../../api/jobs', () => ({ jobsApi }));
@@ -40,7 +40,6 @@ describe('Jobs of a project', () => {
     platform.project.mockResolvedValue(qos);
     platform.projectJobs.mockResolvedValue(rows);
     jobsApi.mine.mockResolvedValue([rows[0], rows[2], rows[3]]);
-    jobsApi.history.mockResolvedValue({ jobs: [], total: 3 });
   });
 
   it('lists every run with its state, engine, outcome and time', async () => {

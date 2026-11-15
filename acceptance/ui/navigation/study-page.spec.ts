@@ -39,20 +39,6 @@ test('choosing r1 in the run selector sets ?run=r1 and shows the results of r1',
   expect(analytics[analytics.length - 1]).toContain('/runs/r1/analytics');
 });
 
-test('the three old study run addresses redirect into the study page', async ({ page }) => {
-  test.slow(); // three full page loads in one test
-  await mockStudies(page);
-  const cases: Array<[string, string]> = [
-    [`${STUDY}/runs/r1`, `${STUDY}/progress?run=r1`],
-    [`${STUDY}/runs/r1/analytics`, `${STUDY}/results?run=r1`],
-    [`${STUDY}/runs/r1/cells/c7`, `${STUDY}/results?run=r1&cell=c7`],
-  ];
-  for (const [old, target] of cases) {
-    await page.goto(old);
-    await expect.poll(() => pathAndSearch(page), old).toBe(target);
-  }
-});
-
 test('a cell inside Results links Open run to the run it ran as', async ({ page }) => {
   await mockStudies(page);
   await page.goto(`${STUDY}/results?run=r1&cell=c7`);

@@ -1,6 +1,6 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { movedRoutes, routeDefinitions, routesByArea, type AreaName } from './registry';
+import { routeDefinitions, routesByArea, type AreaName } from './registry';
 
 // Resolution across the areas. Addresses where a fixed segment meets a `:param` segment are the ones a reordering of the registry could
 // change, and the registry order decides ties of rank. This file names no screen: it asserts the AREA of the screen an address
@@ -34,7 +34,7 @@ describe('address resolution across the registry', () => {
     }
   });
 
-  // A fixed segment under /app (`/app/runs`, `/app/account`, …) is the first segment of a screen of some area. An address one level below
+  // A fixed segment under /app (`/app/account`, `/app/admin`, …) is the first segment of a screen of some area. An address one level below
   // it that no screen of that area claims is read as an organization and a project: the screen of the plain `/app/:org/:project` address,
   // or a screen of the area itself when the area takes any section there.
   const fixedSegments = [...new Set(routeDefinitions.flatMap((definition) => {
@@ -43,7 +43,7 @@ describe('address resolution across the registry', () => {
   }))];
 
   it('finds fixed segments under /app', () => {
-    expect(fixedSegments.length).toBeGreaterThan(3);
+    expect(fixedSegments).toEqual(expect.arrayContaining(['account', 'admin', 'engines']));
   });
 
   it.each(fixedSegments)('reads an unknown address below /app/%s as an organization and a project, or as a screen of its own area', (segment) => {
@@ -61,8 +61,7 @@ describe('address resolution across the registry', () => {
     // The fixed `settings` segment wins over a project called `settings`.
     ['/app/acme/settings', 'organizations'],
     ['/app/settings/settings', 'organizations'],
-    // No screen is fixed at the old creation addresses, so among the screens alone they read as an organization and a project. The moved
-    // addresses (below) take them before any screen does.
+    // No screen is fixed at the old creation addresses, so they read as an organization and a project.
     ['/app/acme/new-project', 'project'],
     ['/app/organizations/new', 'project'],
     ['/app/acme/atlas', 'project'],
@@ -74,18 +73,6 @@ describe('address resolution across the registry', () => {
     const ids = routeDefinitions.map((definition) => definition.id);
     expect(ids).not.toContain('org-create');
     expect(ids).not.toContain('proj-create');
-  });
-
-  it.each([
-    ['/app/organizations/new', '/app?create=organization'],
-    ['/app/acme/new-project', '/app/acme?create=project'],
-    ['/app/new-project/new-project', '/app/new-project?create=project'],
-  ])('answers %s by the moved address that leads to %s, before any screen', (path, target) => {
-    const matched = matchRoutes([...movedRoutes.map((route) => ({ id: route.id, path: route.path })), ...config], path)?.at(-1)?.route.id;
-    const entry = movedRoutes.find((route) => route.id === matched);
-    expect(entry, path).toBeDefined();
-    const params = matchRoutes([{ path: entry?.path ?? '' }], path)?.[0].params ?? {};
-    expect(entry?.target(new URLSearchParams(''), params)).toBe(target);
   });
 
   it.each([

@@ -1,10 +1,10 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { saveBytes } from './download';
+import { saveBytes } from '../../features/workspace/download';
 import { CASE_DIGESTS, BODY_MARKER, samplePackage } from './packageFixture';
 import { ProjectSettings } from './ProjectSettings';
-import { caseOf, ensureSubtleCrypto, org, project, renderProjectScreen, revisionOf, usageWithProjects } from './testKit';
+import { caseOf, ensureSubtleCrypto, org, project, renderProjectScreen, revisionOf, usageWithProjects } from '../../features/workspace/testKit';
 
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn(), getPricingCatalog: vi.fn() }));
 const platform = vi.hoisted(() => ({
@@ -14,7 +14,7 @@ const platform = vi.hoisted(() => ({
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
-vi.mock('./download', () => ({ saveBytes: vi.fn() }));
+vi.mock('../../features/workspace/download', () => ({ saveBytes: vi.fn() }));
 
 beforeAll(ensureSubtleCrypto);
 

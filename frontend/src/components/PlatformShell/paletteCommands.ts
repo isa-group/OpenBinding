@@ -1,5 +1,5 @@
 import type { Organization, Project } from '../../api/platform';
-import { accountLinks, createItems, labEntries, labLinks, mainLinks, problemsEntry, projectRoot } from './appNavigation';
+import { accountLinks, createItems, labEntries, mainLinks, problemsEntry, projectRoot } from './appNavigation';
 
 export interface PaletteContext {
   organizations?: Organization[];
@@ -32,7 +32,6 @@ export function buildCommands({ organizations = [], projects = [], organization,
 
   const commands: Command[] = [
     command('Go to', 'Home', 'Organizations and recent activity', mainLinks.home.to),
-    command('Go to', 'Runs', 'Every run you can see', labLinks.runs.to),
     command('Go to', 'Engines', 'Engines by exact identity', mainLinks.engines.to),
     command('Go to', 'Pricing', 'Plans, limits and add-ons', '/pricing'),
   ];

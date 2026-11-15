@@ -313,7 +313,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const activity = main.getByRole('region', { name: 'Recent activity' });
       await expect(activity.getByText('Running')).toBeVisible();
       await expect(activity.getByText('No feasible binding')).toBeVisible();
-      await expect(activity.getByRole('link', { name: 'All runs' })).toHaveAttribute('href', '/app/runs');
+      // There is no account-wide run history to lead to: a run is opened from its project.
+      await expect(activity.getByRole('link', { name: 'All runs' })).toHaveCount(0);
       const plan = main.getByRole('region', { name: 'Your plan' });
       await expect(plan.getByText('RESEARCH', { exact: true })).toBeVisible();
       await expect(plan.getByText('Up to 4')).toBeVisible();
@@ -367,9 +368,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test('org-create dialog /app?create=organization', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      // The old creation address lands on the open dialog.
-      await page.goto('/app/organizations/new');
-      await expect(page).toHaveURL(/\/app\?create=organization$/);
+      await page.goto('/app?create=organization');
       const dialog = page.getByRole('dialog', { name: 'New organization' });
 
       await expect(dialog).toBeVisible();

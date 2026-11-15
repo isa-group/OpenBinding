@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { PROBLEMS, RUNS_ALL, RUN_NEW, current, entry, expectInOrder, menuScope, mockApi, type Role } from './helpers';
+import { PROBLEMS, RUNS, RUN_NEW, current, entry, expectInOrder, menuScope, mockApi, type Role } from './helpers';
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
@@ -54,11 +54,11 @@ test('application header lists its entries with a current project and a Lab menu
   await expect(entry(header, 'Problems')).toHaveAttribute('href', PROBLEMS);
   await expect(entry(header, 'Problems')).toHaveAttribute('aria-current', 'page');
   await header.getByRole('button', { name: 'Lab' }).click();
-  await expect(entry(menuScope(page), 'Runs')).toHaveAttribute('href', RUNS_ALL);
+  await expect(entry(menuScope(page), 'Runs')).toHaveAttribute('href', RUNS);
   await expect(entry(menuScope(page), 'Studies')).toHaveAttribute('href', '/app/acme/demo/studies');
 });
 
-test('Problems and Studies are disabled with a hint without a current project', async ({ page }) => {
+test('Problems, Runs and Studies are disabled with a hint without a current project', async ({ page }) => {
   await signedIn(page, '/app', 'user', []);
   const header = banner(page);
   const problems = header.getByText('Problems', { exact: true }).first();
@@ -66,11 +66,12 @@ test('Problems and Studies are disabled with a hint without a current project', 
   await expect(problems).not.toHaveAttribute('href', /.*/);
   await expect(problems).toHaveAccessibleDescription(/Needs a project/);
   await header.getByRole('button', { name: 'Lab' }).click();
-  const studies = menuScope(page).getByText('Studies', { exact: true }).first();
-  await expect(studies).toHaveAttribute('aria-disabled', 'true');
-  await expect(studies).not.toHaveAttribute('href', /.*/);
-  await expect(studies).toHaveAccessibleDescription(/Needs a project/);
-  await expect(entry(menuScope(page), 'Runs')).toHaveAttribute('href', RUNS_ALL);
+  for (const name of ['Runs', 'Studies']) {
+    const item = menuScope(page).getByText(name, { exact: true }).first();
+    await expect(item).toHaveAttribute('aria-disabled', 'true');
+    await expect(item).not.toHaveAttribute('href', /.*/);
+    await expect(item).toHaveAccessibleDescription(/Needs a project/);
+  }
 });
 
 test('a person whose role is user sees no Admin entry', async ({ page }) => {

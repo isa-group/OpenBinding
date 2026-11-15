@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 import type { Organization, Project } from '../../api/platform';
-import { ProjectTabs } from '../../components/PlatformShell/ProjectTabs';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
-import { Breadcrumb, Gate, type Crumb } from '../Organization/parts';
+import { Gate, type Crumb } from '../Organization/parts';
+import { OrgFrame } from '../../features/workspace/OrgFrame';
 import { Chip } from '../../components/ui/Chip';
 import { normalizeStatus, outcomeOf } from './jobsModel';
-import { jobStatus } from '../Project/projectModel';
+import { jobStatus } from '../../features/workspace/model';
 import type { Refusal } from './jobErrors';
 import '../Project/Project.css';
 import './Jobs.css';
@@ -22,33 +22,10 @@ interface JobFrameProps {
 
 /** The frame of every project screen about runs: breadcrumb, the project tabs with Jobs current, and one live content column. */
 export function JobFrame({ organization, project, trail, width = 'wide', children }: JobFrameProps) {
-  const root = `/app/${organization.slug}/${project.slug}`;
-  const items: Crumb[] = [
-    { label: 'Home', to: '/app' },
-    { label: organization.name, to: `/app/${organization.slug}` },
-    { label: project.name, to: root },
-    ...trail,
-  ];
   return (
-    <div className="proj-frame">
-      <div className="proj-band">
-        <div className="proj-band-inner"><Breadcrumb items={items} /></div>
-      </div>
-      <ProjectTabs active="jobs" orgSlug={organization.slug} projectSlug={project.slug} access={project.access} />
-      <div className={`proj-body is-${width}`} aria-live="polite">{children}</div>
-    </div>
-  );
-}
-
-/** The frame of the screens that are not about one project (`/app/runs`). */
-export function AccountFrame({ trail, children }: { trail: Crumb[]; children: ReactNode }) {
-  return (
-    <div className="proj-frame">
-      <div className="proj-band">
-        <div className="proj-band-inner"><Breadcrumb items={[{ label: 'Home', to: '/app' }, ...trail]} /></div>
-      </div>
-      <div className="proj-body is-wide" aria-live="polite">{children}</div>
-    </div>
+    <OrgFrame organization={organization} project={project} section="jobs" trail={trail} width={width}>
+      {children}
+    </OrgFrame>
   );
 }
 

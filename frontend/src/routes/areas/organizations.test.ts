@@ -1,7 +1,6 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { movedRoutes, routeDefinitions, routesByArea } from '../registry';
-import { moved as moves } from './organizations';
+import { routeDefinitions, routesByArea } from '../registry';
 
 // One pair per line: screenBudget.test.ts counts them.
 const PROTOTYPE: Array<[string, string]> = [
@@ -45,22 +44,6 @@ describe('area organizations', () => {
       ['/app/settings/settings', 'org-settings'],
     ])('%s -> %s', (path, id) => {
       expect(resolve(path)).toBe(id);
-    });
-  });
-
-  describe('the moved addresses of the area', () => {
-    it('moves the old creation address to the dialog over the home, and drops its query', () => {
-      expect(moves.map((route) => route.path)).toEqual(['/app/organizations/new']);
-      const [route] = moves;
-      expect(route.target(new URLSearchParams(''), {})).toBe('/app?create=organization');
-      expect(route.target(new URLSearchParams('a=1'), {})).toBe('/app?create=organization');
-      expect(route.permanent).toBeUndefined();
-      expect(resolve('/app')).toBe('app-home');
-    });
-
-    it('gives the entry an id that no screen and no other entry uses', () => {
-      const ids = [...routeDefinitions.map((definition) => definition.id), ...movedRoutes.map((route) => route.id)];
-      expect(new Set(ids).size).toBe(ids.length);
     });
   });
 });

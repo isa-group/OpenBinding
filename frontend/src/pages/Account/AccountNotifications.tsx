@@ -34,7 +34,6 @@ function announceChange() {
 
 function Detail({ item, onMarkRead, busy }: { item: Notification; onMarkRead: () => void; busy: boolean }) {
   const change = contractChange(item);
-  const group = groupOf(item.kind);
   return (
     <div className="notif-detail">
       {change && (
@@ -52,7 +51,6 @@ function Detail({ item, onMarkRead, busy }: { item: Notification; onMarkRead: ()
         </>
       )}
       {!change && <p className="notif-body-full">{item.body}</p>}
-      {group === 'job' && <Link to="/app/runs" viewTransition>Open run history</Link>}
       {!item.read_at && (
         <Action variant="secondary" size="sm" className="notif-mark" onClick={onMarkRead} busy={busy}>Mark as read</Action>
       )}

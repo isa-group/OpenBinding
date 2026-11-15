@@ -139,10 +139,10 @@ describe('Notifications', () => {
     expect(screen.queryAllByRole('img', { name: 'Unread' })).toHaveLength(0);
   });
 
-  it('points a job notice to the job history', async () => {
+  it('links a job notice to no run history: there is none', async () => {
     renderNotifications();
     fireEvent.click(await row('Job completed'));
-    expect(screen.getByRole('link', { name: 'Open run history' })).toHaveAttribute('href', '/app/runs');
+    expect(screen.queryByRole('link', { name: 'Open run history' })).toBeNull();
   });
 
   it('says when it is all caught up and when a filter hides everything', async () => {

@@ -2,7 +2,7 @@ import { fireEvent, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import type { Job } from '../../api/platform';
-import { caseOf, org, project, renderProjectScreen, revisionOf } from '../Project/testKit';
+import { caseOf, org, project, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseDetail } from './CaseDetail';
 
 const platform = vi.hoisted(() => ({ project: vi.fn(), case: vi.fn(), revisions: vi.fn(), projectJobs: vi.fn() }));

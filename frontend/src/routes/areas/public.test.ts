@@ -1,6 +1,6 @@
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { movedRoutes, routeDefinitions, routesByArea } from '../registry';
+import { routeDefinitions, routesByArea } from '../registry';
 
 // One pair per line: screenBudget.test.ts counts them.
 const PROTOTYPE: Array<[string, string]> = [
@@ -18,7 +18,7 @@ describe('area public', () => {
 
   it('declares neither pub-explore nor the examples', () => {
     expect(routeDefinitions.map((definition) => definition.id)).not.toContain('pub-explore');
-    expect(movedRoutes.map((entry) => entry.path)).not.toContain('/examples');
+    expect(routeDefinitions.map((definition) => definition.path)).not.toContain('/examples');
   });
 
   it('does not declare pub-status', () => {
@@ -45,16 +45,8 @@ describe('area public', () => {
       expect(matchRoutes(config, path)?.at(-1)?.route.id ?? null).toBe(id);
     });
 
-    it('leaves /status to the moved-routes table', () => {
+    it('answers /status with no screen', () => {
       expect(matchRoutes(config, '/status')).toBeNull();
     });
-  });
-
-  it('moves /status to /about and drops the query', () => {
-    const route = movedRoutes.find((entry) => entry.path === '/status');
-    expect(route?.id).toBe('status-retired');
-    expect(route?.permanent).toBeFalsy();
-    expect(route?.target(new URLSearchParams('probe=1'), {})).toBe('/about');
-    expect(route?.target(new URLSearchParams(''), {})).toBe('/about');
   });
 });

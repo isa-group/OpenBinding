@@ -6,7 +6,7 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
-import { ProjectGate, ProjectSkeleton } from '../Project/parts';
+import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import type { ProjectAccess } from '../Project/projectModel';
 import { useRouteProject } from '../Project/useRouteProject';
 import { StudyFrame, StudyGate } from './parts';
@@ -74,10 +74,10 @@ function StudyLoader({ organization, project, access, children }: LoaderProps) {
  * there reads the same whether it never existed or belongs to a project the account can't see.
  */
 export function StudyScope({ children }: { children: (scope: StudyScopeValue) => ReactNode }) {
-  const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
-  if (waiting) return <ProjectSkeleton />;
+  const { organization, project, access, waiting, failure, reload } = useRouteProject();
+  if (waiting) return <OrgSkeleton label="Loading project…" />;
   if (!organization || !project) {
-    return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
+    return <OrgGate failure={organization ? failure : null} organizationName={organization?.name} onRetry={reload} />;
   }
   return <StudyLoader key={`${organization.slug}/${project.slug}`} organization={organization} project={project} access={access}>{children}</StudyLoader>;
 }

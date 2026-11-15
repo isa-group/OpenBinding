@@ -11,7 +11,8 @@ import { Notice } from '../../components/ui/Notice';
 import { useAuth } from '../../contexts/auth';
 import { NeutralGate, PageSkeleton, RoleChip } from '../Organization/parts';
 import { createRefusal, type ProjectRefusal } from './projectErrors';
-import { accessIn, DESCRIPTION_MAX, NAME_MAX, SLUG_PATTERN, slugFromName } from './projectModel';
+import { SLUG_PATTERN, slugFromName } from '../../features/workspace/model';
+import { accessIn, DESCRIPTION_MAX, NAME_MAX } from './projectModel';
 import { VisibilityChip } from './parts';
 import './Project.css';
 

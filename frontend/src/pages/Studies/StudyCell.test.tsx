@@ -4,7 +4,7 @@ import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import type { StudyCell as StudyCellView } from '../../api/platform';
 import { jobOf } from '../../test/fixtures/jobs';
-import { org, project, renderProjectScreen } from '../Project/testKit';
+import { org, project, renderProjectScreen } from '../../features/workspace/testKit';
 import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyDetail } from './StudyDetail';
 

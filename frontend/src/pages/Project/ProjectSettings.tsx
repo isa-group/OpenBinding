@@ -16,7 +16,7 @@ import { loadCases, loadStudies } from './projectData';
 import { deleteRefusal, updateRefusal, type ProjectRefusal } from './projectErrors';
 import { countWord, DESCRIPTION_MAX, integrityOf, NAME_MAX, visibilityEffects, visibilityLabel } from './projectModel';
 import { canOpenSection } from './accessLevel';
-import { MembersOnlyGate, ProjectGate, ProjectSkeleton } from './parts';
+import { MembersOnlyGate, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { ProjectMembers } from './ProjectMembers';
 import { ExportPackage, ImportPackage } from './ProjectPackageSections';
 import { ProjectSettingsLayout } from './ProjectSettingsLayout';
@@ -279,10 +279,10 @@ function SettingsBody({ organization, project, canEdit, canImport, reloadProject
 }
 
 function SettingsPage({ section }: { section: 'general' | 'members' }) {
-  const { context, orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
-  if (waiting) return <ProjectSkeleton />;
+  const { context, organization, project, access, waiting, failure, reload } = useRouteProject();
+  if (waiting) return <OrgSkeleton label="Loading project…" />;
   if (!organization || !project) {
-    return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
+    return <OrgGate failure={organization ? failure : null} organizationName={organization?.name} onRetry={reload} />;
   }
   if (!canOpenSection(access.level, 'settings')) return <MembersOnlyGate root={`/app/${organization.slug}/${project.slug}`} />;
   if (section === 'members') return <ProjectMembers organization={organization} project={project} />;

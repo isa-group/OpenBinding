@@ -13,12 +13,11 @@ import { useResource, type Resource } from '../../utils/useResource';
 import { roleSource } from '../Organization/orgModel';
 import { RoleChip } from '../Organization/parts';
 import { loadCases, loadStudies } from './projectData';
-import { classifyAuthError, marker } from './projectErrors';
-import {
-  cellBreakdown, countWord, integrityOf, jobStatus, latestRun, sealedShare,
-  type CaseContent, type IntegrityItem, type StudyContent,
-} from './projectModel';
-import { ProjectFrame, ProjectGate, ProjectSkeleton, VisibilityChip } from './parts';
+import { classifyAuthError, marker } from '../../features/workspace/errors';
+import { jobStatus, type CaseContent, type StudyContent } from '../../features/workspace/model';
+import { cellBreakdown, countWord, integrityOf, latestRun, sealedShare, type IntegrityItem } from './projectModel';
+import { OrgFrame, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
+import { VisibilityChip } from './parts';
 import { useRouteProject } from './useRouteProject';
 import './Project.css';
 
@@ -298,7 +297,7 @@ function OverviewBody({ organization, project, canCreate, canAdminister, publicR
   );
 
   return (
-    <ProjectFrame organization={organization} project={project} section="overview" header={header}>
+    <OrgFrame organization={organization} project={project} section="overview" header={header}>
       {empty && !publicRead && <GetStarted root={root} canCreate={canCreate} />}
       {empty && publicRead && <p className="org-muted">Nothing has been shared in this project yet.</p>}
       {sealed && !empty && <IntegrityStrip items={sealed} />}
@@ -309,17 +308,17 @@ function OverviewBody({ organization, project, canCreate, canAdminister, publicR
           <StudiesCard root={root} resource={studies} />
         </div>
       )}
-    </ProjectFrame>
+    </OrgFrame>
   );
 }
 
 /** A project (`proj-overview`, `/app/:org/:project`): sealed versus draft, cases, jobs and studies, each card on its own. */
 export function ProjectOverview() {
-  const { context, orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
+  const { context, organization, project, access, waiting, failure, reload } = useRouteProject();
   const { isAdmin } = useAuth();
-  if (waiting) return <ProjectSkeleton />;
+  if (waiting) return <OrgSkeleton label="Loading project…" />;
   if (!organization || !project) {
-    return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
+    return <OrgGate failure={organization ? failure : null} organizationName={organization?.name} onRetry={reload} />;
   }
   const role = organization.effective_role ?? (isAdmin ? 'PLATFORM ADMIN' : null);
   return (

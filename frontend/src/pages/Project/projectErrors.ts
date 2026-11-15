@@ -1,7 +1,4 @@
-import { classifyAuthError, generalFailure, marker, type AuthFailure } from '../Organization/orgErrors';
-
-export { classifyAuthError, generalFailure, marker };
-export type { AuthFailure };
+import { classifyAuthError, generalFailure, marker } from '../../features/workspace/errors';
 
 export type ProjectRefusalKind = 'slug' | 'forbidden' | 'gone' | 'invalid' | 'other';
 

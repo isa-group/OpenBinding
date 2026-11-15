@@ -39,23 +39,6 @@ export function countLiveCalls(): number {
   return readAreaSources().reduce((total, { source }) => total + (source.match(/^\s*live\(/gm)?.length ?? 0), 0);
 }
 
-export interface MovedAddress {
-  id: string;
-  area: string;
-  /** The old address, a route pattern. */
-  from: string;
-  /** The address it leads to, a path pattern with the parameters of `from`. */
-  to: string;
-  /** The entry computes its target with `options.target`: `to` is not what the browser ends on. */
-  customTarget: boolean;
-}
-
-/** Every `moved('id', '/from', '/to'…` line of the area files (one call per line, literal arguments). */
-export function readMovedAddresses(): MovedAddress[] {
-  return readAreaSources().flatMap(({ area, source }) => [...source.matchAll(/^\s*moved\('([a-z0-9-]+)',\s*'(\/[^']*)',\s*'(\/[^']*)'(.*)$/gm)]
-    .map((match) => ({ id: match[1], area, from: match[2], to: match[3], customTarget: match[4].includes('target:') })));
-}
-
 export interface GalleryScreen {
   id: string;
   /** The route pattern, exactly as the registry lists it. */

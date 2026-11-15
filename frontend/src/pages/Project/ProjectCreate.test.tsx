@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { ProjectCreate } from './ProjectCreate';
-import { org, project, renderProjectScreen, usageWithProjects } from './testKit';
+import { org, project, renderProjectScreen, usageWithProjects } from '../../features/workspace/testKit';
 
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn() }));
 const platform = vi.hoisted(() => ({ createProject: vi.fn(), members: vi.fn() }));

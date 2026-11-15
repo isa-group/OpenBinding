@@ -2,7 +2,7 @@ import type { CaseRevision, Study, StudyCell, StudyRun } from '../../api/platfor
 import type { BimResourceRef, EngineCatalogEntry, EngineMode } from '../../api/client';
 import { bimResourceKey } from '../../api/client';
 import type { ExecutionOptimization } from '../../api/jobs';
-import type { CaseContent } from '../Project/projectModel';
+import type { CaseContent } from '../../features/workspace/model';
 import { criteriaCountOf, optimizationFor, optimizationTypeOf } from '../Jobs/launchModel';
 
 function isRecord(value: unknown): value is Record<string, unknown> {

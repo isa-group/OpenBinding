@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Public routes of the redesigned site. About holds the service-status note; /status itself only redirects to it.
+// Public routes of the redesigned site. About holds the service-status note; there is no /status page.
 const PUBLIC_ROUTES = [
   '/',
   '/workbench',

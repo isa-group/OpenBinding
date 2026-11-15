@@ -2,7 +2,7 @@ import { useParams } from 'react-router-dom';
 import type { BindingCase, CaseRevision } from '../../api/platform';
 import { platformApi } from '../../api/platform';
 import { useResource, type Resource } from '../../utils/useResource';
-import { classifyAuthError, type AuthFailure } from '../Project/projectErrors';
+import { classifyAuthError, type AuthFailure } from '../../features/workspace/errors';
 import { useRouteProject, type RouteProject } from '../Project/useRouteProject';
 import { newestFirst } from './casesModel';
 

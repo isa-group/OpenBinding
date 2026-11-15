@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { apiClient } from './client';
+import { jobsApi } from './jobs';
 import { libraryApi } from './library';
 import { platformApi } from './platform';
 
@@ -38,6 +39,8 @@ const REMOVED_BINDINGS = [
   'acceptSponsorProposal',
   'declineSponsorProposal',
   'cancelSponsorProposal',
+  // F0b B4: the account's run history screen is gone, and with it the call that read it for that screen.
+  'jobsApi.history',
 ];
 
 const REMOVED_PATHS: [string, RegExp][] = [
@@ -74,9 +77,9 @@ function findings(files: Record<string, string>): string[] {
 const sources = import.meta.glob(['/src/**/*.{ts,tsx}', '!/src/**/*.test.*', '!/src/test/**'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 describe('removed operations (M9.6)', () => {
-  it('lists the 32 bindings and 3 paths of the specification', () => {
-    expect(REMOVED_BINDINGS).toHaveLength(32);
-    expect(new Set(REMOVED_BINDINGS).size).toBe(32);
+  it('lists the 33 bindings and 3 paths of the specification', () => {
+    expect(REMOVED_BINDINGS).toHaveLength(33);
+    expect(new Set(REMOVED_BINDINGS).size).toBe(33);
     expect(REMOVED_PATHS).toHaveLength(3);
   });
 
@@ -102,13 +105,13 @@ describe('removed operations (M9.6)', () => {
   });
 
   it('leaves none of the removed members on the client objects', () => {
-    const objects = new Map<string, object>([['platformApi', platformApi], ['libraryApi', libraryApi], ['apiClient', apiClient]]);
+    const objects = new Map<string, object>([['platformApi', platformApi], ['libraryApi', libraryApi], ['apiClient', apiClient], ['jobsApi', jobsApi]]);
     for (const binding of REMOVED_BINDINGS) {
       const dot = binding.indexOf('.');
       const owner = binding.slice(0, Math.max(dot, 0));
       const member = binding.slice(dot + 1);
       if (owner === 'libraryItemsApi') continue; // its module is gone, see below
-      // A dotted binding is looked for on its object; a bare name on all three.
+      // A dotted binding is looked for on its object; a bare name on every one of them.
       const targets = owner ? [objects.get(owner)] : [...objects.values()];
       for (const target of targets) {
         expect(target, binding).toBeDefined();

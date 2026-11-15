@@ -3,7 +3,7 @@ import JSZip from 'jszip';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { caseOf, lucia, org, project, renderProjectScreen, revisionOf } from '../Project/testKit';
+import { caseOf, lucia, org, project, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseDetail } from './CaseDetail';
 import { digestOf, irDocument } from './fixtures';
 
@@ -13,7 +13,7 @@ const download = vi.hoisted(() => ({ saveBytes: vi.fn() }));
 
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/cases', () => ({ casesApi: cases }));
-vi.mock('../Project/download', () => download);
+vi.mock('../../features/workspace/download', () => download);
 const rendering = vi.hoisted(() => ({ saveText: vi.fn() }));
 const { saveText } = rendering;
 vi.mock('../../components/rendering/download', () => rendering);

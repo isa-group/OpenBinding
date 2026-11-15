@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingUnavailableError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { ProjectSettings } from './ProjectSettings';
-import { caseOf, org, project, renderProjectScreen, revisionOf, usageWithProjects } from './testKit';
+import { caseOf, org, project, renderProjectScreen, revisionOf, usageWithProjects } from '../../features/workspace/testKit';
 
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn(), getPricingCatalog: vi.fn() }));
 const platform = vi.hoisted(() => ({

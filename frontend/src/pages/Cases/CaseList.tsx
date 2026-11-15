@@ -11,8 +11,8 @@ import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { RoleChip } from '../Organization/parts';
 import { loadCases } from '../Project/projectData';
-import { ProjectGate, ProjectSkeleton } from '../Project/parts';
-import type { CaseContent } from '../Project/projectModel';
+import { OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
+import type { CaseContent } from '../../features/workspace/model';
 import { useRouteProject } from '../Project/useRouteProject';
 import { classifyAuthError, marker } from './caseErrors';
 import { caseSortKey, newestFirst, plural } from './casesModel';
@@ -184,10 +184,10 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
  * `New problem` is open while the address holds `?create=problem`, for the people who may create.
  */
 export function CaseList() {
-  const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
-  if (waiting) return <ProjectSkeleton />;
+  const { organization, project, access, waiting, failure, reload } = useRouteProject();
+  if (waiting) return <OrgSkeleton label="Loading project…" />;
   if (!organization || !project) {
-    return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
+    return <OrgGate failure={organization ? failure : null} organizationName={organization?.name} onRetry={reload} />;
   }
   return <ListBody organization={organization} project={project} canCreate={access.canCreate} canAdminister={access.canAdminister} role={access.role} />;
 }

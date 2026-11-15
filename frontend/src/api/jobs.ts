@@ -1,4 +1,4 @@
-import { apiClient, type BimResourceRef, type JobHistory } from './client';
+import { apiClient, type BimResourceRef } from './client';
 import type { ArtifactRef } from './library';
 import type { Job } from './platform';
 
@@ -106,6 +106,4 @@ export const jobsApi = {
   report: (id: string) => apiClient.request<JobReport>(`/v1/jobs/${enc(id)}/report`, {}, undefined, true, true),
   ir: (id: string) => apiClient.request<Record<string, unknown>>(`/v1/jobs/${enc(id)}/ir`, {}, undefined, true, true),
   instance: (id: string) => apiClient.request<JobInstanceView>(`/v1/jobs/${enc(id)}/instance`, {}, undefined, true, true),
-  /** `GET /v1/users/me/jobs`: summaries across projects, as far back as the plan keeps them, with the total and the retention. */
-  history: (params: { limit?: number; offset?: number } = {}): Promise<JobHistory> => apiClient.listOwnJobs(params),
 };

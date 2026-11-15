@@ -89,21 +89,6 @@ const analysisBody = () => ({
   analysis: { tasks: 1, candidates: 2, constraints: 0, placement: false, bindingSpace: '128' },
 });
 
-const completedJob = {
-  id: 'job-1',
-  status: 'completed',
-  result: {
-    termination: 'FEASIBLE',
-    solutions: [{
-      decision: { kind: 'binding', binding: { hello: { resource: 'catalog', id: 'service-a' } } },
-      metrics: { latency: 10 },
-      objectives: { mode: 'weighted', components: [], penalty: 0, score: 10 },
-      penalties: [],
-      violations: [],
-    }],
-  },
-};
-
 type Overridable = 'validate' | 'snapshot' | 'saveRevision';
 
 interface State {
@@ -154,13 +139,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     return (state.refuse.snapshot ?? json({ id: 'snapshot-1', irDigest: digestOf('c') }, 201))(route);
   });
   await page.route(`${API}/v1/instances/snapshot-1/ir`, json(irDocument()));
-  await page.route(`${API}/v1/jobs`, (route) => {
-    state.sent.job = bodyOf(route);
-    return json({ id: 'job-1', status: 'queued', irDigest: digestOf('c') }, 202)(route);
-  });
-  await page.route(`${API}/v1/jobs/job-1`, json(completedJob));
-  // The run's compiled problem: not available here, so RunResult falls back to the ids it has.
-  await page.route(`${API}/v1/jobs/job-1/ir`, (route) => route.fulfill({ status: 404, json: { detail: 'not found' } }));
 
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
     const url = new URL(route.request().url());
@@ -257,7 +235,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const index = main.getByRole('navigation', { name: 'BIM resources' });
 
       await expect(main.getByRole('heading', { level: 1, name: 'Workbench' })).toBeVisible();
-      await expect(main.getByText('Check a package, see which engines can run it, then snapshot, run or save it as a problem version.')).toBeVisible();
+      await expect(main.getByText('Write or check a package, see which engines can run it, then snapshot it or save it as a problem version. A saved version runs from its problem page.')).toBeVisible();
       await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Problems', exact: true })).toHaveAttribute('aria-current', 'page');
       await expect(main.getByRole('tab', { name: 'Problem version' })).toHaveAttribute('aria-selected', 'true');
       await expect(main.getByText(/Nothing validated yet/)).toBeVisible();
@@ -460,7 +438,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('wb-workbench /app/:org/:project/workbench · snapshot, save as a problem version and run', async ({ page }, testInfo) => {
+    test('wb-workbench /app/:org/:project/workbench · snapshot and save as a problem version, which runs from its page', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${WORKBENCH}?case=flujo-checkout`);
@@ -468,7 +446,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('combobox', { name: 'Problem', exact: true })).toHaveValue('flujo-checkout');
       await main.getByRole('button', { name: 'Validate', exact: true }).click();
       const bar = main.getByRole('region', { name: 'Package actions' });
-      await expect(bar).toContainText('Valid packages can be snapshotted, run or saved as a version of a problem.');
+      await expect(bar).toContainText('Valid packages can be snapshotted or saved as a version of a problem, which runs from its page.');
+      // The Workbench runs nothing itself: no engine to pick and no Solve.
+      await expect(main.getByRole('button', { name: 'Solve' })).toHaveCount(0);
+      await expect(main.getByRole('combobox', { name: 'Compatible engine mode' })).toHaveCount(0);
       await expect(bar.getByRole('combobox', { name: 'Save into problem' })).toHaveValue('flujo-checkout');
       await capture(page, testInfo, `bar-${name}-valid`);
 
@@ -484,7 +465,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // Saved as a version of the problem, with the snapshot it came from.
       await expect(bar.getByRole('button', { name: 'Save as problem version' })).toBeEnabled();
       await bar.getByRole('button', { name: 'Save as problem version' }).click();
-      await expect(main.getByText('Version 3 of Flujo de checkout saved and sealed.')).toBeVisible();
+      await expect(main.getByText('Version 3 of Flujo de checkout saved and sealed. Run it from its page.')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Open it' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout?version=3`);
       // The snapshot is now the source of version 3, so it opens that version's Source tab.
       await expect(main.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems/flujo-checkout/source?version=3`);
@@ -499,29 +480,20 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await bar.getByRole('button', { name: 'Save as problem version' }).click();
       await expect(main.getByRole('alert').filter({ hasText: 'The version wasn’t saved' })).toContainText('(403 · forbidden). Nothing was saved.');
       await capture(page, testInfo, `bar-${name}-403`);
-
-      // Run with the engine mode the analysis offered; the same snapshot is used.
-      await main.getByRole('button', { name: 'Solve' }).click();
-      const runResult = main.getByRole('region', { name: 'Authoritative result' }).getByRole('region', { name: 'Run result' });
-      await expect(runResult.getByRole('cell', { name: 'service-a' })).toBeVisible();
-      await expect(runResult.getByText('View source').first()).toBeVisible();
-      expect(state.sent.job).toMatchObject({ snapshot: 'snapshot-1', engine: ENGINE, registration: REGISTRATION, mode: 'seeded' });
-      await capture(page, testInfo, `bar-${name}-run`);
       expect(critical).toEqual([]);
     });
 
-    test('wb-workbench /app/:org/:project/workbench · a VIEWER snapshots and runs but does not save', async ({ page }, testInfo) => {
+    test('wb-workbench /app/:org/:project/workbench · a VIEWER snapshots but does not save', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page, { role: 'VIEWER' });
       await page.goto(WORKBENCH);
       const main = page.locator('#platform-main');
       await main.getByRole('button', { name: 'Validate', exact: true }).click();
       const bar = main.getByRole('region', { name: 'Package actions' });
-      await expect(bar).toContainText('You can snapshot and run with your own account; saving into this project needs MEMBER.');
+      await expect(bar).toContainText('You can snapshot with your own account; saving into this project needs MEMBER.');
       await expect(bar.getByRole('button', { name: 'Save as problem version' })).toBeDisabled();
       await expect(bar.getByRole('combobox', { name: 'Save into problem' })).toHaveCount(0);
       await expect(bar.getByRole('button', { name: 'Create snapshot' })).toBeEnabled();
-      await expect(main.getByRole('button', { name: 'Solve' })).toBeEnabled();
       await capture(page, testInfo, `bar-${name}-viewer`);
 
       // A project the account is not in reads like one that does not exist.

@@ -129,7 +129,7 @@ describe('AppHeader', () => {
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const menu = document.getElementById('app-lab-menu') as HTMLElement;
-    expect(entriesOf(menu)).toEqual([['Runs', '/app/runs'], ['Studies', '/app/isa-demo/qos/studies']]);
+    expect(entriesOf(menu)).toEqual([['Runs', '/app/isa-demo/qos/runs'], ['Studies', '/app/isa-demo/qos/studies']]);
 
     within(menu).getByRole('link', { name: 'Runs' }).focus();
     fireEvent.keyDown(within(menu).getByRole('link', { name: 'Runs' }), { key: 'Escape' });
@@ -138,7 +138,7 @@ describe('AppHeader', () => {
     expect(toggle).toHaveFocus();
   });
 
-  it('disables Problems and Studies with the hint "Needs a project" and keeps Runs without a project', () => {
+  it('disables Problems, Runs and Studies with the hint "Needs a project" without a project', () => {
     renderHeader(user, { withProject: false });
 
     const problems = within(mainNav()).getByText('Problems');
@@ -149,11 +149,12 @@ describe('AppHeader', () => {
 
     fireEvent.click(labToggle());
     const menu = document.getElementById('app-lab-menu') as HTMLElement;
-    const studies = within(menu).getByText('Studies');
-    expect(studies).toHaveAttribute('aria-disabled', 'true');
-    expect(studies).not.toHaveAttribute('href');
-    expect(studies).toHaveAccessibleDescription('Needs a project');
-    expect(within(menu).getByRole('link', { name: 'Runs' })).toHaveAttribute('href', '/app/runs');
+    for (const name of ['Runs', 'Studies']) {
+      const entry = within(menu).getByText(name);
+      expect(entry).toHaveAttribute('aria-disabled', 'true');
+      expect(entry).not.toHaveAttribute('href');
+      expect(entry).toHaveAccessibleDescription('Needs a project');
+    }
   });
 
   it('shows the organization and project as a context chip that leads to /app', () => {
@@ -307,7 +308,7 @@ describe('AppHeader', () => {
       expect(entriesOf(mobileNav())).toEqual([
         ['ISA Demo Group / QoS Benchmarks', '/app'],
         ['Home', '/app'], ['Problems', '/app/isa-demo/qos/problems'],
-        ['Runs', '/app/runs'], ['Studies', '/app/isa-demo/qos/studies'],
+        ['Runs', '/app/isa-demo/qos/runs'], ['Studies', '/app/isa-demo/qos/studies'],
         ['Engines', '/engines'], ['Admin', '/app/admin'],
         ['Problem', '/app/isa-demo/qos/problems?create=problem'],
         ['Study', '/app/isa-demo/qos/studies/new'], ['Run', '/app/isa-demo/qos/runs/new'],
@@ -319,8 +320,8 @@ describe('AppHeader', () => {
       renderHeader(user, { withProject: false });
 
       const disabled = [...document.querySelectorAll<HTMLElement>('[aria-disabled="true"]')];
-      // Problems in the header and in the phone menu, Studies and the three New items in the phone menu.
-      expect(disabled.length).toBeGreaterThanOrEqual(6);
+      // Problems in the header and in the phone menu, Runs, Studies and the three New items in the phone menu.
+      expect(disabled.length).toBeGreaterThanOrEqual(7);
       const hints = disabled.map((item) => item.getAttribute('aria-describedby'));
       expect(new Set(hints).size).toBe(hints.length);
       for (const item of disabled) expect(item).toHaveAccessibleDescription('Needs a project');

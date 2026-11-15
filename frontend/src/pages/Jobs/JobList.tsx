@@ -16,7 +16,7 @@ import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import { canOpenSection } from '../Project/accessLevel';
-import { MembersOnlyGate, ProjectGate, ProjectSkeleton } from '../Project/parts';
+import { MembersOnlyGate, OrgGate, OrgSkeleton } from '../../features/workspace/OrgFrame';
 import { useRouteProject } from '../Project/useRouteProject';
 import { refusalOf, type Refusal } from './jobErrors';
 import { STATUS_FILTERS, canRetryState, formatTook, isActive, normalizeStatus, statusCounts, tookOf, tookPercent, type StatusFilter } from './jobsModel';
@@ -209,8 +209,7 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
 
       {data && (
         <p className="org-muted job-footnote">
-          Only summaries load here; results load when a run is opened. A run you start from a version or a snapshot belongs to your account
-          and is also listed in <Link to="/app/runs" viewTransition>My runs</Link>. <Chip>{rows.length} in this project</Chip>
+          Only summaries load here; results load when a run is opened. <Chip>{rows.length} in this project</Chip>
         </p>
       )}
     </JobFrame>
@@ -219,10 +218,10 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
 
 /** The runs of a project (`job-list`, `/app/:org/:project/runs`): summaries for every member, the actions for whoever launched each run. */
 export function JobList() {
-  const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
-  if (waiting) return <ProjectSkeleton />;
+  const { organization, project, access, waiting, failure, reload } = useRouteProject();
+  if (waiting) return <OrgSkeleton label="Loading project…" />;
   if (!organization || !project) {
-    return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
+    return <OrgGate failure={organization ? failure : null} organizationName={organization?.name} onRetry={reload} />;
   }
   if (!canOpenSection(access.level, 'jobs')) return <MembersOnlyGate root={`/app/${organization.slug}/${project.slug}`} />;
   return <JobListBody key={`${organization.slug}/${project.slug}`} organization={organization} project={project} canLaunch={access.canCreate} />;

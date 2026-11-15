@@ -1,8 +1,7 @@
 import { isValidElement } from 'react';
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { movedRoutes, routeDefinitions } from './registry';
-import { RETIRED_ROUTES } from './retiredRoutes';
+import { routeDefinitions } from './registry';
 
 // The list of each area, its size and the tests about its own screens are in areas/<area>.test.ts; the total is in screenBudget.test.ts.
 
@@ -94,8 +93,7 @@ describe('route registry', () => {
       '/app/acme/atlas/library', '/app/acme/atlas/resources', '/app/acme/atlas/resources/r1',
     ];
     for (const path of retired) expect(matchRoutes(config, path), path).toBeNull();
-    // Without its screen `/app/acme/library` reads as a project named `library`, which the redirect table answers first. It is the
-    // screen of any project, the one `/app/acme/atlas` shows.
+    // Without its screen `/app/acme/library` reads as a project named `library`: the screen of any project, the one `/app/acme/atlas` shows.
     const id = matchRoutes(config, '/app/acme/library')?.at(-1)?.route.id;
     expect(id).toBeDefined();
     expect(id).toBe(matchRoutes(config, '/app/acme/atlas')?.at(-1)?.route.id);
@@ -120,28 +118,10 @@ describe('route registry', () => {
     expect(routeDefinitions.filter((definition) => 'paramAliases' in definition)).toEqual([]);
   });
 
-  it('gives every moved address an id and a path of its own, never the address of a screen', () => {
-    const ids = [...routeDefinitions, ...movedRoutes].map((route) => route.id);
-    const paths = [...routeDefinitions, ...movedRoutes].map((route) => route.path);
-    expect(new Set(ids).size).toBe(ids.length);
-    expect(new Set(paths).size).toBe(paths.length);
-  });
-
-  it('declares moved addresses, so the table below is never empty', () => {
-    expect(movedRoutes.length).toBeGreaterThan(0);
-  });
-
-  it.each(movedRoutes.map((route) => [route.id, route] as const))('sends the moved address %s to a routed screen in one hop', (_id, route) => {
-    const params = Object.fromEntries([...route.path.matchAll(/:([A-Za-z]+)/g)].map((match) => [match[1], `${match[1]}-value`]));
-    const address = route.target(new URLSearchParams(), params);
-    const pathname = address.split(/[?#]/)[0] ?? '';
-    const config = [
-      ...routeDefinitions.map(({ id, path }) => ({ id: `screen:${id}`, path })),
-      ...RETIRED_ROUTES.map(({ id, path }) => ({ id: `retired:${id}`, path })),
-      ...movedRoutes.map(({ id, path }) => ({ id: `moved:${id}`, path })),
-    ];
-    const matched = matchRoutes(config, pathname)?.at(-1)?.route.id;
-    expect(matched, `${route.id} -> ${address}`).toBeDefined();
-    expect(matched, `${route.id} -> ${address}`).toMatch(/^screen:/);
+  it('keeps no redirect table: every address the application answers is a screen of the registry', () => {
+    const files = import.meta.glob('./**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+    const sources = Object.entries(files).filter(([path]) => !path.endsWith('.test.ts') && !path.endsWith('.test.tsx'));
+    expect(sources.length).toBeGreaterThan(5);
+    expect(sources.filter(([, source]) => /<Navigate\b|\bmovedRoutes\b|\bRETIRED_ROUTES\b/.test(source)).map(([path]) => path)).toEqual([]);
   });
 });

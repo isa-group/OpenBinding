@@ -149,7 +149,7 @@ const API_PATH = /(^|\/)v\d+\//;
  * of the text, `/`, `?`, `#` or a `${` substitution (``${root}/cases/${slug}``, `'/app/:org/:project/cases'`). Each is reported as `file: text`, the text as
  * written between the quotes. Comments, imports, a single word such as `'cases'` (a section key), a versioned HTTP path (`/v1/jobs/{id}`, an
  * engine's endpoint) and the HTTP client layer (`src/api/`, which names the gateway's paths) are not reported, nor are test files, test kits
- * and fixtures. The files that name old addresses on purpose (the route areas, the moved and retired tables) are left out by the caller.
+ * and fixtures.
  */
 export function scanAddresses(files: Readonly<Record<string, string>>, segments: readonly string[] = OLD_ADDRESS_SEGMENTS): string[] {
   const old = new RegExp(`/(?:${segments.map(escapeRegExp).join('|')})(?=$|[/?#$])`);

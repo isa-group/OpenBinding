@@ -6,7 +6,7 @@ import { AuthContext } from '../../contexts/auth';
 import { PlatformShell, type PlatformOutletContext } from './PlatformShell';
 import { buildCommands } from './paletteCommands';
 import { platformApi, type Organization, type Project } from '../../api/platform';
-import { movedRoutes, routeDefinitions } from '../../routes/registry';
+import { routeDefinitions } from '../../routes/registry';
 
 vi.mock('../../api/platform', async () => ({
   ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'),
@@ -18,9 +18,9 @@ vi.mock('../../api/platform', async () => ({
 
 /**
  * One address for each fixed first segment under /app that the registry answers with something other than an organization: the
- * screens and the moved addresses. A segment that is a `:param` names an organization and is not listed.
+ * screens. A segment that is a `:param` names an organization and is not listed.
  */
-const FIXED_ADDRESSES = [...new Map([...routeDefinitions, ...movedRoutes].flatMap((route) => {
+const FIXED_ADDRESSES = [...new Map(routeDefinitions.flatMap((route) => {
   const [, root, first] = route.path.split('/');
   const address = route.path.replace(/\/:[A-Za-z]+\?/g, '').replace(/:[A-Za-z]+/g, 'sample');
   return root === 'app' && first && !first.startsWith(':') ? [[first, address] as const] : [];
@@ -160,7 +160,7 @@ describe('PlatformShell (application layout)', () => {
   });
 
   it('knows the fixed addresses of the registry', () => {
-    expect(FIXED_ADDRESSES.length).toBeGreaterThan(3);
+    expect(FIXED_ADDRESSES.length).toBeGreaterThanOrEqual(3);
   });
 
   it.each(FIXED_ADDRESSES)(

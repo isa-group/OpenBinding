@@ -48,7 +48,6 @@ const HEADING: Record<string, RegExp> = {
   'job-launch': /New run/,
   'job-list': /^Runs$/,
   'job-detail': /random-search run/,
-  'job-history': /My runs/,
   'study-list': /^Studies$/,
   'study-builder': /New study/,
   'study-detail': /Engines × seeds/,

@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
-import { caseOf, org, project, renderProjectScreen, revisionOf } from '../Project/testKit';
+import { caseOf, org, project, renderProjectScreen, revisionOf } from '../../features/workspace/testKit';
 import { CaseDetail } from './CaseDetail';
 import { digestOf, irDocument, refOf, revisionDocument, versionOf } from './fixtures';
 

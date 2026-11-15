@@ -78,9 +78,10 @@ describe('Home', () => {
     expect(await within(activity).findByText('Running')).toBeInTheDocument();
     expect(within(activity).getByText('No feasible binding')).toBeInTheDocument();
     expect(within(activity).getByText(/finished in 40 s/)).toBeInTheDocument();
-    expect(within(activity).getAllByRole('link', { name: /minizinc/ })[0]).toHaveAttribute('href', '/app/runs');
+    expect(within(activity).getAllByText('minizinc').length).toBeGreaterThan(0);
     expect(activity).not.toHaveTextContent('00000000');
-    expect(within(activity).getByRole('link', { name: 'All runs' })).toHaveAttribute('href', '/app/runs');
+    // There is no account-wide run history to link to: a run is opened from its project.
+    expect(within(activity).queryAllByRole('link').filter((link) => link.getAttribute('href') === '/app/runs')).toEqual([]);
 
     const plan = screen.getByRole('region', { name: 'Your plan' });
     expect(await within(plan).findByText('RESEARCH')).toBeInTheDocument();

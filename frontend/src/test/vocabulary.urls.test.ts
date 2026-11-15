@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { OLD_ADDRESS_SEGMENTS, scanAddresses } from './vocabulary';
 
 // The addresses the frontend builds hold no `cases`, `jobs` or `publications` segment (`req~frontend-nav-vocabulary-urls~1`, slices 13 and 14). The gateway
-// API paths in `src/api/` keep them. The route areas, the moved table and the retired table name the old addresses on purpose, to redirect them.
+// API paths in `src/api/` keep them. No file declares an old address: there is no redirect table.
 
 describe('the address scan', () => {
   it('reports an old address in a page and leaves the API client and the new addresses alone', () => {
@@ -93,26 +93,17 @@ describe('the address scan', () => {
   });
 });
 
-// Every application source, except the HTTP client layer (the scan skips it itself) and the files that declare the old addresses to
-// redirect them.
+// Every application source, except the HTTP client layer (the scan skips it itself).
 const sources = import.meta.glob('/src/**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
-const DECLARING = /^\/src\/routes\/(areas\/|moved\.ts$|retiredRoutes\.tsx$)/;
-const scanned = Object.fromEntries(Object.entries(sources).filter(([path]) => !DECLARING.test(path)));
 
 describe('the addresses of the application sources', () => {
-  it('reads the application sources and leaves out the files that declare the old addresses', () => {
-    const paths = Object.keys(scanned);
+  it('reads the application sources, the route areas among them', () => {
+    const paths = Object.keys(sources);
     expect(paths.length).toBeGreaterThan(200);
-    expect(paths.some((path) => DECLARING.test(path))).toBe(false);
-    expect(Object.keys(sources).filter((path) => DECLARING.test(path)).length).toBeGreaterThan(5);
+    expect(paths.filter((path) => path.startsWith('/src/routes/areas/')).length).toBeGreaterThan(5);
   });
 
-  it('builds no address with a cases, jobs or publications segment', () => {
-    expect(scanAddresses(scanned)).toEqual([]);
-  });
-
-  it('finds the old address where the declaring files name it', () => {
-    const declaring = Object.fromEntries(Object.entries(sources).filter(([path]) => DECLARING.test(path)));
-    expect(scanAddresses(declaring).length).toBeGreaterThan(0);
+  it('builds no address with a cases, jobs or publications segment, and declares none', () => {
+    expect(scanAddresses(sources)).toEqual([]);
   });
 });

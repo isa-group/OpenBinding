@@ -27,8 +27,7 @@ test('new API key opens as a dialog over the API keys section', async ({ page })
   await mockApi(page);
   await page.goto('/app/account/keys');
   await expect(current(page, 'API keys')).toBeVisible();
-  await page.goto('/app/account/keys/new');
-  await expect.poll(() => pathAndSearch(page)).toBe('/app/account/keys?create=key');
+  await page.goto('/app/account/keys?create=key');
   const dialog = page.getByRole('dialog', { name: 'New API key' });
   await expect(dialog).toBeVisible();
   await expect(current(page, 'API keys')).toBeVisible();

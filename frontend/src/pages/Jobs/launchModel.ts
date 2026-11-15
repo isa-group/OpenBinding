@@ -3,8 +3,8 @@ import type { BimResourceRef, EngineCatalogEntry, EngineMode } from '../../api/c
 import type { ExecutionOptimization, LaunchRequest } from '../../api/jobs';
 import type { ArtifactRef } from '../../api/library';
 import type { CaseRevision } from '../../api/platform';
-import type { CaseContent } from '../Project/projectModel';
-import { planLimit } from '../Project/projectModel';
+import type { CaseContent } from '../../features/workspace/model';
+import { planLimit } from '../../features/workspace/model';
 import { RANGE_CODE, RANGE_REFUSAL } from '../../utils/featureRange';
 import { formatDate } from '../../utils/format';
 import { parseBindingSpace } from '../../components/BindingSpaceBadge/bindingSpace';

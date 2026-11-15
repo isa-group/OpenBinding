@@ -276,9 +276,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'Forgot your password?' })).toBeVisible();
       await capture(page, testInfo, `reset-complete-${name}-empty-token`);
 
-      // The link of the reset e-mail keeps working and lands on the one screen, with its token in the address.
-      await page.goto(`/password-reset/complete?token=${RESET_TOKEN}`);
-      await expect(page).toHaveURL(new RegExp(`/password-reset\\?token=${RESET_TOKEN}$`));
+      // A reset link lands on the one screen, with its token in the address.
+      await page.goto(`/password-reset?token=${RESET_TOKEN}`);
       await expect(main.getByRole('heading', { level: 1, name: 'Set a new password' })).toBeVisible();
       await expect(main.getByText('Reset link · ready to use')).toBeVisible();
       await main.getByLabel('New password').fill('short');

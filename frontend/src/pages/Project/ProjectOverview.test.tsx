@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import type { Job, StudyCell } from '../../api/platform';
 import { ProjectOverview } from './ProjectOverview';
-import { caseOf, iker, org, project, renderProjectScreen, revisionOf, runOf, studyOf } from './testKit';
+import { caseOf, iker, org, project, renderProjectScreen, revisionOf, runOf, studyOf } from '../../features/workspace/testKit';
 
 const api = vi.hoisted(() => ({ listOwnJobs: vi.fn() }));
 const platform = vi.hoisted(() => ({

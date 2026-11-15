@@ -20,7 +20,10 @@ interface ActionBarProps {
   root: string;
 }
 
-/** What a valid package can become: a snapshot, a run, or a version of a problem. Shown only once the gateway has accepted the package. */
+/**
+ * What a valid package can become: a snapshot, or a version of a problem. Shown only once the gateway has accepted the package. Nothing
+ * runs from here: a saved version runs from its problem page, which the notice after a save links to.
+ */
 export function ActionBar({ wb, canSave, cases, target, onTarget, revisions, revisionsReady, root }: ActionBarProps) {
   if (wb.status !== 'valid') return null;
   const targetCase = cases.find((item) => item.slug === target);
@@ -46,18 +49,17 @@ export function ActionBar({ wb, canSave, cases, target, onTarget, revisions, rev
         >
           {wb.saved.existing
             ? `Same content as version ${wb.saved.revision.revision}, so no new version was needed.`
-            : `Version ${wb.saved.revision.revision} of ${targetCase?.name ?? target} saved and sealed.`}
+            : `Version ${wb.saved.revision.revision} of ${targetCase?.name ?? target} saved and sealed. Run it from its page.`}
         </Notice>
       )}
       {wb.saveIssue && <Notice tone="error" title="The version wasn’t saved">{wb.saveIssue}</Notice>}
       <section className="wb-bar" aria-label="Package actions">
         <span className="wb-bar-note">
           {canSave
-            ? 'Valid packages can be snapshotted, run or saved as a version of a problem.'
-            : 'You can snapshot and run with your own account; saving into this project needs MEMBER.'}
+            ? 'Valid packages can be snapshotted or saved as a version of a problem, which runs from its page.'
+            : 'You can snapshot with your own account; saving into this project needs MEMBER.'}
         </span>
         <Action variant="secondary" busy={wb.snapshotBusy} onClick={() => void wb.compile()}>{wb.snapshot ? 'Snapshot created' : 'Create snapshot'}</Action>
-        <Action variant="secondary" onClick={() => document.getElementById('wb-run')?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })}>Run…</Action>
         {canSave && cases.length > 0 && (
           <label className="wb-bar-case">
             <span className="sr-only">Save into problem</span>

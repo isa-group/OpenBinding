@@ -4,7 +4,7 @@ import {
   compareWithProject, countRows, detectFormat, humanizeCount, inspectPackage, packageFileName, packageImportCounts,
 } from './packageModel';
 import { CASE_DIGESTS, FILE_TEXT, fileDigest, samplePackage } from './packageFixture';
-import { ensureSubtleCrypto } from './testKit';
+import { ensureSubtleCrypto } from '../../features/workspace/testKit';
 
 beforeAll(ensureSubtleCrypto);
 

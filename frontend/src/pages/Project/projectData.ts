@@ -1,5 +1,6 @@
 import { platformApi } from '../../api/platform';
-import { latestRun, type CaseContent, type StudyContent } from './projectModel';
+import type { CaseContent, StudyContent } from '../../features/workspace/model';
+import { latestRun } from './projectModel';
 
 /** The cases of a project with their sealed revisions. A case whose revisions can't be read still shows, with none. */
 export async function loadCases(org: string, project: string): Promise<CaseContent[]> {

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { PROBLEMS, RUNS_SEGMENT } from './helpers';
 import {
-  MEMBER_NAMES, PROJECT_TABS, VISITOR_TABS, exportZip, expectAddress, importZip, isCurrent, mockProject, navEntry, packageCalls,
+  MEMBER_NAMES, PROJECT_TABS, VISITOR_TABS, exportZip, importZip, isCurrent, mockProject, navEntry, packageCalls,
   projectTabs, sectionNav,
 } from './helpers-hub';
 
@@ -95,12 +95,4 @@ test('importing a ZIP from the settings posts the package', async ({ page }) => 
   await expect(page.getByRole('heading', { name: 'Import package' })).toBeVisible();
   await importZip(page);
   await expect.poll(() => packageCalls(calls).filter((call) => call.method === 'POST').length).toBeGreaterThan(0);
-});
-
-test('the old files and package addresses become the overview and the settings', async ({ page }) => {
-  await mockProject(page);
-  await page.goto(`${PROJECT}/files`);
-  await expectAddress(page, PROJECT);
-  await page.goto(`${PROJECT}/package`);
-  await expectAddress(page, `${PROJECT}/settings`);
 });

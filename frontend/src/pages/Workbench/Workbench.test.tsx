@@ -4,41 +4,24 @@ import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { unzipPackage } from '../../utils/bimZip';
 import { digestOf, irDocument, refOf, revisionDocument } from '../Cases/fixtures';
-import { caseOf, project, revisionOf } from '../Project/testKit';
+import { caseOf, project, revisionOf } from '../../features/workspace/testKit';
 import {
-  ENGINE_REF, REGISTRATION_REF, ROOT, SECOND_REGISTRATION, analysis, answerIr, jobWith, openWorkbench, packageArchive, packageFile, renderWorkbench, runResult,
+  ENGINE_REF, REGISTRATION_REF, ROOT, SECOND_REGISTRATION, analysis, openWorkbench, packageArchive, packageFile, renderWorkbench,
 } from './workbenchTestKit';
 
-const NOT_AVAILABLE = 'The compiled problem of this run is not available, so tasks and candidates are shown by id, without feature values, bounds or units.';
-
 const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), caseRevisions: vi.fn(), snapshotArchive: vi.fn() }));
-const client = vi.hoisted(() => ({
-  getBimExamples: vi.fn(), getBimExamplePackage: vi.fn(), createBimJob: vi.fn(), createConfiguredBimJob: vi.fn(),
-  getV1Job: vi.fn(), getOwnUsage: vi.fn(), getPricingCatalog: vi.fn(),
-}));
+const client = vi.hoisted(() => ({ getBimExamples: vi.fn(), getBimExamplePackage: vi.fn(), getOwnUsage: vi.fn(), getPricingCatalog: vi.fn() }));
 const workbench = vi.hoisted(() => ({ validate: vi.fn(), snapshot: vi.fn(), ir: vi.fn(), saveRevision: vi.fn() }));
 
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
-const jobs = vi.hoisted(() => ({ ir: vi.fn() }));
 vi.mock('../../api/workbench', () => ({ workbenchApi: workbench }));
-vi.mock('../../api/jobs', async () => {
-  const actual = await vi.importActual<typeof import('../../api/jobs')>('../../api/jobs');
-  return { ...actual, jobsApi: { ...actual.jobsApi, ir: jobs.ir } };
-});
 vi.mock('../../components/CodeEditor/CodeEditor', () => ({
   CodeEditor: ({ value, onChange, ariaLabel, readOnly }: { value: string; onChange: (value: string) => void; ariaLabel: string; readOnly?: boolean }) => (
     <textarea aria-label={ariaLabel} value={value} readOnly={readOnly} onChange={(event) => onChange(event.target.value)} />
   ),
 }));
 vi.mock('./BpmnModeler', () => ({ BpmnModeler: () => <div data-testid="bpmn-modeler" /> }));
-vi.mock('../../components/Artifacts/ArtifactVersionPicker', () => ({
-  ArtifactVersionPicker: ({ onSelect }: { onSelect: (artifact: never, version: never) => void }) => (
-    <button type="button" onClick={() => onSelect({} as never, { id: 'configuration-1', ref: { namespace: 'isa-demo', name: 'rs-60s', version: '1', versionDigest: `sha256-${'d'.repeat(64)}` } } as never)}>
-      Pick a sealed configuration
-    </button>
-  ),
-}));
 
 const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const checkout = caseOf('flujo-checkout', 'Flujo de checkout');
@@ -55,15 +38,6 @@ async function validated() {
   await screen.findByRole('heading', { name: 'Valid package' });
 }
 
-const completedJob = {
-  id: 'job-1',
-  status: 'completed',
-  result: {
-    termination: 'FEASIBLE',
-    solutions: [{ decision: { kind: 'binding', binding: { hello: { resource: 'catalog', id: 'service-a' } } }, metrics: { latency: 10 } }],
-  },
-};
-
 describe('Workbench', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -76,12 +50,9 @@ describe('Workbench', () => {
       plan: 'RESEARCH', capabilities: { maxRepositoryStorage: 500 }, features: {}, contract_pending: false,
     });
     client.getPricingCatalog.mockResolvedValue(null);
-    client.createBimJob.mockResolvedValue({ id: 'job-1', status: 'queued', irDigest: 'sha256-ir' });
-    client.getV1Job.mockResolvedValue(completedJob);
     workbench.validate.mockResolvedValue(analysis());
     workbench.snapshot.mockResolvedValue({ id: 'snapshot-1', irDigest: 'sha256-ir' });
     workbench.ir.mockResolvedValue(irDocument());
-    answerIr(jobs.ir, 'document');
   });
 
   describe('the page', () => {
@@ -89,7 +60,7 @@ describe('Workbench', () => {
       await openWorkbench();
 
       expect(screen.getByRole('heading', { level: 1, name: 'Workbench' })).toBeInTheDocument();
-      expect(screen.getByText('Check a package, see which engines can run it, then snapshot, run or save it as a problem version.')).toBeInTheDocument();
+      expect(screen.getByText('Write or check a package, see which engines can run it, then snapshot it or save it as a problem version. A saved version runs from its problem page.')).toBeInTheDocument();
       expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getByRole('link', { name: 'Problems' })).toHaveAttribute('aria-current', 'page');
       expect(within(screen.getByRole('navigation', { name: 'Breadcrumb' })).getByText('Workbench')).toHaveAttribute('aria-current', 'page');
       expect(screen.getAllByRole('tab').slice(0, 3).map((tab) => tab.textContent)).toEqual(['Problem version', 'Upload file', 'Example']);
@@ -138,7 +109,7 @@ describe('Workbench', () => {
       expect(screen.getByRole('button', { name: 'Validate' })).toBeDisabled();
     });
 
-    it('sends a deterministic BIM ZIP and lists only the modes the analysis says can run it', async () => {
+    it('sends a deterministic BIM ZIP and tells the modes the analysis says can run it from the others', async () => {
       workbench.validate.mockResolvedValue(analysis({
         compatibleModes: [
           { engine: ENGINE_REF, registration: REGISTRATION_REF, mode: 'seeded', compatible: true },
@@ -157,10 +128,11 @@ describe('Workbench', () => {
         optimization: { optimization: 'optimization.json' },
       });
 
-      const modes = screen.getByRole('combobox', { name: 'Compatible engine mode' });
-      expect(within(modes).getAllByRole('option').map((option) => option.textContent)).toEqual([
-        'Validate to select…', 'random-search · seeded · random-search-deployment@1.0.0+builtin.a',
-      ]);
+      fireEvent.click(screen.getByRole('tab', { name: /Engines that can run it/ }));
+      const rows = within(screen.getByRole('table', { name: 'Engine modes and whether they can run this package' })).getAllByRole('row');
+      expect(rows).toHaveLength(3);
+      expect(within(rows[1]).getByText('Yes')).toBeInTheDocument();
+      expect(within(rows[2]).getByText('No')).toBeInTheDocument();
     });
 
     it('shows the valid package, copy buttons for its digests and what is inside it', async () => {
@@ -458,7 +430,7 @@ describe('Workbench', () => {
   });
 
   describe('snapshot and problem version', () => {
-    it('makes one private snapshot, reuses it for the run, and forgets it when the package changes', async () => {
+    it('makes one private snapshot, reuses it, and forgets it when the package changes', async () => {
       await validated();
       const bar = screen.getByRole('region', { name: 'Package actions' });
       fireEvent.click(within(bar).getByRole('button', { name: 'Create snapshot' }));
@@ -468,8 +440,8 @@ describe('Workbench', () => {
       expect(screen.getByRole('link', { name: 'Open snapshot' })).toHaveAttribute('href', `${ROOT}/problems`);
       expect(await screen.findByRole('img', { name: /^Workflow:/ })).toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
-      await screen.findByRole('cell', { name: 'service-a' });
+      fireEvent.click(within(bar).getByRole('button', { name: 'Snapshot created' }));
+      await waitFor(() => expect(workbench.ir).toHaveBeenCalledTimes(2));
       expect(workbench.snapshot).toHaveBeenCalledTimes(1);
 
       fireEvent.click(screen.getByRole('button', { name: /instance\.json/i }));
@@ -523,7 +495,7 @@ describe('Workbench', () => {
       await waitFor(() => expect(save).toBeEnabled());
       fireEvent.click(save);
 
-      expect(await screen.findByText('Version 3 of Flujo de checkout saved and sealed.')).toBeInTheDocument();
+      expect(await screen.findByText('Version 3 of Flujo de checkout saved and sealed. Run it from its page.')).toBeInTheDocument();
       expect(workbench.saveRevision).toHaveBeenCalledWith(
         'isa-demo', 'qos-benchmarks', 'flujo-checkout', expect.objectContaining({ apiVersion: 'bim/v1', kind: 'Instance', metadata: { name: 'hello-bim' } }), 'snapshot-1',
       );
@@ -561,308 +533,79 @@ describe('Workbench', () => {
       expect(screen.getByRole('heading', { name: 'Valid package' })).toBeInTheDocument();
     });
 
-    it('lets a VIEWER snapshot and run but not save into the project', async () => {
+    it('lets a VIEWER snapshot but not save into the project', async () => {
       await openWorkbench({ role: 'VIEWER' });
       validate();
       await screen.findByRole('heading', { name: 'Valid package' });
 
       const bar = screen.getByRole('region', { name: 'Package actions' });
-      expect(bar).toHaveTextContent('You can snapshot and run with your own account; saving into this project needs MEMBER.');
+      expect(bar).toHaveTextContent('You can snapshot with your own account; saving into this project needs MEMBER.');
       expect(within(bar).getByRole('button', { name: 'Save as problem version' })).toBeDisabled();
       expect(within(bar).getByRole('button', { name: 'Save as problem version' })).toHaveAttribute('title', 'Saving into this project needs MEMBER');
       expect(within(bar).queryByRole('combobox', { name: 'Save into problem' })).not.toBeInTheDocument();
       expect(within(bar).getByRole('button', { name: 'Create snapshot' })).toBeEnabled();
-      expect(screen.getByRole('button', { name: 'Solve' })).toBeEnabled();
+    });
+
+    it('runs nothing itself: no engine to pick, no sealed configuration and no Solve, only the save that leads to the problem page', async () => {
+      await validated();
+
+      expect(screen.queryByRole('button', { name: 'Solve' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Run…' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('combobox', { name: 'Compatible engine mode' })).not.toBeInTheDocument();
+      expect(screen.queryByText(/Execution configuration/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Run with an engine' })).not.toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Package actions' })).toHaveTextContent('saved as a version of a problem, which runs from its page');
     });
   });
 
-  describe('running', () => {
-    it('keeps multiple executable registrations distinct and solves with the selected exact pins', async () => {
+  describe('with range features', () => {
+    const edge = { namespace: 'lucia-vega', name: 'edge-solver', version: '0.3.1', digest: 'sha256-e' };
+    const edgeRegistration = { namespace: 'lucia-vega', name: 'edge-solver-eu', version: '1', digest: 'sha256-r' };
+    const REASON = 'This package has range features; this engine only accepts single values';
+    const refusedForRanges = { engine: edge, registration: edgeRegistration, mode: 'placement', compatible: false, diagnostics: [{ code: 'unsupported_capability_value', message: 'interval is not declared' }] };
+
+    /** Gives the first candidate a range from the form of candidates.json, then checks the package again. */
+    async function makeRange(open = true) {
+      fireEvent.click(screen.getByRole('tab', { name: /^Files/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Edit candidates.json' }));
+      fireEvent.click(within(screen.getByRole('group', { name: 'latency for service-a: value or range' })).getByRole('button', { name: 'Range' }));
+      if (open) fireEvent.click(screen.getByLabelText('latency for service-a: no upper limit'));
+      validate();
+      await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(2));
+      await screen.findByRole('heading', { name: 'Valid package' });
+    }
+
+    it('edits a quality as a number or as a range, open or not, in the candidate form', async () => {
+      await validated();
+      fireEvent.click(screen.getByRole('tab', { name: /^Files/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Edit candidates.json' }));
+
+      expect(screen.getByLabelText('service-a QoS latency')).toHaveValue(10);
+      fireEvent.click(within(screen.getByRole('group', { name: 'latency for service-a: value or range' })).getByRole('button', { name: 'Range' }));
+      expect(screen.queryByLabelText('service-a QoS latency')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('latency for service-a min')).toHaveValue('10');
+      fireEvent.change(screen.getByLabelText('latency for service-a max'), { target: { value: '20' } });
+      fireEvent.click(screen.getByLabelText('latency for service-a: no lower limit'));
+
+      expect(screen.getByLabelText('latency for service-a min')).toHaveValue('−∞');
+      expect(screen.getByLabelText('latency for service-a max')).toHaveValue('20');
+      // Back to a single value: the cell asks first, because the range is wider than a point.
+      fireEvent.click(within(screen.getByRole('group', { name: 'latency for service-a: value or range' })).getByRole('button', { name: 'Value' }));
+      expect(screen.getByRole('alertdialog')).toHaveTextContent('Convert to 20? This drops the lower limit (no limit).');
+      fireEvent.click(screen.getByRole('button', { name: 'Convert' }));
+      expect(screen.getByLabelText('service-a QoS latency')).toHaveValue(20);
+    });
+
+    it('turns off, in the check result, a mode that only takes single values once a candidate has a range, with the reason', async () => {
       workbench.validate.mockResolvedValue(analysis({
-        compatibleModes: [
-          { engine: ENGINE_REF, registration: REGISTRATION_REF, mode: 'seeded', compatible: true },
-          { engine: ENGINE_REF, registration: SECOND_REGISTRATION, mode: 'seeded', compatible: true },
-        ],
+        compatibleModes: [{ engine: ENGINE_REF, registration: REGISTRATION_REF, mode: 'seeded', compatible: true }, refusedForRanges],
       }));
       await validated();
+      await makeRange();
+      fireEvent.click(screen.getByRole('tab', { name: /Engines that can run it/ }));
 
-      const second = await screen.findByRole('option', { name: 'random-search · seeded · random-search-eu@2.0.0' });
-      fireEvent.change(screen.getByRole('combobox', { name: 'Compatible engine mode' }), { target: { value: (second as HTMLOptionElement).value } });
-      fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
-
-      await waitFor(() => expect(client.createBimJob).toHaveBeenCalledWith('snapshot-1', ENGINE_REF, SECOND_REGISTRATION, 'seeded'));
-    });
-
-    it('validates first when Solve is pressed on a package nobody checked, and renders the decision by its declared kind', async () => {
-      await openWorkbench();
-      fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
-
-      expect(await screen.findByRole('cell', { name: 'service-a' })).toBeInTheDocument();
-      expect(screen.getByRole('region', { name: 'Authoritative result' })).toHaveTextContent('FEASIBLE');
-      expect(client.createBimJob).toHaveBeenCalledWith('snapshot-1', ENGINE_REF, REGISTRATION_REF, 'seeded');
-      expect(workbench.validate).toHaveBeenCalledTimes(1);
-    });
-
-    describe('the authoritative result', () => {
-      /** Solve and return the region once the run result is in it. */
-      async function solved(result: unknown = runResult()) {
-        client.getV1Job.mockResolvedValue(jobWith(result));
-        await openWorkbench();
-        fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
-        const region = await screen.findByRole('region', { name: 'Authoritative result' });
-        return { region, run: await within(region).findByRole('region', { name: 'Run result' }) };
-      }
-
-      it('shows the run through the run result: verdict, names, feature values, bounds, objectives and source', async () => {
-        const { region, run } = await solved();
-
-        expect(within(run).getByText('FEASIBLE')).toBeInTheDocument();
-        expect(run).toHaveTextContent('1 solution · optimization MULTI');
-        const table = await within(run).findByRole('region', { name: 'Chosen providers' });
-        expect(await within(table).findByRole('rowheader', { name: /Payment/ })).toBeInTheDocument();
-        expect(table).toHaveTextContent('Stripe EU');
-        expect(table).toHaveTextContent('Shipping');
-        expect(table).toHaveTextContent('Twilio');
-        expect(within(table).getByRole('columnheader', { name: 'latency (ms)' })).toBeInTheDocument();
-        expect(table).toHaveTextContent('120');
-        expect(table).toHaveTextContent('2.5');
-        const bounds = within(run).getByRole('region', { name: 'QoS against bounds' });
-        expect(bounds).toHaveTextContent('latency');
-        expect(bounds).toHaveTextContent('420');
-        expect(bounds).toHaveTextContent('600');
-        expect(within(run).getByRole('region', { name: 'Objective breakdown' })).toHaveTextContent('pareto');
-        const source = within(run).getByText('View source');
-        expect(source.closest('details')).not.toHaveAttribute('open');
-        expect(within(region).getByRole('heading', { level: 3, name: 'Authoritative result' })).toBeInTheDocument();
-        expect(region).toHaveTextContent('Gateway-reevaluated output');
-        await waitFor(() => expect(jobs.ir).toHaveBeenCalledTimes(1));
-        expect(jobs.ir).toHaveBeenCalledWith('job-1');
-      });
-
-      it('has no result summary line and no dump of metrics, penalties or violations outside the source view', async () => {
-        const { region } = await solved();
-        await within(region).findByRole('region', { name: 'Chosen providers' });
-
-        expect(document.querySelector('.wb-result-summary')).toBeNull();
-        expect(region.querySelector('.wb-decision, .wb-decision-table, .wb-metrics')).toBeNull();
-        const outside = [...region.querySelectorAll('pre')].filter((pre) => !pre.closest('[aria-label$=" source"]'));
-        expect(outside).toEqual([]);
-        expect(screen.queryByText(/View source · evaluation, penalties and violations/)).not.toBeInTheDocument();
-      });
-
-      it('shows task and candidate ids with no note while the compiled problem is loading', async () => {
-        answerIr(jobs.ir, 'pending');
-        const { run } = await solved();
-
-        const table = await within(run).findByRole('region', { name: 'Chosen providers' });
-        expect(table).toHaveTextContent('t1');
-        expect(table).toHaveTextContent('c1');
-        expect(table).not.toHaveTextContent('Payment');
-        expect(run).not.toHaveTextContent('The compiled problem of this run is not available');
-      });
-
-      it('says the compiled problem is not available when it cannot be read', async () => {
-        answerIr(jobs.ir, 'missing');
-        const { run } = await solved();
-
-        expect(await within(run).findByText(NOT_AVAILABLE)).toBeInTheDocument();
-        expect(within(run).getByRole('region', { name: 'Chosen providers' })).toHaveTextContent('c1');
-      });
-
-      it('says the compiled problem is not available, without asking for it, when the run has no job id', async () => {
-        client.createBimJob.mockResolvedValue({ status: 'queued', irDigest: 'sha256-ir' });
-        const { run } = await solved();
-
-        expect(await within(run).findByText(NOT_AVAILABLE)).toBeInTheDocument();
-        expect(jobs.ir).not.toHaveBeenCalled();
-      });
-
-      it('shows the empty binding text and the source for a decision that is not a binding', async () => {
-        const base = runResult();
-        const { run } = await solved({ ...base, solutions: [{ ...base.solutions[0], decision: { kind: 'placement', placement: { p1: 'pool-a' } } }] });
-
-        expect(within(run).queryByRole('region', { name: 'Chosen providers' })).not.toBeInTheDocument();
-        expect(within(run).getByText('This solution carries no binding assignment.')).toBeInTheDocument();
-        const source = within(run).getByRole('region', { name: 'Solution 1 source', hidden: true });
-        expect(source).toHaveTextContent('pool-a');
-        expect(source.closest('details')).not.toHaveAttribute('open');
-      });
-    });
-
-    it('polls a running job until it completes', async () => {
-      client.getV1Job.mockResolvedValueOnce({ id: 'job-1', status: 'running' }).mockResolvedValue(completedJob);
-      await validated();
-      fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
-
-      expect(await screen.findByText('Running: the engine is searching…')).toBeInTheDocument();
-      expect(await screen.findByRole('cell', { name: 'service-a' }, { timeout: 4000 })).toBeInTheDocument();
-      expect(client.getV1Job).toHaveBeenCalledTimes(2);
-    });
-
-    it('stops asking for the job when the screen closes', async () => {
-      client.getV1Job.mockResolvedValue({ id: 'job-1', status: 'running' });
-      const view = await openWorkbench();
-      validate();
-      await screen.findByRole('heading', { name: 'Valid package' });
-      fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
-      expect(await screen.findByText('Running: the engine is searching…')).toBeInTheDocument();
-
-      view.unmount();
-      const asked = client.getV1Job.mock.calls.length;
-      expect(client.getV1Job.mock.calls[0][1]).toBeInstanceOf(AbortSignal);
-      await new Promise((resolve) => setTimeout(resolve, 1400));
-      expect(client.getV1Job).toHaveBeenCalledTimes(asked);
-    });
-
-    it('says why a run did not finish', async () => {
-      client.getV1Job.mockResolvedValue({ id: 'job-1', status: 'failed', error: 'The deployment didn’t answer within the budget.' });
-      await validated();
-      fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
-
-      const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('The run did not finish');
-      expect(alert).toHaveTextContent('The deployment didn’t answer within the budget.');
-      expect(within(alert).getByRole('link', { name: 'See runs' })).toHaveAttribute('href', `${ROOT}/runs`);
-    });
-
-    describe('with range features', () => {
-      const edge = { namespace: 'lucia-vega', name: 'edge-solver', version: '0.3.1', digest: 'sha256-e' };
-      const edgeRegistration = { namespace: 'lucia-vega', name: 'edge-solver-eu', version: '1', digest: 'sha256-r' };
-      const REASON = 'This package has range features; this engine only accepts single values';
-      /** The diagnostic the gateway sends for a mode that does not declare interval values (docs/ERRORS.md); the pointers are optional. */
-      const rangeDiagnostic = {
-        code: 'unsupported_capability_value', category: 'featureValues', unsupported: ['interval'], allowed: ['scalar'],
-        message: 'mode does not support requested featureValues values',
-        resource: 'candidates.json', pointer: '/spec/candidates/service-a/features/latency', irPath: '/spec/candidates/catalog/candidates/service-a/features/latency',
-      };
-      const refusedForRanges = { engine: edge, registration: edgeRegistration, mode: 'placement', compatible: false, diagnostics: [{ code: 'unsupported_capability_value', message: 'interval is not declared' }] };
-
-      /** Gives the first candidate a range from the form of candidates.json, then checks the package again. */
-      async function makeRange(open = true) {
-        fireEvent.click(screen.getByRole('tab', { name: /^Files/ }));
-        fireEvent.click(screen.getByRole('button', { name: 'Edit candidates.json' }));
-        fireEvent.click(within(screen.getByRole('group', { name: 'latency for service-a: value or range' })).getByRole('button', { name: 'Range' }));
-        if (open) fireEvent.click(screen.getByLabelText('latency for service-a: no upper limit'));
-        validate();
-        await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(2));
-        await screen.findByRole('heading', { name: 'Valid package' });
-      }
-
-      it('edits a quality as a number or as a range, open or not, in the candidate form', async () => {
-        await validated();
-        fireEvent.click(screen.getByRole('tab', { name: /^Files/ }));
-        fireEvent.click(screen.getByRole('button', { name: 'Edit candidates.json' }));
-
-        expect(screen.getByLabelText('service-a QoS latency')).toHaveValue(10);
-        fireEvent.click(within(screen.getByRole('group', { name: 'latency for service-a: value or range' })).getByRole('button', { name: 'Range' }));
-        expect(screen.queryByLabelText('service-a QoS latency')).not.toBeInTheDocument();
-        expect(screen.getByLabelText('latency for service-a min')).toHaveValue('10');
-        fireEvent.change(screen.getByLabelText('latency for service-a max'), { target: { value: '20' } });
-        fireEvent.click(screen.getByLabelText('latency for service-a: no lower limit'));
-
-        expect(screen.getByLabelText('latency for service-a min')).toHaveValue('−∞');
-        expect(screen.getByLabelText('latency for service-a max')).toHaveValue('20');
-        // Back to a single value: the cell asks first, because the range is wider than a point.
-        fireEvent.click(within(screen.getByRole('group', { name: 'latency for service-a: value or range' })).getByRole('button', { name: 'Value' }));
-        expect(screen.getByRole('alertdialog')).toHaveTextContent('Convert to 20? This drops the lower limit (no limit).');
-        fireEvent.click(screen.getByRole('button', { name: 'Convert' }));
-        expect(screen.getByLabelText('service-a QoS latency')).toHaveValue(20);
-      });
-
-      it('lists the modes that only take single values as off, with the reason, once a candidate has a range', async () => {
-        workbench.validate.mockResolvedValue(analysis({
-          compatibleModes: [{ engine: ENGINE_REF, registration: REGISTRATION_REF, mode: 'seeded', compatible: true }, refusedForRanges],
-        }));
-        await validated();
-        const modes = screen.getByRole('combobox', { name: 'Compatible engine mode' });
-        // No range yet: the list is what it always was.
-        expect(within(modes).getAllByRole('option')).toHaveLength(2);
-        expect(document.querySelector('.wb-range-note')).toBeNull();
-
-        await makeRange();
-
-        const options = within(screen.getByRole('combobox', { name: 'Compatible engine mode' })).getAllByRole('option');
-        expect(options.map((option) => option.textContent)).toEqual([
-          'Validate to select…', 'random-search · seeded · random-search-deployment@1.0.0+builtin.a',
-          'edge-solver · placement · edge-solver-eu@1 — can’t run ranges',
-        ]);
-        expect(options[2]).toBeDisabled();
-        expect(options[1]).toBeEnabled();
-        const note = document.querySelector('.wb-range-note') as HTMLElement;
-        expect(note).toHaveTextContent(`1 engine mode is off. ${REASON}.`);
-        expect(within(note).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-        expect(within(note).getByRole('button', { name: 'Edit the candidates' })).toBeInTheDocument();
-      });
-
-      it('gives the reason in the table of engines too', async () => {
-        workbench.validate.mockResolvedValue(analysis({
-          compatibleModes: [{ engine: ENGINE_REF, registration: REGISTRATION_REF, mode: 'seeded', compatible: true }, refusedForRanges],
-        }));
-        await validated();
-        await makeRange();
-        fireEvent.click(screen.getByRole('tab', { name: /Engines that can run it/ }));
-
-        const rows = within(screen.getByRole('table', { name: 'Engine modes and whether they can run this package' })).getAllByRole('row');
-        expect(rows[2]).toHaveTextContent(REASON);
-      });
-
-      it('explains a run the engine refused for ranges, with the pointers, and leads to Engines and to the candidates', async () => {
-        client.createBimJob.mockRejectedValue(refusal(422, 'engine_mode_incompatible', [{ code: 'profile_incompatible', message: 'mode profile differs' }, { ...rangeDiagnostic }]));
-        await validated();
-        fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
-
-        const alert = await screen.findByRole('alert');
-        expect(alert).toHaveTextContent('This engine only accepts single values');
-        expect(alert).toHaveTextContent('Pick a mode that declares interval values, or edit those candidates to use single values.');
-        expect(alert).toHaveTextContent('The gateway pointed at candidates.json#/spec/candidates/service-a/features/latency.');
-        expect(alert).not.toHaveTextContent('mode profile differs.');
-        expect(within(alert).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
-        expect(within(alert).getByRole('button', { name: 'Edit the candidates' })).toBeInTheDocument();
-      });
-
-      it('explains the same refusal without a pointer from the gateway, naming the compiled value instead', async () => {
-        client.createBimJob.mockRejectedValue(refusal(422, 'engine_mode_incompatible', [{ ...rangeDiagnostic, resource: undefined, pointer: undefined }]));
-        await validated();
-        fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
-
-        const alert = await screen.findByRole('alert');
-        expect(alert).toHaveTextContent('This engine only accepts single values');
-        expect(alert).toHaveTextContent('The gateway pointed at /spec/candidates/catalog/candidates/service-a/features/latency.');
-      });
-
-      it('explains the refusal when the range diagnostic has no pointer at all', async () => {
-        client.createBimJob.mockRejectedValue(refusal(422, 'engine_mode_incompatible', [{ code: 'unsupported_capability_value', message: 'mode does not support requested featureValues values' }]));
-        await validated();
-        fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
-
-        const alert = await screen.findByRole('alert');
-        expect(alert).toHaveTextContent('This engine only accepts single values');
-        expect(alert).not.toHaveTextContent('The gateway pointed at');
-      });
-
-      it('explains a job that failed with the same code', async () => {
-        client.getV1Job.mockResolvedValue({ id: 'job-1', status: 'failed', error: 'unsupported_capability_value: unsupported ["interval"]' });
-        await validated();
-        fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
-
-        expect(await screen.findByRole('alert')).toHaveTextContent('This engine only accepts single values');
-      });
-    });
-
-    it('runs a sealed execution configuration instead of an engine mode', async () => {
-      client.createConfiguredBimJob.mockResolvedValue({ id: 'job-1', status: 'queued', irDigest: 'sha256-ir' });
-      await validated();
-
-      fireEvent.click(screen.getByRole('button', { name: 'Pick a sealed configuration' }));
-      expect(screen.getByText('Using sealed configuration rs-60s@1.')).toBeInTheDocument();
-      expect(screen.getByRole('combobox', { name: 'Compatible engine mode' })).toBeDisabled();
-      fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
-
-      await waitFor(() => expect(client.createConfiguredBimJob).toHaveBeenCalledWith(
-        'snapshot-1', { namespace: 'isa-demo', name: 'rs-60s', version: '1', versionDigest: `sha256-${'d'.repeat(64)}` },
-      ));
-      fireEvent.click(screen.getByRole('button', { name: 'Use engine selection instead' }));
-      expect(screen.getByRole('combobox', { name: 'Compatible engine mode' })).toBeEnabled();
+      const rows = within(screen.getByRole('table', { name: 'Engine modes and whether they can run this package' })).getAllByRole('row');
+      expect(rows[2]).toHaveTextContent(REASON);
     });
   });
 

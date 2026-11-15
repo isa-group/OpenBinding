@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
-import { countLiveCalls, dropOptionalSegments, readAreaSources, readMovedAddresses } from './helpers/galleryRoutes';
+import { countLiveCalls, dropOptionalSegments, readAreaSources } from './helpers/galleryRoutes';
 
-// Visits every screen of the route registry (src/routes/areas/*.tsx) with example parameter values, and every moved address
-// (`moved('id', '/from', '/to'…` lines of the same files) to see that it ends on its new address.
+// Visits every screen of the route registry (src/routes/areas/*.tsx) with example parameter values. There are no redirects: an old
+// address is answered by no screen.
 // There is no backend: the API origin is answered by page.route(), signed in only for /app screens.
 
 const API = 'http://localhost:8000';
@@ -25,19 +25,12 @@ function readRegistry(): Screen[] {
 }
 
 const screens = readRegistry();
-const movedAddresses = readMovedAddresses();
 
 /** The base address of a pattern: an optional segment (`:section?`) is dropped with its slash before the parameters are filled. */
 const exampleUrl = (path: string) => dropOptionalSegments(path)
   .replace(':org', 'isa-demo')
   .replace(':project', 'qos')
   .replace(/:[A-Za-z]+/g, 'sample');
-
-/** Example values for a moved address: the organization and the project the mock knows, every other parameter its own name. */
-const namedUrl = (path: string) => dropOptionalSegments(path)
-  .replace(':org', 'isa-demo')
-  .replace(':project', 'qos')
-  .replace(/:([A-Za-z]+)/g, '$1');
 
 const account = (role: 'user' | 'admin') => ({
   id: 'smoke-user-id',
@@ -152,7 +145,7 @@ test.describe('route registry', () => {
 
   test('knows which pathnames are screens of the registry', () => {
     expect(isScreenAddress('/app/isa-demo/qos/problems/checkout')).toBe(true);
-    expect(isScreenAddress('/app/runs')).toBe(true);
+    expect(isScreenAddress('/app/account/keys')).toBe(true);
     expect(isScreenAddress('/explore')).toBe(false);
     expect(isScreenAddress('/')).toBe(true);
     expect(isScreenAddress('/app/isa-demo/qos/cases/checkout/compare')).toBe(false);
@@ -189,30 +182,5 @@ for (const screen of screens) {
 
     // The vocabulary of the interface: Problem and Run, never case or job (nor publication outside the engine registration).
     expect(forbiddenIn(screen.id, await visibleTexts(page)), `${screen.id} (${screen.path}) shows words the vocabulary rules out`).toEqual([]);
-  });
-}
-
-for (const address of movedAddresses) {
-  test(`${address.area} moved ${address.id} ${address.from} -> ${address.to}`, async ({ page }) => {
-    test.setTimeout(90_000);
-    const isApp = (path: string) => path === '/app' || path.startsWith('/app/');
-    const admin = /^\/app\/admin(\/|$)/.test(address.to);
-    await mockApi(page, isApp(address.from) || isApp(address.to) ? (admin ? 'admin' : 'user') : null);
-
-    const start = namedUrl(address.from);
-    await page.goto(start, { waitUntil: 'domcontentloaded' });
-
-    if (address.customTarget) {
-      // The target is computed: only the old address has to be left behind.
-      await expect.poll(() => new URL(page.url()).pathname, { timeout: 30_000 }).not.toBe(new URL(start, 'http://localhost').pathname);
-      await expect.poll(() => isScreenAddress(new URL(page.url()).pathname), { message: `${address.id} should land on a screen of the registry`, timeout: 30_000 }).toBe(true);
-      return;
-    }
-    // The old address is replaced by the new one, each parameter keeping its own value.
-    const expected = new URL(namedUrl(address.to), 'http://localhost');
-    await expect.poll(() => new URL(page.url()).pathname, { timeout: 30_000 }).toBe(expected.pathname);
-    if (expected.search) expect(new URL(page.url()).search).toContain(expected.search);
-    // And the new address is a screen of the registry, not a missing page.
-    expect(isScreenAddress(expected.pathname), `${address.id} leads to ${expected.pathname}, which no screen of the registry has`).toBe(true);
   });
 }
