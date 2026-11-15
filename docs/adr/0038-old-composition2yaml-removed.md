@@ -23,4 +23,8 @@ composition.
   history keeps the old ones.
 - `syntax.py`'s refusal messages still name Composition2Yaml; they become the messages of F1's document syntax.
 
+Later: F1 gave the name to the document of a final composition ([ADR 0041](0041-composition2yaml-final-composition.md))
+and pruned `model`, `neutral`, `bpmn`, `read` and the old `diff` from the library (F1 D19); `diff.py` now compares
+Composition2Yaml documents.
+
 Where: `openbinding-gateway/src/openbinding_gateway/composition/`, `docs/COMPOSITION2YAML.md`.

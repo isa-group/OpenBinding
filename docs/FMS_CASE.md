@@ -220,8 +220,8 @@ Version 1 already models S1 that way, and version 2 names R in the optimization 
 without R occupying a step -- what R does, gathering and choosing and validating, *is* the
 workflow.
 
-The decision matters because of the diff, not because of the binding. A diff over the
-composition model (`composition/diff.py`) reports `N tasks (M get a provider)` and a row per task present in one
+The decision matters because of the diff, not because of the binding. The model diff this
+study used (pruned from the library in F1) reported `N tasks (M get a provider)` and a row per task present in one
 revision and absent in the other, so modelling the same role two ways across versions would
 print `Task R | — | present`: a change of notation dressed as a service that did not exist
 before. With the rule applied to both versions, the version-to-version diff reports what

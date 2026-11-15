@@ -186,6 +186,21 @@ curl -sS -H "$AUTH" -X POST "$API/v1/organizations/my-lab/studies/seeds/runs"
 browser test against the lab (`frontend/e2e/live/03-upload-run-study.spec.ts`) and steps 3 to 5 of
 `openbinding-gateway/tools/smoke_lab.py`.
 
+### Compositions: from a run to a versioned final composition
+
+A **composition** is one binding of a problem's workflow to services, with the global values it yields, written in
+[Composition2Yaml](docs/COMPOSITION2YAML.md) (a quoted `syntaxVersion: "1.0"`, the workflow, one binding entry per
+task, the values and, optionally, the problem it was judged against and the composition's own offering). It stands
+to the problem as a subscription stands to a Pricing2Yaml pricing. `POST /v1/organizations/{org}/compositions/{c}/derive`
+with `{"run": "<run id>", "version": "1.0.0"}` turns a run's solution into a version (or `{"revision":
+"simple-seq@1", "binding": {...}}` a binding of a revision); the same binding always gives the same bytes. A hand-written
+document is checked with `…/versions/check` and sealed with `POST …/versions`. Linked to a problem, its values are the
+toolchain's, re-computed on every seal (`verified`); without one, they are stored as written (`declared`). Versions are
+compared (`…/diff`), re-evaluated by a new toolchain release (`…/versions/{v}/evaluations`), explored with other
+bindings (`…/evaluate`, `…/neighborhood`) and forked into another organization (`…/fork`). Run presets
+(`/v1/organizations/{org}/presets`) name the settings a run starts from (`createRun {revision, preset}`). The whole path
+is an API test (`openbinding-gateway/tests/test_f1_walk.py`); the decisions are ADRs 0041 to 0046.
+
 ### Reset the dev database
 
 The schema is one Alembic revision, regenerated from the models
@@ -208,7 +223,7 @@ procedure leaves Redis, the stored packages and other development volumes intact
 
 ### Seeding development data
 
-To populate the database with a complete set of development entities (users, hierarchical organizations, problems with compiled revisions, real solver runs, comparative studies, and API keys) for testing all platform features:
+To populate the database with a complete set of development entities (users, hierarchical organizations, problems with compiled revisions, real solver runs, comparative studies, compositions (`simple-seq` derived from a run, `tomatometer-sketch` declared) and API keys) for testing all platform features:
 
 ```bash
 # Seed development data (idempotent: adds or updates without duplicating)

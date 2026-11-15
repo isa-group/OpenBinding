@@ -16,7 +16,7 @@ the chain applies (`collaboration.effective_role`). Anybody else is refused:
   organization is `404 not_found`; the runs and run presets routes answer `404` to a
   non-member too (below), and so do the compositions routes: a composition the caller cannot read
   answers exactly as a missing one, `404` and never `403`, on every route and before
-  any `If-Match` handling;
+  any `If-Match` handling, as SPHERE answers a private pricing ([ADR 0046](adr/0046-compositions-module.md));
 - a caller with no credential gets `401` on every route under `/v1/organizations`;
 - a platform administrator is a non-member like anybody else unless invited.
 
@@ -58,7 +58,8 @@ creation with `422 slug_reserved`: `admin`, `account`, `engines`, `organizations
 `invitations`, `runs`, `problems`, `studies`, `settings`, `workbench` and `new`
 (`RESERVED_ORGANIZATION_SLUGS` in `models/platform.py`, mirrored by
 `frontend/src/components/PlatformShell/workspacePath.ts`). A slug cannot be changed
-after creation.
+after creation. `compositions` and `presets` join the list in F2, with the screens that
+use them as sections.
 
 ## The runs of an organization (`/v1/organizations/{org}/runs`)
 

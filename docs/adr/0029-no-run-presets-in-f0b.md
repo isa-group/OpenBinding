@@ -18,4 +18,7 @@ standalone table of engine, mode, options and optimisation that runs use; it nev
 - Launching a run picks the engine, mode and settings each time; the run records them.
 - No migration carries configurations over: there is no production data.
 
+Later: F1 added `run_presets` in the execution module; `createRun` takes a `preset`
+([ADR 0046](0046-compositions-module.md)).
+
 Where: `frontend/src/pages/Jobs/JobLaunch.tsx`.

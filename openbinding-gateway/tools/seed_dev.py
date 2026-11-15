@@ -4,7 +4,8 @@
 Seeds users, hierarchical organizations, BIM problems of an
 organization (uploaded from examples/demo), comparative studies with REAL
 solver jobs executed against available engines (or gracefully handled),
-API keys, notifications, and audit records.
+compositions (one derived from a run, one declared), API keys,
+notifications, and audit records.
 
 Usage:
     python tools/seed_dev.py [--reset] [--verbose]
@@ -83,6 +84,7 @@ from openbinding_gateway.db.models import (
     EngineRegistrationRevision,
     EngineRevision,
     Job,
+    JobState,
     User,
     UserRole,
     utcnow,
@@ -91,6 +93,9 @@ from openbinding_gateway.db.platform_models import (
     AuditEvent,
     BindingCase,
     BindingCaseRevision,
+    Composition,
+    CompositionKind,
+    CompositionVersion,
     Notification,
     Organization,
     OrganizationMembership,
@@ -691,6 +696,123 @@ async def ensure_standalone_jobs(
     return jobs
 
 
+#: The declared composition of the seed: the TomatoMeter sample of the redesign plan, with no problem, its
+#: in-house login bound ``local``, and the composite's own offering in SPHERE.
+TOMATOMETER_SKETCH = """\
+syntaxVersion: "1.0"
+composition: tomatometer-sketch
+version: 0.1.0
+kind: application
+workflow:
+  seq: [login, {and: [dailySummary, export]}, quotes]
+binding:
+  login: {local: true}
+  dailySummary:
+    candidate: email.brevo.business
+    from: {sphere: brevo/brevo, version: 665f1c2e9b1d4a0012ab34cd, plan: BUSINESS}
+  export: {candidate: storage.dropbox.plus}
+  quotes: {candidate: quotes.zenquotes.free}
+values:
+  availability: 0.9985
+  cost: {value: 34.5, unit: EUR/month}
+  latency: {value: 420, unit: ms}
+offering: {sphere: isa/tomatometer}
+"""
+
+
+async def _seed_composition(
+    session: AsyncSession, org: Organization, user: User, slug: str, name: str, kind: CompositionKind,
+) -> Composition:
+    """The composition ``slug`` of ``org``, created empty when it does not exist yet."""
+    composition = await session.scalar(
+        select(Composition).where(Composition.organization_id == org.id, Composition.slug == slug)
+    )
+    if composition is None:
+        composition = Composition(organization_id=org.id, slug=slug, name=name, kind=kind, created_by_id=user.id)
+        session.add(composition)
+        await session.commit()
+        logger.info("Created composition '%s/%s'", org.slug, slug)
+    return composition
+
+
+def _first_binding(compilation) -> dict[str, str]:
+    """The first eligible candidate of every service task of a compiled problem, by id."""
+    spec = compilation.ir["spec"]
+    return {
+        task: spec["eligibility"][task][0]["id"]
+        for task, body in spec["application"]["tasks"].items()
+        if body["kind"] == "service"
+    }
+
+
+async def ensure_compositions(
+    session: AsyncSession,
+    org: Organization,
+    user: User,
+    problems: dict[str, tuple[BindingCase, BindingCaseRevision]] | None = None,
+    jobs: list[Job] | tuple[Job, ...] = (),
+) -> list[CompositionVersion]:
+    """Two compositions of ``org``: ``simple-seq`` derived from a run, and the declared ``tomatometer-sketch``.
+
+    ``simple-seq`` 1.0.0 is derived from the first completed run of ``jobs`` that solved the ``simple-seq``
+    problem; without one (no engine answered), from the first eligible binding of its revision. Both go
+    through the platform's own derivation and seal, so re-running the seed seals the same bytes again and
+    stores nothing new.
+    """
+    from fastapi import HTTPException
+
+    from openbinding_gateway.modules.compositions.application import (
+        derive_version,
+        installed_compilation,
+        judge,
+        persist,
+    )
+
+    versions: list[CompositionVersion] = []
+    chosen = (problems or {}).get("simple-seq")
+    if chosen is None:
+        logger.warning("Composition coverage gap: no simple-seq problem; no composition was derived")
+    else:
+        problem, revision = chosen
+        composition = await _seed_composition(
+            session, org, user, "simple-seq", "Sequential service workflow", CompositionKind.APPLICATION,
+        )
+        run = next((
+            job for job in jobs
+            if job.revision_id == revision.id and job.state is JobState.COMPLETED
+            and (job.result or {}).get("solutions")
+        ), None)
+        try:
+            if run is not None:
+                derived = await derive_version(session, org, composition, caller=user, label="1.0.0", run=run.id)
+            else:
+                installed, refusal = await installed_compilation(session, revision)
+                if installed is None:
+                    raise RuntimeError(f"the revision does not compile: {refusal}")
+                logger.warning("Composition coverage gap: no completed simple-seq run; deriving from a binding")
+                derived = await derive_version(
+                    session, org, composition, caller=user, label="1.0.0",
+                    revision=f"{problem.slug}@{revision.revision}", binding=_first_binding(installed),
+                )
+            sealed = await persist(session, composition, derived.assessment, actor=user, derivation=derived.derivation)
+            versions.append(sealed.version)
+            logger.info("Composition simple-seq 1.0.0 (%s)", "sealed" if sealed.created else "unchanged")
+        except HTTPException as exc:
+            await session.rollback()
+            logger.warning("Composition coverage gap for simple-seq: %s", exc.detail)
+
+    sketch = await _seed_composition(
+        session, org, user, "tomatometer-sketch", "TomatoMeter sketch", CompositionKind.APPLICATION,
+    )
+    checked = await judge(session, org, sketch.slug, TOMATOMETER_SKETCH.encode("utf-8"), user)
+    if checked.assessment is None or not checked.valid:
+        raise RuntimeError("the seed's declared composition is refused: " + "; ".join(map(str, checked.diagnostics)))
+    sealed = await persist(session, sketch, checked.assessment, actor=user)
+    versions.append(sealed.version)
+    logger.info("Composition tomatometer-sketch 0.1.0 (%s)", "sealed" if sealed.created else "unchanged")
+    return versions
+
+
 async def ensure_notifications_and_audit(
     session: AsyncSession,
     orgs: dict[str, Organization],
@@ -768,6 +890,7 @@ def print_summary_banner(users: dict[str, User]) -> None:
     print("\n  [Problems & Studies]")
     print("    - score-ai problems: simple-seq, parallel-mesh, multi-objective")
     print("    - score-ai studies: exact-vs-heuristic (Real Runs & Jobs), parallel-scaling-study")
+    print("    - score-ai compositions: simple-seq (derived from a run), tomatometer-sketch (declared)")
 
 
     print("\n  [Example API Requests]")
@@ -828,7 +951,12 @@ async def main() -> int:
             case_map = await ensure_cases(session, org_map["score-ai"], user_map["alice"], examples_dir)
 
             # 4. Standalone solve jobs
-            await ensure_standalone_jobs(session, org_map["score-ai"], user_map["alice"], problems=case_map, all_states=True)
+            jobs = await ensure_standalone_jobs(
+                session, org_map["score-ai"], user_map["alice"], problems=case_map, all_states=True,
+            )
+
+            # 4.1 Compositions: one derived from a run of simple-seq, one declared
+            await ensure_compositions(session, org_map["score-ai"], user_map["alice"], case_map, jobs)
 
             # 5. Studies & Real Job Executions
             await execute_real_studies(session, org_map["score-ai"], user_map["alice"], case_map)

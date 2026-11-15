@@ -198,7 +198,9 @@ when the two sides are `comparable`.
 | `rate_limit_exceeded` | 429 | past the `read` budget of the client ([ACCESS_POLICY.md](ACCESS_POLICY.md)) |
 
 The findings, in the order a document is read (size, YAML, root, sections, coherence, schema).
-Every one is an error unless its severity says otherwise.
+Every one is an error unless its severity says otherwise. The language's specification,
+[COMPOSITION2YAML.md](COMPOSITION2YAML.md) §14, lists the same codes with their severity and phase,
+and tests an example of most of them.
 
 | `c2y_*` code | Meaning |
 |---|---|
@@ -237,7 +239,7 @@ Every one is an error unless its severity says otherwise.
 | `c2y_schema` | the JSON Schema backstop refused something no specific rule names |
 | `c2y_more` | **info**: more findings than a list holds (100); fix these first |
 
-Against a compiled problem (the organization's routes, from F1 B8):
+Against a compiled problem, and when assessing a document in an organization (the organization's routes):
 
 | `c2y_*` code | Meaning |
 |---|---|
@@ -263,6 +265,11 @@ Against a compiled problem (the organization's routes, from F1 B8):
 | `c2y_run_foreign_revision` | the run solved another revision, or a compilation that reads it differently |
 | `c2y_run_point_invalid` | the run has no binding to cite, or `evidence.point` is not one of its solutions (`deriveComposition`: the request's `point`) |
 | `c2y_run_binding_mismatch` | the binding is not the run's solution (`point`) or none of them; the message lists the tasks that differ |
+
+Reserved for F3, which emits them (no route reports them yet): `c2y_offering_unreadable` (**warning**: the
+offering cannot be read; no margins), `c2y_offering_invalid_pricing` (**warning**: its content is not a valid
+Pricing2Yaml; no margins) and `c2y_provenance_mismatch` (a `from` disagrees with the provenance a
+SPHERE-generated problem recorded for its candidate).
 
 ## Compositions
 
