@@ -229,6 +229,7 @@ _REPO_NAME = re.compile(r"\b(?:REPO_ROOT|ROOT|REPO)\b")
 # test_no_kubernetes is the only repository-wide one and has its own rule in tools/ci_changes.py; the others stay in
 # directories the area rules classify. A new entry needs its paths justified next to those rules.
 WALKING_TESTS = {
+    "composition/test_derive_goldens.py": "the files of named examples/ packages, and its own golden directory",
     "integration/test_engine_representation_regression.py": "schemas/bim/v1/manifests, examples/federation",
     "test_b5_corpus.py": "engine manifests",
     "test_b5_open_ranges.py": "engine manifests, examples/federation",
@@ -236,6 +237,8 @@ WALKING_TESTS = {
     "test_bim_consumer_contract.py": "contracts/consumers of the toolchain test kit (.bim-toolchain/, BIM_TOOLCHAIN_ROOT)",
     "test_bim_schema_parity.py": "schemas/bim/v1",
     "test_compose_production.py": "a temporary secrets directory, not the repository",
+    "test_composition_derive_api.py": "the files of examples/demo/16_json_complete, copied into a temporary package",
+    "test_composition_versions_api.py": "the composition goldens of the tests directory",
     "test_docker_context.py": "the sources of the Dockerfile COPY lines",
     "test_entitlement_map.py": "the gateway sources (and docs/pricing/openbinding-0.2.0.yml, read by name)",
     "test_no_file_relative_repo_paths.py": "the tests directory itself",
