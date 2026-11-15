@@ -9899,6 +9899,95 @@
         "title": "SectionDiffView",
         "type": "object"
       },
+      "StudyCellExport": {
+        "properties": {
+          "binding_case_revision_id": {
+            "format": "uuid",
+            "title": "Binding Case Revision Id",
+            "type": "string"
+          },
+          "compilation_id": {
+            "format": "uuid",
+            "title": "Compilation Id",
+            "type": "string"
+          },
+          "engine": {
+            "additionalProperties": true,
+            "description": "The exact engine, mode and optimization the cell ran.",
+            "title": "Engine",
+            "type": "object"
+          },
+          "fingerprint": {
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "title": "Metrics",
+            "type": "object"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "title": "Parameters",
+            "type": "object"
+          },
+          "problem": {
+            "description": "The slug of the problem the cell's revision belongs to.",
+            "title": "Problem",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ordinal",
+          "problem",
+          "revision",
+          "binding_case_revision_id",
+          "compilation_id",
+          "engine",
+          "parameters",
+          "seed",
+          "fingerprint",
+          "job_id",
+          "state",
+          "metrics"
+        ],
+        "title": "StudyCellExport",
+        "type": "object"
+      },
       "StudyCellResult": {
         "additionalProperties": false,
         "properties": {
@@ -10078,6 +10167,30 @@
         "title": "StudyDefinition",
         "type": "object"
       },
+      "StudyExportRef": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name"
+        ],
+        "title": "StudyExportRef",
+        "type": "object"
+      },
       "StudyRunDefinition": {
         "description": "The definition a study run froze when it was created (``openbinding/study-run/v1``).",
         "properties": {
@@ -10124,6 +10237,88 @@
           "seeds"
         ],
         "title": "StudyRunDefinition",
+        "type": "object"
+      },
+      "StudyRunExport": {
+        "description": "A study run exported whole (``exportStudyRun?format=json``): the frozen definition and every cell.",
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/StudyCellExport"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/StudyRunDefinition"
+          },
+          "run": {
+            "$ref": "#/components/schemas/StudyRunExportRef"
+          },
+          "study": {
+            "$ref": "#/components/schemas/StudyExportRef"
+          }
+        },
+        "required": [
+          "study",
+          "run",
+          "definition",
+          "cells"
+        ],
+        "title": "StudyRunExport",
+        "type": "object"
+      },
+      "StudyRunExportRef": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "definition_digest": {
+            "title": "Definition Digest",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "matrix_digest": {
+            "title": "Matrix Digest",
+            "type": "string"
+          },
+          "run_number": {
+            "title": "Run Number",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "run_number",
+          "state",
+          "matrix_digest",
+          "definition_digest",
+          "created_at",
+          "finished_at"
+        ],
+        "title": "StudyRunExportRef",
         "type": "object"
       },
       "StudyRunProblem": {
@@ -24951,6 +25146,130 @@
         "x-api-key-engine-access": "exact-revision-allow-list-or-all",
         "x-required-api-key-permissions": [
           "studies:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/studies/{study}/runs/{run_id}/export": {
+      "get": {
+        "description": "A study run as a file: every cell, in cell order, with no paging (a run has at most 10,000 cells).\n\nCSV columns: ``cell_id, problem, revision, engine_namespace, engine_name, engine_version, mode, parameters``\n(JSON), ``seed, status, feasible, runtime_seconds``, then ``objective.<name>`` and ``metric.<name>``, each\ngroup sorted by name.",
+        "operationId": "exportStudyRun",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "study",
+            "required": true,
+            "schema": {
+              "title": "Study",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "`csv`: one row per cell; `json`: the frozen definition and every cell.",
+            "in": "query",
+            "name": "format",
+            "required": true,
+            "schema": {
+              "description": "`csv`: one row per cell; `json`: the frozen definition and every cell.",
+              "enum": [
+                "csv",
+                "json"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudyRunExport"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The run as an attachment: a JSON document, or CSV with one row per cell."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "The request does not satisfy the contract; `diagnostics` says where."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Export Study Run",
+        "tags": [
+          "Studies"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "studies:read"
         ]
       }
     },

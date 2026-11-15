@@ -216,6 +216,47 @@ class StudyRunView(BaseModel):
     finished_at: Optional[datetime]
 
 
+class StudyExportRef(BaseModel):
+    id: uuid.UUID
+    slug: str
+    name: str
+
+
+class StudyRunExportRef(BaseModel):
+    id: uuid.UUID
+    run_number: int
+    state: str
+    matrix_digest: str
+    definition_digest: str
+    created_at: datetime
+    finished_at: Optional[datetime]
+
+
+class StudyCellExport(BaseModel):
+    id: uuid.UUID
+    ordinal: int
+    problem: str = Field(description="The slug of the problem the cell's revision belongs to.")
+    revision: int
+    binding_case_revision_id: uuid.UUID
+    compilation_id: uuid.UUID
+    engine: dict[str, Any] = Field(description="The exact engine, mode and optimization the cell ran.")
+    parameters: dict[str, Any]
+    seed: int
+    fingerprint: str
+    job_id: Optional[uuid.UUID]
+    state: str
+    metrics: dict[str, Any]
+
+
+class StudyRunExport(BaseModel):
+    """A study run exported whole (``exportStudyRun?format=json``): the frozen definition and every cell."""
+
+    study: StudyExportRef
+    run: StudyRunExportRef
+    definition: StudyRunDefinition
+    cells: list[StudyCellExport]
+
+
 class StudyCellResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
     job_id: uuid.UUID

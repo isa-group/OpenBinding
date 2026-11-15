@@ -2043,6 +2043,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{org}/studies/{study}/runs/{run_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Study Run
+         * @description A study run as a file: every cell, in cell order, with no paging (a run has at most 10,000 cells).
+         *
+         *     CSV columns: ``cell_id, problem, revision, engine_namespace, engine_name, engine_version, mode, parameters``
+         *     (JSON), ``seed, status, feasible, runtime_seconds``, then ``objective.<name>`` and ``metric.<name>``, each
+         *     group sorted by name.
+         */
+        get: operations["exportStudyRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/pricing/catalog": {
         parameters: {
             query?: never;
@@ -6157,6 +6181,56 @@ export interface components {
             /** Label */
             label: string;
         };
+        /** StudyCellExport */
+        StudyCellExport: {
+            /**
+             * Binding Case Revision Id
+             * Format: uuid
+             */
+            binding_case_revision_id: string;
+            /**
+             * Compilation Id
+             * Format: uuid
+             */
+            compilation_id: string;
+            /**
+             * Engine
+             * @description The exact engine, mode and optimization the cell ran.
+             */
+            engine: {
+                [key: string]: unknown;
+            };
+            /** Fingerprint */
+            fingerprint: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Job Id */
+            job_id: string | null;
+            /** Metrics */
+            metrics: {
+                [key: string]: unknown;
+            };
+            /** Ordinal */
+            ordinal: number;
+            /** Parameters */
+            parameters: {
+                [key: string]: unknown;
+            };
+            /**
+             * Problem
+             * @description The slug of the problem the cell's revision belongs to.
+             */
+            problem: string;
+            /** Revision */
+            revision: number;
+            /** Seed */
+            seed: number;
+            /** State */
+            state: string;
+        };
         /** StudyCellResult */
         StudyCellResult: {
             /**
@@ -6242,6 +6316,18 @@ export interface components {
             /** Seeds */
             seeds?: number[];
         };
+        /** StudyExportRef */
+        StudyExportRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
         /**
          * StudyRunDefinition
          * @description The definition a study run froze when it was created (``openbinding/study-run/v1``).
@@ -6261,6 +6347,40 @@ export interface components {
             problems: components["schemas"]["StudyRunProblem"][];
             /** Seeds */
             seeds: number[];
+        };
+        /**
+         * StudyRunExport
+         * @description A study run exported whole (``exportStudyRun?format=json``): the frozen definition and every cell.
+         */
+        StudyRunExport: {
+            /** Cells */
+            cells: components["schemas"]["StudyCellExport"][];
+            definition: components["schemas"]["StudyRunDefinition"];
+            run: components["schemas"]["StudyRunExportRef"];
+            study: components["schemas"]["StudyExportRef"];
+        };
+        /** StudyRunExportRef */
+        StudyRunExportRef: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Definition Digest */
+            definition_digest: string;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Matrix Digest */
+            matrix_digest: string;
+            /** Run Number */
+            run_number: number;
+            /** State */
+            state: string;
         };
         /**
          * StudyRunProblem
@@ -15207,6 +15327,70 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Missing or invalid account credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account role, API-key permission, or Engine allow-list does not permit this request. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The request does not satisfy the contract; `diagnostics` says where. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Account authentication is not configured on this deployment. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    exportStudyRun: {
+        parameters: {
+            query: {
+                /** @description `csv`: one row per cell; `json`: the frozen definition and every cell. */
+                format: "csv" | "json";
+            };
+            header?: never;
+            path: {
+                org: string;
+                study: string;
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The run as an attachment: a JSON document, or CSV with one row per cell. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudyRunExport"];
+                    "text/csv": string;
                 };
             };
             /** @description Missing or invalid account credential. */

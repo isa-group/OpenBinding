@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import itertools
+import json
 from collections import defaultdict
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from typing import Any
 
 from .models.platform import StudyDefinition
@@ -165,3 +168,69 @@ def pareto_fronts(cells: Iterable[Mapping[str, Any]], problems: Mapping[str, Map
             "points": [by_point[id(point)] for point in nondominated([point for point, _ in entries])],
         })
     return sorted(fronts, key=lambda front: (front["problem"]["slug"], front["revision"], front["objectives"]))
+
+
+#: The fixed leading columns of a study run's CSV export, in order; ``objective.<name>`` and ``metric.<name>``
+#: columns follow, each group sorted by name.
+EXPORT_COLUMNS = (
+    "cell_id", "problem", "revision", "engine_namespace", "engine_name", "engine_version", "mode", "parameters",
+    "seed", "status", "feasible", "runtime_seconds",
+)
+#: Cell metrics that have a column of their own (or are the objectives): not repeated as ``metric.<name>``.
+_COLUMN_METRICS = frozenset({"status", "feasible", "runtimeSeconds", "objectives", "engine", "seed"})
+
+
+def _cell_value(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    return str(value)
+
+
+def export_csv(cells: list[Mapping[str, Any]]) -> Iterator[str]:
+    """A study run's cells as CSV (RFC 4180, header first), one row per cell in cell order.
+
+    Each cell is an export cell (``export_cells``). Its ``status`` is the cell's state; ``feasible`` and
+    ``runtime_seconds`` come from its metrics; ``objective.<name>`` columns hold its objectives and
+    ``metric.<name>`` columns its other metrics, for every name any cell has. A value a cell lacks is empty.
+    """
+    objectives = sorted({str(name) for cell in cells for name in (cell["metrics"].get("objectives") or {})})
+    metrics = sorted({str(name) for cell in cells for name in cell["metrics"] if name not in _COLUMN_METRICS})
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\r\n")
+
+    def line(values: list[Any]) -> str:
+        writer.writerow([_cell_value(value) for value in values])
+        text = buffer.getvalue()
+        buffer.seek(0)
+        buffer.truncate()
+        return text
+
+    yield line([
+        *EXPORT_COLUMNS, *(f"objective.{name}" for name in objectives), *(f"metric.{name}" for name in metrics),
+    ])
+    for cell in cells:
+        engine, measured = cell["engine"], cell["metrics"]
+        values = measured.get("objectives") if isinstance(measured.get("objectives"), dict) else {}
+        yield line([
+            cell["id"], cell["problem"], cell["revision"], engine.get("namespace"), engine.get("name"),
+            engine.get("version"), engine.get("mode"), cell["parameters"], cell["seed"], cell["state"],
+            measured.get("feasible"), measured.get("runtimeSeconds"),
+            *(values.get(name) for name in objectives),
+            *(measured.get(name) for name in metrics),
+        ])
+
+
+def export_json(head: Mapping[str, Any], cells: list[Mapping[str, Any]]) -> Iterator[str]:
+    """A study run as one JSON document, ``{study, run, definition, cells}``, written a cell at a time.
+
+    ``head`` holds ``study``, ``run`` and ``definition``; every value is JSON already.
+    """
+    opening = json.dumps(dict(head), sort_keys=True)
+    yield opening[:-1] + ', "cells": ['
+    for index, cell in enumerate(cells):
+        yield ("," if index else "") + json.dumps(dict(cell), sort_keys=True)
+    yield "]}"
